@@ -1232,6 +1232,23 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one interpolated argument without a display representation.
+    pub(in crate::check) fn report_template_argument_not_displayable(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::TemplateArgumentNotDisplayable {
+            anchor,
+            module,
+            argument: self.format_type(ty),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
     /// Report one operator application that matches no overload.
     pub(in crate::check) fn report_no_matching_operator(
         &mut self,

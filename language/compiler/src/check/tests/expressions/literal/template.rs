@@ -29,8 +29,9 @@ const greeting = `hello ${name}`;
 /// @type.node source="`hello ${name}`" type=string
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
+/// @resolution.operator source=name kind=builtin
 
-/// @check.stats.solve variables=2 types=5 constraints=0 obligations=2 solutions=2 bounds=0 decisions=3
+/// @check.stats.solve variables=2 types=5 constraints=0 obligations=2 solutions=2 bounds=0 decisions=4
 "#,
     );
 }
@@ -90,4 +91,127 @@ const value: number = `hello`;
 /// @diagnostic.related line=2 column=14 span="number" line_source="const value: number = `hello`;" message="expected due to this annotation"
 "#,
     );
+}
+
+#[test]
+fn test_render_template_arguments_through_display() {
+    let session = TestSession::single(
+        r#"
+import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
+import { Display } from "destack:ops";
+
+struct Point {
+    x: int32;
+}
+
+extension of Point implements Display {
+    display(&readonly this): MaybeOwned<string> {
+        return todo("Point.display");
+    }
+}
+
+function label(point: Point): string {
+    return `point ${point}`;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
+import { Display } from "destack:ops";
+
+struct Point {
+    x: int32;
+}
+
+extension of Point implements Display {
+    display(&readonly this): MaybeOwned<string, ^string, 'l0> {
+        return todo("Point.display" as string | undefined);
+    }
+}
+
+function label(point: Point): string {
+    return `point ${point}`;
+}
+
+=== checked ===
+import { todo } from "destack:error";
+import { MaybeOwned } from "destack:memory";
+import { Display } from "destack:ops";
+
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+}
+
+extension of Point implements Display {
+/// @definition.extension symbol=<module>#2 form=local target=Point
+/// @definition.implements symbol=<module>#2 source=Display target=ops.format.Display
+/// @definition.method symbol=display slot=display type=<display.'l0>(this: &display.'l0 readonly this) => memory.cow.cow.MaybeOwned<string, Owned<string>, display.'l0>
+/// @resolution.name source=Point target=Point
+/// @resolution.name source=Display target=ops.format.Display
+
+    display(&readonly this): MaybeOwned<string> {
+    /// @generic.template symbol=display parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=display type=<display.'l0>(this: &display.'l0 readonly this) => memory.cow.cow.MaybeOwned<string, Owned<string>, display.'l0>
+    /// @type.symbol symbol=display.this source="&readonly this" type=&display.'l0 readonly this
+    /// @resolution.name source=MaybeOwned target=memory.cow.cow.MaybeOwned
+
+        return todo("Point.display");
+        /// @type.node source="todo(\"Point.display\")" type=never
+        /// @type.node source=todo type=(string | undefined) => never
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"Point.display\")" parameters=(string | undefined) arguments=(provided("Point.display") as string | undefined) return=never kind=symbol target=error.panic.todo
+        /// @type.node source="\"Point.display\"" type="Point.display"
+
+    }
+}
+
+function label(point: Point): string {
+/// @type.symbol symbol=label type=(Point) => string
+/// @type.symbol symbol=label.point source="point: Point" type=Point
+/// @resolution.name source=Point target=Point
+
+    return `point ${point}`;
+    /// @type.node source="`point ${point}`" type=string
+    /// @type.node source=point type=Point
+    /// @resolution.name source=point target=label.point
+    /// @resolution.operator source=point kind=call parameters=() return=memory.cow.cow.MaybeOwned<string, Owned<string>, "frame"> target=display receiver=Point adjustments=(borrow)
+
+}
+
+/// @generic.instance id="memory.cow.cow.MaybeOwned<string, Owned<string>, display.'l0>" template=memory.cow.cow.MaybeOwned arguments=(string, Owned<string>, display.'l0)
+"#,
+    );
+}
+
+#[test]
+fn test_reject_template_arguments_without_display() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+}
+
+function label(point: Point): string {
+    return `point ${point}`;
+}
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics("main.ds", r#"
+/// @diagnostic.error id=template-argument-not-displayable message="template argument of type 'Point' has no display representation"
+/// @diagnostic.label line=7 column=12 span="`point ${point}`" line_source="return `point ${point}`;"
+"#);
 }

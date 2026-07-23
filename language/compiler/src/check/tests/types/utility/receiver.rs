@@ -80,10 +80,10 @@ const ok: Receiver = { anything: true };
 fn test_omit_this_parameter_removes_explicit_receiver() {
     let session = TestSession::single(
         r#"
-type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
+type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
 
 const fn: Fn = (value) => `${value}`;
-fn(1) satisfies string;
+fn("one") satisfies string;
 "#,
     );
 
@@ -92,30 +92,31 @@ fn(1) satisfies string;
         DirRows::checked(),
         r#"
 === annotated ===
-type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
+type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
 
-const fn: Fn = (value: float64): string => `${value}`;
-fn(1) satisfies string;
+const fn: Fn = (value: string): string => `${value}`;
+fn("one") satisfies string;
 
 === checked ===
-type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
-/// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" type=OmitThisParameter<Function<(float64,), string>> reduced=Function<(float64,), string>
-/// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" value=OmitThisParameter<Function<(float64,), string>> reduced=Function<(float64,), string>
+type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
+/// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" type=OmitThisParameter<Function<(string,), string>> reduced=Function<(string,), string>
+/// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" value=OmitThisParameter<Function<(string,), string>> reduced=Function<(string,), string>
 /// @resolution.name source=OmitThisParameter target=types.function.OmitThisParameter
 
 const fn: Fn = (value) => `${value}`;
-/// @type.symbol symbol=fn source=fn type=Fn reduced=Function<(float64,), string>
+/// @type.symbol symbol=fn source=fn type=Fn reduced=Function<(string,), string>
 /// @resolution.pattern source=fn kind=binding target=fn
 /// @resolution.name source=Fn target=Fn
-/// @type.symbol symbol=symbol6 source="(value) => `${value}`" type=Function<(float64,), string>
-/// @type.symbol symbol=symbol6.value source=value type=float64
+/// @type.symbol symbol=symbol6 source="(value) => `${value}`" type=Function<(string,), string>
+/// @type.symbol symbol=symbol6.value source=value type=string
 /// @resolution.name source=value target=symbol6.value
+/// @resolution.operator source=value kind=builtin
 
-fn(1) satisfies string;
+fn("one") satisfies string;
 /// @resolution.name source=fn target=fn
-/// @resolution.call source=fn(1) parameters=(float64) arguments=(provided(1) as float64) return=string kind=expression
+/// @resolution.call source="fn(\"one\")" parameters=(string) arguments=(provided("one") as string) return=string kind=expression
 
-/// @generic.instance id="OmitThisParameter<Function<(float64,), string>>" template=types.function.OmitThisParameter arguments=(Function<(float64,), string>)
+/// @generic.instance id="OmitThisParameter<Function<(string,), string>>" template=types.function.OmitThisParameter arguments=(Function<(string,), string>)
 "#,
     );
 }

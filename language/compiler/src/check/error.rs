@@ -698,6 +698,25 @@ pub enum CheckError {
         visibility: String,
     },
 
+    /// One interpolated template argument has no display representation.
+    ///
+    /// ```ds
+    /// struct Point {}
+    /// const label = `${Point {}}`;
+    /// ```
+    #[diagnostic(
+        id = "template-argument-not-displayable",
+        message = "template argument of type '{argument}' has no display representation"
+    )]
+    TemplateArgumentNotDisplayable {
+        /// Report the interpolated argument.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The interpolated argument type.
+        argument: String,
+    },
+
     /// No operator overload matches the supplied operands.
     ///
     /// ```ds

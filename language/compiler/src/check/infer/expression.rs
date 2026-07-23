@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::check::{
     Answer, BodyState, Cause, CauseKind, ConstructResult, Decision, Expectation, FlowSite,
-    PlaceUse, ValueUse, answer,
+    PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -311,7 +311,8 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         if let dir::TemplateLiteral::InterpolatedString { arguments, .. } = value {
             for argument in arguments {
-                answer!(self.infer_argument_type(site, argument)?);
+                let ty = answer!(self.infer_argument_type(site, argument)?);
+                answer!(self.select_template_argument(site, argument, ty)?);
             }
         }
 
@@ -321,6 +322,42 @@ impl BodyState<'_, '_> {
         )?;
 
         Ok(Answer::Ready(ty))
+    }
+
+    /// Select how one interpolated argument reaches its string form.
+    fn select_template_argument(
+        &mut self,
+        site: FlowSite,
+        argument: dir::LocalNodeId<dir::Argument>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<()>> {
+        let module = site.node.module_id;
+        let origin = site.origin();
+        let node = argument.into_global_any(module);
+
+        // string arguments pass through without conversion
+        let string = self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::String))?;
+        if answer!(self.decide_relation(origin, Relation::Assignable, ty, string)?) {
+            self.commit_decision(node, Decision::Operator(dir::OperatorResolution::Builtin))?;
+
+            return Ok(Answer::Ready(()));
+        }
+
+        // other arguments render through the Display protocol
+        let key = dir::StaticKey::Name(self.strings().intern("display"));
+        let protocol = self.language_protocol(dir::LanguageItem::Display, Vec::new())?;
+        let Some(call) =
+            answer!(self.select_protocol_call(origin, ty, ty, key, &protocol, &[], &[])?)
+        else {
+            self.report_template_argument_not_displayable(origin, ty)?;
+            self.commit_decision(node, Decision::Rejected)?;
+
+            return Ok(Answer::Ready(()));
+        };
+        let resolution = dir::OperatorResolution::Call(Box::new(call.resolution));
+        self.commit_decision(node, Decision::Operator(resolution))?;
+
+        Ok(Answer::Ready(()))
     }
 
     /// Reject expression inference that reached solve without a matching owner.
