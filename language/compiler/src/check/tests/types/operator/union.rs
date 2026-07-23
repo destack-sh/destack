@@ -213,22 +213,22 @@ shape.draw();
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'l0>(this: &Rectangle.draw.'l0 exclusive this) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive this) => void
 
     draw(): void {}
-    /// @generic.template symbol=Rectangle.draw parameters=('l0)
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'l0>(this: &Rectangle.draw.'l0 exclusive this) => void
+    /// @generic.template symbol=Rectangle.draw parameters=('a)
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive this) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'l0>(this: &Circle.draw.'l0 exclusive this) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive this) => void
 
     draw(): void {}
-    /// @generic.template symbol=Circle.draw parameters=('l0)
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'l0>(this: &Circle.draw.'l0 exclusive this) => void
+    /// @generic.template symbol=Circle.draw parameters=('a)
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive this) => void
 
 }
 
@@ -289,22 +289,22 @@ function draw(shape: Shape): void {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'l0>(this: &Rectangle.draw.'l0 exclusive this) => void
+/// @definition.method symbol=Rectangle.draw source="draw(): void {}" slot=draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive this) => void
 
     draw(): void {}
-    /// @generic.template symbol=Rectangle.draw parameters=('l0)
-    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'l0>(this: &Rectangle.draw.'l0 exclusive this) => void
+    /// @generic.template symbol=Rectangle.draw parameters=('a)
+    /// @type.symbol symbol=Rectangle.draw source="draw(): void {}" type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive this) => void
 
 }
 
 struct Circle {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.struct symbol=Circle
-/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'l0>(this: &Circle.draw.'l0 exclusive this) => void
+/// @definition.method symbol=Circle.draw source="draw(): void {}" slot=draw type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive this) => void
 
     draw(): void {}
-    /// @generic.template symbol=Circle.draw parameters=('l0)
-    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'l0>(this: &Circle.draw.'l0 exclusive this) => void
+    /// @generic.template symbol=Circle.draw parameters=('a)
+    /// @type.symbol symbol=Circle.draw source="draw(): void {}" type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive this) => void
 
 }
 

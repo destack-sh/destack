@@ -225,8 +225,8 @@ modify(&exclusive user);
 class User {}
 
 declare const user: local User;
-declare function inspect<'l0>(value: local &'l0 readonly User): void;
-declare function modify<'l0>(value: local &'l0 User): void;
+declare function inspect<'a>(value: local &'a readonly User): void;
+declare function modify<'a>(value: local &'a User): void;
 
 inspect(&user);
 modify(&user);
@@ -244,15 +244,15 @@ declare const user: local User;
 /// @resolution.name source=User target=User
 
 declare function inspect(value: local &readonly User): void;
-/// @generic.template symbol=inspect parameters=('l0)
-/// @type.symbol symbol=inspect source="declare function inspect(value: local &readonly User): void" type=<inspect.'l0>(Placed<&inspect.'l0 readonly User, "local">) => void
-/// @type.symbol symbol=inspect.value source="value: local &readonly User" type=Placed<&inspect.'l0 readonly User, "local">
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: local &readonly User): void" type=<inspect.'a>(Placed<&inspect.'a readonly User, "local">) => void
+/// @type.symbol symbol=inspect.value source="value: local &readonly User" type=Placed<&inspect.'a readonly User, "local">
 /// @resolution.name source=User target=User
 
 declare function modify(value: local &User): void;
-/// @generic.template symbol=modify parameters=('l0)
-/// @type.symbol symbol=modify source="declare function modify(value: local &User): void" type=<modify.'l0>(Placed<&modify.'l0 User, "local">) => void
-/// @type.symbol symbol=modify.value source="value: local &User" type=Placed<&modify.'l0 User, "local">
+/// @generic.template symbol=modify parameters=('a)
+/// @type.symbol symbol=modify source="declare function modify(value: local &User): void" type=<modify.'a>(Placed<&modify.'a User, "local">) => void
+/// @type.symbol symbol=modify.value source="value: local &User" type=Placed<&modify.'a User, "local">
 /// @resolution.name source=User target=User
 
 inspect(&user);
@@ -312,8 +312,8 @@ class User {}
 
 declare const readonlyView: local &'static readonly User;
 declare const mutableView: local &'static User;
-declare function modify<'l0>(value: local &'l0 User): void;
-declare function replace<'l0>(value: local &'l0 exclusive User): void;
+declare function modify<'a>(value: local &'a User): void;
+declare function replace<'a>(value: local &'a exclusive User): void;
 
 modify(readonlyView);
 replace(readonlyView);
@@ -335,15 +335,15 @@ declare const mutableView: local &User;
 /// @resolution.name source=User target=User
 
 declare function modify(value: local &User): void;
-/// @generic.template symbol=modify parameters=('l0)
-/// @type.symbol symbol=modify source="declare function modify(value: local &User): void" type=<modify.'l0>(Placed<&modify.'l0 User, "local">) => void
-/// @type.symbol symbol=modify.value source="value: local &User" type=Placed<&modify.'l0 User, "local">
+/// @generic.template symbol=modify parameters=('a)
+/// @type.symbol symbol=modify source="declare function modify(value: local &User): void" type=<modify.'a>(Placed<&modify.'a User, "local">) => void
+/// @type.symbol symbol=modify.value source="value: local &User" type=Placed<&modify.'a User, "local">
 /// @resolution.name source=User target=User
 
 declare function replace(value: local &exclusive User): void;
-/// @generic.template symbol=replace parameters=('l0)
-/// @type.symbol symbol=replace source="declare function replace(value: local &exclusive User): void" type=<replace.'l0>(Placed<&replace.'l0 exclusive User, "local">) => void
-/// @type.symbol symbol=replace.value source="value: local &exclusive User" type=Placed<&replace.'l0 exclusive User, "local">
+/// @generic.template symbol=replace parameters=('a)
+/// @type.symbol symbol=replace source="declare function replace(value: local &exclusive User): void" type=<replace.'a>(Placed<&replace.'a exclusive User, "local">) => void
+/// @type.symbol symbol=replace.value source="value: local &exclusive User" type=Placed<&replace.'a exclusive User, "local">
 /// @resolution.name source=User target=User
 
 modify(readonlyView);
@@ -400,10 +400,10 @@ struct Node {
     id: int32;
 }
 
-function access<'l0, 'l1, 'l2>(
-    read: &'l0 readonly Node,
-    write: &'l1 Node,
-    exclusive: &'l2 exclusive Node,
+function access<'a, 'b, 'c>(
+    read: &'a readonly Node,
+    write: &'b Node,
+    exclusive: &'c exclusive Node,
 ): void {
     read.id;
     write.id;
@@ -422,26 +422,26 @@ struct Node {
 }
 
 function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node): void {
-/// @generic.template symbol=access parameters=('l0, 'l1, 'l2)
-/// @type.symbol symbol=access type=<access.'l0, access.'l1, access.'l2>(&access.'l0 readonly Node, &access.'l1 Node, &access.'l2 exclusive Node) => void
-/// @type.symbol symbol=access.read source="read: &readonly Node" type=&access.'l0 readonly Node
+/// @generic.template symbol=access parameters=('a, 'b, 'c)
+/// @type.symbol symbol=access type=<access.'a, access.'b, access.'c>(&access.'a readonly Node, &access.'b Node, &access.'c exclusive Node) => void
+/// @type.symbol symbol=access.read source="read: &readonly Node" type=&access.'a readonly Node
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=access.write source="write: &Node" type=&access.'l1 Node
+/// @type.symbol symbol=access.write source="write: &Node" type=&access.'b Node
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=access.exclusive source="exclusive: &exclusive Node" type=&access.'l2 exclusive Node
+/// @type.symbol symbol=access.exclusive source="exclusive: &exclusive Node" type=&access.'c exclusive Node
 /// @resolution.name source=Node target=Node
 
     read.id;
     /// @resolution.name source=read target=access.read
-    /// @resolution.member source=read.id receiver=&access.'l0 readonly Node kind=symbol target=Node.id
+    /// @resolution.member source=read.id receiver=&access.'a readonly Node kind=symbol target=Node.id
 
     write.id;
     /// @resolution.name source=write target=access.write
-    /// @resolution.member source=write.id receiver=&access.'l1 Node kind=symbol target=Node.id
+    /// @resolution.member source=write.id receiver=&access.'b Node kind=symbol target=Node.id
 
     exclusive.id;
     /// @resolution.name source=exclusive target=access.exclusive
-    /// @resolution.member source=exclusive.id receiver=&access.'l2 exclusive Node kind=symbol target=Node.id
+    /// @resolution.member source=exclusive.id receiver=&access.'c exclusive Node kind=symbol target=Node.id
 
 }
 "#,

@@ -244,35 +244,35 @@ struct Slice<in out T> {
 extension<T> of Slice<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Slice<T#2>
-/// @definition.method symbol=first slot=first type=<first.'l0>(this: &first.'l0 readonly Slice<T#2>) => usize
-/// @definition.method symbol=size slot=size role=getter type=<size.'l0>(this: &size.'l0 readonly Slice<T#2>) => usize
+/// @definition.method symbol=first slot=first type=<first.'a>(this: &first.'a readonly Slice<T#2>) => usize
+/// @definition.method symbol=size slot=size role=getter type=<size.'a>(this: &size.'a readonly Slice<T#2>) => usize
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Slice target=Slice
 /// @resolution.name source=T target=T
 
     get size(this: &readonly Slice<T>): usize {
-    /// @generic.template symbol=size parent=template#1 parameters=('l0)
-    /// @type.symbol symbol=size type=<size.'l0>(this: &size.'l0 readonly Slice<T#2>) => usize
-    /// @type.symbol symbol=size.this source="this: &readonly Slice<T>" type=&size.'l0 readonly Slice<T#2>
+    /// @generic.template symbol=size parent=template#1 parameters=('a)
+    /// @type.symbol symbol=size type=<size.'a>(this: &size.'a readonly Slice<T#2>) => usize
+    /// @type.symbol symbol=size.this source="this: &readonly Slice<T>" type=&size.'a readonly Slice<T#2>
     /// @resolution.name source=Slice target=Slice
     /// @resolution.name source=T target=T
 
         this.length
-        /// @resolution.member source=this.length receiver=&size.'l0 readonly Slice<T#2> kind=symbol target=Slice.length
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&size.'l0 readonly Slice<T#2>
+        /// @resolution.member source=this.length receiver=&size.'a readonly Slice<T#2> kind=symbol target=Slice.length
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&size.'a readonly Slice<T#2>
 
     }
 
     first(this: &readonly Slice<T>): usize {
-    /// @generic.template symbol=first parent=template#1 parameters=('l0)
-    /// @type.symbol symbol=first type=<first.'l0>(this: &first.'l0 readonly Slice<T#2>) => usize
-    /// @type.symbol symbol=first.this source="this: &readonly Slice<T>" type=&first.'l0 readonly Slice<T#2>
+    /// @generic.template symbol=first parent=template#1 parameters=('a)
+    /// @type.symbol symbol=first type=<first.'a>(this: &first.'a readonly Slice<T#2>) => usize
+    /// @type.symbol symbol=first.this source="this: &readonly Slice<T>" type=&first.'a readonly Slice<T#2>
     /// @resolution.name source=Slice target=Slice
     /// @resolution.name source=T target=T
 
         this.size
-        /// @resolution.member source=this.size receiver=&first.'l0 readonly Slice<T#2> kind=symbol target=size
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&first.'l0 readonly Slice<T#2>
+        /// @resolution.member source=this.size receiver=&first.'a readonly Slice<T#2> kind=symbol target=size
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&first.'a readonly Slice<T#2>
 
     }
 }
@@ -331,32 +331,32 @@ struct Buffer {
 
 extension of Buffer {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
-/// @definition.method symbol=grow source="grow(this: &exclusive Buffer): void {}" slot=grow type=<grow.'l0>(this: &grow.'l0 exclusive Buffer) => void
-/// @definition.method symbol=peek slot=peek type=<peek.'l0>(this: &peek.'l0 readonly Buffer) => void
+/// @definition.method symbol=grow source="grow(this: &exclusive Buffer): void {}" slot=grow type=<grow.'a>(this: &grow.'a exclusive Buffer) => void
+/// @definition.method symbol=peek slot=peek type=<peek.'a>(this: &peek.'a readonly Buffer) => void
 /// @resolution.name source=Buffer target=Buffer
 
     grow(this: &exclusive Buffer): void {}
-    /// @generic.template symbol=grow parameters=('l0)
-    /// @type.symbol symbol=grow source="grow(this: &exclusive Buffer): void {}" type=<grow.'l0>(this: &grow.'l0 exclusive Buffer) => void
-    /// @type.symbol symbol=grow.this source="this: &exclusive Buffer" type=&grow.'l0 exclusive Buffer
+    /// @generic.template symbol=grow parameters=('a)
+    /// @type.symbol symbol=grow source="grow(this: &exclusive Buffer): void {}" type=<grow.'a>(this: &grow.'a exclusive Buffer) => void
+    /// @type.symbol symbol=grow.this source="this: &exclusive Buffer" type=&grow.'a exclusive Buffer
     /// @resolution.name source=Buffer target=Buffer
 
     peek(this: &readonly Buffer): void {
-    /// @generic.template symbol=peek parameters=('l0)
-    /// @type.symbol symbol=peek type=<peek.'l0>(this: &peek.'l0 readonly Buffer) => void
-    /// @type.symbol symbol=peek.this source="this: &readonly Buffer" type=&peek.'l0 readonly Buffer
+    /// @generic.template symbol=peek parameters=('a)
+    /// @type.symbol symbol=peek type=<peek.'a>(this: &peek.'a readonly Buffer) => void
+    /// @type.symbol symbol=peek.this source="this: &readonly Buffer" type=&peek.'a readonly Buffer
     /// @resolution.name source=Buffer target=Buffer
 
         this.grow()
-        /// @resolution.member source=this.grow receiver=&peek.'l0 readonly Buffer kind=symbol target=grow
-        /// @resolution.call source=this.grow() parameters=() return=void kind=symbol target=grow receiver=&peek.'l0 readonly Buffer
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&peek.'l0 readonly Buffer
+        /// @resolution.member source=this.grow receiver=&peek.'a readonly Buffer kind=symbol target=grow
+        /// @resolution.call source=this.grow() parameters=() return=void kind=symbol target=grow receiver=&peek.'a readonly Buffer
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&peek.'a readonly Buffer
 
     }
 }
 "#,
         r#"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'l0 readonly Buffer' is not assignable to the method's 'this' type '&exclusive Buffer'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'a readonly Buffer' is not assignable to the method's 'this' type '&exclusive Buffer'"
 /// @diagnostic.label line=10 column=9 span="this.grow()" line_source="this.grow()"
 "#,
     );

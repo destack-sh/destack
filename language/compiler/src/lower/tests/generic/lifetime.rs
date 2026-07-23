@@ -22,8 +22,8 @@ type User {
     id: int32;
 }
 
-function main.identity<L0: lifetime>(v0: ref<User, borrowed, lifetime(L0), readonly>): ref<User, borrowed, lifetime(L0), readonly> {
-entry(v0: ref<User, borrowed, lifetime(L0), readonly>):
+function main.identity<a: lifetime>(v0: ref<User, borrowed, lifetime(a), readonly>): ref<User, borrowed, lifetime(a), readonly> {
+entry(v0: ref<User, borrowed, lifetime(a), readonly>):
     return v0
 }
 /// @layout.struct name=User size=4 align=4
@@ -56,8 +56,8 @@ type User {
     id: int32;
 }
 
-function main.identity<L0: lifetime>(v0: ref<User, borrowed, lifetime(L0), readonly>): ref<User, borrowed, lifetime(L0), readonly> {
-entry(v0: ref<User, borrowed, lifetime(L0), readonly>):
+function main.identity<L: lifetime>(v0: ref<User, borrowed, lifetime(L), readonly>): ref<User, borrowed, lifetime(L), readonly> {
+entry(v0: ref<User, borrowed, lifetime(L), readonly>):
     return v0
 }
 /// @layout.struct name=User size=4 align=4
@@ -135,18 +135,18 @@ type User {
 }
 
 @copy
-type View<L0: lifetime> {
-    user: ref<User, borrowed, lifetime(L0), readonly>;
+type View<a: lifetime> {
+    user: ref<User, borrowed, lifetime(a), readonly>;
 }
 
-function main.retain<L0: lifetime>(v0: View<lifetime(L0)>): View<lifetime(L0)> {
-entry(v0: View<lifetime(L0)>):
+function main.retain<a: lifetime>(v0: View<lifetime(a)>): View<lifetime(a)> {
+entry(v0: View<lifetime(a)>):
     return v0
 }
 
-function main.get<L0: lifetime>(v0: View<lifetime(L0)>): ref<User, borrowed, lifetime(L0), readonly> {
-entry(v0: View<lifetime(L0)>):
-    v1: ref<User, borrowed, lifetime(L0), readonly> = field.get v0, 0
+function main.get<a: lifetime>(v0: View<lifetime(a)>): ref<User, borrowed, lifetime(a), readonly> {
+entry(v0: View<lifetime(a)>):
+    v1: ref<User, borrowed, lifetime(a), readonly> = field.get v0, 0
     return v1
 }
 
@@ -193,17 +193,17 @@ type User {
 }
 
 @copy
-type View<L0: lifetime> {
-    user: ref<User, borrowed, lifetime(L0), readonly>;
+type View<L: lifetime> {
+    user: ref<User, borrowed, lifetime(L), readonly>;
 }
 
 @copy
-type Holder<L0: lifetime> {
-    view: View<lifetime(L0)>;
+type Holder<L: lifetime> {
+    view: View<lifetime(L)>;
 }
 
-function main.retain<L0: lifetime>(v0: Holder<lifetime(L0)>): Holder<lifetime(L0)> {
-entry(v0: Holder<lifetime(L0)>):
+function main.retain<L: lifetime>(v0: Holder<lifetime(L)>): Holder<lifetime(L)> {
+entry(v0: Holder<lifetime(L)>):
     return v0
 }
 /// @layout.struct name=User size=4 align=4
@@ -245,8 +245,8 @@ type User {
     id: int32;
 }
 
-function main.inspectBorrowed<L0: lifetime>(v0: int32, v1: ref<User, borrowed, lifetime(L0), readonly>): int32 {
-entry(v0: int32, v1: ref<User, borrowed, lifetime(L0), readonly>):
+function main.inspectBorrowed<a: lifetime>(v0: int32, v1: ref<User, borrowed, lifetime(a), readonly>): int32 {
+entry(v0: int32, v1: ref<User, borrowed, lifetime(a), readonly>):
     v2: int32 = call main.inspect(v0, v1)
     return v2
 }
@@ -258,8 +258,8 @@ entry(v0: int32, v1: ref<User, managed, mutable>):
     return v3
 }
 
-function main.inspect<L0: lifetime>(v0: int32, v1: ref<User, borrowed, lifetime(L0), readonly>): int32 {
-entry(v0: int32, v1: ref<User, borrowed, lifetime(L0), readonly>):
+function main.inspect<a: lifetime>(v0: int32, v1: ref<User, borrowed, lifetime(a), readonly>): int32 {
+entry(v0: int32, v1: ref<User, borrowed, lifetime(a), readonly>):
     v2: ref<int32, borrowed, readonly> = field.address v1, 0
     v3: int32 = load v2
     return v3

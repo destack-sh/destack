@@ -417,8 +417,8 @@ entry(v0: ref<Counter, borrowed, exclusive>, v1: int32):
     return
 }
 
-function main.peek<L0: lifetime>(v0: ref<Counter, borrowed, lifetime(L0), readonly>): int32 {
-entry(v0: ref<Counter, borrowed, lifetime(L0), readonly>):
+function main.peek<a: lifetime>(v0: ref<Counter, borrowed, lifetime(a), readonly>): int32 {
+entry(v0: ref<Counter, borrowed, lifetime(a), readonly>):
     v1: ref<int32, borrowed, readonly> = field.address v0, 0
     v2: int32 = load v1
     return v2

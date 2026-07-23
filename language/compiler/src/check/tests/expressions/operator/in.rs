@@ -115,7 +115,7 @@ found satisfies boolean;
         r#"
 === annotated ===
 class Bag {
-    has(key: &'l0 readonly string): boolean {
+    has(key: &'a readonly string): boolean {
         return true;
     }
 }
@@ -129,12 +129,12 @@ found satisfies boolean;
 class Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag
-/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'l0>(this: this, &Bag.has.'l0 readonly string) => boolean
+/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a>(this: this, &Bag.has.'a readonly string) => boolean
 
     has(key: &readonly string): boolean {
-    /// @generic.template symbol=Bag.has parameters=('l0)
-    /// @type.symbol symbol=Bag.has type=<Bag.has.'l0>(this: this, &Bag.has.'l0 readonly string) => boolean
-    /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=&Bag.has.'l0 readonly string
+    /// @generic.template symbol=Bag.has parameters=('a)
+    /// @type.symbol symbol=Bag.has type=<Bag.has.'a>(this: this, &Bag.has.'a readonly string) => boolean
+    /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=&Bag.has.'a readonly string
 
         return true;
         /// @type.node source=true type=true

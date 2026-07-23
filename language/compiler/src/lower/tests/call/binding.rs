@@ -60,14 +60,14 @@ type User {
     id: int32;
 }
 
-function main.read<L0: lifetime>(v0: ref<User, borrowed, lifetime(L0), readonly>): int32 {
-entry(v0: ref<User, borrowed, lifetime(L0), readonly>):
+function main.read<a: lifetime>(v0: ref<User, borrowed, lifetime(a), readonly>): int32 {
+entry(v0: ref<User, borrowed, lifetime(a), readonly>):
     v1: int32 = call host.user.inspect(v0)
     return v1
 }
 
 @binding("host.user.inspect")
-external function host.user.inspect<L0: lifetime>(ref<User, borrowed, lifetime(L0), readonly>): int32
+external function host.user.inspect<a: lifetime>(ref<User, borrowed, lifetime(a), readonly>): int32
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
 "#,

@@ -26,8 +26,8 @@ type LocalReadonly = local readonly User;
 type ReadonlyLocal = readonly local User;
 type SharedOwned = shared ^User;
 type OwnedShared = ^shared User;
-type LocalBorrowed<'l0> = local &readonly User;
-type BorrowedLocal<'l0> = &readonly local User;
+type LocalBorrowed<'a> = local &readonly User;
+type BorrowedLocal<'a> = &readonly local User;
 
 === checked ===
 class User {}
@@ -55,15 +55,15 @@ type OwnedShared = ^shared User;
 /// @resolution.name source=User target=User
 
 type LocalBorrowed = local &readonly User;
-/// @generic.template symbol=LocalBorrowed parameters=('l0)
-/// @type.symbol symbol=LocalBorrowed source="type LocalBorrowed = local &readonly User" type=Placed<&LocalBorrowed.'l0 readonly User, "local">
-/// @definition.type symbol=LocalBorrowed source="type LocalBorrowed = local &readonly User" value=Placed<&LocalBorrowed.'l0 readonly User, "local">
+/// @generic.template symbol=LocalBorrowed parameters=('a)
+/// @type.symbol symbol=LocalBorrowed source="type LocalBorrowed = local &readonly User" type=Placed<&LocalBorrowed.'a readonly User, "local">
+/// @definition.type symbol=LocalBorrowed source="type LocalBorrowed = local &readonly User" value=Placed<&LocalBorrowed.'a readonly User, "local">
 /// @resolution.name source=User target=User
 
 type BorrowedLocal = &readonly local User;
-/// @generic.template symbol=BorrowedLocal parameters=('l0)
-/// @type.symbol symbol=BorrowedLocal source="type BorrowedLocal = &readonly local User" type=Placed<&BorrowedLocal.'l0 readonly User, "local">
-/// @definition.type symbol=BorrowedLocal source="type BorrowedLocal = &readonly local User" value=Placed<&BorrowedLocal.'l0 readonly User, "local">
+/// @generic.template symbol=BorrowedLocal parameters=('a)
+/// @type.symbol symbol=BorrowedLocal source="type BorrowedLocal = &readonly local User" type=Placed<&BorrowedLocal.'a readonly User, "local">
+/// @definition.type symbol=BorrowedLocal source="type BorrowedLocal = &readonly local User" value=Placed<&BorrowedLocal.'a readonly User, "local">
 /// @resolution.name source=User target=User
 "#,
         r#"

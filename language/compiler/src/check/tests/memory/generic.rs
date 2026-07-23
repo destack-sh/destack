@@ -124,7 +124,7 @@ function replace(user: User): void {
 === annotated ===
 class User {}
 
-declare function consume<'l0>(value: &'l0 exclusive User): void;
+declare function consume<'a>(value: &'a exclusive User): void;
 
 function replace(user: User): void {
     consume(user as &'frame exclusive User);
@@ -136,9 +136,9 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function consume(value: &exclusive User): void;
-/// @generic.template symbol=consume parameters=('l0)
-/// @type.symbol symbol=consume source="declare function consume(value: &exclusive User): void" type=<consume.'l0>(&consume.'l0 exclusive User) => void
-/// @type.symbol symbol=consume.value source="value: &exclusive User" type=&consume.'l0 exclusive User
+/// @generic.template symbol=consume parameters=('a)
+/// @type.symbol symbol=consume source="declare function consume(value: &exclusive User): void" type=<consume.'a>(&consume.'a exclusive User) => void
+/// @type.symbol symbol=consume.value source="value: &exclusive User" type=&consume.'a exclusive User
 /// @resolution.name source=User target=User
 
 function replace(user: User): void {
@@ -515,7 +515,7 @@ function inspect(value: &readonly User): &readonly User {
 === annotated ===
 class User {}
 
-function inspect<'l0>(value: &'l0 readonly User): &'l0 readonly User {
+function inspect<'a>(value: &'a readonly User): &'a readonly User {
     return value;
 }
 
@@ -525,9 +525,9 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 function inspect(value: &readonly User): &readonly User {
-/// @generic.template symbol=inspect parameters=('l0)
-/// @type.symbol symbol=inspect type=<inspect.'l0>(&inspect.'l0 readonly User) => &inspect.'l0 readonly User
-/// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'l0 readonly User
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect type=<inspect.'a>(&inspect.'a readonly User) => &inspect.'a readonly User
+/// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 
@@ -565,8 +565,8 @@ struct Holder<out T> {
     value: T;
 }
 
-declare function maybe<'l0>(value: &'l0 readonly User | undefined): &readonly User | undefined;
-declare function inspect<'l0>(holder: Holder<&'l0 readonly User>): void;
+declare function maybe<'a>(value: &'a readonly User | undefined): &readonly User | undefined;
+declare function inspect<'a>(holder: Holder<&'a readonly User>): void;
 
 === checked ===
 class User {}
@@ -587,20 +587,20 @@ struct Holder<T> {
 }
 
 declare function maybe(value: &readonly User | undefined): &readonly User | undefined;
-/// @generic.template symbol=maybe parameters=('l0)
-/// @type.symbol symbol=maybe type=<maybe.'l0>(&maybe.'l0 readonly User | undefined) => &maybe.'l0 readonly User | undefined
-/// @type.symbol symbol=maybe.value source="value: &readonly User | undefined" type=&maybe.'l0 readonly User | undefined
+/// @generic.template symbol=maybe parameters=('a)
+/// @type.symbol symbol=maybe type=<maybe.'a>(&maybe.'a readonly User | undefined) => &maybe.'a readonly User | undefined
+/// @type.symbol symbol=maybe.value source="value: &readonly User | undefined" type=&maybe.'a readonly User | undefined
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 
 declare function inspect(holder: Holder<&readonly User>): void;
-/// @generic.template symbol=inspect parameters=('l0)
-/// @type.symbol symbol=inspect source="declare function inspect(holder: Holder<&readonly User>): void" type=<inspect.'l0>(Holder<&inspect.'l0 readonly User>) => void
-/// @type.symbol symbol=inspect.holder source="holder: Holder<&readonly User>" type=Holder<&inspect.'l0 readonly User>
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(holder: Holder<&readonly User>): void" type=<inspect.'a>(Holder<&inspect.'a readonly User>) => void
+/// @type.symbol symbol=inspect.holder source="holder: Holder<&readonly User>" type=Holder<&inspect.'a readonly User>
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=User target=User
 
-/// @generic.instance id="Holder<&inspect.'l0 readonly User>" template=Holder arguments=(&inspect.'l0 readonly User)
+/// @generic.instance id="Holder<&inspect.'a readonly User>" template=Holder arguments=(&inspect.'a readonly User)
 "#,
         r#"
 
@@ -765,11 +765,11 @@ interface Box<in out T> {
 }
 
 extension<T> of Box<T> {
-    borrow(&readonly this): &'l0 readonly T {
+    borrow(&readonly this): &'a readonly T {
         todo("borrow" as string | undefined)
     }
 
-    forward(&readonly this): &'l0 readonly T {
+    forward(&readonly this): &'a readonly T {
         this.borrow<T>()
     }
 }
@@ -796,16 +796,16 @@ interface Box<T> { value: T; }
 extension<T> of Box<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
-/// @definition.method symbol=borrow slot=borrow type=<borrow.'l0>(this: &borrow.'l0 readonly this) => &borrow.'l0 readonly T#2
-/// @definition.method symbol=forward slot=forward type=<forward.'l0>(this: &forward.'l0 readonly this) => &forward.'l0 readonly T#2
+/// @definition.method symbol=borrow slot=borrow type=<borrow.'a>(this: &borrow.'a readonly this) => &borrow.'a readonly T#2
+/// @definition.method symbol=forward slot=forward type=<forward.'a>(this: &forward.'a readonly this) => &forward.'a readonly T#2
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
 
     borrow(&readonly this): &readonly T {
-    /// @generic.template symbol=borrow parent=template#1 parameters=('l0)
-    /// @type.symbol symbol=borrow type=<borrow.'l0>(this: &borrow.'l0 readonly this) => &borrow.'l0 readonly T#2
-    /// @type.symbol symbol=borrow.this source="&readonly this" type=&borrow.'l0 readonly this
+    /// @generic.template symbol=borrow parent=template#1 parameters=('a)
+    /// @type.symbol symbol=borrow type=<borrow.'a>(this: &borrow.'a readonly this) => &borrow.'a readonly T#2
+    /// @type.symbol symbol=borrow.this source="&readonly this" type=&borrow.'a readonly this
     /// @resolution.name source=T target=T
 
         todo("borrow")
@@ -815,15 +815,15 @@ extension<T> of Box<T> {
     }
 
     forward(&readonly this): &readonly T {
-    /// @generic.template symbol=forward parent=template#1 parameters=('l0)
-    /// @type.symbol symbol=forward type=<forward.'l0>(this: &forward.'l0 readonly this) => &forward.'l0 readonly T#2
-    /// @type.symbol symbol=forward.this source="&readonly this" type=&forward.'l0 readonly this
+    /// @generic.template symbol=forward parent=template#1 parameters=('a)
+    /// @type.symbol symbol=forward type=<forward.'a>(this: &forward.'a readonly this) => &forward.'a readonly T#2
+    /// @type.symbol symbol=forward.this source="&readonly this" type=&forward.'a readonly this
     /// @resolution.name source=T target=T
 
         this.borrow()
-        /// @resolution.member source=this.borrow receiver=&forward.'l0 readonly Box<T#2> kind=symbol target=borrow
-        /// @resolution.call source=this.borrow() parameters=() return=&forward.'l0 readonly T#2 kind=symbol target=borrow receiver=&forward.'l0 readonly Box<T#2> instance=Box<T#2>.<extension#1>.borrow
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'l0 readonly Box<T#2>
+        /// @resolution.member source=this.borrow receiver=&forward.'a readonly Box<T#2> kind=symbol target=borrow
+        /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 kind=symbol target=borrow receiver=&forward.'a readonly Box<T#2> instance=Box<T#2>.<extension#1>.borrow
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'a readonly Box<T#2>
         /// @generic.instance source=this.borrow() id=Box<T#2>.<extension#1>.borrow
 
     }

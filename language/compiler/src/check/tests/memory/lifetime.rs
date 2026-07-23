@@ -107,7 +107,7 @@ struct Node {
     id: int32;
 }
 
-function first<'l0, 'l1>(a: &'l0 Node, b: &'l1 Node): Borrowed<Node, 'l0 | 'l1, "mutable"> {
+function first<'a, 'b>(a: &'a Node, b: &'b Node): Borrowed<Node, 'a | 'b, "mutable"> {
     return a;
 }
 
@@ -119,11 +119,11 @@ struct Node { id: int32; }
 /// @type.symbol symbol=Node.id source="id: int32" type=int32
 
 function first(a: &Node, b: &Node): &Node {
-/// @generic.template symbol=first parameters=('l0, 'l1)
-/// @type.symbol symbol=first type=<first.'l0, first.'l1>(&first.'l0 Node, &first.'l1 Node) => &first.'l0 | first.'l1 Node
-/// @type.symbol symbol=first.a source="a: &Node" type=&first.'l0 Node
+/// @generic.template symbol=first parameters=('a, 'b)
+/// @type.symbol symbol=first type=<first.'a, first.'b>(&first.'a Node, &first.'b Node) => &first.'a | first.'b Node
+/// @type.symbol symbol=first.a source="a: &Node" type=&first.'a Node
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=first.b source="b: &Node" type=&first.'l1 Node
+/// @type.symbol symbol=first.b source="b: &Node" type=&first.'b Node
 /// @resolution.name source=Node target=Node
 /// @resolution.name source=Node target=Node
 
@@ -156,11 +156,11 @@ struct Node {
     id: int32;
 }
 
-function choose<'l0, 'l1>(
-    a: &'l0 Node,
-    b: &'l1 Node,
+function choose<'a, 'b>(
+    a: &'a Node,
+    b: &'b Node,
     flag: boolean,
-): Borrowed<Node, 'l0 | 'l1, "mutable"> {
+): Borrowed<Node, 'a | 'b, "mutable"> {
     return flag ? a : b;
 }
 
@@ -172,11 +172,11 @@ struct Node { id: int32; }
 /// @type.symbol symbol=Node.id source="id: int32" type=int32
 
 function choose(a: &Node, b: &Node, flag: boolean): &Node {
-/// @generic.template symbol=choose parameters=('l0, 'l1)
-/// @type.symbol symbol=choose type=<choose.'l0, choose.'l1>(&choose.'l0 Node, &choose.'l1 Node, boolean) => &choose.'l0 | choose.'l1 Node
-/// @type.symbol symbol=choose.a source="a: &Node" type=&choose.'l0 Node
+/// @generic.template symbol=choose parameters=('a, 'b)
+/// @type.symbol symbol=choose type=<choose.'a, choose.'b>(&choose.'a Node, &choose.'b Node, boolean) => &choose.'a | choose.'b Node
+/// @type.symbol symbol=choose.a source="a: &Node" type=&choose.'a Node
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=choose.b source="b: &Node" type=&choose.'l1 Node
+/// @type.symbol symbol=choose.b source="b: &Node" type=&choose.'b Node
 /// @resolution.name source=Node target=Node
 /// @type.symbol symbol=choose.flag source="flag: boolean" type=boolean
 /// @resolution.name source=Node target=Node
@@ -283,9 +283,9 @@ struct AssetStore {
     count: uint32;
 }
 
-struct WorldView<'l0, 'l1> {
-    engine: &'l0 Engine;
-    assets: &'l1 AssetStore;
+struct WorldView<'a, 'b> {
+    engine: &'a Engine;
+    assets: &'b AssetStore;
 }
 
 === checked ===
@@ -302,18 +302,18 @@ struct AssetStore { count: uint32; }
 /// @type.symbol symbol=AssetStore.count source="count: uint32" type=uint32
 
 struct WorldView {
-/// @generic.template symbol=WorldView parameters=('l0, 'l1)
+/// @generic.template symbol=WorldView parameters=('a, 'b)
 /// @type.symbol symbol=WorldView type=WorldView
-/// @definition.struct symbol=WorldView template=('l0, 'l1)
-/// @definition.field symbol=WorldView.assets source="assets: &AssetStore" key=assets type=&WorldView.'l1 AssetStore
-/// @definition.field symbol=WorldView.engine source="engine: &Engine" key=engine type=&WorldView.'l0 Engine
+/// @definition.struct symbol=WorldView template=('a, 'b)
+/// @definition.field symbol=WorldView.assets source="assets: &AssetStore" key=assets type=&WorldView.'b AssetStore
+/// @definition.field symbol=WorldView.engine source="engine: &Engine" key=engine type=&WorldView.'a Engine
 
     engine: &Engine;
-    /// @type.symbol symbol=WorldView.engine source="engine: &Engine" type=&WorldView.'l0 Engine
+    /// @type.symbol symbol=WorldView.engine source="engine: &Engine" type=&WorldView.'a Engine
     /// @resolution.name source=Engine target=Engine
 
     assets: &AssetStore;
-    /// @type.symbol symbol=WorldView.assets source="assets: &AssetStore" type=&WorldView.'l1 AssetStore
+    /// @type.symbol symbol=WorldView.assets source="assets: &AssetStore" type=&WorldView.'b AssetStore
     /// @resolution.name source=AssetStore target=AssetStore
 
 }
@@ -349,7 +349,7 @@ struct Cell {
 }
 
 extension of Cell {
-    peek(&readonly this): &'l0 readonly int32 {
+    peek(&readonly this): &'a readonly int32 {
         todo("peek" as string | undefined)
     }
 }
@@ -365,13 +365,13 @@ struct Cell { value: int32; }
 
 extension of Cell {
 /// @definition.extension symbol=<module>#2 form=local target=Cell
-/// @definition.method symbol=peek slot=peek type=<peek.'l0>(this: &peek.'l0 readonly this) => &peek.'l0 readonly int32
+/// @definition.method symbol=peek slot=peek type=<peek.'a>(this: &peek.'a readonly this) => &peek.'a readonly int32
 /// @resolution.name source=Cell target=Cell
 
     peek(&readonly this): &readonly int32 {
-    /// @generic.template symbol=peek parameters=('l0)
-    /// @type.symbol symbol=peek type=<peek.'l0>(this: &peek.'l0 readonly this) => &peek.'l0 readonly int32
-    /// @type.symbol symbol=peek.this source="&readonly this" type=&peek.'l0 readonly this
+    /// @generic.template symbol=peek parameters=('a)
+    /// @type.symbol symbol=peek type=<peek.'a>(this: &peek.'a readonly this) => &peek.'a readonly int32
+    /// @type.symbol symbol=peek.this source="&readonly this" type=&peek.'a readonly this
 
         todo("peek")
         /// @resolution.name source=todo target=error.panic.todo
@@ -419,18 +419,18 @@ interface Viewing {
 /// @type.symbol symbol=Viewing type=Viewing
 /// @definition.interface symbol=Viewing
 /// @definition.associated.type symbol=Viewing.View source="type View" key=View
-/// @definition.method symbol=Viewing.view slot=view type=<comptime A: memory.access.Access = "readonly", Viewing.view.'l1>(this: memory.type.WithAccess<&Viewing.view.'l1 this, A>) => memory.type.WithAccess<&Viewing.view.'l1 this.View, A>
+/// @definition.method symbol=Viewing.view slot=view type=<comptime A: memory.access.Access = "readonly", Viewing.view.'a>(this: memory.type.WithAccess<&Viewing.view.'a this, A>) => memory.type.WithAccess<&Viewing.view.'a this.View, A>
 
     type View;
 
     view<comptime A: Access = "readonly">(
-    /// @generic.template symbol=Viewing.view parent=template#0 parameters=(comptime A: memory.access.Access = "readonly", 'l1)
-    /// @type.symbol symbol=Viewing.view type=<comptime A: memory.access.Access = "readonly", Viewing.view.'l1>(this: memory.type.WithAccess<&Viewing.view.'l1 this, A>) => memory.type.WithAccess<&Viewing.view.'l1 this.View, A> reduced=<comptime A: memory.access.Access = "readonly", Viewing.view.'l1>(this: Borrowed<this, Viewing.view.'l1, A>) => Borrowed<this.View, Viewing.view.'l1, A>
+    /// @generic.template symbol=Viewing.view parent=template#0 parameters=(comptime A: memory.access.Access = "readonly", 'a)
+    /// @type.symbol symbol=Viewing.view type=<comptime A: memory.access.Access = "readonly", Viewing.view.'a>(this: memory.type.WithAccess<&Viewing.view.'a this, A>) => memory.type.WithAccess<&Viewing.view.'a this.View, A> reduced=<comptime A: memory.access.Access = "readonly", Viewing.view.'a>(this: Borrowed<this, Viewing.view.'a, A>) => Borrowed<this.View, Viewing.view.'a, A>
     /// @type.symbol symbol=Viewing.view.A source="comptime A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=memory.access.Access
 
         this: WithAccess<&this, A>,
-        /// @type.symbol symbol=Viewing.view.this source="this: WithAccess<&this, A>" type=memory.type.WithAccess<&Viewing.view.'l1 this, A> reduced=Borrowed<this, Viewing.view.'l1, A>
+        /// @type.symbol symbol=Viewing.view.this source="this: WithAccess<&this, A>" type=memory.type.WithAccess<&Viewing.view.'a this, A> reduced=Borrowed<this, Viewing.view.'a, A>
         /// @resolution.name source=WithAccess target=memory.type.WithAccess
         /// @resolution.name source=A target=Viewing.view.A
 
@@ -440,8 +440,8 @@ interface Viewing {
 
 }
 
-/// @generic.instance id="memory.type.WithAccess<&Viewing.view.'l1 this, A>" template=memory.type.WithAccess arguments=(&Viewing.view.'l1 this, A)
-/// @generic.instance id="memory.type.WithAccess<&Viewing.view.'l1 this.View, A>" template=memory.type.WithAccess arguments=(&Viewing.view.'l1 this.View, A)
+/// @generic.instance id="memory.type.WithAccess<&Viewing.view.'a this, A>" template=memory.type.WithAccess arguments=(&Viewing.view.'a this, A)
+/// @generic.instance id="memory.type.WithAccess<&Viewing.view.'a this.View, A>" template=memory.type.WithAccess arguments=(&Viewing.view.'a this.View, A)
 "#,
     );
 }
@@ -469,13 +469,13 @@ function warn(count?: int32, cause?: unknown): void {
         DirRows::checked(),
         r#"
 === annotated ===
-type Options<'l0> = {
+type Options<'a> = {
     count?: int32 | undefined;
     message?: &readonly string;
     error?: unknown;
 };
 
-function log<'l0>(options?: Options<'l0>): void {}
+function log<'a>(options?: Options<'a>): void {}
 
 function warn(count?: int32, cause?: Dynamic<unknown>): void {
     log({ count, error: cause as unknown } as Options<"frame"> | undefined);
@@ -483,9 +483,9 @@ function warn(count?: int32, cause?: Dynamic<unknown>): void {
 
 === checked ===
 type Options = {
-/// @generic.template symbol=Options parameters=('l0)
-/// @type.symbol symbol=Options type={ count?: int32 | undefined; message?: &Options.'l0 readonly string; error?: unknown }
-/// @definition.type symbol=Options value={ count?: int32 | undefined; message?: &Options.'l0 readonly string; error?: unknown }
+/// @generic.template symbol=Options parameters=('a)
+/// @type.symbol symbol=Options type={ count?: int32 | undefined; message?: &Options.'a readonly string; error?: unknown }
+/// @definition.type symbol=Options value={ count?: int32 | undefined; message?: &Options.'a readonly string; error?: unknown }
 
     count?: int32 | undefined;
     message?: &readonly string;
@@ -493,9 +493,9 @@ type Options = {
 };
 
 function log(options?: Options): void {}
-/// @generic.template symbol=log parameters=('l0)
-/// @type.symbol symbol=log source="function log(options?: Options): void {}" type=<log.'l0>(Options<log.'l0> | undefined) => void
-/// @type.symbol symbol=log.options source="options?: Options" type=Options<log.'l0> | undefined
+/// @generic.template symbol=log parameters=('a)
+/// @type.symbol symbol=log source="function log(options?: Options): void {}" type=<log.'a>(Options<log.'a> | undefined) => void
+/// @type.symbol symbol=log.options source="options?: Options" type=Options<log.'a> | undefined
 /// @resolution.name source=Options target=Options
 
 function warn(count?: int32, cause?: unknown): void {
@@ -511,7 +511,7 @@ function warn(count?: int32, cause?: unknown): void {
 
 }
 
-/// @generic.instance id=Options<log.'l0> template=Options arguments=(log.'l0)
+/// @generic.instance id=Options<log.'a> template=Options arguments=(log.'a)
 "#,
     );
 }
@@ -539,12 +539,12 @@ struct User {
         DirRows::checked(),
         r#"
 === annotated ===
-struct Holder<'l0> {
-    view: View<'l0>;
+struct Holder<'a> {
+    view: View<'a>;
 }
 
-struct View<'l0> {
-    user: &'l0 readonly User;
+struct View<'a> {
+    user: &'a readonly User;
 }
 
 struct User {
@@ -553,25 +553,25 @@ struct User {
 
 === checked ===
 struct Holder {
-/// @generic.template symbol=Holder parameters=('l0)
+/// @generic.template symbol=Holder parameters=('a)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=('l0)
-/// @definition.field symbol=Holder.view source="view: View" key=view type=View<Holder.'l0>
+/// @definition.struct symbol=Holder template=('a)
+/// @definition.field symbol=Holder.view source="view: View" key=view type=View<Holder.'a>
 
     view: View;
-    /// @type.symbol symbol=Holder.view source="view: View" type=View<Holder.'l0>
+    /// @type.symbol symbol=Holder.view source="view: View" type=View<Holder.'a>
     /// @resolution.name source=View target=View
 
 }
 
 struct View {
-/// @generic.template symbol=View parameters=('l0)
+/// @generic.template symbol=View parameters=('a)
 /// @type.symbol symbol=View type=View
-/// @definition.struct symbol=View template=('l0)
-/// @definition.field symbol=View.user source="user: &readonly User" key=user type=&View.'l0 readonly User
+/// @definition.struct symbol=View template=('a)
+/// @definition.field symbol=View.user source="user: &readonly User" key=user type=&View.'a readonly User
 
     user: &readonly User;
-    /// @type.symbol symbol=View.user source="user: &readonly User" type=&View.'l0 readonly User
+    /// @type.symbol symbol=View.user source="user: &readonly User" type=&View.'a readonly User
     /// @resolution.name source=User target=User
 
 }
@@ -586,7 +586,7 @@ struct User {
 
 }
 
-/// @generic.instance id=View<Holder.'l0> template=View arguments=(Holder.'l0)
+/// @generic.instance id=View<Holder.'a> template=View arguments=(Holder.'a)
 "#,
     );
 }
@@ -614,8 +614,8 @@ struct Ping {
     pong: &readonly Pong;
 }
 
-struct Pong<'l0> {
-    ping: &'l0 readonly Ping;
+struct Pong<'a> {
+    ping: &'a readonly Ping;
 }
 
 === checked ===
@@ -663,12 +663,12 @@ struct User {
     id: int32;
 }
 
-struct View<'l0> {
-    user: &'l0 readonly User;
+struct View<'a> {
+    user: &'a readonly User;
 }
 
-function inspect<'l0>(user: &'l0 readonly User): int32 {
-    const view: View<'l0> = View<'l0> { user };
+function inspect<'a>(user: &'a readonly User): int32 {
+    const view: View<'a> = View<'a> { user };
 
     return view.user.id;
 }
@@ -685,25 +685,25 @@ struct User {
 }
 
 struct View {
-/// @generic.template symbol=View parameters=('l0)
+/// @generic.template symbol=View parameters=('a)
 /// @type.symbol symbol=View type=View
-/// @definition.struct symbol=View template=('l0)
-/// @definition.field symbol=View.user source="user: &readonly User" key=user type=&View.'l0 readonly User
+/// @definition.struct symbol=View template=('a)
+/// @definition.field symbol=View.user source="user: &readonly User" key=user type=&View.'a readonly User
 
     user: &readonly User;
-    /// @type.symbol symbol=View.user source="user: &readonly User" type=&View.'l0 readonly User
+    /// @type.symbol symbol=View.user source="user: &readonly User" type=&View.'a readonly User
     /// @resolution.name source=User target=User
 
 }
 
 function inspect(user: &readonly User): int32 {
-/// @generic.template symbol=inspect parameters=('l0)
-/// @type.symbol symbol=inspect type=<inspect.'l0>(&inspect.'l0 readonly User) => int32
-/// @type.symbol symbol=inspect.user source="user: &readonly User" type=&inspect.'l0 readonly User
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect type=<inspect.'a>(&inspect.'a readonly User) => int32
+/// @type.symbol symbol=inspect.user source="user: &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 
     const view: View = View { user };
-    /// @type.symbol symbol=inspect.view source=view type=View<inspect.'l0>
+    /// @type.symbol symbol=inspect.view source=view type=View<inspect.'a>
     /// @resolution.pattern source=view kind=binding target=inspect.view
     /// @resolution.name source=View target=View
     /// @resolution.name source=View target=View
@@ -711,12 +711,12 @@ function inspect(user: &readonly User): int32 {
 
     return view.user.id;
     /// @resolution.name source=view target=inspect.view
-    /// @resolution.member source=view.user receiver=View<inspect.'l0> kind=symbol target=View.user
-    /// @resolution.member source=view.user.id receiver=&inspect.'l0 readonly User kind=symbol target=User.id
+    /// @resolution.member source=view.user receiver=View<inspect.'a> kind=symbol target=View.user
+    /// @resolution.member source=view.user.id receiver=&inspect.'a readonly User kind=symbol target=User.id
 
 }
 
-/// @generic.instance id=View<inspect.'l0> template=View arguments=(inspect.'l0)
+/// @generic.instance id=View<inspect.'a> template=View arguments=(inspect.'a)
 "#,
     );
 }
@@ -742,7 +742,7 @@ struct Node {
     id: int32;
 }
 
-function first<'a, 'l1>(a: &'a Node, b: &'l1 Node): &'a Node {
+function first<'a, 'b>(a: &'a Node, b: &'b Node): &'a Node {
     return a;
 }
 
@@ -754,13 +754,13 @@ struct Node { id: int32; }
 /// @type.symbol symbol=Node.id source="id: int32" type=int32
 
 function first<'a>(a: &'a Node, b: &Node): &'a Node {
-/// @generic.template symbol=first parameters=('a, 'l1)
-/// @type.symbol symbol=first type=<'a, first.'l1>(&'a Node, &first.'l1 Node) => &'a Node
+/// @generic.template symbol=first parameters=('a, 'b)
+/// @type.symbol symbol=first type=<'a, first.'b>(&'a Node, &first.'b Node) => &'a Node
 /// @type.symbol symbol=first.'a source='a type='a
 /// @type.symbol symbol=first.a source="a: &'a Node" type=&'a Node
 /// @resolution.name source='a target=first.'a
 /// @resolution.name source=Node target=Node
-/// @type.symbol symbol=first.b source="b: &Node" type=&first.'l1 Node
+/// @type.symbol symbol=first.b source="b: &Node" type=&first.'b Node
 /// @resolution.name source=Node target=Node
 /// @resolution.name source='a target=first.'a
 /// @resolution.name source=Node target=Node

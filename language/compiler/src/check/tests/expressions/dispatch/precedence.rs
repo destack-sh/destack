@@ -571,7 +571,7 @@ struct Pack<out T> {
     value: T;
 }
 
-function read<T, 'l1>(pack: &'l1 readonly Pack<T>): readonly T {
+function read<T, 'a>(pack: &'a readonly Pack<T>): readonly T {
     pack.value
 }
 
@@ -590,19 +590,19 @@ struct Pack<T> {
 }
 
 function read<T>(pack: &readonly Pack<T>): readonly T {
-/// @generic.template symbol=read parameters=(T#2, 'l1)
-/// @type.symbol symbol=read type=<T#2, read.'l1>(&read.'l1 readonly Pack<T#2>) => Readonly<T#2>
+/// @generic.template symbol=read parameters=(T#2, 'a)
+/// @type.symbol symbol=read type=<T#2, read.'a>(&read.'a readonly Pack<T#2>) => Readonly<T#2>
 /// @type.symbol symbol=read.T source=T type=T#2
-/// @type.symbol symbol=read.pack source="pack: &readonly Pack<T>" type=&read.'l1 readonly Pack<T#2>
+/// @type.symbol symbol=read.pack source="pack: &readonly Pack<T>" type=&read.'a readonly Pack<T#2>
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=read.T
 /// @resolution.name source=T target=read.T
 
     pack.value
-    /// @type.node source=pack type=&read.'l1 readonly Pack<T#2>
+    /// @type.node source=pack type=&read.'a readonly Pack<T#2>
     /// @type.node source=pack.value type=Readonly<T#2>
     /// @resolution.name source=pack target=read.pack
-    /// @resolution.member source=pack.value receiver=&read.'l1 readonly Pack<T#2> kind=symbol target=Pack.value
+    /// @resolution.member source=pack.value receiver=&read.'a readonly Pack<T#2> kind=symbol target=Pack.value
     /// @generic.instance source=pack id=Pack<T#2>
 
 }
@@ -646,7 +646,7 @@ function same<T>(actual: readonly T | T, expected: T): void {
     todo("same" as string | undefined);
 }
 
-function check<T, 'l1>(pack: &'l1 readonly Pack<T>, expected: T): void {
+function check<T, 'a>(pack: &'a readonly Pack<T>, expected: T): void {
     same<T>(pack.value as readonly T | T, expected);
 }
 
@@ -684,10 +684,10 @@ function same<T>(actual: readonly T | T, expected: T): void {
 }
 
 function check<T>(pack: &readonly Pack<T>, expected: T): void {
-/// @generic.template symbol=check parameters=(T#3, 'l1)
-/// @type.symbol symbol=check type=<T#3, check.'l1>(&check.'l1 readonly Pack<T#3>, T#3) => void
+/// @generic.template symbol=check parameters=(T#3, 'a)
+/// @type.symbol symbol=check type=<T#3, check.'a>(&check.'a readonly Pack<T#3>, T#3) => void
 /// @type.symbol symbol=check.T source=T type=T#3
-/// @type.symbol symbol=check.pack source="pack: &readonly Pack<T>" type=&check.'l1 readonly Pack<T#3>
+/// @type.symbol symbol=check.pack source="pack: &readonly Pack<T>" type=&check.'a readonly Pack<T#3>
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=check.T
 /// @type.symbol symbol=check.expected source="expected: T" type=T#3
@@ -699,10 +699,10 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
     /// @resolution.name source=same target=same
     /// @resolution.call source="same(pack.value, expected)" parameters=(Readonly<T#3> | T#3, T#3) arguments=(provided(pack.value) as Readonly<T#3> | T#3, provided(expected) as T#3) return=void kind=symbol target=same instance=same<T#3>
     /// @generic.instance source="same(pack.value, expected)" id=same<T#3>
-    /// @type.node source=pack type=&check.'l1 readonly Pack<T#3>
+    /// @type.node source=pack type=&check.'a readonly Pack<T#3>
     /// @type.node source=pack.value type=Readonly<T#3>
     /// @resolution.name source=pack target=check.pack
-    /// @resolution.member source=pack.value receiver=&check.'l1 readonly Pack<T#3> kind=symbol target=Pack.value
+    /// @resolution.member source=pack.value receiver=&check.'a readonly Pack<T#3> kind=symbol target=Pack.value
     /// @generic.instance source=pack id=Pack<T#3>
     /// @type.node source=expected type=T#3
     /// @resolution.name source=expected target=check.expected

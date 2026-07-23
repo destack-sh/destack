@@ -49,7 +49,7 @@ local class Counter {
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.name source="readonly name: string" key=name type=string
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(string) => this
-/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'l0>(this: &Counter.describe.'l0 readonly this) => void
+/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly this) => void
 
     readonly name: string;
     /// @type.symbol symbol=Counter.name source="readonly name: string" type=string
@@ -66,15 +66,15 @@ local class Counter {
     }
 
     describe(&readonly this): void {
-    /// @generic.template symbol=Counter.describe parameters=('l0)
-    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'l0>(this: &Counter.describe.'l0 readonly this) => void
-    /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=&Counter.describe.'l0 readonly this
+    /// @generic.template symbol=Counter.describe parameters=('a)
+    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly this) => void
+    /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=&Counter.describe.'a readonly this
 
         label(this.name)
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @resolution.member source=this.name receiver=&Counter.describe.'l0 readonly Counter kind=symbol target=Counter.name
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'l0 readonly Counter
+        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter kind=symbol target=Counter.name
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'a readonly Counter
 
     }
 }
@@ -166,8 +166,8 @@ local class Meter {
 /// @definition.class symbol=Meter
 /// @definition.field symbol=Meter.sink source="private sink: Sink" key=sink type=Dynamic<Sink>
 /// @definition.method symbol=Meter.constructor slot=constructor role=constructor type=(Dynamic<Sink>) => this
-/// @definition.method symbol=Meter.forward slot=forward type=<Meter.forward.'l0>(this: &Meter.forward.'l0 readonly this) => void
-/// @definition.method symbol=Meter.leak slot=leak type=<Meter.leak.'l0>(this: &Meter.leak.'l0 readonly this) => void
+/// @definition.method symbol=Meter.forward slot=forward type=<Meter.forward.'a>(this: &Meter.forward.'a readonly this) => void
+/// @definition.method symbol=Meter.leak slot=leak type=<Meter.leak.'a>(this: &Meter.leak.'a readonly this) => void
 
     private sink: Sink;
     /// @type.symbol symbol=Meter.sink source="private sink: Sink" type=Dynamic<Sink>
@@ -186,28 +186,28 @@ local class Meter {
     }
 
     leak(&readonly this): void {
-    /// @generic.template symbol=Meter.leak parameters=('l0)
-    /// @type.symbol symbol=Meter.leak type=<Meter.leak.'l0>(this: &Meter.leak.'l0 readonly this) => void
-    /// @type.symbol symbol=Meter.leak.this source="&readonly this" type=&Meter.leak.'l0 readonly this
+    /// @generic.template symbol=Meter.leak parameters=('a)
+    /// @type.symbol symbol=Meter.leak type=<Meter.leak.'a>(this: &Meter.leak.'a readonly this) => void
+    /// @type.symbol symbol=Meter.leak.this source="&readonly this" type=&Meter.leak.'a readonly this
 
         consume(this.sink)
         /// @resolution.name source=consume target=consume
         /// @resolution.call source=consume(this.sink) parameters=(Dynamic<Sink>) arguments=(provided(this.sink) as Dynamic<Sink>) return=void kind=symbol target=consume
-        /// @resolution.member source=this.sink receiver=&Meter.leak.'l0 readonly Meter kind=symbol target=Meter.sink
-        /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.leak.'l0 readonly Meter
+        /// @resolution.member source=this.sink receiver=&Meter.leak.'a readonly Meter kind=symbol target=Meter.sink
+        /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.leak.'a readonly Meter
 
     }
 
     forward(&readonly this): void {
-    /// @generic.template symbol=Meter.forward parameters=('l0)
-    /// @type.symbol symbol=Meter.forward type=<Meter.forward.'l0>(this: &Meter.forward.'l0 readonly this) => void
-    /// @type.symbol symbol=Meter.forward.this source="&readonly this" type=&Meter.forward.'l0 readonly this
+    /// @generic.template symbol=Meter.forward parameters=('a)
+    /// @type.symbol symbol=Meter.forward type=<Meter.forward.'a>(this: &Meter.forward.'a readonly this) => void
+    /// @type.symbol symbol=Meter.forward.this source="&readonly this" type=&Meter.forward.'a readonly this
 
         inspect(this.sink)
         /// @resolution.name source=inspect target=inspect
         /// @resolution.call source=inspect(this.sink) parameters=(Readonly<Dynamic<Sink>>) arguments=(provided(this.sink) as Readonly<Dynamic<Sink>>) return=void kind=symbol target=inspect
-        /// @resolution.member source=this.sink receiver=&Meter.forward.'l0 readonly Meter kind=symbol target=Meter.sink
-        /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.forward.'l0 readonly Meter
+        /// @resolution.member source=this.sink receiver=&Meter.forward.'a readonly Meter kind=symbol target=Meter.sink
+        /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.forward.'a readonly Meter
 
     }
 }
@@ -265,7 +265,7 @@ local class Counter {
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.name source="readonly name: string" key=name type=string
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(string) => this
-/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'l0>(this: &Counter.describe.'l0 readonly this) => void
+/// @definition.method symbol=Counter.describe slot=describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly this) => void
 
     readonly name: string;
     /// @type.symbol symbol=Counter.name source="readonly name: string" type=string
@@ -282,15 +282,15 @@ local class Counter {
     }
 
     describe(&readonly this): void {
-    /// @generic.template symbol=Counter.describe parameters=('l0)
-    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'l0>(this: &Counter.describe.'l0 readonly this) => void
-    /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=&Counter.describe.'l0 readonly this
+    /// @generic.template symbol=Counter.describe parameters=('a)
+    /// @type.symbol symbol=Counter.describe type=<Counter.describe.'a>(this: &Counter.describe.'a readonly this) => void
+    /// @type.symbol symbol=Counter.describe.this source="&readonly this" type=&Counter.describe.'a readonly this
 
         label(this.name)
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @resolution.member source=this.name receiver=&Counter.describe.'l0 readonly Counter kind=symbol target=Counter.name
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'l0 readonly Counter
+        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter kind=symbol target=Counter.name
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'a readonly Counter
 
     }
 }

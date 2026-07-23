@@ -312,21 +312,21 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'l0>(this: &Counter.increment.'l0 exclusive this) => Counter
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => Counter
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(): Counter {
-    /// @generic.template symbol=Counter.increment parameters=('l0)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'l0>(this: &Counter.increment.'l0 exclusive this) => Counter
+    /// @generic.template symbol=Counter.increment parameters=('a)
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => Counter
     /// @resolution.name source=Counter target=Counter
 
         Counter { value: this.value + 1 }
         /// @resolution.name source=Counter target=Counter
-        /// @resolution.member source=this.value receiver=&Counter.increment.'l0 exclusive Counter kind=symbol target=Counter.value
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter kind=symbol target=Counter.value
         /// @resolution.operator source="this.value + 1" kind=builtin
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'l0 exclusive Counter
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
 
     }
 }
@@ -544,25 +544,25 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'l0>(this: &Counter.increment.'l0 exclusive this) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(): int32 {
-    /// @generic.template symbol=Counter.increment parameters=('l0)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'l0>(this: &Counter.increment.'l0 exclusive this) => int32
+    /// @generic.template symbol=Counter.increment parameters=('a)
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => int32
 
         this.value = this.value + 1;
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'l0 exclusive Counter
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
         /// @resolution.pattern.assign source=this.value kind=place place=field(Counter.value) type=int32
-        /// @resolution.member source=this.value receiver=&Counter.increment.'l0 exclusive Counter kind=symbol target=Counter.value
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter kind=symbol target=Counter.value
         /// @resolution.operator source="this.value + 1" kind=builtin
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'l0 exclusive Counter
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
 
         this.value
-        /// @resolution.member source=this.value receiver=&Counter.increment.'l0 exclusive Counter kind=symbol target=Counter.value
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'l0 exclusive Counter
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter kind=symbol target=Counter.value
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
 
     }
 }

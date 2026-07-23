@@ -72,9 +72,9 @@ class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
-/// @definition.method symbol=Counter.borrow slot=borrow type=<Counter.borrow.'l0>(this: &Counter.borrow.'l0 this) => int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'l0>(this: &Counter.increment.'l0 exclusive this) => void
-/// @definition.method symbol=Counter.inspect slot=inspect type=<Counter.inspect.'l0>(this: &Counter.inspect.'l0 readonly this) => int32
+/// @definition.method symbol=Counter.borrow slot=borrow type=<Counter.borrow.'a>(this: &Counter.borrow.'a this) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => void
+/// @definition.method symbol=Counter.inspect slot=inspect type=<Counter.inspect.'a>(this: &Counter.inspect.'a readonly this) => int32
 /// @definition.method symbol=Counter.peek slot=peek type=(this: Readonly<this>) => int32
 /// @definition.method symbol=Counter.read slot=read type=(this: this) => int32
 /// @definition.method symbol=Counter.zero slot=zero static=true type=() => Counter
@@ -103,38 +103,38 @@ class Counter {
     }
 
     borrow(&this): int32 {
-    /// @generic.template symbol=Counter.borrow parameters=('l0)
-    /// @type.symbol symbol=Counter.borrow type=<Counter.borrow.'l0>(this: &Counter.borrow.'l0 this) => int32
-    /// @type.symbol symbol=Counter.borrow.this source=&this type=&Counter.borrow.'l0 this
+    /// @generic.template symbol=Counter.borrow parameters=('a)
+    /// @type.symbol symbol=Counter.borrow type=<Counter.borrow.'a>(this: &Counter.borrow.'a this) => int32
+    /// @type.symbol symbol=Counter.borrow.this source=&this type=&Counter.borrow.'a this
 
         return this.value;
-        /// @resolution.member source=this.value receiver=&Counter.borrow.'l0 Counter kind=symbol target=Counter.value
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.borrow.'l0 Counter
+        /// @resolution.member source=this.value receiver=&Counter.borrow.'a Counter kind=symbol target=Counter.value
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.borrow.'a Counter
 
     }
 
     inspect(&readonly this): int32 {
-    /// @generic.template symbol=Counter.inspect parameters=('l0)
-    /// @type.symbol symbol=Counter.inspect type=<Counter.inspect.'l0>(this: &Counter.inspect.'l0 readonly this) => int32
-    /// @type.symbol symbol=Counter.inspect.this source="&readonly this" type=&Counter.inspect.'l0 readonly this
+    /// @generic.template symbol=Counter.inspect parameters=('a)
+    /// @type.symbol symbol=Counter.inspect type=<Counter.inspect.'a>(this: &Counter.inspect.'a readonly this) => int32
+    /// @type.symbol symbol=Counter.inspect.this source="&readonly this" type=&Counter.inspect.'a readonly this
 
         return this.value;
-        /// @resolution.member source=this.value receiver=&Counter.inspect.'l0 readonly Counter kind=symbol target=Counter.value
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.inspect.'l0 readonly Counter
+        /// @resolution.member source=this.value receiver=&Counter.inspect.'a readonly Counter kind=symbol target=Counter.value
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.inspect.'a readonly Counter
 
     }
 
     increment(&exclusive this): void {
-    /// @generic.template symbol=Counter.increment parameters=('l0)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'l0>(this: &Counter.increment.'l0 exclusive this) => void
-    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=&Counter.increment.'l0 exclusive this
+    /// @generic.template symbol=Counter.increment parameters=('a)
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive this) => void
+    /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=&Counter.increment.'a exclusive this
 
         this.value = this.value + 1;
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'l0 exclusive Counter
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
         /// @resolution.pattern.assign source=this.value kind=place place=field(Counter.value) type=int32
-        /// @resolution.member source=this.value receiver=&Counter.increment.'l0 exclusive Counter kind=symbol target=Counter.value
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter kind=symbol target=Counter.value
         /// @resolution.operator source="this.value + 1" kind=builtin
-        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'l0 exclusive Counter
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
 
     }
 
@@ -199,12 +199,12 @@ class Message {}
 newtype interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink nominal=true
-/// @definition.method symbol=Sink.write source="write(&readonly this, value: Message): Message" slot=write type=<Sink.write.'l0>(this: &Sink.write.'l0 readonly this, Message) => Message
+/// @definition.method symbol=Sink.write source="write(&readonly this, value: Message): Message" slot=write type=<Sink.write.'a>(this: &Sink.write.'a readonly this, Message) => Message
 
     write(&readonly this, value: Message): Message;
-    /// @generic.template symbol=Sink.write parent=template#0 parameters=('l0)
-    /// @type.symbol symbol=Sink.write source="write(&readonly this, value: Message): Message" type=<Sink.write.'l0>(this: &Sink.write.'l0 readonly this, Message) => Message
-    /// @type.symbol symbol=Sink.write.this source="&readonly this" type=&Sink.write.'l0 readonly this
+    /// @generic.template symbol=Sink.write parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Sink.write source="write(&readonly this, value: Message): Message" type=<Sink.write.'a>(this: &Sink.write.'a readonly this, Message) => Message
+    /// @type.symbol symbol=Sink.write.this source="&readonly this" type=&Sink.write.'a readonly this
     /// @type.symbol symbol=Sink.write.value source="value: Message" type=Message
     /// @resolution.name source=Message target=Message
     /// @resolution.name source=Message target=Message
@@ -283,12 +283,12 @@ sharedBuffer.clear();
 class Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.class symbol=Buffer
-/// @definition.method symbol=Buffer.clear source="clear(&exclusive this): void {}" slot=clear type=<Buffer.clear.'l0>(this: &Buffer.clear.'l0 exclusive this) => void
+/// @definition.method symbol=Buffer.clear source="clear(&exclusive this): void {}" slot=clear type=<Buffer.clear.'a>(this: &Buffer.clear.'a exclusive this) => void
 
     clear(&exclusive this): void {}
-    /// @generic.template symbol=Buffer.clear parameters=('l0)
-    /// @type.symbol symbol=Buffer.clear source="clear(&exclusive this): void {}" type=<Buffer.clear.'l0>(this: &Buffer.clear.'l0 exclusive this) => void
-    /// @type.symbol symbol=Buffer.clear.this source="&exclusive this" type=&Buffer.clear.'l0 exclusive this
+    /// @generic.template symbol=Buffer.clear parameters=('a)
+    /// @type.symbol symbol=Buffer.clear source="clear(&exclusive this): void {}" type=<Buffer.clear.'a>(this: &Buffer.clear.'a exclusive this) => void
+    /// @type.symbol symbol=Buffer.clear.this source="&exclusive this" type=&Buffer.clear.'a exclusive this
 
 }
 
@@ -359,22 +359,22 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.scale slot=scale type=<Point.scale.'l0>(this: &Point.scale.'l0 exclusive this, int32) => void
+/// @definition.method symbol=Point.scale slot=scale type=<Point.scale.'a>(this: &Point.scale.'a exclusive this, int32) => void
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     scale(by: int32): void {
-    /// @generic.template symbol=Point.scale parameters=('l0)
-    /// @type.symbol symbol=Point.scale type=<Point.scale.'l0>(this: &Point.scale.'l0 exclusive this, int32) => void
+    /// @generic.template symbol=Point.scale parameters=('a)
+    /// @type.symbol symbol=Point.scale type=<Point.scale.'a>(this: &Point.scale.'a exclusive this, int32) => void
     /// @type.symbol symbol=Point.scale.by source="by: int32" type=int32
 
         this.x = this.x * by;
-        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.scale.'l0 exclusive Point
+        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.scale.'a exclusive Point
         /// @resolution.pattern.assign source=this.x kind=place place=field(Point.x) type=int32
-        /// @resolution.member source=this.x receiver=&Point.scale.'l0 exclusive Point kind=symbol target=Point.x
+        /// @resolution.member source=this.x receiver=&Point.scale.'a exclusive Point kind=symbol target=Point.x
         /// @resolution.operator source="this.x * by" kind=builtin
-        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.scale.'l0 exclusive Point
+        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.scale.'a exclusive Point
         /// @resolution.name source=by target=Point.scale.by
 
     }
@@ -513,19 +513,19 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.length slot=length type=<Point.length.'l0>(this: &Point.length.'l0 readonly this) => int32
+/// @definition.method symbol=Point.length slot=length type=<Point.length.'a>(this: &Point.length.'a readonly this) => int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     length(&readonly this): int32 {
-    /// @generic.template symbol=Point.length parameters=('l0)
-    /// @type.symbol symbol=Point.length type=<Point.length.'l0>(this: &Point.length.'l0 readonly this) => int32
-    /// @type.symbol symbol=Point.length.this source="&readonly this" type=&Point.length.'l0 readonly this
+    /// @generic.template symbol=Point.length parameters=('a)
+    /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a readonly this) => int32
+    /// @type.symbol symbol=Point.length.this source="&readonly this" type=&Point.length.'a readonly this
 
         return this.x;
-        /// @resolution.member source=this.x receiver=&Point.length.'l0 readonly Point kind=symbol target=Point.x
-        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.length.'l0 readonly Point
+        /// @resolution.member source=this.x receiver=&Point.length.'a readonly Point kind=symbol target=Point.x
+        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.length.'a readonly Point
 
     }
 }

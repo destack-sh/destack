@@ -269,11 +269,11 @@ const send: ^Function<(string,), void> = ((message: string): void => {
 struct Socket {
 /// @type.symbol symbol=Socket type=Socket
 /// @definition.struct symbol=Socket
-/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=<Socket.write.'l0>(this: &Socket.write.'l0 exclusive this, string) => void
+/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=<Socket.write.'a>(this: &Socket.write.'a exclusive this, string) => void
 
     write(message: string): void {}
-    /// @generic.template symbol=Socket.write parameters=('l0)
-    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=<Socket.write.'l0>(this: &Socket.write.'l0 exclusive this, string) => void
+    /// @generic.template symbol=Socket.write parameters=('a)
+    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=<Socket.write.'a>(this: &Socket.write.'a exclusive this, string) => void
     /// @capture.function function=Socket.write bindings=0
     /// @type.symbol symbol=Socket.write.message source="message: string" type=string
 
@@ -325,7 +325,7 @@ const send: ^Function<(string,), void> = (message) => {
 
     socket.write(message);
     /// @type.node source=socket type=Socket
-    /// @type.node source=socket.write type=<Socket.write.'l0>(this: &Socket.write.'l0 exclusive Socket, string) => void
+    /// @type.node source=socket.write type=<Socket.write.'a>(this: &Socket.write.'a exclusive Socket, string) => void
     /// @type.node source=socket.write(message) type=void
     /// @resolution.name source=socket target=socket
     /// @resolution.member source=socket.write receiver=Socket kind=symbol target=Socket.write

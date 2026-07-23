@@ -200,7 +200,7 @@ declare class Box<in out T> {
     get(&readonly this): &readonly T;
 }
 
-function read<T, 'l1>(source: &'l1 readonly Box<T>): &'l1 readonly T {
+function read<T, 'a>(source: &'a readonly Box<T>): &'a readonly T {
     return source.get<T>();
 }
 
@@ -209,33 +209,33 @@ declare class Box<T> {
 /// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out T#1)
-/// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<Box.get.'l0>(this: &Box.get.'l0 readonly this) => &Box.get.'l0 readonly T#1
+/// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<Box.get.'a>(this: &Box.get.'a readonly this) => &Box.get.'a readonly T#1
 /// @type.symbol symbol=Box.T source=T type=T#1
 
     get(&readonly this): &readonly T;
-    /// @generic.template symbol=Box.get parent=template#0 parameters=('l0)
-    /// @type.symbol symbol=Box.get source="get(&readonly this): &readonly T" type=<Box.get.'l0>(this: &Box.get.'l0 readonly this) => &Box.get.'l0 readonly T#1
-    /// @type.symbol symbol=Box.get.this source="&readonly this" type=&Box.get.'l0 readonly this
+    /// @generic.template symbol=Box.get parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Box.get source="get(&readonly this): &readonly T" type=<Box.get.'a>(this: &Box.get.'a readonly this) => &Box.get.'a readonly T#1
+    /// @type.symbol symbol=Box.get.this source="&readonly this" type=&Box.get.'a readonly this
     /// @resolution.name source=T target=Box.T
 
 }
 
 function read<T>(source: &readonly Box<T>): &readonly T {
-/// @generic.template symbol=read parameters=(T#2, 'l1)
-/// @type.symbol symbol=read type=<T#2, read.'l1>(&read.'l1 readonly Box<T#2>) => &read.'l1 readonly T#2
+/// @generic.template symbol=read parameters=(T#2, 'a)
+/// @type.symbol symbol=read type=<T#2, read.'a>(&read.'a readonly Box<T#2>) => &read.'a readonly T#2
 /// @type.symbol symbol=read.T source=T type=T#2
-/// @type.symbol symbol=read.source source="source: &readonly Box<T>" type=&read.'l1 readonly Box<T#2>
+/// @type.symbol symbol=read.source source="source: &readonly Box<T>" type=&read.'a readonly Box<T#2>
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=read.T
 /// @resolution.name source=T target=read.T
 
     return source.get();
-    /// @type.node source=source type=&read.'l1 readonly Box<T#2>
-    /// @type.node source=source.get type=<Box.get.'l0>(this: &Box.get.'l0 readonly &read.'l1 readonly Box<T#2>) => &Box.get.'l0 readonly T#2 reduced=<Box.get.'l0>(this: &Box.get.'l0 readonly Box<T#2>) => &Box.get.'l0 readonly T#2
-    /// @type.node source=source.get() type=&read.'l1 readonly T#2
+    /// @type.node source=source type=&read.'a readonly Box<T#2>
+    /// @type.node source=source.get type=<Box.get.'a>(this: &Box.get.'a readonly &read.'a readonly Box<T#2>) => &Box.get.'a readonly T#2 reduced=<Box.get.'a>(this: &Box.get.'a readonly Box<T#2>) => &Box.get.'a readonly T#2
+    /// @type.node source=source.get() type=&read.'a readonly T#2
     /// @resolution.name source=source target=read.source
-    /// @resolution.member source=source.get receiver=&read.'l1 readonly Box<T#2> kind=symbol target=Box.get
-    /// @resolution.call source=source.get() parameters=() return=&read.'l1 readonly T#2 kind=symbol target=Box.get receiver=&read.'l1 readonly Box<T#2> instance=Box<T#2>.get
+    /// @resolution.member source=source.get receiver=&read.'a readonly Box<T#2> kind=symbol target=Box.get
+    /// @resolution.call source=source.get() parameters=() return=&read.'a readonly T#2 kind=symbol target=Box.get receiver=&read.'a readonly Box<T#2> instance=Box<T#2>.get
     /// @generic.instance source=source id=Box<T#2>
     /// @generic.instance source=source.get id=Box<T#2>
     /// @generic.instance source=source.get() id=Box<T#2>.get

@@ -516,14 +516,14 @@ impl CheckState<'_> {
         let number = self
             .generic_template(template)
             .map_or(0, |template| template.parameters.len());
-        let prefix = match kind {
-            dir::MemoryParameter::Access => "A",
-            dir::MemoryParameter::Ownership => "O",
-            dir::MemoryParameter::Place => "P",
-            dir::MemoryParameter::Space => "S",
-            dir::MemoryParameter::Lifetime => "'l",
+        let generated = match kind {
+            dir::MemoryParameter::Access => format!("A{number}"),
+            dir::MemoryParameter::Ownership => format!("O{number}"),
+            dir::MemoryParameter::Place => format!("P{number}"),
+            dir::MemoryParameter::Space => format!("S{number}"),
+            dir::MemoryParameter::Lifetime => self.next_induced_lifetime_name(template),
         };
-        let name = self.strings().intern(&format!("{prefix}{number}"));
+        let name = self.strings().intern(&generated);
 
         self.push_generic_parameter(
             template,
@@ -537,6 +537,36 @@ impl CheckState<'_> {
             false,
             false,
         )
+    }
+
+    /// Return the first free tick name for one induced lifetime parameter.
+    fn next_induced_lifetime_name(&self, template: GenericTemplateId) -> String {
+        // collect the tick names the template already declares
+        let mut taken = Vec::new();
+        if let Some(row) = self.generic_template(template) {
+            for parameter in &row.parameters {
+                let id = parameter.into_global(template.module_id);
+                let Some(binding) = self.generic_parameter(id) else {
+                    continue;
+                };
+                let name = match binding.key {
+                    dir::GenericParameterKey::Symbol(symbol) => self.format_symbol(symbol),
+                    dir::GenericParameterKey::Generated(name) => {
+                        self.strings().get(name).to_string()
+                    }
+                };
+                taken.push(name);
+            }
+        }
+
+        for letter in 'a'..='z' {
+            let candidate = format!("'{letter}");
+            if !taken.contains(&candidate) {
+                return candidate;
+            }
+        }
+
+        format!("'l{}", taken.len())
     }
 }
 

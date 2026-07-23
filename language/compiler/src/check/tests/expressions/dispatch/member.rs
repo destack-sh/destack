@@ -92,20 +92,20 @@ struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.length slot=length type=<Point.length.'l0>(this: &Point.length.'l0 exclusive this) => int32
+/// @definition.method symbol=Point.length slot=length type=<Point.length.'a>(this: &Point.length.'a exclusive this) => int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     length(): int32 {
-    /// @generic.template symbol=Point.length parameters=('l0)
-    /// @type.symbol symbol=Point.length type=<Point.length.'l0>(this: &Point.length.'l0 exclusive this) => int32
+    /// @generic.template symbol=Point.length parameters=('a)
+    /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a exclusive this) => int32
 
         return this.x;
-        /// @type.node source=this type=&Point.length.'l0 exclusive Point
+        /// @type.node source=this type=&Point.length.'a exclusive Point
         /// @type.node source=this.x type=int32
-        /// @resolution.member source=this.x receiver=&Point.length.'l0 exclusive Point kind=symbol target=Point.x
-        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.length.'l0 exclusive Point
+        /// @resolution.member source=this.x receiver=&Point.length.'a exclusive Point kind=symbol target=Point.x
+        /// @resolution.receiver source=this kind=this declaration=Point type=&Point.length.'a exclusive Point
 
     }
 }
@@ -121,7 +121,7 @@ const length = point.length();
 /// @type.symbol symbol=length source=length type=int32
 /// @resolution.pattern source=length kind=binding target=length
 /// @type.node source=point type=Point
-/// @type.node source=point.length type=<Point.length.'l0>(this: &Point.length.'l0 exclusive Point) => int32
+/// @type.node source=point.length type=<Point.length.'a>(this: &Point.length.'a exclusive Point) => int32
 /// @type.node source=point.length() type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.length receiver=Point kind=symbol target=Point.length
@@ -347,7 +347,7 @@ let values: int32[] = [];
 
 values.push(1);
 /// @type.node source=values type=Array<int32>
-/// @type.node source=values.push type=<collections.array.push#1.'l0>(this: &collections.array.push#1.'l0 exclusive Array<int32>, int32) => void | <collections.array.push#2.'l0>(this: &collections.array.push#2.'l0 exclusive Array<int32>, ...int32[]) => float64
+/// @type.node source=values.push type=<collections.array.push#1.'a>(this: &collections.array.push#1.'a exclusive Array<int32>, int32) => void | <collections.array.push#2.'a>(this: &collections.array.push#2.'a exclusive Array<int32>, ...int32[]) => float64
 /// @type.node source=values.push(1) type=void
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.push receiver=Array<int32> kind=existential targets=[collections.array.push#1, collections.array.push#2]
