@@ -340,12 +340,20 @@ impl Parser {
         match keyword {
             Keyword::Function => Err(ParserError::unexpected(self.peek_token_span())),
             Keyword::This => {
+                let keyword_range = self.peek_token().range();
                 self.bump();
-                Ok(self.insert_node(Expression::This, self.range_since(start)))
+                let expression = self.insert_node(Expression::This, self.range_since(start));
+                self.tree.set_main_range(expression, keyword_range);
+
+                Ok(expression)
             }
             Keyword::Super => {
+                let keyword_range = self.peek_token().range();
                 self.bump();
-                Ok(self.insert_node(Expression::Super, self.range_since(start)))
+                let expression = self.insert_node(Expression::Super, self.range_since(start));
+                self.tree.set_main_range(expression, keyword_range);
+
+                Ok(expression)
             }
             Keyword::Null => {
                 self.bump();

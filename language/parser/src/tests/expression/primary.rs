@@ -71,6 +71,11 @@ fn test_parse_this_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expression_id, Expression::This);
+    let main_span = parser
+        .tree
+        .get_main_span(expression_id)
+        .expect("expected this main span");
+    assert_eq!(parser.span_str(main_span), "this");
 }
 
 /// Parse a bare identifier as an identifier expression.
@@ -130,6 +135,11 @@ fn test_parse_super_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Super);
+    let main_span = parser
+        .tree
+        .get_main_span(expression_id)
+        .expect("expected super main span");
+    assert_eq!(parser.span_str(main_span), "super");
 }
 
 /// Parse a bare null literal.

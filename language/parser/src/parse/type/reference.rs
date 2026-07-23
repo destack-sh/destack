@@ -83,10 +83,12 @@ impl Parser {
         context: TypeContext,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
         if self.peek_keyword() == Some(Keyword::This) {
+            let keyword_range = self.peek_token().range();
             self.bump();
-            return Ok(Some(
-                self.insert_node(TypeExpression::This, self.range_since(start)),
-            ));
+            let ty = self.insert_node(TypeExpression::This, self.range_since(start));
+            self.tree.set_main_range(ty, keyword_range);
+
+            return Ok(Some(ty));
         }
 
         if self.peek_keyword() == Some(Keyword::Infer) {
@@ -247,8 +249,12 @@ impl Parser {
                 Some(self.insert_node(TypeExpression::Const, self.range_since(start)))
             }
             Keyword::This => {
+                let keyword_range = self.peek_token().range();
                 self.bump();
-                Some(self.insert_node(TypeExpression::This, self.range_since(start)))
+                let ty = self.insert_node(TypeExpression::This, self.range_since(start));
+                self.tree.set_main_range(ty, keyword_range);
+
+                Some(ty)
             }
             Keyword::Null => {
                 self.bump();

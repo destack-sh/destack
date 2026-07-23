@@ -159,6 +159,11 @@ fn test_parse_parenthesized_object_literal_shorthand_field() {
                 assert_string!(parser, *name, "value");
                 assert!(*is_shorthand);
                 assert_expression_path!(parser, parser.tree.get(*value), "value");
+                let main_span = parser
+                    .tree
+                    .get_main_span(*value)
+                    .expect("expected shorthand value main span");
+                assert_eq!(parser.span_str(main_span), "value");
             });
         });
     });

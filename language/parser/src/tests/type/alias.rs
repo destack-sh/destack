@@ -118,6 +118,11 @@ fn test_parse_this_type_alias() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "Builder");
             assert_node!(parser.tree, *value, TypeExpression::This);
+            let main_span = parser
+                .tree
+                .get_main_span(*value)
+                .expect("expected this type main span");
+            assert_eq!(parser.span_str(main_span), "this");
         });
     });
 }

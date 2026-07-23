@@ -1,10 +1,10 @@
 use crate::tests::{TestParser, block_expression_ids};
 use destack_dir::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Block, ClassDeclaration, CommentKind,
-    Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole, GenericArgument,
-    GenericParameter, IntegerType, InterfaceDeclaration, Key, Member, MethodAbstraction, Name,
-    NodeType, Parameter, Property, ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
-    TypeMember, Visibility,
+    Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, ClassDeclaration,
+    CommentKind, Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole,
+    GenericArgument, GenericParameter, IntegerType, InterfaceDeclaration, Key, Member,
+    MethodAbstraction, Name, NodeType, Parameter, Property, ScalarLiteral, TokenType,
+    TypeExpression, TypeLiteral, TypeMember, Visibility,
 };
 
 use crate::parse::TypeMemberContainerKind;
@@ -532,6 +532,13 @@ fn test_parse_property_with_default_value() {
         assert_node!(parser.tree, *value, Expression::Assign { left, operator, right } => {
             assert_eq!(*operator, AssignOperator::Assign);
             assert_expression_path!(parser, parser.tree.get(*left), "x");
+            assert_node!(parser.tree, *left, AssignPattern::Place { expression } => {
+                let main_span = parser
+                    .tree
+                    .get_main_span(*expression)
+                    .expect("expected shorthand value main span");
+                assert_eq!(parser.span_str(main_span), "x");
+            });
             assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
         });
     });

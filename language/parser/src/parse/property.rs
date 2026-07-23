@@ -291,6 +291,7 @@ impl Parser {
         self.bump();
         let default = self.parse_simple_object_field_value(function)?;
         let value = self.insert_node(Expression::Identifier { name }, key_range);
+        self.tree.set_main_range(value, key_range);
         let value = self.insert_property_default_expression(
             value,
             default,
@@ -328,6 +329,7 @@ impl Parser {
         };
 
         let value = self.insert_node(Expression::Identifier { name }, key_range);
+        self.tree.set_main_range(value, key_range);
         let property_id = self.insert_node(
             Property::Field {
                 key,
@@ -603,6 +605,7 @@ impl Parser {
                     };
 
                     let value = self.insert_node(Expression::Identifier { name }, key_range);
+                    self.tree.set_main_range(value, key_range);
 
                     Some(self.insert_property_default_expression(
                         value,
@@ -625,8 +628,12 @@ impl Parser {
             let value = if is_bare_shorthand {
                 match key {
                     Some(Key::Name(Name::Identifier(name))) => {
-                        let value = self
-                            .insert_node(Expression::Identifier { name }, self.range_since(&start));
+                        let Some(key_range) = key_range else {
+                            return Err(ParserError::unexpected(self.range_since(&start)));
+                        };
+                        let value = self.insert_node(Expression::Identifier { name }, key_range);
+                        self.tree.set_main_range(value, key_range);
+
                         Some(value)
                     }
                     _ => value,
