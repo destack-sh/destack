@@ -3,7 +3,18 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{DependencyItem, LocalNodeId, LocalSymbolId, Name, StaticKey};
+use crate::{DependencyItem, GlobalSymbolId, LocalNodeId, LocalSymbolId, Name, StaticKey};
+
+/// One exact target exposed through a module export.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub enum ExportTarget {
+    /// One declaration symbol.
+    Symbol(GlobalSymbolId),
+    /// One module namespace object.
+    Namespace(ModuleId),
+}
 
 /// The exported name in one module record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

@@ -1,9 +1,8 @@
-use crate::{GlobalNodeIdAny, GlobalSymbolId, Postings, SymbolKind};
+use crate::{ExportTarget, Postings};
 use destack_serde::Reflect;
-use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
-/// Indexed exported symbols.
+/// Indexed resolved named exports.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ExportIndex {
     /// The exports in stable display order.
@@ -54,44 +53,20 @@ impl ExportPostings {
     }
 }
 
-/// One indexed exported symbol.
+/// One indexed resolved named export.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ExportEntry {
-    /// The exported symbol name.
+    /// The exposed name.
     pub name: String,
-    /// The exported symbol kind.
-    pub kind: SymbolKind,
-    /// The resolved exported symbol.
-    pub symbol: GlobalSymbolId,
-    /// The source node that exposes this export.
-    pub source: GlobalNodeIdAny,
-    /// The source file.
-    pub file: FileId,
-    /// The source range.
-    pub span: Span,
-    /// The module path to use in imports.
-    pub module_path: Option<String>,
+    /// The exact resolved target.
+    pub target: ExportTarget,
 }
 
 impl ExportEntry {
     /// Compare two exports in stable display order.
     fn compare_by_display(&self, other: &Self) -> std::cmp::Ordering {
-        let left = (
-            self.name.as_str(),
-            self.source.module_id,
-            self.file,
-            self.span.start,
-            self.span.end,
-            self.symbol,
-        );
-        let right = (
-            other.name.as_str(),
-            other.source.module_id,
-            other.file,
-            other.span.start,
-            other.span.end,
-            other.symbol,
-        );
+        let left = (self.name.as_str(), self.target);
+        let right = (other.name.as_str(), other.target);
 
         left.cmp(&right)
     }
