@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::export::{ExportLookup, ExportTarget};
+use crate::export::ExportLookup;
 use crate::resolve::state::{ModuleClause, ResolveState};
 
 impl ResolveState<'_> {
@@ -198,11 +198,11 @@ impl ResolveState<'_> {
         };
 
         match self.resolve_export_target(target, key)? {
-            ExportLookup::Found(ExportTarget::Symbol(symbol)) => {
+            ExportLookup::Found(dir::ExportTarget::Symbol(symbol)) => {
                 self.imports
                     .insert_symbol(local_symbol, dir::ImportTarget::Symbol(symbol));
             }
-            ExportLookup::Found(ExportTarget::Namespace(module)) => {
+            ExportLookup::Found(dir::ExportTarget::Namespace(module)) => {
                 self.imports
                     .insert_symbol(local_symbol, dir::ImportTarget::Namespace(module));
             }

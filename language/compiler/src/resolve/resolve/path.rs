@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::{SmallVec, smallvec};
 
 use crate::CompilerResult;
-use crate::export::{ExportLookup, ExportTarget};
+use crate::export::ExportLookup;
 use crate::resolve::state::{PathReference, ResolveState};
 
 impl ResolveState<'_> {
@@ -38,7 +38,7 @@ impl ResolveState<'_> {
             let key = dir::ExportKey::named(dir::StaticKey::Name(segment));
             match self.resolve_export_target(module, key)? {
                 // follow a symbol prefix only while it keeps naming a namespace
-                ExportLookup::Found(ExportTarget::Symbol(symbol)) => {
+                ExportLookup::Found(dir::ExportTarget::Symbol(symbol)) => {
                     prefixes.push(dir::Reference::Bound(smallvec![symbol]));
                     match self.local_namespace_symbol_module(symbol) {
                         Some(next) => module = next,
@@ -47,7 +47,7 @@ impl ResolveState<'_> {
                 }
 
                 // follow a nested namespace prefix
-                ExportLookup::Found(ExportTarget::Namespace(next)) => {
+                ExportLookup::Found(dir::ExportTarget::Namespace(next)) => {
                     prefixes.push(dir::Reference::Namespace(next));
                     module = next;
                 }
@@ -57,8 +57,8 @@ impl ResolveState<'_> {
                     let symbols = targets
                         .into_iter()
                         .filter_map(|target| match target {
-                            ExportTarget::Symbol(symbol) => Some(symbol),
-                            ExportTarget::Namespace(_) => None,
+                            dir::ExportTarget::Symbol(symbol) => Some(symbol),
+                            dir::ExportTarget::Namespace(_) => None,
                         })
                         .collect();
                     prefixes.push(dir::Reference::Ambiguous(symbols));

@@ -12,20 +12,11 @@ use crate::{CompilerError, CompilerResult};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ExportLookup {
     /// One export target was resolved.
-    Found(ExportTarget),
+    Found(dir::ExportTarget),
     /// Multiple star exports provide the same key.
-    Ambiguous(Vec<ExportTarget>),
+    Ambiguous(Vec<dir::ExportTarget>),
     /// No matching export exists.
     Missing,
-}
-
-/// One target resolved through an export surface.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ExportTarget {
-    /// A symbol export target.
-    Symbol(dir::GlobalSymbolId),
-    /// A namespace export target.
-    Namespace(ModuleId),
 }
 
 /// Cache key for one exported name in one module.
@@ -199,7 +190,7 @@ impl ExportResolver {
         export: dir::NamedExport,
     ) -> CompilerResult<ExportLookup> {
         match export {
-            dir::NamedExport::Local(export) => Ok(ExportLookup::Found(ExportTarget::Symbol(
+            dir::NamedExport::Local(export) => Ok(ExportLookup::Found(dir::ExportTarget::Symbol(
                 export.source.into_global(module),
             ))),
 
@@ -208,7 +199,7 @@ impl ExportResolver {
                     return Ok(ExportLookup::Missing);
                 };
                 if export.imported == dir::ExportSelector::Namespace {
-                    return Ok(ExportLookup::Found(ExportTarget::Namespace(target)));
+                    return Ok(ExportLookup::Found(dir::ExportTarget::Namespace(target)));
                 }
                 let Some(key) = export.imported.selected_export_key() else {
                     return Ok(ExportLookup::Missing);
@@ -300,7 +291,7 @@ pub(crate) struct ExportLookupStats {
 /// export * from "./b.ds";
 /// // duplicate targets from both star exports count once
 /// ```
-fn insert_export_target(targets: &mut Vec<ExportTarget>, target: ExportTarget) {
+fn insert_export_target(targets: &mut Vec<dir::ExportTarget>, target: dir::ExportTarget) {
     if !targets.contains(&target) {
         targets.push(target);
     }

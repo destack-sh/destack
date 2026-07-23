@@ -5,7 +5,7 @@ use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 
-use crate::export::{ExportLookup, ExportResolver, ExportTarget};
+use crate::export::{ExportLookup, ExportResolver};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
@@ -96,10 +96,10 @@ impl Compiler {
         };
 
         match resolver.resolve_export_target(artifacts, target, key)? {
-            ExportLookup::Found(ExportTarget::Symbol(symbol)) => {
+            ExportLookup::Found(dir::ExportTarget::Symbol(symbol)) => {
                 Ok(Some(dir::ImportTarget::Symbol(symbol)))
             }
-            ExportLookup::Found(ExportTarget::Namespace(module)) => {
+            ExportLookup::Found(dir::ExportTarget::Namespace(module)) => {
                 Ok(Some(dir::ImportTarget::Namespace(module)))
             }
             ExportLookup::Ambiguous(_) | ExportLookup::Missing => Ok(None),

@@ -299,13 +299,9 @@ impl Compiler {
             .dir_resolved(module, profile)
             .map_err(CompilerError::from)?;
 
-        // collect the defining modules of resolved imports and references
+        // collect the defining modules of resolved targets
         let mut edges = IndexSet::new();
-        let targets = resolved
-            .imports
-            .target_modules()
-            .chain(resolved.references.target_modules());
-        for target in targets {
+        for target in resolved.target_modules() {
             if target != module {
                 edges.insert(target);
             }

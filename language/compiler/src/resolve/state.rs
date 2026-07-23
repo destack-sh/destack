@@ -6,7 +6,7 @@ use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexSet;
 use smallvec::{SmallVec, smallvec};
 
-use crate::export::{ExportLookup, ExportResolver, ExportTarget};
+use crate::export::{ExportLookup, ExportResolver};
 use crate::resolve::stats::ResolveStats;
 use crate::{CompilerResult, ResolveError, diagnostic_suggestion_distance, rename_suggestion};
 
@@ -346,7 +346,7 @@ impl<'a> ResolveState<'a> {
         item_id: dir::LocalNodeId<dir::DependencyItem>,
         key: dir::ExportKey,
         specifier: dir::StringId,
-        targets: &[ExportTarget],
+        targets: &[dir::ExportTarget],
     ) -> CompilerResult<()> {
         // render diagnostic payload
         let anchor = self.anchor_node(item_id.id)?;
@@ -362,8 +362,8 @@ impl<'a> ResolveState<'a> {
         let mut diagnostic = DiagnosticBuilder::new(error);
         for target in targets {
             let module = match target {
-                ExportTarget::Symbol(symbol) => symbol.module_id,
-                ExportTarget::Namespace(module) => *module,
+                dir::ExportTarget::Symbol(symbol) => symbol.module_id,
+                dir::ExportTarget::Namespace(module) => *module,
             };
             diagnostic = diagnostic.label(
                 DiagnosticAnchor::Module(module),
