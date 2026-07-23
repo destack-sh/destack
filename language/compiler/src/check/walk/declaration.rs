@@ -1581,6 +1581,16 @@ impl WalkState<'_, '_> {
         let left = self.walk_type_expression(left)?;
         let right = self.walk_type_expression(right)?;
 
+        // a lifetime outlives one lifetime; a union bound has no sound reading
+        if self.check.is_lifetime_term(left)?
+            && matches!(self.check.ty(right)?, dir::Type::Union(_))
+        {
+            self.check
+                .report_disjunctive_lifetime_bound(id.into_global_any(self.module))?;
+
+            return Ok(());
+        }
+
         // check clauses without a template through current bound logic
         let Some(template) = template else {
             let origin = Origin::Node(

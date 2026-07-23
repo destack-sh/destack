@@ -698,6 +698,22 @@ pub enum CheckError {
         visibility: String,
     },
 
+    /// One lifetime bound names a union instead of one lifetime.
+    ///
+    /// ```ds
+    /// function pick<'a, 'b, 'c>(a: &'a Node, b: &'b Node): &'c Node where 'c: 'a | 'b {}
+    /// ```
+    #[diagnostic(
+        id = "disjunctive-lifetime-bound",
+        message = "a lifetime bound must name one lifetime, not a union"
+    )]
+    DisjunctiveLifetimeBound {
+        /// Report the where clause.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// One interpolated template argument has no display representation.
     ///
     /// ```ds

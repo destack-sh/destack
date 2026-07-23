@@ -1232,6 +1232,21 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one lifetime bound spelled as a union.
+    pub(in crate::check) fn report_disjunctive_lifetime_bound(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<()> {
+        let anchor = self.diagnostic_anchor(source.module_id, source.local_id);
+        let error = CheckError::DisjunctiveLifetimeBound {
+            anchor,
+            module: source.module_id,
+        };
+        self.report(source.module_id, error);
+
+        Ok(())
+    }
+
     /// Report one interpolated argument without a display representation.
     pub(in crate::check) fn report_template_argument_not_displayable(
         &mut self,
