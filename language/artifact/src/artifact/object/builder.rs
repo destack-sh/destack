@@ -16,7 +16,7 @@ pub struct ObjectBuilder {
     /// Target layout shared by every emitted code form.
     target: mir::TargetLayout,
 
-    /// Object-local type declarations.
+    /// Object-local type declarations in ascending MIR id order.
     types: Vec<Type>,
     /// Object-local physical layouts.
     layouts: mir::LayoutTable,
@@ -24,9 +24,9 @@ pub struct ObjectBuilder {
     drops: mir::DropTable,
     /// Object-local dispatch declarations.
     dispatch: mir::DispatchTable,
-    /// Object-local function declarations.
+    /// Object-local function declarations in ascending MIR id order.
     functions: Vec<Function>,
-    /// Object-local global declarations and definitions.
+    /// Object-local global declarations and definitions in ascending MIR id order.
     globals: Vec<Global>,
 
     /// Logical function frame shapes.
@@ -90,7 +90,7 @@ impl ObjectBuilder {
         self
     }
 
-    /// Set object-local type declarations.
+    /// Set object-local type declarations in ascending MIR id order.
     pub fn types(mut self, types: impl IntoIterator<Item = Type>) -> Self {
         self.types = types.into_iter().collect();
 
@@ -118,14 +118,14 @@ impl ObjectBuilder {
         self
     }
 
-    /// Set object-local function declarations.
+    /// Set object-local function declarations in ascending MIR id order.
     pub fn functions(mut self, functions: impl IntoIterator<Item = Function>) -> Self {
         self.functions = functions.into_iter().collect();
 
         self
     }
 
-    /// Set object-local global declarations and definitions.
+    /// Set object-local global declarations and definitions in ascending MIR id order.
     pub fn globals(mut self, globals: impl IntoIterator<Item = Global>) -> Self {
         self.globals = globals.into_iter().collect();
 

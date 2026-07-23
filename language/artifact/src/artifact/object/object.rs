@@ -18,7 +18,7 @@ pub struct Object {
     /// Target layout shared by every emitted code form.
     pub(super) target: mir::TargetLayout,
 
-    /// Object-local type declarations.
+    /// Object-local type declarations in ascending MIR id order.
     pub(super) types: Vec<Type>,
     /// Object-local physical layouts.
     pub(super) layouts: mir::LayoutTable,
@@ -26,9 +26,9 @@ pub struct Object {
     pub(super) drops: mir::DropTable,
     /// Object-local dispatch declarations.
     pub(super) dispatch: mir::DispatchTable,
-    /// Object-local function declarations.
+    /// Object-local function declarations in ascending MIR id order.
     pub(super) functions: Vec<Function>,
-    /// Object-local global declarations and definitions.
+    /// Object-local global declarations and definitions in ascending MIR id order.
     pub(super) globals: Vec<Global>,
 
     /// Logical function frame shapes.
@@ -77,7 +77,9 @@ impl Object {
 
     /// Return one object-local type declaration.
     pub fn ty(&self, id: mir::TypeId) -> Option<&Type> {
-        self.types.iter().find(|ty| ty.id == id)
+        let index = self.types.binary_search_by_key(&id, |ty| ty.id).ok()?;
+
+        self.types.get(index)
     }
 
     /// Return the transparent storage type for one object-local type.
@@ -117,7 +119,12 @@ impl Object {
 
     /// Return one object-local function declaration.
     pub fn function(&self, id: mir::FunctionId) -> Option<&Function> {
-        self.functions.iter().find(|function| function.id == id)
+        let index = self
+            .functions
+            .binary_search_by_key(&id, |function| function.id)
+            .ok()?;
+
+        self.functions.get(index)
     }
 
     /// Return object-local global declarations and definitions.
@@ -127,7 +134,12 @@ impl Object {
 
     /// Return one object-local global declaration.
     pub fn global(&self, id: mir::GlobalId) -> Option<&Global> {
-        self.globals.iter().find(|global| global.id == id)
+        let index = self
+            .globals
+            .binary_search_by_key(&id, |global| global.id)
+            .ok()?;
+
+        self.globals.get(index)
     }
 
     /// Return logical function frame shapes.
