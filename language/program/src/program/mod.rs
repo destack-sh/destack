@@ -20,6 +20,7 @@ mod string;
 mod r#type;
 mod value;
 mod watch;
+mod word;
 
 pub use activation::*;
 pub use binding::*;
@@ -43,3 +44,4 @@ pub use string::*;
 pub use r#type::*;
 pub use value::*;
 pub use watch::*;
+pub use word::*;

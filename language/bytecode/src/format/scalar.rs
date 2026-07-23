@@ -4,7 +4,7 @@ use destack_fir::write;
 
 use crate::{
     BooleanOperation, CastOperation, FloatOperation, IntegerOperation, Opcode, Operand, RegisterId,
-    Scalar, ValueType, Word,
+    Scalar, ValueType,
 };
 
 use super::instruction::InstructionFormatter;
@@ -336,7 +336,7 @@ impl Scalar {
                     unreachable!("floating-point scalars have one concrete format");
                 };
 
-                Self::float_literal(value, Word::scalar(bits, self).bits())
+                Self::float_literal(value, self.encode(bits))
             }
         }
     }

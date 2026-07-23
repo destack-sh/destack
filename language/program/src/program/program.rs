@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use destack_bytecode as bytecode;
-use destack_bytecode::Word;
 use destack_core::{EntryRange, SectionImage, SectionStorage, StringId};
 use destack_heap::{
     AllocationShape, DropId, HeapResult, ReferenceRange, RootSlot, TraceTable, TraceView,
@@ -21,7 +20,7 @@ use crate::{
     ProgramInfo, ProgramPoint, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
     SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, TensorDimension,
     TensorLayout, TensorViewLayout, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout,
-    VirtualTable, VirtualTableId, WordLayout, native, wasm,
+    VirtualTable, VirtualTableId, Word, WordLayout, native, wasm,
 };
 
 use super::{Error, Result};
@@ -497,7 +496,7 @@ impl Program {
         self.types().layout_id(self.sections(), ty)
     }
 
-    /// Return whether one type is stored in one bytecode word.
+    /// Return whether one type is stored in one execution word.
     pub fn is_word_type(&self, ty: TypeId) -> bool {
         let Some(layout) = self.word_layout(ty) else {
             return false;
@@ -506,7 +505,7 @@ impl Program {
         layout.byte_len(self.pointer_bytes() as usize) <= Word::BYTE_LEN
     }
 
-    /// Return the bytecode word layout for one type.
+    /// Return the execution word layout for one type.
     pub fn word_layout(&self, ty: TypeId) -> Option<WordLayout> {
         let layout = self.layout(ty)?;
 
@@ -519,7 +518,7 @@ impl Program {
             return Err(Error::undefined_type(ty));
         };
 
-        // accept only values represented by one bytecode word
+        // accept only values represented by one execution word
         let Some(layout) = layout.word_layout() else {
             return Err(Error::UnsupportedValue { ty });
         };
@@ -527,13 +526,13 @@ impl Program {
         value.encode(layout)
     }
 
-    /// Decode one program value from its bytecode result words.
+    /// Decode one program value from its execution result words.
     pub fn decode_value(&self, ty: TypeId, words: &[Word]) -> Result<Value> {
         let Some(layout) = self.layout(ty) else {
             return Err(Error::undefined_type(ty));
         };
 
-        // accept only values represented by one bytecode word
+        // accept only values represented by one execution word
         let Some(layout) = layout.word_layout() else {
             return Err(Error::UnsupportedValue { ty });
         };
@@ -572,7 +571,7 @@ impl Program {
         self.word_layout(environment)
     }
 
-    /// Return whether one frame slot is stored in one bytecode word.
+    /// Return whether one frame slot is stored in one execution word.
     pub fn frame_slot_is_word(&self, slot: &FrameSlot) -> bool {
         self.is_word_type(slot.ty)
     }

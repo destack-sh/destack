@@ -157,6 +157,27 @@ impl Scalar {
         }
     }
 
+    /// Encode memory bits into one canonical register word.
+    #[inline(always)]
+    pub const fn encode(self, bits: u64) -> u64 {
+        match self {
+            Self::Boolean => (bits != 0) as u64,
+            Self::Int8 | Self::Int16 | Self::Int32 | Self::Int64 => {
+                let shift = u64::BITS as u8 - self.bit_width();
+
+                ((bits << shift) as i64 >> shift) as u64
+            }
+            Self::Uint8 | Self::Uint16 | Self::Uint32 | Self::Uint64 => {
+                let shift = u64::BITS as u8 - self.bit_width();
+
+                bits << shift >> shift
+            }
+            Self::Float16 | Self::Bfloat16 => bits as u16 as u64,
+            Self::Float32 => bits as u32 as u64,
+            Self::Float64 => bits,
+        }
+    }
+
     /// Decode one integer register word into a wide mathematical value.
     pub const fn integer(self, bits: u64) -> Option<i128> {
         if self.is_signed_integer() {

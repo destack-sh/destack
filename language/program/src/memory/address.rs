@@ -1,8 +1,7 @@
-use destack_bytecode::Word;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::GlobalId;
+use crate::{GlobalId, Word};
 
 /// Stable address inside static memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

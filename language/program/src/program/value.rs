@@ -1,12 +1,11 @@
 use std::fmt;
 
-use destack_bytecode::Word;
 use destack_core::{FloatFormat, float_to_bits};
 use destack_heap::{HeapReference, SharedHeapReference};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{Error, WordLayout};
+use super::{Error, Word, WordLayout};
 
 /// One value passed into or out of program execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -254,7 +253,7 @@ impl Value {
         Ok(Some(word))
     }
 
-    /// Decode one bytecode word through one runtime word layout.
+    /// Decode one execution word through one runtime word layout.
     pub(crate) fn decode(layout: WordLayout, word: Word) -> super::Result<Self> {
         let value = match layout {
             WordLayout::Void => Self::Void,

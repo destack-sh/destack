@@ -2,9 +2,7 @@ use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::Scalar;
-
-/// One 64-bit bytecode register word.
+/// One 64-bit program execution word.
 #[repr(C, align(8))]
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
@@ -14,31 +12,14 @@ pub struct Word(u64);
 impl Word {
     /// The zero word.
     pub const ZERO: Self = Self(0);
-    /// The bit width of one bytecode register.
+    /// The bit width of one word.
     pub const BIT_LEN: u8 = u64::BITS as u8;
-    /// The byte width of one bytecode register.
+    /// The byte width of one word.
     pub const BYTE_LEN: usize = size_of::<Self>();
 
     /// Create one word from its exact bits.
     pub const fn from_bits(bits: u64) -> Self {
         Self(bits)
-    }
-
-    /// Create one canonical scalar word from its memory bits.
-    #[inline(always)]
-    pub const fn scalar(bits: u64, scalar: Scalar) -> Self {
-        match scalar {
-            Scalar::Boolean => Self::boolean(bits != 0),
-            Scalar::Int8 | Scalar::Int16 | Scalar::Int32 | Scalar::Int64 => {
-                Self::int(bits as i64, scalar.bit_width())
-            }
-            Scalar::Uint8 | Scalar::Uint16 | Scalar::Uint32 | Scalar::Uint64 => {
-                Self::uint(bits, scalar.bit_width())
-            }
-            Scalar::Float16 | Scalar::Bfloat16 => Self::uint(bits, 16),
-            Scalar::Float32 => Self::uint(bits, 32),
-            Scalar::Float64 => Self(bits),
-        }
     }
 
     /// Return this word's exact bits.

@@ -1,7 +1,6 @@
 use std::num::NonZeroU32;
 
 use destack_bytecode as bytecode;
-use destack_bytecode::Word;
 use destack_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
     StringId,
@@ -15,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::GlobalAddress;
 
-use super::{SignatureId, TypeId, ValueTag};
+use super::{SignatureId, TypeId, ValueTag, Word};
 
 /// Shared layout table for runtime values.
 #[repr(C)]
@@ -347,7 +346,7 @@ impl WordLayout {
         }
     }
 
-    /// Decode raw memory bits into one bytecode word.
+    /// Decode raw memory bits into one execution word.
     #[inline(always)]
     pub fn decode(self, raw: u64) -> Word {
         match self {
@@ -369,7 +368,7 @@ impl WordLayout {
         }
     }
 
-    /// Encode one bytecode word into raw memory bits.
+    /// Encode one execution word into raw memory bits.
     #[inline(always)]
     pub fn encode(self, value: Word) -> u64 {
         match self {
@@ -392,7 +391,7 @@ impl WordLayout {
         }
     }
 
-    /// Encode one bytecode word into its memory-width bytes.
+    /// Encode one execution word into its memory-width bytes.
     pub fn encode_bytes(self, value: Word, pointer_bytes: u8) -> WordBytes {
         let raw = self.encode(value);
         let len = self.byte_len(pointer_bytes as usize);
@@ -578,7 +577,7 @@ pub struct Layout {
 }
 
 impl Layout {
-    /// Return the word layout when this value fits one bytecode word.
+    /// Return the word layout when this value fits one execution word.
     pub fn word_layout(&self) -> Option<WordLayout> {
         match &self.shape {
             LayoutShape::None => Some(WordLayout::Void),

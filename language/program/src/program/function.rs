@@ -1,4 +1,3 @@
-use destack_bytecode::Word;
 use destack_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
     StringId,
@@ -8,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
-use super::{BindingId, FrameLayoutId, TypeId};
+use super::{BindingId, FrameLayoutId, TypeId, Word};
 
 /// Durable runtime function id inside one program.
 #[repr(transparent)]

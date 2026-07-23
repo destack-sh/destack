@@ -20,7 +20,6 @@ mod tensor;
 mod r#type;
 mod value;
 mod vector;
-mod word;
 
 pub use builder::*;
 pub use code::*;
@@ -44,4 +43,3 @@ pub use tensor::*;
 pub use r#type::*;
 pub use value::*;
 pub use vector::*;
-pub use word::*;

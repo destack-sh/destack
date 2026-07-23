@@ -1,4 +1,3 @@
-use destack_bytecode::Word;
 use destack_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
     StringId,
@@ -6,7 +5,7 @@ use destack_core::{
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{FunctionId, SignatureId, TypeId};
+use super::{FunctionId, SignatureId, TypeId, Word};
 
 /// Durable virtual dispatch table id inside one program.
 #[repr(transparent)]
