@@ -6,7 +6,6 @@ mod heritage;
 mod member;
 mod postings;
 mod reference;
-mod specifier;
 mod symbol;
 
 pub use call::*;
@@ -17,5 +16,4 @@ pub use heritage::*;
 pub use member::*;
 pub use postings::*;
 pub use reference::*;
-pub use specifier::*;
 pub use symbol::*;
