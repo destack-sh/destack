@@ -60,6 +60,7 @@ pub fn render_timeline(report: &TraceSnapshot) -> String {
     let options = TraceTimelineOptions::new()
         .with_color(color_enabled(Stream::Stdout))
         .with_width(LANE_WIDTH)
+        .with_parallelism(true)
         .with_slow_attempts(SLOWEST_COUNT);
 
     render_trace_timeline(report, options)
