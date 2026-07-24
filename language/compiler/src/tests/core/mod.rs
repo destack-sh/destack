@@ -1,6 +1,5 @@
 mod mir;
 mod module;
-mod provider;
 mod session;
 mod trace;
 

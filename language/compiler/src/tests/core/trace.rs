@@ -1,6 +1,8 @@
 use std::cmp::Reverse;
 
-use destack_repository::{TraceSnapshot, TraceTimelineOptions, render_trace_timeline};
+use destack_repository::{
+    TraceSnapshot, TraceTimelineOptions, render_trace_timeline, trace_artifact_color,
+};
 
 /// Styled text table for compiler test traces.
 #[derive(Debug, Default)]
@@ -373,7 +375,9 @@ impl<'a> TraceTable<'a> {
                 "{}",
                 paint(&format!("timeline {}", row.name), "1;38;5;250", self.color)
             );
-            let options = TraceTimelineOptions::new().with_color(self.color);
+            let options = TraceTimelineOptions::new()
+                .with_color(self.color)
+                .with_parallelism(true);
             let timeline = render_trace_timeline(row.trace, options);
             if !timeline.is_empty() {
                 print!("{timeline}");
@@ -417,7 +421,7 @@ impl<'a> TraceTable<'a> {
                 Cell::bold("trace"),
                 Cell::bold("stage"),
                 Cell::bold("artifact"),
-                Cell::bold("module"),
+                Cell::bold("subject"),
                 Cell::bold("outcome"),
                 Cell::bold("work ms"),
                 Cell::bold("latency ms"),
@@ -449,7 +453,7 @@ impl<'a> TraceTable<'a> {
             rows.push(vec![
                 Cell::new(row.name.clone()),
                 Cell::colored(attempt.stage.clone(), stage_color(&attempt.stage)),
-                Cell::colored(attempt.name.clone(), kind_color(&attempt.name)),
+                Cell::colored(attempt.name.clone(), trace_artifact_color(&attempt.name)),
                 Cell::new(attempt.label.clone().unwrap_or_default()),
                 Cell::colored(attempt.outcome.clone(), outcome_color(&attempt.outcome)),
                 Cell::colored(format_millis(attempt.work_micros), "38;5;250"),
@@ -533,32 +537,6 @@ fn paint(text: &str, code: &str, enabled: bool) -> String {
     }
 
     format!("\x1b[{code}m{text}\x1b[0m")
-}
-
-/// Return the 256-color code of one artifact kind.
-fn kind_color(name: &str) -> &'static str {
-    match name {
-        "dir.parse" => "38;5;75",
-        "data" => "38;5;67",
-        "dir.bind" => "38;5;80",
-        "dir.import" => "38;5;73",
-        "dir.expand" => "38;5;115",
-        "dir.export" => "38;5;72",
-        "dir.resolve" => "38;5;79",
-        "module.index" | "component.graph" => "38;5;147",
-        "dir.check.component" => "38;5;170",
-        "dir.check" => "38;5;176",
-        "dir.materialize" => "38;5;178",
-        "mir.lower" => "38;5;208",
-        "mir.verify" => "38;5;209",
-        "mir.optimize" => "38;5;214",
-        "module.emit" => "38;5;114",
-        "package.link" => "38;5;84",
-        "module.lint" | "program.lint" => "38;5;228",
-        "workspace.index" => "38;5;147",
-        "environment" | "dependency.index" => "38;5;245",
-        _ => "38;5;250",
-    }
 }
 
 /// Return the 256-color code of one stage.
