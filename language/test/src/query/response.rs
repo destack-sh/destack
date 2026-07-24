@@ -20,12 +20,12 @@ pub(super) struct ResponseRows {
 
 impl ResponseRows {
     /// Parse expected response rows.
-    pub(super) fn parse(source: &str) -> Result<Self, String> {
+    pub(super) fn parse(source: &str, method: &str) -> Result<Self, String> {
         let mut rows = Vec::new();
 
         // parse every non-empty response line
         for line in source.lines().filter(|line| !line.trim().is_empty()) {
-            rows.push(QueryRow::parse(line)?);
+            rows.push(QueryRow::parse(line, method)?);
         }
         if rows.is_empty() {
             return Err("query response has no rows".to_string());
@@ -80,7 +80,7 @@ impl QueryRow {
     }
 
     /// Parse one expected response row.
-    fn parse(source: &str) -> Result<Self, String> {
+    fn parse(source: &str, method: &str) -> Result<Self, String> {
         let words = parse_words(source)?;
         let Some(noun) = words.first() else {
             return Err("query response row is empty".to_string());
@@ -88,9 +88,20 @@ impl QueryRow {
         let Some(noun) = noun.strip_prefix('@') else {
             return Err(format!("query response row '{source}' must start with '@'"));
         };
-        if noun.is_empty() || !noun.contains('.') {
+
+        // require the exact fixture method and one response entry
+        let Some((row_method, entry)) = noun.split_once('.') else {
             return Err(format!(
-                "query response noun '{noun}' must be '<domain>.<entry>'"
+                "query response noun '{noun}' must be '<method>.<entry>'"
+            ));
+        };
+        if row_method.is_empty() || entry.is_empty() {
+            return Err(format!(
+                "query response noun '{noun}' must be '<method>.<entry>'"
+            ));
+        } else if row_method != method {
+            return Err(format!(
+                "query response noun '{noun}' must belong to method '{method}'"
             ));
         }
         let mut row = Self::new(noun);
@@ -189,20 +200,25 @@ pub(super) fn response_rows(
         }
         QueryResponse::Hover(response) => match &response.hover {
             Some(hover) => vec![hover_row(run, hover)?],
-            None => none("assist"),
+            None => none("hover"),
         },
         QueryResponse::SignatureHelp(response) => match &response.help {
             Some(help) => signature_rows(help)?,
-            None => none("assist"),
+            None => none("signature_help"),
         },
         QueryResponse::InlayHints(response) => inlay_rows(run, call, &response.hints)?,
-        QueryResponse::CodeLenses(response) => code_lens_rows(run, &response.lenses)?,
+        QueryResponse::CodeLenses(response) => {
+            code_lens_rows(run, "code_lenses", &response.lenses)?
+        }
         QueryResponse::ResolveCodeLens(response) => {
-            vec![code_lens_row(run, &response.lens)?]
+            vec![code_lens_row(run, "resolve_code_lens", &response.lens)?]
         }
         QueryResponse::FoldingRanges(response) => folding_rows(&response.ranges),
-        QueryResponse::SemanticTokens(response) | QueryResponse::SemanticTokensRange(response) => {
-            semantic_rows(run, &response.tokens)?
+        QueryResponse::SemanticTokens(response) => {
+            semantic_rows(run, "semantic_tokens", &response.tokens)?
+        }
+        QueryResponse::SemanticTokensRange(response) => {
+            semantic_rows(run, "semantic_tokens_range", &response.tokens)?
         }
         QueryResponse::Outline(response) => outline_rows(run, &response.symbols)?,
         QueryResponse::SearchSymbols(response) => search_symbols_rows(run, &response.symbols)?,
@@ -212,49 +228,57 @@ pub(super) fn response_rows(
                 .highlights
                 .iter()
                 .map(|highlight| {
-                    Ok(QueryRow::new("navigation.highlight")
+                    Ok(QueryRow::new("highlight.range")
                         .field("range", run.format_span(highlight.range)?))
                 })
                 .collect::<Result<Vec<_>, String>>()?;
 
-            rows_or_none(rows, "navigation")
+            rows_or_none(rows, "highlight")
         }
         QueryResponse::SelectionRanges(response) => selection_rows(run, call, &response.ranges)?,
-        QueryResponse::GotoDefinition(response) => navigation_rows(run, &response.targets)?,
-        QueryResponse::GotoDeclaration(response) => navigation_rows(run, &response.targets)?,
-        QueryResponse::GotoTypeDefinition(response) => navigation_rows(run, &response.targets)?,
-        QueryResponse::GotoImplementation(response) => navigation_rows(run, &response.targets)?,
+        QueryResponse::GotoDefinition(response) => {
+            navigation_rows(run, "goto_definition", &response.targets)?
+        }
+        QueryResponse::GotoDeclaration(response) => {
+            navigation_rows(run, "goto_declaration", &response.targets)?
+        }
+        QueryResponse::GotoTypeDefinition(response) => {
+            navigation_rows(run, "goto_type_definition", &response.targets)?
+        }
+        QueryResponse::GotoImplementation(response) => {
+            navigation_rows(run, "goto_implementation", &response.targets)?
+        }
         QueryResponse::FindReferences(response) => {
             let rows = response
                 .references
                 .iter()
-                .map(|reference| target_row(run, "navigation.reference", &reference.target))
+                .map(|reference| target_row(run, "find_references.reference", &reference.target))
                 .collect::<Result<Vec<_>, String>>()?;
 
-            rows_or_none(rows, "navigation")
+            rows_or_none(rows, "find_references")
         }
         QueryResponse::CallItem(response) => match &response.item {
             Some(item) => call_item_rows(run, item)?,
-            None => none("hierarchy"),
+            None => none("call_item"),
         },
         QueryResponse::IncomingCalls(response) => incoming_call_rows(run, &response.calls)?,
         QueryResponse::OutgoingCalls(response) => outgoing_call_rows(run, &response.calls)?,
         QueryResponse::TypeItem(response) => match &response.item {
-            Some(item) => vec![type_item_row(run, "hierarchy.type", item)?],
-            None => none("hierarchy"),
+            Some(item) => vec![type_item_row(run, "type_item.item", item)?],
+            None => none("type_item"),
         },
         QueryResponse::Supertypes(response) => {
-            type_item_rows(run, "hierarchy.supertype", &response.items)?
+            type_item_rows(run, "supertypes", "supertypes.item", &response.items)?
         }
         QueryResponse::Subtypes(response) => {
-            type_item_rows(run, "hierarchy.subtype", &response.items)?
+            type_item_rows(run, "subtypes", "subtypes.item", &response.items)?
         }
         QueryResponse::Decorators(response) => decorator_rows(run, &response.decorators)?,
         QueryResponse::RenameTarget(response) => match &response.result {
             Some(result) => {
                 let target = render_target(run, &result.target)?;
                 vec![
-                    QueryRow::new("refactor.rename")
+                    QueryRow::new("rename_target.target")
                         .field("placeholder", &result.placeholder)
                         .field("range", run.format_span(result.range)?)
                         .field("location", target.location)
@@ -263,13 +287,17 @@ pub(super) fn response_rows(
                         .optional("node", target.node),
                 ]
             }
-            None => none("refactor"),
+            None => none("rename_target"),
         },
         QueryResponse::CodeActions(response) => code_action_rows(run, &response.actions)?,
-        QueryResponse::Rename(response) => edit_rows(run, response.edit.as_ref())?,
-        QueryResponse::RenameFiles(response) => edit_rows(run, response.edit.as_ref())?,
-        QueryResponse::ExtractVariable(response) => edit_rows(run, response.edit.as_ref())?,
-        QueryResponse::Inline(response) => edit_rows(run, response.edit.as_ref())?,
+        QueryResponse::Rename(response) => edit_rows(run, "rename", response.edit.as_ref())?,
+        QueryResponse::RenameFiles(response) => {
+            edit_rows(run, "rename_files", response.edit.as_ref())?
+        }
+        QueryResponse::ExtractVariable(response) => {
+            edit_rows(run, "extract_variable", response.edit.as_ref())?
+        }
+        QueryResponse::Inline(response) => edit_rows(run, "inline", response.edit.as_ref())?,
     };
 
     Ok(ResponseRows::new(rows))
@@ -335,7 +363,7 @@ fn hover_row(run: &QueryRun<'_>, hover: &Hover) -> Result<QueryRow, String> {
         .map(|range| run.format_span(range))
         .transpose()?;
 
-    Ok(QueryRow::new("assist.hover")
+    Ok(QueryRow::new("hover.result")
         .field("signature", &hover.signature)
         .optional("documentation", hover.documentation.as_deref())
         .optional("type", hover.type_text.as_deref())
@@ -352,7 +380,9 @@ fn signature_rows(help: &SignatureHelp) -> Result<Vec<QueryRow>, String> {
             help.signatures.len()
         )
     })?;
-    if help.active_parameter >= active_signature.parameters.len() {
+    if !active_signature.parameters.is_empty()
+        && help.active_parameter >= active_signature.parameters.len()
+    {
         return Err(format!(
             "query signature help selects parameter {}, but active signature has {} parameters",
             help.active_parameter,
@@ -364,7 +394,7 @@ fn signature_rows(help: &SignatureHelp) -> Result<Vec<QueryRow>, String> {
     // transcribe signatures and parameters in response order
     for (signature_index, signature) in help.signatures.iter().enumerate() {
         rows.push(
-            QueryRow::new("assist.signature")
+            QueryRow::new("signature_help.signature")
                 .field("index", signature_index.to_string())
                 .field("label", &signature.label)
                 .optional("documentation", signature.documentation.as_deref())
@@ -373,7 +403,7 @@ fn signature_rows(help: &SignatureHelp) -> Result<Vec<QueryRow>, String> {
 
         for (parameter_index, parameter) in signature.parameters.iter().enumerate() {
             rows.push(
-                QueryRow::new("assist.parameter")
+                QueryRow::new("signature_help.parameter")
                     .field("signature", signature_index.to_string())
                     .field("index", parameter_index.to_string())
                     .field("label", &parameter.label)
@@ -402,7 +432,7 @@ fn inlay_rows(
     let rows = hints
         .iter()
         .map(|hint| {
-            Ok(QueryRow::new("assist.inlay")
+            Ok(QueryRow::new("inlay_hints.hint")
                 .field("position", run.format_position(&range.file, hint.position)?)
                 .field("label", &hint.label)
                 .field("kind", enum_name(hint.kind))
@@ -411,22 +441,26 @@ fn inlay_rows(
         })
         .collect::<Result<Vec<_>, String>>()?;
 
-    Ok(rows_or_none(rows, "assist"))
+    Ok(rows_or_none(rows, "inlay_hints"))
 }
 
 /// Render code lens rows.
-fn code_lens_rows(run: &QueryRun<'_>, lenses: &[CodeLens]) -> Result<Vec<QueryRow>, String> {
+fn code_lens_rows(
+    run: &QueryRun<'_>,
+    method: &str,
+    lenses: &[CodeLens],
+) -> Result<Vec<QueryRow>, String> {
     let rows = lenses
         .iter()
-        .map(|lens| code_lens_row(run, lens))
+        .map(|lens| code_lens_row(run, method, lens))
         .collect::<Result<Vec<_>, String>>()?;
 
-    Ok(rows_or_none(rows, "assist"))
+    Ok(rows_or_none(rows, method))
 }
 
 /// Render one code lens row.
-fn code_lens_row(run: &QueryRun<'_>, lens: &CodeLens) -> Result<QueryRow, String> {
-    let row = QueryRow::new("assist.lens").field("range", run.format_span(lens.range)?);
+fn code_lens_row(run: &QueryRun<'_>, method: &str, lens: &CodeLens) -> Result<QueryRow, String> {
+    let row = QueryRow::new(format!("{method}.lens")).field("range", run.format_span(lens.range)?);
     let row = match &lens.action {
         CodeLensAction::References { count } => row
             .field("action", "references")
@@ -467,7 +501,7 @@ fn folding_rows(ranges: &[FoldingRange]) -> Vec<QueryRow> {
     let rows = ranges
         .iter()
         .map(|range| {
-            QueryRow::new("assist.fold")
+            QueryRow::new("folding_ranges.range")
                 .field("lines", format!("{}..{}", range.start_line, range.end_line))
                 .optional(
                     "start",
@@ -479,17 +513,21 @@ fn folding_rows(ranges: &[FoldingRange]) -> Vec<QueryRow> {
         })
         .collect();
 
-    rows_or_none(rows, "assist")
+    rows_or_none(rows, "folding_ranges")
 }
 
 /// Render semantic token rows.
-fn semantic_rows(run: &QueryRun<'_>, tokens: &[SemanticToken]) -> Result<Vec<QueryRow>, String> {
+fn semantic_rows(
+    run: &QueryRun<'_>,
+    method: &str,
+    tokens: &[SemanticToken],
+) -> Result<Vec<QueryRow>, String> {
     let rows = tokens
         .iter()
         .map(|token| {
             let modifiers = semantic_modifiers(token.modifiers)?;
 
-            Ok(QueryRow::new("assist.token")
+            Ok(QueryRow::new(format!("{method}.token"))
                 .field("range", run.format_span(token.span)?)
                 .field("type", enum_name(token.token_type))
                 .optional(
@@ -499,7 +537,7 @@ fn semantic_rows(run: &QueryRun<'_>, tokens: &[SemanticToken]) -> Result<Vec<Que
         })
         .collect::<Result<Vec<_>, String>>()?;
 
-    Ok(rows_or_none(rows, "assist"))
+    Ok(rows_or_none(rows, method))
 }
 
 /// Return semantic modifier names in protocol bit order.
@@ -545,7 +583,7 @@ fn outline_rows(run: &QueryRun<'_>, symbols: &[Symbol]) -> Result<Vec<QueryRow>,
         push_outline_rows(run, symbol, 0, &mut rows)?;
     }
 
-    Ok(rows_or_none(rows, "navigation"))
+    Ok(rows_or_none(rows, "outline"))
 }
 
 /// Append one outline subtree.
@@ -556,7 +594,7 @@ fn push_outline_rows(
     rows: &mut Vec<QueryRow>,
 ) -> Result<(), String> {
     rows.push(
-        QueryRow::new("navigation.symbol")
+        QueryRow::new("outline.symbol")
             .field("depth", depth.to_string())
             .field("name", &symbol.name)
             .field("kind", enum_name(symbol.kind))
@@ -583,7 +621,7 @@ fn search_symbols_rows(
         .map(|symbol| {
             let target = render_target(run, &symbol.target)?;
 
-            Ok(QueryRow::new("navigation.symbol")
+            Ok(QueryRow::new("search_symbols.symbol")
                 .field("name", &symbol.name)
                 .field("kind", enum_name(symbol.kind))
                 .optional("container", symbol.container.as_deref())
@@ -594,7 +632,7 @@ fn search_symbols_rows(
         })
         .collect::<Result<Vec<_>, String>>()?;
 
-    Ok(rows_or_none(rows, "navigation"))
+    Ok(rows_or_none(rows, "search_symbols"))
 }
 
 /// Render document link rows.
@@ -602,7 +640,7 @@ fn link_rows(run: &QueryRun<'_>, links: &[Link]) -> Result<Vec<QueryRow>, String
     let rows = links
         .iter()
         .map(|link| {
-            let row = QueryRow::new("navigation.link")
+            let row = QueryRow::new("links.link")
                 .field("range", run.format_span(link.range)?)
                 .optional("tooltip", link.tooltip.as_deref());
             let row = match &link.target {
@@ -621,7 +659,7 @@ fn link_rows(run: &QueryRun<'_>, links: &[Link]) -> Result<Vec<QueryRow>, String
         })
         .collect::<Result<Vec<_>, String>>()?;
 
-    Ok(rows_or_none(rows, "navigation"))
+    Ok(rows_or_none(rows, "links"))
 }
 
 /// Render every selection chain.
@@ -657,7 +695,7 @@ fn selection_rows(
                 ));
             }
             rows.push(
-                QueryRow::new("navigation.selection")
+                QueryRow::new("selection_ranges.range")
                     .field("selection", selection.to_string())
                     .field("depth", depth.to_string())
                     .field("range", run.format_span(range.range)?),
@@ -667,12 +705,13 @@ fn selection_rows(
         }
     }
 
-    Ok(rows_or_none(rows, "navigation"))
+    Ok(rows_or_none(rows, "selection_ranges"))
 }
 
 /// Render ordered navigation targets.
 fn navigation_rows(
     run: &QueryRun<'_>,
+    method: &str,
     targets: &[NavigationTarget],
 ) -> Result<Vec<QueryRow>, String> {
     let rows = targets
@@ -680,7 +719,7 @@ fn navigation_rows(
         .map(|navigation| {
             let target = render_target(run, &navigation.target)?;
 
-            Ok(QueryRow::new("navigation.target")
+            Ok(QueryRow::new(format!("{method}.target"))
                 .field("relation", enum_name(navigation.relation))
                 .field("location", target.location)
                 .optional("selection", target.selection)
@@ -689,7 +728,7 @@ fn navigation_rows(
         })
         .collect::<Result<Vec<_>, String>>()?;
 
-    Ok(rows_or_none(rows, "navigation"))
+    Ok(rows_or_none(rows, method))
 }
 
 /// Render one source target row.
@@ -745,7 +784,7 @@ struct QueryTarget {
 
 /// Render one standalone call item and its target.
 fn call_item_rows(run: &QueryRun<'_>, item: &CallItem) -> Result<Vec<QueryRow>, String> {
-    Ok(vec![call_item_row(run, "hierarchy.call", None, item)?])
+    Ok(vec![call_item_row(run, "call_item.item", None, item)?])
 }
 
 /// Render incoming call rows and call-site ranges.
@@ -756,20 +795,20 @@ fn incoming_call_rows(run: &QueryRun<'_>, calls: &[IncomingCall]) -> Result<Vec<
     for (call_index, call) in calls.iter().enumerate() {
         rows.push(call_item_row(
             run,
-            "hierarchy.incoming",
+            "incoming_calls.call",
             Some(call_index),
             &call.from,
         )?);
         for range in &call.from_ranges {
             rows.push(
-                QueryRow::new("hierarchy.site")
+                QueryRow::new("incoming_calls.site")
                     .field("call", call_index.to_string())
                     .field("range", run.format_span(*range)?),
             );
         }
     }
 
-    Ok(rows_or_none(rows, "hierarchy"))
+    Ok(rows_or_none(rows, "incoming_calls"))
 }
 
 /// Render outgoing call rows and call-site ranges.
@@ -780,20 +819,20 @@ fn outgoing_call_rows(run: &QueryRun<'_>, calls: &[OutgoingCall]) -> Result<Vec<
     for (call_index, call) in calls.iter().enumerate() {
         rows.push(call_item_row(
             run,
-            "hierarchy.outgoing",
+            "outgoing_calls.call",
             Some(call_index),
             &call.to,
         )?);
         for range in &call.from_ranges {
             rows.push(
-                QueryRow::new("hierarchy.site")
+                QueryRow::new("outgoing_calls.site")
                     .field("call", call_index.to_string())
                     .field("range", run.format_span(*range)?),
             );
         }
     }
 
-    Ok(rows_or_none(rows, "hierarchy"))
+    Ok(rows_or_none(rows, "outgoing_calls"))
 }
 
 /// Render one call hierarchy item.
@@ -819,6 +858,7 @@ fn call_item_row(
 /// Render type hierarchy item rows.
 fn type_item_rows(
     run: &QueryRun<'_>,
+    method: &str,
     noun: &str,
     items: &[TypeItem],
 ) -> Result<Vec<QueryRow>, String> {
@@ -827,7 +867,7 @@ fn type_item_rows(
         .map(|item| type_item_row(run, noun, item))
         .collect::<Result<Vec<_>, String>>()?;
 
-    Ok(rows_or_none(rows, "hierarchy"))
+    Ok(rows_or_none(rows, method))
 }
 
 /// Render one type hierarchy item.
@@ -851,32 +891,32 @@ fn decorator_rows(
 ) -> Result<Vec<QueryRow>, String> {
     let mut rows = Vec::new();
 
-    // preserve decorator entries and their paired targets
+    // preserve decorator applications and their paired owners
     for (index, decorator) in decorators.iter().enumerate() {
-        let expression = render_target(run, &decorator.decorator)?;
+        let application = render_target(run, &decorator.decorator)?;
         rows.push(
-            QueryRow::new("navigation.decorator")
+            QueryRow::new("decorators.application")
                 .field("index", index.to_string())
                 .optional("name", decorator.name.as_deref())
                 .field("role", enum_name(decorator.role))
-                .field("location", expression.location)
-                .optional("selection", expression.selection)
-                .optional("symbol", expression.symbol)
-                .optional("node", expression.node),
+                .field("location", application.location)
+                .optional("selection", application.selection)
+                .optional("symbol", application.symbol)
+                .optional("node", application.node),
         );
 
-        let target = render_target(run, &decorator.target)?;
+        let owner = render_target(run, &decorator.target)?;
         rows.push(
-            QueryRow::new("navigation.decorated")
+            QueryRow::new("decorators.owner")
                 .field("index", index.to_string())
-                .field("location", target.location)
-                .optional("selection", target.selection)
-                .optional("symbol", target.symbol)
-                .optional("node", target.node),
+                .field("location", owner.location)
+                .optional("selection", owner.selection)
+                .optional("symbol", owner.symbol)
+                .optional("node", owner.node),
         );
     }
 
-    Ok(rows_or_none(rows, "navigation"))
+    Ok(rows_or_none(rows, "decorators"))
 }
 
 /// Render code action rows and exact patches.
@@ -886,7 +926,7 @@ fn code_action_rows(run: &QueryRun<'_>, actions: &[CodeAction]) -> Result<Vec<Qu
     // preserve action, file, and patch order
     for (action_index, action) in actions.iter().enumerate() {
         rows.push(
-            QueryRow::new("refactor.action")
+            QueryRow::new("code_actions.action")
                 .field("index", action_index.to_string())
                 .field("title", &action.title)
                 .field("kind", enum_name(action.kind))
@@ -896,13 +936,13 @@ fn code_action_rows(run: &QueryRun<'_>, actions: &[CodeAction]) -> Result<Vec<Qu
         );
         rows.extend(patch_set_rows(
             run,
-            "refactor.patch",
+            "code_actions.patch",
             Some(("action", action_index)),
             &action.patches,
         )?);
     }
 
-    Ok(rows_or_none(rows, "refactor"))
+    Ok(rows_or_none(rows, "code_actions"))
 }
 
 /// Render every patch in one exact patch set.
@@ -945,13 +985,17 @@ fn patch_set_rows(
 }
 
 /// Render one optional edit as exact patches.
-fn edit_rows(run: &QueryRun<'_>, edit: Option<&PatchSet>) -> Result<Vec<QueryRow>, String> {
+fn edit_rows(
+    run: &QueryRun<'_>,
+    method: &str,
+    edit: Option<&PatchSet>,
+) -> Result<Vec<QueryRow>, String> {
     let Some(edit) = edit else {
-        return Ok(none("refactor"));
+        return Ok(none(method));
     };
-    let rows = patch_set_rows(run, "refactor.patch", None, edit)?;
+    let rows = patch_set_rows(run, &format!("{method}.patch"), None, edit)?;
     if rows.is_empty() {
-        Ok(vec![QueryRow::new("refactor.edit")])
+        Ok(vec![QueryRow::new(format!("{method}.edit"))])
     } else {
         Ok(rows)
     }
@@ -976,13 +1020,13 @@ fn patch_row(
 }
 
 /// Return rows or one explicit empty response row.
-fn rows_or_none(rows: Vec<QueryRow>, domain: &str) -> Vec<QueryRow> {
-    if rows.is_empty() { none(domain) } else { rows }
+fn rows_or_none(rows: Vec<QueryRow>, method: &str) -> Vec<QueryRow> {
+    if rows.is_empty() { none(method) } else { rows }
 }
 
 /// Return one explicit empty response row.
-fn none(domain: &str) -> Vec<QueryRow> {
-    vec![QueryRow::new(format!("{domain}.none"))]
+fn none(method: &str) -> Vec<QueryRow> {
+    vec![QueryRow::new(format!("{method}.none"))]
 }
 
 /// Return one lower snake case enum name.

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_query::{QueryMethodId, query_method};
+use destack_query::{QueryMethod, query_method};
 use indexmap::IndexMap;
 
 use crate::core::MarkdownSuiteEntry;
@@ -80,7 +80,7 @@ impl MarkdownSuiteEntry for QueryFixture {
 }
 
 /// Return the query method named by one fixture file.
-fn fixture_method(path: &Path) -> Result<QueryMethodId, String> {
+fn fixture_method(path: &Path) -> Result<&'static QueryMethod, String> {
     let method_name = path
         .file_stem()
         .and_then(|name| name.to_str())
@@ -92,7 +92,7 @@ fn fixture_method(path: &Path) -> Result<QueryMethodId, String> {
         )
     })?;
 
-    Ok(method.id)
+    Ok(method)
 }
 
 /// Parse one fixture name and its optional ignored annotation.
@@ -153,7 +153,7 @@ fn index_files(files: Vec<QueryFile>) -> Result<IndexMap<PathBuf, QueryFile>, St
 fn parse_assertions(
     markdown: &MdTestCase,
     files: &IndexMap<PathBuf, QueryFile>,
-    method: QueryMethodId,
+    method: &QueryMethod,
 ) -> Result<Vec<QueryAssertion>, String> {
     if !markdown.bullet_items.is_empty() {
         return Err("query fixture has unsupported bullet expectations".to_string());
@@ -170,15 +170,23 @@ fn parse_assertions(
                 query.language
             ));
         }
-        let call = QueryCall::parse(&query.language, &query.content, method)?;
+        let (request, response) = split_request_response(&query.content);
+        let call = QueryCall::parse(&query.language, request, method.id)?;
         validate_call(&call, files)?;
         index += 1;
 
-        let expects_files = match &call {
-            QueryCall::RenameFiles { .. } => true,
-            _ => call.is_edit() && query.content.trim().is_empty(),
-        };
-        let expected = if expects_files {
+        let expected = if let Some((response_offset, response)) = response {
+            let content_range = query.content_range.clone().ok_or_else(|| {
+                "query response must have a non-empty fenced block body".to_string()
+            })?;
+            let content_range = content_range.start + response_offset..content_range.end;
+
+            QueryExpectation::Rows {
+                rows: ResponseRows::parse(response, method.name)?,
+                content_range,
+                body: response.to_string(),
+            }
+        } else if call.is_edit() {
             let mut outputs = Vec::new();
             while let Some(output) = markdown.extra_blocks.get(index) {
                 if !is_after_file(output) {
@@ -193,19 +201,29 @@ fn parse_assertions(
 
             QueryExpectation::Files(outputs)
         } else {
-            let content_range = query.content_range.clone().ok_or_else(|| {
-                "query response must have a non-empty fenced block body".to_string()
-            })?;
-            QueryExpectation::Rows {
-                rows: ResponseRows::parse(&query.content)?,
-                content_range,
-                body: query.content.clone(),
-            }
+            return Err("query has no response rows".to_string());
         };
         assertions.push(QueryAssertion { call, expected });
     }
 
     Ok(assertions)
+}
+
+/// Split request rows from exact response rows.
+fn split_request_response(source: &str) -> (&str, Option<(usize, &str)>) {
+    // find the first response row
+    let mut offset = 0;
+
+    for line in source.split_inclusive('\n') {
+        if line.starts_with('@') {
+            let response = &source[offset..];
+
+            return (&source[..offset], Some((offset, response)));
+        }
+        offset += line.len();
+    }
+
+    (source, None)
 }
 
 /// Return whether one raw block is a complete edited file.

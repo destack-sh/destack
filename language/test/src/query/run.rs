@@ -650,9 +650,18 @@ impl<'a> QueryRun<'a> {
     pub(super) fn format_span(&self, span: Span) -> Result<String, String> {
         let path = self.path(span.file)?;
         let file = self.file(path)?;
+
+        // use one exact range anchor when available
         if let Some(name) = file.range_name(span.start, span.end) {
             return Ok(format!("{}#{name}", display_query_path(path)));
         }
+
+        // render insertions as one named or numeric position
+        if span.start == span.end {
+            return self.format_position(path, span.start);
+        }
+
+        // fall back to explicit source coordinates
         let start = line_column(&file.source, span.start)?;
         let end = line_column(&file.source, span.end)?;
 
