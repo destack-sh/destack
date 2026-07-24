@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LanguageItem, LocalSymbolId, StaticKey};
+use crate::{ExportTarget, GlobalSymbolId, LanguageItem, LocalSymbolId, StaticKey};
 
 /// Resolved import targets for one module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -119,6 +119,16 @@ impl ImportTarget {
         match self {
             Self::Symbol(symbol) => symbol.module_id,
             Self::Namespace(module) => module,
+        }
+    }
+}
+
+impl From<ExportTarget> for ImportTarget {
+    /// Convert one exported target into an imported target.
+    fn from(target: ExportTarget) -> Self {
+        match target {
+            ExportTarget::Symbol(symbol) => Self::Symbol(symbol),
+            ExportTarget::Namespace(module) => Self::Namespace(module),
         }
     }
 }
