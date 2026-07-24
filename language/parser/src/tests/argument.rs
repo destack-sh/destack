@@ -907,6 +907,12 @@ class Test {
             assert_eq!(members.len(), 1);
 
             assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+                let main_range = parser
+                    .tree
+                    .get_main_range(members[0])
+                    .expect("missing constructor main range");
+                assert_eq!(parser.range_str(main_range), "constructor");
+
                 assert_eq!(signature.role, Some(FunctionRole::Constructor));
                 assert_eq!(signature.parameters.len(), 3);
 

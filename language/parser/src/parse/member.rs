@@ -24,6 +24,8 @@ pub(crate) struct MemberHead {
     pub(crate) key_range: Option<ByteRange>,
     /// The method role.
     pub(crate) role: Option<FunctionRole>,
+    /// The method role keyword range.
+    pub(crate) role_range: Option<ByteRange>,
     /// Whether the head is async.
     pub(crate) is_async: bool,
     /// Whether the head is a generator.
@@ -129,7 +131,10 @@ impl Parser {
 
     /// Parse one method role.
     #[inline]
-    pub(crate) fn parse_method_role(&mut self, grammar: MethodRoleGrammar) -> Option<FunctionRole> {
+    pub(crate) fn parse_method_role(
+        &mut self,
+        grammar: MethodRoleGrammar,
+    ) -> Option<(FunctionRole, ByteRange)> {
         let keyword = self.peek_keyword()?;
 
         // accessors need one member-name lookahead
@@ -141,13 +146,14 @@ impl Parser {
                 return None;
             }
 
-            self.bump();
-
-            return match keyword {
-                Keyword::Get => Some(FunctionRole::Getter),
-                Keyword::Set => Some(FunctionRole::Setter),
-                _ => None,
+            let range = self.eat().token.range();
+            let role = match keyword {
+                Keyword::Get => FunctionRole::Getter,
+                Keyword::Set => FunctionRole::Setter,
+                _ => return None,
             };
+
+            return Some((role, range));
         }
 
         // constructors and new methods only need delimiter lookahead
@@ -161,8 +167,9 @@ impl Parser {
             self.peek_next_token_type(),
             TokenType::LessThan | TokenType::OpenParenthesis
         ) {
-            self.bump();
-            Some(role)
+            let range = self.eat().token.range();
+
+            Some((role, range))
         } else {
             None
         }
@@ -282,7 +289,11 @@ impl Parser {
         modifiers = self.parse_method_late_modifiers(modifiers, is_async);
 
         // role and accessor marker
-        let role = self.parse_method_role(role_grammar);
+        let parsed_role = self.parse_method_role(role_grammar);
+        let (role, role_range) = match parsed_role {
+            Some((role, range)) => (Some(role), Some(range)),
+            None => (None, None),
+        };
 
         // generator and key
         let is_generator = self.eat_token_if(TokenType::Multiply);
@@ -318,6 +329,7 @@ impl Parser {
             key,
             key_range,
             role,
+            role_range,
             is_async,
             is_generator,
             is_method,
@@ -631,6 +643,7 @@ impl Parser {
             key,
             key_range,
             role,
+            role_range,
             is_async,
             is_generator,
             is_method,
@@ -702,8 +715,8 @@ impl Parser {
             };
             let member_id = self.insert_node(member, self.range_since(&start));
 
-            // set the main source range to the key identifier
-            if let Some(range) = key_range {
+            // set the main source range to the declared key or role
+            if let Some(range) = key_range.or(role_range) {
                 self.tree.set_main_range(member_id, range);
             }
 

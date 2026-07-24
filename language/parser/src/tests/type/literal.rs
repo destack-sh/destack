@@ -369,6 +369,12 @@ fn test_parse_type_literal_construct_signature() {
             assert_node!(parser.tree, *value, TypeExpression::Object { members: properties } => {
                 assert_eq!(properties.len(), 1);
                 assert_node!(parser.tree, properties[0], TypeMember::ConstructSignature { signature } => {
+                    let main_range = parser
+                        .tree
+                        .get_main_range(properties[0])
+                        .expect("missing construct signature main range");
+                    assert_eq!(parser.range_str(main_range), "new");
+
                     assert_eq!(signature.parameters.len(), 1);
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type: Some(ty), .. } => {
                         assert_string!(parser, *name, "x");

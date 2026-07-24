@@ -364,7 +364,11 @@ impl Parser {
         };
 
         // role
-        let role = self.parse_method_role(MethodRoleGrammar::New);
+        let parsed_role = self.parse_method_role(MethodRoleGrammar::New);
+        let (role, role_range) = match parsed_role {
+            Some((role, range)) => (Some(role), Some(range)),
+            None => (None, None),
+        };
 
         // index signature
         if self.peek_index_signature() {
@@ -521,7 +525,7 @@ impl Parser {
             };
             let member_id = self.insert_node(member, self.range_since(&start));
 
-            if let Some(range) = key_range {
+            if let Some(range) = key_range.or(role_range) {
                 self.tree.set_main_range(member_id, range);
             }
 

@@ -420,6 +420,7 @@ impl Parser {
             key,
             key_range,
             role,
+            role_range: _,
             is_async,
             is_generator,
             is_method,
