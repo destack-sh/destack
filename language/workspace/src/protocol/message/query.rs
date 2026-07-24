@@ -278,7 +278,8 @@ pub enum WorkspaceQueryResponse {
 mod tests {
     use super::*;
 
-    use destack_query::{HoverResponse, QueryRequest, QueryResponse, SymbolSearchRequest};
+    use destack_query::{HoverResponse, QueryRequest, QueryResponse, SearchSymbolsRequest};
+    use destack_source::ProfileId;
 
     /// Preserves query requests across payload encoding and decoding.
     #[test]
@@ -286,8 +287,9 @@ mod tests {
         // build a representative query request
         let request = QueryRequestBody {
             expected_revision: Some(Revision::from_test_value(7)),
-            request: QueryRequest::SymbolSearch(SymbolSearchRequest {
-                profile_ids: Vec::new(),
+            request: QueryRequest::SearchSymbols(SearchSymbolsRequest {
+                profile_id: ProfileId::new(1),
+                module_ids: Vec::new(),
                 query: "main".to_string(),
                 max_results: 16,
             }),

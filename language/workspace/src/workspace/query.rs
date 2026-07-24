@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -11,8 +10,8 @@ use destack_query::{
     InlayHintsResponse, InlineResponse, LinksResponse, Module, ModuleQueryContext,
     OutgoingCallsResponse, OutlineResponse, ProgramQueryContext, QueryRequest, QueryResponse,
     RenameFilesResponse, RenameResponse, RenameTargetResponse, ResolveCodeLensResponse,
-    SelectionRangesResponse, SemanticTokensResponse, SignatureHelpResponse, SubtypesResponse,
-    SupertypesResponse, SymbolSearchResponse, TypeItemResponse, module_query_artifacts,
+    SearchSymbolsResponse, SelectionRangesResponse, SemanticTokensResponse, SignatureHelpResponse,
+    SubtypesResponse, SupertypesResponse, TypeItemResponse, module_query_artifacts,
     module_query_context, program_query_context, rename_files, resolve_code_lens,
     specifier_artifacts,
 };
@@ -120,7 +119,13 @@ impl Snapshot {
                 let program = self.program_context(&[params.position.module.profile_id])?;
                 let packages = self.package_index(params.position.module.profile_id)?;
                 let mut items = context
-                    .completions(&program, &packages, params.position.offset, params.trigger)
+                    .completions(
+                        &program,
+                        &packages,
+                        params.position.file_id,
+                        params.position.offset,
+                        params.trigger,
+                    )
                     .map_err(|error| Error::Internal {
                         detail: format!("failed to complete import path: {error}"),
                     })?;
@@ -136,26 +141,34 @@ impl Snapshot {
             }
             QueryRequest::Hover(params) => {
                 let context = self.module_context(params.position.module)?;
-                let hover = context.hover(params.position.offset);
+                let program = self.program_context(&[params.position.module.profile_id])?;
+                let hover =
+                    context.hover(&program, params.position.file_id, params.position.offset);
 
                 QueryResponse::Hover(HoverResponse { hover })
             }
             QueryRequest::SignatureHelp(params) => {
                 let context = self.module_context(params.position.module)?;
-                let help = context.signature_help(params.position.offset);
+                let program = self.program_context(&[params.position.module.profile_id])?;
+                let help = context.signature_help(
+                    &program,
+                    params.position.file_id,
+                    params.position.offset,
+                );
 
                 QueryResponse::SignatureHelp(SignatureHelpResponse { help })
             }
             QueryRequest::InlayHints(params) => {
                 let context = self.module_context(params.range.module)?;
-                let hints = context.inlay_hints(params.range.span);
+                let program = self.program_context(&[params.range.module.profile_id])?;
+                let hints = context.inlay_hints(&program, params.range.span);
 
                 QueryResponse::InlayHints(InlayHintsResponse { hints })
             }
             QueryRequest::CodeLenses(params) => {
                 let context = self.module_context(params.module)?;
                 let program = self.program_context(&[params.module.profile_id])?;
-                let lenses = context.code_lenses(&program);
+                let lenses = context.code_lenses(&program, params.file_id);
 
                 QueryResponse::CodeLenses(CodeLensesResponse { lenses })
             }
@@ -165,74 +178,100 @@ impl Snapshot {
             }
             QueryRequest::FoldingRanges(params) => {
                 let context = self.module_context(params.module)?;
-                let ranges = context.folding_ranges();
+                let ranges = context.folding_ranges(params.file_id);
 
                 QueryResponse::FoldingRanges(FoldingRangesResponse { ranges })
             }
             QueryRequest::SemanticTokens(params) => {
                 let context = self.module_context(params.module)?;
-                let tokens = context.semantic_tokens();
+                let program = self.program_context(&[params.module.profile_id])?;
+                let tokens = context.semantic_tokens(&program, params.file_id);
 
                 QueryResponse::SemanticTokens(SemanticTokensResponse { tokens })
             }
             QueryRequest::SemanticTokensRange(params) => {
                 let context = self.module_context(params.range.module)?;
-                let tokens = context.semantic_tokens_range(params.range.span);
+                let program = self.program_context(&[params.range.module.profile_id])?;
+                let tokens = context.semantic_tokens_range(&program, params.range.span);
 
                 QueryResponse::SemanticTokensRange(SemanticTokensResponse { tokens })
             }
             QueryRequest::Outline(params) => {
                 let context = self.module_context(params.module)?;
-                let symbols = context.outline();
+                let symbols = context.outline(params.file_id);
 
                 QueryResponse::Outline(OutlineResponse { symbols })
             }
-            QueryRequest::SymbolSearch(params) => {
-                let context = self.program_context(&params.profile_ids)?;
-                let symbols = context.search_symbols(&params.query, params.max_results as usize);
-                QueryResponse::SymbolSearch(SymbolSearchResponse { symbols })
+            QueryRequest::SearchSymbols(params) => {
+                let context = self.program_context(&[params.profile_id])?;
+                let symbols = context.search_symbols(
+                    &params.query,
+                    params.max_results as usize,
+                    &params.module_ids,
+                );
+                QueryResponse::SearchSymbols(SearchSymbolsResponse { symbols })
             }
             QueryRequest::Links(params) => {
                 let context = self.module_context(params.module)?;
-                let links = context.links();
+                let links = context.links(params.file_id);
 
                 QueryResponse::Links(LinksResponse { links })
             }
             QueryRequest::Highlight(params) => {
                 let context = self.module_context(params.position.module)?;
                 let program = self.program_context(&[params.position.module.profile_id])?;
-                let highlights = context.highlights(&program, params.position.offset);
+                let highlights =
+                    context.highlights(&program, params.position.file_id, params.position.offset);
 
                 QueryResponse::Highlight(HighlightResponse { highlights })
             }
             QueryRequest::SelectionRanges(params) => {
                 let context = self.module_context(params.module)?;
-                let ranges = context.selection_ranges(&params.offsets);
+                let ranges = context.selection_ranges(params.file_id, &params.offsets);
 
                 QueryResponse::SelectionRanges(SelectionRangesResponse { ranges })
             }
             QueryRequest::GotoDefinition(params) => {
                 let context = self.module_context(params.position.module)?;
-                let targets = context.goto_definition(params.position.offset);
+                let program = self.program_context(&[params.position.module.profile_id])?;
+                let targets = context.goto_definition(
+                    &program,
+                    params.position.file_id,
+                    params.position.offset,
+                );
 
                 QueryResponse::GotoDefinition(GotoDefinitionResponse { targets })
             }
             QueryRequest::GotoDeclaration(params) => {
                 let context = self.module_context(params.position.module)?;
-                let targets = context.goto_declaration(params.position.offset);
+                let program = self.program_context(&[params.position.module.profile_id])?;
+                let targets = context.goto_declaration(
+                    &program,
+                    params.position.file_id,
+                    params.position.offset,
+                );
 
                 QueryResponse::GotoDeclaration(GotoDeclarationResponse { targets })
             }
             QueryRequest::GotoTypeDefinition(params) => {
                 let context = self.module_context(params.position.module)?;
-                let targets = context.goto_type_definition(params.position.offset);
+                let program = self.program_context(&[params.position.module.profile_id])?;
+                let targets = context.goto_type_definition(
+                    &program,
+                    params.position.file_id,
+                    params.position.offset,
+                );
 
                 QueryResponse::GotoTypeDefinition(GotoTypeDefinitionResponse { targets })
             }
             QueryRequest::GotoImplementation(params) => {
                 let context = self.module_context(params.position.module)?;
                 let program = self.program_context(&[params.position.module.profile_id])?;
-                let targets = context.goto_implementation(&program, params.position.offset);
+                let targets = context.goto_implementation(
+                    &program,
+                    params.position.file_id,
+                    params.position.offset,
+                );
 
                 QueryResponse::GotoImplementation(GotoImplementationResponse { targets })
             }
@@ -241,6 +280,7 @@ impl Snapshot {
                 let program = self.program_context(&[params.position.module.profile_id])?;
                 let references = context.find_references(
                     &program,
+                    params.position.file_id,
                     params.position.offset,
                     params.include_declaration,
                 );
@@ -249,7 +289,9 @@ impl Snapshot {
             }
             QueryRequest::CallItem(params) => {
                 let context = self.module_context(params.position.module)?;
-                let item = context.call_item(params.position.offset);
+                let program = self.program_context(&[params.position.module.profile_id])?;
+                let item =
+                    context.call_item(&program, params.position.file_id, params.position.offset);
 
                 QueryResponse::CallItem(CallItemResponse { item })
             }
@@ -265,7 +307,9 @@ impl Snapshot {
             }
             QueryRequest::TypeItem(params) => {
                 let context = self.module_context(params.position.module)?;
-                let item = context.type_item(params.position.offset);
+                let program = self.program_context(&[params.position.module.profile_id])?;
+                let item =
+                    context.type_item(&program, params.position.file_id, params.position.offset);
 
                 QueryResponse::TypeItem(TypeItemResponse { item })
             }
@@ -281,14 +325,24 @@ impl Snapshot {
             }
             QueryRequest::RenameTarget(params) => {
                 let context = self.module_context(params.position.module)?;
-                let result = context.rename_target(params.position.offset);
+                let program = self.program_context(&[params.position.module.profile_id])?;
+                let result = context.rename_target(
+                    &program,
+                    params.position.file_id,
+                    params.position.offset,
+                );
 
                 QueryResponse::RenameTarget(RenameTargetResponse { result })
             }
             QueryRequest::Rename(params) => {
                 let context = self.module_context(params.position.module)?;
                 let program = self.program_context(&[params.position.module.profile_id])?;
-                let edit = context.rename(&program, params.position.offset, &params.new_name);
+                let edit = context.rename(
+                    &program,
+                    params.position.file_id,
+                    params.position.offset,
+                    &params.new_name,
+                );
 
                 QueryResponse::Rename(RenameResponse { edit })
             }
@@ -312,14 +366,19 @@ impl Snapshot {
             }
             QueryRequest::ExtractVariable(params) => {
                 let context = self.module_context(params.range.module)?;
-                let edit = context.extract_variable(params.range.span, &params.new_name);
+                let program = self.program_context(&[params.range.module.profile_id])?;
+                let edit = context.extract_variable(&program, params.range.span, &params.new_name);
 
                 QueryResponse::ExtractVariable(ExtractVariableResponse { edit })
             }
             QueryRequest::Inline(params) => {
                 let context = self.module_context(params.position.module)?;
                 let program = self.program_context(&[params.position.module.profile_id])?;
-                let edit = context.inline_symbol(&program, params.position.offset);
+                let edit = context.inline_symbol(
+                    &program,
+                    params.position.file_id,
+                    params.position.offset,
+                );
 
                 QueryResponse::Inline(InlineResponse { edit })
             }
@@ -357,37 +416,19 @@ impl Snapshot {
     fn module_context(&self, module: Module) -> Result<ModuleQueryContext<'_>, Error> {
         let repository = self.repository();
         let revision = self.revision();
-        let artifacts = ArtifactReader::new(repository, revision);
-        let mut pending = vec![module.module_id];
-        let mut required = HashSet::new();
+        let required = module_query_artifacts(module.module_id, module.profile_id);
 
-        // require every artifact the reachable module contexts may read
-        while let Some(module_id) = pending.pop() {
-            if !required.insert(module_id) {
-                continue;
-            }
+        // provide the queried module's exact context artifacts
+        self.session()
+            .provide(revision, &required)
+            .map_err(|error| Error::Internal {
+                detail: format!(
+                    "failed to provide query artifacts for module {}: {error}",
+                    module.module_id
+                ),
+            })?;
 
-            let required_artifacts = module_query_artifacts(module_id, module.profile_id);
-            self.session()
-                .provide(revision, &required_artifacts)
-                .map_err(|error| Error::Internal {
-                    detail: format!(
-                        "failed to provide query artifacts for module {module_id}: {error}"
-                    ),
-                })?;
-
-            // extend through the authoritative resolved module edges
-            let resolved = artifacts
-                .dir_resolved(module_id, module.profile_id)
-                .map_err(|error| Error::Internal {
-                    detail: format!(
-                        "failed to read resolved query DIR for module {module_id}: {error}"
-                    ),
-                })?;
-            pending.extend(resolved.target_modules());
-        }
-
-        // build a read view over the required revision state
+        // build the module view over the ready revision state
         let context =
             module_query_context(repository, revision, module.module_id, module.profile_id);
 
