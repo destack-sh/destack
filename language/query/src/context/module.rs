@@ -344,3 +344,225 @@ impl<'a> ModuleQueryContext<'a> {
         Ok(read(&checked_type, type_module))
     }
 }
+
+/// Return a module query context for a module profile.
+pub fn module_query_context(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+    profile_id: ProfileId,
+) -> Option<ModuleQueryContext<'_>> {
+    // require checked DIR for the requested module profile
+    let checked_key = ArtifactKey::dir_checked(module_id, profile_id);
+    let checked_version = available_artifact_version(repository, revision, checked_key)?;
+
+    // require the matching global environment
+    let global_environment_key = ArtifactKey::global_environment(profile_id);
+    let global_environment_version =
+        available_artifact_version(repository, revision, global_environment_key)?;
+
+    Some(module_query_context_exact(
+        repository,
+        revision,
+        module_id,
+        profile_id,
+        checked_version,
+        global_environment_version,
+    ))
+}
+
+/// Return a module query context from exact checked and environment artifacts.
+pub fn module_query_context_exact(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+    profile_id: ProfileId,
+    checked_version: ArtifactVersion,
+    global_environment_version: ArtifactVersion,
+) -> ModuleQueryContext<'_> {
+    // read module metadata and artifact table
+    let module = repository
+        .module(revision, module_id)
+        .unwrap_or_else(|error| panic!("failed to read module {module_id:?}: {error}"))
+        .unwrap_or_else(|| panic!("missing module {module_id:?}"));
+    let artifacts = repository.artifact_table();
+
+    // resolve exact source artifacts
+    let parsed_key = ArtifactKey::dir_parsed(module.id);
+    let parsed_version = ready_artifact_version(repository, revision, parsed_key);
+    let bound_key = ArtifactKey::dir_bound(module.id, profile_id);
+    let bound_version = ready_artifact_version(repository, revision, bound_key);
+    let imported_key = ArtifactKey::dir_imported(module.id, profile_id);
+    let imported_version = ready_artifact_version(repository, revision, imported_key);
+    let expanded_key = ArtifactKey::dir_expanded(module.id, profile_id);
+    let expanded_version = ready_artifact_version(repository, revision, expanded_key);
+    let exported_key = ArtifactKey::dir_exported(module.id, profile_id);
+    let exported_version = ready_artifact_version(repository, revision, exported_key);
+
+    // resolve source and profile DIR payloads
+    let parsed = artifacts
+        .dir_parsed(&parsed_version)
+        .unwrap_or_else(|| panic!("missing parsed DIR payload: {parsed_version:?}"));
+    let bound = artifacts
+        .dir_bound(&bound_version)
+        .unwrap_or_else(|| panic!("missing bound DIR payload: {bound_version:?}"));
+    let imported = artifacts
+        .dir_imported(&imported_version)
+        .unwrap_or_else(|| panic!("missing imported DIR payload: {imported_version:?}"));
+    let expanded = artifacts
+        .dir_expanded(&expanded_version)
+        .unwrap_or_else(|| panic!("missing expanded DIR payload: {expanded_version:?}"));
+    let exported = artifacts
+        .dir_exported(&exported_version)
+        .unwrap_or_else(|| panic!("missing exported DIR payload: {exported_version:?}"));
+    let checked = artifacts
+        .dir_checked(&checked_version)
+        .unwrap_or_else(|| panic!("missing checked DIR payload: {checked_version:?}"));
+
+    // resolve the checked component payload for this module
+    let checked_component_key = ArtifactKey::dir_checked_component(checked.component, profile_id);
+    let checked_component_version =
+        ready_artifact_version(repository, revision, checked_component_key);
+    let checked_component = artifacts
+        .dir_checked_component(&checked_component_version)
+        .unwrap_or_else(|| {
+            panic!("missing checked DIR component payload: {checked_component_version:?}")
+        });
+    let checked = Arc::new(
+        checked_component
+            .module(module.id)
+            .unwrap_or_else(|| panic!("checked DIR component missing module {:?}", module.id))
+            .clone(),
+    );
+
+    // resolve the profile global environment payload
+    let global_environment = artifacts
+        .global_environment(&global_environment_version)
+        .unwrap_or_else(|| {
+            panic!("missing global environment payload: {global_environment_version:?}")
+        });
+
+    // materialize source token spans
+    let tokens = parsed
+        .file(module.file_id)
+        .unwrap_or_else(|| panic!("missing parser output for {:?}", module.file_id))
+        .iter_token_spans()
+        .collect();
+    let artifacts = ModuleQueryArtifacts {
+        parsed,
+        bound,
+        imported,
+        expanded,
+        exported,
+        checked,
+        global_environment,
+    };
+
+    ModuleQueryContext::new(
+        repository,
+        revision,
+        profile_id,
+        module.id,
+        module.file_id,
+        artifacts,
+        tokens,
+    )
+}
+
+/// Return a module context from ready checked artifacts.
+pub(super) fn ready_module_query_context(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+    profile_id: ProfileId,
+) -> ModuleQueryContext<'_> {
+    // resolve ready checked DIR and global environment versions
+    let checked_key = ArtifactKey::dir_checked(module_id, profile_id);
+    let checked_version = ready_artifact_version(repository, revision, checked_key);
+    let global_environment_key = ArtifactKey::global_environment(profile_id);
+    let global_environment_version =
+        ready_artifact_version(repository, revision, global_environment_key);
+
+    module_query_context_exact(
+        repository,
+        revision,
+        module_id,
+        profile_id,
+        checked_version,
+        global_environment_version,
+    )
+}
+
+/// Return one available ready artifact version.
+pub(super) fn available_artifact_version(
+    repository: &Repository,
+    revision: Revision,
+    key: ArtifactKey,
+) -> Option<ArtifactVersion> {
+    let version = repository
+        .artifact_binding(revision, &key)
+        .unwrap_or_else(|error| panic!("failed to read artifact binding {key:?}: {error}"))?;
+    let outcome = repository.artifact_table().outcome(&version);
+
+    matches!(outcome, Some(ArtifactOutcome::Ok)).then_some(version)
+}
+
+/// Return one ready artifact version.
+pub(super) fn ready_artifact_version(
+    repository: &Repository,
+    revision: Revision,
+    key: ArtifactKey,
+) -> ArtifactVersion {
+    available_artifact_version(repository, revision, key)
+        .unwrap_or_else(|| panic!("missing ready artifact binding: {key:?}"))
+}
+
+/// Build one module query context for a provider attempt.
+pub(crate) fn provide_module_query_context<'a>(
+    repository: &'a Repository,
+    revision: Revision,
+    module_id: ModuleId,
+    profile_id: ProfileId,
+    artifacts: &ArtifactReader<'_>,
+) -> ProviderResult<ModuleQueryContext<'a>> {
+    // read module metadata for artifact lookup and file ownership
+    let module = repository
+        .module(revision, module_id)
+        .unwrap_or_else(|error| panic!("failed to read module {module_id:?}: {error}"))
+        .unwrap_or_else(|| panic!("missing module {module_id:?}"));
+
+    // read exact source and profile artifacts
+    let parsed = artifacts.dir_parsed(module.id)?;
+    let bound = artifacts.dir_bound(module.id, profile_id)?;
+    let imported = artifacts.dir_imported(module.id, profile_id)?;
+    let expanded = artifacts.dir_expanded(module.id, profile_id)?;
+    let exported = artifacts.dir_exported(module.id, profile_id)?;
+    let checked = artifacts.dir_checked(module.id, profile_id)?;
+    let global_environment = artifacts.global_environment(profile_id)?;
+
+    // materialize source token spans
+    let tokens = parsed
+        .file(module.file_id)
+        .unwrap_or_else(|| panic!("missing parser output for {:?}", module.file_id))
+        .iter_token_spans()
+        .collect();
+    let artifacts = ModuleQueryArtifacts {
+        parsed,
+        bound,
+        imported,
+        expanded,
+        exported,
+        checked,
+        global_environment,
+    };
+
+    Ok(ModuleQueryContext::new(
+        repository,
+        revision,
+        profile_id,
+        module.id,
+        module.file_id,
+        artifacts,
+        tokens,
+    ))
+}
