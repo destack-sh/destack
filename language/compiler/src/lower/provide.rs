@@ -4,7 +4,7 @@ use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ComponentGraphProjection, TargetArch,
 };
 use destack_core::FxIndexMap;
-use destack_repository::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
 
 use crate::lower::{LowerModuleState, ModuleLowerer};
@@ -26,13 +26,13 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_checked(module, profile));
         dependencies.require(ArtifactKey::dir_materialized(module, profile));
 
-        // require the sealed stacks of every component sibling
-        for sibling in self.component_siblings(module, profile, context, &mut dependencies)? {
-            dependencies.require(ArtifactKey::dir_parsed(sibling));
-            dependencies.require(ArtifactKey::dir_bound(sibling, profile));
-            dependencies.require(ArtifactKey::dir_expanded(sibling, profile));
-            dependencies.require(ArtifactKey::dir_checked(sibling, profile));
-            dependencies.require(ArtifactKey::dir_materialized(sibling, profile));
+        // require the sealed stacks of every reachable module
+        for reachable in self.reachable_modules(module, profile, context, &mut dependencies)? {
+            dependencies.require(ArtifactKey::dir_parsed(reachable));
+            dependencies.require(ArtifactKey::dir_bound(reachable, profile));
+            dependencies.require(ArtifactKey::dir_expanded(reachable, profile));
+            dependencies.require(ArtifactKey::dir_checked(reachable, profile));
+            dependencies.require(ArtifactKey::dir_materialized(reachable, profile));
         }
 
         // observe package config for target resolution
@@ -41,8 +41,8 @@ impl Compiler {
         Ok(dependencies)
     }
 
-    /// Return the other members of one module's component, when the graph is ready.
-    fn component_siblings(
+    /// Return other modules reachable through one module's reference graph.
+    fn reachable_modules(
         &self,
         module: ModuleId,
         profile: ProfileId,
@@ -54,39 +54,39 @@ impl Compiler {
         let artifacts = self.artifact_reader(context.revision());
         let graph = match artifacts.component_graph(profile) {
             Ok(graph) => graph,
-            Err(_) => {
+            Err(ProviderError::Blocked { .. }) => {
                 dependencies.mark_partial();
 
                 return Ok(Vec::new());
             }
+            Err(error) => return Err(error.into()),
         };
-        let Some(component) = graph.component(module) else {
+        let Some(component) = graph.reference_component(module) else {
             return Ok(Vec::new());
         };
 
-        // close over the component and everything it depends on
+        // project the reference closure read by lowering
         let mut components = vec![component];
-        let mut index = 0;
-        while index < components.len() {
-            let current = components[index];
-            index += 1;
-            dependencies.project(graph_key, ComponentGraphProjection::Members(current));
-            dependencies.project(graph_key, ComponentGraphProjection::Dependencies(current));
-            for dependency in graph.dependencies(current) {
-                if !components.contains(dependency) {
-                    components.push(*dependency);
-                }
-            }
+        components.extend(graph.transitive_reference_dependencies(component));
+        for current in components.iter().copied() {
+            dependencies.project(
+                graph_key,
+                ComponentGraphProjection::ReferenceMembers(current),
+            );
+            dependencies.project(
+                graph_key,
+                ComponentGraphProjection::ReferenceDependencies(current),
+            );
         }
 
-        let siblings = components
+        let modules = components
             .iter()
-            .flat_map(|component| graph.members(*component))
+            .flat_map(|component| graph.reference_members(*component))
             .copied()
-            .filter(|sibling| *sibling != module)
+            .filter(|reachable| *reachable != module)
             .collect();
 
-        Ok(siblings)
+        Ok(modules)
     }
 
     /// Provide MIR for one module and target.
@@ -126,52 +126,51 @@ impl Compiler {
             .dir_materialized(module, profile)
             .map_err(CompilerError::from)?;
 
-        // load the sealed check output of every reachable module
+        // resolve this module's reference closure
+        let graph = artifacts
+            .component_graph(profile)
+            .map_err(CompilerError::from)?;
+        let component =
+            graph
+                .reference_component(module)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("module {module:?} is absent from the component graph"),
+                })?;
+        let mut components = vec![component];
+        components.extend(graph.transitive_reference_dependencies(component));
+        let reachable = components
+            .iter()
+            .flat_map(|component| graph.reference_members(*component))
+            .copied()
+            .collect::<Vec<_>>();
+
+        // load the sealed check output of every other reachable module
         let mut modules = FxIndexMap::default();
-        if let Ok(graph) = artifacts.component_graph(profile)
-            && let Some(component) = graph.component(module)
-        {
-            let mut components = vec![component];
-            let mut index = 0;
-            while index < components.len() {
-                let current = components[index];
-                index += 1;
-                for dependency in graph.dependencies(current) {
-                    if !components.contains(dependency) {
-                        components.push(*dependency);
-                    }
-                }
+        for reachable in reachable {
+            if reachable == module {
+                continue;
             }
-            let siblings: Vec<_> = components
-                .iter()
-                .flat_map(|component| graph.members(*component))
-                .copied()
-                .collect();
-            for sibling in &siblings {
-                if *sibling == module {
-                    continue;
-                }
-                let parsed = artifacts
-                    .dir_parsed(*sibling)
-                    .map_err(CompilerError::from)?;
-                let bound = artifacts
-                    .dir_bound(*sibling, profile)
-                    .map_err(CompilerError::from)?;
-                let expanded = artifacts
-                    .dir_expanded(*sibling, profile)
-                    .map_err(CompilerError::from)?;
-                let checked = artifacts
-                    .dir_checked(*sibling, profile)
-                    .map_err(CompilerError::from)?;
-                let materialized = artifacts
-                    .dir_materialized(*sibling, profile)
-                    .map_err(CompilerError::from)?;
-                let path = self.module_symbol_path(context, *sibling)?;
-                modules.insert(
-                    *sibling,
-                    LowerModuleState::new(parsed, &bound, &expanded, &checked, &materialized, path),
-                );
-            }
+
+            let parsed = artifacts
+                .dir_parsed(reachable)
+                .map_err(CompilerError::from)?;
+            let bound = artifacts
+                .dir_bound(reachable, profile)
+                .map_err(CompilerError::from)?;
+            let expanded = artifacts
+                .dir_expanded(reachable, profile)
+                .map_err(CompilerError::from)?;
+            let checked = artifacts
+                .dir_checked(reachable, profile)
+                .map_err(CompilerError::from)?;
+            let materialized = artifacts
+                .dir_materialized(reachable, profile)
+                .map_err(CompilerError::from)?;
+            let path = self.module_symbol_path(context, reachable)?;
+            modules.insert(
+                reachable,
+                LowerModuleState::new(parsed, &bound, &expanded, &checked, &materialized, path),
+            );
         }
 
         // lower the module against the repository string pool
