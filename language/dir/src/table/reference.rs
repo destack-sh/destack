@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{GlobalNodeIdAny, GlobalSymbolId};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, ImportTarget};
 
 /// Name resolutions for one module, keyed by the reference node.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -76,4 +76,51 @@ pub enum Reference {
     Ambiguous(SmallVec<[GlobalSymbolId; 2]>),
     /// No binding by name.
     Missing,
+}
+
+impl Reference {
+    /// Create a bound or missing reference from declaration symbols.
+    pub fn from_symbols(symbols: impl IntoIterator<Item = GlobalSymbolId>) -> Self {
+        let symbols = symbols.into_iter().collect::<SmallVec<_>>();
+        if symbols.is_empty() {
+            Self::Missing
+        } else {
+            Self::Bound(symbols)
+        }
+    }
+
+    /// Create a symbol, namespace, or missing reference from semantic targets.
+    pub fn from_targets(targets: impl IntoIterator<Item = ImportTarget>) -> Self {
+        let mut symbols = SmallVec::new();
+        let mut namespace = None;
+        let mut is_namespace_ambiguous = false;
+
+        // collect unique symbols and at most one namespace
+        for target in targets {
+            match target {
+                ImportTarget::Symbol(symbol) if !symbols.contains(&symbol) => {
+                    symbols.push(symbol);
+                }
+                ImportTarget::Symbol(_) => {}
+                ImportTarget::Namespace(module) => {
+                    is_namespace_ambiguous |= namespace.replace(module).is_some();
+                }
+            }
+        }
+
+        // prefer concrete symbols over namespace objects
+        if !symbols.is_empty() {
+            Self::Bound(symbols)
+        }
+        // retain one unambiguous namespace
+        else if let Some(module) = namespace
+            && !is_namespace_ambiguous
+        {
+            Self::Namespace(module)
+        }
+        // no semantic target remains
+        else {
+            Self::Missing
+        }
+    }
 }
