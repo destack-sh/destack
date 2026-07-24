@@ -50,7 +50,7 @@ impl CheckState<'_> {
                 .iter()
                 .any(|capture| capture.symbol == function)
         {
-            // leave declaration bodies to their owning unit, directives included
+            // leave declaration bodies to their inference component
             return Ok(());
         }
         let capture = self

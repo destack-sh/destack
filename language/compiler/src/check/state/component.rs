@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirCheckedModule, DirDeclared, GlobalEnvironment};
+use destack_artifact::{DirDeclaredComponent, DirDeclaredModule, GlobalEnvironment};
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Environment, ProviderContext};
@@ -15,27 +15,13 @@ use crate::check::{
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
-/// Artifact coordinates for one checked component.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) struct CheckComponentKey {
-    /// The checked component entry module.
-    pub entry: ModuleId,
-    /// The checked component id.
-    pub component: ComponentId,
-}
-
 /// The artifact one external module's committed tables load from.
-///
-/// Members of upstream inference units and of external components load
-/// complete checked output; sibling members of the same reference component
-/// load the declared environment, since touching their inferred exports
-/// would have coupled them into this unit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) enum CheckExternalArtifact {
-    /// One inference unit's checked component artifact.
-    Checked(CheckComponentKey),
-    /// One reference component's declared environment artifact.
-    Declared(CheckComponentKey),
+pub(in crate::check) enum CheckExternalComponent {
+    /// One inference component's checked artifact.
+    Checked(ComponentId),
+    /// One reference component's declared artifact.
+    Declared(ComponentId),
 }
 
 /// State for checking one resolved component.
@@ -66,7 +52,7 @@ pub(in crate::check) struct CheckState<'a> {
     /// Whether every member template is declared and walked.
     pub(in crate::check) templates_ready: bool,
     /// Sealed artifact containing each external module's committed tables.
-    pub(in crate::check) external_components: FxIndexMap<ModuleId, CheckExternalArtifact>,
+    pub(in crate::check) external_components: FxIndexMap<ModuleId, CheckExternalComponent>,
     /// Inherent extension modules awaiting their first extension lookup.
     pub(in crate::check) inherent_externals: Option<FxIndexSet<ModuleId>>,
     /// Inherent extension symbols carried by the component graph.
@@ -153,7 +139,7 @@ impl<'a> CheckState<'a> {
         profile: ProfileId,
         global: Arc<GlobalEnvironment>,
         environment: Arc<Environment>,
-        external_components: FxIndexMap<ModuleId, CheckExternalArtifact>,
+        external_components: FxIndexMap<ModuleId, CheckExternalComponent>,
         inherent_externals: FxIndexSet<ModuleId>,
         inherent_extensions: Vec<dir::GlobalSymbolId>,
         inference_modules: FxIndexSet<ModuleId>,
@@ -206,18 +192,14 @@ impl<'a> CheckState<'a> {
         self.inference_modules.contains(&module)
     }
 
-    /// Return whether this check seals the declared environment.
-    pub(in crate::check) fn is_environment(&self) -> bool {
+    /// Return whether this check declares one reference component.
+    pub(in crate::check) fn is_declaration(&self) -> bool {
         self.inference_modules.is_empty()
     }
 
-    /// Check one loaded component: walk, propagate, decorate, settle.
-    pub(in crate::check) fn check(
-        &mut self,
-        modules: &[ModuleId],
-        declared: Option<&DirDeclared>,
-    ) -> CompilerResult<()> {
-        self.load(modules, declared)?;
+    /// Declare one reference component.
+    pub(in crate::check) fn declare(&mut self, modules: &[ModuleId]) -> CompilerResult<()> {
+        self.load_declared_modules(modules)?;
         self.walk()?;
         self.propagate_induced_parameters()?;
         self.check_decorators()?;
@@ -225,27 +207,50 @@ impl<'a> CheckState<'a> {
         self.settle()
     }
 
-    /// Load all modules in one check component over an optional declared environment.
-    pub(in crate::check) fn load(
+    /// Check one inference component over its declared reference component.
+    pub(in crate::check) fn check(
         &mut self,
         modules: &[ModuleId],
-        declared: Option<&DirDeclared>,
+        declared: Option<&DirDeclaredComponent>,
+    ) -> CompilerResult<()> {
+        self.load_checked_modules(modules, declared)?;
+        self.walk()?;
+        self.propagate_induced_parameters()?;
+        self.check_decorators()?;
+
+        self.settle()
+    }
+
+    /// Load source modules for declaration.
+    fn load_declared_modules(&mut self, modules: &[ModuleId]) -> CompilerResult<()> {
+        for module in modules {
+            self.load_module(*module, None)?;
+        }
+
+        Ok(())
+    }
+
+    /// Load source modules over their committed declaration prefixes.
+    fn load_checked_modules(
+        &mut self,
+        modules: &[ModuleId],
+        declared: Option<&DirDeclaredComponent>,
     ) -> CompilerResult<()> {
         // load modules in stable component order
         for module in modules {
-            let entry = declared
+            let module_declaration = declared
                 .map(|declared| {
                     declared
                         .module(*module)
                         .ok_or_else(|| CompilerError::Internal {
                             message: format!(
-                                "declared environment {} misses module {module:?}",
+                                "declared component {} misses module {module:?}",
                                 declared.component
                             ),
                         })
                 })
                 .transpose()?;
-            self.load_module(*module, entry.map(|entry| &entry.checked))?;
+            self.load_module(*module, module_declaration)?;
         }
 
         // index declared generic identities so re-derivations reuse their ids
@@ -287,7 +292,7 @@ impl<'a> CheckState<'a> {
     fn load_module(
         &mut self,
         module_id: ModuleId,
-        declared: Option<&DirCheckedModule>,
+        declared: Option<&DirDeclaredModule>,
     ) -> CompilerResult<()> {
         if self.is_component_module(module_id) {
             return Ok(());

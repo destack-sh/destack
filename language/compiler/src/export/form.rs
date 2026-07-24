@@ -18,8 +18,7 @@ impl ExportState<'_> {
         }
 
         // bindings classify by annotation, then literal initializers
-        if let Ok(id) = node.try_into_typed::<dir::Declarator>() {
-            let declarator = self.view.get(id);
+        if let Some(declarator) = self.enclosing_declarator(node) {
             if declarator.ty.is_some() {
                 return ExportForm::Declared;
             }
@@ -36,6 +35,17 @@ impl ExportState<'_> {
         ExportForm::Inferred
     }
 
+    /// Return the declarator containing one binding declaration node.
+    fn enclosing_declarator(&self, mut node: dir::LocalNodeIdAny) -> Option<&dir::Declarator> {
+        loop {
+            if let Ok(declarator) = node.try_into_typed::<dir::Declarator>() {
+                return Some(self.view.get(declarator));
+            }
+
+            node = self.view.get_parent_any(node)?;
+        }
+    }
+
     /// Classify one declaration's written form.
     fn declaration_form(&self, declaration: &dir::Declaration) -> ExportForm {
         match declaration {
@@ -49,7 +59,7 @@ impl ExportState<'_> {
             dir::Declaration::Class(declaration) => self.members_form(&declaration.members),
             dir::Declaration::Extension(declaration) => self.members_form(&declaration.members),
 
-            // callables couple through inferred results and parameters
+            // callables require inference for unwritten results and parameters
             dir::Declaration::Function(declaration) => self.signature_form(&declaration.signature),
 
             // wrappers never declare a type themselves
@@ -95,12 +105,12 @@ impl ExportState<'_> {
 
     /// Classify one callable signature's written form.
     fn signature_form(&self, signature: &dir::FunctionSignature) -> ExportForm {
-        // inferred results couple consumers to the body
+        // unwritten results require inference from the body
         if signature.return_type.is_none() {
             return ExportForm::Inferred;
         }
 
-        // unannotated parameters couple consumers to their uses
+        // unannotated parameters require inference from their uses
         for parameter in &signature.parameters {
             let declared = match self.view.get(*parameter) {
                 dir::Parameter::Named { declared_type, .. }

@@ -57,7 +57,7 @@ impl CheckState<'_> {
         }
 
         // persist the decorator application and value, reusing the row the
-        //  declared environment sealed for this decorator
+        //  declaration pass sealed for this decorator
         let sealed = self
             .module(module)
             .decorators

@@ -34,9 +34,13 @@ impl Compiler {
             dependencies.derive_from(base.version);
         }
 
-        // coupling edges read every module's resolution and exports
-        let modules = self.repository.module_ids(context.revision())?;
-        dependencies.observe_modules(&modules);
+        // inference edges read every module's resolution and exports
+        let modules = self
+            .repository
+            .module_ids(context.revision())
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to enumerate profile modules: {error}"),
+            })?;
         for module in modules {
             dependencies.require(ArtifactKey::dir_resolved(module, profile));
             dependencies.require(ArtifactKey::dir_exported(module, profile));
@@ -112,17 +116,22 @@ impl Compiler {
         let started = self.repository.host().clock().now();
         let mut edge_count = 0u64;
 
-        // classify each module's inference-coupling edge subset and inherent extensions
-        let mut coupling_by_module = IndexMap::with_capacity(modules.len());
-        let mut is_coupling_changed = false;
+        // collect inherent extensions before classifying their consumers
         let mut inherent = Vec::new();
         for module in modules.iter().copied() {
-            let coupling = self.module_coupling_edges(artifacts, profile, module)?;
-            if let Some(base) = &base {
-                is_coupling_changed |= !base.graph.coupling_edges_equal(module, coupling.as_ref());
-            }
-            coupling_by_module.insert(module, coupling);
             self.collect_inherent_extensions(artifacts, profile, module, &mut inherent)?;
+        }
+
+        // classify each module's inference edge subset
+        let mut inference_edges = IndexMap::with_capacity(modules.len());
+        let mut is_inference_changed = false;
+        for module in modules.iter().copied() {
+            let edges =
+                self.module_inference_edges(artifacts, profile, module, inherent.as_slice())?;
+            if let Some(base) = &base {
+                is_inference_changed |= !base.graph.inference_edges_equal(module, edges.as_ref());
+            }
+            inference_edges.insert(module, edges);
         }
 
         // build all edges when no predecessor graph is available
@@ -142,7 +151,7 @@ impl Compiler {
 
             validate_component_edges(&edges_by_module)?;
             let graph =
-                ComponentGraph::from_edges(profile, edges_by_module, coupling_by_module, inherent);
+                ComponentGraph::from_edges(profile, edges_by_module, inference_edges, inherent);
 
             return Ok(Arc::new(graph));
         };
@@ -174,85 +183,71 @@ impl Compiler {
 
         // return the predecessor graph when its inputs still match
         let is_inherent_changed = !base.graph.inherent_extensions_equal(&inherent);
-        if !is_changed && !is_coupling_changed && !is_inherent_changed {
+        if !is_changed && !is_inference_changed && !is_inherent_changed {
             return Ok(base.graph);
         }
 
-        let graph = base.graph.derive(
-            changed_edges,
-            base.delta.removed,
-            coupling_by_module,
-            inherent,
-        );
+        let graph = base
+            .graph
+            .derive(changed_edges, base.delta.removed, inference_edges, inherent);
         validate_component_graph(&graph)?;
 
         Ok(Arc::new(graph))
     }
 
     /// Return the modules whose inference one module's checking consumes.
-    fn module_coupling_edges(
+    fn module_inference_edges(
         &self,
         artifacts: &ArtifactReader<'_>,
         profile: ProfileId,
         module: ModuleId,
+        inherent: &[InherentExtension],
     ) -> CompilerResult<Arc<[ModuleId]>> {
         let resolved = artifacts
             .dir_resolved(module, profile)
             .map_err(CompilerError::from)?;
         let mut edges = IndexSet::new();
+        let mut referenced_symbols = IndexSet::new();
 
-        // imported symbols couple through inferred export forms
-        for target in resolved
-            .imports
-            .resolution_by_symbol
-            .values()
-            .flat_map(dir::ImportResolution::targets)
-        {
-            match target {
-                dir::ImportTarget::Symbol(symbol) if symbol.module_id != module => {
-                    if self.export_couples(artifacts, profile, symbol)? {
-                        edges.insert(symbol.module_id);
-                    }
-                }
-                dir::ImportTarget::Namespace(namespace) if namespace != module => {
-                    if self.namespace_couples(artifacts, profile, namespace)? {
-                        edges.insert(namespace);
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        // referenced symbols couple the same way
-        for (source, reference) in &resolved.references.target_by_node {
-            // dependency declarations identify names without consuming their types
-            if source.local_id.ty == dir::NodeType::DependencyItem {
-                continue;
-            }
-
+        // referenced symbols depend on inferred export forms
+        for (_, reference) in &resolved.references.entries {
             match reference {
                 dir::Reference::Bound(symbols) => {
                     for symbol in symbols {
+                        referenced_symbols.insert(*symbol);
                         if symbol.module_id != module
-                            && self.export_couples(artifacts, profile, *symbol)?
+                            && self.export_requires_inference(artifacts, profile, *symbol)?
                         {
                             edges.insert(symbol.module_id);
                         }
                     }
                 }
                 dir::Reference::Projected { base, .. } => {
-                    if base.module_id != module && self.export_couples(artifacts, profile, *base)? {
+                    referenced_symbols.insert(*base);
+                    if base.module_id != module
+                        && self.export_requires_inference(artifacts, profile, *base)?
+                    {
                         edges.insert(base.module_id);
                     }
                 }
                 dir::Reference::Namespace(namespace) => {
                     if *namespace != module
-                        && self.namespace_couples(artifacts, profile, *namespace)?
+                        && self.namespace_requires_inference(artifacts, profile, *namespace)?
                     {
                         edges.insert(*namespace);
                     }
                 }
                 dir::Reference::Ambiguous(_) | dir::Reference::Missing => {}
+            }
+        }
+
+        // inferred inherent extensions add dependencies from target consumers
+        for extension in inherent {
+            if extension.symbol.module_id != module
+                && referenced_symbols.contains(&extension.target)
+                && self.export_requires_inference(artifacts, profile, extension.symbol)?
+            {
+                edges.insert(extension.symbol.module_id);
             }
         }
 
@@ -279,17 +274,14 @@ impl Compiler {
                 continue;
             }
 
-            inherent.push(InherentExtension {
-                symbol,
-                target: target.module_id,
-            });
+            inherent.push(InherentExtension { symbol, target });
         }
 
         Ok(())
     }
 
     /// Return whether one exported symbol carries inference to its consumers.
-    fn export_couples(
+    fn export_requires_inference(
         &self,
         artifacts: &ArtifactReader<'_>,
         profile: ProfileId,
@@ -298,18 +290,22 @@ impl Compiler {
         let exported = artifacts
             .dir_exported(symbol.module_id, profile)
             .map_err(CompilerError::from)?;
+
+        // require every resolved cross-module symbol to carry one canonical form
         let form = exported
             .exports
-            .local_form(symbol.local_id)
+            .symbol_form(symbol.local_id)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("exported symbol {symbol:?} has no declared export form"),
+                message: format!(
+                    "resolved cross-module symbol {symbol:?} has no local export form"
+                ),
             })?;
 
-        Ok(form.couples())
+        Ok(form.requires_inference())
     }
 
     /// Return whether one namespace object carries any inference.
-    fn namespace_couples(
+    fn namespace_requires_inference(
         &self,
         artifacts: &ArtifactReader<'_>,
         profile: ProfileId,
@@ -319,9 +315,9 @@ impl Compiler {
             .dir_exported(namespace, profile)
             .map_err(CompilerError::from)?;
 
-        // any inferred local export couples namespace consumers
+        // any inferred local export requires namespace inference
         Ok(exported.exports.exports().any(|(_, export)| match export {
-            dir::NamedExport::Local(local) => local.form.couples(),
+            dir::NamedExport::Local(local) => local.form.requires_inference(),
             dir::NamedExport::Indirect(_) => false,
         }))
     }

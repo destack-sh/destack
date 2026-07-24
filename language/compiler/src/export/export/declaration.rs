@@ -58,6 +58,8 @@ impl Compiler {
             }
         }
 
+        let form = state.symbol_form(symbol_id);
+        state.exports.insert_symbol_form(symbol_id, form);
         state.globals.push_local(key, symbol_id);
 
         Ok(())
@@ -101,6 +103,8 @@ impl Compiler {
         let Some(export_kind) = export_kind else {
             return Ok(None);
         };
+        let form = state.symbol_form(symbol_id);
+        state.exports.insert_symbol_form(symbol_id, form);
         let name = match export_kind {
             dir::ExportKind::Default => dir::ExportKey::default_key(),
             dir::ExportKind::Named => {
@@ -115,7 +119,7 @@ impl Compiler {
         Ok(Some(dir::LocalExport {
             key: name,
             source: symbol_id,
-            form: state.symbol_form(symbol_id),
+            form,
             item: None,
         }))
     }

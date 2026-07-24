@@ -1,48 +1,65 @@
-use destack_artifact::{ArtifactProjectionFingerprint, DirCheckedComponentEntry, DirCheckedModule};
-use destack_source::DiagnosticCollection;
+use destack_artifact::{DirCheckedModule, DirDeclaredModule};
+use destack_source::{DiagnosticCollection, ModuleId};
 
+use crate::CompilerResult;
 use crate::check::CheckState;
-use crate::{CompilerError, CompilerResult};
 
-use super::CheckedModuleSegments;
+use super::CheckModuleSegments;
 
 impl CheckState<'_> {
-    /// Write solved check state into checked DIR artifacts and diagnostics.
-    pub(in crate::check) fn write(
+    /// Write solved declaration state into declared DIR artifacts.
+    pub(in crate::check) fn write_declared(mut self) -> CompilerResult<Vec<DirDeclaredModule>> {
+        let modules = self.modules.keys().copied().collect::<Vec<_>>();
+        self.close_modules(&modules)?;
+        let modules = self.take_modules(modules);
+        let mut declared = Vec::with_capacity(modules.len());
+
+        // fingerprint each declared module projection
+        for (module, segments) in modules {
+            declared.push(segments.into_declared(module)?);
+        }
+
+        Ok(declared)
+    }
+
+    /// Write solved inference state into checked DIR artifacts.
+    pub(in crate::check) fn write_checked(
         mut self,
-    ) -> CompilerResult<(Vec<DirCheckedComponentEntry>, DiagnosticCollection)> {
-        // seal every member in the environment, inferred members in units
-        let modules = self
-            .modules
-            .keys()
-            .copied()
-            .filter(|module| self.is_environment() || self.infers_module(*module))
-            .collect::<Vec<_>>();
+    ) -> CompilerResult<(Vec<DirCheckedModule>, DiagnosticCollection)> {
+        let modules = self.modules.keys().copied().collect::<Vec<_>>();
+        self.close_modules(&modules)?;
+        let diagnostics = self.collect_diagnostics()?;
+        let modules = self.take_modules(modules);
+
+        let mut checked = Vec::with_capacity(modules.len());
+
+        // fingerprint each checked module projection
+        for (module, segments) in modules {
+            checked.push(segments.into_checked(module)?);
+        }
+
+        Ok((checked, diagnostics))
+    }
+
+    /// Close solved state for selected modules.
+    fn close_modules(&mut self, modules: &[ModuleId]) -> CompilerResult<()> {
         let failed_applications = self.failed_generic_applications()?;
         for module in modules.iter().copied() {
             self.write_module(module, &failed_applications)?;
         }
 
-        let diagnostics = self.collect_diagnostics()?;
+        Ok(())
+    }
 
-        let mut entries = Vec::with_capacity(modules.len());
-        for module in modules {
-            let state = self.take_module(module);
-            let checked = DirCheckedModule::from(CheckedModuleSegments::from_state(state));
-            let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&checked)
-                .map_err(|error| CompilerError::Internal {
-                    message: format!(
-                        "failed to fingerprint checked DIR payload for module {module:?}: {error}"
-                    ),
-                })?;
+    /// Take closed segments for selected modules.
+    fn take_modules(&mut self, modules: Vec<ModuleId>) -> Vec<(ModuleId, CheckModuleSegments)> {
+        modules
+            .into_iter()
+            .map(|module| {
+                let state = self.take_module(module);
 
-            entries.push(DirCheckedComponentEntry {
-                module,
-                fingerprint,
-                checked,
-            });
-        }
-
-        Ok((entries, diagnostics))
+                (module, CheckModuleSegments::from_state(state))
+            })
+            .collect()
     }
 }

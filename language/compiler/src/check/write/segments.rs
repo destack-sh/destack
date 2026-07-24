@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticControlTable, DirCheckedModule};
+use destack_artifact::{
+    ArtifactProjectionFingerprint, DiagnosticControlTable, DirCheckedModule, DirDeclaredModule,
+};
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::check::CheckModuleState;
+use crate::{CompilerError, CompilerResult};
 
-/// Checked DIR segments for one module.
-pub(in crate::check) struct CheckedModuleSegments {
+/// Solved check segments for one module.
+pub(in crate::check) struct CheckModuleSegments {
     /// Checked binding segment.
     pub(super) bindings: dir::BindingSegment,
     /// Checked decorator segment.
@@ -31,8 +35,8 @@ pub(in crate::check) struct CheckedModuleSegments {
     pub(super) captures: dir::CaptureSegment,
 }
 
-impl CheckedModuleSegments {
-    /// Create checked segments from one solved module state.
+impl CheckModuleSegments {
+    /// Create check segments from one solved module state.
     pub(in crate::check) fn from_state(state: CheckModuleState) -> Self {
         Self {
             bindings: state.bindings_tail,
@@ -48,23 +52,76 @@ impl CheckedModuleSegments {
             captures: state.capture_segment,
         }
     }
-}
 
-impl From<CheckedModuleSegments> for DirCheckedModule {
-    /// Convert checked segments into the artifact payload.
-    fn from(segments: CheckedModuleSegments) -> Self {
-        DirCheckedModule {
-            bindings: Arc::new(segments.bindings),
-            decorators: Arc::new(segments.decorators),
-            controls: Arc::new(segments.controls),
-            auto: Arc::new(segments.auto),
-            types: Arc::new(segments.types),
-            statics: Arc::new(segments.statics),
-            resolutions: Arc::new(segments.resolutions),
-            generics: Arc::new(segments.generics),
-            definitions: Arc::new(segments.definitions),
-            coercions: Arc::new(segments.coercions),
-            captures: Arc::new(segments.captures),
-        }
+    /// Convert segments into one checked DIR module.
+    pub(in crate::check) fn into_checked(
+        self,
+        module: ModuleId,
+    ) -> CompilerResult<DirCheckedModule> {
+        let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
+            module,
+            &self.bindings,
+            &self.decorators,
+            &self.controls,
+            &self.auto,
+            &self.types,
+            &self.statics,
+            &self.resolutions,
+            &self.generics,
+            &self.definitions,
+            &self.coercions,
+            &self.captures,
+        ))
+        .map_err(|error| CompilerError::Internal {
+            message: format!("failed to fingerprint DIR payload for module {module:?}: {error}"),
+        })?;
+
+        Ok(DirCheckedModule {
+            module,
+            fingerprint,
+            bindings: Arc::new(self.bindings),
+            decorators: Arc::new(self.decorators),
+            controls: Arc::new(self.controls),
+            auto: Arc::new(self.auto),
+            types: Arc::new(self.types),
+            statics: Arc::new(self.statics),
+            resolutions: Arc::new(self.resolutions),
+            generics: Arc::new(self.generics),
+            definitions: Arc::new(self.definitions),
+            coercions: Arc::new(self.coercions),
+            captures: Arc::new(self.captures),
+        })
+    }
+
+    /// Convert segments into one declared DIR module.
+    pub(in crate::check) fn into_declared(
+        self,
+        module: ModuleId,
+    ) -> CompilerResult<DirDeclaredModule> {
+        let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
+            module,
+            &self.bindings,
+            &self.decorators,
+            &self.types,
+            &self.statics,
+            &self.generics,
+            &self.definitions,
+        ))
+        .map_err(|error| CompilerError::Internal {
+            message: format!(
+                "failed to fingerprint declared DIR payload for module {module:?}: {error}"
+            ),
+        })?;
+
+        Ok(DirDeclaredModule {
+            module,
+            fingerprint,
+            bindings: Arc::new(self.bindings),
+            decorators: Arc::new(self.decorators),
+            types: Arc::new(self.types),
+            statics: Arc::new(self.statics),
+            generics: Arc::new(self.generics),
+            definitions: Arc::new(self.definitions),
+        })
     }
 }

@@ -196,8 +196,8 @@ impl CheckState<'_> {
         self.report_cannot_infer_origins(origins)?;
 
         // close failed inference graphs with the compiler error type;
-        //  leave them open in the environment for the owning units
-        if !self.is_environment() {
+        //  leave declarations open for their inference components
+        if !self.is_declaration() {
             let poisoned = !unresolved.is_empty();
             for (variable, module) in unresolved {
                 if self.solver.variable(variable)?.solution.is_some() {

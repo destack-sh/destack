@@ -2,7 +2,7 @@ use std::slice::from_ref;
 use std::sync::Arc;
 
 use destack_artifact::{
-    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirCheckedModule, DirExpanded, DirParsed,
+    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirDeclaredModule, DirExpanded, DirParsed,
     DirResolved, ProfileKey,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
@@ -101,7 +101,7 @@ impl CheckModuleState {
         bound: Arc<DirBound>,
         resolved: Arc<DirResolved>,
         expanded: Arc<DirExpanded>,
-        declared: Option<&DirCheckedModule>,
+        declared: Option<&DirDeclaredModule>,
     ) -> Self {
         // create the inherited bindings and this check's open overlays
         let bindings = expanded.binding_table(&bound);

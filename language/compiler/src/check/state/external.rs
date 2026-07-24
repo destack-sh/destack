@@ -6,7 +6,7 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
-use super::{CheckExternalArtifact, CheckState};
+use super::{CheckExternalComponent, CheckState};
 use crate::{CompilerError, CompilerResult};
 
 /// Committed tables loaded for one out-of-component external module.
@@ -201,47 +201,55 @@ impl CheckState<'_> {
             .artifacts
             .dir_resolved(module, self.profile)
             .map_err(CompilerError::from)?;
-        let checked = match artifact {
-            CheckExternalArtifact::Checked(component) => {
+        let (bindings, types, statics, generics, definitions) = match artifact {
+            CheckExternalComponent::Checked(component) => {
                 let checked_component = self
                     .artifacts
-                    .dir_checked_component(component.entry, component.component, self.profile)
+                    .dir_checked_component(component, self.profile)
                     .map_err(CompilerError::from)?;
 
-                checked_component
-                    .module(module)
-                    .ok_or_else(|| CompilerError::Internal {
-                        message: format!(
-                            "checked component {} does not contain external module {module:?}",
-                            component.component
-                        ),
-                    })?
-                    .checked
-                    .clone()
+                let checked =
+                    checked_component
+                        .module(module)
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: format!(
+                                "checked component {component} does not contain external module \
+                                 {module:?}"
+                            ),
+                        })?;
+
+                (
+                    checked.binding_table(bound.as_ref(), expanded.as_ref()),
+                    checked.type_table(bound.as_ref(), expanded.as_ref()),
+                    checked.static_table(bound.as_ref(), expanded.as_ref()),
+                    checked.generic_table(),
+                    checked.definition_table(),
+                )
             }
-            CheckExternalArtifact::Declared(component) => {
+            CheckExternalComponent::Declared(component) => {
                 let declared = self
                     .artifacts
-                    .dir_declared(component.entry, component.component, self.profile)
+                    .dir_declared_component(component, self.profile)
                     .map_err(CompilerError::from)?;
 
-                declared
+                let declared = declared
                     .module(module)
                     .ok_or_else(|| CompilerError::Internal {
                         message: format!(
-                            "declared environment {} does not contain external module {module:?}",
-                            component.component
+                            "declared component {component} does not contain external module \
+                             {module:?}"
                         ),
-                    })?
-                    .checked
-                    .clone()
+                    })?;
+
+                (
+                    declared.binding_table(bound.as_ref(), expanded.as_ref()),
+                    declared.type_table(bound.as_ref(), expanded.as_ref()),
+                    declared.static_table(bound.as_ref(), expanded.as_ref()),
+                    declared.generic_table(),
+                    declared.definition_table(),
+                )
             }
         };
-        let bindings = checked.binding_table(bound.as_ref(), expanded.as_ref());
-        let types = checked.type_table(bound.as_ref(), expanded.as_ref());
-        let statics = checked.static_table(bound.as_ref(), expanded.as_ref());
-        let generics = checked.generic_table();
-        let definitions = checked.definition_table();
 
         Ok(CheckExternalModuleState {
             parsed,

@@ -553,7 +553,7 @@ impl CheckState<'_> {
         };
 
         // claim the parameter this site already induced, in this run or
-        //  in the declared environment
+        //  during declaration
         if let Some(parameter) = self.claim_induced_parameter(template, site, kind) {
             return Ok(parameter);
         }
@@ -714,7 +714,7 @@ impl CheckState<'_> {
             });
         };
 
-        // skip predicates the declared environment already carries
+        // skip predicates the declaration pass already carries
         if !declared.predicates.contains(&predicate) {
             declared.predicates.push(predicate);
         }

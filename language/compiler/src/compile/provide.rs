@@ -51,16 +51,12 @@ impl Compiler {
             ArtifactKey::DirResolved { module, profile } => {
                 self.collect_dir_resolved(module, profile, context)
             }
-            ArtifactKey::DirDeclared {
-                entry,
-                component,
-                profile,
-            } => self.collect_dir_declared(entry, component, profile, context),
-            ArtifactKey::DirCheckedComponent {
-                entry,
-                component,
-                profile,
-            } => self.collect_dir_checked_component(entry, component, profile, context),
+            ArtifactKey::DirDeclaredComponent { component, profile } => {
+                self.collect_dir_declared_component(component, profile, context)
+            }
+            ArtifactKey::DirCheckedComponent { component, profile } => {
+                self.collect_dir_checked_component(component, profile, context)
+            }
             ArtifactKey::DirChecked { module, profile } => {
                 self.collect_dir_checked(module, profile, context)
             }
@@ -171,16 +167,12 @@ impl Compiler {
             ArtifactKey::DirResolved { module, profile } => {
                 self.provide_dir_resolved(module, profile, context)
             }
-            ArtifactKey::DirDeclared {
-                entry,
-                component,
-                profile,
-            } => self.provide_dir_declared(entry, component, profile, context),
-            ArtifactKey::DirCheckedComponent {
-                entry,
-                component,
-                profile,
-            } => self.provide_dir_checked_component(entry, component, profile, context),
+            ArtifactKey::DirDeclaredComponent { component, profile } => {
+                self.provide_dir_declared_component(component, profile, context)
+            }
+            ArtifactKey::DirCheckedComponent { component, profile } => {
+                self.provide_dir_checked_component(component, profile, context)
+            }
             ArtifactKey::DirChecked { module, profile } => {
                 self.provide_dir_checked(module, profile, context)
             }

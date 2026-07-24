@@ -320,7 +320,7 @@ impl CheckState<'_> {
                 });
             };
 
-            // reuse the variant symbol the declared environment synthesized
+            // reuse the variant symbol the declaration pass synthesized
             if let dir::SymbolLookup::Found(symbol) =
                 bindings.lookup_key_member(owner.local_id, key)
                 && bindings.get_symbol(symbol).kind == dir::SymbolKind::Variant
