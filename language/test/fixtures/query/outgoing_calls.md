@@ -1,0 +1,433 @@
+# Outgoing Calls
+
+## Functions
+
+### Find direct callees
+
+Outgoing calls identify each callee and call site in the selected function.
+
+```ds main.ds
+function target(): void {}
+         ^^^^^^ target
+
+function source(): void {
+         ^^^^^^ source
+    target();
+    ^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#source
+@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+## Multiple Callees
+
+### Find each direct callee
+
+Distinct callees retain their first call order and exact call sites.
+
+```ds main.ds
+function first(): void {}
+         ^^^^^ first
+function second(): void {}
+         ^^^^^^ second
+
+function source(): void {
+         ^^^^^^ source
+    second();
+    ^^^^^^^^ second_call
+    first();
+    ^^^^^^^ first_call
+}
+```
+
+```query outgoing_calls main.ds#source
+@outgoing_calls.call index=0 name=second kind=function detail="second(): void" location=main.ds:2:1-2:27 selection=main.ds#second symbol=main.ds#second@2
+@outgoing_calls.site call=0 range=main.ds#second_call
+@outgoing_calls.call index=1 name=first kind=function detail="first(): void" location=main.ds:1:1-1:26 selection=main.ds#first symbol=main.ds#first@1
+@outgoing_calls.site call=1 range=main.ds#first_call
+```
+
+## Modules
+
+### Find an imported callee
+
+Outgoing call lookup retains the defining module target.
+
+```ds library.ds
+export function target(): void {}
+                ^^^^^^ target
+```
+
+```ds main.ds
+import { target } from "./library.ds";
+
+function source(): void {
+         ^^^^^^ source
+    target();
+    ^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#source
+@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+### Find a namespace-imported callee
+
+Namespace member calls resolve to their exported callable.
+
+```ds library.ds
+export function target(): void {}
+                ^^^^^^ target
+```
+
+```ds main.ds
+import * as library from "./library.ds";
+
+function source(): void {
+         ^^^^^^ source
+    library.target();
+    ^^^^^^^^^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#source
+@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+### Find a re-exported callee
+
+Outgoing call lookup follows a re-export to the defining function.
+
+```ds library.ds
+export function target(): void {}
+                ^^^^^^ target
+```
+
+```ds public.ds
+export { target } from "./library.ds";
+```
+
+```ds main.ds
+import { target } from "./public.ds";
+
+function source(): void {
+         ^^^^^^ source
+    target();
+    ^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#source
+@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+## Recursion
+
+### Find a recursive callee
+
+A recursive function is its own outgoing callee.
+
+```ds main.ds
+function recurse(): void {
+         ^^^^^^^ recurse
+    recurse();
+    ^^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#recurse
+@outgoing_calls.call index=0 name=recurse kind=function detail="recurse(): void" location=main.ds:1:1-3:2 selection=main.ds#recurse symbol=main.ds#recurse@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+## Methods
+
+### Find a called method
+
+Outgoing call lookup retains the method identity.
+
+```ds main.ds
+class Service {
+    run(): void {}
+    ^^^ target
+}
+
+function start(service: Service): void {
+         ^^^^^ source
+    service.run();
+    ^^^^^^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#source
+@outgoing_calls.call index=0 name=run kind=method detail="Service.run(): void" location=main.ds:2:5-2:19 selection=main.ds#target symbol=main.ds#run@2
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+## Overloads
+
+### Return each selected overload
+
+Calls to overloads retain their exact callable declarations.
+
+```ds main.ds
+function parse(value: int32): int32 {
+         ^^^^^ integer_name
+    return value;
+}
+
+function parse(value: string): string {
+         ^^^^^ string_name
+    return value;
+}
+
+function caller(): void {
+         ^^^^^^ caller
+    parse(1);
+    ^^^^^^^^ integer_call
+    parse("one");
+    ^^^^^^^^^^^^ string_call
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.call index=0 name=parse kind=function detail="parse(value: int32): int32" location=main.ds:1:1-3:2 selection=main.ds#integer_name symbol=main.ds#parse@1
+@outgoing_calls.site call=0 range=main.ds#integer_call
+@outgoing_calls.call index=1 name=parse kind=function detail="parse(value: string): string" location=main.ds:5:1-7:2 selection=main.ds#string_name symbol=main.ds#parse@3
+@outgoing_calls.site call=1 range=main.ds#string_call
+```
+
+## Extensions
+
+### Return a selected extension method
+
+An extension call retains the concrete extension member selected by checking.
+
+```ds main.ds
+struct Calculator {}
+
+extension of Calculator {
+    add(left: int32, right: int32): int32 {
+    ^^^ name
+        return left + right;
+    }
+}
+
+function caller(calculator: Calculator): int32 {
+         ^^^^^^ caller
+    return calculator.add(1, 2);
+           ^^^^^^^^^^^^^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.call index=0 name=add kind=method detail="Calculator.add(left: int32, right: int32): int32" location=main.ds:4:5-6:6 selection=main.ds#name symbol=main.ds#add@3
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+## Constructors
+
+### Return an explicit class constructor
+
+Construction retains the constructor declaration selected by checking.
+
+```ds main.ds
+class User {
+    constructor(name: string) {}
+    ^^^^^^^^^^^ name
+}
+
+function create(): User {
+         ^^^^^^ caller
+    return new User("Ada");
+           ^^^^^^^^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.call index=0 name=constructor kind=constructor detail="User.constructor(name: string)" location=main.ds:2:5-2:33 selection=main.ds#name symbol=main.ds#symbol@2
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+### Return a default class constructor
+
+Construction of a class without an authored constructor retains the class item.
+
+```ds main.ds
+class User {}
+^^^^^^^^^^^^^ declaration
+      ^^^^ name
+
+function create(): User {
+         ^^^^^^ caller
+    return new User();
+           ^^^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.call index=0 name=User kind=constructor detail="User()" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+### Return a newtype constructor
+
+Newtype construction retains the nominal newtype declaration.
+
+```ds main.ds
+newtype UserId = string;
+^^^^^^^^^^^^^^^^^^^^^^^ declaration
+        ^^^^^^ name
+
+function create(): UserId {
+         ^^^^^^ caller
+    return UserId("user-1");
+           ^^^^^^^^^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.call index=0 name=UserId kind=constructor detail="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+### Return a tagged variant constructor
+
+Tagged construction retains the selected generated variant member and its callable type.
+
+```ds main.ds
+@derive(Tagged)
+newtype Status = Ok<string>;
+^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
+                 ^^ name
+
+function create(): Status {
+         ^^^^^^ caller
+    return Status.Ok({ value: "ready" });
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.call index=0 name=Ok kind=constructor detail="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@3
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+## Caller Items
+
+### Find calls made by a method
+
+Outgoing lookup expands a method body through its method item.
+
+```ds main.ds
+function target(): void {}
+         ^^^^^^ target
+
+class Service {
+    run(): void {
+    ^^^ caller
+        target();
+        ^^^^^^^^ call
+    }
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+### Find calls made by a constructor
+
+Outgoing lookup expands a constructor body through its constructor item.
+
+```ds main.ds
+function target(): void {}
+         ^^^^^^ target
+
+class Service {
+    constructor() {
+    ^^^^^^^^^^^ caller
+        target();
+        ^^^^^^^^ call
+    }
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+## Indirect Calls
+
+### Return no declaration for an indirect call
+
+A call through a function-valued binding has no exact declaration-backed callee.
+
+```ds main.ds
+function callee(): void {}
+
+function caller(): void {
+         ^^^^^^ caller
+    const callback = callee;
+    callback();
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.none
+```
+
+## Union Dispatch
+
+### Return every exact target of a union call
+
+A union receiver contributes one outgoing edge per method selected by checking.
+
+```ds main.ds
+class Alpha {
+    run(): void {}
+    ^^^ alpha
+}
+
+class Beta {
+    run(): void {}
+    ^^^ beta
+}
+
+function start(service: Alpha | Beta): void {
+         ^^^^^ caller
+    service.run();
+    ^^^^^^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.call index=0 name=run kind=method detail="Alpha.run(): void" location=main.ds:2:5-2:19 selection=main.ds#alpha symbol=main.ds#run@2
+@outgoing_calls.site call=0 range=main.ds#call
+@outgoing_calls.call index=1 name=run kind=method detail="Beta.run(): void" location=main.ds:6:5-6:19 selection=main.ds#beta symbol=main.ds#run@5
+@outgoing_calls.site call=1 range=main.ds#call
+```
+
+## Empty Results
+
+### Return no calls for a leaf function
+
+A leaf function has no outgoing calls.
+
+```ds main.ds
+function leaf(): void {}
+         ^^^^ leaf
+```
+
+```query outgoing_calls main.ds#leaf
+@outgoing_calls.none
+```

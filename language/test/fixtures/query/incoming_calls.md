@@ -1,0 +1,439 @@
+# Incoming Calls
+
+## Functions
+
+### Find direct callers
+
+Incoming calls identify the caller and each call site.
+
+```ds main.ds
+function callee(): void {}
+         ^^^^^^ callee
+
+function caller(): void {
+         ^^^^^^ caller
+    callee();
+    ^^^^^^^^ call
+}
+```
+
+```query incoming_calls main.ds#callee
+@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#caller@2
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+## Call Sites
+
+### Retain every call site in one caller
+
+Repeated calls share one caller item and retain source order.
+
+```ds main.ds
+function callee(): void {}
+         ^^^^^^ callee
+
+function caller(): void {
+         ^^^^^^ caller
+    callee();
+    ^^^^^^^^ first_call
+    callee();
+    ^^^^^^^^ second_call
+}
+```
+
+```query incoming_calls main.ds#callee
+@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:3:1-6:2 selection=main.ds#caller symbol=main.ds#caller@2
+@incoming_calls.site call=0 range=main.ds#first_call
+@incoming_calls.site call=0 range=main.ds#second_call
+```
+
+## Callers
+
+### Find distinct callers
+
+Distinct callers retain source order and their own call sites.
+
+```ds main.ds
+function callee(): void {}
+         ^^^^^^ callee
+
+function first(): void {
+         ^^^^^ first
+    callee();
+    ^^^^^^^^ first_call
+}
+
+function second(): void {
+         ^^^^^^ second
+    callee();
+    ^^^^^^^^ second_call
+}
+```
+
+```query incoming_calls main.ds#callee
+@incoming_calls.call index=0 name=first kind=function detail="first(): void" location=main.ds:3:1-5:2 selection=main.ds#first symbol=main.ds#first@2
+@incoming_calls.site call=0 range=main.ds#first_call
+@incoming_calls.call index=1 name=second kind=function detail="second(): void" location=main.ds:7:1-9:2 selection=main.ds#second symbol=main.ds#second@3
+@incoming_calls.site call=1 range=main.ds#second_call
+```
+
+## Modules
+
+### Find a caller in another module
+
+Incoming call lookup follows the imported function declaration.
+
+```ds library.ds
+export function callee(): void {}
+                ^^^^^^ callee
+```
+
+```ds main.ds
+import { callee } from "./library.ds";
+
+function caller(): void {
+         ^^^^^^ caller
+    callee();
+    ^^^^^^^^ call
+}
+```
+
+```query incoming_calls library.ds#callee
+@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#caller@2
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+### Find a caller through a re-exported callee
+
+Incoming call lookup follows the function declaration through re-exports.
+
+```ds library.ds
+export function callee(): void {}
+                ^^^^^^ callee
+```
+
+```ds public.ds
+export { callee } from "./library.ds";
+```
+
+```ds main.ds
+import { callee } from "./public.ds";
+
+function caller(): void {
+         ^^^^^^ caller
+    callee();
+    ^^^^^^^^ call
+}
+```
+
+```query incoming_calls library.ds#callee
+@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#caller@2
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+## Recursion
+
+### Find a recursive caller
+
+A recursive function is its own incoming caller.
+
+```ds main.ds
+function recurse(): void {
+         ^^^^^^^ recurse
+    recurse();
+    ^^^^^^^^^ call
+}
+```
+
+```query incoming_calls main.ds#recurse
+@incoming_calls.call index=0 name=recurse kind=function detail="recurse(): void" location=main.ds:1:1-3:2 selection=main.ds#recurse symbol=main.ds#recurse@1
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+## Methods
+
+### Find callers of a method
+
+Incoming call lookup retains the method identity.
+
+```ds main.ds
+class Service {
+    run(): void {}
+    ^^^ target
+}
+
+function start(service: Service): void {
+         ^^^^^ source
+    service.run();
+    ^^^^^^^^^^^^^ call
+}
+```
+
+```query incoming_calls main.ds#target
+@incoming_calls.call index=0 name=start kind=function detail="start(service: Service): void" location=main.ds:5:1-7:2 selection=main.ds#source symbol=main.ds#start@4
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+## Overloads
+
+### Keep calls separated by selected overload
+
+Each overload receives only the calls that selected its declaration.
+
+```ds main.ds
+function parse(value: int32): int32 {
+         ^^^^^ integer_name
+    return value;
+}
+
+function parse(value: string): string {
+         ^^^^^ string_name
+    return value;
+}
+
+function caller(): void {
+         ^^^^^^ caller
+    parse(1);
+    ^^^^^^^^ integer_call
+    parse("one");
+    ^^^^^^^^^^^^ string_call
+}
+```
+
+```query incoming_calls main.ds#integer_name
+@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:9:1-12:2 selection=main.ds#caller symbol=main.ds#caller@5
+@incoming_calls.site call=0 range=main.ds#integer_call
+```
+
+```query incoming_calls main.ds#string_name
+@incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:9:1-12:2 selection=main.ds#caller symbol=main.ds#caller@5
+@incoming_calls.site call=0 range=main.ds#string_call
+```
+
+## Extensions
+
+### Find callers of an extension method
+
+An extension call is attributed to the selected extension member.
+
+```ds main.ds
+struct Calculator {}
+
+extension of Calculator {
+    add(left: int32, right: int32): int32 {
+    ^^^ name
+        return left + right;
+    }
+}
+
+function caller(calculator: Calculator): int32 {
+         ^^^^^^ caller
+    return calculator.add(1, 2);
+           ^^^^^^^^^^^^^^^^^^^^ call
+}
+```
+
+```query incoming_calls main.ds#name
+@incoming_calls.call index=0 name=caller kind=function detail="caller(calculator: Calculator): int32" location=main.ds:9:1-11:2 selection=main.ds#caller symbol=main.ds#caller@7
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+## Constructors
+
+### Find callers of an explicit class constructor
+
+Construction is attributed to the constructor declaration selected by checking.
+
+```ds main.ds
+class User {
+    constructor(name: string) {}
+    ^^^^^^^^^^^ name
+}
+
+function create(): User {
+         ^^^^^^ caller
+    return new User("Ada");
+           ^^^^^^^^^^^^^^^ call
+}
+```
+
+```query incoming_calls main.ds#name
+@incoming_calls.call index=0 name=create kind=function detail="create(): User" location=main.ds:5:1-7:2 selection=main.ds#caller symbol=main.ds#create@5
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+### Find callers of a default class constructor
+
+A class without an authored constructor receives construction calls through its class item.
+
+```ds main.ds
+class User {}
+      ^^^^ name
+
+function create(): User {
+         ^^^^^^ caller
+    return new User();
+           ^^^^^^^^^^ call
+}
+```
+
+```query incoming_calls main.ds#name
+@incoming_calls.call index=0 name=create kind=function detail="create(): User" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#create@2
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+### Find callers of a newtype constructor
+
+Newtype construction is attributed to the nominal newtype declaration.
+
+```ds main.ds
+newtype UserId = string;
+        ^^^^^^ name
+
+function create(): UserId {
+         ^^^^^^ caller
+    return UserId("user-1");
+           ^^^^^^^^^^^^^^^^ call
+}
+```
+
+```query incoming_calls main.ds#name
+@incoming_calls.call index=0 name=create kind=function detail="create(): UserId" location=main.ds:3:1-5:2 selection=main.ds#caller symbol=main.ds#create@2
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+### Find callers of a tagged variant constructor
+
+Tagged construction is attributed to the selected generated variant member.
+
+```ds main.ds
+@derive(Tagged)
+newtype Status = Ok<string>;
+                 ^^ name
+
+function create(): Status {
+         ^^^^^^ caller
+    return Status.Ok({ value: "ready" });
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ call
+}
+```
+
+```query incoming_calls main.ds#name
+@incoming_calls.call index=0 name=create kind=function detail="create(): Status" location=main.ds:4:1-6:2 selection=main.ds#caller symbol=main.ds#create@4
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+## Caller Items
+
+### Return a method as the caller
+
+A call inside a method is attributed to that method rather than its class.
+
+```ds main.ds
+function target(): void {}
+         ^^^^^^ target
+
+class Service {
+    run(): void {
+    ^^^ caller
+        target();
+        ^^^^^^^^ call
+    }
+}
+```
+
+```query incoming_calls main.ds#target
+@incoming_calls.call index=0 name=run kind=method detail="Service.run(): void" location=main.ds:4:5-6:6 selection=main.ds#caller symbol=main.ds#run@3
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+### Return a constructor as the caller
+
+A call inside a constructor is attributed to that constructor.
+
+```ds main.ds
+function target(): void {}
+         ^^^^^^ target
+
+class Service {
+    constructor() {
+    ^^^^^^^^^^^ caller
+        target();
+        ^^^^^^^^ call
+    }
+}
+```
+
+```query incoming_calls main.ds#target
+@incoming_calls.call index=0 name=constructor kind=constructor detail="Service.constructor()" location=main.ds:4:5-6:6 selection=main.ds#caller symbol=main.ds#symbol@3
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+## Indirect Calls
+
+### Do not attribute calls through function-valued bindings
+
+The declaration assigned to a function-valued binding is not the statically selected call target.
+
+```ds main.ds
+function callee(): void {}
+         ^^^^^^ callee
+
+function caller(): void {
+    const callback = callee;
+    callback();
+}
+```
+
+```query incoming_calls main.ds#callee
+@incoming_calls.none
+```
+
+## Union Dispatch
+
+### Attribute a shared call site to every exact target
+
+Each method selected for a union receiver retains the shared caller and source range.
+
+```ds main.ds
+class Alpha {
+    run(): void {}
+    ^^^ alpha
+}
+
+class Beta {
+    run(): void {}
+    ^^^ beta
+}
+
+function start(service: Alpha | Beta): void {
+         ^^^^^ caller
+    service.run();
+    ^^^^^^^^^^^^^ call
+}
+```
+
+```query incoming_calls main.ds#alpha
+@incoming_calls.call index=0 name=start kind=function detail="start(service: Alpha | Beta): void" location=main.ds:9:1-11:2 selection=main.ds#caller symbol=main.ds#start@7
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+```query incoming_calls main.ds#beta
+@incoming_calls.call index=0 name=start kind=function detail="start(service: Alpha | Beta): void" location=main.ds:9:1-11:2 selection=main.ds#caller symbol=main.ds#start@7
+@incoming_calls.site call=0 range=main.ds#call
+```
+
+## Empty Results
+
+### Return no calls for an uncalled function
+
+An uncalled function has no incoming calls.
+
+```ds main.ds
+function idle(): void {}
+         ^^^^ idle
+```
+
+```query incoming_calls main.ds#idle
+@incoming_calls.none
+```
