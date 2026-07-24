@@ -69,7 +69,7 @@ impl LintProgram {
         let components = Self::reachable_components(&graph, &roots)?;
         let mut modules = components
             .iter()
-            .flat_map(|component| graph.members(*component))
+            .flat_map(|component| graph.reference_members(*component))
             .copied()
             .collect::<Vec<_>>();
         modules.sort_unstable();
@@ -108,7 +108,7 @@ impl LintProgram {
 
         // resolve every module root to its component
         for root in roots {
-            let component = graph.component(*root).ok_or_else(|| {
+            let component = graph.reference_component(*root).ok_or_else(|| {
                 ProviderError::internal(format!(
                     "lint module {root:?} is missing from its component graph"
                 ))
@@ -124,7 +124,7 @@ impl LintProgram {
                 continue;
             }
 
-            pending.extend(graph.dependencies(component).iter().copied());
+            pending.extend(graph.reference_dependencies(component).iter().copied());
         }
 
         // stabilize component order
@@ -158,7 +158,10 @@ impl Linter {
         // collect the target module graph
         let graph_key = ArtifactKey::component_graph(profile);
         for root in &roots {
-            dependencies.project(graph_key, ComponentGraphProjection::Component(*root));
+            dependencies.project(
+                graph_key,
+                ComponentGraphProjection::ReferenceComponent(*root),
+            );
         }
 
         // resolve the projected components before declaring program inputs
@@ -177,9 +180,15 @@ impl Linter {
         let program_components = LintProgram::reachable_components(&graph, &roots)?;
         let mut program_modules = Vec::new();
         for component in program_components.iter().copied() {
-            dependencies.project(graph_key, ComponentGraphProjection::Members(component));
-            dependencies.project(graph_key, ComponentGraphProjection::Dependencies(component));
-            program_modules.extend(graph.members(component).iter().copied());
+            dependencies.project(
+                graph_key,
+                ComponentGraphProjection::ReferenceMembers(component),
+            );
+            dependencies.project(
+                graph_key,
+                ComponentGraphProjection::ReferenceDependencies(component),
+            );
+            program_modules.extend(graph.reference_members(component).iter().copied());
         }
         program_modules.sort_unstable();
         let mut components = program_components
@@ -230,7 +239,10 @@ impl Linter {
 
             // project components introduced by compiler globals
             for root in environment.globals.iter().copied() {
-                dependencies.project(graph_key, ComponentGraphProjection::Component(root));
+                dependencies.project(
+                    graph_key,
+                    ComponentGraphProjection::ReferenceComponent(root),
+                );
             }
             let dir_components = LintProgram::reachable_components(&graph, &graph_roots)?;
             let mut modules = Vec::new();
@@ -238,11 +250,16 @@ impl Linter {
             // project components introduced by the DIR program
             for component in dir_components.iter().copied() {
                 if components.insert(component) {
-                    dependencies.project(graph_key, ComponentGraphProjection::Members(component));
-                    dependencies
-                        .project(graph_key, ComponentGraphProjection::Dependencies(component));
+                    dependencies.project(
+                        graph_key,
+                        ComponentGraphProjection::ReferenceMembers(component),
+                    );
+                    dependencies.project(
+                        graph_key,
+                        ComponentGraphProjection::ReferenceDependencies(component),
+                    );
                 }
-                modules.extend(graph.members(component).iter().copied());
+                modules.extend(graph.reference_members(component).iter().copied());
             }
             modules.sort_unstable();
 
@@ -335,7 +352,7 @@ impl Linter {
         let components = LintProgram::reachable_components(&program.graph, &roots)?;
         let mut module_ids = components
             .iter()
-            .flat_map(|component| program.graph.members(*component))
+            .flat_map(|component| program.graph.reference_members(*component))
             .copied()
             .collect::<Vec<_>>();
         module_ids.sort_unstable();
