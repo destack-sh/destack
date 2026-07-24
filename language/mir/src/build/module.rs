@@ -143,9 +143,9 @@ impl ModuleBuilder {
         self.target_layout
     }
 
-    /// Set module pointer size in bytes.
-    pub fn set_pointer_bytes(&mut self, pointer_bytes: u8) {
-        self.target_layout = TargetLayout::for_pointer_bytes(pointer_bytes);
+    /// Set the target ABI layout.
+    pub fn set_target_layout(&mut self, target_layout: TargetLayout) {
+        self.target_layout = target_layout;
     }
 
     /// Intern a string and return its id.
