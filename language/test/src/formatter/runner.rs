@@ -5,7 +5,7 @@ use std::time::Duration;
 use crate::core::{
     Case, CaseResult, MarkdownSuiteIndex, RunContext, RunOptions, Runner, Suite,
     discover_file_cases, discover_markdown_suite, expected_failures_view, fixtures_dir,
-    update_failure_baseline,
+    load_expected_failures, update_failure_baseline,
 };
 use crate::mdtest::MdTestCase;
 
@@ -25,12 +25,13 @@ impl FormatterSuite {
     pub fn load() -> Result<Self, String> {
         let fixtures = fixtures_dir();
         let formatter_dir = fixtures.join("formatter");
-        let MarkdownSuiteIndex {
-            cases,
-            entries,
-            expected_failures,
-            expected_failures_path,
-        } = discover_markdown_suite(&formatter_dir, "destack_test::formatter::transform", Some)?;
+        let MarkdownSuiteIndex { cases, entries } = discover_markdown_suite(
+            &formatter_dir,
+            "destack_test::formatter::transform",
+            |_, case| Ok(Some(case)),
+        )?;
+        let expected_failures_path = formatter_dir.join("known-failures.txt");
+        let expected_failures = load_expected_failures(&expected_failures_path);
         let mut suite = Self {
             mdtests: entries,
             cases,

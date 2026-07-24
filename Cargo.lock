@@ -1401,6 +1401,7 @@ dependencies = [
  "destack_session",
  "destack_source",
  "destack_vm",
+ "destack_workspace",
  "indexmap",
  "pulldown-cmark",
  "rayon",

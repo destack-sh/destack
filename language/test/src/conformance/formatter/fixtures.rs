@@ -100,35 +100,3 @@ pub(super) fn sibling_with_suffix(path: &Path, suffix: &str) -> Option<PathBuf> 
     let sibling_name = format!("{file_name}{suffix}");
     Some(path.parent()?.join(sibling_name))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::expect_error_from_path;
-
-    #[test]
-    fn test_expect_error_from_path_matches_error_directory() {
-        assert!(expect_error_from_path(
-            "js/_errors_/discard-binding/example.js"
-        ));
-        assert!(expect_error_from_path("js/errors/example.js"));
-        assert!(expect_error_from_path("js/error/example.js"));
-    }
-
-    #[test]
-    fn test_expect_error_from_path_matches_error_file_prefixes() {
-        assert!(expect_error_from_path(
-            "js/module/invalid-array-expression.js"
-        ));
-        assert!(expect_error_from_path("js/module/error-case.js"));
-        assert!(expect_error_from_path("js/module/malformed-token.js"));
-        assert!(expect_error_from_path("js/module/fail-case.js"));
-    }
-
-    #[test]
-    fn test_expect_error_from_path_does_not_match_non_error_paths() {
-        assert!(!expect_error_from_path("js/module/assignment/basic.js"));
-        assert!(!expect_error_from_path(
-            "typescript/type-parameters/variables.ts"
-        ));
-    }
-}

@@ -14,7 +14,7 @@ use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
 use indexmap::IndexSet;
 
-use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
+use crate::core::{CaseResult, discover_file_cases};
 
 use super::parser::MdTestCase;
 
@@ -201,12 +201,6 @@ fn set_mode(modes: &mut IndexSet<String>, mode: &str, enabled: bool) {
     }
 }
 
-/// Load expected failures for mdtest suites.
-pub fn load_mdtest_expected_failures(base_dir: &Path) -> std::collections::HashSet<String> {
-    let path = base_dir.join("known-failures.txt");
-    load_expected_failures(&path)
-}
-
 /// Lookup the first matching option value from a set of keys.
 fn option_value<'a>(options: &'a HashMap<String, String>, keys: &[&str]) -> Option<&'a str> {
     // scan for the first matching key
@@ -360,7 +354,7 @@ where
 }
 
 /// Discover markdown files recursively in a directory.
-/// Skips README files, hidden directories, node_modules, and staging.
+/// Skips README files, hidden directories, and staging.
 pub fn discover_md_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
     // collect markdown files recursively
     let mut files = Vec::new();
@@ -385,7 +379,7 @@ pub fn discover_md_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
         let path = entry.path();
         if path.is_dir() {
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if !name.starts_with('.') && name != "node_modules" && name != "staging" {
+            if !name.starts_with('.') && name != "staging" {
                 files.extend(discover_md_files(&path)?);
             }
         }

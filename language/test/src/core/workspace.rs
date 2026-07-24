@@ -251,6 +251,7 @@ pub fn module_artifact_diagnostics(
         ArtifactKey::dir_imported(module_id, profile),
         ArtifactKey::dir_expanded(module_id, profile),
         ArtifactKey::dir_exported(module_id, profile),
+        ArtifactKey::dir_resolved(module_id, profile),
         ArtifactKey::dir_checked(module_id, profile),
     ];
 

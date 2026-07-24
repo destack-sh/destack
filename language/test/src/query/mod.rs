@@ -1,8 +1,21 @@
-mod harness;
-pub mod marker;
-pub mod runner;
+mod assertion;
+mod call;
+mod file;
+mod fixture;
+mod position;
+mod range;
+mod response;
+mod run;
 mod suite;
+mod workspace;
 
-pub use harness::*;
-pub use marker::*;
-pub use suite::{QueryExpectation, QuerySuite};
+use assertion::*;
+use call::*;
+use file::*;
+use fixture::*;
+use position::*;
+use range::*;
+use response::*;
+use run::*;
+pub use suite::*;
+use workspace::*;

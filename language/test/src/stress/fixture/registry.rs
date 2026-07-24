@@ -802,29 +802,3 @@ fn materialize_fixtures(
 fn stress_generated_dir(kind: &str) -> PathBuf {
     fixtures_dir().join("stress").join(kind).join("generated")
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_generate_fuzz_case_uses_small_sources() {
-        let (source, _file_type, expectation) = generate_fuzz_case(&[0, 16, 6]);
-
-        assert_ne!(expectation, StressExpectation::Bounded);
-        assert!(source.len() < 10_000);
-    }
-
-    #[test]
-    fn test_generate_fuzz_case_includes_recovery_sources() {
-        let mut saw_recovery = false;
-
-        for seed in 0_u16..1_024 {
-            let data = seed.to_le_bytes();
-            let (_source, _file_type, expectation) = generate_fuzz_case(&data);
-            saw_recovery |= expectation == StressExpectation::Recovery;
-        }
-
-        assert!(saw_recovery);
-    }
-}

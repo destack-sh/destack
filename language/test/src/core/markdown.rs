@@ -1,13 +1,11 @@
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use crate::mdtest::{
-    MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file, slug,
-};
+use crate::mdtest::{MdTestCase, discover_md_files, parse_mdtest_file, slug};
 
 use super::{Case, CaseResult, save_expected_failures};
 
-/// One markdown backed suite entry.
+/// One Markdown-backed suite entry.
 pub trait MarkdownSuiteEntry {
     /// Return the source section name.
     fn section(&self) -> &str;
@@ -33,20 +31,16 @@ impl MarkdownSuiteEntry for MdTestCase {
     }
 }
 
-/// One discovered markdown suite index.
+/// One discovered Markdown suite index.
 #[derive(Debug)]
 pub struct MarkdownSuiteIndex<T> {
     /// The discovered runnable cases.
     pub cases: Vec<Case>,
     /// The parsed entries keyed by full case name.
     pub entries: HashMap<String, T>,
-    /// The known failure names for this suite.
-    pub expected_failures: HashSet<String>,
-    /// The path to the known failure file.
-    pub expected_failures_path: PathBuf,
 }
 
-/// Discover one markdown backed suite.
+/// Discover one Markdown-backed suite.
 pub fn discover_markdown_suite<T, F>(
     suite_dir: &Path,
     category: &str,
@@ -54,12 +48,12 @@ pub fn discover_markdown_suite<T, F>(
 ) -> Result<MarkdownSuiteIndex<T>, String>
 where
     T: MarkdownSuiteEntry,
-    F: FnMut(MdTestCase) -> Option<T>,
+    F: FnMut(&Path, MdTestCase) -> Result<Option<T>, String>,
 {
     let mut cases = Vec::new();
     let mut entries = HashMap::new();
 
-    // discover all markdown fixture files up front
+    // discover all Markdown fixture files up front
     let md_paths = discover_md_files(suite_dir).map_err(|error| {
         format!(
             "failed to discover markdown fixtures in {}: {error}",
@@ -67,7 +61,7 @@ where
         )
     })?;
 
-    // parse each fixture file into suite entries
+    // parse each Markdown fixture into suite entries
     for md_path in md_paths {
         let parsed_cases = match parse_mdtest_file(&md_path) {
             Ok(parsed_cases) => parsed_cases,
@@ -76,12 +70,25 @@ where
             }
         };
 
-        let relative_path = md_path.strip_prefix(suite_dir).unwrap_or(&md_path);
-        let relative_name = relative_path.to_string_lossy();
+        let relative_path = md_path.strip_prefix(suite_dir).map_err(|error| {
+            format!(
+                "markdown fixture '{}' is outside '{}': {error}",
+                md_path.display(),
+                suite_dir.display()
+            )
+        })?;
+        let relative_name = relative_path.to_str().ok_or_else(|| {
+            format!(
+                "markdown fixture path '{}' is not UTF-8",
+                relative_path.display()
+            )
+        })?;
 
-        // convert each parsed markdown case into one suite entry
+        // convert each Markdown case into one suite entry
         for parsed_case in parsed_cases {
-            let Some(entry) = convert(parsed_case) else {
+            let entry = convert(relative_path, parsed_case)
+                .map_err(|error| format!("failed to convert {}: {error}", md_path.display()))?;
+            let Some(entry) = entry else {
                 continue;
             };
 
@@ -92,18 +99,18 @@ where
             );
             let case = Case::file(name, md_path.clone(), category).with_skipped(entry.is_skipped());
 
-            entries.insert(case.full_name(), entry);
+            if entries.insert(case.full_name(), entry).is_some() {
+                return Err(format!(
+                    "markdown fixture '{}' repeats case '{}'",
+                    md_path.display(),
+                    case.full_name()
+                ));
+            }
             cases.push(case);
         }
     }
 
-    // load the known-failure baseline next to the suite fixtures
-    Ok(MarkdownSuiteIndex {
-        cases,
-        entries,
-        expected_failures: load_mdtest_expected_failures(suite_dir),
-        expected_failures_path: suite_dir.join("known-failures.txt"),
-    })
+    Ok(MarkdownSuiteIndex { cases, entries })
 }
 
 /// Return an expected failure set view when it is not empty.

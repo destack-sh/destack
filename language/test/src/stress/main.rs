@@ -3,7 +3,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use destack_test::core::{RunOptions, Runner};
+use destack_test::core::{CaseResult, RunOptions, Runner};
 use destack_test::stress::{FormatterStressSuite, ParserStressSuite};
 
 #[derive(Parser, Debug, Clone)]
@@ -99,18 +99,18 @@ fn main() -> ExitCode {
     }
 }
 
-fn exit_code(result: destack_test::core::CaseResult) -> ExitCode {
+fn exit_code(result: CaseResult) -> ExitCode {
     match result {
-        destack_test::core::CaseResult::Passed => ExitCode::SUCCESS,
-        destack_test::core::CaseResult::Failed { message } => {
+        CaseResult::Passed => ExitCode::SUCCESS,
+        CaseResult::Failed { message } => {
             eprintln!("{message}");
             ExitCode::FAILURE
         }
-        destack_test::core::CaseResult::Skipped { reason } => {
+        CaseResult::Skipped { reason } => {
             eprintln!("skipped: {reason}");
             ExitCode::SUCCESS
         }
-        destack_test::core::CaseResult::Suite { failed, .. } if failed == 0 => ExitCode::SUCCESS,
-        destack_test::core::CaseResult::Suite { .. } => ExitCode::FAILURE,
+        CaseResult::Suite { failed: 0, .. } => ExitCode::SUCCESS,
+        CaseResult::Suite { .. } => ExitCode::FAILURE,
     }
 }

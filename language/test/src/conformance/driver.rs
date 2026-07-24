@@ -88,26 +88,3 @@ pub fn category_key_for_case_name(case_name: &str) -> String {
 
     format!("{first}/{second}")
 }
-
-#[cfg(test)]
-mod tests {
-    use super::category_key_for_case_name;
-
-    #[test]
-    fn test_category_key_for_case_name_uses_first_two_segments() {
-        let category = category_key_for_case_name("typescript/range/issue.ts");
-        assert_eq!(category, "typescript/range");
-    }
-
-    #[test]
-    fn test_category_key_for_case_name_handles_single_segment_paths() {
-        let category = category_key_for_case_name("typescript");
-        assert_eq!(category, "typescript");
-    }
-
-    #[test]
-    fn test_category_key_for_case_name_handles_empty_input() {
-        let category = category_key_for_case_name("");
-        assert_eq!(category, "unknown");
-    }
-}

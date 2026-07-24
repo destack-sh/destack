@@ -65,6 +65,7 @@ destack_runtime = { workspace = true }
 destack_session = { workspace = true, features = ["native"] }
 destack_source = { workspace = true }
 destack_vm = { workspace = true }
+destack_workspace = { workspace = true, features = ["native"] }
 
 # general
 clap = { workspace = true, features = ["derive"] }
