@@ -12,6 +12,8 @@ pub struct ExportTable {
     pub module_id: ModuleId,
     /// Local and indirect exports keyed by exported name.
     pub export_by_key: IndexMap<ExportKey, NamedExport>,
+    /// Forms of local symbols visible across modules.
+    pub form_by_symbol: IndexMap<LocalSymbolId, ExportForm>,
     /// Star exports declared by the module.
     pub star_exports: Vec<StarExport>,
 }
@@ -22,18 +24,28 @@ impl ExportTable {
         Self {
             module_id,
             export_by_key: IndexMap::new(),
+            form_by_symbol: IndexMap::new(),
             star_exports: Vec::new(),
         }
     }
 
-    /// Return true when the module exposes no exports.
+    /// Return true when the module exposes no named or star exports.
     pub fn is_empty(&self) -> bool {
         self.export_by_key.is_empty() && self.star_exports.is_empty()
     }
 
     /// Insert one named export.
     pub fn insert(&mut self, export: NamedExport) -> Option<NamedExport> {
+        if let NamedExport::Local(local) = export {
+            self.form_by_symbol.insert(local.source, local.form);
+        }
+
         self.export_by_key.insert(export.key(), export)
+    }
+
+    /// Record the form of one local symbol visible across modules.
+    pub fn insert_symbol_form(&mut self, symbol: LocalSymbolId, form: ExportForm) {
+        self.form_by_symbol.insert(symbol, form);
     }
 
     /// Push one star export.
@@ -51,12 +63,9 @@ impl ExportTable {
         self.star_exports.iter()
     }
 
-    /// Return the declared form behind one locally exported symbol.
-    pub fn local_form(&self, symbol: LocalSymbolId) -> Option<ExportForm> {
-        self.export_by_key.values().find_map(|export| match export {
-            NamedExport::Local(local) if local.source == symbol => Some(local.form),
-            _ => None,
-        })
+    /// Return the form of one local symbol visible across modules.
+    pub fn symbol_form(&self, symbol: LocalSymbolId) -> Option<ExportForm> {
+        self.form_by_symbol.get(&symbol).copied()
     }
 
     /// Return modules targeted by re-export edges.

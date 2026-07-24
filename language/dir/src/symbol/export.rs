@@ -77,8 +77,8 @@ pub enum ExportForm {
 }
 
 impl ExportForm {
-    /// Return whether consumers couple to the exporter's inference.
-    pub fn couples(self) -> bool {
+    /// Return whether consumers require the exporter's inference.
+    pub fn requires_inference(self) -> bool {
         matches!(self, Self::Inferred)
     }
 }
