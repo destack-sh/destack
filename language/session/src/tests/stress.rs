@@ -449,11 +449,11 @@ export const result = value;
     assert_eq!(
         TraceCounts::from_trace(&cold_trace),
         TraceCounts {
-            attempts: 5322,
-            built: 3192,
+            attempts: 5434,
+            built: 3248,
             memory_cached: 0,
             store_cached: 0,
-            parked: 2130,
+            parked: 2186,
             failed: 0,
         },
     );

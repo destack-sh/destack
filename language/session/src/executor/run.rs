@@ -33,12 +33,12 @@ pub(super) struct ArtifactRun {
 
 impl ArtifactRun {
     /// Create one artifact executor run.
-    pub(super) fn new(id: ArtifactRunId, roots: Vec<Task>, clock: Clock) -> Self {
+    pub(super) fn new(id: ArtifactRunId, roots: Vec<Task>, clock: Clock, workers: usize) -> Self {
         Self {
             id,
             roots,
             error: Mutex::new(None),
-            trace: Trace::new(clock),
+            trace: Trace::new(clock, workers),
         }
     }
 

@@ -81,7 +81,11 @@ impl Executor {
 
         let run_id = self.state.next_run_id();
         let clock = self.state.repository().host().clock();
-        let run = Arc::new(ArtifactRun::new(run_id, root_tasks, clock));
+        let workers = match self.execution {
+            Execution::Threaded => self.workers.len(),
+            Execution::Inline => 1,
+        };
+        let run = Arc::new(ArtifactRun::new(run_id, root_tasks, clock, workers));
         let trace = Arc::clone(run.trace());
         trace.record_counter("roots", artifact_keys.len() as u64);
 
@@ -90,9 +94,7 @@ impl Executor {
         // enqueue roots into the shared scheduler
         trace.span("enqueue", || {
             self.scheduler.insert_run(run.clone());
-            for task in run.roots().iter().copied() {
-                self.scheduler.enqueue_root(task, run.id());
-            }
+            self.scheduler.enqueue_roots(run.roots(), run.id());
         });
 
         // drive executor workers until roots become terminal

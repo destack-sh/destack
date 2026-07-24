@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
-use destack_artifact::ArtifactDependencySet;
+use destack_artifact::{ArtifactDependencySet, ArtifactStage};
 use parking_lot::{Condvar, Mutex};
 
 use super::run::{ArtifactRun, ArtifactRunId};
@@ -24,8 +24,10 @@ struct SchedulerState {
     runs: HashMap<ArtifactRunId, Arc<ArtifactRun>>,
     /// Tracked tasks by identity.
     tasks: HashMap<Task, TaskEntry>,
-    /// Tasks ready to run in claim order.
-    ready: VecDeque<Task>,
+    /// Tasks ready to run per toolchain stage.
+    ready: [VecDeque<Task>; ArtifactStage::ALL.len()],
+    /// Tasks currently owned by workers.
+    running: usize,
     /// Scheduler change counter for missed wakeup avoidance.
     epoch: u64,
     /// Whether workers should stop after current work.
@@ -77,10 +79,12 @@ impl Scheduler {
         self.changed.notify_all();
     }
 
-    /// Enqueue one root task for a run.
-    pub(super) fn enqueue_root(&self, task: Task, run: ArtifactRunId) {
+    /// Enqueue root tasks for one run.
+    pub(super) fn enqueue_roots(&self, tasks: &[Task], run: ArtifactRunId) {
         let mut state = self.state.lock();
-        state.enqueue(task, run);
+        for task in tasks {
+            state.enqueue(*task, run);
+        }
         state.advance();
         self.changed.notify_all();
     }
@@ -198,7 +202,7 @@ impl Scheduler {
         state: &mut SchedulerState,
     ) -> Option<(Arc<ArtifactRun>, Task, Option<ArtifactDependencySet>)> {
         // scan ready tasks until one is claimable
-        while let Some(task) = state.ready.pop_front() {
+        while let Some(task) = state.pop_ready() {
             let Some(entry) = state.tasks.get_mut(&task) else {
                 continue;
             };
@@ -211,10 +215,16 @@ impl Scheduler {
             // claim the task for this worker
             let Some(run_id) = entry.runs.first().copied() else {
                 state.mark_done(task);
+                state.advance();
+                self.changed.notify_all();
+
                 continue;
             };
             let Some(run) = state.runs.get(&run_id).cloned() else {
                 state.mark_done(task);
+                state.advance();
+                self.changed.notify_all();
+
                 continue;
             };
 
@@ -223,6 +233,7 @@ impl Scheduler {
                 continue;
             };
             entry.state = TaskState::Running;
+            state.running += 1;
             let pending_set = entry.pending_set.take();
             state.advance();
 
@@ -250,6 +261,14 @@ impl SchedulerState {
                 (entry.runs.len() == 1 && entry.runs.contains(&run_id)).then_some(*task)
             })
             .collect::<HashSet<_>>();
+        let removed_running = removed
+            .iter()
+            .filter(|task| {
+                self.tasks
+                    .get(task)
+                    .is_some_and(|entry| entry.state == TaskState::Running)
+            })
+            .count();
 
         // detach this run from tasks that are still needed by others
         for entry in self.tasks.values_mut() {
@@ -258,25 +277,24 @@ impl SchedulerState {
 
         // remove entries owned by this run
         self.tasks.retain(|task, _| !removed.contains(task));
-        self.ready.retain(|task| !removed.contains(task));
+        for ready in &mut self.ready {
+            ready.retain(|task| !removed.contains(task));
+        }
 
         // erase dangling edges from surviving tasks
-        for entry in self.tasks.values_mut() {
+        let mut unblocked = Vec::new();
+        for (task, entry) in &mut self.tasks {
             entry.waiting_on.retain(|task| !removed.contains(task));
             entry.dependents.retain(|task| !removed.contains(task));
 
             if entry.state == TaskState::Waiting && entry.waiting_on.is_empty() {
                 entry.state = TaskState::Ready;
+                unblocked.push(*task);
             }
         }
 
-        // requeue tasks that were unblocked by run cleanup
-        let unblocked = self
-            .tasks
-            .iter()
-            .filter(|(task, entry)| entry.state == TaskState::Ready && !self.ready.contains(task))
-            .map(|(task, _)| *task)
-            .collect::<Vec<_>>();
+        // account for removed workers and enqueue newly unblocked tasks
+        self.running -= removed_running;
         for task in unblocked {
             self.push_ready(task);
         }
@@ -284,14 +302,14 @@ impl SchedulerState {
 
     /// Enqueue one ready task, ordering foundational stages ahead.
     fn push_ready(&mut self, task: Task) {
-        let stage = task.key.stage();
-        let position = self
-            .ready
-            .iter()
-            .position(|queued| queued.key.stage() > stage)
-            .unwrap_or(self.ready.len());
+        let stage = task.key.stage() as usize;
 
-        self.ready.insert(position, task);
+        self.ready[stage].push_back(task);
+    }
+
+    /// Pop one task from the earliest nonempty stage.
+    fn pop_ready(&mut self) -> Option<Task> {
+        self.ready.iter_mut().find_map(VecDeque::pop_front)
     }
 
     /// Enqueue one task when it is not already tracked.
@@ -325,56 +343,42 @@ impl SchedulerState {
         dependencies: Vec<Task>,
         pending_set: Option<ArtifactDependencySet>,
     ) -> Result<(), SessionError> {
-        // no outstanding dependencies means the task can be retried
-        if dependencies.is_empty() {
-            let entry = self.tasks.entry(task).or_insert_with(|| TaskEntry {
-                runs: vec![run],
-                state: TaskState::Running,
-                waiting_on: Vec::new(),
-                dependents: Vec::new(),
-                pending_set: None,
+        // require the worker to return one task it actually claimed
+        let Some(entry) = self.tasks.get_mut(&task) else {
+            return Err(SessionError::Internal {
+                detail: format!(
+                    "artifact task was not tracked while parking: {:?}",
+                    task.key
+                ),
             });
-            if !entry.runs.contains(&run) {
-                entry.runs.push(run);
-            }
-            entry.state = TaskState::Ready;
-            entry.waiting_on.clear();
-            entry.pending_set = pending_set;
-
-            if !self.ready.contains(&task) {
-                self.push_ready(task);
-            }
-
-            return Ok(());
+        };
+        if entry.state != TaskState::Running {
+            return Err(SessionError::Internal {
+                detail: format!(
+                    "artifact task was not running while parking: {:?}",
+                    task.key
+                ),
+            });
         }
-
-        // reject dependency cycles before mutating wait edges
-        for dependency in &dependencies {
-            if *dependency == task || self.has_dependency_path(*dependency, task) {
-                return Err(SessionError::Internal {
-                    detail: format!(
-                        "circular artifact dependency while providing {:?} waited on {:?}",
-                        task.key, dependency.key
-                    ),
-                });
-            }
-        }
-
-        // register the waiting task
-        let entry = self.tasks.entry(task).or_insert_with(|| TaskEntry {
-            runs: vec![run],
-            state: TaskState::Running,
-            waiting_on: Vec::new(),
-            dependents: Vec::new(),
-            pending_set: None,
-        });
         if !entry.runs.contains(&run) {
             entry.runs.push(run);
         }
-        entry.state = TaskState::Waiting;
+        entry.state = if dependencies.is_empty() {
+            TaskState::Ready
+        } else {
+            TaskState::Waiting
+        };
         entry.waiting_on.clear();
         entry.waiting_on.extend(dependencies.iter().copied());
         entry.pending_set = pending_set;
+        self.running -= 1;
+
+        // retry partial collections as soon as a worker is available
+        if dependencies.is_empty() {
+            self.push_ready(task);
+
+            return Ok(());
+        }
 
         // register wakeups and make dependency tasks runnable
         for dependency in dependencies {
@@ -390,6 +394,16 @@ impl SchedulerState {
             }
         }
 
+        // reject a closed wait graph after the last runnable task parks
+        if self.is_stalled() {
+            return Err(SessionError::Internal {
+                detail: format!(
+                    "circular artifact dependency stalled while providing {:?}",
+                    task.key
+                ),
+            });
+        }
+
         Ok(())
     }
 
@@ -398,6 +412,9 @@ impl SchedulerState {
         let Some(entry) = self.tasks.remove(&task) else {
             return;
         };
+        if entry.state == TaskState::Running {
+            self.running -= 1;
+        }
 
         // release any tasks waiting on this dependency
         for dependent in entry.dependents {
@@ -414,30 +431,39 @@ impl SchedulerState {
                 self.push_ready(dependent);
             }
         }
+
+        self.abort_stalled_runs();
     }
 
-    /// Return true when the waiting dependency graph has one path.
-    fn has_dependency_path(&self, from: Task, to: Task) -> bool {
-        let mut stack = vec![from];
-        let mut seen = HashSet::new();
-
-        // depth first search through waiting dependency edges
-        while let Some(task) = stack.pop() {
-            if !seen.insert(task) {
-                continue;
-            }
-
-            let Some(entry) = self.tasks.get(&task) else {
-                continue;
-            };
-
-            if entry.waiting_on.contains(&to) {
-                return true;
-            }
-
-            stack.extend(entry.waiting_on.iter().copied());
+    /// Abort runs whose remaining tasks form a closed dependency cycle.
+    fn abort_stalled_runs(&self) {
+        // require global quiescence with unfinished tasks
+        if !self.is_stalled() {
+            return;
         }
 
-        false
+        // abort each run attached to the closed wait graph once
+        let mut aborted = HashSet::new();
+        for entry in self.tasks.values() {
+            for run_id in &entry.runs {
+                if !aborted.insert(*run_id) {
+                    continue;
+                }
+
+                if let Some(run) = self.runs.get(run_id) {
+                    run.abort(SessionError::Internal {
+                        detail: format!(
+                            "circular artifact dependency stalled with {} waiting tasks",
+                            self.tasks.len()
+                        ),
+                    });
+                }
+            }
+        }
+    }
+
+    /// Return whether every remaining task is waiting on another remaining task.
+    fn is_stalled(&self) -> bool {
+        self.running == 0 && !self.tasks.is_empty() && self.ready.iter().all(VecDeque::is_empty)
     }
 }

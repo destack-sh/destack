@@ -265,7 +265,13 @@ impl TestSession {
             .last_trace()
             .expect("test trace should be recorded");
 
-        trace.snapshot(TraceView::Detailed, |_| None, |_| None)
+        trace
+            .snapshot(
+                TraceView::Detailed,
+                |_| Ok::<_, ()>(None),
+                |_| Ok::<_, ()>(None),
+            )
+            .unwrap()
     }
 
     /// Return editable repository files at the current head.

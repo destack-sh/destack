@@ -180,6 +180,8 @@ impl Worker {
                 } => break (base, dependencies, failed),
             }
         };
+        recorder.record_dependencies(&dependencies);
+
         // the version is fixed by the resolved dependency set before any provider runs
         let version = recorder.span("version", || {
             ArtifactVersion::new(
