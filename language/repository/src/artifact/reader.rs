@@ -3,10 +3,10 @@ use std::sync::Arc;
 use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection, ArtifactProjectionKey,
     ArtifactTable, ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound,
-    DirCheckedComponent, DirCheckedModule, DirDeclared, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirElaborated,
-    MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageIndex,
-    Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    DirCheckedComponent, DirCheckedModule, DirDeclaredComponent, DirExpanded, DirExported,
+    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
+    MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
+    PackageIndex, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use destack_program::Program;
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
@@ -197,28 +197,26 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
-    /// Read one declared DIR environment artifact.
-    pub fn dir_declared(
+    /// Read one declared DIR component artifact.
+    pub fn dir_declared_component(
         &self,
-        entry: ModuleId,
         component: ComponentId,
         profile: ProfileId,
-    ) -> Result<Arc<DirDeclared>, ProviderError> {
+    ) -> Result<Arc<DirDeclaredComponent>, ProviderError> {
         self.read(
-            ArtifactKey::dir_declared(entry, component, profile),
-            ArtifactTable::dir_declared,
+            ArtifactKey::dir_declared_component(component, profile),
+            ArtifactTable::dir_declared_component,
         )
     }
 
     /// Read one checked DIR component artifact.
     pub fn dir_checked_component(
         &self,
-        entry: ModuleId,
         component: ComponentId,
         profile: ProfileId,
     ) -> Result<Arc<DirCheckedComponent>, ProviderError> {
         self.read(
-            ArtifactKey::dir_checked_component(entry, component, profile),
+            ArtifactKey::dir_checked_component(component, profile),
             ArtifactTable::dir_checked_component,
         )
     }
@@ -237,10 +235,11 @@ impl<'a> ArtifactReader<'a> {
             .ok_or(ProviderError::Corrupt { version })?;
 
         // resolve the exact component version behind this module projection
-        let component_key =
-            ArtifactKey::dir_checked_component(checked.entry, checked.component, profile);
-        let projection =
-            ArtifactProjection::new(component_key, ArtifactProjectionKey::DirChecked(module));
+        let component_key = ArtifactKey::dir_checked_component(checked.component, profile);
+        let projection = ArtifactProjection::new(
+            component_key,
+            ArtifactProjectionKey::DirCheckedModule(module),
+        );
         let component_version = self.projection_dependency_version(&version, projection)?;
 
         // read the checked module entry from the owning component
@@ -257,7 +256,7 @@ impl<'a> ArtifactReader<'a> {
             ))
         })?;
 
-        Ok(Arc::new(entry.checked.clone()))
+        Ok(Arc::new(entry.clone()))
     }
 
     /// Read one materialized DIR artifact.
