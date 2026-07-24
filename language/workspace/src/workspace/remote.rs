@@ -507,11 +507,6 @@ impl Workspace for RemoteWorkspace {
         let handle = self.handle_for_root(root)?;
 
         match request {
-            ViewRequest::Root { target } => self
-                .client
-                .root_snapshot(handle, target)
-                .map(ViewResult::Root)
-                .map_err(Self::workspace_error),
             ViewRequest::File(request) => self
                 .client
                 .file_snapshot(handle, request)

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::FileImage;
 use crate::diagnostic::Error;
-use crate::protocol::{FileImagesRequest, FileSnapshot, FileSnapshotRequest, RootSnapshot};
+use crate::protocol::{FileImagesRequest, FileSnapshot, FileSnapshotRequest};
 
 use super::LocalWorkspace;
 
@@ -91,11 +91,6 @@ pub struct FileView {
 /// Request to read one workspace snapshot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ViewRequest {
-    /// Return root query context.
-    Root {
-        /// Target name used to select profiles.
-        target: Option<String>,
-    },
     /// Return one file snapshot.
     File(FileSnapshotRequest),
     /// Return source file images.
@@ -105,8 +100,6 @@ pub enum ViewRequest {
 /// Result of reading one workspace snapshot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ViewResult {
-    /// Root query context.
-    Root(RootSnapshot),
     /// Source file snapshot.
     File(Option<FileSnapshot>),
     /// Source file images.
@@ -155,25 +148,6 @@ impl LocalWorkspace {
         session.file_view(path)
     }
 
-    /// Return query context for one root.
-    pub fn root_snapshot(&self, root: &Path, target: Option<&str>) -> Result<RootSnapshot, Error> {
-        let revision = self.revision(root)?;
-        let package_id = self
-            .repository
-            .nearest_package(revision, root)?
-            .map(|package| package.id);
-        let profile_ids = if let Some(package_id) = package_id {
-            self.package_profiles(revision, package_id, target)?
-        } else {
-            Vec::new()
-        };
-
-        Ok(RootSnapshot {
-            revision,
-            profile_ids,
-        })
-    }
-
     /// Return one source file snapshot.
     pub fn file_snapshot(
         &self,
@@ -207,12 +181,11 @@ impl LocalWorkspace {
                     .ok_or_else(|| Error::Internal {
                         detail: format!("module {module_id:?} is missing from revision {revision}"),
                     })?;
-            let profile_ids =
-                self.package_profiles(revision, module.package_id, request.target.as_deref())?;
-            profile_ids.first().copied().map(|profile_id| Module {
-                module_id,
-                profile_id,
-            })
+            self.profile_id(revision, module.package_id, request.target.as_deref())?
+                .map(|profile_id| Module {
+                    module_id,
+                    profile_id,
+                })
         } else {
             None
         };
@@ -246,19 +219,19 @@ impl LocalWorkspace {
         Ok(images)
     }
 
-    /// Return selected profile ids for one package.
-    fn package_profiles(
+    /// Return the profile id selected for one package.
+    fn profile_id(
         &self,
         revision: Revision,
         package_id: PackageId,
         target: Option<&str>,
-    ) -> Result<Vec<ProfileId>, Error> {
+    ) -> Result<Option<ProfileId>, Error> {
         // use the explicit target when supplied by the client
         if let Some(target) = target {
             let target_id = TargetId::new(package_id, target);
             let profile = self.repository.profile_for_target(revision, target_id)?;
 
-            return Ok(vec![profile.id()]);
+            return Ok(Some(profile.id()));
         }
 
         // otherwise use the package default target when one is unambiguous
@@ -266,11 +239,11 @@ impl LocalWorkspace {
             .repository
             .package_default_target(revision, package_id)?;
         let Some((target_id, _)) = default_target else {
-            return Ok(Vec::new());
+            return Ok(None);
         };
         let profile = self.repository.profile_for_target(revision, target_id)?;
 
-        Ok(vec![profile.id()])
+        Ok(Some(profile.id()))
     }
 
     /// Return selected formatter options for one path.

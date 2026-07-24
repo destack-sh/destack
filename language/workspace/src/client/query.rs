@@ -6,7 +6,7 @@ use super::{Client, ClientError};
 use crate::FileImage;
 use crate::protocol::{
     DiagnosticBatch, DiagnosticSnapshot, FileImagesRequest, FileSnapshot, FileSnapshotRequest,
-    QueryRequestBody, QueryRequestPayload, QueryResponseBody, RootId, RootSnapshot, WorkspaceQuery,
+    QueryRequestBody, QueryRequestPayload, QueryResponseBody, RootId, WorkspaceQuery,
     WorkspaceQueryResponse, WorkspaceRequest, WorkspaceResponse,
 };
 
@@ -107,29 +107,6 @@ impl Client {
             }
             WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("revision query", other)),
-        }
-    }
-
-    /// Request query context for one root handle.
-    pub fn root_snapshot(
-        &self,
-        handle: RootId,
-        target: Option<String>,
-    ) -> Result<RootSnapshot, ClientError> {
-        // send the root snapshot query
-        let response =
-            self.send_request(WorkspaceRequest::Query(WorkspaceQuery::RootSnapshot {
-                handle,
-                target,
-            }))?;
-
-        // decode the root snapshot response
-        match response {
-            WorkspaceResponse::QueryResult(WorkspaceQueryResponse::RootSnapshot(response)) => {
-                Ok(response)
-            }
-            WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
-            other => Err(Self::unexpected_response("root snapshot query", other)),
         }
     }
 

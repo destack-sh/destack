@@ -5,19 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use destack_query::{Module, QueryRequest, QueryResponse};
 use destack_repository::{FormatterOptions, Revision};
-use destack_source::{Diagnostic, FileId, ProfileId, Uri};
+use destack_source::{Diagnostic, FileId, Uri};
 
 use super::{BinaryPayload, BinaryPayloadDecodeError, DiagnosticBatch, RootId};
 use crate::{DiagnosticView, FileImage};
-
-/// Query context for one root handle.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct RootSnapshot {
-    /// Current semantic revision for the root.
-    pub revision: Revision,
-    /// Profiles selected for the requested target.
-    pub profile_ids: Vec<ProfileId>,
-}
 
 /// Request for one source file snapshot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -35,7 +26,7 @@ pub struct FileSnapshot {
     pub revision: Revision,
     /// The source file id.
     pub file_id: FileId,
-    /// module for the requested target.
+    /// The module for the requested target.
     pub module: Option<Module>,
     /// Formatter options selected for the file.
     pub formatter: FormatterOptions,
@@ -230,13 +221,6 @@ pub enum WorkspaceQuery {
     },
     /// Request the current semantic revision.
     CurrentRevision { handle: RootId },
-    /// Request query context for one root.
-    RootSnapshot {
-        /// Root handle.
-        handle: RootId,
-        /// Target name used to select query profiles.
-        target: Option<String>,
-    },
     /// Request a source file snapshot.
     FileSnapshot {
         /// Root handle.
@@ -280,8 +264,6 @@ pub enum WorkspaceQueryResponse {
     FileOpen(bool),
     /// The current semantic revision.
     CurrentRevision(Revision),
-    /// Query context for one root.
-    RootSnapshot(RootSnapshot),
     /// Source file snapshot.
     FileSnapshot(Option<FileSnapshot>),
     /// Source file images.

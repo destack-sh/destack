@@ -556,9 +556,6 @@ impl Workspace for LocalWorkspace {
 
     fn view(&self, root: &Path, request: ViewRequest) -> Result<ViewResult, Error> {
         match request {
-            ViewRequest::Root { target } => {
-                LocalWorkspace::root_snapshot(self, root, target.as_deref()).map(ViewResult::Root)
-            }
             ViewRequest::File(request) => {
                 LocalWorkspace::file_snapshot(self, root, request).map(ViewResult::File)
             }

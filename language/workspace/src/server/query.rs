@@ -53,20 +53,6 @@ impl Server {
                     .map_err(|error| self.workspace_error("current revision", error))?;
                 WorkspaceQueryResponse::CurrentRevision(revision)
             }
-            WorkspaceQuery::RootSnapshot { handle, target } => {
-                let (root, workspace) = self.resolve_root(handle)?;
-                let response = workspace
-                    .view(&root.root, ViewRequest::Root { target })
-                    .map_err(|error| self.workspace_error("root snapshot", error))?;
-                let ViewResult::Root(snapshot) = response else {
-                    return Err(self.protocol_error(
-                        ProtocolErrorCode::Internal,
-                        "workspace returned a non-root view",
-                    ));
-                };
-
-                WorkspaceQueryResponse::RootSnapshot(snapshot)
-            }
             WorkspaceQuery::FileSnapshot { handle, request } => {
                 let (root, workspace) = self.resolve_root(handle)?;
                 let response = workspace
