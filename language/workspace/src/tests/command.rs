@@ -137,7 +137,7 @@ fn test_check_command_lints_selected_module_and_program() {
     let mut lint_artifacts = output
         .data
         .trace
-        .artifacts
+        .attempts
         .iter()
         .filter(|artifact| artifact.name.ends_with(".lint") && artifact.outcome == "built")
         .map(|artifact| (artifact.name.as_str(), artifact.label.as_deref()))

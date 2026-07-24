@@ -102,46 +102,86 @@ impl<'a> CommandContext<'a> {
                 "command completed without recording a trace",
             ));
         };
+
         let report = trace.snapshot(
             view,
-            |key| {
-                let display = key.module_id().and_then(|module| {
-                    self.repository
-                        .module_display(revision, module)
-                        .ok()
-                        .flatten()
-                });
-
-                // count members on multi-module component artifacts
-                if let ArtifactKey::DirCheckedComponent {
-                    component, profile, ..
-                } = key
-                {
-                    let members = self
-                        .session
-                        .require(revision, ArtifactKey::component_graph(*profile))
-                        .ok()
-                        .and_then(|version| {
-                            self.repository.artifact_table().component_graph(&version)
-                        })
-                        .map(|graph| graph.members(*component).len());
-                    if let (Some(display), Some(members)) = (&display, members)
-                        && members > 1
-                    {
-                        return Some(format!("{display} (+{} modules)", members - 1));
-                    }
-                }
-
-                display
-            },
+            |key| self.artifact_label(revision, *key),
             |target| {
                 self.repository
                     .target_display(revision, target)
-                    .ok()
-                    .flatten()
+                    .map_err(|error| CommandError::internal(error.to_string()))
             },
-        );
+        )?;
+
         Ok(report)
+    }
+
+    /// Return the display label of one traced artifact.
+    fn artifact_label(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+    ) -> CommandResult<Option<String>> {
+        // label component artifacts through their first member
+        let component = match key {
+            ArtifactKey::DirDeclaredComponent { component, profile } => {
+                Some((component, profile, false))
+            }
+            ArtifactKey::DirCheckedComponent { component, profile } => {
+                Some((component, profile, true))
+            }
+            _ => None,
+        };
+        if let Some((component, profile, is_inference)) = component {
+            let graph_key = ArtifactKey::component_graph(profile);
+            let graph_version = self
+                .repository
+                .artifact_version(revision, &graph_key)
+                .map_err(|error| CommandError::internal(error.to_string()))?;
+            let Some(graph_version) = graph_version else {
+                return Err(CommandError::internal(format!(
+                    "component graph {graph_key:?} is missing"
+                )));
+            };
+            let graph = self
+                .repository
+                .artifact_table()
+                .component_graph(&graph_version)
+                .ok_or_else(|| {
+                    CommandError::internal(format!(
+                        "component graph payload missing for {graph_version:?}"
+                    ))
+                })?;
+            let members = if is_inference {
+                graph.inference_members(component)
+            } else {
+                graph.reference_members(component)
+            };
+            let Some(module) = members.first() else {
+                return Err(CommandError::internal(format!(
+                    "component {component} has no modules"
+                )));
+            };
+            let display = self
+                .repository
+                .module_display(revision, *module)
+                .map_err(|error| CommandError::internal(error.to_string()))?
+                .ok_or_else(|| CommandError::internal(format!("module {module} is missing")))?;
+            if members.len() > 1 {
+                return Ok(Some(format!("{display} (+{} modules)", members.len() - 1)));
+            }
+
+            return Ok(Some(display));
+        }
+
+        // label module artifacts through the repository index
+        let Some(module) = key.module_id() else {
+            return Ok(None);
+        };
+
+        self.repository
+            .module_display(revision, module)
+            .map_err(|error| CommandError::internal(error.to_string()))
     }
 
     /// Return diagnostics emitted by the requested artifact roots.
