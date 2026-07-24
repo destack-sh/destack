@@ -218,31 +218,35 @@ impl<'a> QueryRun<'a> {
             QueryCall::InlayHints { range } => QueryRequest::InlayHints(InlayHintsRequest {
                 range: self.range(range)?,
             }),
-            QueryCall::CodeLenses { module } => QueryRequest::CodeLenses(CodeLensesRequest {
-                module: self.module(module)?,
-            }),
+            QueryCall::CodeLenses { module } => {
+                let (module, file_id) = self.query_file(module)?;
+
+                QueryRequest::CodeLenses(CodeLensesRequest { module, file_id })
+            }
             QueryCall::ResolveCodeLens { lens, action } => {
                 let lens = self.code_lens(lens, *action)?;
                 QueryRequest::ResolveCodeLens(ResolveCodeLensRequest { lens })
             }
             QueryCall::FoldingRanges { module } => {
-                QueryRequest::FoldingRanges(FoldingRangesRequest {
-                    module: self.module(module)?,
-                })
+                let (module, file_id) = self.query_file(module)?;
+
+                QueryRequest::FoldingRanges(FoldingRangesRequest { module, file_id })
             }
             QueryCall::SemanticTokens { module } => {
-                QueryRequest::SemanticTokens(SemanticTokensRequest {
-                    module: self.module(module)?,
-                })
+                let (module, file_id) = self.query_file(module)?;
+
+                QueryRequest::SemanticTokens(SemanticTokensRequest { module, file_id })
             }
             QueryCall::SemanticTokensRange { range } => {
                 QueryRequest::SemanticTokensRange(SemanticTokensRangeRequest {
                     range: self.range(range)?,
                 })
             }
-            QueryCall::Outline { module } => QueryRequest::Outline(OutlineRequest {
-                module: self.module(module)?,
-            }),
+            QueryCall::Outline { module } => {
+                let (module, file_id) = self.query_file(module)?;
+
+                QueryRequest::Outline(OutlineRequest { module, file_id })
+            }
             QueryCall::SearchSymbols { query, max_results } => {
                 QueryRequest::SearchSymbols(SearchSymbolsRequest {
                     profile_id: self.profile()?,
@@ -251,9 +255,11 @@ impl<'a> QueryRun<'a> {
                     max_results: *max_results,
                 })
             }
-            QueryCall::Links { module } => QueryRequest::Links(LinksRequest {
-                module: self.module(module)?,
-            }),
+            QueryCall::Links { module } => {
+                let (module, file_id) = self.query_file(module)?;
+
+                QueryRequest::Links(LinksRequest { module, file_id })
+            }
             QueryCall::Highlight { position } => QueryRequest::Highlight(HighlightRequest {
                 position: self.position(position)?,
             }),
@@ -261,21 +267,25 @@ impl<'a> QueryRun<'a> {
                 let first = positions
                     .first()
                     .ok_or_else(|| "selection range query has no positions".to_string())?;
-                let module = self.module(&first.file)?;
+                let (module, file_id) = self.query_file(&first.file)?;
                 let mut offsets = Vec::with_capacity(positions.len());
 
-                // require all positions to belong to the one protocol module
+                // require all positions to belong to the one queried file
                 for position in positions {
                     let resolved = self.position(position)?;
-                    if resolved.module != module {
+                    if resolved.module != module || resolved.file_id != file_id {
                         return Err(
-                            "selection range query positions span multiple modules".to_string()
+                            "selection range query positions span multiple files".to_string()
                         );
                     }
                     offsets.push(resolved.offset);
                 }
 
-                QueryRequest::SelectionRanges(SelectionRangesRequest { module, offsets })
+                QueryRequest::SelectionRanges(SelectionRangesRequest {
+                    module,
+                    file_id,
+                    offsets,
+                })
             }
             QueryCall::GotoDefinition { position } => {
                 QueryRequest::GotoDefinition(GotoDefinitionRequest {
@@ -376,8 +386,8 @@ impl<'a> QueryRun<'a> {
 
     /// Resolve the exact code lens at one fixture location.
     fn code_lens(&self, range: &QueryRange, action: CodeLensKind) -> Result<CodeLens, String> {
-        let module = self.module(&range.file)?;
-        let request = QueryRequest::CodeLenses(CodeLensesRequest { module });
+        let (module, file_id) = self.query_file(&range.file)?;
+        let request = QueryRequest::CodeLenses(CodeLensesRequest { module, file_id });
         let response = self.workspace.query(self.revision, request)?;
         let QueryResponse::CodeLenses(response) = response else {
             return Err("code lens query returned a mismatched response".to_string());
@@ -449,6 +459,11 @@ impl<'a> QueryRun<'a> {
             module: self.module(&range.file)?,
             span: self.span(range)?,
         })
+    }
+
+    /// Resolve one declared source file to its module and file id.
+    fn query_file(&self, path: &Path) -> Result<(Module, FileId), String> {
+        Ok((self.module(path)?, self.file_id(path)?))
     }
 
     /// Resolve one file-qualified anchor to a source span.

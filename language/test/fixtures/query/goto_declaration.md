@@ -158,6 +158,34 @@ utilities.ping();
 @goto_declaration.target relation=declaration location=main.ds#declaration:import_utilities symbol=main.ds#utilities@1
 ```
 
+### Resolve each segment of a namespace type path
+
+The namespace root resolves to its local import, while the selected type resolves to its declaration.
+
+```ds model.ds
+export struct Settings {
+              ^^^^^^^^ declaration:settings
+    enabled: boolean;
+}
+```
+
+```ds main.ds
+import * as models from "./model.ds";
+            ^^^^^^ declaration:models
+
+type Selected = models.Settings;
+                ^^^^^^ reference:models
+                       ^^^^^^^^ reference:settings
+```
+
+```query goto_declaration main.ds#reference:models
+@goto_declaration.target relation=declaration location=main.ds#declaration:models symbol=main.ds#models@1
+```
+
+```query goto_declaration main.ds#reference:settings
+@goto_declaration.target relation=declaration location=model.ds#declaration:settings symbol=model.ds#Settings@1
+```
+
 ### Resolve a re-exported import declaration
 
 A re-exported symbol resolves to its downstream import.
@@ -403,7 +431,7 @@ function start(service: Alpha | Beta): void {
 
 ## Labels
 
-### Resolve a control label declaration
+### [ignored] Resolve a control label declaration
 
 A labeled break resolves to the exact enclosing label.
 
