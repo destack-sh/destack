@@ -117,17 +117,17 @@ impl ArtifactProjectionFingerprint {
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum ComponentGraphProjection {
-    /// The component containing one module.
-    Component(ModuleId),
-    /// The inference component and entry containing one module.
-    InferenceEntry(ModuleId),
-    /// The sorted modules belonging to one component.
-    Members(ComponentId),
-    /// The direct external components one component depends on.
-    Dependencies(ComponentId),
+    /// The reference component containing one module.
+    ReferenceComponent(ModuleId),
+    /// The sorted modules belonging to one reference component.
+    ReferenceMembers(ComponentId),
+    /// The direct external reference components one component depends on.
+    ReferenceDependencies(ComponentId),
+    /// The inference component containing one module.
+    InferenceComponent(ModuleId),
     /// The member modules of one inference component.
     InferenceMembers(ComponentId),
-    /// The upstream inference components one inference component couples to.
+    /// The upstream inference components one inference component depends on.
     InferenceDependencies(ComponentId),
     /// The inherent extensions resolved across the graph's modules.
     InherentExtensions,
@@ -149,10 +149,10 @@ pub enum PackageGraphProjection {
 pub enum ArtifactProjectionKey {
     /// A component graph projection.
     ComponentGraph(ComponentGraphProjection),
-    /// A package graph projection.
-    PackageGraph(PackageGraphProjection),
+    /// A declared DIR module inside a declared component.
+    DirDeclaredModule(ModuleId),
     /// A checked DIR module inside a checked component.
-    DirChecked(ModuleId),
+    DirCheckedModule(ModuleId),
     /// A module index projection.
     ModuleIndex(ModuleIndexProjection),
 }
@@ -360,5 +360,14 @@ impl ArtifactDependency {
             projection,
             fingerprint,
         ))
+    }
+
+    /// Return the depended-on artifact key, excluding primitive sources.
+    pub const fn artifact_key(&self) -> Option<ArtifactKey> {
+        match self {
+            Self::Artifact(version) => Some(version.key),
+            Self::Projection(dependency) => Some(dependency.version.key),
+            Self::Source(_) => None,
+        }
     }
 }

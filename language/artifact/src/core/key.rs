@@ -68,15 +68,13 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
-    /// Declared DIR environment.
-    DirDeclared {
-        entry: ModuleId,
+    /// Declared DIR reference component.
+    DirDeclaredComponent {
         component: ComponentId,
         profile: ProfileId,
     },
-    /// Checked DIR component.
+    /// Checked DIR inference component.
     DirCheckedComponent {
-        entry: ModuleId,
         component: ComponentId,
         profile: ProfileId,
     },
@@ -167,6 +165,7 @@ pub enum ArtifactKey {
 
 /// High-level toolchain stage that owns one artifact kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
 pub enum ArtifactStage {
     /// Build initialization: environment and dependency resolution.
     Init,
@@ -244,7 +243,7 @@ impl ArtifactKey {
             | Self::DirExpanded { .. }
             | Self::DirExported { .. }
             | Self::DirResolved { .. }
-            | Self::DirDeclared { .. }
+            | Self::DirDeclaredComponent { .. }
             | Self::DirCheckedComponent { .. }
             | Self::DirChecked { .. }
             | Self::DirMaterialized { .. }
@@ -333,26 +332,14 @@ impl ArtifactKey {
         Self::DirResolved { module, profile }
     }
 
-    /// Build one declared DIR environment artifact key.
-    pub fn dir_declared(entry: ModuleId, component: ComponentId, profile: ProfileId) -> Self {
-        Self::DirDeclared {
-            entry,
-            component,
-            profile,
-        }
+    /// Build one declared DIR component artifact key.
+    pub fn dir_declared_component(component: ComponentId, profile: ProfileId) -> Self {
+        Self::DirDeclaredComponent { component, profile }
     }
 
     /// Build one checked DIR component artifact key.
-    pub fn dir_checked_component(
-        entry: ModuleId,
-        component: ComponentId,
-        profile: ProfileId,
-    ) -> Self {
-        Self::DirCheckedComponent {
-            entry,
-            component,
-            profile,
-        }
+    pub fn dir_checked_component(component: ComponentId, profile: ProfileId) -> Self {
+        Self::DirCheckedComponent { component, profile }
     }
 
     /// Build one checked DIR facade artifact key.
@@ -479,7 +466,7 @@ impl ArtifactKey {
             }
             Self::ComponentGraph { .. } => ArtifactStage::Graph,
             Self::DirExpanded { .. } | Self::DirMaterialized { .. } => ArtifactStage::Macro,
-            Self::DirDeclared { .. }
+            Self::DirDeclaredComponent { .. }
             | Self::DirCheckedComponent { .. }
             | Self::DirChecked { .. } => ArtifactStage::Check,
             Self::MirLowered { .. }
@@ -513,7 +500,7 @@ impl ArtifactKey {
             Self::DirResolved { .. } => "dir.resolve",
             Self::ComponentGraph { .. } => "component.graph",
             Self::ProgramAnalysis { .. } => "program.analyze",
-            Self::DirDeclared { .. } => "dir.check.declared",
+            Self::DirDeclaredComponent { .. } => "dir.declare.component",
             Self::DirCheckedComponent { .. } => "dir.check.component",
             Self::DirChecked { .. } => "dir.check",
             Self::DirMaterialized { .. } => "dir.materialize",
@@ -550,7 +537,7 @@ impl ArtifactKey {
             Self::DirResolved { .. } => "dir_resolved",
             Self::ComponentGraph { .. } => "component_graph",
             Self::ProgramAnalysis { .. } => "program_analysis",
-            Self::DirDeclared { .. } => "dir_declared",
+            Self::DirDeclaredComponent { .. } => "dir_declared_component",
             Self::DirCheckedComponent { .. } => "dir_checked_component",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirMaterialized { .. } => "dir_materialized",
@@ -583,8 +570,6 @@ impl ArtifactKey {
             | Self::DirExpanded { module, .. }
             | Self::DirExported { module, .. }
             | Self::DirResolved { module, .. }
-            | Self::DirDeclared { entry: module, .. }
-            | Self::DirCheckedComponent { entry: module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirMaterialized { module, .. }
             | Self::MirLowered { module, .. }
@@ -600,6 +585,8 @@ impl ArtifactKey {
             Self::GlobalEnvironment { .. }
             | Self::PackageGraph { .. }
             | Self::ComponentGraph { .. }
+            | Self::DirDeclaredComponent { .. }
+            | Self::DirCheckedComponent { .. }
             | Self::ProgramAnalysis { .. }
             | Self::ProgramIndex { .. }
             | Self::Build { .. }
@@ -652,7 +639,7 @@ impl ArtifactKey {
             | Self::DirExpanded { profile, .. }
             | Self::DirExported { profile, .. }
             | Self::DirResolved { profile, .. }
-            | Self::DirDeclared { profile, .. }
+            | Self::DirDeclaredComponent { profile, .. }
             | Self::DirCheckedComponent { profile, .. }
             | Self::DirChecked { profile, .. }
             | Self::DirMaterialized { profile, .. }

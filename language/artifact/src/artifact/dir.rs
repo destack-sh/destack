@@ -206,36 +206,115 @@ impl DirResolved {
     }
 }
 
-/// Checked DIR output for one source component.
+/// Declared DIR output for one reference component.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub struct DirDeclaredComponent {
+    /// The reference component id.
+    pub component: ComponentId,
+    /// The declared module outputs in stable module order.
+    pub modules: Vec<DirDeclaredModule>,
+}
+
+impl DirDeclaredComponent {
+    /// Return declared output for one module in this component.
+    pub fn module(&self, module: ModuleId) -> Option<&DirDeclaredModule> {
+        self.modules
+            .iter()
+            .find(|declared| declared.module == module)
+    }
+}
+
+/// Declared DIR prefix for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub struct DirDeclaredModule {
+    /// The declared module id.
+    pub module: ModuleId,
+    /// The stable fingerprint of this module's declared output.
+    pub fingerprint: ArtifactProjectionFingerprint,
+    /// Declared binding segment.
+    pub bindings: Arc<dir::BindingSegment>,
+    /// Declared decorator applications.
+    pub decorators: Arc<dir::DecoratorSegment>,
+    /// Declared types.
+    pub types: Arc<dir::TypeSegment>,
+    /// Declared static values.
+    pub statics: Arc<dir::StaticSegment>,
+    /// Declared generic slots and instances.
+    pub generics: Arc<dir::GenericSegment>,
+    /// Declared definitions.
+    pub definitions: Arc<dir::DefinitionSegment>,
+}
+
+impl DirDeclaredModule {
+    /// Return the cumulative binding table for declared DIR.
+    pub fn binding_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+    ) -> dir::BindingTable<'static> {
+        dir::BindingTable::from_segments(vec![
+            bound.bindings.clone(),
+            expanded.bindings.clone(),
+            self.bindings.clone(),
+        ])
+    }
+
+    /// Return the cumulative type table for declared DIR.
+    pub fn type_table(&self, bound: &DirBound, expanded: &DirExpanded) -> dir::TypeTable<'static> {
+        dir::TypeTable::from_segments(vec![
+            bound.types.clone(),
+            expanded.types.clone(),
+            self.types.clone(),
+        ])
+    }
+
+    /// Return the cumulative static table for declared DIR.
+    pub fn static_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+    ) -> dir::StaticTable<'static> {
+        dir::StaticTable::from_segments(vec![
+            bound.statics.clone(),
+            expanded.statics.clone(),
+            self.statics.clone(),
+        ])
+    }
+
+    /// Return the cumulative generic table for declared DIR.
+    pub fn generic_table(&self) -> dir::GenericTable<'static> {
+        dir::GenericTable::from_segment(self.generics.clone())
+    }
+
+    /// Return the cumulative definition table for declared DIR.
+    pub fn definition_table(&self) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segment(self.definitions.clone())
+    }
+}
+
+/// Checked DIR output for one inference component.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirCheckedComponent {
-    /// The checked component id.
+    /// The inference component id.
     pub component: ComponentId,
     /// The checked module outputs in stable module order.
-    pub modules: Vec<DirCheckedComponentEntry>,
+    pub modules: Vec<DirCheckedModule>,
 }
 
 impl DirCheckedComponent {
     /// Return checked output for one module in this component.
-    pub fn module(&self, module: ModuleId) -> Option<&DirCheckedComponentEntry> {
-        self.modules.iter().find(|entry| entry.module == module)
+    pub fn module(&self, module: ModuleId) -> Option<&DirCheckedModule> {
+        self.modules.iter().find(|checked| checked.module == module)
     }
 }
 
-/// Checked DIR entry for one module in a checked component.
+/// Complete checked DIR for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct DirCheckedComponentEntry {
+pub struct DirCheckedModule {
     /// The checked module id.
     pub module: ModuleId,
     /// The stable fingerprint of this module's checked output.
     pub fingerprint: ArtifactProjectionFingerprint,
-    /// The checked side tables for this module.
-    pub checked: DirCheckedModule,
-}
-
-/// Type-checking segment for one module under one profile.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct DirCheckedModule {
     /// Checked binding segment.
     pub bindings: Arc<dir::BindingSegment>,
     /// New decorator applications.
@@ -260,29 +339,11 @@ pub struct DirCheckedModule {
     pub captures: Arc<dir::CaptureSegment>,
 }
 
-/// Declared DIR environment for one reference component.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct DirDeclared {
-    /// The declared component id.
-    pub component: ComponentId,
-    /// The declared module outputs in stable module order.
-    pub modules: Vec<DirCheckedComponentEntry>,
-}
-
-impl DirDeclared {
-    /// Return declared output for one module in this component.
-    pub fn module(&self, module: ModuleId) -> Option<&DirCheckedComponentEntry> {
-        self.modules.iter().find(|entry| entry.module == module)
-    }
-}
-
-/// Facade artifact for one module checked inside a component.
+/// Facade artifact for one module checked inside an inference component.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirChecked {
-    /// The component that owns this module's checked output.
+    /// The inference component that owns this module's checked output.
     pub component: ComponentId,
-    /// The module used to enter the checked component graph.
-    pub entry: ModuleId,
 }
 
 impl DirCheckedModule {
