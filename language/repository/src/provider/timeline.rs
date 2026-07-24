@@ -14,6 +14,8 @@ pub struct TraceTimelineOptions {
     pub width: usize,
     /// The number of slow non-parked attempts to list below the chart.
     pub slow_attempts: usize,
+    /// Whether to report work, span, and the artifact critical path.
+    pub parallelism: bool,
 }
 
 impl Default for TraceTimelineOptions {
@@ -22,6 +24,7 @@ impl Default for TraceTimelineOptions {
             use_color: false,
             width: DEFAULT_TIMELINE_WIDTH,
             slow_attempts: 0,
+            parallelism: false,
         }
     }
 }
@@ -49,6 +52,13 @@ impl TraceTimelineOptions {
     /// Set how many slow non-parked attempts to list.
     pub fn with_slow_attempts(mut self, slow_attempts: usize) -> Self {
         self.slow_attempts = slow_attempts;
+
+        self
+    }
+
+    /// Set whether to report work, span, and the artifact critical path.
+    pub fn with_parallelism(mut self, parallelism: bool) -> Self {
+        self.parallelism = parallelism;
 
         self
     }
@@ -82,12 +92,90 @@ pub fn render_trace_timeline(trace: &TraceSnapshot, options: TraceTimelineOption
     ));
     output.push_str(&timeline_legend(&kinds, options.use_color));
 
+    // render work, span, and the dependency critical path when requested
+    if options.parallelism {
+        output.push_str(&render_parallelism(trace, options.use_color));
+    }
+
     // render bounded slow attempts when requested
     if options.slow_attempts > 0 {
         output.push_str(&slow_attempts(trace, options));
     }
 
     output
+}
+
+/// Render work, span, and the artifact dependency critical path.
+fn render_parallelism(trace: &TraceSnapshot, use_color: bool) -> String {
+    let parallelism = &trace.parallelism;
+    if parallelism.work_micros == 0 {
+        return String::new();
+    }
+
+    let concurrency = ratio(parallelism.work_micros, trace.total_micros);
+    let dag_parallelism = ratio(parallelism.artifact_work_micros, parallelism.span_micros);
+    let capacity = trace.total_micros * trace.workers as u64;
+    let utilization = 100.0 * ratio(parallelism.work_micros, capacity);
+    let scheduler = 100.0 * ratio(parallelism.scheduler_micros, parallelism.parked_work_micros);
+    let mut output = format!(
+        concat!(
+            "\n{}\n",
+            "  wall {:>9}  total work {:>9}  span {:>9}  lower bound {:>9}\n",
+            "  artifact work {:>9}  parked work {:>9}  scheduler work {:>9} ({:>4.1}% of parked)\n",
+            "  concurrency {:>6.2}×  DAG parallelism {:>6.2}×  utilization {:>6.1}%  bound gap {:>9}\n",
+        ),
+        bold("parallelism", use_color),
+        render_trace_duration(trace.total_micros),
+        render_trace_duration(parallelism.work_micros),
+        render_trace_duration(parallelism.span_micros),
+        render_trace_duration(parallelism.lower_bound_micros),
+        render_trace_duration(parallelism.artifact_work_micros),
+        render_trace_duration(parallelism.parked_work_micros),
+        render_trace_duration(parallelism.scheduler_micros),
+        scheduler,
+        concurrency,
+        dag_parallelism,
+        utilization,
+        render_trace_duration(parallelism.bound_gap_micros),
+    );
+    if parallelism.critical_path.is_empty() {
+        return output;
+    }
+
+    output.push_str(&format!(
+        "\n{} {} across {} artifacts\n",
+        bold("critical path", use_color),
+        render_trace_duration(parallelism.span_micros),
+        parallelism.critical_path.len(),
+    ));
+
+    // render artifacts from earliest dependency to final dependent
+    for artifact in &parallelism.critical_path {
+        let name = paint(
+            &format!("{:<24}", artifact.name),
+            trace_artifact_color(&artifact.name),
+            use_color,
+        );
+        let label = artifact.label.as_deref().unwrap_or("");
+        output.push_str(&format!(
+            "  work {:>9}  span {:>9}  fan-in {:>3}  fan-out {:>3}  {name} {label}\n",
+            render_trace_duration(artifact.work_micros),
+            render_trace_duration(artifact.cumulative_micros),
+            artifact.dependencies,
+            artifact.dependents,
+        ));
+    }
+
+    output
+}
+
+/// Return one finite ratio, or zero when the denominator is zero.
+fn ratio(numerator: u64, denominator: u64) -> f64 {
+    if denominator == 0 {
+        0.0
+    } else {
+        numerator as f64 / denominator as f64
+    }
 }
 
 /// Render one microsecond count as a compact duration.
@@ -223,7 +311,7 @@ fn paint_timeline_run(
     use_color: bool,
 ) -> String {
     match kind {
-        Some(kind) => paint(run, kind_color(&kinds[kind].name), use_color),
+        Some(kind) => paint(run, trace_artifact_color(&kinds[kind].name), use_color),
         None => dim(run, use_color),
     }
 }
@@ -239,7 +327,7 @@ fn timeline_legend(kinds: &[TimelineKind], use_color: bool) -> String {
     let entries = entries
         .into_iter()
         .map(|kind| {
-            let block = paint("█", kind_color(&kind.name), use_color);
+            let block = paint("█", trace_artifact_color(&kind.name), use_color);
 
             format!("{block} {}", kind.name)
         })
@@ -285,7 +373,7 @@ fn slow_attempt(artifact: &ArtifactAttemptSnapshot, use_color: bool) -> String {
     let label = artifact.label.as_deref().unwrap_or("");
     let name = paint(
         &format!("{:<24}", artifact.name),
-        kind_color(&artifact.name),
+        trace_artifact_color(&artifact.name),
         use_color,
     );
     let target = artifact
@@ -320,20 +408,21 @@ fn paint(text: &str, code: &str, enabled: bool) -> String {
     format!("\x1b[{code}m{text}\x1b[0m")
 }
 
-/// Return the 256-color code of one artifact kind.
-fn kind_color(name: &str) -> &'static str {
+/// Return the shared 256-color code of one traced artifact kind.
+pub fn trace_artifact_color(name: &str) -> &'static str {
     match name {
-        "dir.parse" => "38;5;75",
-        "data" => "38;5;67",
-        "dir.bind" => "38;5;80",
-        "dir.import" => "38;5;73",
-        "dir.expand" => "38;5;115",
-        "dir.export" => "38;5;72",
-        "dir.resolve" => "38;5;79",
-        "module.index" | "component.graph" => "38;5;147",
-        "dir.check.component" => "38;5;170",
-        "dir.check" => "38;5;176",
-        "dir.materialize" => "38;5;178",
+        "dir.parse" => "38;5;39",
+        "data" => "38;5;69",
+        "dir.bind" => "38;5;45",
+        "dir.import" => "38;5;49",
+        "dir.expand" => "38;5;118",
+        "dir.export" => "38;5;220",
+        "dir.resolve" => "38;5;166",
+        "module.index" | "component.graph" => "38;5;141",
+        "dir.declare.component" => "38;5;196",
+        "dir.check.component" => "38;5;201",
+        "dir.check" => "38;5;93",
+        "dir.materialize" => "38;5;177",
         "mir.lower" => "38;5;208",
         "mir.verify" => "38;5;209",
         "mir.optimize" => "38;5;214",

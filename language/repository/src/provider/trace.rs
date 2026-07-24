@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -85,6 +86,8 @@ pub struct ArtifactAttempt {
     pub spans: Vec<TraceSpan>,
     /// Counters recorded by the executor or provider.
     pub counters: Vec<TraceCounter>,
+    /// Exact artifact dependencies, present once dependency resolution completes.
+    pub dependencies: Option<Box<[ArtifactKey]>>,
 }
 
 /// Trace of one public toolchain operation.
@@ -92,6 +95,8 @@ pub struct ArtifactAttempt {
 pub struct Trace {
     /// The clock used for timing samples.
     clock: Clock,
+    /// The executor workers available to this operation.
+    workers: usize,
     /// The clock reading all recorded offsets measure from.
     epoch: Option<Moment>,
     /// The recorded operation-level spans.
@@ -106,9 +111,10 @@ pub struct Trace {
 
 impl Trace {
     /// Create an empty trace starting now.
-    pub fn new(clock: Clock) -> Arc<Self> {
+    pub fn new(clock: Clock, workers: usize) -> Arc<Self> {
         Arc::new(Self {
             clock,
+            workers,
             epoch: clock.now(),
             spans: Mutex::new(Vec::new()),
             counters: Mutex::new(Vec::new()),
@@ -162,22 +168,43 @@ impl Trace {
     }
 
     /// Build one serializable snapshot of this trace.
-    pub fn snapshot(
+    pub fn snapshot<E>(
         &self,
         view: TraceView,
-        label: impl Fn(&ArtifactKey) -> Option<String>,
-        target: impl Fn(TargetId) -> Option<String>,
-    ) -> TraceSnapshot {
+        mut label: impl FnMut(&ArtifactKey) -> Result<Option<String>, E>,
+        mut target: impl FnMut(TargetId) -> Result<Option<String>, E>,
+    ) -> Result<TraceSnapshot, E> {
         let spans = self.spans.lock();
         let counters = self.counters.lock();
         let attempts = self.attempts.lock();
 
+        // resolve each optional display value at most once
+        let mut labels = BTreeMap::<ArtifactKey, Option<String>>::new();
+        let mut artifact_label = |key: &ArtifactKey| {
+            if let Some(value) = labels.get(key) {
+                return Ok(value.clone());
+            }
+
+            let value = label(key)?;
+            labels.insert(*key, value.clone());
+
+            Ok(value)
+        };
+        let mut targets = BTreeMap::<TargetId, Option<String>>::new();
+        let mut target_label = |target_id: TargetId| {
+            if let Some(value) = targets.get(&target_id) {
+                return Ok(value.clone());
+            }
+
+            let value = target(target_id)?;
+            targets.insert(target_id, value.clone());
+
+            Ok(value)
+        };
+
         // roll up artifact attempt time per stage
-        let mut workers = 0usize;
         let mut stages = ArtifactStage::ALL.map(|stage| (stage, Duration::ZERO));
         for attempt in attempts.iter() {
-            workers = workers.max(attempt.worker + 1);
-
             let stage = attempt.key.stage();
             let row = stages
                 .iter_mut()
@@ -215,13 +242,17 @@ impl Trace {
 
         // detailed snapshots carry the labeled artifact rows
         let attempt_snapshots = if view.includes_attempts() {
-            attempts
-                .iter()
-                .map(|attempt| ArtifactAttemptSnapshot {
+            let mut snapshots = Vec::with_capacity(attempts.len());
+            for attempt in attempts.iter() {
+                let target = match attempt.key.target_id() {
+                    Some(target_id) => target_label(target_id)?,
+                    None => None,
+                };
+                snapshots.push(ArtifactAttemptSnapshot {
                     name: attempt.key.display_name().to_string(),
                     stage: attempt.key.stage().name().to_string(),
-                    label: label(&attempt.key),
-                    target: attempt.key.target_id().and_then(&target),
+                    label: artifact_label(&attempt.key)?,
+                    target,
                     worker: attempt.worker,
                     start_micros: attempt.span.start.as_micros() as u64,
                     latency_micros: attempt.span.duration.as_micros() as u64,
@@ -237,8 +268,10 @@ impl Trace {
                         .iter()
                         .map(TraceCounterSnapshot::from_counter)
                         .collect(),
-                })
-                .collect()
+                });
+            }
+
+            snapshots
         } else {
             Vec::new()
         };
@@ -256,17 +289,23 @@ impl Trace {
         } else {
             Vec::new()
         };
+        let parallelism = if view.includes_attempts() {
+            parallelism(&attempts, total, self.workers, &mut artifact_label)?
+        } else {
+            TraceParallelismSnapshot::default()
+        };
 
-        TraceSnapshot {
+        Ok(TraceSnapshot {
             total_micros: total.as_micros() as u64,
-            workers,
+            workers: self.workers,
             stats: outcomes,
             spans,
             counters,
             stages,
             times,
             attempts: attempt_snapshots,
-        }
+            parallelism,
+        })
     }
 
     /// Record one operation-level span that started at one clock reading.
@@ -351,12 +390,210 @@ fn work_duration(spans: &[TraceSpan]) -> Duration {
     total
 }
 
+/// Derive work, span, and the attempted artifact critical path.
+fn parallelism<E>(
+    attempts: &[ArtifactAttempt],
+    total: Duration,
+    workers: usize,
+    label: &mut impl FnMut(&ArtifactKey) -> Result<Option<String>, E>,
+) -> Result<TraceParallelismSnapshot, E> {
+    let mut indices = BTreeMap::new();
+
+    // index attempted artifacts in stable key order
+    for attempt in attempts {
+        indices.insert(attempt.key, 0);
+    }
+    for (index, value) in indices.values_mut().enumerate() {
+        *value = index;
+    }
+    let mut artifacts = indices
+        .keys()
+        .copied()
+        .map(ArtifactVertex::new)
+        .collect::<Vec<_>>();
+
+    // weight graph vertices with terminal artifact work
+    for attempt in attempts {
+        if attempt.outcome == ArtifactAttemptOutcome::Parked {
+            continue;
+        }
+
+        let index = indices[&attempt.key];
+        artifacts[index].work_micros += work_duration(&attempt.spans).as_micros() as u64;
+    }
+
+    // retain direct dependencies of terminal attempts in this run
+    for attempt in attempts {
+        if attempt.outcome == ArtifactAttemptOutcome::Parked {
+            continue;
+        }
+
+        let artifact = indices[&attempt.key];
+        let Some(dependencies) = &attempt.dependencies else {
+            continue;
+        };
+        for dependency in dependencies {
+            let Some(&dependency) = indices.get(dependency) else {
+                continue;
+            };
+            if dependency == artifact {
+                continue;
+            }
+
+            artifacts[artifact].dependencies.push(dependency);
+        }
+    }
+    for artifact in &mut artifacts {
+        artifact.dependencies.sort_unstable();
+        artifact.dependencies.dedup();
+    }
+
+    // invert dependency edges once for forward span propagation
+    let mut dependents = vec![Vec::new(); artifacts.len()];
+    for (artifact, value) in artifacts.iter().enumerate() {
+        for dependency in &value.dependencies {
+            dependents[*dependency].push(artifact);
+        }
+    }
+
+    // propagate longest dependency spans from leaves to roots
+    let mut remaining = artifacts
+        .iter()
+        .map(|artifact| artifact.dependencies.len())
+        .collect::<Vec<_>>();
+    let mut spans = artifacts
+        .iter()
+        .map(|artifact| artifact.work_micros)
+        .collect::<Vec<_>>();
+    let mut predecessors = vec![None; artifacts.len()];
+    let mut ready = remaining
+        .iter()
+        .enumerate()
+        .filter_map(|(index, remaining)| (*remaining == 0).then_some(index))
+        .collect::<VecDeque<_>>();
+    let mut processed = 0;
+    while let Some(dependency) = ready.pop_front() {
+        processed += 1;
+
+        for artifact in &dependents[dependency] {
+            let candidate = spans[dependency] + artifacts[*artifact].work_micros;
+            let is_better = candidate > spans[*artifact]
+                || candidate == spans[*artifact]
+                    && predecessors[*artifact].is_none_or(|current| dependency < current);
+            if is_better {
+                spans[*artifact] = candidate;
+                predecessors[*artifact] = Some(dependency);
+            }
+
+            remaining[*artifact] -= 1;
+            if remaining[*artifact] == 0 {
+                ready.push_back(*artifact);
+            }
+        }
+    }
+    assert_eq!(
+        processed,
+        artifacts.len(),
+        "trace artifact dependencies must form a DAG"
+    );
+
+    // select the stable root with the greatest span
+    let root = spans
+        .iter()
+        .enumerate()
+        .fold(None, |selected, (index, span)| match selected {
+            Some((selected_index, selected_span)) if selected_span >= *span => {
+                Some((selected_index, selected_span))
+            }
+            _ => Some((index, *span)),
+        });
+
+    // walk the selected dependency chain into chronological order
+    let mut path = Vec::new();
+    let span_micros = root.map_or(0, |(_, span)| span);
+    if let Some((mut artifact, _)) = root.filter(|(_, span)| *span > 0) {
+        loop {
+            let value = &artifacts[artifact];
+            path.push(TraceCriticalArtifactSnapshot {
+                name: value.key.display_name().to_string(),
+                stage: value.key.stage().name().to_string(),
+                label: label(&value.key)?,
+                work_micros: value.work_micros,
+                cumulative_micros: spans[artifact],
+                dependencies: value.dependencies.len(),
+                dependents: dependents[artifact].len(),
+            });
+
+            let Some(predecessor) = predecessors[artifact] else {
+                break;
+            };
+            artifact = predecessor;
+        }
+        path.reverse();
+    }
+
+    // derive the standard work and span bounds
+    let total_micros = total.as_micros() as u64;
+    let work_micros: u64 = attempts
+        .iter()
+        .map(|attempt| work_duration(&attempt.spans).as_micros() as u64)
+        .sum();
+    let artifact_work_micros: u64 = artifacts.iter().map(|artifact| artifact.work_micros).sum();
+    let parked_work_micros = work_micros - artifact_work_micros;
+    let work_bound_micros = work_micros.div_ceil(workers as u64);
+    let lower_bound_micros = work_bound_micros.max(span_micros);
+    assert!(
+        lower_bound_micros <= total_micros,
+        "trace work and span lower bound must not exceed wall time"
+    );
+    let bound_gap_micros = total_micros - lower_bound_micros;
+    let scheduler_micros = attempts
+        .iter()
+        .flat_map(|attempt| &attempt.spans)
+        .filter(|span| span.kind == TraceSpanKind::Work && span.name == "scheduler")
+        .map(|span| span.duration.as_micros() as u64)
+        .sum();
+
+    Ok(TraceParallelismSnapshot {
+        work_micros,
+        artifact_work_micros,
+        parked_work_micros,
+        span_micros,
+        lower_bound_micros,
+        bound_gap_micros,
+        scheduler_micros,
+        critical_path: path,
+    })
+}
+
+/// One artifact vertex used while deriving work and span.
+#[derive(Debug)]
+struct ArtifactVertex {
+    /// The artifact key.
+    key: ArtifactKey,
+    /// Exclusive work across terminal attempts.
+    work_micros: u64,
+    /// Direct attempted artifact dependencies.
+    dependencies: Vec<usize>,
+}
+
+impl ArtifactVertex {
+    /// Create one empty artifact graph vertex.
+    fn new(key: ArtifactKey) -> Self {
+        Self {
+            key,
+            work_micros: 0,
+            dependencies: Vec::new(),
+        }
+    }
+}
+
 /// Serializable snapshot of one trace.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct TraceSnapshot {
     /// The wall time of the traced operation in microseconds.
     pub total_micros: u64,
-    /// The number of workers that recorded attempts.
+    /// The executor workers available to this operation.
     pub workers: usize,
     /// Artifact stats.
     pub stats: TraceStats,
@@ -370,6 +607,8 @@ pub struct TraceSnapshot {
     pub times: Vec<TraceTimeSnapshot>,
     /// The recorded artifact attempts, present only in detailed snapshots.
     pub attempts: Vec<ArtifactAttemptSnapshot>,
+    /// Work, span, and the artifact dependency critical path.
+    pub parallelism: TraceParallelismSnapshot,
 }
 
 /// Trace detail returned to a caller.
@@ -530,4 +769,146 @@ pub struct ArtifactAttemptSnapshot {
     /// Counters recorded by the executor or provider.
     #[serde(default)]
     pub counters: Vec<TraceCounterSnapshot>,
+}
+
+/// Work and span measurements of one artifact trace.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
+pub struct TraceParallelismSnapshot {
+    /// Aggregate exclusive work across every artifact attempt.
+    pub work_micros: u64,
+    /// Work performed by terminal artifact attempts.
+    pub artifact_work_micros: u64,
+    /// Work performed by attempts that parked on dependencies.
+    pub parked_work_micros: u64,
+    /// Aggregate exclusive work along the critical path.
+    pub span_micros: u64,
+    /// The work and span lower bound at the recorded worker count.
+    pub lower_bound_micros: u64,
+    /// Wall time beyond the work and span lower bound.
+    pub bound_gap_micros: u64,
+    /// Artifact work spent scheduling dependencies.
+    pub scheduler_micros: u64,
+    /// Artifacts along the path in dependency order.
+    pub critical_path: Vec<TraceCriticalArtifactSnapshot>,
+}
+
+/// One artifact on a trace critical path.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub struct TraceCriticalArtifactSnapshot {
+    /// The artifact kind name.
+    pub name: String,
+    /// The toolchain stage display name.
+    pub stage: String,
+    /// The resolved artifact label.
+    pub label: Option<String>,
+    /// Exclusive work across this artifact's attempts.
+    pub work_micros: u64,
+    /// Cumulative critical work through this artifact.
+    pub cumulative_micros: u64,
+    /// Direct attempted artifacts this artifact depended on.
+    pub dependencies: usize,
+    /// Direct attempted artifacts that depended on this artifact.
+    pub dependents: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use destack_source::{ComponentId, ModuleId, PackageId, ProfileId};
+
+    /// Build one deterministic attempt for work and span tests.
+    fn attempt(
+        key: ArtifactKey,
+        outcome: ArtifactAttemptOutcome,
+        work_micros: u64,
+        dependencies: Option<Vec<ArtifactKey>>,
+    ) -> ArtifactAttempt {
+        let name = if outcome == ArtifactAttemptOutcome::Parked {
+            "scheduler"
+        } else {
+            "provider"
+        };
+        let duration = Duration::from_micros(work_micros);
+
+        ArtifactAttempt {
+            key,
+            worker: 0,
+            span: TraceSpan {
+                kind: TraceSpanKind::Breakdown,
+                name: key.display_name(),
+                start: Duration::ZERO,
+                duration,
+            },
+            outcome,
+            spans: vec![TraceSpan {
+                kind: TraceSpanKind::Work,
+                name,
+                start: Duration::ZERO,
+                duration,
+            }],
+            counters: Vec::new(),
+            dependencies: dependencies.map(Vec::into_boxed_slice),
+        }
+    }
+
+    /// Derive work and span without moving parked work behind dependencies.
+    #[test]
+    fn test_derive_work_and_span_from_artifact_dependencies() {
+        let package = PackageId::new(1);
+        let module = ModuleId::new(package, 1);
+        let profile = ProfileId::new(1);
+        let parse = ArtifactKey::dir_parsed(module);
+        let bind = ArtifactKey::dir_bound(module, profile);
+        let resolve = ArtifactKey::dir_resolved(module, profile);
+        let export = ArtifactKey::dir_exported(module, profile);
+        let check = ArtifactKey::dir_checked_component(ComponentId::new(1), profile);
+        let attempts = vec![
+            attempt(parse, ArtifactAttemptOutcome::Built, 2, Some(Vec::new())),
+            attempt(bind, ArtifactAttemptOutcome::Built, 3, Some(vec![parse])),
+            attempt(resolve, ArtifactAttemptOutcome::Built, 7, Some(vec![bind])),
+            attempt(export, ArtifactAttemptOutcome::Built, 11, Some(vec![bind])),
+            attempt(check, ArtifactAttemptOutcome::Parked, 4, None),
+            attempt(
+                check,
+                ArtifactAttemptOutcome::Built,
+                1,
+                Some(vec![resolve, export]),
+            ),
+        ];
+
+        // the terminal artifact DAG determines span while every attempt contributes work
+        let mut label = |_: &ArtifactKey| Ok::<_, ()>(None);
+        let report = parallelism(&attempts, Duration::from_micros(20), 2, &mut label).unwrap();
+        assert_eq!(report.work_micros, 28);
+        assert_eq!(report.artifact_work_micros, 24);
+        assert_eq!(report.parked_work_micros, 4);
+        assert_eq!(report.span_micros, 17);
+        assert_eq!(report.lower_bound_micros, 17);
+        assert_eq!(report.bound_gap_micros, 3);
+        assert_eq!(report.scheduler_micros, 4);
+
+        // the heavier export branch forms the complete critical path
+        let path = report
+            .critical_path
+            .iter()
+            .map(|artifact| {
+                (
+                    artifact.name.as_str(),
+                    artifact.work_micros,
+                    artifact.cumulative_micros,
+                    artifact.dependencies,
+                    artifact.dependents,
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            path,
+            vec![
+                ("dir.parse", 2, 2, 0, 1),
+                ("dir.bind", 3, 5, 1, 2),
+                ("dir.export", 11, 16, 1, 1),
+                ("dir.check.component", 1, 17, 2, 0),
+            ]
+        );
+    }
 }

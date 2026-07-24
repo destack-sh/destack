@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
+use destack_artifact::{ArtifactDependency, ArtifactKey};
 use parking_lot::Mutex;
 
 use crate::Moment;
@@ -24,6 +24,8 @@ pub struct ArtifactAttemptRecorder {
     spans: Mutex<Vec<TraceSpan>>,
     /// Counters recorded so far.
     counters: Mutex<Vec<TraceCounter>>,
+    /// Exact artifact dependencies resolved for this attempt.
+    dependencies: Mutex<Option<Box<[ArtifactKey]>>>,
 }
 
 impl ArtifactAttemptRecorder {
@@ -41,6 +43,7 @@ impl ArtifactAttemptRecorder {
             started,
             spans: Mutex::new(Vec::new()),
             counters: Mutex::new(Vec::new()),
+            dependencies: Mutex::new(None),
         }
     }
 
@@ -68,6 +71,25 @@ impl ArtifactAttemptRecorder {
         self.counters.lock().push(TraceCounter { name, value });
     }
 
+    /// Record the exact artifact dependencies resolved for this attempt.
+    pub fn record_dependencies(&self, dependencies: &[ArtifactDependency]) {
+        let mut dependencies = dependencies
+            .iter()
+            .filter_map(ArtifactDependency::artifact_key)
+            .collect::<Vec<_>>();
+        dependencies.sort_unstable();
+        dependencies.dedup();
+
+        let previous = self
+            .dependencies
+            .lock()
+            .replace(dependencies.into_boxed_slice());
+        assert!(
+            previous.is_none(),
+            "artifact attempt dependencies must be recorded once"
+        );
+    }
+
     /// Finish this artifact attempt with its outcome.
     pub fn finish(&self, outcome: ArtifactAttemptOutcome) {
         let span = self.trace.span_from(
@@ -82,6 +104,7 @@ impl ArtifactAttemptRecorder {
             outcome,
             spans: std::mem::take(&mut self.spans.lock()),
             counters: std::mem::take(&mut self.counters.lock()),
+            dependencies: self.dependencies.lock().take(),
         };
 
         self.trace.record_attempt(attempt);
