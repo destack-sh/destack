@@ -1,18 +1,20 @@
 use destack_artifact::ArtifactVersion;
+use destack_repository::Revision;
 use destack_serde::Reflect;
 use destack_source::{Content, ContentId};
 use serde::{Deserialize, Serialize};
 
 use super::super::handshake::HandshakeResponse;
 use super::{
-    FileOperationResponse, ProtocolError, RequestId, RootClosedResponse, RootOpenedResponse,
+    FileDiagnosticsPayload, FileEditPayload, FileOperationResponse, ProtocolError,
+    QueryFilePayload, QueryResponsePayload, RequestId, RootClosedResponse, RootOpenedResponse,
     RootReloadResponse, SourceUpdateResponse, WatchBatchResponse, WatchStartedResponse,
-    WatchStoppedResponse, WorkspaceQueryResponse,
+    WatchStoppedResponse,
 };
 use crate::{
     BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, DocOutput, DoctorOutput,
-    ExportResult, FormatOutput, InfoOutput, RunOutput, SettingsOutput, TargetsOutput, TaskOutput,
-    TestOutput,
+    ExportResult, FileImage, FormatOutput, InfoOutput, RunOutput, SettingsOutput, TargetsOutput,
+    TaskOutput, TestOutput,
 };
 
 /// Responses emitted by the workspace protocol.
@@ -33,10 +35,18 @@ pub enum WorkspaceResponse {
     RootClosed(RootClosedResponse),
     /// Root reload response.
     RootReloaded(RootReloadResponse),
+    /// The current semantic revision.
+    ReadRevision(Revision),
     /// File operation response.
     FileOperationApplied(FileOperationResponse),
     /// Source update response.
     SourceUpdated(SourceUpdateResponse),
+    /// Whether one source file is open.
+    IsFileOpen(bool),
+    /// Formatting edit.
+    FormatFile(Option<FileEditPayload>),
+    /// Source files read from one exact revision.
+    ReadFiles(Vec<FileImage>),
     /// Watch start response.
     WatchStarted(WatchStartedResponse),
     /// Watch batch response.
@@ -79,8 +89,14 @@ pub enum WorkspaceResponse {
     LoadResult(Content),
     /// Export response.
     ExportResult(ExportResult),
-    /// Query response.
-    QueryResult(WorkspaceQueryResponse),
+    /// Diagnostics for every source file in one root.
+    Diagnose(Vec<FileDiagnosticsPayload>),
+    /// Diagnostics for one source file.
+    DiagnoseFile(Option<FileDiagnosticsPayload>),
+    /// Source file resolved for semantic queries.
+    ResolveQueryFile(Option<QueryFilePayload>),
+    /// Encoded semantic query response.
+    RunQuery(QueryResponsePayload),
     /// Error response.
     Error(ProtocolError),
 }

@@ -1,12 +1,16 @@
+use std::path::PathBuf;
+
 use destack_artifact::ArtifactReference;
+use destack_repository::Revision;
 use destack_serde::Reflect;
-use destack_source::{Content, ContentId};
+use destack_source::{Content, ContentId, FileId, TextRange};
 use serde::{Deserialize, Serialize};
 
 use super::super::handshake::HandshakeRequest;
 use super::{
-    CloseRootRequest, FileOperationRequest, OpenRootRequest, ReloadRootRequest, RequestId, RootId,
-    SourceUpdateRequest, WatchNextRequest, WatchStartRequest, WatchStopRequest, WorkspaceQuery,
+    CloseRootRequest, FileOperationRequest, OpenRootRequest, QueryRequestPayload,
+    ReloadRootRequest, RequestId, RootId, SourceUpdateRequest, WatchNextRequest, WatchStartRequest,
+    WatchStopRequest,
 };
 use crate::{
     BenchInput, BuildInput, CacheInput, CheckInput, CleanInput, DocInput, DoctorInput,
@@ -31,10 +35,40 @@ pub enum WorkspaceRequest {
     CloseRoot(CloseRootRequest),
     /// Reload a root.
     ReloadRoot(ReloadRootRequest),
+    /// Read the current semantic revision.
+    ReadRevision {
+        /// Root handle.
+        handle: RootId,
+    },
     /// Apply a file operation to a root.
     ApplyFileOperation(FileOperationRequest),
     /// Apply a source update to a root.
     ApplySourceUpdate(SourceUpdateRequest),
+    /// Check whether one source file is open.
+    IsFileOpen {
+        /// Root handle.
+        handle: RootId,
+        /// Source path.
+        path: PathBuf,
+    },
+    /// Format one source file or selected text range.
+    FormatFile {
+        /// Root handle.
+        handle: RootId,
+        /// Source path.
+        path: PathBuf,
+        /// Optional UTF-16 source range.
+        range: Option<TextRange>,
+    },
+    /// Read source files from one exact revision.
+    ReadFiles {
+        /// Root handle.
+        handle: RootId,
+        /// Exact semantic revision.
+        revision: Revision,
+        /// Source file ids.
+        file_ids: Vec<FileId>,
+    },
     /// Start watching a root.
     StartWatch(WatchStartRequest),
     /// Receive and apply the next watch batch.
@@ -167,6 +201,30 @@ pub enum WorkspaceRequest {
         /// Export request.
         request: ExportRequest,
     },
-    /// Execute a query.
-    Query(WorkspaceQuery),
+    /// Diagnose every source file in one root.
+    Diagnose {
+        /// Root handle.
+        handle: RootId,
+    },
+    /// Diagnose one source file.
+    DiagnoseFile {
+        /// Root handle.
+        handle: RootId,
+        /// Source path.
+        path: PathBuf,
+    },
+    /// Resolve one source file for semantic queries.
+    ResolveQueryFile {
+        /// Root handle.
+        handle: RootId,
+        /// Source path.
+        path: PathBuf,
+    },
+    /// Run one semantic query.
+    RunQuery {
+        /// Root handle.
+        handle: RootId,
+        /// Encoded query request payload.
+        request: QueryRequestPayload,
+    },
 }

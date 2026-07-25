@@ -1,7 +1,7 @@
 mod error;
-mod view;
+mod file;
 
 pub use error::Error;
-pub use view::DiagnosticView;
+pub use file::{DiagnosticsRequest, FileDiagnostics};
 
-pub(crate) use view::diagnostics_by_file;
+pub(crate) use file::diagnostics_by_file;

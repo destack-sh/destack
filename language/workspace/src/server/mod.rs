@@ -1,6 +1,7 @@
 mod artifact;
 mod command;
 mod connection;
+mod diagnostic;
 mod error;
 mod lease;
 mod lifecycle;

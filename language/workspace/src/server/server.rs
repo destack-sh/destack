@@ -201,8 +201,20 @@ impl Server {
             WorkspaceRequest::OpenRoot(request) => self.handle_open_root(request),
             WorkspaceRequest::CloseRoot(request) => self.handle_close_root(request),
             WorkspaceRequest::ReloadRoot(request) => self.handle_reload_root(request),
+            WorkspaceRequest::ReadRevision { handle } => self.read_revision(handle),
             WorkspaceRequest::ApplyFileOperation(request) => self.handle_file_operation(request),
             WorkspaceRequest::ApplySourceUpdate(request) => self.handle_source_update(request),
+            WorkspaceRequest::IsFileOpen { handle, path } => self.is_file_open(handle, path),
+            WorkspaceRequest::FormatFile {
+                handle,
+                path,
+                range,
+            } => self.format_file(handle, path, range),
+            WorkspaceRequest::ReadFiles {
+                handle,
+                revision,
+                file_ids,
+            } => self.read_files(handle, revision, file_ids),
             WorkspaceRequest::StartWatch(request) => self.handle_start_watch(request),
             WorkspaceRequest::NextWatchBatch(request) => self.handle_next_watch_batch(request),
             WorkspaceRequest::StopWatch(request) => self.handle_stop_watch(request),
@@ -282,7 +294,14 @@ impl Server {
             WorkspaceRequest::Store { handle, content } => self.handle_store(handle, content),
             WorkspaceRequest::Load { handle, content } => self.handle_load(handle, content),
             WorkspaceRequest::Export { handle, request } => self.handle_export(handle, request),
-            WorkspaceRequest::Query(query) => self.handle_query(query, &mut payloads),
+            WorkspaceRequest::Diagnose { handle } => self.diagnose(handle),
+            WorkspaceRequest::DiagnoseFile { handle, path } => self.diagnose_file(handle, path),
+            WorkspaceRequest::ResolveQueryFile { handle, path } => {
+                self.resolve_query_file(handle, path)
+            }
+            WorkspaceRequest::RunQuery { handle, request } => {
+                self.run_query(handle, request, &mut payloads)
+            }
         };
 
         let response = match payload {
@@ -371,9 +390,9 @@ impl Server {
         let code = match error {
             Error::FileMissing { .. } | Error::PathNotInRoot { .. } => ProtocolErrorCode::NotFound,
             Error::StaleOpenFile { .. } => ProtocolErrorCode::Conflict,
-            Error::InvalidEdit { .. } | Error::InvalidTextChange { .. } => {
-                ProtocolErrorCode::InvalidRequest
-            }
+            Error::InvalidEdit { .. }
+            | Error::InvalidTextChange { .. }
+            | Error::TargetNotSelected { .. } => ProtocolErrorCode::InvalidRequest,
             Error::StaleRevision { .. } => ProtocolErrorCode::Conflict,
             Error::Repository(_)
             | Error::Session(_)

@@ -1,3 +1,4 @@
+mod diagnostic;
 mod envelope;
 mod error;
 mod notification;
@@ -6,8 +7,10 @@ mod query;
 mod request;
 mod response;
 mod root;
+mod source;
 mod watch;
 
+pub use diagnostic::*;
 pub use envelope::*;
 pub use error::*;
 pub use notification::*;
@@ -16,4 +19,5 @@ pub use query::*;
 pub use request::*;
 pub use response::*;
 pub use root::*;
+pub use source::*;
 pub use watch::*;

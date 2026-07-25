@@ -2,8 +2,9 @@ use destack_serde::SchemaRegistry;
 
 use super::{
     BinaryPayload, FrameHeader, PayloadBody, PayloadChunkNotification, PayloadId, ProtocolMessage,
-    QueryRequestBody, QueryRequestPayload, QueryResponseBody, QueryResponsePayload,
+    QueryRequestPayload, QueryResponsePayload,
 };
+use crate::{RunQueryRequest, RunQueryResponse};
 
 /// Build the workspace protocol schema.
 pub fn schema() -> SchemaRegistry {
@@ -20,9 +21,9 @@ pub fn schema() -> SchemaRegistry {
     schema.register::<PayloadChunkNotification>();
 
     // query payload bodies encoded inside BinaryPayload
-    schema.register::<QueryRequestBody>();
+    schema.register::<RunQueryRequest>();
     schema.register::<QueryRequestPayload>();
-    schema.register::<QueryResponseBody>();
+    schema.register::<RunQueryResponse>();
     schema.register::<QueryResponsePayload>();
 
     schema

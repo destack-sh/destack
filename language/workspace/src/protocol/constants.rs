@@ -10,10 +10,10 @@ const MIB_BYTES_U64: u64 = 1024 * KIB_BYTES_U64;
 const KIB_BYTES_USIZE: usize = 1024;
 
 /// Current workspace protocol version.
-pub const PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::new(1, 0, 0);
+pub const PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::new(2, 0, 0);
 
 /// Minimum compatible workspace protocol version.
-pub const MIN_PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::new(1, 0, 0);
+pub const MIN_PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion::new(2, 0, 0);
 
 /// Magic identifier for protocol frames.
 pub const FRAME_MAGIC: [u8; 4] = *b"DSWP";

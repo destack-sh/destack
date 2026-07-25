@@ -2,22 +2,21 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactPayload, ArtifactReference};
-use destack_query::QueryRequest;
 use destack_repository::Revision;
-use destack_source::{Content, ContentId};
+use destack_source::{Content, ContentId, File, FileId, TextRange};
 use parking_lot::Mutex;
 
-use super::{DiagnosticsRequest, ReloadRequest, ViewRequest, ViewResult, WorkspaceQueryRequest};
-use crate::diagnostic::{DiagnosticView, Error};
+use super::{ReloadRequest, RunQueryRequest};
+use crate::diagnostic::{DiagnosticsRequest, Error, FileDiagnostics};
 use crate::file::{Commit, FileOperation, SourceUpdate};
-use crate::protocol::{self, RequestOptions, RootId, RootOpenOptions};
+use crate::protocol::{RequestOptions, RootId};
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, Client, ClientError, CommandError, CommandProgress,
-    DocInput, DocOutput, DoctorInput, DoctorOutput, ExportRequest, ExportResult, FormatInput,
-    FormatOutput, InfoInput, InfoOutput, ProgressEvent, QueryResult, RevisionPolicy, RunInput,
-    RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput, TaskOutput,
-    TestInput, TestOutput, UpdateBatch, WatchPolicy, WatchUpdate, Workspace,
+    DocInput, DocOutput, DoctorInput, DoctorOutput, ExportRequest, ExportResult, FileEdit,
+    FormatInput, FormatOutput, InfoInput, InfoOutput, ProgressEvent, QueryFile, RunInput,
+    RunOutput, RunQueryResponse, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput,
+    TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch, WatchPolicy, WatchUpdate, Workspace,
 };
 
 /// Workspace backed by a protocol client.
@@ -172,10 +171,7 @@ impl Workspace for RemoteWorkspace {
 
     fn open(&self, root: PathBuf) -> Result<(), Error> {
         let requested = root.clone();
-        let response = self
-            .client
-            .open_root(root, RootOpenOptions::default())
-            .map_err(Self::workspace_error)?;
+        let response = self.client.open_root(root).map_err(Self::workspace_error)?;
         let mut roots = self.roots.lock();
         if let Some(entry) = roots
             .iter_mut()
@@ -218,7 +214,7 @@ impl Workspace for RemoteWorkspace {
         let handle = self.handle_for_root(root)?;
 
         self.client
-            .current_revision(handle)
+            .read_revision(handle)
             .map_err(Self::workspace_error)
     }
 
@@ -255,7 +251,7 @@ impl Workspace for RemoteWorkspace {
         let handle = self.handle_for_path(path)?;
 
         self.client
-            .file_open(handle, path.to_path_buf())
+            .is_file_open(handle, path.to_path_buf())
             .map_err(Self::workspace_error)
     }
 
@@ -493,39 +489,71 @@ impl Workspace for RemoteWorkspace {
             .map_err(Self::command_error)
     }
 
-    fn query(&self, root: &Path, request: WorkspaceQueryRequest) -> Result<QueryResult, Error> {
-        let revision = match request.expected_revision {
-            Some(revision) => RevisionPolicy::Current(revision),
-            None => RevisionPolicy::Latest,
-        };
+    fn format_file(
+        &self,
+        root: &Path,
+        path: PathBuf,
+        range: Option<TextRange>,
+    ) -> Result<Option<FileEdit>, Error> {
         let handle = self.handle_for_root(root)?;
 
-        self.query_handle(handle, request.request, revision)
+        self.client
+            .format_file(handle, path, range)
+            .map_err(Self::workspace_error)
     }
 
-    fn view(&self, root: &Path, request: ViewRequest) -> Result<ViewResult, Error> {
+    fn read_files(
+        &self,
+        root: &Path,
+        revision: Revision,
+        file_ids: Vec<FileId>,
+    ) -> Result<Vec<Arc<File>>, Error> {
+        let handle = self.handle_for_root(root)?;
+        let images = self
+            .client
+            .read_files(handle, revision, file_ids)
+            .map_err(Self::workspace_error)?;
+        let files = images
+            .into_iter()
+            .map(|image| image.into_file().map(Arc::new))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(files)
+    }
+
+    fn run_query(&self, root: &Path, request: RunQueryRequest) -> Result<RunQueryResponse, Error> {
         let handle = self.handle_for_root(root)?;
 
-        match request {
-            ViewRequest::File(request) => self
-                .client
-                .file_snapshot(handle, request)
-                .map(ViewResult::File)
-                .map_err(Self::workspace_error),
-            ViewRequest::FileImages(request) => self
-                .client
-                .file_images(handle, request)
-                .map(ViewResult::FileImages)
-                .map_err(Self::workspace_error),
-        }
+        self.client
+            .run_query(handle, request)
+            .map_err(Self::workspace_error)
     }
 
-    fn diagnostics(&self, request: DiagnosticsRequest) -> Result<Vec<DiagnosticView>, Error> {
+    fn resolve_query_file(&self, root: &Path, path: PathBuf) -> Result<Option<QueryFile>, Error> {
+        let handle = self.handle_for_root(root)?;
+
+        self.client
+            .resolve_query_file(handle, path)
+            .map_err(Self::workspace_error)
+    }
+
+    fn diagnose(&self, request: DiagnosticsRequest) -> Result<Vec<FileDiagnostics>, Error> {
         match request {
-            DiagnosticsRequest::All => self.all_diagnostics(),
-            DiagnosticsRequest::Root(root) => self.root_diagnostics(&root),
+            DiagnosticsRequest::All => {
+                let roots = self.open_roots();
+                let diagnostics = roots
+                    .iter()
+                    .map(|root| self.diagnose_root(root))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect();
+
+                Ok(diagnostics)
+            }
+            DiagnosticsRequest::Root(root) => self.diagnose_root(&root),
             DiagnosticsRequest::File(path) => self
-                .file_diagnostics(&path)
+                .diagnose_file(&path)
                 .map(|diagnostics| diagnostics.into_iter().collect()),
         }
     }
@@ -604,38 +632,6 @@ impl Workspace for RemoteWorkspace {
 }
 
 impl RemoteWorkspace {
-    /// Run one query through a resolved root handle.
-    fn query_handle(
-        &self,
-        handle: RootId,
-        request: QueryRequest,
-        revision: RevisionPolicy,
-    ) -> Result<QueryResult, Error> {
-        let expected_revision = match revision {
-            RevisionPolicy::Latest => Some(
-                self.client
-                    .current_revision(handle)
-                    .map_err(Self::workspace_error)?,
-            ),
-            RevisionPolicy::Exact(revision) | RevisionPolicy::Current(revision) => Some(revision),
-        };
-        let response = self
-            .client
-            .execute_query(
-                handle,
-                protocol::QueryRequestBody {
-                    expected_revision,
-                    request,
-                },
-            )
-            .map_err(Self::workspace_error)?;
-
-        Ok(QueryResult {
-            revision: response.revision,
-            response: response.response,
-        })
-    }
-
     /// Return one open root for a source path.
     fn root_for_path(&self, path: &Path) -> Result<PathBuf, Error> {
         let roots = self.roots.lock();
@@ -652,42 +648,28 @@ impl RemoteWorkspace {
         Ok(root.root.clone())
     }
 
-    /// Return diagnostics for all open roots.
-    fn all_diagnostics(&self) -> Result<Vec<DiagnosticView>, Error> {
-        let roots = self.open_roots();
-        let diagnostics = roots
-            .iter()
-            .map(|root| self.root_diagnostics(root))
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .flatten()
-            .collect();
-
-        Ok(diagnostics)
-    }
-
     /// Return diagnostics for one open root.
-    fn root_diagnostics(&self, root: &Path) -> Result<Vec<DiagnosticView>, Error> {
+    fn diagnose_root(&self, root: &Path) -> Result<Vec<FileDiagnostics>, Error> {
         let handle = self.handle_for_root(root)?;
         let diagnostics = self
             .client
-            .diagnostic_snapshots(handle)
+            .diagnose(handle)
             .map_err(Self::workspace_error)?
             .into_iter()
-            .map(DiagnosticView::try_from)
+            .map(FileDiagnostics::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(diagnostics)
     }
 
     /// Return diagnostics for one source file.
-    fn file_diagnostics(&self, path: &Path) -> Result<Option<DiagnosticView>, Error> {
+    fn diagnose_file(&self, path: &Path) -> Result<Option<FileDiagnostics>, Error> {
         let handle = self.handle_for_path(path)?;
         let diagnostics = self
             .client
-            .file_diagnostics(handle, path.to_path_buf())
+            .diagnose_file(handle, path.to_path_buf())
             .map_err(Self::workspace_error)?
-            .map(DiagnosticView::try_from)
+            .map(FileDiagnostics::try_from)
             .transpose()?;
 
         Ok(diagnostics)

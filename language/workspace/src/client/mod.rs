@@ -1,6 +1,7 @@
 mod artifact;
 mod client;
 mod command;
+mod diagnostic;
 mod error;
 mod query;
 mod root;

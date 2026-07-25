@@ -1,41 +1,37 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_repository::{Repository, Revision};
 use destack_source::{Diagnostic, File, FileId, Uri};
 
 use crate::diagnostic::Error;
-use crate::protocol::DiagnosticSnapshot;
 use crate::workspace::LocalWorkspace;
 
-/// Diagnostic view for one file.
-#[derive(Debug, Clone)]
-pub struct DiagnosticView {
-    /// The current file image used for range conversion.
-    pub file: Arc<File>,
-    /// Diagnostic uri for this view.
-    pub diagnostic_uri: Uri,
-    /// Protocol file version for diagnostics when the file is open.
-    pub diagnostic_version: Option<i32>,
-    /// The diagnostics for this file.
-    pub diagnostics: Vec<Diagnostic>,
+/// Selection for one diagnostic read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DiagnosticsRequest {
+    /// Return diagnostics for every open root.
+    All,
+    /// Return diagnostics for one root.
+    Root(PathBuf),
+    /// Return diagnostics for one file.
+    File(PathBuf),
 }
 
-impl TryFrom<DiagnosticSnapshot> for DiagnosticView {
-    type Error = Error;
-
-    /// Convert one protocol diagnostic snapshot into a local diagnostic view.
-    fn try_from(snapshot: DiagnosticSnapshot) -> Result<Self, Self::Error> {
-        let file = snapshot.file.into_file()?;
-
-        Ok(Self {
-            file: Arc::new(file),
-            diagnostic_uri: snapshot.diagnostic_uri,
-            diagnostic_version: snapshot.diagnostic_version,
-            diagnostics: snapshot.diagnostics,
-        })
-    }
+/// Diagnostics for one file at one exact semantic revision.
+#[derive(Debug, Clone)]
+pub struct FileDiagnostics {
+    /// The semantic revision containing these diagnostics.
+    pub revision: Revision,
+    /// The file used for range conversion.
+    pub file: Arc<File>,
+    /// The URI published to the editor.
+    pub uri: Uri,
+    /// The editor document version when the file is open.
+    pub version: Option<i32>,
+    /// The diagnostics for this file.
+    pub diagnostics: Vec<Diagnostic>,
 }
 
 /// Return diagnostics grouped by primary file.
@@ -59,10 +55,10 @@ pub(crate) fn diagnostics_by_file(
 }
 
 impl LocalWorkspace {
-    /// Return a current diagnostic view for one file path.
-    pub fn file_diagnostics(&self, path: &Path) -> Result<Option<DiagnosticView>, Error> {
+    /// Return exact diagnostics for one file path.
+    fn diagnose_file(&self, path: &Path) -> Result<Option<FileDiagnostics>, Error> {
         let root = self.root_at(path)?;
-        let session = self.snapshot(&root)?;
+        let session = self.pin_session(&root)?;
         let revision = session.revision();
         let repository = session.repository();
 
@@ -74,43 +70,29 @@ impl LocalWorkspace {
             .remove(&file_id)
             .unwrap_or_default();
         let open_file = file.path.as_ref().and_then(|path| self.open_state(path));
-        let diagnostic_uri = open_file
+        let uri = open_file
             .as_ref()
             .map(|file| file.uri.clone())
             .or_else(|| file.path.as_ref().map(Uri::from_file_path))
             .unwrap_or_else(|| file.uri.clone());
-        let diagnostic_version = if let Some(path) = file.path.as_ref() {
+        let version = if let Some(path) = file.path.as_ref() {
             self.open_file_version_in_revision(repository, revision, file_id, path)?
         } else {
             None
         };
 
-        Ok(Some(DiagnosticView {
+        Ok(Some(FileDiagnostics {
+            revision,
             file,
-            diagnostic_uri,
-            diagnostic_version,
+            uri,
+            version,
             diagnostics,
         }))
     }
 
-    /// Return current diagnostic views for every open root.
-    pub fn diagnostics(&self) -> Result<Vec<DiagnosticView>, Error> {
-        let mut roots = self.root_paths();
-        roots.sort();
-
-        let mut views = Vec::new();
-        for root in roots {
-            let root_views = self.root_diagnostics(&root)?;
-
-            views.extend(root_views);
-        }
-
-        Ok(views)
-    }
-
-    /// Return current diagnostic views for one root.
-    pub fn root_diagnostics(&self, root: &Path) -> Result<Vec<DiagnosticView>, Error> {
-        let session = self.snapshot(root)?;
+    /// Return exact diagnostics for one root.
+    fn diagnose_root(&self, root: &Path) -> Result<Vec<FileDiagnostics>, Error> {
+        let session = self.pin_session(root)?;
         let revision = session.revision();
         let repository = session.repository();
         let mut diagnostics_by_file = diagnostics_by_file(repository, revision)?;
@@ -119,7 +101,7 @@ impl LocalWorkspace {
         let mut open_files = HashMap::new();
         for (path, file) in self.open_files_under(root) {
             let Some(file_id) = session.file_id(&path)? else {
-                continue;
+                return Err(Error::FileMissing { path });
             };
             let version =
                 self.open_file_version_in_revision(repository, revision, file_id, &path)?;
@@ -128,27 +110,26 @@ impl LocalWorkspace {
             open_files.insert(file_id, (file.uri, version));
         }
 
-        let mut views = Vec::new();
+        let mut diagnostics_by_source = Vec::new();
         for (file_id, diagnostics) in diagnostics_by_file {
-            let Ok(file) = session.file(file_id) else {
-                continue;
-            };
+            let file = session.file(file_id)?;
             let open_file = open_files.get(&file_id);
-            let diagnostic_uri = open_file
+            let uri = open_file
                 .map(|(uri, _)| uri.clone())
                 .or_else(|| file.path.as_ref().map(Uri::from_file_path))
                 .unwrap_or_else(|| file.uri.clone());
-            let diagnostic_version = open_file.and_then(|(_, version)| *version);
+            let version = open_file.and_then(|(_, version)| *version);
 
-            views.push(DiagnosticView {
+            diagnostics_by_source.push(FileDiagnostics {
+                revision,
                 file,
-                diagnostic_uri,
-                diagnostic_version,
+                uri,
+                version,
                 diagnostics,
             });
         }
 
-        views.sort_by(|left, right| {
+        diagnostics_by_source.sort_by(|left, right| {
             let left_key = left
                 .file
                 .path
@@ -165,6 +146,29 @@ impl LocalWorkspace {
             left_key.cmp(&right_key)
         });
 
-        Ok(views)
+        Ok(diagnostics_by_source)
+    }
+
+    /// Return exact diagnostics selected by one request.
+    pub fn diagnose(&self, request: DiagnosticsRequest) -> Result<Vec<FileDiagnostics>, Error> {
+        match request {
+            DiagnosticsRequest::All => {
+                let mut roots = self.root_paths();
+                roots.sort();
+
+                let mut diagnostics = Vec::new();
+                for root in roots {
+                    diagnostics.extend(self.diagnose_root(&root)?);
+                }
+
+                Ok(diagnostics)
+            }
+            DiagnosticsRequest::Root(root) => self.diagnose_root(&root),
+            DiagnosticsRequest::File(path) => {
+                let diagnostics = self.diagnose_file(&path)?;
+
+                Ok(diagnostics.into_iter().collect())
+            }
+        }
     }
 }

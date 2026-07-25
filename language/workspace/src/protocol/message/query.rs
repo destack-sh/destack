@@ -1,92 +1,54 @@
-use destack_serde::Reflect;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use destack_query::{Module, QueryRequest, QueryResponse};
-use destack_repository::{FormatterOptions, Revision};
-use destack_source::{Diagnostic, FileId, Uri};
+use destack_query::Module;
+use destack_repository::Revision;
+use destack_serde::Reflect;
 
-use super::{BinaryPayload, BinaryPayloadDecodeError, DiagnosticBatch, RootId};
-use crate::{DiagnosticView, FileImage};
+use super::{BinaryPayload, BinaryPayloadDecodeError};
+use crate::{Error, FileImage, QueryFile, RunQueryRequest, RunQueryResponse};
 
-/// Request for one source file snapshot.
+/// Wire representation of one query file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct FileSnapshotRequest {
-    /// Path to the source file.
+pub struct QueryFilePayload {
+    /// The requested source path.
     pub path: PathBuf,
-    /// Target name used to select the query profile.
-    pub target: Option<String>,
-}
-
-/// Source file snapshot for editor adapters.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct FileSnapshot {
-    /// Current semantic revision for the file root.
+    /// The exact semantic revision.
     pub revision: Revision,
-    /// The source file id.
-    pub file_id: FileId,
-    /// The module for the requested target.
-    pub module: Option<Module>,
-    /// Formatter options selected for the file.
-    pub formatter: FormatterOptions,
-    /// File image used for range conversion.
+    /// The module containing the file.
+    pub module: Module,
+    /// The source file image.
     pub file: FileImage,
 }
 
-/// Request for source file images in one revision.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct FileImagesRequest {
-    /// Revision containing the requested files.
-    pub revision: Revision,
-    /// File ids to resolve.
-    pub file_ids: Vec<FileId>,
-}
+impl TryFrom<QueryFilePayload> for QueryFile {
+    type Error = Error;
 
-/// Diagnostics and file image for one source file.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct DiagnosticSnapshot {
-    /// Revision containing the diagnostics.
-    pub revision: Revision,
-    /// File image used for range conversion.
-    pub file: FileImage,
-    /// Diagnostic uri.
-    pub diagnostic_uri: Uri,
-    /// Protocol file version when the file is open.
-    pub diagnostic_version: Option<i32>,
-    /// Diagnostics for the file.
-    pub diagnostics: Vec<Diagnostic>,
-}
+    /// Convert one wire payload into runtime query state.
+    fn try_from(payload: QueryFilePayload) -> Result<Self, Self::Error> {
+        let file = payload.file.into_file()?;
 
-impl DiagnosticSnapshot {
-    /// Create a protocol diagnostic snapshot from one local diagnostic view.
-    pub fn new(revision: Revision, view: &DiagnosticView) -> Self {
-        Self {
-            revision,
-            file: FileImage::from(view.file.as_ref()),
-            diagnostic_uri: view.diagnostic_uri.clone(),
-            diagnostic_version: view.diagnostic_version,
-            diagnostics: view.diagnostics.clone(),
-        }
+        Ok(Self {
+            path: payload.path,
+            revision: payload.revision,
+            module: payload.module,
+            file: Arc::new(file),
+        })
     }
 }
 
-/// Request payload for one query.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct QueryRequestBody {
-    /// Expected workspace semantic revision.
-    pub expected_revision: Option<Revision>,
-    /// Query request.
-    pub request: QueryRequest,
-}
-
-/// Response payload for one query.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct QueryResponseBody {
-    /// Workspace semantic revision after request execution.
-    pub revision: Revision,
-    /// Query response.
-    pub response: QueryResponse,
+impl From<&QueryFile> for QueryFilePayload {
+    /// Build one wire payload from runtime query state.
+    fn from(file: &QueryFile) -> Self {
+        Self {
+            path: file.path.clone(),
+            revision: file.revision,
+            module: file.module,
+            file: FileImage::from(file.file.as_ref()),
+        }
+    }
 }
 
 /// Encoded query request payload.
@@ -98,16 +60,7 @@ pub struct QueryRequestPayload {
 
 impl QueryRequestPayload {
     /// Encode a query request as protocol payload bytes.
-    pub fn from_request(
-        expected_revision: Option<Revision>,
-        request: QueryRequest,
-    ) -> Result<Self, QueryPayloadCodecError> {
-        // build the request body
-        let request = QueryRequestBody {
-            expected_revision,
-            request,
-        };
-
+    pub fn from_request(request: RunQueryRequest) -> Result<Self, QueryPayloadCodecError> {
         // encode the request
         let payload =
             BinaryPayload::from_value(&request).map_err(QueryPayloadCodecError::EncodeRequest)?;
@@ -115,13 +68,8 @@ impl QueryRequestPayload {
         Ok(Self { payload })
     }
 
-    /// Encode a prepared query request as protocol payload bytes.
-    pub fn from_body(request: QueryRequestBody) -> Result<Self, QueryPayloadCodecError> {
-        Self::from_request(request.expected_revision, request.request)
-    }
-
     /// Decode protocol payload bytes into a query request.
-    pub fn decode_request(&self) -> Result<QueryRequestBody, QueryPayloadCodecError> {
+    pub fn decode_request(&self) -> Result<RunQueryRequest, QueryPayloadCodecError> {
         // decode the query request
         self.payload
             .to_value()
@@ -138,13 +86,7 @@ pub struct QueryResponsePayload {
 
 impl QueryResponsePayload {
     /// Encode a query response as protocol payload bytes.
-    pub fn from_response(
-        revision: Revision,
-        response: QueryResponse,
-    ) -> Result<Self, QueryPayloadCodecError> {
-        // build the response body
-        let response = QueryResponseBody { revision, response };
-
+    pub fn from_response(response: RunQueryResponse) -> Result<Self, QueryPayloadCodecError> {
         // encode the response
         let payload =
             BinaryPayload::from_value(&response).map_err(QueryPayloadCodecError::EncodeResponse)?;
@@ -153,7 +95,7 @@ impl QueryResponsePayload {
     }
 
     /// Decode protocol payload bytes into a query response.
-    pub fn decode_response(&self) -> Result<QueryResponseBody, QueryPayloadCodecError> {
+    pub fn decode_response(&self) -> Result<RunQueryResponse, QueryPayloadCodecError> {
         // decode the query response
         self.payload
             .to_value()
@@ -198,104 +140,27 @@ impl std::error::Error for QueryPayloadCodecError {
     }
 }
 
-/// Query request payloads.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum WorkspaceQuery {
-    /// Request diagnostics snapshot.
-    Diagnostics { handle: RootId },
-    /// Request rich diagnostics with file images.
-    DiagnosticSnapshots { handle: RootId },
-    /// Request diagnostics for one file.
-    FileDiagnostics {
-        /// Root handle.
-        handle: RootId,
-        /// Source path.
-        path: PathBuf,
-    },
-    /// Request whether one source file is open.
-    FileOpen {
-        /// Root handle.
-        handle: RootId,
-        /// Source path.
-        path: PathBuf,
-    },
-    /// Request the current semantic revision.
-    CurrentRevision { handle: RootId },
-    /// Request a source file snapshot.
-    FileSnapshot {
-        /// Root handle.
-        handle: RootId,
-        /// Snapshot request.
-        request: FileSnapshotRequest,
-    },
-    /// Request source file images for a revision.
-    FileImages {
-        /// Root handle.
-        handle: RootId,
-        /// File image request.
-        request: FileImagesRequest,
-    },
-    /// Execute a query.
-    Execute {
-        /// Root handle.
-        handle: RootId,
-        /// Encoded query request payload.
-        request: QueryRequestPayload,
-    },
-    /// Execute a batch of queries.
-    ExecuteBatch {
-        /// Root handle.
-        handle: RootId,
-        /// Encoded query request payloads.
-        requests: Vec<QueryRequestPayload>,
-    },
-}
-
-/// Query response payloads.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum WorkspaceQueryResponse {
-    /// Diagnostics snapshot.
-    Diagnostics(Vec<DiagnosticBatch>),
-    /// Rich diagnostics with file images.
-    DiagnosticSnapshots(Vec<DiagnosticSnapshot>),
-    /// Diagnostics for one file.
-    FileDiagnostics(Option<DiagnosticSnapshot>),
-    /// Whether one source file is open.
-    FileOpen(bool),
-    /// The current semantic revision.
-    CurrentRevision(Revision),
-    /// Source file snapshot.
-    FileSnapshot(Option<FileSnapshot>),
-    /// Source file images.
-    FileImages(Vec<FileImage>),
-    /// Encoded query response payload.
-    Query(QueryResponsePayload),
-    /// Encoded query batch response payloads.
-    QueryBatch(Vec<QueryResponsePayload>),
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use crate::RevisionPolicy;
     use destack_query::{HoverResponse, QueryRequest, QueryResponse, SearchSymbolsRequest};
-    use destack_source::ProfileId;
 
     /// Preserves query requests across payload encoding and decoding.
     #[test]
     fn test_roundtrip_query_request_payload() {
         // build a representative query request
-        let request = QueryRequestBody {
-            expected_revision: Some(Revision::from_test_value(7)),
+        let request = RunQueryRequest {
+            revision: RevisionPolicy::Exact(Revision::from_test_value(7)),
             request: QueryRequest::SearchSymbols(SearchSymbolsRequest {
-                profile_ids: vec![ProfileId::new(1)],
                 query: "main".to_string(),
                 max_results: 16,
             }),
         };
 
         // encode and decode through the query request payload
-        let payload = QueryRequestPayload::from_body(request.clone()).expect("encode");
+        let payload = QueryRequestPayload::from_request(request.clone()).expect("encode");
         let decoded = payload.decode_request().expect("decode");
 
         // assert full roundtrip preservation
@@ -347,15 +212,13 @@ mod tests {
     #[test]
     fn test_roundtrip_query_response_payload() {
         // build a representative query response
-        let response = QueryResponseBody {
+        let response = RunQueryResponse {
             revision: Revision::from_test_value(7),
             response: QueryResponse::Hover(HoverResponse { hover: None }),
         };
 
         // encode and decode through the query response payload
-        let payload =
-            QueryResponsePayload::from_response(response.revision, response.response.clone())
-                .expect("encode");
+        let payload = QueryResponsePayload::from_response(response.clone()).expect("encode");
         let decoded = payload.decode_response().expect("decode");
 
         // assert full roundtrip preservation

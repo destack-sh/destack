@@ -1,21 +1,32 @@
 use std::path::PathBuf;
 
+use destack_repository::Revision;
+
 use super::{Client, ClientError};
 use crate::ReloadReason;
 use crate::protocol::{
     CloseRootRequest, OpenRootRequest, ReloadRootRequest, RootClosedResponse, RootId,
-    RootOpenOptions, RootOpenedResponse, RootReloadResponse, WorkspaceRequest, WorkspaceResponse,
+    RootOpenedResponse, RootReloadResponse, WorkspaceRequest, WorkspaceResponse,
 };
 
 impl Client {
+    /// Read the current semantic revision for one workspace root.
+    pub fn read_revision(&self, handle: RootId) -> Result<Revision, ClientError> {
+        // send the revision request
+        let response = self.send_request(WorkspaceRequest::ReadRevision { handle })?;
+
+        // decode the revision response
+        match response {
+            WorkspaceResponse::ReadRevision(response) => Ok(response),
+            WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
+            other => Err(Self::unexpected_response("read revision", other)),
+        }
+    }
+
     /// Open a workspace root handle.
-    pub fn open_root(
-        &self,
-        root: PathBuf,
-        options: RootOpenOptions,
-    ) -> Result<RootOpenedResponse, ClientError> {
+    pub fn open_root(&self, root: PathBuf) -> Result<RootOpenedResponse, ClientError> {
         // send the open root request
-        let request = OpenRootRequest { root, options };
+        let request = OpenRootRequest { root };
         let response = self.send_request(WorkspaceRequest::OpenRoot(request))?;
 
         // decode the root response

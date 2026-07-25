@@ -13,6 +13,17 @@ use crate::protocol::{
 };
 
 impl Server {
+    /// Read the current semantic revision.
+    pub(super) fn read_revision(&self, handle: RootId) -> Result<WorkspaceResponse, ProtocolError> {
+        self.require_session()?;
+        let (root, workspace) = self.resolve_root(handle)?;
+        let revision = workspace
+            .revision(&root.root)
+            .map_err(|error| self.workspace_error("current revision", error))?;
+
+        Ok(WorkspaceResponse::ReadRevision(revision))
+    }
+
     /// Handle opening a root.
     pub(super) fn handle_open_root(
         &self,
@@ -29,18 +40,9 @@ impl Server {
             self.lifecycle.register_handle();
         }
 
-        // load diagnostics only when requested
-        let diagnostics = if request.options.load_index {
-            self.diagnostics(self.workspace.as_ref(), &root)?
-        } else {
-            Vec::new()
-        };
-
         Ok(WorkspaceResponse::RootOpened(RootOpenedResponse {
             handle,
             root,
-            diagnostics,
-            messages: Vec::new(),
         }))
     }
 

@@ -4,7 +4,7 @@ use super::PayloadReceiveError;
 use crate::ClientError;
 use crate::protocol::{
     BinaryPayload, PayloadBody, PayloadChunkNotification, PayloadId, ProtocolNotification,
-    WorkspaceNotification, WorkspaceQueryResponse, WorkspaceResponse,
+    WorkspaceNotification, WorkspaceResponse,
 };
 
 /// Deferred payload chunks received while waiting for a response.
@@ -40,7 +40,7 @@ impl PayloadReceiver {
         response: &mut WorkspaceResponse,
     ) -> Result<bool, ClientError> {
         match response {
-            WorkspaceResponse::QueryResult(query) => self.resolve_query_response(query),
+            WorkspaceResponse::RunQuery(payload) => self.resolve_payload(&mut payload.payload),
             _ => Ok(true),
         }
     }
@@ -99,28 +99,6 @@ impl PayloadReceiver {
         }
 
         Ok(())
-    }
-
-    /// Resolve binary payloads in query responses.
-    fn resolve_query_response(
-        &mut self,
-        response: &mut WorkspaceQueryResponse,
-    ) -> Result<bool, ClientError> {
-        match response {
-            WorkspaceQueryResponse::Query(payload) => self.resolve_payload(&mut payload.payload),
-            WorkspaceQueryResponse::QueryBatch(payloads) => {
-                // return early when any stream is incomplete
-                for payload in payloads {
-                    let resolved = self.resolve_payload(&mut payload.payload)?;
-                    if !resolved {
-                        return Ok(false);
-                    }
-                }
-
-                Ok(true)
-            }
-            _ => Ok(true),
-        }
     }
 
     /// Resolve one deferred payload.

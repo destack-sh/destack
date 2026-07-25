@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use destack_repository::{RepositoryError, Revision};
 use destack_session::SessionError;
+use destack_source::PackageId;
 
 /// Errors produced by workspace operations.
 #[derive(Debug)]
@@ -43,6 +44,11 @@ pub enum Error {
         expected: Revision,
         /// The current revision.
         current: Revision,
+    },
+    /// A package has no selected query target.
+    TargetNotSelected {
+        /// The package requiring a target selection.
+        package_id: PackageId,
     },
     /// Repository work failed inside the workspace.
     Repository(RepositoryError),
@@ -96,6 +102,12 @@ impl std::fmt::Display for Error {
                 write!(
                     formatter,
                     "stale query revision: expected {expected}, current {current}"
+                )
+            }
+            Error::TargetNotSelected { package_id } => {
+                write!(
+                    formatter,
+                    "no query target is selected for package {package_id:?}"
                 )
             }
             Error::Repository(error) => {

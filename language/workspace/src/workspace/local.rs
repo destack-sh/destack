@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 
-use crate::diagnostic::{DiagnosticView, Error};
+use crate::diagnostic::{DiagnosticsRequest, Error, FileDiagnostics};
 use crate::file::{Commit, FileOperation, OpenFile, SourceUpdate};
 use crate::protocol::WatchPolicy;
 use crate::watch::{Watch, WatchUpdate};
@@ -25,15 +25,13 @@ use destack_artifact::{
 use destack_repository::{Ref, Repository, Revision};
 use destack_session::{Session, SessionEvent, SessionEventHandler};
 use destack_source::{
-    Content, ContentId, DiagnosticCollection, Edit, FileWatcher, OverlayFileSystem,
+    Content, ContentId, DiagnosticCollection, Edit, File, FileId, FileWatcher, OverlayFileSystem,
+    TextRange,
 };
 use parking_lot::Mutex;
 
-use super::{
-    DiagnosticsRequest, QueryResult, ReloadRequest, UpdateBatch, ViewRequest, ViewResult,
-    WorkspaceQueryRequest,
-};
-use crate::{ExportRequest, ExportResult, ExportedFile};
+use super::{ReloadRequest, RunQueryRequest, RunQueryResponse, SessionPin, UpdateBatch};
+use crate::{ExportRequest, ExportResult, ExportedFile, FileEdit, FileImage, QueryFile};
 
 /// Local workspace used by tooling integrations.
 pub struct LocalWorkspace {
@@ -256,7 +254,7 @@ fn command_file_images(
     context: &CommandContext<'_>,
     revision: Revision,
     diagnostics: &DiagnosticCollection,
-) -> CommandResult<Vec<crate::FileImage>> {
+) -> CommandResult<Vec<FileImage>> {
     let mut seen = HashSet::new();
     let mut files = Vec::new();
 
@@ -277,14 +275,16 @@ fn command_file_images(
                 continue;
             }
 
-            let Some(file) = context
+            let file = context
                 .repository
                 .file(revision, file_id)
                 .map_err(|error| CommandError::internal(error.to_string()))?
-            else {
-                continue;
-            };
-            files.push(crate::FileImage::from(file.as_ref()));
+                .ok_or_else(|| {
+                    CommandError::internal(format!(
+                        "diagnostic references missing source file {file_id:?}"
+                    ))
+                })?;
+            files.push(FileImage::from(file.as_ref()));
         }
     }
 
@@ -545,36 +545,46 @@ impl Workspace for LocalWorkspace {
         })
     }
 
-    fn query(&self, root: &Path, request: WorkspaceQueryRequest) -> Result<QueryResult, Error> {
-        let revision = match request.expected_revision {
-            Some(revision) => super::RevisionPolicy::Current(revision),
-            None => super::RevisionPolicy::Latest,
-        };
-
-        LocalWorkspace::query_root(self, root, request.request, revision)
+    fn format_file(
+        &self,
+        root: &Path,
+        path: PathBuf,
+        range: Option<TextRange>,
+    ) -> Result<Option<FileEdit>, Error> {
+        LocalWorkspace::format_file(self, root, path, range)
     }
 
-    fn view(&self, root: &Path, request: ViewRequest) -> Result<ViewResult, Error> {
-        match request {
-            ViewRequest::File(request) => {
-                LocalWorkspace::file_snapshot(self, root, request).map(ViewResult::File)
-            }
-            ViewRequest::FileImages(request) => {
-                LocalWorkspace::file_images(self, root, request).map(ViewResult::FileImages)
-            }
+    fn read_files(
+        &self,
+        root: &Path,
+        revision: Revision,
+        file_ids: Vec<FileId>,
+    ) -> Result<Vec<Arc<File>>, Error> {
+        // pin the requested immutable revision
+        let session = self.session(root)?;
+        let repository = session.repository();
+        let revision = repository.pin(revision)?;
+        let session = SessionPin::new(session, revision);
+
+        // read every requested file exactly
+        let mut files = Vec::with_capacity(file_ids.len());
+        for file_id in file_ids {
+            files.push(session.file(file_id)?);
         }
+
+        Ok(files)
     }
 
-    fn diagnostics(&self, request: DiagnosticsRequest) -> Result<Vec<DiagnosticView>, Error> {
-        match request {
-            DiagnosticsRequest::All => LocalWorkspace::diagnostics(self),
-            DiagnosticsRequest::Root(root) => LocalWorkspace::root_diagnostics(self, &root),
-            DiagnosticsRequest::File(path) => {
-                let diagnostics = LocalWorkspace::file_diagnostics(self, &path)?;
+    fn run_query(&self, root: &Path, request: RunQueryRequest) -> Result<RunQueryResponse, Error> {
+        LocalWorkspace::run_query(self, root, request)
+    }
 
-                Ok(diagnostics.into_iter().collect())
-            }
-        }
+    fn resolve_query_file(&self, root: &Path, path: PathBuf) -> Result<Option<QueryFile>, Error> {
+        LocalWorkspace::resolve_query_file(self, root, path)
+    }
+
+    fn diagnose(&self, request: DiagnosticsRequest) -> Result<Vec<FileDiagnostics>, Error> {
+        LocalWorkspace::diagnose(self, request)
     }
 
     fn artifact(&self, root: &Path, artifact: ArtifactReference) -> Result<ArtifactPayload, Error> {

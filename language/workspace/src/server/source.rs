@@ -1,16 +1,83 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use destack_source::Edit;
+use destack_repository::Revision;
+use destack_source::{Edit, FileId, TextRange};
 
 use crate::{FileOperation, Workspace};
 
 use super::Server;
 use crate::protocol::{
-    FileOperationRequest, FileOperationResponse, ProtocolError, ProtocolErrorCode,
-    SourceUpdateRequest, SourceUpdateResponse, WorkspaceResponse,
+    FileEditPayload, FileOperationRequest, FileOperationResponse, ProtocolError, ProtocolErrorCode,
+    RootId, SourceUpdateRequest, SourceUpdateResponse, WorkspaceResponse,
 };
 
 impl Server {
+    /// Check whether one source file is open.
+    pub(super) fn is_file_open(
+        &self,
+        handle: RootId,
+        path: PathBuf,
+    ) -> Result<WorkspaceResponse, ProtocolError> {
+        self.require_session()?;
+        let (root, workspace) = self.resolve_root(handle)?;
+
+        // require the requested path to belong to the selected root
+        if !self.path_within_root(workspace.as_ref(), &path, &root.root) {
+            return Err(
+                self.protocol_error(ProtocolErrorCode::Forbidden, "file path is outside root")
+            );
+        }
+        let is_open = workspace
+            .is_file_open(&path)
+            .map_err(|error| self.workspace_error("file open", error))?;
+
+        Ok(WorkspaceResponse::IsFileOpen(is_open))
+    }
+
+    /// Format one source file or selected text range.
+    pub(super) fn format_file(
+        &self,
+        handle: RootId,
+        path: PathBuf,
+        range: Option<TextRange>,
+    ) -> Result<WorkspaceResponse, ProtocolError> {
+        self.require_session()?;
+        let (root, workspace) = self.resolve_root(handle)?;
+        if !self.path_within_root(workspace.as_ref(), &path, &root.root) {
+            return Err(
+                self.protocol_error(ProtocolErrorCode::Forbidden, "file path is outside root")
+            );
+        }
+
+        // format the exact source selection
+        let edit = workspace
+            .format_file(&root.root, path, range)
+            .map_err(|error| self.workspace_error("format file", error))?;
+        let edit = edit.as_ref().map(FileEditPayload::from);
+
+        Ok(WorkspaceResponse::FormatFile(edit))
+    }
+
+    /// Read source files from one exact revision.
+    pub(super) fn read_files(
+        &self,
+        handle: RootId,
+        revision: Revision,
+        file_ids: Vec<FileId>,
+    ) -> Result<WorkspaceResponse, ProtocolError> {
+        self.require_session()?;
+        let (root, workspace) = self.resolve_root(handle)?;
+        let files = workspace
+            .read_files(&root.root, revision, file_ids)
+            .map_err(|error| self.workspace_error("read files", error))?;
+        let images = files
+            .iter()
+            .map(|file| crate::FileImage::from(file.as_ref()))
+            .collect();
+
+        Ok(WorkspaceResponse::ReadFiles(images))
+    }
+
     /// Handle a file operation request.
     pub(super) fn handle_file_operation(
         &self,

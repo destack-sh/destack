@@ -1,22 +1,21 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use destack_artifact::{ArtifactPayload, ArtifactReference};
 use destack_repository::Revision;
-use destack_source::{Content, ContentId};
+use destack_source::{Content, ContentId, File, FileId, TextRange};
 
-use super::{
-    DiagnosticsRequest, QueryResult, ReloadRequest, ViewRequest, ViewResult, WorkspaceQueryRequest,
-};
-use crate::diagnostic::{DiagnosticView, Error};
+use super::{ReloadRequest, RunQueryRequest, RunQueryResponse};
+use crate::diagnostic::{DiagnosticsRequest, Error, FileDiagnostics};
 use crate::file::{Commit, FileOperation, SourceUpdate};
 use crate::protocol::WatchPolicy;
 use crate::watch::WatchUpdate;
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, CommandError, CommandProgress, DocInput, DocOutput,
-    DoctorInput, DoctorOutput, ExportRequest, ExportResult, FormatInput, FormatOutput, InfoInput,
-    InfoOutput, RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput,
-    TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch,
+    DoctorInput, DoctorOutput, ExportRequest, ExportResult, FileEdit, FormatInput, FormatOutput,
+    InfoInput, InfoOutput, QueryFile, RunInput, RunOutput, SettingsInput, SettingsOutput,
+    TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch,
 };
 
 /// Workspace operations shared by local and remote workspace implementations.
@@ -61,6 +60,22 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
 
     /// Apply one atomic source edit through the workspace.
     fn edit(&self, root: &Path, update: SourceUpdate) -> Result<Commit, Error>;
+
+    /// Format one source file or selected text range.
+    fn format_file(
+        &self,
+        root: &Path,
+        path: PathBuf,
+        range: Option<TextRange>,
+    ) -> Result<Option<FileEdit>, Error>;
+
+    /// Read source files from one exact revision.
+    fn read_files(
+        &self,
+        root: &Path,
+        revision: Revision,
+        file_ids: Vec<FileId>,
+    ) -> Result<Vec<Arc<File>>, Error>;
 
     // ================================================================================
     // Command
@@ -183,13 +198,17 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
     // ================================================================================
 
     /// Run one semantic query for a root.
-    fn query(&self, root: &Path, request: WorkspaceQueryRequest) -> Result<QueryResult, Error>;
+    fn run_query(&self, root: &Path, request: RunQueryRequest) -> Result<RunQueryResponse, Error>;
 
-    /// Return one workspace view.
-    fn view(&self, root: &Path, request: ViewRequest) -> Result<ViewResult, Error>;
+    /// Resolve one source file for semantic queries.
+    fn resolve_query_file(&self, root: &Path, path: PathBuf) -> Result<Option<QueryFile>, Error>;
 
-    /// Return current diagnostic views.
-    fn diagnostics(&self, request: DiagnosticsRequest) -> Result<Vec<DiagnosticView>, Error>;
+    // ================================================================================
+    // Diagnostics
+    // ================================================================================
+
+    /// Return exact file diagnostics.
+    fn diagnose(&self, request: DiagnosticsRequest) -> Result<Vec<FileDiagnostics>, Error>;
 
     // ================================================================================
     // Artifact

@@ -3,8 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::DiagnosticBatch;
-use crate::{Commit, FileOperation, Message, ReloadReason, SourceUpdate, UpdateBatch};
+use crate::{Commit, FileOperation, ReloadReason, SourceUpdate, UpdateBatch};
 
 /// Unique identifier for an opened root.
 #[repr(transparent)]
@@ -23,22 +22,6 @@ impl RootId {
 pub struct OpenRootRequest {
     /// The root path.
     pub root: PathBuf,
-    /// Root open options.
-    pub options: RootOpenOptions,
-}
-
-/// Options for opening a root.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct RootOpenOptions {
-    /// Whether to preload root state.
-    pub load_index: bool,
-}
-
-impl Default for RootOpenOptions {
-    /// Return default root open options.
-    fn default() -> Self {
-        Self { load_index: true }
-    }
 }
 
 /// Response to opening a root.
@@ -48,10 +31,6 @@ pub struct RootOpenedResponse {
     pub handle: RootId,
     /// Canonical root path opened by the server.
     pub root: PathBuf,
-    /// Diagnostics produced during initialization.
-    pub diagnostics: Vec<DiagnosticBatch>,
-    /// Messages produced during initialization.
-    pub messages: Vec<Message>,
 }
 
 /// Request to close a root handle.

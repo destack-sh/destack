@@ -1,122 +1,52 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use crate::{DiagnosticsRequest, ViewRequest, ViewResult, Workspace, WorkspaceQueryRequest};
+use crate::Workspace;
 
 use super::Server;
 use crate::PayloadSender;
 use crate::protocol::{
-    DiagnosticBatch, DiagnosticSnapshot, ProtocolError, ProtocolErrorCode, QueryRequestPayload,
-    QueryResponsePayload, WorkspaceQuery, WorkspaceQueryResponse, WorkspaceResponse,
+    ProtocolError, ProtocolErrorCode, QueryFilePayload, QueryRequestPayload, QueryResponsePayload,
+    RootId, WorkspaceResponse,
 };
 
 impl Server {
-    /// Handle a query request.
-    pub(super) fn handle_query(
+    /// Resolve one source file for semantic queries.
+    pub(super) fn resolve_query_file(
         &self,
-        query: WorkspaceQuery,
+        handle: RootId,
+        path: PathBuf,
+    ) -> Result<WorkspaceResponse, ProtocolError> {
+        self.require_session()?;
+        let (root, workspace) = self.resolve_root(handle)?;
+
+        // require the requested path to belong to the selected root
+        if !self.path_within_root(workspace.as_ref(), &path, &root.root) {
+            return Err(
+                self.protocol_error(ProtocolErrorCode::Forbidden, "query path is outside root")
+            );
+        }
+
+        // resolve the exact semantic file state
+        let file = workspace
+            .resolve_query_file(&root.root, path)
+            .map_err(|error| self.workspace_error("query file", error))?;
+        let file = file.as_ref().map(QueryFilePayload::from);
+
+        Ok(WorkspaceResponse::ResolveQueryFile(file))
+    }
+
+    /// Run one semantic query.
+    pub(super) fn run_query(
+        &self,
+        handle: RootId,
+        request: QueryRequestPayload,
         payloads: &mut PayloadSender,
     ) -> Result<WorkspaceResponse, ProtocolError> {
         self.require_session()?;
-        let response = match query {
-            WorkspaceQuery::Diagnostics { handle } => {
-                let (root, workspace) = self.resolve_root(handle)?;
-                let diagnostics = self.diagnostics(workspace.as_ref(), &root.root)?;
-                WorkspaceQueryResponse::Diagnostics(diagnostics)
-            }
-            WorkspaceQuery::DiagnosticSnapshots { handle } => {
-                let (root, workspace) = self.resolve_root(handle)?;
-                let diagnostics = self.diagnostic_snapshots(workspace.as_ref(), &root.root)?;
-                WorkspaceQueryResponse::DiagnosticSnapshots(diagnostics)
-            }
-            WorkspaceQuery::FileDiagnostics { handle, path } => {
-                let (root, workspace) = self.resolve_root(handle)?;
-                let diagnostics = self.file_diagnostics(workspace.as_ref(), &root.root, &path)?;
-                WorkspaceQueryResponse::FileDiagnostics(diagnostics)
-            }
-            WorkspaceQuery::FileOpen { handle, path } => {
-                let (root, workspace) = self.resolve_root(handle)?;
-                if !self.path_within_root(workspace.as_ref(), &path, &root.root) {
-                    return Err(self.protocol_error(
-                        ProtocolErrorCode::Forbidden,
-                        "file path is outside root",
-                    ));
-                }
-                let is_open = workspace
-                    .is_file_open(&path)
-                    .map_err(|error| self.workspace_error("file open", error))?;
-                WorkspaceQueryResponse::FileOpen(is_open)
-            }
-            WorkspaceQuery::CurrentRevision { handle } => {
-                let (root, workspace) = self.resolve_root(handle)?;
-                let revision = workspace
-                    .revision(&root.root)
-                    .map_err(|error| self.workspace_error("current revision", error))?;
-                WorkspaceQueryResponse::CurrentRevision(revision)
-            }
-            WorkspaceQuery::FileSnapshot { handle, request } => {
-                let (root, workspace) = self.resolve_root(handle)?;
-                let response = workspace
-                    .view(&root.root, ViewRequest::File(request))
-                    .map_err(|error| self.workspace_error("file snapshot", error))?;
-                let ViewResult::File(snapshot) = response else {
-                    return Err(self.protocol_error(
-                        ProtocolErrorCode::Internal,
-                        "workspace returned a non-file view",
-                    ));
-                };
+        let (root, workspace) = self.resolve_root(handle)?;
+        let response = self.execute_query(workspace.as_ref(), &root.root, request, payloads)?;
 
-                WorkspaceQueryResponse::FileSnapshot(snapshot)
-            }
-            WorkspaceQuery::FileImages { handle, request } => {
-                let (root, workspace) = self.resolve_root(handle)?;
-                let response = workspace
-                    .view(&root.root, ViewRequest::FileImages(request))
-                    .map_err(|error| self.workspace_error("file images", error))?;
-                let ViewResult::FileImages(images) = response else {
-                    return Err(self.protocol_error(
-                        ProtocolErrorCode::Internal,
-                        "workspace returned a non-file-images view",
-                    ));
-                };
-
-                WorkspaceQueryResponse::FileImages(images)
-            }
-            WorkspaceQuery::Execute { handle, request } => {
-                let (root, workspace) = self.resolve_root(handle)?;
-                let response =
-                    self.execute_query(workspace.as_ref(), &root.root, request, payloads)?;
-                WorkspaceQueryResponse::Query(response)
-            }
-            WorkspaceQuery::ExecuteBatch { handle, requests } => {
-                let (root, workspace) = self.resolve_root(handle)?;
-                let responses = requests
-                    .into_iter()
-                    .map(|request| {
-                        self.execute_query(workspace.as_ref(), &root.root, request, payloads)
-                    })
-                    .collect::<Result<Vec<_>, ProtocolError>>()?;
-                WorkspaceQueryResponse::QueryBatch(responses)
-            }
-        };
-
-        Ok(WorkspaceResponse::QueryResult(response))
-    }
-
-    /// Return diagnostics for one open root.
-    pub(super) fn diagnostics(
-        &self,
-        workspace: &dyn Workspace,
-        root: &Path,
-    ) -> Result<Vec<DiagnosticBatch>, ProtocolError> {
-        let diagnostics = workspace
-            .diagnostics(DiagnosticsRequest::Root(root.to_path_buf()))
-            .map_err(|error| self.workspace_error("diagnostics", error))?;
-        let diagnostics: Vec<_> = diagnostics
-            .iter()
-            .flat_map(|image| image.diagnostics.iter().cloned())
-            .collect();
-
-        Ok(DiagnosticBatch::group(&diagnostics))
+        Ok(WorkspaceResponse::RunQuery(response))
     }
 
     /// Execute a query against the current session.
@@ -138,21 +68,8 @@ impl Server {
         // capture request kind before dispatch
         let request_method_id = request.request.method_id();
 
-        // require callers to choose one coherent revision
-        let revision = request.expected_revision.ok_or_else(|| {
-            self.protocol_error(
-                ProtocolErrorCode::InvalidRequest,
-                "missing expected revision for query",
-            )
-        })?;
         let response = workspace
-            .query(
-                root,
-                WorkspaceQueryRequest {
-                    expected_revision: Some(revision),
-                    request: request.request,
-                },
-            )
+            .run_query(root, request)
             .map_err(|error| self.workspace_error("query", error))?;
 
         // keep query response variants aligned with query request variants
@@ -167,15 +84,12 @@ impl Server {
         }
 
         // encode the query response payload
-        let mut response =
-            QueryResponsePayload::from_response(response.revision, response.response).map_err(
-                |error| {
-                    self.protocol_error(
-                        ProtocolErrorCode::Internal,
-                        &format!("failed to encode query response payload: {error}"),
-                    )
-                },
-            )?;
+        let mut response = QueryResponsePayload::from_response(response).map_err(|error| {
+            self.protocol_error(
+                ProtocolErrorCode::Internal,
+                &format!("failed to encode query response payload: {error}"),
+            )
+        })?;
 
         // route large query responses through deferred payload streaming
         response.payload = payloads
@@ -183,49 +97,5 @@ impl Server {
             .map_err(|error| self.payload_error(error))?;
 
         Ok(response)
-    }
-
-    /// Return rich diagnostics for one root.
-    fn diagnostic_snapshots(
-        &self,
-        workspace: &dyn Workspace,
-        root: &Path,
-    ) -> Result<Vec<DiagnosticSnapshot>, ProtocolError> {
-        let revision = workspace
-            .revision(root)
-            .map_err(|error| self.workspace_error("diagnostics", error))?;
-        let diagnostics = workspace
-            .diagnostics(DiagnosticsRequest::Root(root.to_path_buf()))
-            .map_err(|error| self.workspace_error("diagnostics", error))?;
-
-        Ok(diagnostics
-            .iter()
-            .map(|view| DiagnosticSnapshot::new(revision, view))
-            .collect())
-    }
-
-    /// Return rich diagnostics for one source path.
-    fn file_diagnostics(
-        &self,
-        workspace: &dyn Workspace,
-        root: &Path,
-        path: &Path,
-    ) -> Result<Option<DiagnosticSnapshot>, ProtocolError> {
-        if !self.path_within_root(workspace, path, root) {
-            return Err(
-                self.protocol_error(ProtocolErrorCode::Forbidden, "query path is outside root")
-            );
-        }
-        let revision = workspace
-            .revision(root)
-            .map_err(|error| self.workspace_error("file diagnostics", error))?;
-
-        let diagnostics = workspace
-            .diagnostics(DiagnosticsRequest::File(path.to_path_buf()))
-            .map_err(|error| self.workspace_error("file diagnostics", error))?;
-
-        Ok(diagnostics
-            .first()
-            .map(|view| DiagnosticSnapshot::new(revision, view)))
     }
 }
