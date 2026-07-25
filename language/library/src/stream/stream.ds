@@ -1,1 +1,9 @@
-export {};
+import { Task } from "destack:async";
+import { IteratorResult } from "destack:iter";
+
+/// Protocol for asynchronously transferring values to one consumer.
+@languageItem("stream.Stream")
+export local newtype interface Stream<T, R = void> {
+    /// Advance and transfer the next yield or completion.
+    next(): Task<IteratorResult<T, R>>;
+}

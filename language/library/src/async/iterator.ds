@@ -1,23 +1,24 @@
 import { IteratorResult } from "destack:iter";
+import { Copy } from "destack:memory";
 
 import { Promise } from "./promise.ds";
 
 /// Protocol for asynchronously producing values.
 @languageItem("async.AsyncIterator")
-export local newtype interface AsyncIterator<T, R = void> {
+export local newtype interface AsyncIterator<T: Copy, R: Copy = void> {
     /// Advance and return the next yield or completion.
     next(): Promise<IteratorResult<T, R>>;
 }
 
 /// Value that can produce an async iterator.
 @languageItem("async.AsyncIterable")
-export local newtype interface AsyncIterable<T, R = void> {
+export local newtype interface AsyncIterable<T: Copy, R: Copy = void> {
     /// Return a new async iterator for this receiver form.
     asyncIterator(): AsyncIterator<T, R>;
 }
 
 /// Every async iterator is trivially async-iterable as itself.
-export extension<T, R, I: AsyncIterator<T, R>> of I implements AsyncIterable<T, R> {
+export extension<T: Copy, R: Copy, I: AsyncIterator<T, R>> of I implements AsyncIterable<T, R> {
     /// Return this async iterator.
     asyncIterator(): I {
         this

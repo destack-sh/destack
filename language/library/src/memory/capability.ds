@@ -1,4 +1,4 @@
-/// Mark a type as copyable without ownership transfer.
+/// Mark a type as implicitly duplicable without ownership transfer.
 @languageItem("memory.Copy")
 export newtype interface Copy {}
 
@@ -23,13 +23,6 @@ export newtype interface SharedSafe {}
 export newtype interface Clone {
     /// Clone this value.
     clone(&readonly this): ^this;
-}
-
-export extension<T> of T implements Clone where T: Copy {
-    /// Clone this copyable value.
-    clone(&readonly this): ^T {
-        this
-    }
 }
 
 /// Mark a type as safe to move out of pinned storage.
