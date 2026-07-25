@@ -41,7 +41,7 @@ export local struct Waiter<T> implements Drop {
 
     /// Cancel this waiter without producing another user value.
     drop(): void {
-        dropWaiter(this);
+        cancelWaiter(this);
     }
 }
 
@@ -70,8 +70,8 @@ export declare function dropContinuation<TResume, TYield = never, TReturn = void
 ): void;
 
 /// Cancel one waiter without producing another user value.
-@intrinsic("async.waiter.drop")
-export declare function dropWaiter<T>(waiter: Waiter<T>): void;
+@intrinsic("async.waiter.cancel")
+export declare function cancelWaiter<T>(waiter: Waiter<T>): void;
 
 /// Resume command delivered into a yielded continuation.
 @languageItem("async.Resume")
