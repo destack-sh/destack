@@ -4,8 +4,8 @@ use destack_program::{native, wasm};
 use destack_source::ModuleId;
 
 use super::{
-    AllocationSite, CallSite, CounterSite, EdgeSite, Frame, FrameState, Function, Global,
-    MemorySite, Object, SampleSite, SuspensionSite, Type,
+    AllocationSite, CallSite, CounterSite, EdgeSite, FrameState, Function, Global, MemorySite,
+    Object, SampleSite, SuspensionSite, Type,
 };
 
 /// One emitted object under construction.
@@ -29,10 +29,8 @@ pub struct ObjectBuilder {
     /// Object-local global declarations and definitions in ascending MIR id order.
     globals: Vec<Global>,
 
-    /// Logical function frame shapes.
-    frames: Vec<Frame>,
-    /// Live frame states at managed safepoints.
-    frame_states: Vec<FrameState>,
+    /// Logical frame states in object-local identity order.
+    frames: Vec<FrameState>,
 
     /// Heap allocation sites.
     allocations: Vec<AllocationSite>,
@@ -42,7 +40,7 @@ pub struct ObjectBuilder {
     calls: Vec<CallSite>,
     /// Control flow edges.
     edges: Vec<EdgeSite>,
-    /// Suspension sites.
+    /// Coroutine suspension sites.
     suspensions: Vec<SuspensionSite>,
     /// Explicit profile counter sites.
     counters: Vec<CounterSite>,
@@ -68,7 +66,6 @@ impl ObjectBuilder {
             functions: Vec::new(),
             globals: Vec::new(),
             frames: Vec::new(),
-            frame_states: Vec::new(),
             allocations: Vec::new(),
             memory: Vec::new(),
             calls: Vec::new(),
@@ -132,16 +129,9 @@ impl ObjectBuilder {
         self
     }
 
-    /// Set logical function frame shapes.
-    pub fn frames(mut self, frames: impl IntoIterator<Item = Frame>) -> Self {
+    /// Set logical frame states in object-local identity order.
+    pub fn frames(mut self, frames: impl IntoIterator<Item = FrameState>) -> Self {
         self.frames = frames.into_iter().collect();
-
-        self
-    }
-
-    /// Set live frame states at managed safepoints.
-    pub fn frame_states(mut self, states: impl IntoIterator<Item = FrameState>) -> Self {
-        self.frame_states = states.into_iter().collect();
 
         self
     }
@@ -174,7 +164,7 @@ impl ObjectBuilder {
         self
     }
 
-    /// Set suspension sites.
+    /// Set coroutine suspension sites.
     pub fn suspensions(mut self, sites: impl IntoIterator<Item = SuspensionSite>) -> Self {
         self.suspensions = sites.into_iter().collect();
 
@@ -221,7 +211,6 @@ impl ObjectBuilder {
             functions: self.functions,
             globals: self.globals,
             frames: self.frames,
-            frame_states: self.frame_states,
             allocations: self.allocations,
             memory: self.memory,
             calls: self.calls,

@@ -6,8 +6,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AllocationSite, CallSite, CounterSite, EdgeSite, Frame, FrameState, Function, Global,
-    MemorySite, SampleSite, SuspensionSite, Type,
+    AllocationSite, CallSite, CounterSite, EdgeSite, FrameState, Function, Global, MemorySite,
+    SampleSite, SuspensionSite, Type,
 };
 
 /// One relocatable module linked into a Program.
@@ -31,10 +31,8 @@ pub struct Object {
     /// Object-local global declarations and definitions in ascending MIR id order.
     pub(super) globals: Vec<Global>,
 
-    /// Logical function frame shapes.
-    pub(super) frames: Vec<Frame>,
-    /// Live frame states at managed safepoints.
-    pub(super) frame_states: Vec<FrameState>,
+    /// Logical frame states in object-local identity order.
+    pub(super) frames: Vec<FrameState>,
 
     /// Heap allocation sites.
     pub(super) allocations: Vec<AllocationSite>,
@@ -44,7 +42,7 @@ pub struct Object {
     pub(super) calls: Vec<CallSite>,
     /// Control flow edges.
     pub(super) edges: Vec<EdgeSite>,
-    /// Suspension sites.
+    /// Coroutine suspension sites.
     pub(super) suspensions: Vec<SuspensionSite>,
     /// Explicit profile counter sites.
     pub(super) counters: Vec<CounterSite>,
@@ -132,6 +130,11 @@ impl Object {
         &self.globals
     }
 
+    /// Return logical frame states in object-local identity order.
+    pub fn frames(&self) -> &[FrameState] {
+        &self.frames
+    }
+
     /// Return one object-local global declaration.
     pub fn global(&self, id: mir::GlobalId) -> Option<&Global> {
         let index = self
@@ -140,16 +143,6 @@ impl Object {
             .ok()?;
 
         self.globals.get(index)
-    }
-
-    /// Return logical function frame shapes.
-    pub fn frames(&self) -> &[Frame] {
-        &self.frames
-    }
-
-    /// Return live frame states at managed safepoints.
-    pub fn frame_states(&self) -> &[FrameState] {
-        &self.frame_states
     }
 
     /// Return heap allocation sites.
@@ -172,7 +165,7 @@ impl Object {
         &self.edges
     }
 
-    /// Return suspension sites.
+    /// Return coroutine suspension sites.
     pub fn suspensions(&self) -> &[SuspensionSite] {
         &self.suspensions
     }

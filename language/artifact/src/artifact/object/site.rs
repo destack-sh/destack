@@ -35,6 +35,10 @@ pub struct MemorySite {
 pub struct CallSite {
     /// The operation performing the call.
     pub point: Point,
+    /// The operation entered after normal completion when the call returns.
+    pub resume: Option<Point>,
+    /// The operation entered during panic unwinding when present.
+    pub unwind: Option<Point>,
     /// Whether the call returns to its caller.
     pub mode: CallMode,
     /// The call dispatch mechanism.
@@ -58,21 +62,21 @@ pub struct EdgeSite {
     pub target: Point,
 }
 
-/// One continuation suspension operation.
+/// One coroutine suspension operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SuspensionSite {
-    /// The operation suspending the function.
+    /// The operation suspending the coroutine.
     pub point: Point,
-    /// The operation entered by normal resume.
+    /// The operation entered by normal resumption.
     pub resume: Point,
-    /// The operation entered by panic unwinding when present.
+    /// The operation entered during panic unwinding when present.
     pub unwind: Option<Point>,
-    /// The object-local frame state index.
-    pub frame_state: u32,
-    /// The type yielded to the coroutine owner.
-    pub yielded_type: mir::TypeId,
-    /// The type received from the coroutine owner.
-    pub resumed_type: mir::TypeId,
+    /// The suspension operation.
+    pub operation: Suspension,
+    /// The value passed to the coroutine owner.
+    pub value_type: mir::TypeId,
+    /// The value received when execution resumes.
+    pub resume_type: mir::TypeId,
 }
 
 /// One explicit profile counter operation.
@@ -95,7 +99,16 @@ pub struct SampleSite {
     pub value_type: mir::TypeId,
 }
 
-/// Call continuation mode.
+/// Coroutine suspension operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum Suspension {
+    /// Wait for a promise to fulfill.
+    Await,
+    /// Yield one value to a generator owner.
+    Yield,
+}
+
+/// Call return mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum CallMode {
     /// Return to the caller after the callee finishes.

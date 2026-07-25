@@ -24,8 +24,8 @@ pub struct Function {
     pub environment: Option<mir::TypeId>,
     /// The runtime binding name when present.
     pub binding: Option<StringId>,
-    /// The suspension form when this function can suspend.
-    pub suspension: Option<mir::SuspensionKind>,
+    /// The coroutine behavior when this function may suspend.
+    pub coroutine: Option<mir::Coroutine>,
 }
 
 impl Function {
