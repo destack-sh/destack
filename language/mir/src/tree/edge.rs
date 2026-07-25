@@ -8,10 +8,6 @@ use crate::{Block, LocalNodeId};
 pub enum Successor {
     /// The target of an unconditional jump.
     Jump,
-    /// The normal continuation of an invoke.
-    InvokeNormal,
-    /// The unwind continuation of an invoke.
-    InvokeUnwind,
     /// The then target of a branch terminator.
     BranchThen,
     /// The else target of a branch terminator.
@@ -20,10 +16,6 @@ pub enum Successor {
     CheckSuccess,
     /// The failure target of a check terminator.
     CheckFailure,
-    /// The success target of a fallible terminator.
-    TrySuccess,
-    /// The failure target of a fallible terminator.
-    TryFailure,
     /// One switch case target.
     SwitchCase {
         /// The matched case value.
@@ -31,10 +23,22 @@ pub enum Successor {
     },
     /// The default target of a switch terminator.
     SwitchDefault,
+    /// The resume target of an await terminator.
+    AwaitResume,
+    /// The unwind target of an await terminator.
+    AwaitUnwind,
     /// The resume target of a yield terminator.
     YieldResume,
     /// The unwind target of a yield terminator.
     YieldUnwind,
+    /// The normal continuation of an invoke.
+    InvokeNormal,
+    /// The unwind continuation of an invoke.
+    InvokeUnwind,
+    /// The success target of a fallible allocation.
+    NewSuccess,
+    /// The failure target of a fallible allocation.
+    NewFailure,
 }
 
 /// Control-flow edge selected by a terminator successor.

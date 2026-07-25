@@ -516,6 +516,16 @@ pub enum Type {
         /// The bare function signature.
         signature: TypeId,
     },
+
+    /// Move-only handle for one suspended coroutine execution.
+    Continuation {
+        /// The value accepted when resuming after a yield.
+        resume_type: TypeId,
+        /// The value produced by each yield.
+        yield_type: TypeId,
+        /// The value produced by final return.
+        return_type: TypeId,
+    },
 }
 
 /// One sum case.
@@ -647,6 +657,7 @@ impl Type {
                 | Type::TypeId
                 | Type::Reference { .. }
                 | Type::Vector { .. }
+                | Type::Continuation { .. }
         )
     }
 
@@ -654,7 +665,7 @@ impl Type {
     pub fn byte_size(&self, tree: &Tree, pointer_width_bits: u16) -> Option<u64> {
         match self {
             Type::Int { width, .. } => byte_width(*width),
-            Type::Isize | Type::Usize => byte_width(pointer_width_bits),
+            Type::Isize | Type::Usize | Type::Continuation { .. } => byte_width(pointer_width_bits),
             Type::Float(format) => byte_width(format.width()),
             Type::WithLifetimes { base, .. } => tree.get(*base).byte_size(tree, pointer_width_bits),
             Type::Uninit { value } | Type::ManuallyDrop { value } => {
@@ -824,7 +835,6 @@ impl Type {
 
             // the uninhabited type has no values to move
             Type::Never => Copy::Yes,
-
             // lifetime application preserves the represented type's copy property
             Type::WithLifetimes { base, .. } => tree.get(*base).copy(tree),
 
@@ -879,6 +889,9 @@ impl Type {
             Type::FunctionSignature { .. }
             | Type::FunctionPointer { .. }
             | Type::Function { .. } => Copy::Yes,
+
+            // continuation handles uniquely own suspended execution
+            Type::Continuation { .. } => Copy::No,
         }
     }
 }

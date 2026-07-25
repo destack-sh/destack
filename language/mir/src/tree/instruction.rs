@@ -145,6 +145,26 @@ pub enum Instruction {
         destination: Value,
     },
 
+    // continuations
+    /// Create one ready continuation for a coroutine invocation.
+    ContinuationNew {
+        /// The SSA value to define with the continuation handle.
+        destination: Value,
+        /// The coroutine body entered on first resume.
+        function: FunctionId,
+        /// The captured arguments stored in the tree's value buffer.
+        arguments: ValueSlice,
+    },
+    /// Resume one continuation until it yields or returns.
+    ContinuationResume {
+        /// The SSA value to define with the continuation result.
+        destination: Value,
+        /// The continuation to consume.
+        continuation: Value,
+        /// The resume command to deliver.
+        command: Value,
+    },
+
     // memory (pointers)
     /// Load from a pointer (dereference).
     Load {
@@ -891,6 +911,8 @@ impl Instruction {
             Instruction::FunctionBind { destination, .. } => Some(*destination),
             Instruction::FunctionEnvironment { destination, .. } => Some(*destination),
             Instruction::FunctionEnvironmentCurrent { destination, .. } => Some(*destination),
+            Instruction::ContinuationNew { destination, .. } => Some(*destination),
+            Instruction::ContinuationResume { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::Aggregate { destination, .. } => Some(*destination),
@@ -989,6 +1011,12 @@ impl Instruction {
             Instruction::FunctionBind { environment, .. } => smallvec![*environment],
             Instruction::FunctionEnvironment { function, .. } => smallvec![*function],
             Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
+            Instruction::ContinuationNew { .. } => smallvec![],
+            Instruction::ContinuationResume {
+                continuation,
+                command,
+                ..
+            } => smallvec![*continuation, *command],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             // arguments stored externally
@@ -1157,6 +1185,12 @@ impl Instruction {
             } => smallvec![*environment],
             Instruction::FunctionEnvironment { .. }
             | Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
+            Instruction::ContinuationNew { .. } => self.argument_slice_values(tree),
+            Instruction::ContinuationResume {
+                continuation,
+                command,
+                ..
+            } => smallvec![*continuation, *command],
             Instruction::VectorInsert { vector, value, .. }
             | Instruction::TensorPad {
                 tensor: vector,
@@ -1238,6 +1272,7 @@ impl Instruction {
     pub fn argument_slice(&self) -> Option<ValueSlice> {
         match self {
             Instruction::Aggregate { values, .. } => Some(*values),
+            Instruction::ContinuationNew { arguments, .. } => Some(*arguments),
             Instruction::TensorLoad { indices, .. } => Some(*indices),
             Instruction::TensorExtract { indices, .. } => Some(*indices),
             Instruction::TensorStore { indices, .. } => Some(*indices),

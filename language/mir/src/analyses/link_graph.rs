@@ -17,6 +17,8 @@ pub enum LinkEdgeKind {
     Call,
     /// The source takes the target's address.
     Address,
+    /// The source constructs a continuation for the target.
+    Continuation,
 }
 
 /// One outgoing reference from a symbol to another symbol.
@@ -138,12 +140,22 @@ impl LinkGraph {
         count.min(u32::MAX as usize) as u32
     }
 
-    /// Return the symbol whose address one instruction takes.
-    fn instruction_address_target(instruction: &Instruction, tree: &Tree) -> Option<Symbol> {
+    /// Return the symbol reference made by one instruction.
+    fn instruction_edge(instruction: &Instruction, tree: &Tree) -> Option<LinkEdge> {
         match instruction {
             Instruction::FunctionAddr { function, .. }
-            | Instruction::FunctionBind { function, .. } => Some(tree.get(*function).symbol),
-            Instruction::GlobalAddr { global, .. } => Some(tree.get(*global).symbol),
+            | Instruction::FunctionBind { function, .. } => Some(LinkEdge {
+                target: tree.get(*function).symbol,
+                kind: LinkEdgeKind::Address,
+            }),
+            Instruction::GlobalAddr { global, .. } => Some(LinkEdge {
+                target: tree.get(*global).symbol,
+                kind: LinkEdgeKind::Address,
+            }),
+            Instruction::ContinuationNew { function, .. } => Some(LinkEdge {
+                target: tree.get(*function).symbol,
+                kind: LinkEdgeKind::Continuation,
+            }),
             _ => None,
         }
     }
@@ -267,7 +279,7 @@ impl LinkSupergraph {
         self.symbols.binary_search(&symbol).ok()
     }
 
-    /// Mark every symbol reachable from the roots over call and address edges.
+    /// Mark every symbol reachable from the roots.
     pub fn reachable(&self, roots: &[Symbol]) -> BitSet {
         let mut live = BitSet::new(self.symbols.len());
         let mut worklist: Vec<usize> = Vec::new();
@@ -465,20 +477,13 @@ impl ModuleAnalysis for LinkGraph {
                 );
             }
 
-            // address-of edges from instruction operands
+            // record symbol references from instruction operands
             for &block_id in function.blocks() {
                 let block = tree.get(block_id);
                 for &instruction_id in &block.instructions {
-                    if let Some(target) =
-                        LinkGraph::instruction_address_target(tree.get(instruction_id), tree)
+                    if let Some(edge) = LinkGraph::instruction_edge(tree.get(instruction_id), tree)
                     {
-                        graph.add_edge(
-                            symbol,
-                            LinkEdge {
-                                target,
-                                kind: LinkEdgeKind::Address,
-                            },
-                        );
+                        graph.add_edge(symbol, edge);
                     }
                 }
             }
@@ -499,5 +504,48 @@ impl ModuleAnalysis for LinkGraph {
         }
 
         graph
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analyses::tests::TestProgram;
+
+    /// Continuation construction keeps the suspended function reachable without calling it.
+    #[test]
+    fn test_link_continuation_body() {
+        let program = TestProgram::new(
+            r#"
+function* generate(v0: int32): int32 {
+entry(v0: int32):
+    yield v0 => b1
+
+b1(v1: int32):
+    return v1
+}
+
+export function owner(v0: int32): continuation<int32, int32, int32> {
+entry(v0: int32):
+    v1: continuation<int32, int32, int32> = continuation.new generate(v0)
+    return v1
+}
+"#,
+        );
+        let analyses = program.tree_analysis_cache();
+        let graph = analyses.get::<LinkGraph>(&program.tree);
+        let owner = program.function_id_by_name("owner");
+        let generate = program.function_id_by_name("generate");
+        let owner = program.tree.get(owner).symbol;
+        let generate = program.tree.get(generate).symbol;
+
+        // preserve the body through a continuation edge, not a call or address edge
+        assert_eq!(
+            graph.edges(owner),
+            &[LinkEdge {
+                target: generate,
+                kind: LinkEdgeKind::Continuation,
+            }]
+        );
     }
 }

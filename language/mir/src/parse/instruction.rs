@@ -412,6 +412,28 @@ impl Parser {
                         Instruction::FunctionEnvironmentCurrent { destination }
                     }
 
+                    // continuation construction and execution
+                    "continuation.new" => {
+                        let function = self.parse_function_segment(&mut segment_spans)?;
+                        let arguments = self.parse_call_argument_segments(&mut segment_spans)?;
+                        let arguments = self.tree.add_values(&arguments);
+                        Instruction::ContinuationNew {
+                            destination,
+                            function,
+                            arguments,
+                        }
+                    }
+                    "continuation.resume" => {
+                        let continuation = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let command = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::ContinuationResume {
+                            destination,
+                            continuation,
+                            command,
+                        }
+                    }
+
                     // memory operations
                     "load" => {
                         let pointer = self.parse_value_segment(&mut segment_spans)?;

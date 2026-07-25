@@ -222,6 +222,7 @@ fn symbol_ty(character: char) -> Option<TokenType> {
         ',' => TokenType::Comma,
         '|' => TokenType::Pipe,
         '?' => TokenType::Question,
+        '*' => TokenType::Star,
         '=' => TokenType::Equal,
         _ => return None,
     };

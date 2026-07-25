@@ -5,8 +5,8 @@ use crate as mir;
 /// Signature key used for matching function types.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SignatureKey {
-    /// Parameter types and caller obligations for the signature.
-    pub parameters: Vec<(mir::TypeId, Vec<mir::BorrowObligation>)>,
+    /// Parameter types for the signature.
+    pub parameters: Vec<mir::TypeId>,
     /// Return type for the signature.
     pub result: mir::TypeId,
 }
@@ -18,7 +18,7 @@ impl SignatureKey {
         let parameters = function
             .parameters
             .iter()
-            .map(|parameter| (parameter.ty, parameter.obligations.clone()))
+            .map(|parameter| parameter.ty)
             .collect();
 
         // collect the result type
@@ -33,10 +33,7 @@ impl SignatureKey {
         let (_, parameters, result) = tree.get(*signature).function_signature_parts()?;
 
         // collect parameter types
-        let parameters = parameters
-            .iter()
-            .map(|parameter| (parameter.ty, parameter.obligations.clone()))
-            .collect();
+        let parameters = parameters.iter().map(|parameter| parameter.ty).collect();
 
         Some(Self { parameters, result })
     }
@@ -130,7 +127,7 @@ impl ParameterRemap {
         Some((index - shift) as u32)
     }
 
-    /// Collect parameter indices required by lifetimes and obligations.
+    /// Collect parameter indices required by the result lifetime.
     pub fn required_indices(function: &mir::Function, tree: &mir::Tree) -> HashSet<usize> {
         let mut required = HashSet::new();
 
@@ -138,16 +135,6 @@ impl ParameterRemap {
         if let Some(lifetime) = tree.type_lifetime(function.return_type) {
             for index in lifetime.slot_indices() {
                 required.insert(index as usize);
-            }
-        }
-
-        // include caller obligation lifetime slots
-        for parameter in &function.parameters {
-            for obligation in &parameter.obligations {
-                let mir::BorrowObligation::SuspensionStable { lifetime } = obligation;
-                for index in lifetime.slot_indices() {
-                    required.insert(index as usize);
-                }
             }
         }
 

@@ -200,6 +200,19 @@ entry(v0: fn(int32, int32) => int64, v1: (int32) => int32):
     );
 }
 
+/// Formats uninhabited and continuation types canonically.
+#[test]
+fn test_format_continuation_types() {
+    assert_format(
+        r#"
+function continuationTypes(v0: continuation<void, never, int32>): continuation<void, never, int32> {
+entry(v0: continuation<void, never, int32>):
+    return v0
+}
+"#,
+    );
+}
+
 /// Formats structural type forms canonically.
 #[test]
 fn test_format_structural_types() {

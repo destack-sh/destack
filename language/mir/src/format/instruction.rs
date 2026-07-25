@@ -257,7 +257,47 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     ]
                 )
             }
-
+            Instruction::ContinuationNew {
+                destination,
+                function,
+                arguments,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("continuation.new"),
+                        space()
+                    ]
+                )?;
+                format_function_reference(*function, f)?;
+                let arguments = f.context().tree.get_values(*arguments);
+                format_value_list(arguments, f)
+            }
+            Instruction::ContinuationResume {
+                destination,
+                continuation,
+                command,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("continuation.resume"),
+                        space(),
+                        continuation,
+                        token(","),
+                        space(),
+                        command
+                    ]
+                )
+            }
             Instruction::Load {
                 destination,
                 pointer,

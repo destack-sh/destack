@@ -90,6 +90,7 @@ impl<'a> FunctionBuilder<'a> {
             lifetimes,
             parameters,
             result,
+            coroutine,
         } = header;
 
         // create parameter values
@@ -107,7 +108,7 @@ impl<'a> FunctionBuilder<'a> {
             return_type: TypeId::from(result),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
-            suspension: None,
+            coroutine,
             environment: None,
             binding: None,
             body: None,

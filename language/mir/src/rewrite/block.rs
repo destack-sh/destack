@@ -112,125 +112,18 @@ pub fn append_edge_arguments(
     successor: mir::LocalNodeId<mir::Block>,
     extra_args: &[mir::Value],
 ) {
-    // clone the terminator for updates
+    // rewrite every matching edge
     let terminator_id = tree.get(block_id).terminator;
-    let terminator = tree.get(terminator_id).clone();
-
-    // compute an updated terminator when this edge targets the successor
-    let new_terminator = match &terminator {
-        mir::Terminator::Jump { target } if Some(target.block) == Some(successor) => {
-            let new_target = block_target_with_arguments(tree, target, extra_args);
-
-            mir::Terminator::Jump { target: new_target }
-        }
-        mir::Terminator::Branch {
-            condition,
-            then_target,
-            else_target,
-        } => {
-            let new_then = if Some(then_target.block) == Some(successor) {
-                block_target_with_arguments(tree, then_target, extra_args)
-            } else {
-                then_target.clone()
-            };
-
-            let new_else = if Some(else_target.block) == Some(successor) {
-                block_target_with_arguments(tree, else_target, extra_args)
-            } else {
-                else_target.clone()
-            };
-
-            mir::Terminator::Branch {
-                condition: *condition,
-                then_target: new_then,
-                else_target: new_else,
-            }
-        }
-        mir::Terminator::Check {
-            constraint,
-            success,
-            failure,
-        } => {
-            let new_success = if Some(success.block) == Some(successor) {
-                block_target_with_arguments(tree, success, extra_args)
-            } else {
-                success.clone()
-            };
-
-            let new_failure = if Some(failure.block) == Some(successor) {
-                block_target_with_arguments(tree, failure, extra_args)
-            } else {
-                failure.clone()
-            };
-
-            mir::Terminator::Check {
-                constraint: constraint.clone(),
-                success: new_success,
-                failure: new_failure,
-            }
-        }
-        mir::Terminator::Switch {
-            value,
-            default,
-            cases,
-        } => {
-            let new_default = if Some(default.block) == Some(successor) {
-                block_target_with_arguments(tree, default, extra_args)
-            } else {
-                default.clone()
-            };
-
-            let cases = tree.get_switch_cases(*cases).to_vec();
-            let mut new_cases = Vec::with_capacity(cases.len());
-            for case in &cases {
-                if Some(case.target.block) == Some(successor) {
-                    let new_target = block_target_with_arguments(tree, &case.target, extra_args);
-
-                    new_cases.push(mir::SwitchCase {
-                        value: case.value,
-                        target: new_target,
-                    });
-                } else {
-                    new_cases.push(case.clone());
-                }
-            }
-
-            mir::Terminator::Switch {
-                value: *value,
-                default: new_default,
-                cases: tree.add_switch_cases(&new_cases),
-            }
-        }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            unwind,
-        } => {
-            let new_resume = if Some(resume.block) == Some(successor) {
-                block_target_with_arguments(tree, resume, extra_args)
-            } else {
-                resume.clone()
-            };
-
-            let mut new_unwind = unwind.clone();
-            if let Some(unwind) = &mut new_unwind
-                && Some(unwind.block) == Some(successor)
-            {
-                *unwind = block_target_with_arguments(tree, unwind, extra_args);
-            }
-
-            mir::Terminator::Yield {
-                value: *value,
-                resume: new_resume,
-                unwind: new_unwind,
-            }
-        }
-        _ => terminator.clone(),
-    };
+    let mut terminator = tree.get(terminator_id).clone();
+    let is_changed = terminator.rewrite_successor(
+        successor,
+        |target, tree| block_target_with_arguments(tree, target, extra_args),
+        tree,
+    );
 
     // write back only when arguments changed
-    if new_terminator != terminator {
-        tree.set(terminator_id, new_terminator);
+    if is_changed {
+        tree.set(terminator_id, terminator);
     }
 }
 
@@ -326,163 +219,21 @@ fn redirect_successor_to_edge(
     edge_block: mir::LocalNodeId<mir::Block>,
     tree: &mut mir::Tree,
 ) -> bool {
-    // clone the terminator for updates
+    // redirect every matching edge
     let terminator_id = tree.get(block_id).terminator;
-    let terminator = tree.get(terminator_id).clone();
-
-    // build a new terminator that targets the edge block
-    let new_terminator = match &terminator {
-        mir::Terminator::Jump { target } if Some(target.block) == Some(successor) => {
-            mir::Terminator::Jump {
-                target: mir::BlockTarget::new(
-                    mir::BlockId::from(edge_block),
-                    mir::ValueSlice::default(),
-                ),
-            }
-        }
-        mir::Terminator::Branch {
-            condition,
-            then_target,
-            else_target,
-        } => {
-            let mut new_then = then_target.clone();
-            let mut new_else = else_target.clone();
-
-            if Some(then_target.block) == Some(successor) {
-                new_then.block = mir::BlockId::from(edge_block);
-                new_then.arguments = mir::ValueSlice::default();
-            }
-
-            if Some(else_target.block) == Some(successor) {
-                new_else.block = mir::BlockId::from(edge_block);
-                new_else.arguments = mir::ValueSlice::default();
-            }
-
-            if new_then == *then_target && new_else == *else_target {
-                return false;
-            }
-
-            mir::Terminator::Branch {
-                condition: *condition,
-                then_target: new_then,
-                else_target: new_else,
-            }
-        }
-        mir::Terminator::Check {
-            constraint,
-            success,
-            failure,
-        } => {
-            let mut new_success = success.clone();
-            let mut new_failure = failure.clone();
-
-            if Some(success.block) == Some(successor) {
-                new_success.block = mir::BlockId::from(edge_block);
-                new_success.arguments = mir::ValueSlice::default();
-            }
-
-            if Some(failure.block) == Some(successor) {
-                new_failure.block = mir::BlockId::from(edge_block);
-                new_failure.arguments = mir::ValueSlice::default();
-            }
-
-            if new_success.block == success.block && new_failure.block == failure.block {
-                return false;
-            }
-
-            mir::Terminator::Check {
-                constraint: constraint.clone(),
-                success: new_success,
-                failure: new_failure,
-            }
-        }
-        mir::Terminator::Switch {
-            value,
-            default,
-            cases,
-        } => {
-            let mut new_default = default.clone();
-            let cases = tree.get_switch_cases(*cases).to_vec();
-            let mut new_cases = Vec::with_capacity(cases.len());
-            let mut changed = false;
-
-            if Some(default.block) == Some(successor) {
-                new_default.block = mir::BlockId::from(edge_block);
-                new_default.arguments = mir::ValueSlice::default();
-                changed = true;
-            }
-
-            for case in &cases {
-                if Some(case.target.block) == Some(successor) {
-                    changed = true;
-                    let mut new_target = case.target.clone();
-                    new_target.block = mir::BlockId::from(edge_block);
-                    new_target.arguments = mir::ValueSlice::default();
-
-                    new_cases.push(mir::SwitchCase {
-                        value: case.value,
-                        target: new_target,
-                    });
-                } else {
-                    new_cases.push(case.clone());
-                }
-            }
-
-            if !changed {
-                return false;
-            }
-
-            mir::Terminator::Switch {
-                value: *value,
-                default: new_default,
-                cases: tree.add_switch_cases(&new_cases),
-            }
-        }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            unwind,
-        } => {
-            let mut new_resume = resume.clone();
-            let mut new_unwind = unwind.clone();
-            let mut changed = false;
-
-            // rewrite the resume target when it matches the successor
-            if Some(resume.block) == Some(successor) {
-                new_resume.block = mir::BlockId::from(edge_block);
-                new_resume.arguments = mir::ValueSlice::default();
-                changed = true;
-            }
-
-            // rewrite the unwind target when it matches the successor
-            if let Some(unwind) = &mut new_unwind
-                && Some(unwind.block) == Some(successor)
-            {
-                unwind.block = mir::BlockId::from(edge_block);
-                unwind.arguments = mir::ValueSlice::default();
-                changed = true;
-            }
-
-            if !changed {
-                return false;
-            }
-
-            mir::Terminator::Yield {
-                value: *value,
-                resume: new_resume,
-                unwind: new_unwind,
-            }
-        }
-        _ => return false,
-    };
+    let mut terminator = tree.get(terminator_id).clone();
+    let is_changed = terminator.rewrite_successor(
+        successor,
+        |_target, _tree| mir::BlockTarget::new(edge_block, mir::ValueSlice::default()),
+        tree,
+    );
 
     // update the terminator
-    if new_terminator != terminator {
-        tree.set(terminator_id, new_terminator);
-        true
-    } else {
-        false
+    if is_changed {
+        tree.set(terminator_id, terminator);
     }
+
+    is_changed
 }
 
 /// Forwarding information for block parameters.

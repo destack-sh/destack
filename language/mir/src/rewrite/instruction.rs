@@ -109,7 +109,10 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => false,
 
         // calls may have side effects
-        mir::Instruction::Call { .. } | mir::Instruction::Drop { .. } => false,
+        mir::Instruction::Call { .. }
+        | mir::Instruction::ContinuationNew { .. }
+        | mir::Instruction::ContinuationResume { .. }
+        | mir::Instruction::Drop { .. } => false,
 
         // allocations have side effects
         mir::Instruction::NewZeroed { .. }
@@ -278,7 +281,10 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => true,
 
         // calls may have side effects
-        mir::Instruction::Call { .. } | mir::Instruction::Drop { .. } => true,
+        mir::Instruction::Call { .. }
+        | mir::Instruction::ContinuationNew { .. }
+        | mir::Instruction::ContinuationResume { .. }
+        | mir::Instruction::Drop { .. } => true,
 
         // allocations have side effects (memory allocation)
         mir::Instruction::NewZeroed { .. }
@@ -1144,11 +1150,21 @@ pub fn instruction_substitute_uses(
             sampler: *sampler,
             value: substitute(value),
         },
+        mir::Instruction::ContinuationResume {
+            destination,
+            continuation,
+            command,
+        } => mir::Instruction::ContinuationResume {
+            destination: *destination,
+            continuation: substitute(continuation),
+            command: substitute(command),
+        },
         // instructions without value operands or with externalized arguments
         mir::Instruction::Const { .. }
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
+        | mir::Instruction::ContinuationNew { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Aggregate { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
@@ -2222,6 +2238,24 @@ pub fn instruction_map(
                 destination: remap(*destination),
             }
         }
+        mir::Instruction::ContinuationNew {
+            destination,
+            function,
+            arguments,
+        } => mir::Instruction::ContinuationNew {
+            destination: remap(*destination),
+            function: *function,
+            arguments: remap_arguments(*arguments),
+        },
+        mir::Instruction::ContinuationResume {
+            destination,
+            continuation,
+            command,
+        } => mir::Instruction::ContinuationResume {
+            destination: remap(*destination),
+            continuation: remap(*continuation),
+            command: remap(*command),
+        },
         mir::Instruction::LocalAddr {
             destination,
             local,
@@ -2821,6 +2855,24 @@ pub fn instruction_map_with_locals(
                 destination: remap(*destination),
             }
         }
+        mir::Instruction::ContinuationNew {
+            destination,
+            function,
+            arguments,
+        } => mir::Instruction::ContinuationNew {
+            destination: remap(*destination),
+            function: *function,
+            arguments: remap_arguments(*arguments),
+        },
+        mir::Instruction::ContinuationResume {
+            destination,
+            continuation,
+            command,
+        } => mir::Instruction::ContinuationResume {
+            destination: remap(*destination),
+            continuation: remap(*continuation),
+            command: remap(*command),
+        },
         mir::Instruction::LocalAddr {
             destination,
             local,
@@ -3609,6 +3661,20 @@ pub fn terminator_remap(
         mir::Terminator::Return { value } => {
             if let Some(v) = value {
                 remap_value(v);
+            }
+        }
+        mir::Terminator::Await {
+            value,
+            resume,
+            unwind,
+            ..
+        } => {
+            remap_value(value);
+            remap_target(resume);
+            resume.arguments = remap_value_slice(tree, resume.arguments, value_map);
+            if let Some(unwind) = unwind {
+                remap_target(unwind);
+                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
             }
         }
         mir::Terminator::Yield {

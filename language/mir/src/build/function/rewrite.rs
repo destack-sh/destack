@@ -67,8 +67,17 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::LocalAddr { .. }
                 | Instruction::GlobalAddr { .. }
                 | Instruction::FunctionAddr { .. }
+                | Instruction::ContinuationNew { .. }
                 | Instruction::NewZeroed { .. }
                 | Instruction::NewUninit { .. } => {}
+                Instruction::ContinuationResume {
+                    continuation,
+                    command,
+                    ..
+                } => {
+                    Self::replace_value_in_slot(continuation, from, to);
+                    Self::replace_value_in_slot(command, from, to);
+                }
                 Instruction::FunctionBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }

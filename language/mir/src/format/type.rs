@@ -6,11 +6,11 @@ use super::attribute::{write_attributes, write_attributes_before_anchor, write_i
 use super::value::format_type_id;
 
 use crate::{
-    Access, Attribute, AttributeIdentifier, BorrowObligation, Copy, Field, FieldSpan,
-    FormatMirNode, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, MirFormatContext,
-    MirFormatter, Nullability, ReferenceKind, Space, TensorDimension, TensorDimensionOrder,
-    TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type,
-    TypeDeclaration, TypeDeclarationSpans, TypeId, write_comments_before,
+    Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatMirNode, Lifetime,
+    LifetimeParameter, LifetimeTerm, LocalNodeId, MirFormatContext, MirFormatter, Nullability,
+    ReferenceKind, Space, TensorDimension, TensorDimensionOrder, TensorFormat, TensorReduction,
+    TensorSharding, TensorShardingAxis, TensorViewFormat, Type, TypeDeclaration,
+    TypeDeclarationSpans, TypeId, write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -540,6 +540,25 @@ fn format_type_inner<'a>(
                 ]
             )
         }
+        Type::Continuation {
+            resume_type,
+            yield_type,
+            return_type,
+        } => write!(
+            f,
+            [
+                token("continuation"),
+                token("<"),
+                FormatTypeId(*resume_type),
+                token(","),
+                space(),
+                FormatTypeId(*yield_type),
+                token(","),
+                space(),
+                FormatTypeId(*return_type),
+                token(">")
+            ]
+        ),
     }
 }
 
@@ -755,8 +774,7 @@ pub(super) fn format_signature_parameter<'a>(
     parameter: &crate::SignatureParameter,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    format_type_id(parameter.ty, f)?;
-    format_borrow_obligations(&parameter.obligations, f)
+    format_type_id(parameter.ty, f)
 }
 
 pub(super) fn format_function_signature<'a>(

@@ -189,22 +189,6 @@ impl Determinism {
     }
 }
 
-/// Suspend behavior for a call or function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum SuspendBehavior {
-    /// The operation cannot suspend execution.
-    CannotSuspend,
-    /// The operation may suspend execution.
-    MaySuspend,
-}
-
-impl SuspendBehavior {
-    /// Return true when the operation may suspend.
-    pub fn may_suspend(self) -> bool {
-        matches!(self, Self::MaySuspend)
-    }
-}
-
 /// Return behavior for a call or function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ReturnBehavior {
@@ -249,8 +233,6 @@ impl PanicBehavior {
 pub struct FunctionBehavior {
     /// Determinism for this operation.
     pub determinism: Determinism,
-    /// Whether this operation may suspend execution.
-    pub suspend: SuspendBehavior,
     /// Panic behavior for this operation.
     pub panic: PanicBehavior,
     /// Return behavior for this operation.
@@ -264,16 +246,10 @@ pub struct FunctionBehavior {
 }
 
 impl FunctionBehavior {
-    /// Return true when the operation may suspend or panic unwind.
-    pub fn may_suspend_or_unwind(&self) -> bool {
-        self.panic.may_panic() || self.suspend.may_suspend()
-    }
-
     /// Create a behavior with no special effects.
     pub const fn none() -> Self {
         Self {
             determinism: Determinism::Deterministic,
-            suspend: SuspendBehavior::CannotSuspend,
             panic: PanicBehavior::CannotPanic,
             return_behavior: ReturnBehavior::MayReturn,
             must_not_duplicate: false,
@@ -286,7 +262,6 @@ impl FunctionBehavior {
     pub const fn unknown() -> Self {
         Self {
             determinism: Determinism::NonDeterministic,
-            suspend: SuspendBehavior::CannotSuspend,
             panic: PanicBehavior::MayPanic,
             return_behavior: ReturnBehavior::MayReturn,
             must_not_duplicate: false,
@@ -299,19 +274,12 @@ impl FunctionBehavior {
     pub const fn pure() -> Self {
         Self {
             determinism: Determinism::Deterministic,
-            suspend: SuspendBehavior::CannotSuspend,
             panic: PanicBehavior::CannotPanic,
             return_behavior: ReturnBehavior::WillReturn,
             must_not_duplicate: false,
             allocates: false,
             frees: false,
         }
-    }
-
-    /// Return this behavior with the may-suspend flag enabled.
-    pub const fn with_suspend(mut self) -> Self {
-        self.suspend = SuspendBehavior::MaySuspend;
-        self
     }
 
     /// Return this behavior with the may-panic flag enabled.

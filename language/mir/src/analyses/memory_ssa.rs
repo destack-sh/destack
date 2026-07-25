@@ -1288,6 +1288,8 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Instruction::Call { .. } => self.call_effects(instruction_id, instruction),
             mir::Instruction::Free { .. }
             | mir::Instruction::Drop { .. }
+            | mir::Instruction::ContinuationNew { .. }
+            | mir::Instruction::ContinuationResume { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
             | mir::Instruction::NewZeroed { .. }
@@ -1323,12 +1325,12 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Terminator::NewZeroedTry { .. }
             | mir::Terminator::NewUninitTry { .. }
             | mir::Terminator::NewSliceZeroedTry { .. }
-            | mir::Terminator::NewSliceUninitTry { .. } => {
-                Self::single_effect(MemoryAccessEffect::read_write(
-                    MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                    false,
-                ))
-            }
+            | mir::Terminator::NewSliceUninitTry { .. }
+            | mir::Terminator::Await { .. }
+            | mir::Terminator::Yield { .. } => Self::single_effect(MemoryAccessEffect::read_write(
+                MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                false,
+            )),
 
             mir::Terminator::Error => {
                 panic!("invalid MIR terminator reached MemorySSA");
@@ -1340,7 +1342,6 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Terminator::Check { .. }
             | mir::Terminator::Switch { .. }
             | mir::Terminator::VariantSwitch { .. }
-            | mir::Terminator::Yield { .. }
             | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume
             | mir::Terminator::Abort { .. }

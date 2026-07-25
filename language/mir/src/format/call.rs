@@ -72,7 +72,7 @@ pub(super) fn format_call<'a>(
 }
 
 /// Format a parenthesized value list.
-fn format_value_list<'a>(
+pub(super) fn format_value_list<'a>(
     values: &[Value],
     formatter: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {

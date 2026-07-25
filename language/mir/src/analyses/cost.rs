@@ -386,11 +386,13 @@ impl CostModel {
             | mir::Instruction::NewUninit { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
+            | mir::Instruction::ContinuationNew { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. } => cost.allocate += 1,
             mir::Instruction::Free { .. } => cost.release += 1,
             mir::Instruction::BarrierWrite { .. } => cost.write_barrier += 1,
             mir::Instruction::Call { call, .. } => cost.add_call(call),
+            mir::Instruction::ContinuationResume { .. } => cost.indirect_call += 1,
             mir::Instruction::Drop { .. } => cost.drop += 1,
             mir::Instruction::Intrinsic { .. } => cost.intrinsic_call += 1,
         }
@@ -418,6 +420,10 @@ impl CostModel {
             | mir::Terminator::Switch { .. }
             | mir::Terminator::VariantSwitch { .. }
             | mir::Terminator::Yield { .. } => cost.branch += 1,
+            mir::Terminator::Await { .. } => {
+                cost.direct_call += 1;
+                cost.branch += 1;
+            }
             mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
                 cost.add_call(call);
             }

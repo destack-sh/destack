@@ -3,7 +3,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::call::format_call;
-use super::value::format_block_id;
+use super::value::{format_block_id, format_function_id};
 
 use crate::{
     Block, BlockTarget, CheckConstraint, FormatMirNode, LocalNodeId, MirFormatContext,
@@ -205,13 +205,25 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(f, [token("unreachable")])
         }
 
+        Terminator::Await {
+            park,
+            value,
+            resume,
+            unwind,
+        } => {
+            write!(f, [token("await"), space()])?;
+            format_function_id(*park, f)?;
+            write!(f, [token("("), value, token(")")])?;
+            format_suspension_targets(resume, unwind.as_ref(), f)
+        }
+
         Terminator::Yield {
             value,
             resume,
             unwind,
         } => {
             write!(f, [token("yield"), space(), value])?;
-            format_continuation(resume, unwind.as_ref(), f)
+            format_suspension_targets(resume, unwind.as_ref(), f)
         }
 
         Terminator::Invoke {
@@ -326,6 +338,23 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
     }
 }
 
+/// Format normal and optional unwind targets for one suspension point.
+fn format_suspension_targets<'a>(
+    resume: &BlockTarget,
+    unwind: Option<&BlockTarget>,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [space(), token("=>"), space()])?;
+    format_block_target(resume, f)?;
+
+    if let Some(unwind) = unwind {
+        write!(f, [space(), token("|"), space()])?;
+        format_block_target(unwind, f)?;
+    }
+
+    Ok(())
+}
+
 /// Format normal and unwind continuations for one invoke.
 fn format_invoke_continuation<'a>(
     target: &BlockTarget,
@@ -336,23 +365,6 @@ fn format_invoke_continuation<'a>(
     format_block_target(target, f)?;
     write!(f, [space(), token("|"), space()])?;
     format_block_target(unwind, f)
-}
-
-/// Format one continuation: the normal target, then the unwind alternative.
-fn format_continuation<'a>(
-    target: &BlockTarget,
-    unwind: Option<&BlockTarget>,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    write!(f, [space(), token("=>"), space()])?;
-    format_block_target(target, f)?;
-
-    if let Some(unwind) = unwind {
-        write!(f, [space(), token("|"), space()])?;
-        format_block_target(unwind, f)?;
-    }
-
-    Ok(())
 }
 
 /// Format one fallible allocation continuation.

@@ -89,6 +89,8 @@ pub enum TokenType {
     Pipe,
     /// `?`
     Question,
+    /// `*`
+    Star,
     /// `=`
     Equal,
     /// `->`
@@ -101,6 +103,8 @@ pub enum TokenType {
     Export,
     /// `function`
     Function,
+    /// `async`
+    Async,
     /// `global`
     Global,
     /// `type`
@@ -119,6 +123,8 @@ pub enum TokenType {
     Check,
     /// `switch`
     Switch,
+    /// `await`
+    Await,
     /// `yield`
     Yield,
     /// `panic`
@@ -209,6 +215,7 @@ impl TokenType {
                 | Self::Branch
                 | Self::Check
                 | Self::Switch
+                | Self::Await
                 | Self::Yield
                 | Self::Panic
                 | Self::UnwindResume
@@ -224,6 +231,7 @@ impl TokenType {
             "external" => Self::External,
             "export" => Self::Export,
             "function" => Self::Function,
+            "async" => Self::Async,
             "global" => Self::Global,
             "type" => Self::Type,
             "block" => Self::Block,
@@ -233,6 +241,7 @@ impl TokenType {
             "branch" => Self::Branch,
             "check" => Self::Check,
             "switch" => Self::Switch,
+            "await" => Self::Await,
             "yield" => Self::Yield,
             "panic" => Self::Panic,
             "unwind.resume" => Self::UnwindResume,

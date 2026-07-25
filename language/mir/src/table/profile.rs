@@ -161,8 +161,6 @@ pub enum SampleSite {
     ReceiverType(CallSite),
     /// Observed allocation behavior for one allocation instruction.
     Allocation(LocalNodeId<Instruction>),
-    /// Suspension behavior for one instruction.
-    Suspension(LocalNodeId<Instruction>),
 }
 
 /// Profile data for one function, addressed by its persistent symbol.
@@ -200,8 +198,6 @@ pub enum ValueProfile {
     Scalars(Histogram<i64>),
     /// Allocation size and survival behavior.
     Allocation(Allocation),
-    /// Suspension behavior at a suspension point.
-    Suspend(Suspension),
 }
 
 /// Observed frequency distribution over a domain at one site.
@@ -241,17 +237,6 @@ pub struct Allocation {
     pub size: Histogram<i64>,
     /// How many of those allocations were promoted past the young generation.
     pub survived: Count,
-}
-
-/// Observed suspension behavior at one suspension point.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct Suspension {
-    /// Executions of the suspension point.
-    pub reached: Count,
-    /// Of those, how many actually parked (handed back a continuation).
-    pub parked: Count,
-    /// Of the parked frames, how many were resumed; the rest were dropped.
-    pub resumed: Count,
 }
 
 /// Execution count from profile data.

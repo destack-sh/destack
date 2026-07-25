@@ -3,7 +3,6 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::attribute::{write_attribute, write_attribute_value, write_attributes};
-use super::r#type::format_borrow_obligations;
 
 use crate::{
     Attribute, AttributeIdentifier, AttributeValue, FormatMirNode, Function, FunctionHeaderSpans,
@@ -27,12 +26,11 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         // imported function
         if self.linkage.is_import() {
             f.context_mut().current_lifetimes = self.lifetimes.clone();
+            write!(f, [token("external"), space()])?;
+            format_function_keyword(self, f)?;
             write!(
                 f,
                 [
-                    token("external"),
-                    space(),
-                    token("function"),
                     space(),
                     copied_text(&name),
                     format_with(|f| format_lifetimes(&self.lifetimes, f))
@@ -66,7 +64,8 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         }
 
         // function header
-        write!(f, [token("function"), space(), copied_text(&name)])?;
+        format_function_keyword(self, f)?;
+        write!(f, [space(), copied_text(&name)])?;
         format_lifetimes(&self.lifetimes, f)?;
 
         // parameters
@@ -118,6 +117,28 @@ pub(super) fn format_lifetime_where<'a>(
     Ok(())
 }
 
+/// Format the async and generator function modifiers.
+fn format_function_keyword<'a>(
+    function: &Function,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    if function
+        .coroutine
+        .is_some_and(|coroutine| coroutine.is_async())
+    {
+        write!(f, [token("async"), space()])?;
+    }
+
+    write!(f, [token("function")])?;
+    if function
+        .coroutine
+        .is_some_and(|coroutine| coroutine.is_generator())
+    {
+        write!(f, [token("*")])?;
+    }
+
+    Ok(())
+}
 /// Format a declaration lifetime header.
 fn format_lifetimes<'a>(
     lifetimes: &[LifetimeParameter],
@@ -363,7 +384,6 @@ fn format_function_parameters<'a>(
             } else {
                 write!(f, [&param.value, token(":"), space(), param.ty])?;
             }
-            format_borrow_obligations(&param.obligations, f)?;
         }
         write!(f, [token(")")])?;
         return Ok(());
@@ -394,7 +414,6 @@ fn format_function_parameters<'a>(
                     } else {
                         write!(f, [&parameter.value, token(":"), space(), parameter.ty])?;
                     }
-                    format_borrow_obligations(&parameter.obligations, f)?;
 
                     let next_boundary = if let Some(next_span) = parameter_spans.get(index + 1) {
                         next_span.span.start

@@ -126,7 +126,7 @@ impl<'a> FunctionEffectBuilder<'a> {
         }
 
         // finish function behavior from reachable return observations
-        let noreturn = function.suspension.is_none() && !builder.has_return;
+        let noreturn = !builder.has_return;
         mir::FunctionEffect {
             memory: builder.memory.finish(),
             behavior: builder.behavior.finish(noreturn),
@@ -254,21 +254,23 @@ impl<'a> FunctionEffectBuilder<'a> {
                 self.has_return = true;
                 mir::FunctionEffect::none()
             }
+            mir::Terminator::Await { .. } => {
+                let callsite = mir::CallSite::Terminator(block_id);
+                self.callsite_effect(callsite, terminator.call_direct_target())
+            }
             mir::Terminator::Invoke { .. } | mir::Terminator::TailCall { .. } => {
                 let callsite = mir::CallSite::Terminator(block_id);
                 let effect = self.callsite_effect(callsite, terminator.call_direct_target());
+
                 if !effect.behavior.return_behavior.is_no_return() {
                     self.has_return = true;
                 }
+
                 effect
             }
             mir::Terminator::Panic { .. } | mir::Terminator::UnwindResume => mir::FunctionEffect {
                 memory: mir::MemoryEffect::none(),
                 behavior: mir::FunctionBehavior::none().with_panic().with_noreturn(),
-            },
-            mir::Terminator::Yield { .. } => mir::FunctionEffect {
-                memory: mir::MemoryEffect::none(),
-                behavior: mir::FunctionBehavior::none().with_suspend(),
             },
             _ => mir::FunctionEffect::none(),
         }
@@ -427,8 +429,6 @@ impl MemoryAccumulator {
 struct BehaviorAccumulator {
     /// Determinism for the function.
     determinism: mir::Determinism,
-    /// Whether any callee may suspend execution.
-    may_suspend: bool,
     /// Whether execution may panic.
     may_panic: bool,
     /// Whether any callee must not be duplicated.
@@ -444,7 +444,6 @@ impl BehaviorAccumulator {
     fn new() -> Self {
         Self {
             determinism: mir::Determinism::Deterministic,
-            may_suspend: false,
             may_panic: false,
             must_not_duplicate: false,
             allocates: false,
@@ -458,7 +457,6 @@ impl BehaviorAccumulator {
             self.determinism = mir::Determinism::NonDeterministic;
         }
 
-        self.may_suspend |= behavior.suspend.may_suspend();
         self.may_panic |= behavior.panic.may_panic();
         self.must_not_duplicate |= behavior.must_not_duplicate;
         self.allocates |= behavior.allocates;
@@ -469,11 +467,6 @@ impl BehaviorAccumulator {
     fn finish(self, noreturn: bool) -> mir::FunctionBehavior {
         mir::FunctionBehavior {
             determinism: self.determinism,
-            suspend: if self.may_suspend {
-                mir::SuspendBehavior::MaySuspend
-            } else {
-                mir::SuspendBehavior::CannotSuspend
-            },
             return_behavior: if noreturn {
                 mir::ReturnBehavior::NoReturn
             } else {

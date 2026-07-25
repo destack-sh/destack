@@ -27,6 +27,25 @@ impl BlockTarget {
     pub fn arguments<'a>(&self, tree: &'a Tree) -> &'a [Value] {
         tree.get_values(self.arguments)
     }
+
+    /// Pair this target with its control-flow edge.
+    fn edge(&self, source: BlockId, successor: Successor) -> (Edge, &Self) {
+        (Edge::new(source, successor, self.block), self)
+    }
+
+    /// Rewrite this target when it reaches `successor`.
+    fn rewrite<F>(&mut self, successor: BlockId, rewrite: &mut F, tree: &mut Tree) -> bool
+    where
+        F: FnMut(&BlockTarget, &mut Tree) -> BlockTarget,
+    {
+        if self.block != successor {
+            return false;
+        }
+
+        *self = rewrite(self, tree);
+
+        true
+    }
 }
 
 /// Edge argument lookup result.
@@ -48,7 +67,7 @@ impl<'a> EdgeArguments<'a> {
         successor: LocalNodeId<Block>,
         tree: &'a Tree,
     ) {
-        if Some(target.block) != Some(successor) {
+        if target.block != successor {
             return;
         }
 
@@ -188,6 +207,27 @@ impl SwitchCaseSlice {
     pub const fn len(&self) -> usize {
         self.count as usize
     }
+
+    /// Rewrite every case that reaches one successor.
+    fn rewrite_successor<F>(&mut self, successor: BlockId, rewrite: &mut F, tree: &mut Tree) -> bool
+    where
+        F: FnMut(&BlockTarget, &mut Tree) -> BlockTarget,
+    {
+        let mut cases = tree.get_switch_cases(*self).to_vec();
+        let mut is_changed = false;
+
+        // rewrite matching case targets
+        for case in &mut cases {
+            is_changed |= case.target.rewrite(successor, rewrite, tree);
+        }
+
+        // store the replacement case range
+        if is_changed {
+            *self = tree.add_switch_cases(&cases);
+        }
+
+        is_changed
+    }
 }
 
 /// Block terminator node.
@@ -243,16 +283,26 @@ pub enum Terminator {
         cases: SwitchCaseSlice,
     },
 
-    /// Yield from a coroutine to its current owner.
-    Yield {
-        /// The yielded value.
+    /// Await one asynchronous value.
+    Await {
+        /// The concrete `Awaitable.park` implementation called with an implicit waiter.
+        park: FunctionId,
+        /// The asynchronous value consumed by `park`.
         value: Value,
-        /// The block entered when the coroutine receives a resume command.
+        /// The block entered with the produced value.
         resume: BlockTarget,
-        /// The cleanup block when the yield is left by panic unwinding.
+        /// The cleanup block entered during panic unwinding.
         unwind: Option<BlockTarget>,
     },
-
+    /// Yield one value to the current generator owner.
+    Yield {
+        /// The value to yield.
+        value: Value,
+        /// The block entered with the next resume command.
+        resume: BlockTarget,
+        /// The cleanup block entered during panic unwinding.
+        unwind: Option<BlockTarget>,
+    },
     /// Invoke one callable target with normal and unwind continuations.
     Invoke {
         /// The call operation.
@@ -343,29 +393,21 @@ impl Terminator {
     pub fn targets<'a>(&'a self, tree: &'a Tree, source: BlockId) -> Vec<(Edge, &'a BlockTarget)> {
         match self {
             Terminator::Error => Vec::new(),
-            Terminator::Jump { target, .. } => block_edge(source, Successor::Jump, target)
-                .into_iter()
-                .collect(),
+            Terminator::Jump { target, .. } => vec![target.edge(source, Successor::Jump)],
             Terminator::Branch {
                 then_target,
                 else_target,
                 ..
-            } => [
-                block_edge(source, Successor::BranchThen, then_target),
-                block_edge(source, Successor::BranchElse, else_target),
-            ]
-            .into_iter()
-            .flatten()
-            .collect(),
+            } => vec![
+                then_target.edge(source, Successor::BranchThen),
+                else_target.edge(source, Successor::BranchElse),
+            ],
             Terminator::Check {
                 success, failure, ..
-            } => [
-                block_edge(source, Successor::CheckSuccess, success),
-                block_edge(source, Successor::CheckFailure, failure),
-            ]
-            .into_iter()
-            .flatten()
-            .collect(),
+            } => vec![
+                success.edge(source, Successor::CheckSuccess),
+                failure.edge(source, Successor::CheckFailure),
+            ],
             Terminator::NewZeroedTry {
                 success, failure, ..
             }
@@ -377,26 +419,22 @@ impl Terminator {
             }
             | Terminator::NewSliceUninitTry {
                 success, failure, ..
-            } => [
-                block_edge(source, Successor::TrySuccess, success),
-                block_edge(source, Successor::TryFailure, failure),
-            ]
-            .into_iter()
-            .flatten()
-            .collect(),
+            } => vec![
+                success.edge(source, Successor::NewSuccess),
+                failure.edge(source, Successor::NewFailure),
+            ],
             Terminator::Switch { default, cases, .. } => {
                 let mut edges = Vec::with_capacity(cases.len() + 1);
 
                 // add the default edge first
-                edges.extend(block_edge(source, Successor::SwitchDefault, default));
+                edges.push(default.edge(source, Successor::SwitchDefault));
 
                 // add case edges in source order
                 for case in tree.get_switch_cases(*cases) {
-                    edges.extend(block_edge(
-                        source,
-                        Successor::SwitchCase { value: case.value },
-                        &case.target,
-                    ));
+                    edges.push(
+                        case.target
+                            .edge(source, Successor::SwitchCase { value: case.value }),
+                    );
                 }
 
                 edges
@@ -406,43 +444,44 @@ impl Terminator {
 
                 // add the optional default edge first
                 if let Some(default) = default {
-                    edges.extend(block_edge(source, Successor::SwitchDefault, default));
+                    edges.push(default.edge(source, Successor::SwitchDefault));
                 }
 
                 // add case edges in source order
                 for case in tree.get_switch_cases(*cases) {
-                    edges.extend(block_edge(
-                        source,
-                        Successor::SwitchCase { value: case.value },
-                        &case.target,
-                    ));
+                    edges.push(
+                        case.target
+                            .edge(source, Successor::SwitchCase { value: case.value }),
+                    );
+                }
+
+                edges
+            }
+            Terminator::Await { resume, unwind, .. } => {
+                let mut edges = Vec::with_capacity(2);
+                edges.push(resume.edge(source, Successor::AwaitResume));
+
+                if let Some(unwind) = unwind {
+                    edges.push(unwind.edge(source, Successor::AwaitUnwind));
                 }
 
                 edges
             }
             Terminator::Yield { resume, unwind, .. } => {
                 let mut edges = Vec::with_capacity(2);
+                edges.push(resume.edge(source, Successor::YieldResume));
 
-                // add the normal resume edge
-                edges.extend(block_edge(source, Successor::YieldResume, resume));
-
-                // add the optional unwind edge
                 if let Some(unwind) = unwind {
-                    edges.extend(block_edge(source, Successor::YieldUnwind, unwind));
+                    edges.push(unwind.edge(source, Successor::YieldUnwind));
                 }
 
                 edges
             }
             Terminator::Invoke { target, unwind, .. } => {
-                let mut edges = Vec::with_capacity(2);
-
-                // add the normal return edge
-                edges.extend(block_edge(source, Successor::InvokeNormal, target));
-
-                // add the local unwind edge
-                edges.extend(block_edge(source, Successor::InvokeUnwind, unwind));
-
-                edges
+                vec![
+                    target.edge(source, Successor::InvokeNormal),
+                    unwind.edge(source, Successor::InvokeUnwind),
+                ]
             }
             Terminator::Return { .. }
             | Terminator::Panic { .. }
@@ -450,6 +489,87 @@ impl Terminator {
             | Terminator::Abort { .. }
             | Terminator::Unreachable
             | Terminator::TailCall { .. } => Vec::new(),
+        }
+    }
+
+    /// Rewrite every edge to one successor.
+    pub fn rewrite_successor(
+        &mut self,
+        successor: BlockId,
+        mut rewrite: impl FnMut(&BlockTarget, &mut Tree) -> BlockTarget,
+        tree: &mut Tree,
+    ) -> bool {
+        match self {
+            Self::Jump { target } => target.rewrite(successor, &mut rewrite, tree),
+            Self::Branch {
+                then_target,
+                else_target,
+                ..
+            } => {
+                let then_changed = then_target.rewrite(successor, &mut rewrite, tree);
+                let else_changed = else_target.rewrite(successor, &mut rewrite, tree);
+
+                then_changed || else_changed
+            }
+            Self::Check {
+                success, failure, ..
+            }
+            | Self::NewZeroedTry {
+                success, failure, ..
+            }
+            | Self::NewUninitTry {
+                success, failure, ..
+            }
+            | Self::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | Self::NewSliceUninitTry {
+                success, failure, ..
+            } => {
+                let success_changed = success.rewrite(successor, &mut rewrite, tree);
+                let failure_changed = failure.rewrite(successor, &mut rewrite, tree);
+
+                success_changed || failure_changed
+            }
+            Self::Switch { default, cases, .. } => {
+                let default_changed = default.rewrite(successor, &mut rewrite, tree);
+                let cases_changed = cases.rewrite_successor(successor, &mut rewrite, tree);
+
+                default_changed || cases_changed
+            }
+            Self::VariantSwitch { default, cases, .. } => {
+                let default_changed = if let Some(default) = default {
+                    default.rewrite(successor, &mut rewrite, tree)
+                } else {
+                    false
+                };
+                let cases_changed = cases.rewrite_successor(successor, &mut rewrite, tree);
+
+                default_changed || cases_changed
+            }
+            Self::Await { resume, unwind, .. } | Self::Yield { resume, unwind, .. } => {
+                let resume_changed = resume.rewrite(successor, &mut rewrite, tree);
+                let unwind_changed = if let Some(unwind) = unwind {
+                    unwind.rewrite(successor, &mut rewrite, tree)
+                } else {
+                    false
+                };
+
+                resume_changed || unwind_changed
+            }
+            Self::Invoke { target, unwind, .. } => {
+                let target_changed = target.rewrite(successor, &mut rewrite, tree);
+                let unwind_changed = unwind.rewrite(successor, &mut rewrite, tree);
+
+                target_changed || unwind_changed
+            }
+            Self::Error
+            | Self::Return { .. }
+            | Self::Panic { .. }
+            | Self::UnwindResume
+            | Self::Abort { .. }
+            | Self::Unreachable
+            | Self::TailCall { .. } => false,
         }
     }
 
@@ -490,7 +610,7 @@ impl Terminator {
 
                 successors
             }
-            Terminator::Yield { resume, unwind, .. } => {
+            Terminator::Await { resume, unwind, .. } | Terminator::Yield { resume, unwind, .. } => {
                 let mut successors = smallvec![resume.block];
                 if let Some(unwind) = unwind {
                     successors.push(unwind.block);
@@ -583,13 +703,20 @@ impl Terminator {
 
                 uses
             }
-            Terminator::Yield {
+            Terminator::Await {
+                value,
+                resume,
+                unwind,
+                ..
+            }
+            | Terminator::Yield {
                 value,
                 resume,
                 unwind,
             } => {
                 let mut uses = smallvec![*value];
                 uses.extend(resume.arguments(tree).iter().copied());
+
                 if let Some(unwind) = unwind {
                     uses.extend(unwind.arguments(tree).iter().copied());
                 }
@@ -648,7 +775,9 @@ impl Terminator {
     /// Return values consumed by this terminator.
     pub fn consumes(&self, tree: &Tree) -> SmallVec<[Value; 8]> {
         match self {
-            Terminator::Return { value: Some(value) } | Terminator::Yield { value, .. } => {
+            Terminator::Return { value: Some(value) }
+            | Terminator::Await { value, .. }
+            | Terminator::Yield { value, .. } => {
                 smallvec![*value]
             }
             Terminator::Invoke { call, .. } | Terminator::TailCall { call } => call.uses(tree),
@@ -663,18 +792,16 @@ impl Terminator {
         successor: LocalNodeId<Block>,
     ) -> &'a [Value] {
         match self {
-            Terminator::Jump { target } if Some(target.block) == Some(successor) => {
-                target.arguments(tree)
-            }
+            Terminator::Jump { target } if target.block == successor => target.arguments(tree),
 
             Terminator::Branch {
                 then_target,
                 else_target,
                 ..
             } => {
-                if Some(then_target.block) == Some(successor) {
+                if then_target.block == successor {
                     then_target.arguments(tree)
-                } else if Some(else_target.block) == Some(successor) {
+                } else if else_target.block == successor {
                     else_target.arguments(tree)
                 } else {
                     &[]
@@ -683,9 +810,9 @@ impl Terminator {
             Terminator::Check {
                 success, failure, ..
             } => {
-                if Some(success.block) == Some(successor) {
+                if success.block == successor {
                     success.arguments(tree)
-                } else if Some(failure.block) == Some(successor) {
+                } else if failure.block == successor {
                     failure.arguments(tree)
                 } else {
                     &[]
@@ -703,9 +830,9 @@ impl Terminator {
             | Terminator::NewSliceUninitTry {
                 success, failure, ..
             } => {
-                if Some(success.block) == Some(successor) {
+                if success.block == successor {
                     success.arguments(tree)
-                } else if Some(failure.block) == Some(successor) {
+                } else if failure.block == successor {
                     failure.arguments(tree)
                 } else {
                     &[]
@@ -713,12 +840,12 @@ impl Terminator {
             }
 
             Terminator::Switch { default, cases, .. } => {
-                if Some(default.block) == Some(successor) {
+                if default.block == successor {
                     return default.arguments(tree);
                 }
 
                 for case in tree.get_switch_cases(*cases) {
-                    if Some(case.target.block) == Some(successor) {
+                    if case.target.block == successor {
                         return case.target.arguments(tree);
                     }
                 }
@@ -727,13 +854,13 @@ impl Terminator {
             }
             Terminator::VariantSwitch { default, cases, .. } => {
                 if let Some(default) = default
-                    && Some(default.block) == Some(successor)
+                    && default.block == successor
                 {
                     return default.arguments(tree);
                 }
 
                 for case in tree.get_switch_cases(*cases) {
-                    if Some(case.target.block) == Some(successor) {
+                    if case.target.block == successor {
                         return case.target.arguments(tree);
                     }
                 }
@@ -741,11 +868,11 @@ impl Terminator {
                 &[]
             }
 
-            Terminator::Yield { resume, unwind, .. } => {
-                if Some(resume.block) == Some(successor) {
+            Terminator::Await { resume, unwind, .. } | Terminator::Yield { resume, unwind, .. } => {
+                if resume.block == successor {
                     resume.arguments(tree)
                 } else if let Some(unwind) = unwind
-                    && Some(unwind.block) == Some(successor)
+                    && unwind.block == successor
                 {
                     unwind.arguments(tree)
                 } else {
@@ -753,9 +880,9 @@ impl Terminator {
                 }
             }
             Terminator::Invoke { target, unwind, .. } => {
-                if Some(target.block) == Some(successor) {
+                if target.block == successor {
                     target.arguments(tree)
-                } else if Some(unwind.block) == Some(successor) {
+                } else if unwind.block == successor {
                     unwind.arguments(tree)
                 } else {
                     &[]
@@ -822,7 +949,7 @@ impl Terminator {
                     arguments.merge_target(&case.target, successor, tree);
                 }
             }
-            Terminator::Yield { resume, unwind, .. } => {
+            Terminator::Await { resume, unwind, .. } | Terminator::Yield { resume, unwind, .. } => {
                 arguments.merge_target(resume, successor, tree);
                 if let Some(unwind) = unwind {
                     arguments.merge_target(unwind, successor, tree);
@@ -848,7 +975,7 @@ impl Terminator {
         let block = tree.get(successor);
         let parameters = block.parameters.as_slice();
 
-        // skip the leading result parameter on call and yield resume edges
+        // skip the leading result parameter on resume, invoke, and allocation edges
         if parameters.len() == arguments.len() + 1 && self.has_successor_result(successor) {
             &parameters[1..]
         } else {
@@ -859,14 +986,14 @@ impl Terminator {
     /// Return whether one successor receives an implicit terminator result.
     pub fn has_successor_result(&self, successor: LocalNodeId<Block>) -> bool {
         match self {
-            Terminator::Yield { resume, .. } => Some(resume.block) == Some(successor),
-            Terminator::Invoke { target, .. } => Some(target.block) == Some(successor),
+            Terminator::Await { resume, .. } | Terminator::Yield { resume, .. } => {
+                resume.block == successor
+            }
+            Terminator::Invoke { target, .. } => target.block == successor,
             Terminator::NewZeroedTry { success, .. }
             | Terminator::NewUninitTry { success, .. }
             | Terminator::NewSliceZeroedTry { success, .. }
-            | Terminator::NewSliceUninitTry { success, .. } => {
-                Some(success.block) == Some(successor)
-            }
+            | Terminator::NewSliceUninitTry { success, .. } => success.block == successor,
             _ => false,
         }
     }
@@ -874,6 +1001,7 @@ impl Terminator {
     /// Return the dispatch when this terminator performs a call.
     pub fn call_dispatch(&self) -> Option<CallDispatch> {
         match self {
+            Terminator::Await { .. } => Some(CallDispatch::Direct),
             Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
                 Some(call.callee.dispatch())
             }
@@ -892,21 +1020,13 @@ impl Terminator {
     /// Return the direct target when this terminator performs a call.
     pub fn call_direct_target(&self) -> Option<FunctionId> {
         match self {
+            Terminator::Await { park, .. } => Some(*park),
             Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
                 call.callee.function()
             }
             _ => None,
         }
     }
-}
-
-/// Pair one block target with its edge when it resolves to a concrete block.
-fn block_edge(
-    source: BlockId,
-    successor: Successor,
-    target: &BlockTarget,
-) -> Option<(Edge, &BlockTarget)> {
-    Some((Edge::new(source, successor, target.block), target))
 }
 
 #[cfg(test)]

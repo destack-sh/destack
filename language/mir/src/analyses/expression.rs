@@ -166,6 +166,8 @@ impl PureExpression {
             // side effects and unstable reads are not pure expressions
             mir::Instruction::Const { .. }
             | mir::Instruction::Call { .. }
+            | mir::Instruction::ContinuationNew { .. }
+            | mir::Instruction::ContinuationResume { .. }
             | mir::Instruction::Drop { .. }
             | mir::Instruction::Intrinsic { .. }
             | mir::Instruction::Load { .. }

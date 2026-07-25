@@ -1,9 +1,8 @@
 use destack_core::StringId;
 
 use crate::{
-    Attribute, BorrowObligation, Field, Lifetime, LifetimeParameter, LocalNodeId,
-    SignatureParameter, Symbol, Tree, Type, TypeDeclaration, TypeEntry, TypeId, TypeIndexKey,
-    VariantCase,
+    Attribute, Field, Lifetime, LifetimeParameter, LocalNodeId, SignatureParameter, Symbol, Tree,
+    Type, TypeDeclaration, TypeEntry, TypeId, TypeIndexKey, VariantCase,
 };
 
 use super::mir_hash;
@@ -310,7 +309,7 @@ impl Tree {
                 copy,
             },
 
-            // erase lifetime binders and caller-only borrow proofs
+            // erase lifetime binders
             Type::FunctionSignature {
                 lifetimes: _,
                 parameters,
@@ -321,7 +320,6 @@ impl Tree {
                     .into_iter()
                     .map(|parameter| SignatureParameter {
                         ty: self.intern_representation(parameter.ty),
-                        obligations: Vec::new(),
                     })
                     .collect(),
                 result: self.intern_representation(result),
@@ -335,6 +333,15 @@ impl Tree {
             },
             Type::FunctionPointer { signature } => Type::FunctionPointer {
                 signature: self.intern_representation(signature),
+            },
+            Type::Continuation {
+                resume_type,
+                yield_type,
+                return_type,
+            } => Type::Continuation {
+                resume_type: self.intern_representation(resume_type),
+                yield_type: self.intern_representation(yield_type),
+                return_type: self.intern_representation(return_type),
             },
         };
 
@@ -537,17 +544,6 @@ impl Tree {
                     .into_iter()
                     .map(|parameter| SignatureParameter {
                         ty: self.instantiate_type_lifetimes(parameter.ty, arguments),
-                        obligations: parameter
-                            .obligations
-                            .into_iter()
-                            .map(|obligation| match obligation {
-                                BorrowObligation::SuspensionStable { lifetime } => {
-                                    BorrowObligation::SuspensionStable {
-                                        lifetime: self.substitute_lifetime(&lifetime, arguments),
-                                    }
-                                }
-                            })
-                            .collect(),
                     })
                     .collect(),
                 result: self.instantiate_type_lifetimes(result, arguments),
@@ -561,6 +557,15 @@ impl Tree {
             },
             Type::FunctionPointer { signature } => Type::FunctionPointer {
                 signature: self.instantiate_type_lifetimes(signature, arguments),
+            },
+            Type::Continuation {
+                resume_type,
+                yield_type,
+                return_type,
+            } => Type::Continuation {
+                resume_type: self.instantiate_type_lifetimes(resume_type, arguments),
+                yield_type: self.instantiate_type_lifetimes(yield_type, arguments),
+                return_type: self.instantiate_type_lifetimes(return_type, arguments),
             },
         };
 

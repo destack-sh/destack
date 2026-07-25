@@ -247,87 +247,16 @@ impl<'a> FunctionBuilder<'a> {
     ) {
         let terminator_id = self.tree.get(from_block).terminator;
         let mut terminator = self.tree.get(terminator_id).clone();
-        let mut is_edge_found = false;
+        let is_edge_found = terminator.rewrite_successor(
+            to_block,
+            |target, tree| {
+                let mut arguments = target.arguments(tree).to_vec();
+                arguments.push(value);
 
-        match &mut terminator {
-            Terminator::Jump { target } if target.block == to_block => {
-                self.append_target_argument(target, value);
-                is_edge_found = true;
-            }
-            Terminator::Branch {
-                then_target,
-                else_target,
-                ..
-            } => {
-                if then_target.block == to_block {
-                    self.append_target_argument(then_target, value);
-                    is_edge_found = true;
-                }
-                if else_target.block == to_block {
-                    self.append_target_argument(else_target, value);
-                    is_edge_found = true;
-                }
-            }
-            Terminator::Check {
-                success, failure, ..
-            } => {
-                if success.block == to_block {
-                    self.append_target_argument(success, value);
-                    is_edge_found = true;
-                }
-                if failure.block == to_block {
-                    self.append_target_argument(failure, value);
-                    is_edge_found = true;
-                }
-            }
-            Terminator::NewZeroedTry {
-                success, failure, ..
-            }
-            | Terminator::NewUninitTry {
-                success, failure, ..
-            }
-            | Terminator::NewSliceZeroedTry {
-                success, failure, ..
-            }
-            | Terminator::NewSliceUninitTry {
-                success, failure, ..
-            } => {
-                if success.block == to_block {
-                    self.append_target_argument(success, value);
-                    is_edge_found = true;
-                }
-                if failure.block == to_block {
-                    self.append_target_argument(failure, value);
-                    is_edge_found = true;
-                }
-            }
-            Terminator::Switch { default, cases, .. } => {
-                if default.block == to_block {
-                    self.append_target_argument(default, value);
-                    is_edge_found = true;
-                }
-
-                let mut new_cases = self.tree.get_switch_cases(*cases).to_vec();
-                for case in &mut new_cases {
-                    if case.target.block == to_block {
-                        self.append_target_argument(&mut case.target, value);
-                        is_edge_found = true;
-                    }
-                }
-                *cases = self.tree.add_switch_cases(&new_cases);
-            }
-            Terminator::Invoke { target, unwind, .. } => {
-                if target.block == to_block {
-                    self.append_target_argument(target, value);
-                    is_edge_found = true;
-                }
-                if unwind.block == to_block {
-                    self.append_target_argument(unwind, value);
-                    is_edge_found = true;
-                }
-            }
-            _ => {}
-        }
+                BlockTarget::new(target.block, tree.add_values(&arguments))
+            },
+            self.tree,
+        );
 
         if is_edge_found {
             *self.tree.get_mut(terminator_id) = terminator;
@@ -337,12 +266,5 @@ impl<'a> FunctionBuilder<'a> {
                 to: to_block,
             }));
         }
-    }
-
-    /// Append one block argument to a target.
-    fn append_target_argument(&mut self, target: &mut BlockTarget, value: Value) {
-        let mut arguments = self.tree.get_values(target.arguments).to_vec();
-        arguments.push(value);
-        target.arguments = self.tree.add_values(&arguments);
     }
 }

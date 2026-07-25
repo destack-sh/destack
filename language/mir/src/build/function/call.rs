@@ -48,10 +48,7 @@ impl<'a> FunctionBuilder<'a> {
         let parameters = declared
             .parameters
             .iter()
-            .map(|parameter| SignatureParameter {
-                ty: parameter.ty,
-                obligations: parameter.obligations.clone(),
-            })
+            .map(|parameter| SignatureParameter { ty: parameter.ty })
             .collect();
         let result = declared.return_type;
         let lifetimes = declared.lifetimes.clone();

@@ -1,6 +1,7 @@
 mod aggregate;
 mod builder;
 mod call;
+mod continuation;
 mod control;
 mod header;
 mod memory;

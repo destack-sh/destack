@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Block, BlockTarget, Call, Callee, CheckConstraint, LocalNodeId, SwitchCase, Terminator, TypeId,
-    Value,
+    Block, BlockTarget, Call, Callee, CheckConstraint, FunctionId, LocalNodeId, SwitchCase,
+    Terminator, TypeId, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -185,6 +185,48 @@ impl<'a> FunctionBuilder<'a> {
         *terminator = Terminator::UnwindResume;
     }
 
+    /// Await one asynchronous value through its selected park implementation.
+    pub fn await_(
+        &mut self,
+        park: FunctionId,
+        value: Value,
+        resume_block: LocalNodeId<Block>,
+        resume_arguments: Vec<Value>,
+        unwind: Option<(LocalNodeId<Block>, Vec<Value>)>,
+    ) {
+        let block = self.current_block();
+        let (resume, unwind) =
+            self.suspension_targets(block, resume_block, resume_arguments, unwind);
+
+        let terminator_id = self.tree.get(block).terminator;
+        *self.tree.get_mut(terminator_id) = Terminator::Await {
+            park,
+            value,
+            resume,
+            unwind,
+        };
+    }
+
+    /// Yield one value to the current generator owner.
+    pub fn yield_(
+        &mut self,
+        value: Value,
+        resume_block: LocalNodeId<Block>,
+        resume_arguments: Vec<Value>,
+        unwind: Option<(LocalNodeId<Block>, Vec<Value>)>,
+    ) {
+        let block = self.current_block();
+        let (resume, unwind) =
+            self.suspension_targets(block, resume_block, resume_arguments, unwind);
+
+        let terminator_id = self.tree.get(block).terminator;
+        *self.tree.get_mut(terminator_id) = Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        };
+    }
+
     /// Invoke one call with normal and unwind continuations.
     pub fn invoke(
         &mut self,
@@ -222,5 +264,30 @@ impl<'a> FunctionBuilder<'a> {
         *self.tree.get_mut(terminator_id) = Terminator::TailCall {
             call: Call::new(callee, arguments, signature),
         };
+    }
+
+    /// Build the resume and panic unwind targets for one suspension point.
+    fn suspension_targets(
+        &mut self,
+        block: LocalNodeId<Block>,
+        resume_block: LocalNodeId<Block>,
+        resume_arguments: Vec<Value>,
+        unwind: Option<(LocalNodeId<Block>, Vec<Value>)>,
+    ) -> (BlockTarget, Option<BlockTarget>) {
+        self.add_predecessor(block, resume_block);
+        let resume_arguments = self.tree.add_values(&resume_arguments);
+        let resume = BlockTarget::new(resume_block, resume_arguments);
+
+        // build the optional panic unwind target
+        let unwind = if let Some((unwind_block, unwind_arguments)) = unwind {
+            self.add_predecessor(block, unwind_block);
+            let unwind_arguments = self.tree.add_values(&unwind_arguments);
+
+            Some(BlockTarget::new(unwind_block, unwind_arguments))
+        } else {
+            None
+        };
+
+        (resume, unwind)
     }
 }

@@ -7,80 +7,7 @@ use crate::{
     NodeType, Symbol, Tree, Type, TypeId, Value,
 };
 
-/// Memory allocation restrictions for a function.
-///
-/// This allows marking functions as managed-allocation-free or heap-free.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
-pub enum AllocationMode {
-    /// No restrictions on allocation.
-    #[default]
-    Any,
-    /// Managed allocation forbidden.
-    /// Unique allocation and function-local storage are still allowed.
-    NoManaged,
-    /// No heap allocation.
-    /// Only function-local storage is allowed.
-    NoHeap,
-}
-
-impl AllocationMode {
-    /// Text representation for formatting/parsing.
-    pub fn to_str(self) -> &'static str {
-        match self {
-            AllocationMode::Any => "any",
-            AllocationMode::NoManaged => "noManaged",
-            AllocationMode::NoHeap => "noHeap",
-        }
-    }
-}
-
-/// The suspension kind for one function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum SuspensionKind {
-    /// Generator function (`function*`).
-    /// Yields values to the caller, who controls resumption via `.next()`.
-    /// Returns an `Iterator<T>`.
-    Generator,
-    /// Async function (`async function`).
-    /// Awaits promises, with the runtime controlling resumption.
-    /// Returns a `Promise<T>`.
-    Async,
-    /// Async generator function (`async function*`).
-    /// Both yields values and awaits promises.
-    /// Returns an `AsyncIterator<T>`.
-    AsyncGenerator,
-}
-
-impl SuspensionKind {
-    /// Text representation for formatting/parsing.
-    pub fn to_str(self) -> &'static str {
-        match self {
-            SuspensionKind::Generator => "generator",
-            SuspensionKind::Async => "async",
-            SuspensionKind::AsyncGenerator => "asyncGenerator",
-        }
-    }
-
-    /// Whether this coroutine yields values (generator or async generator).
-    pub fn is_generator(self) -> bool {
-        matches!(
-            self,
-            SuspensionKind::Generator | SuspensionKind::AsyncGenerator
-        )
-    }
-
-    /// Whether this coroutine awaits promises (async or async generator).
-    pub fn is_async(self) -> bool {
-        matches!(self, SuspensionKind::Async | SuspensionKind::AsyncGenerator)
-    }
-}
-
-/// A function in MIR.
-///
-/// Functions are the top-level compilation unit, containing:
-/// - Parameters as SSA values
-/// - Local variables as stack slots
-/// - Basic blocks forming a control flow graph
+/// One MIR function declaration or definition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Function {
     /// The function's name (for linking and debugging).
@@ -108,8 +35,8 @@ pub struct Function {
 
     /// Memory allocation restrictions for this function.
     pub allocation: AllocationMode,
-    /// The suspension kind when this function can suspend.
-    pub suspension: Option<SuspensionKind>,
+    /// The coroutine body form, absent for an ordinary callable function.
+    pub coroutine: Option<Coroutine>,
 }
 
 impl Node for Function {
@@ -133,6 +60,56 @@ pub struct FunctionBody {
     next_value_id: u32,
     /// Instruction locations keyed by instruction id.
     instruction_index: InstructionIndex,
+}
+
+/// The execution form of one coroutine body.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum Coroutine {
+    /// A body owned by an asynchronous carrier that awaits values.
+    Async,
+    /// A body owned by a generator that yields values to its caller.
+    Generator,
+    /// A body owned by an async generator that may await and yield values.
+    AsyncGenerator,
+}
+
+impl Coroutine {
+    /// Return whether this coroutine may await asynchronous values.
+    pub const fn is_async(self) -> bool {
+        matches!(self, Self::Async | Self::AsyncGenerator)
+    }
+
+    /// Return whether this coroutine may yield values.
+    pub const fn is_generator(self) -> bool {
+        matches!(self, Self::Generator | Self::AsyncGenerator)
+    }
+}
+
+/// Memory allocation restrictions for a function.
+///
+/// This allows marking functions as managed-allocation-free or heap-free.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+pub enum AllocationMode {
+    /// No restrictions on allocation.
+    #[default]
+    Any,
+    /// Managed allocation forbidden.
+    /// Unique allocation and function-local storage are still allowed.
+    NoManaged,
+    /// No heap allocation.
+    /// Only function-local storage is allowed.
+    NoHeap,
+}
+
+impl AllocationMode {
+    /// Return the MIR text representation.
+    pub fn to_str(self) -> &'static str {
+        match self {
+            AllocationMode::Any => "any",
+            AllocationMode::NoManaged => "noManaged",
+            AllocationMode::NoHeap => "noHeap",
+        }
+    }
 }
 
 /// Location of one instruction in a MIR function body.
@@ -609,7 +586,7 @@ impl Function {
             return_type,
             linkage,
             allocation: AllocationMode::Any,
-            suspension: None,
+            coroutine: None,
             environment: None,
             binding: None,
             body,
@@ -705,9 +682,10 @@ impl Function {
         self
     }
 
-    /// Set the suspension kind and return self (builder pattern).
-    pub fn with_suspension(mut self, kind: SuspensionKind) -> Self {
-        self.suspension = Some(kind);
+    /// Mark this function as a coroutine body.
+    pub fn with_coroutine(mut self, coroutine: Coroutine) -> Self {
+        self.coroutine = Some(coroutine);
+
         self
     }
 
@@ -720,11 +698,6 @@ impl Function {
     /// Return the runtime binding name when one is present.
     pub fn binding_name(&self) -> Option<StringId> {
         self.binding
-    }
-
-    /// Check if this function can suspend.
-    pub fn is_suspendable(&self) -> bool {
-        self.suspension.is_some()
     }
 
     /// Check if this function is imported (defined elsewhere).

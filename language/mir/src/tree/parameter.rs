@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Lifetime, TypeId, TypedValue, Value};
+use crate::{TypeId, TypedValue, Value};
 
 /// Typed SSA parameter behavior shared by function and block parameters.
 pub trait TypedParameter {
@@ -18,16 +18,6 @@ pub trait TypedParameter {
     }
 }
 
-/// Borrow source proof required by a callable parameter.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum BorrowObligation {
-    /// Borrow source must be stable across suspension.
-    SuspensionStable {
-        /// The lifetime whose source must be stable.
-        lifetime: Lifetime,
-    },
-}
-
 /// One function entry parameter.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FunctionParameter {
@@ -35,19 +25,13 @@ pub struct FunctionParameter {
     pub value: Value,
     /// The parameter type.
     pub ty: TypeId,
-    /// Borrow obligations callers must satisfy for this parameter.
-    pub obligations: Vec<BorrowObligation>,
 }
 
 impl FunctionParameter {
-    /// Create a function parameter without borrow obligations.
+    /// Create a function parameter.
     #[inline]
     pub fn new(value: Value, ty: TypeId) -> Self {
-        Self {
-            value,
-            ty,
-            obligations: Vec::new(),
-        }
+        Self { value, ty }
     }
 
     /// Return this parameter as a typed value.
@@ -68,10 +52,7 @@ impl FunctionParameter {
     /// Return the matching callable signature parameter.
     #[inline]
     pub fn signature_parameter(&self) -> SignatureParameter {
-        SignatureParameter {
-            ty: self.ty,
-            obligations: self.obligations.clone(),
-        }
+        SignatureParameter { ty: self.ty }
     }
 }
 
@@ -121,18 +102,13 @@ impl TypedParameter for BlockParameter {
 pub struct SignatureParameter {
     /// The parameter type.
     pub ty: TypeId,
-    /// Borrow obligations callers must satisfy for this parameter.
-    pub obligations: Vec<BorrowObligation>,
 }
 
 impl SignatureParameter {
-    /// Create a signature parameter without borrow obligations.
+    /// Create a signature parameter.
     #[inline]
     pub fn new(ty: TypeId) -> Self {
-        Self {
-            ty,
-            obligations: Vec::new(),
-        }
+        Self { ty }
     }
 }
 

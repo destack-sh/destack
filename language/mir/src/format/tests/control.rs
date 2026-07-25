@@ -25,44 +25,84 @@ b3:
     );
 }
 
-/// Formats yielding control flow canonically.
+/// Formats async functions, generators, and async generators canonically.
 #[test]
-fn test_format_yield() {
+fn test_format_coroutines() {
     assert_format(
         r#"
-function yieldOnce(v0: int32): int32 {
-entry(v0: int32):
-    v1: int32 = 5
-    yield v1 => b1(v0)
+external function park(int32, uint64): void
 
-b1(v2: int32, v3: int32):
-    v4: int32 = int.add v2, v3
-    return v4
+async function wait(v0: int32): int32 {
+entry(v0: int32):
+    await park(v0) => b1 | b2
+
+b1(v1: int32):
+    return v1
+
+b2:
+    unwind.resume
+}
+
+function* generate(v0: int32): int32 {
+entry(v0: int32):
+    yield v0 => b1 | b2
+
+b1(v1: int32):
+    return v1
+
+b2:
+    unwind.resume
+}
+
+async function* stream(v0: int32): int32 {
+entry(v0: int32):
+    await park(v0) => b1 | b3
+
+b1(v1: int32):
+    yield v1 => b2 | b3
+
+b2(v2: int32):
+    return v2
+
+b3:
+    unwind.resume
 }
 "#,
     );
 }
 
-/// Formats suspension and call unwind alternatives canonically.
+/// Formats continuation construction and execution canonically.
 #[test]
-fn test_format_unwind_continuation() {
+fn test_format_continuations() {
     assert_format(
         r#"
-external function callee(int32): int32
-
-function suspends(v0: int32): int32 {
+function* generate(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = 5
-    yield v1 => b1(v0) | b2
+    yield v0 => b1 | b2
 
-b1(v2: int32, v3: int32):
-    invoke callee(v3): (int32) => int32 => b3 | b2
+b1(v1: int32):
+    return v1
 
 b2:
     unwind.resume
+}
 
-b3(v4: int32):
-    return v4
+type Yielded {
+    value: int32;
+    continuation: continuation<int32, int32, int32>;
+}
+
+type Returned {
+    value: int32;
+}
+
+type ResumeResult = variant<uint8, Yielded> { 0uint8 = Yielded; 1uint8 = Returned; };
+
+function owner(v0: int32, v1: int32): ResumeResult {
+entry(v0: int32, v1: int32):
+    v2: continuation<int32, int32, int32> = continuation.new generate(v0)
+    v3: ResumeResult = continuation.resume v2, v1
+    return v3
 }
 "#,
     );

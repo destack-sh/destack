@@ -113,7 +113,7 @@ impl CallGraph {
             recursive_components: BitSet::new(0),
         };
 
-        // scan each function for call instructions
+        // scan each function for callsites
         for (function_id, function) in tree.iter_nodes::<mir::Function>() {
             // skip functions without bodies
             if function.entry().is_none() {
@@ -313,12 +313,7 @@ impl ScannedCallSite {
         effects: &mir::EffectTable,
     ) -> Option<Self> {
         let callsite = mir::CallSite::Terminator(block_id);
-
-        let call = match terminator {
-            mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => call,
-            _ => return None,
-        };
-        let dispatch = call.callee.dispatch();
+        let dispatch = terminator.call_dispatch()?;
         let known_target = Self::terminator_target(block_id, terminator, effects);
         let is_closed = matches!(dispatch, mir::CallDispatch::Direct);
 
@@ -584,6 +579,40 @@ b2:
         let outgoing = callgraph.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing[0].callee, callee_id);
+        assert_eq!(outgoing[0].dispatch, mir::CallDispatch::Direct);
+        assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
+        assert!(callgraph.open_callsites(test_id).is_empty());
+    }
+
+    /// Await records its selected park implementation as a precise call edge.
+    #[test]
+    fn test_call_graph_await_direct() {
+        let test = TestProgram::new(
+            r#"
+external function park(int32, uint64): void
+
+async function test(v0: int32): int32 {
+entry(v0: int32):
+    await park(v0) => resumed | failed
+
+resumed(v1: int32):
+    return v1
+
+failed:
+    unwind.resume
+}
+"#,
+        );
+
+        let park_id = test.function_id_by_name("park");
+        let test_id = test.function_id_by_name("test");
+
+        let analyses = test.tree_analysis_cache();
+        let callgraph = analyses.get::<CallGraph>(&test.tree);
+
+        let outgoing = callgraph.outgoing(test_id);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing[0].callee, park_id);
         assert_eq!(outgoing[0].dispatch, mir::CallDispatch::Direct);
         assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
         assert!(callgraph.open_callsites(test_id).is_empty());

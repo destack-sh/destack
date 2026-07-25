@@ -2,10 +2,10 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeParameter, LifetimeTerm,
-    LocalNodeId, Nullability, ReferenceKind, SignatureParameter, Space, TensorDimension,
-    TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis,
-    TensorViewFormat, Type, TypeDeclarationSpans, TypeId, VariantCase,
+    Access, Copy, Field, FieldSpan, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId,
+    Nullability, ReferenceKind, SignatureParameter, Space, TensorDimension, TensorDimensionOrder,
+    TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type,
+    TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -406,6 +406,7 @@ impl Parser {
             "slice" => self.parse_slice_type()?,
             "atomic" => self.parse_atomic_type()?,
             "dynamic" => self.parse_dynamic_type()?,
+            "continuation" => self.parse_continuation_type()?,
             "uninit" => self.parse_uninit_type()?,
             "variant" => self.parse_variant_type()?,
             _ => {
@@ -484,6 +485,24 @@ impl Parser {
         })
     }
 
+    /// Parse a continuation handle type.
+    fn parse_continuation_type(&mut self) -> ParseResult<Type> {
+        self.bump();
+        self.eat_token(TokenType::LessThan)?;
+        let (resume_type, _) = self.parse_type_use_part()?;
+        self.eat_token(TokenType::Comma)?;
+        let (yield_type, _) = self.parse_type_use_part()?;
+        self.eat_token(TokenType::Comma)?;
+        let (return_type, _) = self.parse_type_use_part()?;
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok(Type::Continuation {
+            resume_type,
+            yield_type,
+            return_type,
+        })
+    }
+
     /// Parse a linear uninitialized allocation token type.
     fn parse_uninit_type(&mut self) -> ParseResult<Type> {
         self.bump();
@@ -543,17 +562,6 @@ impl Parser {
             });
         }
 
-        // reject callable-only parameter obligations on tuple elements
-        if parameters
-            .iter()
-            .any(|parameter| !parameter.obligations.is_empty())
-        {
-            return Err(ParseError::invalid(
-                "tuple type parameter obligation",
-                self.pos(),
-            ));
-        }
-
         Ok(Type::Tuple {
             elements: parameters
                 .into_iter()
@@ -577,8 +585,7 @@ impl Parser {
 
         while !self.peek_is(TokenType::CloseParenthesis) {
             let (ty, _) = self.parse_type_use_part()?;
-            let obligations = self.parse_borrow_obligations()?;
-            parameters.push(SignatureParameter { ty, obligations });
+            parameters.push(SignatureParameter { ty });
 
             if !self.eat_token_if(TokenType::Comma) {
                 break;
@@ -1103,7 +1110,6 @@ impl Parser {
                 && self.tree.source_text(token.span) == "suspensionSafe"
         })
     }
-
     /// Parse a tensor shape list.
     fn parse_tensor_shape(&mut self) -> ParseResult<Vec<TensorDimension>> {
         self.eat_token(TokenType::OpenParenthesis)?;

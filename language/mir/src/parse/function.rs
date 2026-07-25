@@ -4,7 +4,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::source::{Token, TokenType};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Block,
-    BlockParameter, BlockTarget, Call, Callee, CheckConstraint, Function, FunctionBody,
+    BlockParameter, BlockTarget, Call, Callee, CheckConstraint, Coroutine, Function, FunctionBody,
     FunctionHeaderSpans, FunctionParameter, Instruction, Linkage, Local, LocalNodeId, Mutability,
     SwitchCase, Terminator, TypeId, TypedValueSpan, Value,
 };
@@ -17,6 +17,8 @@ use super::parser::Parser;
 pub(super) struct ParsedFunctionHeader {
     /// The resolved function id.
     pub(super) function_id: LocalNodeId<Function>,
+    /// The coroutine body form, absent for an ordinary callable function.
+    pub(super) coroutine: Option<Coroutine>,
     /// The function keyword span.
     pub(super) keyword_span: Span,
     /// The parsed function name.
@@ -141,6 +143,7 @@ impl Parser {
     pub(super) fn parse_function_header(
         &mut self,
         linkage: Linkage,
+        is_async: bool,
         mode: FunctionHeaderMode,
     ) -> ParseResult<ParsedFunctionHeader> {
         // keyword and name
@@ -148,6 +151,13 @@ impl Parser {
         let keyword_start = keyword_token.start();
         let keyword_length = self.tree.source_text(keyword_token.span).len();
         let keyword_span = self.span_at(keyword_start, keyword_length);
+        let is_generator = self.eat_token_if(TokenType::Star);
+        let coroutine = match (is_async, is_generator) {
+            (false, false) => None,
+            (true, false) => Some(Coroutine::Async),
+            (false, true) => Some(Coroutine::Generator),
+            (true, true) => Some(Coroutine::AsyncGenerator),
+        };
         let (name, name_start) = self.parse_symbol_name()?;
         let name_span = self.span_at(name_start, name.len());
         let function_id = self.function_map.get(&name).copied().ok_or_else(|| {
@@ -178,6 +188,7 @@ impl Parser {
 
         Ok(ParsedFunctionHeader {
             function_id,
+            coroutine,
             keyword_span,
             name,
             name_span,
@@ -197,11 +208,13 @@ impl Parser {
         &mut self,
         item_start: usize,
         linkage: Linkage,
+        is_async: bool,
         attributes: Vec<Attribute>,
         attribute_spans: Vec<Span>,
     ) -> ParseResult<LocalNodeId<Function>> {
         // function signature
-        let header = self.parse_function_header(linkage, FunctionHeaderMode::Definition)?;
+        let header =
+            self.parse_function_header(linkage, is_async, FunctionHeaderMode::Definition)?;
         let function_id = header.function_id;
 
         // function tables
@@ -218,6 +231,7 @@ impl Parser {
                 header.return_type,
             );
             function.parameter_names = parameter_names;
+            function.coroutine = header.coroutine;
             function.environment = function_attributes.environment_type;
             function.binding = function_attributes.binding_name;
             function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
@@ -293,6 +307,7 @@ impl Parser {
         function.parameter_names = parameter_names;
         function.return_type = header.return_type;
         function.linkage = linkage;
+        function.coroutine = header.coroutine;
         function.environment = function_attributes.environment_type;
         function.binding = function_attributes.binding_name;
 
@@ -394,14 +409,9 @@ impl Parser {
             while !self.peek_is(TokenType::CloseParenthesis) {
                 let parameter_start = self.pos();
                 let (ty, type_span) = self.parse_type_use_part()?;
-                let obligations = self.parse_borrow_obligations()?;
                 let parameter_span = self.span_from_parse_start(parameter_start);
                 let value = Value::new(parameters.len() as u32);
-                parameters.push(FunctionParameter {
-                    value,
-                    ty,
-                    obligations,
-                });
+                parameters.push(FunctionParameter { value, ty });
                 parameter_spans.push(TypedValueSpan::new(parameter_span, None, type_span));
                 if !self.eat_token_if(TokenType::Comma) {
                     break;
@@ -423,13 +433,8 @@ impl Parser {
                 };
                 let colon_token = self.eat_token(TokenType::Colon)?;
                 let (ty, type_span) = self.parse_function_parameter_type(colon_token, mode)?;
-                let obligations = self.parse_borrow_obligations()?;
                 let parameter_span = self.span_from_parse_start(parameter_start);
-                parameters.push(FunctionParameter {
-                    value,
-                    ty,
-                    obligations,
-                });
+                parameters.push(FunctionParameter { value, ty });
                 parameter_spans.push(TypedValueSpan::new(
                     parameter_span,
                     Some(name_span),
@@ -1025,10 +1030,25 @@ impl Parser {
                     cases,
                 })
             }
+            TokenType::Await => {
+                self.bump();
+                let (park, _) = self.parse_function_reference_part()?;
+                self.eat_token(TokenType::OpenParenthesis)?;
+                let value = self.parse_value()?;
+                self.eat_token(TokenType::CloseParenthesis)?;
+                let (resume, unwind) = self.parse_suspension_targets()?;
+
+                Ok(Terminator::Await {
+                    park,
+                    value,
+                    resume,
+                    unwind,
+                })
+            }
             TokenType::Yield => {
                 self.bump();
                 let value = self.parse_value()?;
-                let (resume, unwind) = self.parse_continuation()?;
+                let (resume, unwind) = self.parse_suspension_targets()?;
 
                 Ok(Terminator::Yield {
                     value,
@@ -1489,19 +1509,19 @@ impl Parser {
         Ok(BlockTarget::new(block, arguments))
     }
 
-    /// Parse one continuation: `=> target`, with an optional `| target` unwind alternative.
-    fn parse_continuation(&mut self) -> ParseResult<(BlockTarget, Option<BlockTarget>)> {
+    /// Parse normal and optional unwind targets for one suspension point.
+    fn parse_suspension_targets(&mut self) -> ParseResult<(BlockTarget, Option<BlockTarget>)> {
         self.eat_token(TokenType::FatArrow)?;
-        let target = self.parse_block_target()?;
+        let resume = self.parse_block_target()?;
 
-        // the unwind alternative
+        // parse the optional panic unwind target
         if !self.eat_token_if(TokenType::Pipe) {
-            return Ok((target, None));
+            return Ok((resume, None));
         }
 
         let unwind = self.parse_block_target()?;
 
-        Ok((target, Some(unwind)))
+        Ok((resume, Some(unwind)))
     }
 
     /// Parse mandatory normal and unwind continuations for one invoke.
