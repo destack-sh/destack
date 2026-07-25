@@ -131,17 +131,9 @@ export local struct ContinuationReturn<T> {
     value: T;
 }
 
-/// Parked continuation result.
-@languageItem("async.ContinuationParked")
-export local struct ContinuationParked {
-    /// The result tag.
-    kind: "parked" = "parked";
-}
-
 /// Result of resuming a continuation.
 @languageItem("async.ContinuationResult")
 @derive(Tagged)
 export local newtype ContinuationResult<TResume, TYield, TReturn> =
     | ContinuationYield<TResume, TYield, TReturn>
-    | ContinuationParked
     | ContinuationReturn<TReturn>;
