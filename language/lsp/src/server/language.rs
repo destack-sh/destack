@@ -13,20 +13,22 @@ use destack_query as query;
 use destack_repository::{
     DestackLayoutOverride, Environment, Revision, Settings, open_repository_from_fs,
 };
-use destack_source::{FileId, FileSystem, OverlayFileSystem, PatchSet, PhysicalFileSystem, Uri};
+use destack_source::{
+    FileId, FileSystem, OverlayFileSystem, PatchSet, PhysicalFileSystem, TextRange, Uri,
+};
 use destack_workspace::{
-    DiagnosticsRequest, FileDiagnostics, FileImagesRequest, FileOperation, LocalWorkspace,
-    QueryFile, QueryResult, ReloadReason, ReloadRequest, RevisionPolicy, Workspace,
-    WorkspaceQueryRequest,
+    DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, LocalWorkspace, QueryFile,
+    ReloadReason, ReloadRequest, RevisionPolicy, RunQueryRequest, RunQueryResponse, Workspace,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value};
 
 use crate::server::error::{internal_error, workspace_error};
-use crate::server::format::{file_edit, range_edit};
 use crate::server::navigation::HierarchyContinuation;
 use crate::server::source::SourceFiles;
-use crate::server::{assist, completion, diagnostic, edit, navigation, position, source, token};
+use crate::server::{
+    assist, completion, diagnostic, edit, format, navigation, position, source, token,
+};
 use crate::uri;
 
 const AUTO_IMPORT_DETAIL_PREFIX: &str = "Auto import from ";
@@ -267,24 +269,43 @@ impl DestackLanguageServer {
         path: &Path,
         request: query::QueryRequest,
         revision: RevisionPolicy,
-    ) -> jsonrpc::Result<QueryResult> {
+    ) -> jsonrpc::Result<RunQueryResponse> {
         let workspace = self.workspace()?;
         let root = workspace.root(path).map_err(workspace_error)?;
-        let request = WorkspaceQueryRequest { revision, request };
-        let result = workspace.query(&root, request);
+        let request = RunQueryRequest { revision, request };
+        let result = workspace.run_query(&root, request);
 
         result.map_err(workspace_error)
     }
 
     /// Resolve one LSP document to exact workspace query state.
-    fn resolve_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Option<QueryFile>> {
+    fn resolve_query_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Option<QueryFile>> {
         let Some(path) = uri.to_file_path().map(|path| path.into_owned()) else {
             return Ok(None);
         };
         let workspace = self.workspace()?;
         let root = workspace.root(&path).map_err(workspace_error)?;
 
-        workspace.query_file(&root, path).map_err(workspace_error)
+        workspace
+            .resolve_query_file(&root, path)
+            .map_err(workspace_error)
+    }
+
+    /// Format one LSP document or selected text range.
+    fn format_file(
+        &self,
+        uri: &lsp::Uri,
+        range: Option<TextRange>,
+    ) -> jsonrpc::Result<Option<FileEdit>> {
+        let Some(path) = uri.to_file_path().map(|path| path.into_owned()) else {
+            return Ok(None);
+        };
+        let workspace = self.workspace()?;
+        let root = workspace.root(&path).map_err(workspace_error)?;
+
+        workspace
+            .format_file(&root, path, range)
+            .map_err(workspace_error)
     }
 
     /// Execute one module query against an exact file revision.
@@ -292,14 +313,14 @@ impl DestackLanguageServer {
         &self,
         file: &QueryFile,
         request: query::QueryRequest,
-    ) -> jsonrpc::Result<QueryResult> {
+    ) -> jsonrpc::Result<RunQueryResponse> {
         let workspace = self.workspace()?;
         let root = workspace.root(&file.path).map_err(workspace_error)?;
-        let request = WorkspaceQueryRequest {
+        let request = RunQueryRequest {
             revision: RevisionPolicy::Current(file.revision),
             request,
         };
-        let result = workspace.query(&root, request);
+        let result = workspace.run_query(&root, request);
 
         result.map_err(workspace_error)
     }
@@ -339,20 +360,20 @@ impl DestackLanguageServer {
             })?;
             let workspace = self.workspace()?;
             let root = workspace.root(path).map_err(workspace_error)?;
-            let request = FileImagesRequest {
-                revision: diagnostics.revision,
-                file_ids: file_ids.iter().copied().collect(),
-            };
             let related = workspace
-                .file_images(&root, request)
+                .read_files(
+                    &root,
+                    diagnostics.revision,
+                    file_ids.iter().copied().collect(),
+                )
                 .map_err(workspace_error)?;
 
             // require exactly the requested related files
-            for image in &related {
-                if !file_ids.remove(&image.id) {
+            for file in &related {
+                if !file_ids.remove(&file.id) {
                     return Err(internal_error(format!(
                         "workspace returned unrequested diagnostic file {:?}",
-                        image.id
+                        file.id
                     )));
                 }
             }
@@ -362,8 +383,7 @@ impl DestackLanguageServer {
                 )));
             }
 
-            for image in related {
-                let file = Arc::new(image.into_file().map_err(workspace_error)?);
+            for file in related {
                 files.insert(file).map_err(workspace_error)?;
             }
         }
@@ -494,7 +514,7 @@ impl DestackLanguageServer {
             .map_err(workspace_error)?;
 
         workspace
-            .diagnostics(DiagnosticsRequest::All)
+            .diagnose(DiagnosticsRequest::All)
             .map_err(workspace_error)
     }
 
@@ -552,7 +572,7 @@ impl DestackLanguageServer {
 
         let root = workspace.root(&path).map_err(workspace_error)?;
         let diagnostics = workspace
-            .diagnostics(DiagnosticsRequest::Root(root))
+            .diagnose(DiagnosticsRequest::Root(root))
             .map_err(workspace_error)?;
 
         self.publish_diagnostics(diagnostics).await
@@ -587,7 +607,7 @@ impl DestackLanguageServer {
 
         let root = workspace.root(&path).map_err(workspace_error)?;
         let diagnostics = workspace
-            .diagnostics(DiagnosticsRequest::Root(root))
+            .diagnose(DiagnosticsRequest::Root(root))
             .map_err(workspace_error)?;
 
         self.publish_diagnostics(diagnostics).await
@@ -612,7 +632,7 @@ impl DestackLanguageServer {
 
         let root = workspace.root(&path).map_err(workspace_error)?;
         let diagnostics = workspace
-            .diagnostics(DiagnosticsRequest::Root(root))
+            .diagnose(DiagnosticsRequest::Root(root))
             .map_err(workspace_error)?;
 
         self.publish_diagnostics(diagnostics).await
@@ -633,7 +653,7 @@ impl DestackLanguageServer {
             .map_err(workspace_error)?;
 
         let diagnostics = workspace
-            .diagnostics(DiagnosticsRequest::Root(root))
+            .diagnose(DiagnosticsRequest::Root(root))
             .map_err(workspace_error)?;
 
         self.publish_diagnostics(diagnostics).await
@@ -1212,7 +1232,7 @@ impl LanguageServer for DestackLanguageServer {
 
         let mut diagnostics = self
             .workspace()?
-            .diagnostics(DiagnosticsRequest::File(path.clone()))
+            .diagnose(DiagnosticsRequest::File(path.clone()))
             .map_err(workspace_error)?;
         if diagnostics.len() > 1 {
             return Err(internal_error(format!(
@@ -1277,7 +1297,7 @@ impl LanguageServer for DestackLanguageServer {
 
         let diagnostics = self
             .workspace()?
-            .diagnostics(DiagnosticsRequest::All)
+            .diagnose(DiagnosticsRequest::All)
             .map_err(workspace_error)?;
 
         let mut items = Vec::new();
@@ -1357,7 +1377,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::GotoDefinitionParams,
     ) -> jsonrpc::Result<Option<lsp::GotoDefinitionResponse>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -1392,7 +1412,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::request::GotoDeclarationParams,
     ) -> jsonrpc::Result<Option<lsp::request::GotoDeclarationResponse>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -1427,7 +1447,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::request::GotoTypeDefinitionParams,
     ) -> jsonrpc::Result<Option<lsp::request::GotoTypeDefinitionResponse>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -1462,7 +1482,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::ReferenceParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::Location>>> {
         let uri = &params.text_document_position.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -1499,7 +1519,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentSymbolParams,
     ) -> jsonrpc::Result<Option<lsp::DocumentSymbolResponse>> {
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -1607,7 +1627,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::DocumentHighlightParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::DocumentHighlight>>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -1639,7 +1659,7 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn hover(&self, params: lsp::HoverParams) -> jsonrpc::Result<Option<lsp::Hover>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -1706,7 +1726,7 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         let uri = &params.text_document_position.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -1875,7 +1895,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::SignatureHelpParams,
     ) -> jsonrpc::Result<Option<lsp::SignatureHelp>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -1937,7 +1957,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::SemanticTokensParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensResult>> {
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -1966,7 +1986,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::SemanticTokensRangeParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensRangeResult>> {
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -2020,7 +2040,7 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         // query for folding ranges
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let request = query::QueryRequest::FoldingRanges(query::FoldingRangesRequest {
@@ -2064,14 +2084,10 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(edit) = self.format_file(&params.text_document.uri, None)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let edit = file_edit(&source_file, query_file.formatter)?;
-        let Some(edit) = edit else {
-            return Ok(None);
-        };
+        let edit = format::edit(edit)?;
 
         Ok(Some(vec![edit]))
     }
@@ -2080,16 +2096,11 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentRangeFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let range = source::text_range(params.range);
+        let Some(edit) = self.format_file(&params.text_document.uri, Some(range))? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let start_offset = position::offset(&source_file, &params.range.start)?;
-        let end_offset = position::offset(&source_file, &params.range.end)?;
-        let edit = range_edit(&source_file, query_file.formatter, start_offset, end_offset)?;
-        let Some(edit) = edit else {
-            return Ok(None);
-        };
+        let edit = format::edit(edit)?;
 
         Ok(Some(vec![edit]))
     }
@@ -2098,23 +2109,34 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentOnTypeFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
-        let Some(query_file) =
-            self.resolve_file(&params.text_document_position.text_document.uri)?
-        else {
-            return Ok(None);
-        };
-        let source_file = query_file.file.clone();
-        let end_offset = position::offset(&source_file, &params.text_document_position.position)?;
-        let trigger_width = params.ch.len() as u32;
+        // build the trigger range in UTF-16 editor coordinates
+        let end = params.text_document_position.position;
+        let trigger_width = params.ch.encode_utf16().count() as u32;
         if trigger_width == 0 {
             return Err(jsonrpc::Error::invalid_params(
                 "formatting trigger is empty",
             ));
         }
-        let Some(start_offset) = end_offset.checked_sub(trigger_width) else {
+        let Some(start_character) = end.character.checked_sub(trigger_width) else {
             return Ok(None);
         };
-        if source_file
+        let start = lsp::Position {
+            line: end.line,
+            character: start_character,
+        };
+        let range = source::text_range(lsp::Range { start, end });
+
+        // format against one exact workspace file
+        let uri = &params.text_document_position.text_document.uri;
+        let Some(edit) = self.format_file(uri, Some(range))? else {
+            return Ok(None);
+        };
+
+        // require the exact workspace source to contain the reported trigger
+        let start_offset = position::offset(&edit.file, &start)?;
+        let end_offset = position::offset(&edit.file, &end)?;
+        if edit
+            .file
             .text()
             .get(start_offset as usize..end_offset as usize)
             != Some(params.ch.as_str())
@@ -2122,10 +2144,8 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        let edit = range_edit(&source_file, query_file.formatter, start_offset, end_offset)?;
-        let Some(edit) = edit else {
-            return Ok(None);
-        };
+        // return the selected formatting edit
+        let edit = format::edit(edit)?;
 
         Ok(Some(vec![edit]))
     }
@@ -2138,7 +2158,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::SelectionRangeParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::SelectionRange>>> {
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -2172,7 +2192,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::request::GotoImplementationParams,
     ) -> jsonrpc::Result<Option<lsp::request::GotoImplementationResponse>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -2210,7 +2230,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentLinkParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::DocumentLink>>> {
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -2264,7 +2284,7 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -2372,7 +2392,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::CodeLensParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CodeLens>>> {
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -2403,7 +2423,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::InlayHintParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::InlayHint>>> {
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -2442,7 +2462,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::TextDocumentPositionParams,
     ) -> jsonrpc::Result<Option<lsp::PrepareRenameResponse>> {
-        let Some(query_file) = self.resolve_file(&params.text_document.uri)? else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -2470,7 +2490,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::RenameParams,
     ) -> jsonrpc::Result<Option<lsp::WorkspaceEdit>> {
         let Some(query_file) =
-            self.resolve_file(&params.text_document_position.text_document.uri)?
+            self.resolve_query_file(&params.text_document_position.text_document.uri)?
         else {
             return Ok(None);
         };
@@ -2507,7 +2527,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::CallHierarchyPrepareParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyItem>>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
@@ -2611,7 +2631,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::TypeHierarchyPrepareParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         let uri = &params.text_document_position_params.text_document.uri;
-        let Some(query_file) = self.resolve_file(uri)? else {
+        let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();

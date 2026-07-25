@@ -5,7 +5,7 @@ use std::sync::Arc;
 use destack_lsp_types as lsp;
 use destack_repository::Revision;
 use destack_source::{File, FileId, TextChange, TextPosition, TextRange, WATCHABLE_FILE_TYPES};
-use destack_workspace::{Error, FileImagesRequest, Workspace};
+use destack_workspace::{Error, Workspace};
 
 /// Source files loaded from one exact workspace revision.
 pub(super) struct SourceFiles {
@@ -37,21 +37,16 @@ impl SourceFiles {
 
         // load every file in one workspace request
         let root = workspace.root(path)?;
-        let request = FileImagesRequest {
-            revision,
-            file_ids: requested.clone(),
-        };
-        let images = workspace.file_images(&root, request)?;
-        for image in &images {
-            if requested.binary_search(&image.id).is_err() {
+        let loaded = workspace.read_files(&root, revision, requested.clone())?;
+        for file in &loaded {
+            if requested.binary_search(&file.id).is_err() {
                 return Err(Error::Internal {
-                    detail: format!("workspace returned unrequested file image {:?}", image.id),
+                    detail: format!("workspace returned unrequested source file {:?}", file.id),
                 });
             }
         }
         let mut files = Self::new();
-        for image in images {
-            let file = Arc::new(image.into_file()?);
+        for file in loaded {
             files.insert(file)?;
         }
 
@@ -61,7 +56,7 @@ impl SourceFiles {
             .find(|file_id| !files.files.contains_key(file_id))
         {
             return Err(Error::Internal {
-                detail: format!("workspace omitted requested file image {file_id:?}"),
+                detail: format!("workspace omitted requested source file {file_id:?}"),
             });
         }
 
@@ -133,19 +128,26 @@ pub(super) fn changes(changes: Vec<lsp::TextDocumentContentChangeEvent>) -> Vec<
     changes
         .into_iter()
         .map(|change| TextChange {
-            range: change.range.map(|range| TextRange {
-                start: TextPosition {
-                    line: range.start.line,
-                    character: range.start.character,
-                },
-                end: TextPosition {
-                    line: range.end.line,
-                    character: range.end.character,
-                },
-            }),
+            range: change.range.map(text_range),
             text: change.text,
         })
         .collect()
+}
+
+/// Convert one LSP text range into a source text range.
+pub(super) fn text_range(range: lsp::Range) -> TextRange {
+    TextRange {
+        start: text_position(range.start),
+        end: text_position(range.end),
+    }
+}
+
+/// Convert one LSP text position into a source text position.
+pub(super) fn text_position(position: lsp::Position) -> TextPosition {
+    TextPosition {
+        line: position.line,
+        character: position.character,
+    }
 }
 
 /// Normalize line endings to LF.
