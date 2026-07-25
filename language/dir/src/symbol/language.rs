@@ -203,6 +203,12 @@ define_language_items! {
 
     /// Async types.
     async {
+        /// `destack:async/awaitable`.
+        awaitable {
+            /// Awaitable value interface.
+            Awaitable => (NewtypeInterface, "async/awaitable", "Awaitable"),
+        }
+
         /// `destack:async/generator`.
         generator {
             /// Async generator class.
@@ -286,14 +292,6 @@ define_language_items! {
             /// Promise class.
             Promise => (Class, "async/promise", "Promise"),
 
-            /// Park one waiter until fulfillment.
-            PromisePark => (
-                Function,
-                "async/promise",
-                "park",
-                "async.Promise.park"
-            ),
-
             /// Promise resolver pair.
             PromiseResolvers => (Struct, "async/promise", "PromiseResolvers"),
         }
@@ -302,14 +300,6 @@ define_language_items! {
         task {
             /// Task struct.
             Task => (Struct, "async/task", "Task"),
-
-            /// Park one waiter until task completion.
-            TaskPark => (
-                Function,
-                "async/task",
-                "park",
-                "async.Task.park"
-            ),
 
             /// Queue one microtask.
             QueueMicrotask => (Function, "async/task", "queueMicrotask"),
