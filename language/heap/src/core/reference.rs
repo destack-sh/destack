@@ -627,6 +627,20 @@ pub fn visit_heap_root_slots(
     walk_trace_map(trace_map, 0, range, &mut walker)
 }
 
+impl TraceView<'_> {
+    /// Visit mutable frame pointer slots encoded in one value.
+    pub fn visit_frame_pointer_slots(
+        self,
+        trace: TraceId,
+        bytes: &mut [u8],
+        visit: &mut dyn FnMut(&mut [u8]) -> HeapResult<()>,
+    ) -> HeapResult<()> {
+        let mut walker = FramePointerSlotWalker { bytes, visit };
+
+        self.walk(trace, 0, ReferenceRange::All, &mut walker)
+    }
+}
+
 /// Scan read-only references from one input.
 pub(crate) fn scan_references<R: ReferenceClass>(
     trace_map: &TraceMap,
@@ -924,6 +938,43 @@ struct ByteSlotWalker<'a> {
     bytes: &'a mut [u8],
     /// The slot visitor.
     visit: &'a mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+}
+
+/// Mutable frame pointer walker over caller-provided bytes.
+struct FramePointerSlotWalker<'a> {
+    /// The byte window to mutate.
+    bytes: &'a mut [u8],
+    /// The frame pointer slot visitor.
+    visit: &'a mut dyn FnMut(&mut [u8]) -> HeapResult<()>,
+}
+
+impl TraceVisitor for FramePointerSlotWalker<'_> {
+    fn fixed(
+        &mut self,
+        _local_offsets: &[u32],
+        _shared_offsets: &[u32],
+        frame_offsets: &[u32],
+        base_offset: usize,
+        range: ReferenceRange,
+    ) -> HeapResult<()> {
+        walk_direct_offsets(
+            frame_offsets,
+            base_offset,
+            range,
+            REFERENCE_BYTES,
+            |offset| {
+                let slot = reference_bytes_mut(self.bytes, 0, offset, REFERENCE_BYTES)?;
+
+                (self.visit)(slot)
+            },
+        )
+    }
+
+    fn scalar(&mut self, offset: usize, byte_len: u8) -> HeapResult<Option<u128>> {
+        Ok(discriminant_scalar_from_bytes(
+            self.bytes, 0, offset, byte_len,
+        ))
+    }
 }
 
 impl TraceVisitor for ByteSlotWalker<'_> {
