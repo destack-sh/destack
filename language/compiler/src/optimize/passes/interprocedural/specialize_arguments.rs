@@ -171,6 +171,7 @@ fn run_specialize_arguments(
     let changed = {
         let MirOptimized {
             tree,
+            layouts,
             memory,
             effects,
             ..
@@ -275,7 +276,14 @@ fn run_specialize_arguments(
             };
 
             // update the callsite to use the specialized clone
-            if update_callsite(callsite, new_callee, &removal_indices, tree, effects) {
+            if update_callsite(
+                callsite,
+                new_callee,
+                &removal_indices,
+                tree,
+                layouts,
+                effects,
+            ) {
                 changed = true;
             }
         }
@@ -642,6 +650,7 @@ fn update_callsite(
     new_callee: mir::LocalNodeId<mir::Function>,
     removal_indices: &[usize],
     tree: &mut mir::Tree,
+    layouts: &mut mir::LayoutTable,
     effects: &mut mir::EffectTable,
 ) -> bool {
     // prepare removal remapping data
@@ -663,19 +672,17 @@ fn update_callsite(
         _ => return false,
     };
 
-    // build the updated signature type before borrowing the tree again
-    let signature_type = if remap.removal_indices().is_empty() {
-        None
-    } else {
-        Some(SignatureKey::insert_function_type(new_callee, tree))
-    };
+    // build the explicit specialized signature
+    let callee = tree.get(new_callee);
+    let signature = tree.intern_type(callee.signature());
+    layouts.copy_type_entries(call.signature, signature);
 
     let mut call = call;
     call.callee = mir::Callee::Direct {
         function: new_callee,
     };
     call.arguments = new_slice;
-    call.signature = signature_type.unwrap_or(call.signature);
+    call.signature = signature;
 
     let updated = mir::Instruction::Call { destination, call };
     tree.set(callsite.call_instruction, updated);
@@ -708,7 +715,7 @@ function root(): int32 {
 entry:
     v0: int32 = 2
     v1: int32 = 3
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -724,7 +731,7 @@ function root(): int32 {
 entry:
     v0: int32 = 2
     v1: int32 = 3
-    v2: int32 = call callee_spec0()
+    v2: int32 = call callee_spec0(): () => int32
     return v2
 }
 
@@ -754,7 +761,7 @@ function root(): int32 {
 entry:
     v0: int32 = 2
     v1: int32 = 3
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -770,7 +777,7 @@ function root(): int32 {
 entry:
     v0: int32 = 2
     v1: int32 = 3
-    v2: int32 = call callee_spec0()
+    v2: int32 = call callee_spec0(): () => int32
     return v2
 }
 
@@ -835,7 +842,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 1
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -932,7 +939,7 @@ function root(): int32 {
 entry:
     v0: int32 = 2
     v1: int32 = 3
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -962,7 +969,7 @@ function root(): int32 {
 entry:
     v0: int32 = 2
     v1: int32 = 3
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -990,7 +997,7 @@ function root(): int32 {
 entry:
     v0: int32 = 2
     v1: int32 = 3
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -1006,7 +1013,7 @@ function root(): int32 {
 entry:
     v0: int32 = 2
     v1: int32 = 3
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -1038,14 +1045,14 @@ b1:
 b2:
     v3: int32 = 1
     v4: int32 = int.sub v0, v3
-    v5: int32 = call callee(v4)
+    v5: int32 = call callee(v4): (int32) => int32
     return v5
 }
 
 function root(): int32 {
 entry:
     v0: int32 = 9
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -1064,7 +1071,7 @@ external function callee(int32): int32
 function root(): int32 {
 entry:
     v0: int32 = 2
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -1090,11 +1097,11 @@ entry:
     v2: int32 = 3
     v3: int32 = 4
     v4: int32 = 5
-    v5: int32 = call callee(v0)
-    v6: int32 = call callee(v1)
-    v7: int32 = call callee(v2)
-    v8: int32 = call callee(v3)
-    v9: int32 = call callee(v4)
+    v5: int32 = call callee(v0): (int32) => int32
+    v6: int32 = call callee(v1): (int32) => int32
+    v7: int32 = call callee(v2): (int32) => int32
+    v8: int32 = call callee(v3): (int32) => int32
+    v9: int32 = call callee(v4): (int32) => int32
     return v9
 }
 "#;
@@ -1112,11 +1119,11 @@ entry:
     v2: int32 = 3
     v3: int32 = 4
     v4: int32 = 5
-    v5: int32 = call callee_spec0()
-    v6: int32 = call callee_spec1()
-    v7: int32 = call callee_spec2()
-    v8: int32 = call callee_spec3()
-    v9: int32 = call callee(v4)
+    v5: int32 = call callee_spec0(): () => int32
+    v6: int32 = call callee_spec1(): () => int32
+    v7: int32 = call callee_spec2(): () => int32
+    v8: int32 = call callee_spec3(): () => int32
+    v9: int32 = call callee(v4): (int32) => int32
     return v9
 }
 

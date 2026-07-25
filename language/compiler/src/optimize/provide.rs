@@ -1,23 +1,20 @@
-use crate::{Compiler, CompilerResult, OptimizeError, OptimizeResult, OptimizeWarning};
-use destack_repository::ProviderContext;
-use std::mem;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, ProgramAnalysis,
-    TargetArch,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirOptimized, ProgramAnalysis,
 };
 use destack_mir as mir;
-use destack_repository::{Module, ProfileId, Target};
+use destack_mir::AnalysisOptions;
+use destack_repository::{ProfileId, ProviderContext, Target};
 use destack_source::{ModuleId, TargetId};
-use target_lexicon::Triple;
+
+use crate::{
+    Compiler, CompilerError, CompilerResult, OptimizeError, OptimizeResult, OptimizeWarning,
+};
 
 use super::{
     OptimizationLevel, OptimizeState, Pipeline, PipelineContext, PipelineOptions, default_pipeline,
 };
-use crate::CompilerError;
-use destack_mir::{AnalysisOptions, TargetLayout};
 
 impl Compiler {
     /// Collect inputs for optimized MIR of one module and target.
@@ -32,8 +29,8 @@ impl Compiler {
         dependencies.require(ArtifactKey::mir_elaborated(module, profile, target));
 
         // resolve the optimization program scope
-        let target_config = self.target_for_module(module, &target, context)?;
-        let level = self.optimization_level_for_target_config(&target_config);
+        let target_config = self.optimization_target(&target, context)?;
+        let level: OptimizationLevel = target_config.compiler.optimize.into();
         if level.uses_program_analysis() {
             dependencies.require(ArtifactKey::program_analysis(profile, target));
         } else {
@@ -72,7 +69,7 @@ impl Compiler {
     ) -> CompilerResult<MirOptimized> {
         let package_id = target.package_id();
 
-        let resolved_profile = self.profile_id_for_target(context.revision(), module, target)?;
+        let resolved_profile = self.profile_id_for_target(context.revision(), target)?;
         if resolved_profile != profile {
             return Err(OptimizeError::InvalidTarget {
                 anchor: package_id.into(),
@@ -84,9 +81,9 @@ impl Compiler {
         }
 
         // resolve pipeline for this target
-        let target_config = self.target_for_module(module, target, context)?;
-        let level = self.optimization_level_for_target_config(&target_config);
-        let pipeline = default_pipeline(level, target_config.uses_native_emit_pipeline());
+        let target_config = self.optimization_target(target, context)?;
+        let level = target_config.compiler.optimize.into();
+        let pipeline = default_pipeline(level);
 
         // load provider inputs
         let artifacts = self.artifact_reader(context);
@@ -119,9 +116,7 @@ impl Compiler {
         let strings = self.repository.string_pool().clone();
 
         // resolve pipeline options
-        let module_ref = self.module(context.revision(), module)?;
-        let options =
-            self.pipeline_options_for_module(module_ref.as_ref(), &target_config, level, context);
+        let options = Self::pipeline_options(elaborated.target, level);
 
         // run the pipeline
         let mut pipeline_context = PipelineContext::new(
@@ -146,86 +141,22 @@ impl Compiler {
         Ok(optimized)
     }
 
-    /// Resolve the optimization level for a target configuration.
-    fn optimization_level_for_target_config(&self, target: &Target) -> OptimizationLevel {
-        target.compiler.optimize.into()
-    }
-
-    /// Resolve pipeline options for a module and target.
-    fn pipeline_options_for_module(
-        &self,
-        _module: &Module,
-        target: &Target,
+    /// Resolve pipeline options for one target.
+    fn pipeline_options(
+        target_layout: mir::TargetLayout,
         level: OptimizationLevel,
-        _context: &dyn ProviderContext,
     ) -> PipelineOptions {
-        // resolve pointer width from target configuration
-        let pointer_bytes = self.pointer_bytes_for_target(target);
-
         PipelineOptions {
-            analysis: AnalysisOptions::new(TargetLayout::for_pointer_bytes(pointer_bytes)),
+            analysis: AnalysisOptions::new(target_layout),
             unroll_threshold: level.unroll_threshold(),
             inline_budget_scale_percent: level.inline_budget_scale_percent(),
             ..Default::default()
         }
     }
 
-    /// Resolve pointer size in bytes for a target configuration.
-    fn pointer_bytes_for_target(&self, target: &Target) -> u8 {
-        // prefer explicit triple for pointer width
-        if let Some(triple) = target.resolved_target_triple()
-            && let Ok(triple) = Triple::from_str(&triple)
-            && let Ok(pointer_width) = triple.pointer_width()
-        {
-            let bits = pointer_width.bits() as u16;
-            if matches!(bits, 32 | 64) {
-                return (bits / 8) as u8;
-            }
-        }
-
-        if let Some(target_arch) = target.native.arch.as_ref() {
-            let bits = match target_arch {
-                TargetArch::X86_64
-                | TargetArch::Aarch64
-                | TargetArch::Riscv64
-                | TargetArch::PowerPc64
-                | TargetArch::PowerPc64le
-                | TargetArch::S390x
-                | TargetArch::Mips64
-                | TargetArch::Mips64el
-                | TargetArch::LoongArch64
-                | TargetArch::Wasm64 => 64,
-                TargetArch::X86
-                | TargetArch::Armv7
-                | TargetArch::Armv6
-                | TargetArch::Riscv32
-                | TargetArch::Wasm32 => 32,
-                TargetArch::Other(_) => (mem::size_of::<usize>() * 8) as u16,
-            };
-            if matches!(bits, 32 | 64) {
-                return (bits / 8) as u8;
-            }
-        }
-
-        // fall back to output defaults
-        let bits = match target.emit {
-            EmitFormat::Wasm => 32,
-            EmitFormat::Native => (mem::size_of::<usize>() * 8) as u16,
-            _ => (mem::size_of::<usize>() * 8) as u16,
-        };
-
-        // ensure supported sizes
-        if matches!(bits, 32 | 64) {
-            (bits / 8) as u8
-        } else {
-            mem::size_of::<usize>() as u8
-        }
-    }
-
-    /// Resolve the target configuration for a module.
-    fn target_for_module(
+    /// Resolve the target configuration for optimization.
+    fn optimization_target(
         &self,
-        _module: ModuleId,
         target: &TargetId,
         context: &dyn ProviderContext,
     ) -> OptimizeResult<Target> {

@@ -447,7 +447,7 @@ entry:
     jump b1
 
 b1:
-    call sideEffect()
+    call sideEffect(): () => int32
     branch v0, b1, b2
 
 b2:

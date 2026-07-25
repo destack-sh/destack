@@ -23,8 +23,9 @@ declare_pass! {
     /// ```mir
     /// // before DSE
     /// function before(): int32 {
+    ///     local l0: int32
     /// b0:
-    ///     v0 = frame.alloc.zeroed int32
+    ///     v0 = local.address l0
     ///     v1 = 1int32
     ///     store v0, v1        // dead: overwritten below
     ///     v2 = 2int32
@@ -37,8 +38,9 @@ declare_pass! {
     /// ```mir
     /// // after DSE
     /// function after(): int32 {
+    ///     local l0: int32
     /// b0:
-    ///     v0 = frame.alloc.zeroed int32
+    ///     v0 = local.address l0
     ///     v1 = 1int32
     ///     // store removed
     ///     v2 = 2int32
@@ -62,8 +64,6 @@ impl FunctionPass for EliminateDeadStores {
         analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let effects = &mut optimized.effects;
-
         // skip empty functions
         let _entry = match function.entry() {
             Some(entry) => entry,
@@ -82,7 +82,6 @@ impl FunctionPass for EliminateDeadStores {
         let changed = run_eliminate_dead_stores(
             function,
             tree,
-            effects,
             &aa,
             memory_ssa.as_ref(),
             &value_types,
@@ -113,7 +112,6 @@ impl FunctionPass for EliminateDeadStores {
 fn run_eliminate_dead_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    effects: &mir::EffectTable,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     value_types: &ValueTypes,
@@ -134,16 +132,14 @@ fn run_eliminate_dead_stores(
     // collect live definitions from memory reads
     let live_defs = collect_live_defs(function, tree, memory_ssa, aa);
 
-    // collect non escaping stack allocations
+    // build reusable reference provenance
     let value_definitions = ValueDefinitions::build(function, tree);
-    let non_escaping_frame_allocs =
-        value_definitions.non_escaping_frame_allocs(function, tree, effects);
-    let frame_alloc_reads = collect_frame_alloc_reads(
-        function,
-        memory_ssa,
+    let mut regions = MemoryRegionBuilder::new(
         &value_definitions,
-        &non_escaping_frame_allocs,
         tree,
+        &function.parameters,
+        value_types,
+        target_layout,
     );
 
     // determine dead stores
@@ -166,14 +162,9 @@ fn run_eliminate_dead_stores(
             continue;
         }
 
-        // remove stores to non escaping stack memory
-        if store_is_non_escaping_stack(
-            &store,
-            &value_definitions,
-            &non_escaping_frame_allocs,
-            &frame_alloc_reads,
-            tree,
-        ) {
+        // remove unread stores owned by this frame
+        let resolved_region = regions.resolve(&store.region);
+        if resolved_region.is_frame_storage() {
             dead_stores.insert(store.instruction);
             continue;
         }
@@ -185,11 +176,7 @@ fn run_eliminate_dead_stores(
             memory_ssa,
             aa,
             postdom,
-            function,
-            tree,
-            &value_definitions,
-            value_types,
-            target_layout,
+            &mut regions,
         ) {
             dead_stores.insert(store.instruction);
         }
@@ -221,8 +208,6 @@ struct StoreCandidate {
     block: mir::LocalNodeId<mir::Block>,
     /// Instruction index within the block.
     index: usize,
-    /// Optional pointer for reference locations.
-    pointer: Option<mir::Value>,
     /// Access location for the store.
     region: MemoryRegion,
     /// True when the store is volatile.
@@ -287,19 +272,12 @@ fn collect_store_candidates(
                     continue;
                 };
 
-                // resolve reference locations when available
-                let pointer = match &def_access.effect.region {
-                    MemoryRegion::Reference { access, .. } => Some(access.reference),
-                    _ => None,
-                };
-
                 // record the candidate store
                 stores.push(StoreCandidate {
                     instruction: instruction_id,
                     access: access_id,
                     block: block_id,
                     index,
-                    pointer,
                     region: def_access.effect.region.clone(),
                     is_volatile: def_access.effect.is_volatile,
                     is_barrier: def_access.effect.is_barrier,
@@ -436,84 +414,6 @@ fn record_live_clobber(
     }
 }
 
-/// Collect stack allocation bases that are read by any memory access.
-fn collect_frame_alloc_reads(
-    function: &mir::Function,
-    memory_ssa: &MemorySSA,
-    definitions: &ValueDefinitions,
-    frame_allocs: &HashSet<mir::Value>,
-    tree: &mir::Tree,
-) -> HashSet<mir::Value> {
-    // collect stack bases with reads
-    let mut reads = HashSet::new();
-
-    // scan blocks for read accesses
-    for &block_id in function.blocks() {
-        // read the block
-        let block = tree.get(block_id);
-
-        // scan instructions for memory uses
-        for &instruction_id in &block.instructions {
-            // read the access list
-            let Some(accesses) = memory_ssa.instruction_accesses(instruction_id) else {
-                continue;
-            };
-
-            // track pointer reads that touch stack allocations
-            for &access_id in accesses {
-                let MemoryNode::Use(use_access) = memory_ssa.access(access_id) else {
-                    continue;
-                };
-                let MemoryRegion::Reference { access, .. } = &use_access.effect.region else {
-                    continue;
-                };
-
-                // resolve stack bases for the pointer
-                let mut visited = HashSet::new();
-                definitions.collect_frame_alloc_bases(
-                    access.reference,
-                    tree,
-                    frame_allocs,
-                    &mut visited,
-                    &mut reads,
-                );
-            }
-        }
-    }
-
-    reads
-}
-
-/// Return true when a store targets a non escaping stack allocation.
-fn store_is_non_escaping_stack(
-    store: &StoreCandidate,
-    definitions: &ValueDefinitions,
-    non_escaping_frame_allocs: &HashSet<mir::Value>,
-    frame_alloc_reads: &HashSet<mir::Value>,
-    tree: &mir::Tree,
-) -> bool {
-    // only reference locations can be stack allocations
-    let MemoryRegion::Reference { .. } = store.region else {
-        return false;
-    };
-
-    // resolve the stack base for this store pointer
-    let Some(pointer) = store.pointer else {
-        return false;
-    };
-    let Some(base) = definitions.frame_alloc_base(pointer, tree) else {
-        return false;
-    };
-
-    // skip when the stack location is read
-    if frame_alloc_reads.contains(&base) {
-        return false;
-    }
-
-    // report whether the base is non escaping
-    non_escaping_frame_allocs.contains(&base)
-}
-
 /// Return true when the store is postdominated by a clobbering access.
 fn store_is_postdominated_by_clobber(
     store: &StoreCandidate,
@@ -521,20 +421,8 @@ fn store_is_postdominated_by_clobber(
     memory_ssa: &MemorySSA,
     aa: &AliasAnalysis,
     postdom: &PostDominatorTree,
-    function: &mir::Function,
-    tree: &mir::Tree,
-    definitions: &ValueDefinitions,
-    value_types: &ValueTypes,
-    target_layout: TargetLayout,
+    regions: &mut MemoryRegionBuilder<'_>,
 ) -> bool {
-    let mut regions = MemoryRegionBuilder::new(
-        definitions,
-        tree,
-        &function.parameters,
-        value_types,
-        target_layout,
-    );
-
     // search for clobbering defs that postdominate the store
     for def in def_accesses {
         // skip self and earlier defs in the block
@@ -560,7 +448,7 @@ fn store_is_postdominated_by_clobber(
 
         // return once a clobbering def is found
         if let Some(overwrites) =
-            def_fully_overwrites_store(&def_access.effect.region, &store.region, &mut regions)
+            def_fully_overwrites_store(&def_access.effect.region, &store.region, regions)
         {
             if overwrites && memory_ssa.def_clobbers_access(def.access, store.access, aa) {
                 return true;
@@ -685,8 +573,9 @@ mod tests {
     fn test_remove_overwritten_store() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = 2
@@ -697,8 +586,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     v2: int32 = 2
     store v0, v2
@@ -719,8 +609,9 @@ entry:
     fn test_preserve_read_store() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = load v0
@@ -743,8 +634,9 @@ entry:
     fn test_remove_store_to_unused_alloc() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     v2: int32 = 0
@@ -753,8 +645,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     v2: int32 = 0
     return v2
@@ -771,8 +664,9 @@ entry:
     fn test_preserve_volatile_store() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = 2
@@ -806,11 +700,12 @@ entry:
 external function imported(ref<int32, raw, mutable>): void
 
 function test(): void {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     return
 }
 "#;
@@ -827,11 +722,12 @@ entry:
 external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     v2: int32 = 0
     return v2
 }
@@ -840,10 +736,11 @@ entry:
 external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     v2: int32 = 0
     return v2
 }
@@ -876,8 +773,9 @@ entry:
     fn test_multiple_overwrites() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = 2
@@ -890,8 +788,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     v2: int32 = 2
     v3: int32 = 3
@@ -931,9 +830,11 @@ entry:
     fn test_different_locations() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -960,11 +861,12 @@ entry:
 external function readValue(ref<int32, raw, mutable>): int32
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
-    v2: int32 = call readValue(v0)
+    v2: int32 = call readValue(v0): (ref<int32, raw, mutable>) => int32
     return v2
 }
 "#;
@@ -984,9 +886,10 @@ entry:
 external function sideEffect(): void
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    call sideEffect()
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    call sideEffect(): () => void
     v1: int32 = 1
     store v0, v1
     v2: int32 = 2
@@ -999,9 +902,10 @@ entry:
 external function sideEffect(): void
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    call sideEffect()
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    call sideEffect(): () => void
     v1: int32 = 1
     v2: int32 = 2
     store v0, v2
@@ -1013,46 +917,6 @@ entry:
         let mut test = TestProgram::new(input);
         test.run_pass(&EliminateDeadStores);
         test.assert_output(expected);
-    }
-
-    /// Store to returned allocation is preserved.
-    ///
-    /// If the allocation is returned, the store is visible to the caller.
-    #[test]
-    fn test_preserve_store_to_returned() {
-        let input = r#"
-function test(): ref<int32, raw, mutable> {
-entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 42
-    store v0, v1
-    return v0
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_pass(&EliminateDeadStores);
-        test.assert_unchanged(input);
-    }
-
-    /// Store to allocation used in returned aggregate is preserved.
-    #[test]
-    fn test_preserve_store_returned_aggregate() {
-        let input = r#"
-function test(): (ref<int32, raw, mutable>, int32) {
-entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: int32 = 42
-    store v0, v1
-    v2: int32 = 0
-    v3: (ref<int32, raw, mutable>, int32) = aggregate (v0, v2)
-    return v3
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_pass(&EliminateDeadStores);
-        test.assert_unchanged(input);
     }
 
     /// Stores to disjoint fields are not treated as clobbers.
@@ -1085,14 +949,13 @@ entry(v0: ref<Pair, raw, mutable>):
     #[test]
     fn test_preserve_partial_overwrite() {
         let input = r#"
-function test(): ref<int64, raw, mutable> {
-entry:
-    v0: ref<int64, raw, mutable, space(frame)> = frame.alloc.zeroed int64
+function test(v0: ref<int64, raw, mutable>): void {
+entry(v0: ref<int64, raw, mutable>):
     v1: int64 = 0
     store v0, v1
     v2: int32 = 1
     store v0, v2
-    return v0
+    return
 }
 "#;
 
@@ -1115,8 +978,9 @@ entry:
     fn test_remove_dead_memset() {
         let input = r#"
 function test(): void {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int8 = 0
     v2: int64 = 4
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1125,8 +989,9 @@ entry:
 "#;
         let expected = r#"
 function test(): void {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int8 = 0
     v2: int64 = 4
     return
@@ -1143,8 +1008,9 @@ entry:
     fn test_preserve_memset_with_read() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int8 = 0
     v2: int64 = 4
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1165,9 +1031,11 @@ entry:
         // input test
         let input = r#"
 function test(): void {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     return
@@ -1175,9 +1043,11 @@ entry:
 "#;
         let expected = r#"
 function test(): void {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     return
 }
@@ -1195,9 +1065,11 @@ entry:
         // input test
         let input = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -1218,9 +1090,11 @@ entry:
         // input test
         let input = r#"
 function test(): void {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     return
@@ -1228,9 +1102,11 @@ entry:
 "#;
         let expected = r#"
 function test(): void {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     return
 }
@@ -1248,9 +1124,11 @@ entry:
         // input test
         let input = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -1324,8 +1202,9 @@ entry(v0: ref<Point, raw, mutable>):
     fn test_cross_block_overwritten() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     store v0, v1
     jump b1
@@ -1339,8 +1218,9 @@ b1:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     jump b1
 
@@ -1364,8 +1244,9 @@ b1:
     fn test_preserve_cross_block_read_on_path() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 1
     store v1, v2
     branch v0, b1, b2
@@ -1379,33 +1260,6 @@ b2:
     store v1, v4
     v5: int32 = load v1
     return v5
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_pass(&EliminateDeadStores);
-        test.assert_unchanged(input);
-    }
-
-    /// Switch terminator: allocation passed as default argument escapes.
-    ///
-    /// When an allocation is passed as an argument in a switch default,
-    /// it escapes and stores to it must be preserved.
-    #[test]
-    fn test_preserve_switch_escape() {
-        let input = r#"
-function test(v0: int32): void {
-entry(v0: int32):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v2: int32 = 42
-    store v1, v2
-    switch v0, b1(v1), 0 => b2
-
-b1(v3: ref<int32, raw, mutable>):
-    return
-
-b2:
-    return
 }
 "#;
 

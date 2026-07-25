@@ -1158,40 +1158,6 @@ fn append_successor_arguments(
                 cases: tree.add_switch_cases(&updated_cases),
             })
         }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            unwind,
-        } => {
-            let successor = mir::BlockId::from(successor);
-            let mut touched = false;
-
-            // append resume arguments
-            let mut updated_resume = resume.clone();
-            if resume.block == successor {
-                updated_resume.arguments = appended_arguments(tree, resume.arguments, new_args);
-                touched = true;
-            }
-
-            // append unwind arguments
-            let mut updated_unwind = unwind.clone();
-            if let Some(unwind) = &mut updated_unwind
-                && unwind.block == successor
-            {
-                unwind.arguments = appended_arguments(tree, unwind.arguments, new_args);
-                touched = true;
-            }
-
-            if !touched {
-                return None;
-            }
-
-            Some(mir::Terminator::Yield {
-                value: *value,
-                resume: updated_resume,
-                unwind: updated_unwind,
-            })
-        }
         _ => None,
     }
 }
@@ -1503,7 +1469,7 @@ impl<'a> ScevMaterializer<'a> {
             } => self.int_type(*width, *is_signed)?,
             mir::Constant::UInt { width, .. } => self.int_type(*width, false)?,
             mir::Constant::Float { format, .. } => self.tree.float_type(*format),
-            mir::Constant::Char { .. } => self.int_type(32, false)?,
+            mir::Constant::Char { .. } => self.tree.character_type(),
         };
 
         // allocate a new constant instruction
@@ -1731,12 +1697,8 @@ impl<'a> ScevMaterializer<'a> {
             return Some(*existing);
         }
 
-        // allocate a new type node
-        let ty = mir::Type::Int {
-            width,
-            is_signed: signed,
-        };
-        let type_id = self.tree.intern_type(ty);
+        // resolve the canonical integer type
+        let type_id = self.tree.int_type(width, signed);
         self.type_cache.insert((width, signed), type_id);
 
         Some(type_id)

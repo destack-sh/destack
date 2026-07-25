@@ -6,7 +6,7 @@ use destack_mir as mir;
 use destack_core::StringPool;
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
-use destack_mir::{Mutation, SignatureKey, clone_instruction_tables};
+use destack_mir::{Mutation, clone_instruction_tables};
 
 declare_pass! {
     /// Eliminates tail-recursive calls by converting them to jumps.
@@ -33,10 +33,11 @@ impl ModulePass for EliminateTailCalls {
         _analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
+        let layouts = &mut optimized.layouts;
         let memory = &mut optimized.memory;
 
         // eliminate tail calls across the module
-        let changed = eliminate_tail_calls(tree, memory, ctx.strings);
+        let changed = eliminate_tail_calls(tree, layouts, memory, ctx.strings);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -56,6 +57,7 @@ impl ModulePass for EliminateTailCalls {
 /// Eliminate tail calls across one MIR tree.
 fn eliminate_tail_calls(
     tree: &mut mir::Tree,
+    layouts: &mut mir::LayoutTable,
     memory: &mut mir::MemoryTable,
     strings: &StringPool,
 ) -> bool {
@@ -83,6 +85,7 @@ fn eliminate_tail_calls(
         if try_accumulator_transform(
             &mut function,
             tree,
+            layouts,
             memory,
             function_id,
             entry_block,
@@ -128,6 +131,8 @@ struct AccumulatorPattern {
     binary_index: usize,
     /// The call arguments.
     call_arguments: mir::ValueSlice,
+    /// The call signature type.
+    call_signature: mir::TypeId,
 }
 
 /// Try to transform a non-tail-recursive function into tail-recursive form.
@@ -141,6 +146,7 @@ struct AccumulatorPattern {
 fn try_accumulator_transform(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    layouts: &mut mir::LayoutTable,
     memory: &mut mir::MemoryTable,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
@@ -172,6 +178,7 @@ fn try_accumulator_transform(
         return try_accumulator_transform_exported(
             function,
             tree,
+            layouts,
             memory,
             current_function_id,
             entry_block,
@@ -206,6 +213,10 @@ fn try_accumulator_transform(
         .parameters
         .push(mir::FunctionParameter::new(acc_value, return_type));
 
+    // insert the expanded signature once for every rewritten callsite
+    let signature = tree.intern_type(function.signature());
+    layouts.copy_type_entries(patterns[0].call_signature, signature);
+
     // update all external call sites to pass the identity constant
     let mut call_sites_by_function: HashMap<_, Vec<_>> = HashMap::new();
     for call_site in call_sites {
@@ -221,7 +232,7 @@ fn try_accumulator_transform(
 
         for call_site in sites {
             let identity_value = function.next_typed_value(return_type);
-            update_call_site(&call_site, identity_value, &identity, tree);
+            update_call_site(&call_site, identity_value, &identity, signature, tree);
         }
 
         *tree.get_mut(function_id) = function;
@@ -247,6 +258,7 @@ fn try_accumulator_transform(
 fn try_accumulator_transform_exported(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    layouts: &mut mir::LayoutTable,
     memory: &mut mir::MemoryTable,
     current_function_id: mir::LocalNodeId<mir::Function>,
     entry_block: mir::LocalNodeId<mir::Block>,
@@ -278,19 +290,9 @@ fn try_accumulator_transform_exported(
             call_index: p.call_index,
             binary_index: p.binary_index,
             call_arguments: p.call_arguments,
+            call_signature: p.call_signature,
         })
         .collect();
-
-    // update the impl patterns to call impl instead of original
-    // (the cloned call instructions still reference current_function_id)
-    for pattern in &impl_patterns {
-        update_recursive_calls_to_impl(
-            pattern.block_id,
-            current_function_id,
-            impl_function_id,
-            tree,
-        );
-    }
 
     let mut impl_function = tree.get(impl_function_id).clone();
     impl_function.recompute_next_value_id(tree);
@@ -310,6 +312,10 @@ fn try_accumulator_transform_exported(
     impl_function
         .parameters
         .push(mir::FunctionParameter::new(acc_value, return_type));
+
+    // insert the expanded implementation signature
+    let impl_signature = tree.intern_type(impl_function.signature());
+    layouts.copy_type_entries(patterns[0].call_signature, impl_signature);
 
     // transform impl function's accumulator blocks
     for pattern in &impl_patterns {
@@ -337,7 +343,14 @@ fn try_accumulator_transform_exported(
     *tree.get_mut(impl_function_id) = impl_function;
 
     // rewrite original function as wrapper: call impl with identity
-    rewrite_as_wrapper(function, tree, entry_block, impl_function_id, identity);
+    rewrite_as_wrapper(
+        function,
+        tree,
+        entry_block,
+        impl_function_id,
+        impl_signature,
+        identity,
+    );
 
     true
 }
@@ -408,7 +421,6 @@ fn clone_function_as_impl(
     );
     impl_function.linkage = mir::Linkage::Local;
     impl_function.allocation = original.allocation;
-    impl_function.suspension = original.suspension;
     impl_function.replace_locals(original.locals().to_vec());
     impl_function.replace_blocks(impl_blocks, tree);
     impl_function.replace_value_types(original.value_types().to_vec());
@@ -461,20 +473,20 @@ fn remap_terminator_blocks(
             failure: clone_target(failure),
         },
         mir::Terminator::NewZeroedTry {
-            layout,
+            storage_type,
             success,
             failure,
         } => mir::Terminator::NewZeroedTry {
-            layout: *layout,
+            storage_type: *storage_type,
             success: clone_target(success),
             failure: clone_target(failure),
         },
         mir::Terminator::NewUninitTry {
-            layout,
+            storage_type,
             success,
             failure,
         } => mir::Terminator::NewUninitTry {
-            layout: *layout,
+            storage_type: *storage_type,
             success: clone_target(success),
             failure: clone_target(failure),
         },
@@ -551,14 +563,17 @@ fn remap_terminator_blocks(
             target: clone_target(target),
             unwind: clone_target(unwind),
         },
-        // return, unreachable, tailcall don't reference blocks that need remapping
-        mir::Terminator::Return { .. }
-        | mir::Terminator::Trap { .. }
-        | mir::Terminator::Panic { .. }
-        | mir::Terminator::UnwindResume
-        | mir::Terminator::Unreachable
-        | mir::Terminator::TailCall { .. } => terminator.clone(),
-        // remap yield continuations
+        mir::Terminator::Await {
+            park,
+            value,
+            resume,
+            unwind,
+        } => mir::Terminator::Await {
+            park: *park,
+            value: *value,
+            resume: clone_target(resume),
+            unwind: unwind.as_ref().map(clone_target),
+        },
         mir::Terminator::Yield {
             value,
             resume,
@@ -568,34 +583,13 @@ fn remap_terminator_blocks(
             resume: clone_target(resume),
             unwind: unwind.as_ref().map(clone_target),
         },
-    }
-}
-
-/// Update recursive calls in a block to call the impl function instead.
-fn update_recursive_calls_to_impl(
-    block_id: mir::LocalNodeId<mir::Block>,
-    original_function_id: mir::LocalNodeId<mir::Function>,
-    impl_function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::Tree,
-) {
-    let block = tree.get(block_id).clone();
-    let signature = SignatureKey::insert_function_type(impl_function_id, tree);
-
-    for &instr_id in &block.instructions {
-        let instr = tree.get(instr_id).clone();
-        if let mir::Instruction::Call {
-            destination,
-            mut call,
-        } = instr
-            && call.callee.function() == Some(original_function_id)
-        {
-            call.callee = mir::Callee::Direct {
-                function: impl_function_id,
-            };
-            call.signature = signature;
-            let new_instr = mir::Instruction::Call { destination, call };
-            tree.set(instr_id, new_instr);
-        }
+        // return, unreachable, tailcall don't reference blocks that need remapping
+        mir::Terminator::Return { .. }
+        | mir::Terminator::Abort { .. }
+        | mir::Terminator::Panic { .. }
+        | mir::Terminator::UnwindResume
+        | mir::Terminator::Unreachable
+        | mir::Terminator::TailCall { .. } => terminator.clone(),
     }
 }
 
@@ -605,6 +599,7 @@ fn rewrite_as_wrapper(
     tree: &mut mir::Tree,
     entry_block: mir::LocalNodeId<mir::Block>,
     impl_function_id: mir::LocalNodeId<mir::Function>,
+    signature: mir::TypeId,
     identity: &mir::Constant,
 ) {
     // ensure new values get typed ids
@@ -632,7 +627,6 @@ fn rewrite_as_wrapper(
 
     // create call to impl
     let result_value = function.next_typed_value(return_type);
-    let signature = SignatureKey::insert_function_type(impl_function_id, tree);
     let call_instr = mir::Instruction::Call {
         destination: Some(result_value),
         call: mir::Call::new(
@@ -726,6 +720,7 @@ fn update_call_site(
     call_site: &CallSite,
     identity_value: mir::Value,
     identity: &mir::Constant,
+    signature: mir::TypeId,
     tree: &mut mir::Tree,
 ) {
     // get the existing call instruction
@@ -737,10 +732,6 @@ fn update_call_site(
     else {
         return;
     };
-    let Some(function) = call.callee.function() else {
-        return;
-    };
-
     // create a value for the identity constant
     // create the const instruction
     let const_instr = mir::Instruction::Const {
@@ -756,8 +747,7 @@ fn update_call_site(
     // create new call with extended arguments
     let new_arguments = tree.add_values(&new_args);
     call.arguments = new_arguments;
-    call.signature = SignatureKey::insert_function_type(function, tree);
-
+    call.signature = signature;
     let new_call = mir::Instruction::Call { destination, call };
     let new_call_id = tree.insert(new_call);
 
@@ -976,6 +966,7 @@ fn detect_accumulator_pattern(
                 call_index: idx,
                 binary_index: binary_idx,
                 call_arguments: call.arguments,
+                call_signature: call.signature,
             });
         }
     }
@@ -1369,7 +1360,7 @@ b1:
 b2:
     v3: int32 = 1
     v4: int32 = int.sub v0, v3
-    call test(v4)
+    call test(v4): (int32) => void
     return
 }
 "#;
@@ -1410,7 +1401,7 @@ b1:
 
 b2:
     v3: int32 = int.sub v0, v1
-    v4: int32 = call test(v3)
+    v4: int32 = call test(v3): (int32) => int32
     v5: int32 = int.mul v0, v4
     return v5
 }
@@ -1454,7 +1445,7 @@ b1:
 b2:
     v3: int32 = 1
     v4: int32 = int.sub v0, v3
-    v5: int32 = call test(v4)
+    v5: int32 = call test(v4): (int32) => int32
     v6: int32 = int.sub v0, v5
     return v6
 }
@@ -1471,7 +1462,7 @@ b2:
         let input = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call other(v0)
+    v1: int32 = call other(v0): (int32) => int32
     return v1
 }
 
@@ -1483,7 +1474,7 @@ entry(v0: int32):
         let expected = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    tail.call other(v0)
+    tail.call other(v0): (int32) => int32
 }
 
 function other(v0: int32): int32 {
@@ -1512,7 +1503,7 @@ b1:
 
 b2:
     v4: int32 = int.rem.s v0, v1
-    v5: int32 = call test(v1, v4)
+    v5: int32 = call test(v1, v4): (int32, int32) => int32
     return v5
 }
 "#;
@@ -1543,7 +1534,7 @@ b2:
         let input = r#"
 function test(): void {
 entry:
-    call test()
+    call test(): () => void
     return
 }
 "#;
@@ -1566,7 +1557,7 @@ entry:
 function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = call test(v0)
+    v2: int32 = call test(v0): (int32) => int32
     return v1
 }
 "#;
@@ -1593,7 +1584,7 @@ b2:
     v5: int32 = 1
     v6: int32 = int.sub v0, v5
     v7: int32 = int.add v1, v2
-    v8: int32 = call test(v6, v2, v7)
+    v8: int32 = call test(v6, v2, v7): (int32, int32, int32) => int32
     return v8
 }
 "#;
@@ -1632,7 +1623,7 @@ entry(v0: int32):
 
 b1:
     v3: int32 = int.negate v0
-    v4: int32 = call test(v3)
+    v4: int32 = call test(v3): (int32) => int32
     return v4
 
 b2:
@@ -1642,7 +1633,7 @@ b2:
 
 b3:
     v7: int32 = int.sub v0, v5
-    v8: int32 = call test(v7)
+    v8: int32 = call test(v7): (int32) => int32
     return v8
 
 b4:
@@ -1689,7 +1680,7 @@ entry(v0: int32, v1: int32):
     branch v2, b1, b2
 
 b1:
-    v3: int32 = call test(v1, v0)
+    v3: int32 = call test(v1, v0): (int32, int32) => int32
     return v3
 
 b2:
@@ -1738,7 +1729,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
     v2: int32 = int.sub v0, v1
-    v3: int32 = call test(v2)
+    v3: int32 = call test(v2): (int32) => int32
     v4: int32 = 0
     return v3
 }
@@ -1766,7 +1757,7 @@ b1:
 b2:
     v4: int32 = 1
     v5: int32 = int.sub v0, v4
-    v6: boolean = call odd(v5)
+    v6: boolean = call odd(v5): (int32) => boolean
     return v6
 }
 
@@ -1783,7 +1774,7 @@ b1:
 b2:
     v4: int32 = 1
     v5: int32 = int.sub v0, v4
-    v6: boolean = call even(v5)
+    v6: boolean = call even(v5): (int32) => boolean
     return v6
 }
 "#;
@@ -1801,7 +1792,7 @@ b1:
 b2:
     v4: int32 = 1
     v5: int32 = int.sub v0, v4
-    tail.call odd(v5)
+    tail.call odd(v5): (int32) => boolean
 }
 
 function odd(v0: int32): boolean {
@@ -1817,7 +1808,7 @@ b1:
 b2:
     v4: int32 = 1
     v5: int32 = int.sub v0, v4
-    tail.call even(v5)
+    tail.call even(v5): (int32) => boolean
 }
 "#;
 
@@ -1842,7 +1833,7 @@ b1:
 b2:
     v3: int32 = 1
     v4: int32 = int.sub v0, v3
-    v5: int32 = call test(v4)
+    v5: int32 = call test(v4): (int32) => int32
     v6: int32 = int.add v0, v5
     return v6
 }
@@ -1886,7 +1877,7 @@ b1:
 b2:
     v3: int32 = 1
     v4: int32 = int.sub v0, v3
-    v5: int32 = call test(v4)
+    v5: int32 = call test(v4): (int32) => int32
     v6: int32 = int.or v0, v5
     return v6
 }
@@ -1931,7 +1922,7 @@ b1:
 b2:
     v4: int32 = 1
     v5: int32 = int.sub v0, v4
-    v6: int32 = call test(v5)
+    v6: int32 = call test(v5): (int32) => int32
     v7: int32 = int.add v0, v6
     return v7
 }
@@ -1977,7 +1968,7 @@ b1:
 
 b2:
     v3: int32 = int.sub v0, v1
-    v4: int32 = call test(v3)
+    v4: int32 = call test(v3): (int32) => int32
     v5: int32 = int.mul v0, v4
     v6: int32 = int.add v5, v4
     return v6
@@ -2009,12 +2000,12 @@ b2:
     branch v1, b3, b4
 
 b3:
-    v7: int32 = call test(v6, v1)
+    v7: int32 = call test(v6, v1): (int32, boolean) => int32
     v8: int32 = int.mul v0, v7
     return v8
 
 b4:
-    v9: int32 = call test(v6, v1)
+    v9: int32 = call test(v6, v1): (int32, boolean) => int32
     v10: int32 = int.add v0, v9
     return v10
 }
@@ -2042,7 +2033,7 @@ b1:
 
 b2:
     v3: int32 = int.sub v0, v1
-    v4: int32 = call factorial(v3)
+    v4: int32 = call factorial(v3): (int32) => int32
     v5: int32 = int.mul v0, v4
     return v5
 }
@@ -2050,7 +2041,7 @@ b2:
 function main(): int32 {
 entry:
     v0: int32 = 5
-    v1: int32 = call factorial(v0)
+    v1: int32 = call factorial(v0): (int32) => int32
     return v1
 }
 "#;
@@ -2075,7 +2066,7 @@ function main(): int32 {
 entry:
     v0: int32 = 5
     v2: int32 = 1
-    tail.call factorial(v0, v2)
+    tail.call factorial(v0, v2): (int32, int32) => int32
 }
 "#;
 
@@ -2099,7 +2090,7 @@ b1:
 
 b2:
     v3: int32 = int.sub v0, v1
-    v4: int32 = call factorial(v3)
+    v4: int32 = call factorial(v3): (int32) => int32
     v5: int32 = int.mul v0, v4
     return v5
 }
@@ -2110,7 +2101,7 @@ b2:
 export function factorial(v0: int32): int32 {
 entry(v0: int32):
     v6: int32 = 1
-    tail.call factorial_impl(v0, v6)
+    tail.call factorial_impl(v0, v6): (int32, int32) => int32
 }
 
 function factorial_impl(v0: int32, v6: int32): int32 {
@@ -2162,7 +2153,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         let input = r#"
 function test(v0: int32): void {
 entry(v0: int32):
-    call other(v0)
+    call other(v0): (int32) => void
     return
 }
 
@@ -2174,7 +2165,7 @@ entry(v0: int32):
         let expected = r#"
 function test(v0: int32): void {
 entry(v0: int32):
-    tail.call other(v0)
+    tail.call other(v0): (int32) => void
 }
 
 function other(v0: int32): void {
@@ -2206,7 +2197,7 @@ b1:
 b2:
     v4: int32 = 1
     v5: int32 = int.sub v0, v4
-    v6: int32 = call test(v5)
+    v6: int32 = call test(v5): (int32) => int32
     v7: int32 = int.and v0, v6
     return v7
 }
@@ -2251,7 +2242,7 @@ b1:
 b2:
     v3: int32 = 1
     v4: int32 = int.sub v0, v3
-    v5: int32 = call test(v4)
+    v5: int32 = call test(v4): (int32) => int32
     v6: int32 = int.xor v0, v5
     return v6
 }

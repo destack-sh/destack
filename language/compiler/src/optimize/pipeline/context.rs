@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use destack_artifact::{DiagnosticBuilder, ProgramAnalysis};
 use destack_core::StringPool;
@@ -27,8 +26,6 @@ pub struct PipelineDiagnostics {
     errors: Mutex<Vec<DiagnosticBuilder<OptimizeError>>>,
     /// Accumulated warnings from pipeline passes.
     warnings: Mutex<Vec<DiagnosticBuilder<OptimizeWarning>>>,
-    /// Whether type layouts have been validated for this pipeline run.
-    type_layouts_validated: AtomicBool,
 }
 
 impl PipelineDiagnostics {
@@ -37,7 +34,6 @@ impl PipelineDiagnostics {
         Self {
             errors: Mutex::new(Vec::new()),
             warnings: Mutex::new(Vec::new()),
-            type_layouts_validated: AtomicBool::new(false),
         }
     }
 
@@ -49,16 +45,6 @@ impl PipelineDiagnostics {
     /// Emit an optimization warning.
     pub fn emit_warning(&self, warning: impl Into<DiagnosticBuilder<OptimizeWarning>>) {
         self.warnings.lock().push(warning.into());
-    }
-
-    /// Return true when type layouts have been validated.
-    pub fn type_layouts_validated(&self) -> bool {
-        self.type_layouts_validated.load(Ordering::Relaxed)
-    }
-
-    /// Mark that type layouts have been validated.
-    pub fn mark_type_layouts_validated(&self) {
-        self.type_layouts_validated.store(true, Ordering::Relaxed);
     }
 
     /// Take all accumulated errors.

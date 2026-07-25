@@ -650,7 +650,7 @@ entry(v0: ref<int32, raw, mutable>):
 function root(): void {
 entry:
     v1: ref<int32, raw, mutable> = global.address value
-    invoke write(v1) => b1 | b2
+    invoke write(v1): (ref<int32, raw, mutable>) => void => b1 | b2
 
 b1:
     return

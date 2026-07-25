@@ -155,20 +155,21 @@ fn run_propagate_copies(
                     record_predecessor(&case.target);
                 }
             }
-            mir::Terminator::Yield { resume, unwind, .. } => {
+            mir::Terminator::Invoke { target, unwind, .. } => {
+                record_predecessor(target);
+                record_predecessor(unwind);
+            }
+            mir::Terminator::Await { resume, unwind, .. }
+            | mir::Terminator::Yield { resume, unwind, .. } => {
                 record_predecessor(resume);
                 if let Some(unwind) = unwind {
                     record_predecessor(unwind);
                 }
             }
-            mir::Terminator::Invoke { target, unwind, .. } => {
-                record_predecessor(target);
-                record_predecessor(unwind);
-            }
             mir::Terminator::Return { .. }
             | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume
-            | mir::Terminator::Trap { .. }
+            | mir::Terminator::Abort { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. } => {}
         }
@@ -451,30 +452,6 @@ fn remove_arguments_at_indices(
                 value: *value,
                 default: new_default.map(|(target, _)| target),
                 cases: new_cases,
-            }
-        }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            unwind,
-        } => {
-            let (new_resume_args, changed_resume) =
-                filter_target_arguments(tree, resume, removed_indices);
-
-            let new_unwind = unwind.as_ref().map(|unwind| {
-                let (arguments, _) = filter_target_arguments(tree, unwind, removed_indices);
-
-                mir::BlockTarget::new(unwind.block, arguments)
-            });
-
-            if changed_resume || new_unwind != *unwind {
-                mir::Terminator::Yield {
-                    value: *value,
-                    resume: mir::BlockTarget::new(resume.block, new_resume_args),
-                    unwind: new_unwind,
-                }
-            } else {
-                terminator.clone()
             }
         }
         _ => terminator.clone(),

@@ -20,8 +20,9 @@ declare_pass! {
     ///
     /// ```mir
     /// function before(v0: boolean): int32 {
+    ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, mutable, space(frame)>
+    ///     v1 = local.address l0 -> ref<int32, raw, mutable, space(frame)>
     ///     branch v0, b1, b2
     /// b1:
     ///     jump b3
@@ -35,8 +36,9 @@ declare_pass! {
     /// becomes:
     /// ```mir
     /// function after(v0: boolean): int32 {
+    ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, mutable, space(frame)>
+    ///     v1 = local.address l0 -> ref<int32, raw, mutable, space(frame)>
     ///     branch v0, b1, b2
     /// b1:
     ///     v4 = load v1 -> int32
@@ -557,8 +559,9 @@ mod tests {
     fn test_eliminate_partial_redundant_loads_inserts_edge_loads() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -579,8 +582,9 @@ b3:
 
         let expected = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -610,6 +614,7 @@ b3(v5: int32):
     fn test_eliminate_partial_redundant_loads_skips_unavailable_pointer() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
     branch v0, b1, b2
 
@@ -620,7 +625,7 @@ b2:
     jump b3
 
 b3:
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = load v1
     return v2
 }
@@ -636,8 +641,9 @@ b3:
     fn test_eliminate_partial_redundant_loads_skips_side_effects() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -664,8 +670,9 @@ b3:
     fn test_eliminate_partial_redundant_loads_allows_read_only_call() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -679,7 +686,7 @@ b2:
     jump b3
 
 b3:
-    call readOnly()
+    call readOnly(): () => void
     v4: int32 = load v1
     return v4
 }
@@ -689,8 +696,9 @@ external function readOnly(): void
 
         let expected = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -706,7 +714,7 @@ b2:
     jump b3(v7)
 
 b3(v5: int32):
-    call readOnly()
+    call readOnly(): () => void
     return v5
 }
 
@@ -732,8 +740,9 @@ external function readOnly(): void
     fn test_eliminate_partial_redundant_loads_skips_volatile_load() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -772,8 +781,9 @@ b3:
     fn test_eliminate_partial_redundant_loads_skips_non_phi_defining_access() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -800,8 +810,9 @@ b3:
     fn test_eliminate_partial_redundant_loads_reuses_predecessor_load() {
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
+    local l0: int32
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -825,8 +836,9 @@ b4:
 
         let expected = r#"
 function test(v0: boolean, v1: boolean): int32 {
+    local l0: int32
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -858,8 +870,9 @@ b4:
     fn test_eliminate_partial_redundant_loads_allows_read_only_intrinsic() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -882,8 +895,9 @@ b3:
 
         let expected = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -915,8 +929,9 @@ b3(v7: int32):
     fn test_eliminate_partial_redundant_loads_splits_edge_blocks() {
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
+    local l0: int32
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -941,8 +956,9 @@ b4:
 
         let expected = r#"
 function test(v0: boolean, v1: boolean): int32 {
+    local l0: int32
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2_1
 
 b1:

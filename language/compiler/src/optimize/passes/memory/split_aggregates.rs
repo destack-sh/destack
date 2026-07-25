@@ -12,15 +12,14 @@ use destack_mir::{
 declare_pass! {
     /// Scalar Replacement of Aggregates.
     ///
-    /// Breaks apart aggregate stack allocations (structs, tuples, small arrays)
-    /// into individual scalar allocations. This enables promote-memory-to-registers to promote
-    /// each scalar to an SSA value.
+    /// Breaks addressable aggregate locals into scalar locals so each scalar can be promoted.
     ///
     /// ```mir
     /// // before SROA
     /// function before(): int32 {
     /// b0:
-    ///     v0 = frame.alloc.zeroed { int32, int32 }
+    ///     local l0: { int32, int32 }
+    ///     v0 = local.address l0
     ///     v1 = field.address v0, 0
     ///     v2 = 1int32
     ///     store v1, v2
@@ -36,8 +35,10 @@ declare_pass! {
     /// // after SROA
     /// function after(): int32 {
     /// b0:
-    ///     v0 = frame.alloc.zeroed int32  // field 0
-    ///     v1 = frame.alloc.zeroed int32  // field 1
+    ///     local l0: int32
+    ///     local l1: int32
+    ///     v0 = local.address l0
+    ///     v1 = local.address l1
     ///     v2 = 1int32
     ///     store v0, v2
     ///     v3 = 2int32
@@ -61,6 +62,7 @@ impl FunctionPass for SplitAggregates {
         analyses: &mir::FunctionAnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
+        let layouts = &mut optimized.layouts;
         let memory = &mut optimized.memory;
 
         // skip empty functions
@@ -76,6 +78,7 @@ impl FunctionPass for SplitAggregates {
         let changed = run_split_aggregates(
             function,
             tree,
+            layouts,
             memory,
             entry,
             ctx.options.split_aggregates_max_array_elements,
@@ -105,14 +108,14 @@ impl FunctionPass for SplitAggregates {
 fn run_split_aggregates(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    layouts: &mut mir::LayoutTable,
     memory: &mut mir::MemoryTable,
     entry: mir::LocalNodeId<mir::Block>,
     max_array_elements: usize,
     constants: &ConstantPropagation,
 ) -> bool {
-    // find splittable allocations
-    let candidates =
-        find_splittable_allocations_core(function, tree, memory, max_array_elements, constants);
+    // find splittable locals
+    let candidates = find_candidates(function, tree, memory, max_array_elements, constants);
     if candidates.is_empty() {
         return false;
     }
@@ -123,7 +126,7 @@ fn run_split_aggregates(
     // split each candidate
     let mut made_changes = false;
     for candidate in candidates {
-        if split_allocation(&candidate, function, tree, memory, entry) {
+        if split_local(&candidate, function, tree, layouts, memory, entry) {
             made_changes = true;
         }
     }
@@ -131,17 +134,21 @@ fn run_split_aggregates(
     made_changes
 }
 
-/// A candidate allocation that can be split.
+/// An addressable aggregate local that can be split.
 struct SplitCandidate {
-    /// The stack allocation instruction.
-    alloc_instruction: mir::LocalNodeId<mir::Instruction>,
+    /// The aggregate local.
+    local: mir::LocalNodeId<mir::Local>,
+    /// The instruction materializing the local address.
+    address_instruction: mir::LocalNodeId<mir::Instruction>,
     /// The aggregate layout type.
     layout: mir::LocalNodeId<mir::Type>,
+    /// The original local reference type.
+    result_type: mir::LocalNodeId<mir::Type>,
     /// Reference tables for derived stack slots.
     reference_spec: ReferenceSpec,
     /// The element types after splitting.
     element_types: Vec<mir::LocalNodeId<mir::Type>>,
-    /// Uses of the allocation (field/element addresses).
+    /// Uses of the local address.
     uses: Vec<UseInfo>,
     /// Loads performed directly on the base reference.
     base_loads: Vec<mir::LocalNodeId<mir::Instruction>>,
@@ -185,10 +192,10 @@ impl ReferenceSpec {
     }
 }
 
-/// Information about a use of an allocation.
+/// One projected use of a local address.
 #[derive(Clone)]
 struct UseInfo {
-    /// The instruction using the allocation.
+    /// The projection instruction.
     instruction: mir::LocalNodeId<mir::Instruction>,
     /// The field/element index being accessed.
     index: usize,
@@ -196,8 +203,8 @@ struct UseInfo {
     destination: mir::Value,
 }
 
-/// Aggregate uses discovered during analysis.
-struct AllocationUses {
+/// Uses of one aggregate local address.
+struct LocalUses {
     /// Field or element address uses.
     uses: Vec<UseInfo>,
     /// Base pointer loads.
@@ -206,8 +213,8 @@ struct AllocationUses {
     base_stores: Vec<mir::LocalNodeId<mir::Instruction>>,
 }
 
-/// Find stack allocations that can be split into scalars.
-fn find_splittable_allocations_core(
+/// Find addressable aggregate locals that can be split into scalars.
+fn find_candidates(
     function: &mir::Function,
     tree: &mir::Tree,
     memory: &mir::MemoryTable,
@@ -216,23 +223,37 @@ fn find_splittable_allocations_core(
 ) -> Vec<SplitCandidate> {
     let mut candidates = Vec::new();
 
-    // collect all stack allocations of aggregate types
+    // count address materializations per local
     let block_ids = function.blocks().to_vec();
+    let mut address_counts = HashMap::new();
+    for &block_id in &block_ids {
+        for &instruction_id in &tree.get(block_id).instructions {
+            if let mir::Instruction::LocalAddr { local, .. } = tree.get(instruction_id) {
+                *address_counts.entry(*local).or_insert(0usize) += 1;
+            }
+        }
+    }
 
+    // collect aggregate locals with one canonical address
     for &block_id in &block_ids {
         let block = tree.get(block_id).clone();
 
         for &inst_id in &block.instructions {
             let inst = tree.get(inst_id);
 
-            if let mir::Instruction::FrameAllocZeroed {
+            if let mir::Instruction::LocalAddr {
                 destination,
-                layout,
+                local,
                 result_type,
             } = inst
             {
+                if address_counts.get(local) != Some(&1) {
+                    continue;
+                }
+
                 let result_type = *result_type;
-                let layout = *layout;
+                let local = *local;
+                let layout = tree.get(local).ty;
                 let destination = *destination;
 
                 let reference_spec = match ReferenceSpec::from_type(tree.get(result_type)) {
@@ -247,7 +268,7 @@ fn find_splittable_allocations_core(
                     None => continue,
                 };
 
-                // analyze uses to determine if splittable
+                // reject escaping or unsupported address uses
                 let uses = match analyze_uses(destination, function, tree, memory, constants) {
                     Some(uses) => uses,
                     None => continue,
@@ -261,8 +282,10 @@ fn find_splittable_allocations_core(
                 }
 
                 candidates.push(SplitCandidate {
-                    alloc_instruction: inst_id,
+                    local,
+                    address_instruction: inst_id,
                     layout,
+                    result_type,
                     reference_spec,
                     element_types,
                     uses: uses.uses,
@@ -326,21 +349,21 @@ fn get_element_types(
     }
 }
 
-/// Analyze uses of an allocation to determine if it can be split.
+/// Analyze uses of a local address to determine whether its local can be split.
 ///
-/// Returns None if the allocation escapes or has unsupported uses.
+/// Returns `None` if the address escapes or has unsupported uses.
 fn analyze_uses(
-    alloc_value: mir::Value,
+    local_address: mir::Value,
     function: &mir::Function,
     tree: &mir::Tree,
     memory: &mir::MemoryTable,
     constants: &ConstantPropagation,
-) -> Option<AllocationUses> {
+) -> Option<LocalUses> {
     let mut uses = Vec::new();
     let mut base_loads = Vec::new();
     let mut base_stores = Vec::new();
     let mut seen_values: HashSet<mir::Value> = HashSet::new();
-    let mut worklist: Vec<mir::Value> = vec![alloc_value];
+    let mut worklist: Vec<mir::Value> = vec![local_address];
 
     while let Some(value) = worklist.pop() {
         if !seen_values.insert(value) {
@@ -355,7 +378,7 @@ fn analyze_uses(
                 let inst = tree.get(inst_id);
 
                 match inst {
-                    // field address: supported if it's the allocation pointer
+                    // follow field addresses
                     mir::Instruction::FieldAddr {
                         destination,
                         aggregate,
@@ -372,7 +395,7 @@ fn analyze_uses(
                         worklist.push(*destination);
                     }
 
-                    // element address: supported if index is constant
+                    // follow statically indexed element addresses
                     mir::Instruction::ElementAddr {
                         destination,
                         base,
@@ -397,7 +420,7 @@ fn analyze_uses(
                         if memory.instruction_requires_exact_access(tree, inst_id) {
                             return None;
                         }
-                        if value == alloc_value {
+                        if value == local_address {
                             base_loads.push(inst_id);
                         }
                     }
@@ -406,7 +429,7 @@ fn analyze_uses(
                         if memory.instruction_requires_exact_access(tree, inst_id) {
                             return None;
                         }
-                        if value == alloc_value {
+                        if value == local_address {
                             base_stores.push(inst_id);
                         }
                     }
@@ -424,7 +447,7 @@ fn analyze_uses(
                         }
                     }
 
-                    // any other use of the allocation value escapes
+                    // reject every other use of the local address
                     _ => {
                         if inst.uses().into_iter().any(|used| used == value) {
                             // this value escapes, can't split
@@ -443,7 +466,7 @@ fn analyze_uses(
         }
     }
 
-    Some(AllocationUses {
+    Some(LocalUses {
         uses,
         base_loads,
         base_stores,
@@ -481,19 +504,23 @@ fn constant_to_index(constant: &mir::Constant) -> Option<usize> {
     }
 }
 
-/// Split an allocation into individual scalar allocations.
-fn split_allocation(
+/// Split one aggregate local into individual scalar locals.
+fn split_local(
     candidate: &SplitCandidate,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    layouts: &mut mir::LayoutTable,
     memory: &mut mir::MemoryTable,
     entry: mir::LocalNodeId<mir::Block>,
 ) -> bool {
-    // create new allocations for each element
-    let mut new_allocs: Vec<mir::Value> = Vec::new();
-    let mut new_alloc_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
+    // create scalar locals and their addresses
+    let mut addresses: Vec<mir::Value> = Vec::new();
+    let mut address_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
 
     for &elem_type in &candidate.element_types {
+        let local = tree.insert(mir::Local::mutable(elem_type));
+        function.add_local(local);
+
         let result_type = tree.intern_type(mir::Type::Reference {
             kind: candidate.reference_spec.kind,
             lifetime: mir::Lifetime::empty(),
@@ -502,38 +529,35 @@ fn split_allocation(
             pointee: elem_type,
             nullability: candidate.reference_spec.nullability,
         });
+        layouts.copy_type_entries(candidate.result_type, result_type);
         let new_value = function.next_typed_value(result_type);
-        new_allocs.push(new_value);
+        addresses.push(new_value);
 
-        // create the new FrameAlloc instruction
-        let new_inst = mir::Instruction::FrameAllocZeroed {
+        // materialize the scalar local address
+        let new_inst = mir::Instruction::LocalAddr {
             destination: new_value,
-            layout: elem_type,
+            local,
             result_type,
         };
 
-        // insert at the start of the entry block (after existing allocs)
+        // materialize each scalar address at function entry
         let new_inst_id = tree.insert(new_inst);
-        new_alloc_instructions.push(new_inst_id);
+        address_instructions.push(new_inst_id);
     }
 
-    // prepend replacement allocations to the entry block
-    if !new_alloc_instructions.is_empty() {
+    // prepend replacement addresses to the entry block
+    if !address_instructions.is_empty() {
         let entry_block = tree.get(entry);
-        let mut entry_instructions = new_alloc_instructions;
-        entry_instructions.reverse();
+        let mut entry_instructions = address_instructions;
         entry_instructions.extend(entry_block.instructions.iter().copied());
         function.replace_block_instructions(entry, entry_instructions, tree);
     }
 
     // build mapping from field/element index to new value
-    let index_to_value: HashMap<usize, mir::Value> = new_allocs
-        .iter()
-        .enumerate()
-        .map(|(i, &v)| (i, v))
-        .collect();
+    let index_to_value: HashMap<usize, mir::Value> =
+        addresses.iter().enumerate().map(|(i, &v)| (i, v)).collect();
 
-    // rewrite uses: replace field/element addresses with new allocation values
+    // replace projections with scalar local addresses
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
 
     for use_info in &candidate.uses {
@@ -545,9 +569,9 @@ fn split_allocation(
     // apply substitutions to all instructions
     apply_substitutions(&substitutions, function, tree, memory);
 
-    // collect instructions to remove after rewriting
+    // remove the original local address and its derived projections
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
-    to_remove.insert(candidate.alloc_instruction);
+    to_remove.insert(candidate.address_instruction);
 
     for use_info in &candidate.uses {
         to_remove.insert(use_info.instruction);
@@ -597,6 +621,9 @@ fn split_allocation(
             function.replace_block_instructions(block_id, new_instructions, tree);
         }
     }
+
+    // remove the replaced aggregate local
+    function.retain_locals(|local| local != candidate.local);
 
     true
 }
@@ -687,7 +714,7 @@ fn rewrite_base_store(
         let slot_get = tree.insert(slot_get);
         new_instructions.push(slot_get);
 
-        // store scalar into the split allocation slot
+        // store the scalar into its local
         let store_inst = mir::Instruction::Store {
             pointer: element_pointer,
             value: element_value,
@@ -776,8 +803,8 @@ mod tests {
 
     /// Simple struct splitting.
     ///
-    /// The struct allocation is split into separate allocations for each field.
-    /// field.address instructions are replaced with direct references to the new allocations.
+    /// The struct local is split into one local per field.
+    /// Field addresses become direct references to the scalar locals.
     #[test]
     fn test_split_struct() {
         let input = r#"
@@ -787,8 +814,9 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
+    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 42
     store v1, v2
@@ -803,9 +831,11 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v5: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v5: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     store v4, v2
     v3: int32 = load v4
@@ -820,13 +850,14 @@ entry:
 
     /// Tuple splitting.
     ///
-    /// Tuples are split like structs - each element gets its own allocation.
+    /// Tuples are split like structs, with one local per element.
     #[test]
     fn test_split_tuple() {
         let input = r#"
 function test(): int32 {
+    local l0: (int32, int64)
 entry:
-    v0: ref<(int32, int64), raw, mutable, space(frame)> = frame.alloc.zeroed (int32, int64)
+    v0: ref<(int32, int64), raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 42
     store v1, v2
@@ -836,9 +867,11 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int64
 entry:
-    v5: ref<int64, raw, mutable, space(frame)> = frame.alloc.zeroed int64
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v5: ref<int64, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     store v4, v2
     v3: int32 = load v4
@@ -853,13 +886,14 @@ entry:
 
     /// Small array splitting.
     ///
-    /// Arrays with constant indices are split into separate allocations per element.
+    /// Arrays with constant indices are split into one local per element.
     #[test]
     fn test_split_small_array() {
         let input = r#"
 function test(): int32 {
+    local l0: [int32; 4]
 entry:
-    v0: ref<[int32; 4], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 4]
+    v0: ref<[int32; 4], raw, mutable, space(frame)> = local.address l0
     v1: int64 = 0
     v2: ref<int32, borrowed, mutable> = element.address v0, v1
     v3: int32 = 42
@@ -870,11 +904,15 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
+    local l2: int32
+    local l3: int32
 entry:
-    v8: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v7: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v6: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v5: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v5: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v6: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v7: ref<int32, raw, mutable, space(frame)> = local.address l2
+    v8: ref<int32, raw, mutable, space(frame)> = local.address l3
     v1: int64 = 0
     v3: int32 = 42
     store v5, v3
@@ -895,8 +933,9 @@ entry:
     fn test_preserve_large_array() {
         let input = r#"
 function test(): int32 {
+    local l0: [int32; 100]
 entry:
-    v0: ref<[int32; 100], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 100]
+    v0: ref<[int32; 100], raw, mutable, space(frame)> = local.address l0
     v1: int64 = 0
     v2: ref<int32, borrowed, mutable> = element.address v0, v1
     v3: int32 = 42
@@ -911,9 +950,9 @@ entry:
         test.assert_unchanged(input);
     }
 
-    /// Escaping allocation should not be split.
+    /// An escaping local address is not split.
     ///
-    /// When the allocation is passed to an external function, it escapes
+    /// Passing the local address to an external function makes it escape.
     /// and cannot be split.
     #[test]
     fn test_preserve_escaping() {
@@ -926,9 +965,10 @@ type Point {
 external function imported(ref<Point, raw, mutable>): void
 
 function test(): void {
+    local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
-    call imported(v0)
+    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
+    call imported(v0): (ref<Point, raw, mutable>) => void
     return
 }
 "#;
@@ -946,8 +986,9 @@ entry:
     fn test_preserve_dynamic_index() {
         let input = r#"
 function test(v0: int64): int32 {
+    local l0: [int32; 4]
 entry(v0: int64):
-    v1: ref<[int32; 4], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 4]
+    v1: ref<[int32; 4], raw, mutable, space(frame)> = local.address l0
     v2: ref<int32, borrowed, mutable> = element.address v1, v0
     v3: int32 = 42
     store v2, v3
@@ -964,7 +1005,7 @@ entry(v0: int64):
     /// Multiple fields accessed.
     ///
     /// When multiple fields of a struct are accessed, all field.address
-    /// instructions are replaced with the corresponding new allocations.
+    /// instructions are replaced with the corresponding scalar addresses.
     #[test]
     fn test_multiple_fields() {
         let input = r#"
@@ -974,8 +1015,9 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
+    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 10
     store v1, v2
@@ -995,9 +1037,11 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v9: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v8: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v8: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v9: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 10
     store v8, v2
     v4: int32 = 20
@@ -1032,8 +1076,9 @@ type Outer {
 }
 
 function test(): int64 {
+    local l0: Outer
 entry:
-    v0: ref<Outer, raw, mutable, space(frame)> = frame.alloc.zeroed Outer
+    v0: ref<Outer, raw, mutable, space(frame)> = local.address l0
     v1: ref<int64, borrowed, mutable> = field.address v0, 1
     v2: int64 = 42
     store v1, v2
@@ -1053,9 +1098,11 @@ type Outer {
 }
 
 function test(): int64 {
+    local l0: Inner
+    local l1: int64
 entry:
-    v5: ref<int64, raw, mutable, space(frame)> = frame.alloc.zeroed int64
-    v4: ref<Inner, raw, mutable, space(frame)> = frame.alloc.zeroed Inner
+    v4: ref<Inner, raw, mutable, space(frame)> = local.address l0
+    v5: ref<int64, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 42
     store v5, v2
     v3: int64 = load v5
@@ -1070,13 +1117,14 @@ entry:
 
     /// No changes when no aggregates.
     ///
-    /// Scalar allocations are not affected by SROA.
+    /// Scalar locals are not affected by SROA.
     #[test]
     fn test_no_aggregates() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     v2: int32 = load v0
@@ -1089,10 +1137,9 @@ entry:
         test.assert_unchanged(input);
     }
 
-    /// Allocation escaping via store is not split.
+    /// A local address escaping through a store is not split.
     ///
-    /// When a pointer to the allocation is stored to memory, it escapes
-    /// and cannot be safely split.
+    /// Storing a local address elsewhere makes it escape.
     #[test]
     fn test_preserve_escaping_via_store() {
         let input = r#"
@@ -1102,8 +1149,9 @@ type Point {
 }
 
 function test(v0: ref<ref<Point, raw, mutable>, raw, mutable>): void {
+    local l0: Point
 entry(v0: ref<ref<Point, raw, mutable>, raw, mutable>):
-    v1: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
+    v1: ref<Point, raw, mutable, space(frame)> = local.address l0
     store v0, v1
     return
 }
@@ -1126,8 +1174,9 @@ type Wrapper {
 }
 
 function test(): int32 {
+    local l0: Wrapper
 entry:
-    v0: ref<Wrapper, raw, mutable, space(frame)> = frame.alloc.zeroed Wrapper
+    v0: ref<Wrapper, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 42
     store v1, v2
@@ -1141,8 +1190,9 @@ type Wrapper {
 }
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 42
     store v4, v2
     v3: int32 = load v4
@@ -1157,7 +1207,7 @@ entry:
 
     /// Block argument escaping prevents splitting.
     ///
-    /// If the allocation is passed as a block argument, it escapes.
+    /// Passing the local address as a block argument makes it escape.
     #[test]
     fn test_preserve_block_argument_escape() {
         let input = r#"
@@ -1167,8 +1217,9 @@ type Point {
 }
 
 function test(v0: boolean): void {
+    local l0: Point
 entry(v0: boolean):
-    v1: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
+    v1: ref<Point, raw, mutable, space(frame)> = local.address l0
     branch v0, b1(v1), b2
 
 b1(v2: ref<Point, raw, mutable>):
@@ -1189,12 +1240,13 @@ b2:
     fn test_split_array_constant_param_index() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: [int32; 2]
 entry(v0: boolean):
     v1: int64 = 0
     branch v0, b1(v1), b1(v1)
 
 b1(v2: int64):
-    v3: ref<[int32; 2], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 2]
+    v3: ref<[int32; 2], raw, mutable, space(frame)> = local.address l0
     v4: ref<int32, borrowed, mutable> = element.address v3, v2
     v5: int32 = 42
     store v4, v5
@@ -1204,9 +1256,11 @@ b1(v2: int64):
 "#;
         let expected = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
+    local l1: int32
 entry(v0: boolean):
-    v8: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v7: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v7: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v8: ref<int32, raw, mutable, space(frame)> = local.address l1
     v1: int64 = 0
     branch v0, b1(v1), b1(v1)
 
@@ -1233,8 +1287,9 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
+    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     v2: int32 = 2
     v3: Point = aggregate (v1, v2)
@@ -1251,9 +1306,11 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v7: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v6: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v6: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v7: ref<int32, raw, mutable, space(frame)> = local.address l1
     v1: int32 = 1
     v2: int32 = 2
     v3: Point = aggregate (v1, v2)
@@ -1279,8 +1336,9 @@ entry:
     fn test_rewrite_base_pointer_array_load_store() {
         let input = r#"
 function test(): int32 {
+    local l0: [int32; 2]
 entry:
-    v0: ref<[int32; 2], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 2]
+    v0: ref<[int32; 2], raw, mutable, space(frame)> = local.address l0
     v1: int32 = 10
     v2: int32 = 20
     v3: [int32; 2] = aggregate (v1, v2)
@@ -1293,9 +1351,11 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v8: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v7: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v7: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v8: ref<int32, raw, mutable, space(frame)> = local.address l1
     v1: int32 = 10
     v2: int32 = 20
     v3: [int32; 2] = aggregate (v1, v2)
@@ -1327,8 +1387,9 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
+    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2

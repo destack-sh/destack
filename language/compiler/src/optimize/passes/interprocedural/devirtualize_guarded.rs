@@ -4,7 +4,7 @@ use crate::optimize::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::{DevirtualizeGuardedOptions, MirOptimized, ModulePass, PipelineContext};
-use mir::{Mutation, ProfilePoint, ValueProfile};
+use mir::{Mutation, SampleSite, ValueProfile};
 
 declare_pass! {
     /// Rewrite hot dynamic calls to guarded direct calls.
@@ -227,8 +227,8 @@ impl<'a> DevirtualizeGuardedState<'a> {
         callsite: mir::CallSite,
         functions_by_symbol: &HashMap<mir::Symbol, mir::FunctionId>,
     ) -> Option<mir::FunctionId> {
-        let counter = profile_map.counter(&ProfilePoint::CallTarget(callsite))?;
-        let value_profile = function_profile.values.get(&counter)?;
+        let sampler = profile_map.sampler(&SampleSite::CallTarget(callsite))?;
+        let value_profile = function_profile.values.get(&sampler)?;
         let ValueProfile::Calls(histogram) = value_profile else {
             return None;
         };
@@ -252,8 +252,8 @@ impl<'a> DevirtualizeGuardedState<'a> {
         profile_map: &mir::FunctionProfileTable,
         callsite: mir::CallSite,
     ) -> Option<mir::TypeId> {
-        let counter = profile_map.counter(&ProfilePoint::ReceiverType(callsite))?;
-        let value_profile = function_profile.values.get(&counter)?;
+        let sampler = profile_map.sampler(&SampleSite::ReceiverType(callsite))?;
+        let value_profile = function_profile.values.get(&sampler)?;
         let ValueProfile::Types(histogram) = value_profile else {
             return None;
         };
@@ -395,7 +395,7 @@ impl Promotion {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
     ) -> (mir::LocalNodeId<mir::Instruction>, mir::Value) {
-        let type_id = tree.intern_type(mir::Type::TypeId);
+        let type_id = tree.type_id_type();
         let destination = function.next_typed_value(type_id);
         let instruction = tree.insert(mir::Instruction::DynamicType {
             destination,
@@ -577,6 +577,7 @@ impl DynamicCall {
                 receiver,
                 constraint,
                 slot,
+                ..
             } => Some(Self {
                 receiver: *receiver,
                 constraint: *constraint,
@@ -665,7 +666,7 @@ entry(v0: dynamic<Reader>):
     check is.type v3, ReaderImpl => b1, b2
 
 b1:
-    invoke callee(v0) => b3 | b4
+    invoke callee(v0): (dynamic<Reader>) => int32 => b3 | b4
 
 b2:
     invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader>) => int32 => b3 | b4
@@ -738,7 +739,7 @@ entry(v0: dynamic<Reader>):
     check is.type v2, ReaderImpl => b1, b2
 
 b1:
-    invoke callee(v0) => b1_1 | cleanup
+    invoke callee(v0): (dynamic<Reader>) => int32 => b1_1 | cleanup
 
 b2:
     invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader>) => int32 => b1_1 | cleanup

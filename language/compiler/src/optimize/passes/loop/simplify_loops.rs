@@ -538,40 +538,6 @@ fn redirect_terminator(
             }
         }
 
-        mir::Terminator::Yield {
-            value,
-            resume,
-            unwind,
-        } => {
-            let mut new_resume = resume.clone();
-            let mut new_unwind = unwind.clone();
-            let mut changed = false;
-
-            // redirect resume edge
-            if resume.block == old_target {
-                new_resume.block = new_target;
-                changed = true;
-            }
-
-            // redirect unwind edge
-            if let Some(unwind) = &mut new_unwind
-                && unwind.block == old_target
-            {
-                unwind.block = new_target;
-                changed = true;
-            }
-
-            if changed {
-                Some(mir::Terminator::Yield {
-                    value: *value,
-                    resume: new_resume,
-                    unwind: new_unwind,
-                })
-            } else {
-                None
-            }
-        }
-
         _ => None,
     }
 }

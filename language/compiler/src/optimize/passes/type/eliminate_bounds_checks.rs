@@ -424,7 +424,7 @@ fn is_trap_block(block_id: mir::LocalNodeId<mir::Block>, tree: &mir::Tree) -> bo
     // only accept blocks that end in one fatal trap
     let block = tree.get(block_id);
     let terminator = tree.get(block.terminator);
-    block.instructions.is_empty() && matches!(terminator, mir::Terminator::Trap { .. })
+    block.instructions.is_empty() && matches!(terminator, mir::Terminator::Abort { .. })
 }
 
 /// Replace a block's terminator with a jump.

@@ -546,19 +546,6 @@ impl<'a> PropagateSparseConstantsState<'a> {
                     }
                 }
             }
-            mir::Terminator::Yield { resume, unwind, .. } => {
-                let resume_block = resume.block;
-                let arguments = resume.arguments(self.tree);
-
-                self.mark_edge_executable(block_id, resume_block, arguments);
-
-                if let Some(unwind) = unwind {
-                    let unwind_block = unwind.block;
-                    let arguments = unwind.arguments(self.tree);
-
-                    self.mark_edge_executable(block_id, unwind_block, arguments);
-                }
-            }
             mir::Terminator::Invoke { target, unwind, .. } => {
                 let target_block = target.block;
                 let arguments = target.arguments(self.tree);
@@ -567,10 +554,19 @@ impl<'a> PropagateSparseConstantsState<'a> {
                 let arguments = unwind.arguments(self.tree);
                 self.mark_edge_executable(block_id, unwind.block, arguments);
             }
+            mir::Terminator::Await { resume, unwind, .. }
+            | mir::Terminator::Yield { resume, unwind, .. } => {
+                let arguments = resume.arguments(self.tree);
+                self.mark_edge_executable(block_id, resume.block, arguments);
+                if let Some(unwind) = unwind {
+                    let arguments = unwind.arguments(self.tree);
+                    self.mark_edge_executable(block_id, unwind.block, arguments);
+                }
+            }
             mir::Terminator::Return { .. }
             | mir::Terminator::Panic { .. }
             | mir::Terminator::UnwindResume
-            | mir::Terminator::Trap { .. }
+            | mir::Terminator::Abort { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. } => {}
         }
@@ -1484,7 +1480,7 @@ entry:
     jump b1(v0)
 
 b1(v1: int32):
-    v2: int32 = call callee(v1)
+    v2: int32 = call callee(v1): (int32) => int32
     return v2
 }
 "#;
@@ -1501,7 +1497,7 @@ entry:
 
 b1(v1: int32):
     v3: int32 = 5
-    v2: int32 = call callee(v3)
+    v2: int32 = call callee(v3): (int32) => int32
     return v2
 }
 "#;

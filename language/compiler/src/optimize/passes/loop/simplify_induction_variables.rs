@@ -544,28 +544,6 @@ fn remove_arguments_at_indices(
                 terminator.clone()
             }
         }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            unwind,
-        } => {
-            let is_changed = removed_indices.contains_key(&resume.block)
-                || unwind
-                    .as_ref()
-                    .is_some_and(|unwind| removed_indices.contains_key(&unwind.block));
-
-            if is_changed {
-                mir::Terminator::Yield {
-                    value: *value,
-                    resume: filter_target_arguments(tree, resume, removed_indices),
-                    unwind: unwind
-                        .as_ref()
-                        .map(|unwind| filter_target_arguments(tree, unwind, removed_indices)),
-                }
-            } else {
-                terminator.clone()
-            }
-        }
         _ => terminator.clone(),
     }
 }

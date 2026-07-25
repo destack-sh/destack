@@ -1162,8 +1162,9 @@ b4:
     fn test_hoist_read_only_intrinsic() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int64 = 4
     jump b1
 
@@ -1178,8 +1179,9 @@ b2:
 
         let expected = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int64 = 4
     v3: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v2)
     jump b1
@@ -1207,7 +1209,7 @@ entry(v0: boolean):
     jump b1
 
 b1:
-    v1: int32 = call getValue()
+    v1: int32 = call getValue(): () => int32
     branch v0, b1, b2
 
 b2:
@@ -1257,9 +1259,11 @@ b2:
     fn test_hoist_invariant_load() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
+    local l1: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l1
     v3: int32 = 1
     store v1, v3
     jump b1
@@ -1276,9 +1280,11 @@ b2:
 "#;
         let expected = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
+    local l1: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l1
     v3: int32 = 1
     store v1, v3
     v4: int32 = 2
@@ -1305,8 +1311,9 @@ b2:
     fn test_skip_hoist_clobbered_load() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 1
     store v1, v2
     jump b1
@@ -1323,8 +1330,9 @@ b2:
 "#;
         let expected = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 1
     store v1, v2
     v4: int32 = 2
@@ -1351,8 +1359,9 @@ b2:
     fn test_skip_hoist_conditional_load() {
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
+    local l0: int32
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l0
     v3: int32 = 1
     store v2, v3
     jump b1
@@ -1430,15 +1439,16 @@ b2:
     fn test_skip_hoist_load_with_call() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 1
     store v1, v2
     jump b1
 
 b1:
     v3: int32 = load v1
-    call touch(v1)
+    call touch(v1): (ref<int32, raw, mutable>) => void
     branch v0, b1, b2
 
 b2:

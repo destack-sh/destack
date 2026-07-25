@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasAnalysis, ControlFlowGraph, EdgeSplitPolicy, MemoryAccessId, MemoryNode, MemorySSA,
-    Mutation, ValueDefinitions, ensure_edge_block,
+    AliasAnalysis, ControlFlowGraph, EdgeSplitPolicy, MemoryAccessId, MemoryNode,
+    MemoryRegionBuilder, MemorySSA, Mutation, ValueDefinitions, ValueTypes, ensure_edge_block,
 };
 
 declare_pass! {
@@ -17,8 +17,9 @@ declare_pass! {
     ///
     /// ```mir
     /// function before(v0: boolean): int32 {
+    ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, mutable, space(frame)>
+    ///     v1 = local.address l0 -> ref<int32, raw, mutable, space(frame)>
     ///     v2 = 7int32
     ///     store v1, v2
     ///     branch v0, b1, b2
@@ -32,8 +33,9 @@ declare_pass! {
     /// becomes:
     /// ```mir
     /// function after(v0: boolean): int32 {
+    ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, mutable, space(frame)>
+    ///     v1 = local.address l0 -> ref<int32, raw, mutable, space(frame)>
     ///     v2 = 7int32
     ///     branch v0, b1, b2
     /// b1:
@@ -60,7 +62,6 @@ impl FunctionPass for SinkStores {
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let memory = &mut optimized.memory;
-        let effects = &mut optimized.effects;
 
         // skip imported functions
         if function.entry().is_none() {
@@ -68,7 +69,7 @@ impl FunctionPass for SinkStores {
         }
 
         // run store sinking
-        let changed = run_sink_stores(function, tree, memory, effects, ctx, analyses);
+        let changed = run_sink_stores(function, tree, memory, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -122,28 +123,28 @@ fn run_sink_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     memory: &mut mir::MemoryTable,
-    effects: &mir::EffectTable,
-    _ctx: &PipelineContext<'_>,
+    ctx: &PipelineContext<'_>,
     analyses: &mir::FunctionAnalysisCache,
 ) -> bool {
     // gather analyses
     let cfg = analyses.get::<ControlFlowGraph>(function, tree).clone();
     let memory_ssa = analyses.get::<MemorySSA>(function, tree);
     let alias = analyses.get::<AliasAnalysis>(function, tree).clone();
+    let definitions = analyses.get::<ValueDefinitions>(function, tree);
+    let value_types = analyses.get::<ValueTypes>(function, tree);
 
-    // build pointer definition info
-    let definitions = ValueDefinitions::build(function, tree);
-    let non_escaping_frame_allocs = definitions.non_escaping_frame_allocs(function, tree, effects);
+    // resolve reference provenance once for all candidates
+    let mut regions = MemoryRegionBuilder::new(
+        &definitions,
+        tree,
+        &function.parameters,
+        &value_types,
+        ctx.target_layout(),
+    );
 
     // collect store candidates
-    let candidates = collect_store_candidates(
-        function,
-        tree,
-        memory,
-        memory_ssa.as_ref(),
-        &non_escaping_frame_allocs,
-        &definitions,
-    );
+    let candidates =
+        collect_store_candidates(function, tree, memory, memory_ssa.as_ref(), &mut regions);
     if candidates.is_empty() {
         return false;
     }
@@ -238,8 +239,7 @@ fn collect_store_candidates(
     tree: &mir::Tree,
     memory: &mir::MemoryTable,
     memory_ssa: &MemorySSA,
-    non_escaping_frame_allocs: &HashSet<mir::Value>,
-    definitions: &ValueDefinitions,
+    regions: &mut MemoryRegionBuilder<'_>,
 ) -> Vec<StoreCandidate> {
     // scan blocks for store candidates
     let mut candidates = Vec::new();
@@ -300,14 +300,9 @@ fn collect_store_candidates(
                 continue;
             }
 
-            // require a sinkable location
-            if !store_is_sinkable_location(
-                kind,
-                pointer,
-                non_escaping_frame_allocs,
-                definitions,
-                tree,
-            ) {
+            // require frame-owned storage
+            let region = regions.resolve(&def_access.effect.region);
+            if !region.is_frame_storage() {
                 continue;
             }
 
@@ -343,30 +338,6 @@ fn terminator_allows_sinking(terminator: &mir::Terminator) -> bool {
         terminator,
         mir::Terminator::Branch { .. } | mir::Terminator::Switch { .. }
     )
-}
-
-/// Return true when a store targets a non escaping location.
-fn store_is_sinkable_location(
-    kind: StoreKind,
-    pointer: Option<mir::Value>,
-    non_escaping_frame_allocs: &HashSet<mir::Value>,
-    definitions: &ValueDefinitions,
-    tree: &mir::Tree,
-) -> bool {
-    // allow local stores
-    if matches!(kind, StoreKind::LocalSet) {
-        return true;
-    }
-
-    // resolve the stack base for pointer stores
-    let Some(pointer) = pointer else {
-        return false;
-    };
-    let Some(base) = definitions.frame_alloc_base(pointer, tree) else {
-        return false;
-    };
-
-    non_escaping_frame_allocs.contains(&base)
 }
 
 /// Collect blocks that read from each clobbering def.
@@ -493,8 +464,9 @@ mod tests {
     fn test_sink_stores_to_single_successor() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 7
     store v1, v2
     branch v0, b1, b2
@@ -510,8 +482,9 @@ b2:
 
         let expected = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 7
     branch v0, b1, b2
 
@@ -538,8 +511,9 @@ b2:
     fn test_sink_stores_skips_all_successors() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 7
     store v1, v2
     branch v0, b1, b2

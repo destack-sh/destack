@@ -428,7 +428,7 @@ entry:
 function test(): void {
 entry:
     v0: int32 = 1
-    v1: int32 = call sideEffect(v0)
+    v1: int32 = call sideEffect(v0): (int32) => int32
     return
 }
 
@@ -492,8 +492,9 @@ b2:
     fn test_preserve_volatile_load() {
         let input = r#"
 function test(): void {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
     return
 }
@@ -530,8 +531,9 @@ entry:
     fn test_preserve_volatile_store_overwritten() {
         let input = r#"
 function test(): void {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = 2
@@ -798,9 +800,9 @@ b3(v6: int32):
 function test(): void {
 entry:
     v0: int32 = 1
-    v1: int32 = call sideEffect(v0)
-    v2: int32 = call sideEffect(v0)
-    v3: int32 = call sideEffect(v0)
+    v1: int32 = call sideEffect(v0): (int32) => int32
+    v2: int32 = call sideEffect(v0): (int32) => int32
+    v3: int32 = call sideEffect(v0): (int32) => int32
     return
 }
 
@@ -888,8 +890,9 @@ entry(v0: int32):
         // source test
         let input = r#"
 function test(): void {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     v2: int32 = 2
     store v0, v1
@@ -901,8 +904,9 @@ entry:
         // expected output
         let expected = r#"
 function test(): void {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 2
     store v0, v2
     return
@@ -921,8 +925,9 @@ entry:
         // source test
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = load v0

@@ -20,9 +20,11 @@ declare_pass! {
     ///
     /// ```mir
     /// function before(v0: uint32): void {
+    ///     local l0: [int32; 16]
+    ///     local l1: [int32; 16]
     /// b0(v0: uint32):
-    ///     v1 = frame.alloc.zeroed [int32; 16] -> ref<[int32; 16], raw, mutable, space(frame)>
-    ///     v2 = frame.alloc.zeroed [int32; 16] -> ref<[int32; 16], raw, mutable, space(frame)>
+    ///     v1 = local.address l0 -> ref<[int32; 16], raw, mutable, space(frame)>
+    ///     v2 = local.address l1 -> ref<[int32; 16], raw, mutable, space(frame)>
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     jump b1(v3)
@@ -45,9 +47,11 @@ declare_pass! {
     /// becomes:
     /// ```mir
     /// function after(v0: uint32): void {
+    ///     local l0: [int32; 16]
+    ///     local l1: [int32; 16]
     /// b0(v0: uint32):
-    ///     v1 = frame.alloc.zeroed [int32; 16] -> ref<[int32; 16], raw, mutable, space(frame)>
-    ///     v2 = frame.alloc.zeroed [int32; 16] -> ref<[int32; 16], raw, mutable, space(frame)>
+    ///     v1 = local.address l0 -> ref<[int32; 16], raw, mutable, space(frame)>
+    ///     v2 = local.address l1 -> ref<[int32; 16], raw, mutable, space(frame)>
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     jump b1(v3)
@@ -769,9 +773,11 @@ mod tests {
     fn test_distribute_loops_splits_stores() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
+    local l1: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
-    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l1
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -797,9 +803,11 @@ b3:
 
         let expected = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
+    local l1: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
-    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l1
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -841,8 +849,9 @@ b5(v15: uint32):
     fn test_distribute_loops_skips_aliasing() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -876,8 +885,9 @@ b3:
     fn test_distribute_loops_skips_side_effects() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -887,7 +897,7 @@ b1(v4: uint32):
     branch v5, b2(v4), b3
 
 b2(v6: uint32):
-    call touch(v6)
+    call touch(v6): (uint32) => void
     v7: ref<int32, raw, mutable, space(frame)> = element.address v1, v6
     v8: int32 = 1
     store v7, v8
@@ -914,10 +924,13 @@ entry(v0: uint32):
     fn test_distribute_loops_splits_load_store_groups() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
+    local l1: [int32; 16]
+    local l2: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
-    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
-    v3: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l1
+    v3: ref<[int32; 16], raw, mutable, space(frame)> = local.address l2
     v4: uint32 = 0
     v5: uint32 = 1
     jump b1(v4)
@@ -944,10 +957,13 @@ b3:
 
         let expected = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
+    local l1: [int32; 16]
+    local l2: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
-    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
-    v3: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l1
+    v3: ref<[int32; 16], raw, mutable, space(frame)> = local.address l2
     v4: uint32 = 0
     v5: uint32 = 1
     jump b1(v4)
@@ -1060,8 +1076,9 @@ b5(v11: uint32):
     fn test_distribute_loops_skips_header_load() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -1093,8 +1110,9 @@ b3:
     fn test_distribute_loops_skips_single_group() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -1125,8 +1143,9 @@ b3:
     fn test_distribute_loops_skips_missing_preheader() {
         let input = r#"
 function test(v0: boolean, v1: uint32): void {
+    local l0: [int32; 16]
 entry(v0: boolean, v1: uint32):
-    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v3: uint32 = 0
     v4: uint32 = 1
     branch v0, b2(v3), b1(v3)
@@ -1152,8 +1171,9 @@ b4:
 
         let expected = r#"
 function test(v0: boolean, v1: uint32): void {
+    local l0: [int32; 16]
 entry(v0: boolean, v1: uint32):
-    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v3: uint32 = 0
     v4: uint32 = 1
     branch v0, b2(v3), b1(v3)
@@ -1187,9 +1207,11 @@ b4:
     fn test_distribute_loops_skips_unassigned_instruction() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
+    local l1: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
-    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l1
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -1224,9 +1246,11 @@ b3:
     fn test_distribute_loops_skips_shared_group_instructions() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
+    local l1: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
-    v2: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
+    v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l1
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -1259,8 +1283,9 @@ b3:
     fn test_distribute_loops_skips_exit_arguments() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -1291,8 +1316,9 @@ b3(v10: uint32):
     fn test_distribute_loops_skips_multi_block_loop() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -1326,8 +1352,9 @@ b4:
     fn test_distribute_loops_skips_non_jump_latch() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], raw, mutable, space(frame)> = frame.alloc.zeroed [int32; 16]
+    v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)

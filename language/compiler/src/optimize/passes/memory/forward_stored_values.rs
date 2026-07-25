@@ -28,8 +28,9 @@ declare_pass! {
     ///
     /// ```mir
     /// function before(): int32 {
+    ///     local l0: int32
     /// b0:
-    ///     v0 = frame.alloc.zeroed int32
+    ///     v0 = local.address l0
     ///     v1 = 42int32
     ///     store v0, v1
     ///     v2 = load v0       // forwarded from store
@@ -41,8 +42,9 @@ declare_pass! {
     /// becomes:
     /// ```mir
     /// function after(): int32 {
+    ///     local l0: int32
     /// b0:
-    ///     v0 = frame.alloc.zeroed int32
+    ///     v0 = local.address l0
     ///     v1 = 42int32
     ///     store v0, v1
     ///     v4 = int.add v1, v1
@@ -579,8 +581,9 @@ mod tests {
     fn test_forward_simple_store_load() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     v2: int32 = load v0
@@ -589,8 +592,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     return v1
@@ -607,9 +611,11 @@ entry:
     fn test_no_forward_different_pointers() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     store v0, v2
     v3: int32 = load v1
@@ -628,8 +634,9 @@ entry:
     fn test_kill_on_clobbering_store() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     v2: int32 = 100
     store v0, v1
@@ -640,8 +647,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     v2: int32 = 100
     store v0, v1
@@ -660,8 +668,9 @@ entry:
     fn test_forward_multiple_loads() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     v2: int32 = load v0
@@ -672,8 +681,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     v4: int32 = int.add v1, v1
@@ -691,8 +701,9 @@ entry:
     fn test_forward_through_trivial_memory_phi() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     v2: boolean = true
     store v0, v1
@@ -711,8 +722,9 @@ b3:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     v2: boolean = true
     store v0, v1
@@ -739,8 +751,9 @@ b3:
     fn test_forward_through_triple_memory_phi() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     v2: uint32 = 0
     store v0, v1
@@ -762,8 +775,9 @@ b4:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     v2: uint32 = 0
     store v0, v1
@@ -793,9 +807,11 @@ b4:
     fn test_forward_through_non_aliasing_store() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     v3: int32 = 100
     store v0, v2
@@ -806,9 +822,11 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     v3: int32 = 100
     store v0, v2
@@ -832,8 +850,9 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
+    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 42
     store v1, v2
@@ -848,8 +867,9 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
+    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 42
     store v1, v2
@@ -872,8 +892,9 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
+    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: ref<int32, borrowed, mutable> = field.address v0, 1
     v3: int32 = 10
@@ -893,8 +914,9 @@ type Point {
 }
 
 function test(): int32 {
+    local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = frame.alloc.zeroed Point
+    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: ref<int32, borrowed, mutable> = field.address v0, 1
     v3: int32 = 10
@@ -972,8 +994,9 @@ entry(v0: ref<int32, raw, mutable>):
     fn test_cross_block_forward_simple() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     jump b1
@@ -985,8 +1008,9 @@ b1:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     jump b1
@@ -1006,8 +1030,9 @@ b1:
     fn test_cross_block_forward_diamond() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 42
     store v1, v2
     branch v0, b1, b2
@@ -1026,8 +1051,9 @@ b3(v5: int32):
 "#;
         let expected = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 42
     store v1, v2
     branch v0, b1, b2
@@ -1082,8 +1108,9 @@ b3:
     fn test_cross_block_deep_chain() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     jump b1
@@ -1101,8 +1128,9 @@ b3:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     jump b1
@@ -1162,11 +1190,12 @@ b1:
 external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     v2: int32 = load v0
     return v2
 }
@@ -1185,11 +1214,12 @@ entry:
 external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     v2: int32 = load v0
     return v2
 }
@@ -1198,11 +1228,12 @@ entry:
 external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     return v1
 }
 "#;
@@ -1226,11 +1257,12 @@ entry:
 external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     jump b1
 
 b1:
@@ -1250,9 +1282,11 @@ b1:
     fn test_volatile_load_is_barrier() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     store v0, v2
     v3: int32 = load v1
@@ -1263,9 +1297,11 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     store v0, v2
     v3: int32 = load v1
@@ -1296,9 +1332,11 @@ entry:
     fn test_volatile_store_is_barrier() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     v3: int32 = 99
     store v0, v2
@@ -1309,9 +1347,11 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     v3: int32 = 99
     store v0, v2
@@ -1342,9 +1382,11 @@ entry:
     fn test_atomic_load_is_barrier() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     store v0, v2
     v3: int32 = atomic.load v1, acquire, scope(device)
@@ -1365,9 +1407,11 @@ entry:
     fn test_atomic_store_is_barrier() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int32 = 42
     v3: int32 = 99
     store v0, v2
@@ -1388,8 +1432,9 @@ entry:
     fn test_atomic_fence_is_barrier() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     atomic.fence sequentiallyConsistent, scope(device), storage(device)
@@ -1409,8 +1454,9 @@ entry:
     fn test_no_forward_size_mismatch() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = load v0
@@ -1451,8 +1497,9 @@ entry:
     fn test_transitive_substitution() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     v2: int32 = load v0
@@ -1463,8 +1510,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
     store v0, v1
     v4: int32 = int.add v1, v1

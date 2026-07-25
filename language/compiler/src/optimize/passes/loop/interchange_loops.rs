@@ -18,11 +18,12 @@ declare_pass! {
     ///
     /// ```mir
     /// function before(v0: uint32): int32 {
+    ///     local l0: int32
     /// b0(v0: uint32):
     ///     v1 = 0uint32
     ///     v2 = 4uint32
     ///     v3 = 1uint32
-    ///     v4 = frame.alloc.zeroed int32 -> ref<int32, raw, mutable, space(frame)>
+    ///     v4 = local.address l0 -> ref<int32, raw, mutable, space(frame)>
     ///     jump b1(v1)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v2
@@ -44,11 +45,12 @@ declare_pass! {
     /// becomes:
     /// ```mir
     /// function after(v0: uint32): int32 {
+    ///     local l0: int32
     /// b0(v0: uint32):
     ///     v1 = 0uint32
     ///     v2 = 4uint32
     ///     v3 = 1uint32
-    ///     v4 = frame.alloc.zeroed int32 -> ref<int32, raw, mutable, space(frame)>
+    ///     v4 = local.address l0 -> ref<int32, raw, mutable, space(frame)>
     ///     jump b2(v1)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v2
@@ -468,11 +470,12 @@ mod tests {
     fn test_interchange_loops_swaps_nested_loop() {
         let input = r#"
 function test(v0: uint32): int32 {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -500,11 +503,12 @@ b5:
 
         let expected = r#"
 function test(v0: uint32): int32 {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: int32 = 0
     jump b2(v1)
 
@@ -540,11 +544,12 @@ b5:
     fn test_interchange_loops_skips_writes() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     jump b1(v1)
 
 b1(v5: uint32):
@@ -579,11 +584,12 @@ b5:
     fn test_interchange_loops_skips_inner_exit_mismatch() {
         let input = r#"
 function test(v0: uint32): void {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     jump b1(v1)
 
 b1(v5: uint32):
@@ -621,11 +627,12 @@ b6:
     fn test_interchange_loops_skips_unavailable_inner_args() {
         let input = r#"
 function test(v0: uint32): int32 {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -662,11 +669,12 @@ b5:
     fn test_interchange_loops_skips_non_jump_inner_latch() {
         let input = r#"
 function test(v0: uint32): int32 {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -703,11 +711,12 @@ b5:
     fn test_interchange_loops_skips_inner_latch_parameters() {
         let input = r#"
 function test(v0: uint32): int32 {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -743,11 +752,12 @@ b5:
     fn test_interchange_loops_skips_missing_preheader() {
         let input = r#"
 function test(v0: boolean, v1: uint32): int32 {
+    local l0: int32
 entry(v0: boolean, v1: uint32):
     v2: uint32 = 0
     v3: uint32 = 4
     v4: uint32 = 1
-    v5: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v5: ref<int32, raw, mutable, space(frame)> = local.address l0
     v6: int32 = 0
     branch v0, b2(v2), b1(v2)
 
@@ -778,11 +788,12 @@ b6:
 
         let expected = r#"
 function test(v0: boolean, v1: uint32): int32 {
+    local l0: int32
 entry(v0: boolean, v1: uint32):
     v2: uint32 = 0
     v3: uint32 = 4
     v4: uint32 = 1
-    v5: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v5: ref<int32, raw, mutable, space(frame)> = local.address l0
     v6: int32 = 0
     branch v0, b2(v2), b1(v2)
 
@@ -821,11 +832,12 @@ b6:
     fn test_interchange_loops_skips_non_perfect_nesting() {
         let input = r#"
 function test(v0: uint32): int32 {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -864,11 +876,12 @@ b6:
     fn test_interchange_loops_skips_inner_exit_arguments() {
         let input = r#"
 function test(v0: uint32): int32 {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -896,11 +909,12 @@ b5:
 
         let expected = r#"
 function test(v0: uint32): int32 {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -936,11 +950,12 @@ b5:
     fn test_interchange_loops_skips_outer_exit_arguments() {
         let input = r#"
 function test(v0: uint32): int32 {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -968,11 +983,12 @@ b5(v13: uint32):
 
         let expected = r#"
 function test(v0: uint32): int32 {
+    local l0: int32
 entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 

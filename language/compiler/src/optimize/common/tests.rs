@@ -11,6 +11,9 @@ use crate::optimize::{FunctionPass, MirOptimized, ModulePass, PipelineContext, P
 use crate::{OptimizeError, OptimizeWarning};
 use destack_mir::{FunctionAnalysisCache, TreeAnalysisCache};
 
+/// Integer widths available to optimizer test inputs after lowering.
+const SUPPORTED_INTEGER_WIDTHS: [u16; 6] = [8, 16, 32, 64, 128, 256];
+
 /// Placeholder module id for tests.
 fn test_module_id() -> ModuleId {
     ModuleId::new(PackageId::new(0), 0)
@@ -43,20 +46,27 @@ fn test_mir_file(source: &str) -> File {
     )
 }
 
-/// Validate one expected MIR fixture and return its literal text.
+/// Parse and format one expected MIR fixture.
 fn expected_mir_text(source: &str) -> String {
     let file = test_mir_file(source);
     let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
         .expect("test MIR should be text");
-    match parsed.finish() {
-        Ok(_) => {}
+    let (tree, strings) = match parsed.finish() {
+        Ok(parsed) => parsed,
         Err(error) => {
             eprintln!("===EXPECTED_BEGIN===\n{source}\n===EXPECTED_END===");
             panic!("expected MIR fixture is unparseable: {error:?}");
         }
     };
+    let formatted = mir::format_mir(
+        &tree,
+        mir::TargetLayout::default(),
+        &strings,
+        mir::MirFormatOptions::default(),
+    )
+    .expect("format expected MIR");
 
-    source.trim().to_string()
+    formatted.trim().to_string()
 }
 
 /// Require one MIR fixture to parse.
@@ -93,10 +103,49 @@ impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
         let file = test_mir_file(source);
-        let (tree, strings) = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
-            .expect("test MIR should be text")
-            .finish()
-            .expect("failed to parse MIR");
+        let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
+            .expect("test MIR should be text");
+        if parsed
+            .diagnostics
+            .has_diagnostics_of_severity(destack_source::DiagnosticSeverity::Error)
+        {
+            panic!("failed to parse MIR: {:?}", parsed.diagnostics);
+        }
+        let (
+            mut tree,
+            target,
+            mut types,
+            layouts,
+            dispatch,
+            drops,
+            memory,
+            effects,
+            profile,
+            strings,
+            _,
+        ) = parsed.into_parts();
+
+        // mirror the primitive universe guaranteed by MIR lowering
+        let primitive_types = std::iter::once(mir::Type::TypeId).chain(
+            SUPPORTED_INTEGER_WIDTHS.into_iter().flat_map(|width| {
+                [
+                    mir::Type::Int {
+                        width,
+                        is_signed: false,
+                    },
+                    mir::Type::Int {
+                        width,
+                        is_signed: true,
+                    },
+                ]
+            }),
+        );
+        for ty in primitive_types {
+            if tree.find_type(&ty).is_none() {
+                tree.intern_type(ty);
+            }
+        }
+        types.rebuild_primitive_types(&tree);
         let strings_pool = StringPool::new();
 
         // copy parser strings for passes that intern through context
@@ -105,7 +154,14 @@ impl TestProgram {
         Self {
             optimized: MirOptimized {
                 tree,
-                ..MirOptimized::new()
+                target,
+                types,
+                layouts,
+                dispatch,
+                drops,
+                memory,
+                effects,
+                profile,
             },
             strings,
             strings_pool,
@@ -277,23 +333,8 @@ impl TestProgram {
         call_ids
     }
 
-    /// Return the destination of a stack allocation instruction.
-    pub(crate) fn frame_alloc_destination(
-        &self,
-        instruction_id: mir::LocalNodeId<mir::Instruction>,
-    ) -> mir::Value {
-        // extract the destination value from the instruction
-        let mir::Instruction::FrameAllocZeroed { destination, .. } =
-            self.optimized.tree.get(instruction_id)
-        else {
-            panic!("expected stack allocation");
-        };
-
-        *destination
-    }
-
-    /// Return stack allocation destinations from the entry block.
-    pub(crate) fn frame_alloc_destinations_in_entry(
+    /// Return local address destinations from the entry block.
+    pub(crate) fn local_address_destinations_in_entry(
         &self,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> Vec<mir::Value> {
@@ -301,12 +342,12 @@ impl TestProgram {
         let block_id = self.entry_block_id(function_id);
         let block = self.optimized.tree.get(block_id);
 
-        // collect stack allocation destinations in order
+        // collect local address destinations in order
         block
             .instructions
             .iter()
             .filter_map(|instruction_id| {
-                if let mir::Instruction::FrameAllocZeroed { destination, .. } =
+                if let mir::Instruction::LocalAddr { destination, .. } =
                     self.optimized.tree.get(*instruction_id)
                 {
                     Some(*destination)
@@ -401,7 +442,7 @@ impl TestProgram {
     pub(crate) fn add_virtual_method_table(&mut self, class: mir::TypeId, callee: mir::FunctionId) {
         // build the canonical virtual table fixture
         let table = mir::VirtualTable {
-            ty: class,
+            concrete: class,
             methods: vec![callee],
         };
 
@@ -663,7 +704,7 @@ impl TestProgram {
         self.record_value_profile(
             profile,
             function,
-            mir::ProfilePoint::CallTarget(callsite),
+            mir::SampleSite::CallTarget(callsite),
             value,
         );
     }
@@ -688,7 +729,7 @@ impl TestProgram {
         self.record_value_profile(
             profile,
             function,
-            mir::ProfilePoint::ReceiverType(callsite),
+            mir::SampleSite::ReceiverType(callsite),
             value,
         );
     }
@@ -735,16 +776,16 @@ impl TestProgram {
         }
     }
 
-    /// Record one value profile at a semantic profile point.
+    /// Record one value profile at a semantic sample site.
     fn record_value_profile(
         &mut self,
         profile: &mut mir::Profile,
         function: mir::FunctionId,
-        point: mir::ProfilePoint,
+        site: mir::SampleSite,
         value: mir::ValueProfile,
     ) {
-        // map the semantic profile point to a stable counter id
-        let counter = self.profile_counter(function, point);
+        // map the semantic sample site to a stable sampler id
+        let sampler = self.profile_sampler(function, site);
 
         // write the observed profile data under the function's persistent symbol
         let symbol = self.optimized.tree.get(function).symbol;
@@ -752,16 +793,16 @@ impl TestProgram {
             .functions
             .get_mut(&symbol)
             .expect("missing function profile");
-        function_profile.values.insert(counter, value);
+        function_profile.values.insert(sampler, value);
     }
 
-    /// Return the counter id for one semantic profile point.
-    fn profile_counter(
+    /// Return the sampler id for one semantic sample site.
+    fn profile_sampler(
         &mut self,
         function: mir::FunctionId,
-        point: mir::ProfilePoint,
-    ) -> mir::CounterId {
-        // create the function profile table when this is the first profiled point
+        site: mir::SampleSite,
+    ) -> mir::SamplerId {
+        // create the function profile table for the first sampled site
         let profile_map = self
             .optimized
             .profile
@@ -769,13 +810,13 @@ impl TestProgram {
             .entry(function)
             .or_insert_with(|| mir::FunctionProfileTable::new(mir::FunctionHash(0)));
 
-        // reuse an existing counter when this point was already registered
-        if let Some(counter) = profile_map.counter(&point) {
-            counter
+        // reuse an existing sampler when this site was already registered
+        if let Some(sampler) = profile_map.sampler(&site) {
+            sampler
         }
-        // otherwise append a new semantic point
+        // otherwise append a new semantic site
         else {
-            profile_map.insert(point)
+            profile_map.insert_sampler(site)
         }
     }
 

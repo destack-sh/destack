@@ -397,13 +397,10 @@ fn narrow_value_to_width(
         return cached;
     }
 
-    // cache or create the narrower integer type
-    let ty_id = *type_cache.entry((width, signed)).or_insert_with(|| {
-        tree.intern_type(mir::Type::Int {
-            width,
-            is_signed: signed,
-        })
-    });
+    // cache the canonical narrower integer type
+    let ty_id = *type_cache
+        .entry((width, signed))
+        .or_insert_with(|| tree.int_type(width, signed));
 
     // insert a truncating cast before the use
     let destination = function.next_typed_value(ty_id);

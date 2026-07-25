@@ -1270,8 +1270,9 @@ b1:
     fn test_eliminate_loads_across_blocks() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
     jump b1
 
@@ -1283,8 +1284,9 @@ b1:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
     jump b1
 
@@ -1304,8 +1306,9 @@ b1:
     fn test_preserve_loads_after_store() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
     v2: int32 = 1
     store v0, v2
@@ -1369,10 +1372,11 @@ entry(v0: ref<int32, raw, mutable>):
 external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     v2: int32 = load v0
     v3: int32 = int.add v1, v2
     return v3
@@ -1382,10 +1386,11 @@ entry:
 external function imported(ref<int32, raw, mutable>): void
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
-    call imported(v0)
+    call imported(v0): (ref<int32, raw, mutable>) => void
     v3: int32 = int.add v1, v1
     return v3
 }

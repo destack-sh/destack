@@ -20,8 +20,9 @@ declare_pass! {
     ///
     /// ```mir
     /// function before(v0: boolean, v1: int32): void {
+    ///     local l0: int32
     /// b0(v0: boolean, v1: int32):
-    ///     v2 = frame.alloc.zeroed int32 -> ref<int32, raw, mutable, space(frame)>
+    ///     v2 = local.address l0 -> ref<int32, raw, mutable, space(frame)>
     ///     branch v0, b1, b2
     /// b1:
     ///     store v2, v1
@@ -36,8 +37,9 @@ declare_pass! {
     /// becomes:
     /// ```mir
     /// function after(v0: boolean, v1: int32): void {
+    ///     local l0: int32
     /// b0(v0: boolean, v1: int32):
-    ///     v2 = frame.alloc.zeroed int32 -> ref<int32, raw, mutable, space(frame)>
+    ///     v2 = local.address l0 -> ref<int32, raw, mutable, space(frame)>
     ///     branch v0, b1, b2
     /// b1:
     ///     store v2, v1
@@ -637,8 +639,9 @@ mod tests {
     fn test_eliminate_partial_redundant_stores_inserts_edge_store() {
         let input = r#"
 function test(v0: boolean, v1: int32): void {
+    local l0: int32
 entry(v0: boolean, v1: int32):
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -656,8 +659,9 @@ b3:
 
         let expected = r#"
 function test(v0: boolean, v1: int32): void {
+    local l0: int32
 entry(v0: boolean, v1: int32):
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -683,8 +687,9 @@ b3:
     fn test_eliminate_partial_redundant_stores_requires_existing_store() {
         let input = r#"
 function test(v0: boolean, v1: int32): void {
+    local l0: int32
 entry(v0: boolean, v1: int32):
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:
@@ -709,6 +714,7 @@ b3:
     fn test_eliminate_partial_redundant_stores_skips_unavailable_values() {
         let input = r#"
 function test(v0: boolean): void {
+    local l0: int32
 entry(v0: boolean):
     branch v0, b1, b2
 
@@ -719,7 +725,7 @@ b2:
     jump b3
 
 b3:
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 1
     store v1, v2
     return
@@ -736,8 +742,9 @@ b3:
     fn test_eliminate_partial_redundant_stores_skips_non_speculatable_prefix() {
         let input = r#"
 function test(v0: boolean, v1: int32): void {
+    local l0: int32
 entry(v0: boolean, v1: int32):
-    v2: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
 
 b1:

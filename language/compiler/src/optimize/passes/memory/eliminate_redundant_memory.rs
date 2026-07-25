@@ -19,8 +19,9 @@ declare_pass! {
     ///
     /// ```mir
     /// function before(): int32 {
+    ///     local l0: int32
     /// b0:
-    ///     v0 = frame.alloc.zeroed int32
+    ///     v0 = local.address l0
     ///     v1 = 7int32
     ///     store v0, v1
     ///     store v0, v1
@@ -31,8 +32,9 @@ declare_pass! {
     /// becomes:
     /// ```mir
     /// function after(): int32 {
+    ///     local l0: int32
     /// b0:
-    ///     v0 = frame.alloc.zeroed int32
+    ///     v0 = local.address l0
     ///     v1 = 7int32
     ///     store v0, v1
     ///     v2 = load v0
@@ -575,8 +577,9 @@ mod tests {
     fn test_remove_redundant_store() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
     store v0, v1
@@ -586,8 +589,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
     v2: int32 = load v0
@@ -605,8 +609,9 @@ entry:
     fn test_remove_redundant_store_with_equal_constants() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     v2: int32 = 7
     store v0, v1
@@ -617,8 +622,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     v2: int32 = 7
     store v0, v1
@@ -637,8 +643,9 @@ entry:
     fn test_remove_redundant_store_with_equivalent_binary() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = int.add v1, v2
@@ -651,8 +658,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = int.add v1, v2
@@ -673,8 +681,9 @@ entry:
     fn test_remove_redundant_store_with_commuted_binary() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = int.add v1, v2
@@ -687,8 +696,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = int.add v1, v2
@@ -709,8 +719,9 @@ entry:
     fn test_remove_redundant_store_with_constant_propagation() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = int.add v1, v2
@@ -723,8 +734,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = int.add v1, v2
@@ -750,11 +762,12 @@ entry:
 }
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
-    call callee()
+    call callee(): () => void
     store v0, v1
     v2: int32 = load v0
     return v2
@@ -767,11 +780,12 @@ entry:
 }
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
-    call callee()
+    call callee(): () => void
     v2: int32 = load v0
     return v2
 }
@@ -797,11 +811,12 @@ entry:
 }
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
-    call callee()
+    call callee(): () => void
     store v0, v1
     v2: int32 = load v0
     return v2
@@ -828,11 +843,12 @@ entry:
 }
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
-    call callee()
+    call callee(): () => void
     store v0, v1
     v2: int32 = load v0
     return v2
@@ -845,11 +861,12 @@ entry:
 }
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
-    call callee()
+    call callee(): () => void
     v2: int32 = load v0
     return v2
 }
@@ -875,11 +892,12 @@ entry:
 }
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
-    call callee()
+    call callee(): () => void
     store v0, v1
     v2: int32 = load v0
     return v2
@@ -892,11 +910,12 @@ entry:
 }
 
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
-    call callee()
+    call callee(): () => void
     v2: int32 = load v0
     return v2
 }
@@ -917,8 +936,9 @@ entry:
     fn test_preserve_store_with_different_value() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     v2: int32 = 9
     store v0, v1
@@ -938,8 +958,9 @@ entry:
     fn test_preserve_store_after_clobber() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 1
     v2: int32 = 2
     store v0, v1
@@ -960,8 +981,9 @@ entry:
     fn test_preserve_volatile_store() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
     store v0, v1
@@ -975,7 +997,7 @@ entry:
         let function = test.optimized.tree.get(function_id);
         let block = test.optimized.tree.get(function.block(0));
         let pointer = *test
-            .frame_alloc_destinations_in_entry(function_id)
+            .local_address_destinations_in_entry(function_id)
             .first()
             .expect("missing stack allocation");
 
@@ -998,8 +1020,9 @@ entry:
     fn test_preserve_atomic_store() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 7
     store v0, v1
     store v0, v1
@@ -1013,7 +1036,7 @@ entry:
         let function = test.optimized.tree.get(function_id);
         let block = test.optimized.tree.get(function.block(0));
         let pointer = *test
-            .frame_alloc_destinations_in_entry(function_id)
+            .local_address_destinations_in_entry(function_id)
             .first()
             .expect("missing stack allocation");
 
@@ -1036,8 +1059,9 @@ entry:
     fn test_remove_redundant_store_after_phi() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 7
     branch v0, b1, b2
 
@@ -1057,8 +1081,9 @@ b3:
 "#;
         let expected = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 7
     branch v0, b1, b2
 
@@ -1086,8 +1111,9 @@ b3:
     fn test_preserve_store_after_phi_with_different_values() {
         let input = r#"
 function test(v0: boolean): int32 {
+    local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 7
     v3: int32 = 9
     branch v0, b1, b2
@@ -1149,8 +1175,9 @@ entry:
     fn test_remove_redundant_memset() {
         let input = r#"
 function test(): void {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int8 = 0
     v2: int64 = 4
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1160,8 +1187,9 @@ entry:
 "#;
         let expected = r#"
 function test(): void {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int8 = 0
     v2: int64 = 4
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1179,9 +1207,11 @@ entry:
     fn test_remove_redundant_memcpy() {
         let input = r#"
 function test(): void {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
@@ -1190,9 +1220,11 @@ entry:
 "#;
         let expected = r#"
 function test(): void {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     return
@@ -1209,9 +1241,11 @@ entry:
     fn test_preserve_memcpy_with_different_size() {
         let input = r#"
 function test(): void {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     v3: int64 = 8
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
@@ -1230,9 +1264,11 @@ entry:
     fn test_preserve_memcpy_with_source_change() {
         let input = r#"
 function test(): void {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     v3: int32 = 7
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
@@ -1252,9 +1288,11 @@ entry:
     fn test_remove_redundant_memmove() {
         let input = r#"
 function test(): void {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
@@ -1263,9 +1301,11 @@ entry:
 "#;
         let expected = r#"
 function test(): void {
+    local l0: int32
+    local l1: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
-    v1: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     return
@@ -1284,8 +1324,9 @@ entry:
 type Bytes = [int8; 12];
 
 function test(): void {
+    local l0: Bytes
 entry:
-    v0: ref<Bytes, raw, mutable, space(frame)> = frame.alloc.zeroed Bytes
+    v0: ref<Bytes, raw, mutable, space(frame)> = local.address l0
     v1: int64 = 0
     v2: int64 = 4
     v3: ref<int8, borrowed, mutable> = element.address v0, v1

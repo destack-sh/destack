@@ -12,9 +12,13 @@ pub enum OptimizeError {
         message = "invalid target {target}: {message}"
     )]
     InvalidTarget {
+        /// The package containing the invalid target.
         anchor: DiagnosticAnchor,
+        /// The package being optimized.
         package: PackageId,
+        /// The invalid target.
         target: TargetId,
+        /// The invalid target detail.
         message: String,
     },
 

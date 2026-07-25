@@ -746,7 +746,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 7
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -783,7 +783,7 @@ entry:
 
 function root(): int32 {
 entry:
-    v0: int32 = call pure()
+    v0: int32 = call pure(): () => int32
     return v0
 }
 "#;
@@ -819,14 +819,14 @@ entry(v0: int32):
 function first(): int32 {
 entry:
     v0: int32 = 1
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 
 function second(): int32 {
 entry:
     v0: int32 = 2
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -840,14 +840,14 @@ entry(v0: int32):
 function first(): int32 {
 entry:
     v0: int32 = 1
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 
 function second(): int32 {
 entry:
     v0: int32 = 2
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -869,8 +869,8 @@ entry(v0: int32):
 function root(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = 1
-    v2: int32 = call callee(v1)
-    v3: int32 = call callee(v0)
+    v2: int32 = call callee(v1): (int32) => int32
+    v3: int32 = call callee(v0): (int32) => int32
     return v2
 }
 "#;
@@ -892,7 +892,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 9
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 "#;
 
@@ -906,7 +906,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 9
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 "#;
 
@@ -927,7 +927,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 9
-    invoke callee(v0) => b1 | b2
+    invoke callee(v0): (int32) => int32 => b1 | b2
 
 b1(v1: int32):
     return v1
@@ -947,7 +947,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 9
-    invoke callee(v0) => b1 | b2
+    invoke callee(v0): (int32) => int32 => b1 | b2
 
 b1(v1: int32):
     return v1
@@ -974,7 +974,7 @@ entry(v0: int32):
 function root(v0: fn(int32) => int32): int32 {
 entry(v0: fn(int32) => int32):
     v1: int32 = 7
-    v2: int32 = call callee(v1)
+    v2: int32 = call callee(v1): (int32) => int32
     v3: int32 = call.indirect v0(v1): (int32) => int32
     return v2
 }

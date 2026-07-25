@@ -234,7 +234,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#,
@@ -276,7 +276,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    invoke callee(v0) => b1 | cleanup
+    invoke callee(v0): (int32) => int32 => b1 | cleanup
 
 b1(v1: int32):
     return v1
@@ -318,7 +318,7 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 "#,
         );

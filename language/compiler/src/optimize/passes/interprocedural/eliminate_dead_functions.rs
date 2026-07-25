@@ -151,7 +151,7 @@ mod tests {
             r#"
 export function root(): void {
 entry:
-    call live()
+    call live(): () => void
     return
 }
 

@@ -733,20 +733,20 @@ fn update_terminator_arguments(
             }
         }
         mir::Terminator::NewZeroedTry {
-            layout,
+            storage_type,
             success,
             failure,
         } => mir::Terminator::NewZeroedTry {
-            layout: *layout,
+            storage_type: *storage_type,
             success: extend_target(tree, success, block_params, value_stacks, substitutions),
             failure: extend_target(tree, failure, block_params, value_stacks, substitutions),
         },
         mir::Terminator::NewUninitTry {
-            layout,
+            storage_type,
             success,
             failure,
         } => mir::Terminator::NewUninitTry {
-            layout: *layout,
+            storage_type: *storage_type,
             success: extend_target(tree, success, block_params, value_stacks, substitutions),
             failure: extend_target(tree, failure, block_params, value_stacks, substitutions),
         },
@@ -832,26 +832,6 @@ fn update_terminator_arguments(
                 cases: tree.add_switch_cases(&new_cases),
             }
         }
-        mir::Terminator::Yield {
-            value,
-            resume,
-            unwind,
-        } => {
-            let new_resume_args = extend_arguments(
-                resume.block,
-                tree.get_values(resume.arguments),
-                block_params,
-                value_stacks,
-                substitutions,
-            );
-            mir::Terminator::Yield {
-                value: remap_value_reference(*value, substitutions),
-                resume: mir::BlockTarget::new(resume.block, tree.add_values(&new_resume_args)),
-                unwind: unwind.as_ref().map(|unwind| {
-                    extend_target(tree, unwind, block_params, value_stacks, substitutions)
-                }),
-            }
-        }
         mir::Terminator::Invoke {
             call,
             target,
@@ -861,11 +841,34 @@ fn update_terminator_arguments(
             target: extend_target(tree, target, block_params, value_stacks, substitutions),
             unwind: extend_target(tree, unwind, block_params, value_stacks, substitutions),
         },
+        mir::Terminator::Await {
+            park,
+            value,
+            resume,
+            unwind,
+        } => mir::Terminator::Await {
+            park: *park,
+            value: remap_value_reference(*value, substitutions),
+            resume: extend_target(tree, resume, block_params, value_stacks, substitutions),
+            unwind: unwind.as_ref().map(|unwind| {
+                extend_target(tree, unwind, block_params, value_stacks, substitutions)
+            }),
+        },
+        mir::Terminator::Yield {
+            value,
+            resume,
+            unwind,
+        } => mir::Terminator::Yield {
+            value: remap_value_reference(*value, substitutions),
+            resume: extend_target(tree, resume, block_params, value_stacks, substitutions),
+            unwind: unwind.as_ref().map(|unwind| {
+                extend_target(tree, unwind, block_params, value_stacks, substitutions)
+            }),
+        },
         mir::Terminator::Return { value } => mir::Terminator::Return {
             value: value.map(|value| remap_value_reference(value, substitutions)),
         },
-        mir::Terminator::Trap { kind, payload } => mir::Terminator::Trap {
-            kind: *kind,
+        mir::Terminator::Abort { payload } => mir::Terminator::Abort {
             payload: payload.map(|value| remap_value_reference(value, substitutions)),
         },
         mir::Terminator::Panic { payload } => mir::Terminator::Panic {
@@ -1323,7 +1326,7 @@ entry:
     v0: int32 = 7
     local.set l0, v0
     v1: int32 = local.get l0
-    call sink(v1)
+    call sink(v1): (int32) => void
     return
 }
 "#;
@@ -1333,7 +1336,7 @@ external function sink(int32): void
 function test(): void {
 entry:
     v0: int32 = 7
-    call sink(v0)
+    call sink(v0): (int32) => void
     return
 }
 "#;

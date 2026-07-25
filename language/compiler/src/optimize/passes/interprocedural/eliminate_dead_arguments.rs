@@ -50,9 +50,10 @@ impl ModulePass for EliminateDeadArguments {
         _analyses: &mir::TreeAnalysisCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
+        let layouts = &mut optimized.layouts;
         let effects = &mut optimized.effects;
 
-        let changed = run_eliminate_dead_arguments(tree, effects);
+        let changed = run_eliminate_dead_arguments(tree, layouts, effects);
 
         // report what this pass changed
         if changed {
@@ -93,7 +94,11 @@ struct CallData {
 }
 
 /// Run dead argument elimination over the module.
-fn run_eliminate_dead_arguments(tree: &mut mir::Tree, effects: &mut mir::EffectTable) -> bool {
+fn run_eliminate_dead_arguments(
+    tree: &mut mir::Tree,
+    layouts: &mut mir::LayoutTable,
+    effects: &mut mir::EffectTable,
+) -> bool {
     // collect callsite information up front
     let call_data = collect_call_data(tree);
 
@@ -131,7 +136,7 @@ fn run_eliminate_dead_arguments(tree: &mut mir::Tree, effects: &mut mir::EffectT
 
         // update direct callsites that target this function
         if let Some(calls) = call_data.direct_calls.get(&function_id) {
-            update_call_sites(function_id, calls, &unused, tree, effects);
+            update_call_sites(function_id, calls, &unused, tree, layouts, effects);
         }
 
         changed = true;
@@ -255,13 +260,15 @@ fn update_call_sites(
     call_sites: &[DirectCallSite],
     unused: &[usize],
     tree: &mut mir::Tree,
+    layouts: &mut mir::LayoutTable,
     effects: &mut mir::EffectTable,
 ) {
     // prepare removal remapping data
     let remap = ParameterRemap::new(unused);
 
-    // prepare a signature type for updated call signatures
-    let mut signature_type: Option<mir::LocalNodeId<mir::Type>> = None;
+    // insert the rewritten function signature once
+    let function = tree.get(function_id);
+    let signature = tree.intern_type(function.signature());
 
     // update callsite arguments
     for site in call_sites {
@@ -279,14 +286,8 @@ fn update_call_sites(
                 // filter the argument list
                 let arguments = remap.filter_by_index(tree.get_values(slice));
 
-                // refresh the signature when arguments are removed
-                let signature = if unused.is_empty() {
-                    call.signature
-                } else {
-                    *signature_type.get_or_insert_with(|| {
-                        SignatureKey::insert_function_type(function_id, tree)
-                    })
-                };
+                // preserve the no storage signature layout
+                layouts.copy_type_entries(call.signature, signature);
 
                 // update the call instruction with the new argument slice
                 let new_slice = tree.add_values(&arguments);
@@ -317,13 +318,8 @@ fn update_call_sites(
                         let mut new_call = call.clone();
                         let arguments = remap.filter_by_index(tree.get_values(call.arguments));
                         new_call.arguments = tree.add_values(&arguments);
-                        new_call.signature = if unused.is_empty() {
-                            call.signature
-                        } else {
-                            *signature_type.get_or_insert_with(|| {
-                                SignatureKey::insert_function_type(function_id, tree)
-                            })
-                        };
+                        layouts.copy_type_entries(call.signature, signature);
+                        new_call.signature = signature;
 
                         let new_terminator = mir::Terminator::Invoke {
                             call: new_call,
@@ -339,13 +335,8 @@ fn update_call_sites(
                         let mut new_call = call.clone();
                         let arguments = remap.filter_by_index(tree.get_values(call.arguments));
                         new_call.arguments = tree.add_values(&arguments);
-                        new_call.signature = if unused.is_empty() {
-                            call.signature
-                        } else {
-                            *signature_type.get_or_insert_with(|| {
-                                SignatureKey::insert_function_type(function_id, tree)
-                            })
-                        };
+                        layouts.copy_type_entries(call.signature, signature);
+                        new_call.signature = signature;
 
                         let new_terminator = mir::Terminator::TailCall { call: new_call };
                         tree.set(terminator_id, new_terminator);
@@ -379,7 +370,7 @@ entry(v0: int32, v1: int32):
 
 function root(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -392,7 +383,7 @@ entry(v0: int32):
 
 function root(v0: int32): int32 {
 entry(v0: int32):
-    v2: int32 = call callee(v0)
+    v2: int32 = call callee(v0): (int32) => int32
     return v2
 }
 "#;
@@ -413,7 +404,7 @@ entry(v0: int32, v1: int32):
 
 function root(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    tail.call callee(v0, v1)
+    tail.call callee(v0, v1): (int32, int32) => int32
 }
 "#;
 
@@ -425,7 +416,7 @@ entry(v0: int32):
 
 function root(v0: int32): int32 {
 entry(v0: int32):
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 "#;
 
@@ -445,7 +436,7 @@ entry(v0: int32, v1: int32):
 
 function root(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    invoke callee(v0, v1) => b1 | b2
+    invoke callee(v0, v1): (int32, int32) => int32 => b1 | b2
 
 b1(v2: int32):
     return v2
@@ -463,7 +454,7 @@ entry(v0: int32):
 
 function root(v0: int32): int32 {
 entry(v0: int32):
-    invoke callee(v0) => b1 | b2
+    invoke callee(v0): (int32) => int32 => b1 | b2
 
 b1(v2: int32):
     return v2
@@ -489,7 +480,7 @@ entry(v0: int32, v1: int32):
 
 function root(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -511,7 +502,7 @@ entry(v0: int32, v1: int32):
 function root(v0: fn(int32, int32) => int32, v1: int32, v2: int32): int32 {
 entry(v0: fn(int32, int32) => int32, v1: int32, v2: int32):
     v3: int32 = call.indirect v0(v1, v2): (int32, int32) => int32
-    v4: int32 = call callee(v1, v2)
+    v4: int32 = call callee(v1, v2): (int32, int32) => int32
     return v4
 }
 "#;
@@ -532,7 +523,7 @@ entry(v0: int32, v1: int32):
 
 function root(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -545,7 +536,7 @@ entry(v0: int32):
 
 function root(v0: int32): int32 {
 entry(v0: int32):
-    v2: int32 = call callee(v0)
+    v2: int32 = call callee(v0): (int32) => int32
     return v2
 }
 "#;

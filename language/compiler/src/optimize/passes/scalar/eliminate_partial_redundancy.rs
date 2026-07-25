@@ -1049,54 +1049,6 @@ b4(v7: uint32):
         test.assert_output(expected);
     }
 
-    /// Yield resume edges receive inserted expressions.
-    #[test]
-    fn test_pre_yield_resume_inserts_expression() {
-        let input = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-
-b1:
-    v3: int32 = int.add v0, v1
-    v4: int32 = 1
-    yield v4 => b3(v0)
-
-b2:
-    v5: int32 = 2
-    yield v5 => b3(v0)
-
-b3(v6: int32, v7: int32):
-    v8: int32 = int.add v0, v1
-    return v8
-}
-"#;
-
-        let expected = r#"
-function test(v0: int32, v1: int32, v2: boolean): int32 {
-entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-
-b1:
-    v3: int32 = int.add v0, v1
-    v4: int32 = 1
-    yield v4 => b3(v0, v3)
-
-b2:
-    v5: int32 = 2
-    v10: int32 = int.add v0, v1
-    yield v5 => b3(v0, v10)
-
-b3(v6: int32, v7: int32, v9: int32):
-    return v9
-}
-"#;
-
-        let mut test = TestProgram::new(input);
-        test.run_pass(&EliminatePartialRedundancy);
-        test.assert_output(expected);
-    }
-
     /// Non speculatable expressions are not inserted on new paths.
     #[test]
     fn test_pre_skips_non_speculatable_expression() {
@@ -1158,14 +1110,14 @@ entry(v0: boolean):
     branch v0, b1, b2
 
 b1:
-    v1: int32 = call getValue()
+    v1: int32 = call getValue(): () => int32
     jump b3
 
 b2:
     jump b3
 
 b3:
-    v2: int32 = call getValue()
+    v2: int32 = call getValue(): () => int32
     return v2
 }
 

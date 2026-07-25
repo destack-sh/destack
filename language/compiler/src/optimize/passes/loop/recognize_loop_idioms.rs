@@ -2138,7 +2138,7 @@ b1(v4: uint32):
     branch v5, b2, b3
 
 b2:
-    call touch(v4)
+    call touch(v4): (uint32) => void
     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7

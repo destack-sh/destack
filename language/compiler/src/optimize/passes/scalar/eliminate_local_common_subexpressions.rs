@@ -558,8 +558,9 @@ entry(v0: (int32, int32)):
     fn test_eliminate_redundant_loads() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
     v2: int32 = load v0
     v3: int32 = int.add v1, v2
@@ -568,8 +569,9 @@ entry:
 "#;
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
     v3: int32 = int.add v1, v1
     return v3
@@ -586,8 +588,9 @@ entry:
     fn test_preserve_loads_after_store() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
     v2: int32 = 1
     store v0, v2
@@ -728,8 +731,9 @@ b2(v6: int32):
     fn test_load_forwarding_respects_exact_access() {
         let input = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
     v2: int32 = load v0
     v3: int32 = load v0
@@ -754,8 +758,9 @@ entry:
 
         let expected = r#"
 function test(): int32 {
+    local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = load v0
     v2: int32 = load v0
     return v2

@@ -336,7 +336,7 @@ function root(): int32 {
 entry:
     v0: int32 = 40
     v1: int32 = 2
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -354,7 +354,7 @@ function root(): int32 {
 entry:
     v0: int32 = 40
     v1: int32 = 2
-    v2: int32 = call callee(v0, v1)
+    v2: int32 = call callee(v0, v1): (int32, int32) => int32
     return v2
 }
 "#;
@@ -377,14 +377,14 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 1
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 
 function other(): int32 {
 entry:
     v0: int32 = 2
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -399,14 +399,14 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 1
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 
 function other(): int32 {
 entry:
     v0: int32 = 2
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -430,7 +430,7 @@ function root(v0: fn(int32) => int32, v1: int32): int32 {
 entry(v0: fn(int32) => int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) => int32
     v3: int32 = 4
-    v4: int32 = call callee(v3)
+    v4: int32 = call callee(v3): (int32) => int32
     return v4
 }
 "#;
@@ -446,7 +446,7 @@ function root(v0: fn(int32) => int32, v1: int32): int32 {
 entry(v0: fn(int32) => int32, v1: int32):
     v2: int32 = call.indirect v0(v1): (int32) => int32
     v3: int32 = 4
-    v4: int32 = call callee(v3)
+    v4: int32 = call callee(v3): (int32) => int32
     return v4
 }
 "#;
@@ -471,7 +471,7 @@ function root(): int32 {
 entry:
     v0: ref<int32, raw, readonly> = global.address value
     v1: int32 = load v0
-    v2: int32 = call callee(v1)
+    v2: int32 = call callee(v1): (int32) => int32
     return v2
 }
 "#;
@@ -488,7 +488,7 @@ function root(): int32 {
 entry:
     v0: ref<int32, raw, readonly> = global.address value
     v1: int32 = load v0
-    v2: int32 = call callee(v1)
+    v2: int32 = call callee(v1): (int32) => int32
     return v2
 }
 "#;
@@ -510,7 +510,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 4
-    invoke callee(v0) => b1 | b2
+    invoke callee(v0): (int32) => int32 => b1 | b2
 
 b1(v1: int32):
     return v1
@@ -530,7 +530,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 4
-    invoke callee(v0) => b1 | b2
+    invoke callee(v0): (int32) => int32 => b1 | b2
 
 b1(v1: int32):
     return v1
@@ -557,7 +557,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 9
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 "#;
 
@@ -571,7 +571,7 @@ entry(v0: int32):
 function root(): int32 {
 entry:
     v0: int32 = 9
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 "#;
 

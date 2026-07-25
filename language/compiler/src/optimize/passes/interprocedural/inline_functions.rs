@@ -588,9 +588,6 @@ fn should_inline(
     if callee.entry().is_none() {
         return false;
     }
-    if callee.suspension.is_some() {
-        return false;
-    }
     if callee.parameters.len() != argument_count {
         return false;
     }
@@ -868,10 +865,7 @@ fn split_block_for_inline(
     }
 
     // build the continuation block
-    let continuation_terminator = tree.insert(mir::Terminator::Trap {
-        kind: mir::TrapKind::Abort,
-        payload: None,
-    });
+    let continuation_terminator = tree.insert(mir::Terminator::Abort { payload: None });
     let mut continuation_block = mir::Block::new(continuation_terminator);
     let mut result_value = None;
 
@@ -1339,7 +1333,7 @@ b2(v5: int32):
         let input = r#"
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call caller(v0)
+    v1: int32 = call caller(v0): (int32) => int32
     return v1
 }
 "#;
@@ -1347,7 +1341,7 @@ entry(v0: int32):
         let expected = r#"
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call caller(v0)
+    v1: int32 = call caller(v0): (int32) => int32
     return v1
 }
 "#;
@@ -1363,12 +1357,12 @@ entry(v0: int32):
         let input = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -1376,12 +1370,12 @@ entry(v0: int32):
         let expected = r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    tail.call callee(v0)
+    tail.call callee(v0): (int32) => int32
 }
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -1406,7 +1400,7 @@ entry(v0: int32):
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -1457,7 +1451,7 @@ entry:
 
 function caller(): int32 {
 entry:
-    v0: int32 = call callee()
+    v0: int32 = call callee(): () => int32
     return v0
 }
 "#;
@@ -1568,7 +1562,7 @@ entry(v0: int32):
 
 function caller(v0: int32): void {
 entry(v0: int32):
-    call callee(v0)
+    call callee(v0): (int32) => int32
     return
 }
 "#;
@@ -1618,7 +1612,7 @@ entry(v0: int32):
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -1686,17 +1680,17 @@ entry(v0: int32):
 
 function callee(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call helper(v0)
-    v2: int32 = call helper(v1)
-    v3: int32 = call helper(v2)
-    v4: int32 = call helper(v3)
-    v5: int32 = call helper(v4)
+    v1: int32 = call helper(v0): (int32) => int32
+    v2: int32 = call helper(v1): (int32) => int32
+    v3: int32 = call helper(v2): (int32) => int32
+    v4: int32 = call helper(v3): (int32) => int32
+    v5: int32 = call helper(v4): (int32) => int32
     return v5
 }
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     return v1
 }
 "#;
@@ -1765,7 +1759,7 @@ b2:
 
 function caller(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call callee(v0, v1, v2)
+    v3: int32 = call callee(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 "#;
@@ -1821,7 +1815,7 @@ entry(v0: int32):
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call callee(v0)
+    v1: int32 = call callee(v0): (int32) => int32
     jump b1(v1)
 
 b1(v2: int32):

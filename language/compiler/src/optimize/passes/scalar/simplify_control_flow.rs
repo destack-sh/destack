@@ -4350,15 +4350,16 @@ entry:
                         );
                     }
                 }
-                mir::Terminator::Yield { resume, unwind, .. } => {
+                mir::Terminator::Invoke { target, unwind, .. } => {
+                    check_edge(target.block, target.arguments(tree), &mut mismatches);
+                    check_edge(unwind.block, unwind.arguments(tree), &mut mismatches);
+                }
+                mir::Terminator::Await { resume, unwind, .. }
+                | mir::Terminator::Yield { resume, unwind, .. } => {
                     check_edge(resume.block, resume.arguments(tree), &mut mismatches);
                     if let Some(unwind) = unwind {
                         check_edge(unwind.block, unwind.arguments(tree), &mut mismatches);
                     }
-                }
-                mir::Terminator::Invoke { target, unwind, .. } => {
-                    check_edge(target.block, target.arguments(tree), &mut mismatches);
-                    check_edge(unwind.block, unwind.arguments(tree), &mut mismatches);
                 }
                 mir::Terminator::NewZeroedTry {
                     success, failure, ..
@@ -4382,7 +4383,7 @@ entry:
                 | mir::Terminator::Unreachable
                 | mir::Terminator::Panic { .. }
                 | mir::Terminator::UnwindResume
-                | mir::Terminator::Trap { .. }
+                | mir::Terminator::Abort { .. }
                 | mir::Terminator::TailCall { .. } => {}
             }
         }
