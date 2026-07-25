@@ -54,13 +54,6 @@ pub enum VerifyError {
         moved_at: DiagnosticAnchor,
     },
 
-    /// A Drop method cannot suspend execution.
-    #[diagnostic(id = "drop-may-suspend", message = "Drop method may suspend")]
-    DropMaySuspend {
-        /// The Drop method.
-        anchor: DiagnosticAnchor,
-    },
-
     /// A Drop method cannot panic.
     #[diagnostic(id = "drop-may-panic", message = "Drop method may panic")]
     DropMayPanic {
@@ -168,23 +161,6 @@ pub enum VerifyError {
         anchor: DiagnosticAnchor,
     },
 
-    /// Managed-rooted borrowed access cannot cross a suspension point.
-    ///
-    /// ```mir
-    /// v1: ref<int32, borrowed, readonly> = field.address v0, 0
-    /// yield v2 => b1(v1) // v0 is managed
-    /// ```
-    #[diagnostic(
-        id = "managed-borrow-across-suspension",
-        message = "managed borrow cannot cross suspension"
-    )]
-    ManagedBorrowAcrossSuspension {
-        /// The suspension point.
-        anchor: DiagnosticAnchor,
-        /// The managed-rooted borrow.
-        borrowed_at: DiagnosticAnchor,
-    },
-
     /// An escaping borrow is not covered by the required lifetime.
     ///
     /// ```mir
@@ -199,22 +175,6 @@ pub enum VerifyError {
     )]
     BorrowOutlivesOrigin {
         /// The escaping borrow.
-        anchor: DiagnosticAnchor,
-    },
-
-    /// A function body requires a borrow obligation not declared by its signature.
-    ///
-    /// ```mir
-    /// function test(v0: ref<int32, borrowed, readonly>): void {
-    ///     yield v0 => b1(v0) // v0 needs @suspensionSafe
-    /// }
-    /// ```
-    #[diagnostic(
-        id = "undeclared-borrow-obligation",
-        message = "invalid MIR: function signature is missing borrow obligation"
-    )]
-    UndeclaredBorrowObligation {
-        /// The function with an incomplete signature.
         anchor: DiagnosticAnchor,
     },
 }

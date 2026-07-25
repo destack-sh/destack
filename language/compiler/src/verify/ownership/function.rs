@@ -5,15 +5,13 @@ use destack_artifact::DiagnosticBuilder;
 use destack_mir as mir;
 
 use super::alias::PlaceAlias;
-use super::borrow::{BorrowSource, BorrowSources, BorrowSuspension};
+use super::borrow::{BorrowSource, BorrowSources};
 use super::flow::FlowState;
 use super::loan::Loan;
 use super::r#move::{MoveState, MoveUse};
 
 /// Ownership verifier for one function.
 pub(super) struct FunctionVerifyState<'a, 'b> {
-    /// The function node being verified.
-    function_id: mir::LocalNodeId<mir::Function>,
     /// The function being verified.
     function: &'a mir::Function,
     /// The MIR tree.
@@ -26,8 +24,6 @@ pub(super) struct FunctionVerifyState<'a, 'b> {
     aliases: PlaceAlias,
     /// Diagnostics produced by the active transfer.
     diagnostics: Vec<DiagnosticBuilder<VerifyError>>,
-    /// Borrow obligations produced by the active transfer.
-    borrow_obligations: Vec<mir::BorrowObligation>,
     /// Current flow state.
     flow: FlowState,
 }
@@ -35,20 +31,17 @@ pub(super) struct FunctionVerifyState<'a, 'b> {
 impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     /// Create a function verifier.
     pub(super) fn new(
-        function_id: mir::LocalNodeId<mir::Function>,
         function: &'a mir::Function,
         tree: &'a mir::Tree,
         context: &'a mut VerifyState<'b>,
     ) -> Self {
         Self {
-            function_id,
             function,
             tree,
             context,
             liveness: mir::FunctionLiveness::build(function, tree),
             aliases: PlaceAlias::new(function, tree),
             diagnostics: Vec::new(),
-            borrow_obligations: Vec::new(),
             flow: FlowState::new(),
         }
     }
@@ -58,17 +51,11 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         let entries = self.solve_entries();
 
         // replay blocks with fixed entry states
-        let obligations = self.replay_blocks(entries);
-        self.check_declared_borrow_obligations(&obligations);
+        self.replay_blocks(entries);
     }
 
     /// Replay reachable blocks with diagnostics enabled.
-    fn replay_blocks(
-        &mut self,
-        entries: HashMap<mir::LocalNodeId<mir::Block>, FlowState>,
-    ) -> Vec<mir::BorrowObligation> {
-        let mut obligations = Vec::new();
-
+    fn replay_blocks(&mut self, entries: HashMap<mir::LocalNodeId<mir::Block>, FlowState>) {
         for &block_id in self.function.blocks() {
             let Some(entry) = entries.get(&block_id).cloned() else {
                 continue;
@@ -76,31 +63,6 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
             self.transfer_block(block_id, entry);
             self.flush_diagnostics();
-            self.append_borrow_obligations(&mut obligations);
-        }
-
-        obligations
-    }
-
-    /// Check that the lowered signature carries every body-required obligation.
-    fn check_declared_borrow_obligations(&mut self, obligations: &[mir::BorrowObligation]) {
-        let declared = self
-            .function
-            .parameters
-            .iter()
-            .flat_map(|parameter| parameter.obligations.iter())
-            .collect::<Vec<_>>();
-
-        // report obligations not written into the function parameter surface
-        for obligation in obligations {
-            if declared.contains(&obligation) {
-                continue;
-            }
-
-            self.context
-                .emit_error(VerifyError::UndeclaredBorrowObligation {
-                    anchor: self.context.anchor(self.function_id.into()),
-                });
         }
     }
 
@@ -124,7 +86,6 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             let old_entry = entries.insert(block_id, entry_state.clone());
             let exit_state = self.transfer_block(block_id, entry_state);
             self.discard_diagnostics();
-            self.discard_borrow_obligations();
             let old_exit = exits.insert(block_id, exit_state);
 
             // skip successors when the block state is stable
@@ -225,7 +186,6 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     ) -> FlowState {
         self.flow = flow;
         self.diagnostics.clear();
-        self.borrow_obligations.clear();
 
         let block = self.tree.get(block_id);
 
@@ -412,9 +372,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             } => {
                 self.propagate_sources(*pointer, *destination);
             }
-            mir::Instruction::FrameAllocZeroed { destination, .. }
-            | mir::Instruction::FrameAllocUninit { destination, .. }
-            | mir::Instruction::NewZeroed { destination, .. }
+            mir::Instruction::NewZeroed { destination, .. }
             | mir::Instruction::NewUninit { destination, .. }
             | mir::Instruction::NewSliceZeroed { destination, .. }
             | mir::Instruction::NewSliceUninit { destination, .. } => {
@@ -432,7 +390,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             mir::Instruction::Call { call, .. } => {
                 let arguments = self.tree.get_values(call.arguments).to_vec();
                 let function = self.resolved_instruction_target(instruction_id, instruction);
-                self.check_call_obligations(&call.signature, arguments.clone(), anchor);
+                self.check_call_outlives(&call.signature, &arguments, anchor);
                 self.define_call_result_sources(
                     instruction.destination(),
                     function,
@@ -474,16 +432,11 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             self.check_return(*value, anchor);
         }
 
-        // check callee borrow obligations at the call site
-        self.check_terminator_call_obligations(terminator, anchor);
+        // check declared call lifetime relations
+        self.check_terminator_call_outlives(terminator, anchor);
 
         // check tail-call result borrows against the function return lifetime
         self.check_tail_call_return(block_id, terminator, anchor);
-
-        // check borrowed values live across suspension
-        if matches!(terminator, mir::Terminator::Yield { .. }) {
-            self.check_suspension(terminator, anchor);
-        }
 
         // move terminator arguments consumed by the current function
         for value in terminator.consumes(self.tree) {
@@ -878,58 +831,17 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
     }
 
-    /// Check live borrows at one suspension point.
-    fn check_suspension(&mut self, terminator: &mir::Terminator, anchor: mir::LocalNodeIdAny) {
-        // check borrowed values that remain visible after suspension
-        for value in self.borrowed_values_across_suspension(terminator) {
-            let sources = self.sources_for_value(value);
-            match sources.suspension() {
-                BorrowSuspension::Stable => {}
-                BorrowSuspension::Requires(lifetimes) => {
-                    self.require_suspension_sources(lifetimes, anchor);
-                }
-                BorrowSuspension::Rejected => {
-                    let borrowed_at = self
-                        .context
-                        .anchor(self.anchor_for_borrowed_reference(value, anchor));
-                    self.emit_error(
-                        VerifyError::ManagedBorrowAcrossSuspension {
-                            anchor: self.context.anchor(anchor),
-                            borrowed_at: borrowed_at.clone(),
-                        }
-                        .label(borrowed_at, "managed borrow is live here"),
-                    );
-                }
-            }
-        }
-    }
-
-    /// Require suspension-stable sources for borrowed lifetimes.
-    fn require_suspension_sources(
-        &mut self,
-        lifetimes: Vec<mir::Lifetime>,
-        _anchor: mir::LocalNodeIdAny,
-    ) {
-        // record one proof obligation for each required lifetime
-        for lifetime in lifetimes {
-            let obligation = mir::BorrowObligation::SuspensionStable { lifetime };
-            if !self.borrow_obligations.contains(&obligation) {
-                self.borrow_obligations.push(obligation);
-            }
-        }
-    }
-
-    /// Check call-site borrow obligations for one terminator.
-    fn check_terminator_call_obligations(
+    /// Check declared lifetime relations for one terminator call.
+    fn check_terminator_call_outlives(
         &mut self,
         terminator: &mir::Terminator,
         anchor: mir::LocalNodeIdAny,
     ) {
         match terminator {
             mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
-                self.check_call_obligations(
+                self.check_call_outlives(
                     &call.signature,
-                    self.tree.get_values(call.arguments).to_vec(),
+                    self.tree.get_values(call.arguments),
                     anchor,
                 );
             }
@@ -981,29 +893,14 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         Some(self.call_result_source_bindings(function, &call.signature, arguments, flow))
     }
 
-    /// Check callee obligations against call arguments.
-    fn check_call_obligations(
+    /// Check declared lifetime relations against call arguments.
+    fn check_call_outlives(
         &mut self,
         signature: &mir::TypeId,
-        arguments: Vec<mir::Value>,
+        arguments: &[mir::Value],
         anchor: mir::LocalNodeIdAny,
     ) {
-        let obligations = self.signature_borrow_obligations(signature);
         let parameter_types = self.call_parameter_types(signature);
-
-        // prove every callee obligation from the actual argument sources
-        for obligation in obligations {
-            match obligation {
-                mir::BorrowObligation::SuspensionStable { lifetime } => {
-                    self.check_stable_lifetime_arguments(
-                        &lifetime,
-                        &parameter_types,
-                        &arguments,
-                        anchor,
-                    );
-                }
-            }
-        }
 
         // prove every declared outlives row from the actual argument sources
         let rows = self.signature_outlives_rows(signature);
@@ -1047,24 +944,6 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         rows
-    }
-
-    /// Return the borrow obligations encoded in one signature type.
-    fn signature_borrow_obligations(&self, signature: &mir::TypeId) -> Vec<mir::BorrowObligation> {
-        let mir::Type::FunctionSignature { parameters, .. } = self.tree.get(*signature) else {
-            return Vec::new();
-        };
-
-        let mut obligations = Vec::new();
-        for parameter in parameters {
-            for obligation in &parameter.obligations {
-                if !obligations.contains(obligation) {
-                    obligations.push(obligation.clone());
-                }
-            }
-        }
-
-        obligations
     }
 
     /// Define borrow sources for one call result.
@@ -1218,135 +1097,6 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         }
 
         sources
-    }
-
-    /// Check one callee lifetime against actual argument sources.
-    fn check_stable_lifetime_arguments(
-        &mut self,
-        lifetime: &mir::Lifetime,
-        parameter_types: &[mir::TypeId],
-        arguments: &[mir::Value],
-        anchor: mir::LocalNodeIdAny,
-    ) {
-        let sources =
-            self.sources_from_callee_lifetime(lifetime, parameter_types, arguments, &self.flow);
-
-        self.check_stable_sources(sources, anchor);
-    }
-
-    /// Check whether sources can satisfy a suspension-stable obligation.
-    fn check_stable_sources(&mut self, sources: BorrowSources, anchor: mir::LocalNodeIdAny) {
-        match sources.suspension() {
-            BorrowSuspension::Stable => {}
-            BorrowSuspension::Requires(lifetimes) => {
-                self.require_suspension_sources(lifetimes, anchor);
-            }
-            BorrowSuspension::Rejected => {
-                let borrowed_at = self.context.anchor(anchor);
-                self.emit_error(
-                    VerifyError::ManagedBorrowAcrossSuspension {
-                        anchor: self.context.anchor(anchor),
-                        borrowed_at: borrowed_at.clone(),
-                    }
-                    .label(borrowed_at, "managed borrow is used across suspension"),
-                );
-            }
-        }
-    }
-
-    /// Return values with borrowed sources that cross one suspension point.
-    fn borrowed_values_across_suspension(&self, terminator: &mir::Terminator) -> Vec<mir::Value> {
-        let mir::Terminator::Yield {
-            value: yielded,
-            resume,
-            unwind,
-        } = terminator
-        else {
-            return Vec::new();
-        };
-
-        let mut values = Vec::new();
-
-        // check the yielded value itself
-        if self.value_can_carry_sources(*yielded) {
-            values.push(*yielded);
-        }
-
-        // check parameters carried into the continuation
-        for parameter in &self.function.parameters {
-            let value = parameter.value;
-            if self.value_can_carry_sources(value)
-                && self.is_value_live_across_suspension(value, resume, unwind.as_ref())
-                && !values.contains(&value)
-            {
-                values.push(value);
-            }
-        }
-
-        // check instruction results carried into the continuation
-        for (index, _) in self.function.value_types().iter().enumerate() {
-            let value = mir::Value::new(index as u32);
-            if self.value_can_carry_sources(value)
-                && self.is_value_live_across_suspension(value, resume, unwind.as_ref())
-                && !values.contains(&value)
-            {
-                values.push(value);
-            }
-        }
-
-        values
-    }
-
-    /// Return whether one value crosses a suspension edge.
-    fn is_value_live_across_suspension(
-        &self,
-        value: mir::Value,
-        resume: &mir::BlockTarget,
-        unwind: Option<&mir::BlockTarget>,
-    ) -> bool {
-        self.is_value_live_at_suspension_target(value, resume)
-            || unwind.is_some_and(|unwind| self.is_value_live_at_suspension_target(value, unwind))
-    }
-
-    /// Return whether one value reaches a suspension target.
-    fn is_value_live_at_suspension_target(
-        &self,
-        value: mir::Value,
-        target: &mir::BlockTarget,
-    ) -> bool {
-        if target.arguments(self.tree).contains(&value) {
-            return true;
-        }
-
-        self.liveness.is_value_live_in(target.block, value)
-    }
-
-    /// Return the diagnostic anchor for one exclusive reference.
-    fn anchor_for_borrowed_reference(
-        &self,
-        value: mir::Value,
-        fallback: mir::LocalNodeIdAny,
-    ) -> mir::LocalNodeIdAny {
-        if let Some(loan) = self
-            .flow
-            .loans
-            .loans
-            .iter()
-            .find(|loan| loan.reference == value)
-        {
-            return loan.created_at;
-        }
-
-        let is_parameter = self
-            .function
-            .parameters
-            .iter()
-            .any(|parameter| parameter.value == value);
-        if is_parameter {
-            return self.function.entry().map(Into::into).unwrap_or(fallback);
-        }
-
-        fallback
     }
 
     /// Check whether changing a value invalidates active loans.
@@ -1892,17 +1642,4 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         self.diagnostics.clear();
     }
 
-    /// Append active transfer obligations to an output vector.
-    fn append_borrow_obligations(&mut self, obligations: &mut Vec<mir::BorrowObligation>) {
-        for obligation in self.borrow_obligations.drain(..) {
-            if !obligations.contains(&obligation) {
-                obligations.push(obligation);
-            }
-        }
-    }
-
-    /// Discard active transfer obligations.
-    fn discard_borrow_obligations(&mut self) {
-        self.borrow_obligations.clear();
-    }
 }

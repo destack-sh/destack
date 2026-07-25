@@ -18,17 +18,6 @@ pub(super) enum BorrowSource {
     },
 }
 
-/// Suspension rule for one borrow source set.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum BorrowSuspension {
-    /// The sources are stable across suspension.
-    Stable,
-    /// The sources require caller proof before crossing suspension.
-    Requires(Vec<mir::Lifetime>),
-    /// At least one source cannot cross suspension.
-    Rejected,
-}
-
 impl BorrowSource {
     /// Return whether this source can be borrowed in safe code.
     pub(super) fn allows_borrow(&self, access: mir::Access) -> bool {
@@ -38,19 +27,6 @@ impl BorrowSource {
                 ..
             } => !access.is_exclusive(),
             Self::Static | Self::Lifetime(_) | Self::Owned | Self::Managed { .. } => true,
-        }
-    }
-
-    /// Return the suspension rule for this source.
-    fn suspension(&self) -> BorrowSuspension {
-        match self {
-            Self::Static | Self::Owned => BorrowSuspension::Stable,
-            Self::Lifetime(slot) => {
-                BorrowSuspension::Requires(vec![mir::Lifetime::new([mir::LifetimeTerm::Slot(
-                    *slot,
-                )])])
-            }
-            Self::Managed { .. } => BorrowSuspension::Rejected,
         }
     }
 
@@ -160,32 +136,6 @@ impl BorrowSources {
         self.sources
             .iter()
             .all(|source| source.allows_borrow(access))
-    }
-
-    /// Return the suspension rule for all sources.
-    pub(super) fn suspension(&self) -> BorrowSuspension {
-        let mut lifetimes = Vec::new();
-
-        // combine source predicates
-        for source in &self.sources {
-            match source.suspension() {
-                BorrowSuspension::Stable => {}
-                BorrowSuspension::Requires(required) => {
-                    for lifetime in required {
-                        if !lifetimes.contains(&lifetime) {
-                            lifetimes.push(lifetime);
-                        }
-                    }
-                }
-                BorrowSuspension::Rejected => return BorrowSuspension::Rejected,
-            }
-        }
-
-        if lifetimes.is_empty() {
-            BorrowSuspension::Stable
-        } else {
-            BorrowSuspension::Requires(lifetimes)
-        }
     }
 
     /// Return whether every source may escape the function.

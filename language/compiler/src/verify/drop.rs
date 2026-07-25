@@ -30,13 +30,6 @@ impl VerifyState<'_> {
                 .unwrap_or_else(mir::FunctionEffect::unknown);
             let anchor = self.anchor(hook.into());
 
-            // reject suspension
-            if effect.behavior.suspend.may_suspend() {
-                self.emit_error(VerifyError::DropMaySuspend {
-                    anchor: anchor.clone(),
-                });
-            }
-
             // reject panic unwinding
             if effect.behavior.panic.may_panic() {
                 self.emit_error(VerifyError::DropMayPanic {

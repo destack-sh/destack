@@ -10,7 +10,7 @@ external function effect(): void
 
 function dropItem(v0: ref<Item, borrowed, exclusive>): void {
 entry(v0: ref<Item, borrowed, exclusive>):
-    call effect()
+    call effect(): () => void
     return
 }
 "#;
@@ -34,21 +34,6 @@ entry(v0: Item):
 
     assert!(matches!(diagnostics.as_slice(), [diagnostic]
         if matches!(diagnostic.diagnostic(), VerifyError::InvalidDropSignature { .. })));
-}
-
-/// Reject a Drop hook that may suspend.
-#[test]
-fn test_reject_suspending_drop_hook() {
-    let mut program = TestProgram::mir(DROP_MIR);
-    program.mark_drop_hook("Item", "dropItem");
-    let function = program.function_by_name("effect");
-    program.lowered.effects.function_mut(function).behavior =
-        mir::FunctionBehavior::none().with_suspend();
-
-    let diagnostics = program.run_drop_hooks();
-
-    assert!(matches!(diagnostics.as_slice(), [diagnostic]
-        if matches!(diagnostic.diagnostic(), VerifyError::DropMaySuspend { .. })));
 }
 
 /// Reject a Drop hook that may panic.

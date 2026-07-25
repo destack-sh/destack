@@ -122,40 +122,10 @@ impl TestProgram {
         assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
     }
 
-    /// Assert one managed borrow across suspension error.
-    pub(in crate::verify::tests) fn assert_error_managed_borrow_across_suspension(&mut self) {
-        let diagnostics = self.run_ownership();
-        let VerifyError::ManagedBorrowAcrossSuspension {
-            anchor,
-            borrowed_at,
-        } = self.one_ownership_error(&diagnostics)
-        else {
-            panic!("{}", self.render_verify_diagnostics(&diagnostics));
-        };
-
-        assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
-        assert!(
-            matches!(borrowed_at, DiagnosticAnchor::Span(_)),
-            "{borrowed_at:#?}"
-        );
-    }
-
     /// Assert one borrow outlives origin error.
     pub(in crate::verify::tests) fn assert_error_borrow_outlives_origin(&mut self) {
         let diagnostics = self.run_ownership();
         let VerifyError::BorrowOutlivesOrigin { anchor } = self.one_ownership_error(&diagnostics)
-        else {
-            panic!("{}", self.render_verify_diagnostics(&diagnostics));
-        };
-
-        assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
-    }
-
-    /// Assert one undeclared borrow obligation error.
-    pub(in crate::verify::tests) fn assert_error_undeclared_borrow_obligation(&mut self) {
-        let diagnostics = self.run_ownership();
-        let VerifyError::UndeclaredBorrowObligation { anchor } =
-            self.one_ownership_error(&diagnostics)
         else {
             panic!("{}", self.render_verify_diagnostics(&diagnostics));
         };

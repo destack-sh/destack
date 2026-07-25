@@ -126,9 +126,6 @@ impl FlowState {
             | mir::Instruction::NewComplete { destination, .. }
             | mir::Instruction::NewSliceZeroed { destination, .. }
             | mir::Instruction::NewSliceUninit { destination, .. }
-            | mir::Instruction::FrameAllocZeroed { destination, .. }
-            | mir::Instruction::FrameAllocUninit { destination, .. }
-            | mir::Instruction::FunctionPointer { destination, .. }
             | mir::Instruction::FunctionEnvironment { destination, .. }
             | mir::Instruction::FunctionEnvironmentCurrent { destination } => {
                 self.set_place(*destination, mir::Place::value(*destination))

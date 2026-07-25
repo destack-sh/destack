@@ -9,8 +9,9 @@ type Box {
 }
 
 function test(): ref<int32, borrowed, mutable> {
+    local l0: Box
 entry:
-    v0: ref<Box, raw, mutable, space(frame)> = frame.alloc.zeroed Box
+    v0: ref<Box, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     return v1
 }

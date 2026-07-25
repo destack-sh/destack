@@ -9,12 +9,12 @@ impl VerifyState<'_> {
         let tree = self.tree;
 
         // verify every body-backed function
-        for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+        for (_, function) in tree.iter_nodes::<mir::Function>() {
             if function.entry().is_none() {
                 continue;
             }
 
-            FunctionVerifyState::new(function_id, function, tree, self).check();
+            FunctionVerifyState::new(function, tree, self).check();
         }
     }
 }
