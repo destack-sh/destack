@@ -161,6 +161,14 @@ impl Word {
         Some(Self(u64::from_le_bytes(bytes)))
     }
 
+    /// View contiguous words as their native in-memory bytes mutably.
+    pub fn bytes_mut(words: &mut [Self]) -> &mut [u8] {
+        let byte_len = std::mem::size_of_val(words);
+
+        // SAFETY: Word has an aligned 64-bit representation with no invalid bit patterns
+        unsafe { std::slice::from_raw_parts_mut(words.as_mut_ptr().cast(), byte_len) }
+    }
+
     /// Truncate one unsigned integer to a bit width.
     const fn truncate_unsigned(value: u64, width: u8) -> u64 {
         if width >= u64::BITS as u8 {

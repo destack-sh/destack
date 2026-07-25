@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
-use super::{BindingId, FrameLayoutId, TypeId, Word};
+use super::{BindingId, TypeId, Word};
 
 /// Durable runtime function id inside one program.
 #[repr(transparent)]
@@ -245,10 +245,8 @@ pub struct Function {
     pub environment: Optional<TypeId>,
     /// Function call signature.
     pub signature: SignatureId,
-    /// Physical runtime frame layout when this function has one.
-    pub frame_layout: Optional<FrameLayoutId>,
-    /// Reserved function word.
-    reserved: u32,
+    /// The function coroutine behavior.
+    pub coroutine: Coroutine,
 }
 
 impl Function {
@@ -257,9 +255,41 @@ impl Function {
         self.environment.get()
     }
 
-    /// Return the physical frame layout when this function has one.
-    pub fn frame_layout(&self) -> Option<FrameLayoutId> {
-        self.frame_layout.get()
+    /// Return the coroutine behavior when this function may suspend.
+    pub const fn coroutine(&self) -> Option<Coroutine> {
+        if self.coroutine.0 == Coroutine::NONE.0 {
+            None
+        } else {
+            Some(self.coroutine)
+        }
+    }
+}
+
+/// Durable function coroutine behavior.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
+pub struct Coroutine(pub u32);
+
+impl Coroutine {
+    /// A synchronous function.
+    pub const NONE: Self = Self(0);
+    /// A function that awaits promises.
+    pub const ASYNC: Self = Self(1);
+    /// A function that yields values to its caller.
+    pub const GENERATOR: Self = Self(2);
+    /// A function that awaits promises and yields values to its caller.
+    pub const ASYNC_GENERATOR: Self = Self(3);
+
+    /// Return whether this coroutine may await promises.
+    pub const fn is_async(self) -> bool {
+        matches!(self, Self::ASYNC | Self::ASYNC_GENERATOR)
+    }
+
+    /// Return whether this coroutine may yield values.
+    pub const fn is_generator(self) -> bool {
+        matches!(self, Self::GENERATOR | Self::ASYNC_GENERATOR)
     }
 }
 
@@ -363,8 +393,7 @@ impl FunctionTableBuilder {
                 name: function.name,
                 environment: function.environment.into(),
                 signature: function.signature,
-                frame_layout: function.frame_layout.into(),
-                reserved: 0,
+                coroutine: function.coroutine,
             });
         }
 
@@ -381,7 +410,8 @@ impl FunctionTableBuilder {
 const _: () = assert!(size_of::<FunctionTable>() == 80);
 const _: () = assert!(size_of::<FunctionExport>() == 16);
 const _: () = assert!(size_of::<FunctionBinding>() == 32);
-const _: () = assert!(size_of::<Function>() == 32);
+const _: () = assert!(size_of::<Function>() == 24);
+const _: () = assert!(size_of::<Coroutine>() == 4);
 const _: () = assert!(size_of::<SignatureId>() == 4);
 const _: () = assert!(size_of::<SignatureEntry>() == 16);
 
@@ -394,10 +424,10 @@ pub struct FunctionBuilder {
     signature: SignatureId,
     /// Captured closure environment type when one exists.
     environment: Option<TypeId>,
-    /// Physical runtime frame layout when this function has one.
-    frame_layout: Option<FrameLayoutId>,
     /// Runtime binding id attached to this function when one exists.
     binding: Option<BindingId>,
+    /// The function coroutine behavior.
+    coroutine: Coroutine,
 }
 
 impl FunctionBuilder {
@@ -407,8 +437,8 @@ impl FunctionBuilder {
             name,
             signature,
             environment: None,
-            frame_layout: None,
             binding: None,
+            coroutine: Coroutine::NONE,
         }
     }
 
@@ -419,16 +449,16 @@ impl FunctionBuilder {
         self
     }
 
-    /// Set the physical frame layout used to execute this function.
-    pub fn frame_layout(mut self, frame_layout: FrameLayoutId) -> Self {
-        self.frame_layout = Some(frame_layout);
+    /// Set the attached runtime binding.
+    pub fn binding(mut self, binding: BindingId) -> Self {
+        self.binding = Some(binding);
 
         self
     }
 
-    /// Set the attached runtime binding.
-    pub fn binding(mut self, binding: BindingId) -> Self {
-        self.binding = Some(binding);
+    /// Set the function coroutine behavior.
+    pub fn coroutine(mut self, coroutine: Coroutine) -> Self {
+        self.coroutine = coroutine;
 
         self
     }

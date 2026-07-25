@@ -1,53 +1,37 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{ProgramPoint, WatchpointId};
+use super::{Continuation, FunctionId, ProgramPoint, WatchpointId};
 
 /// Result of running program code.
 #[derive(Debug)]
-pub enum Outcome<C, O, Y = O> {
+pub enum Outcome<T> {
     /// Execution completed with a result.
     Completed {
         /// The completed execution value.
-        value: O,
+        value: T,
     },
-    /// Execution yielded a continuation and resume value.
+    /// Execution awaited one asynchronous value.
+    Awaited {
+        /// The concrete park implementation selected by the awaitable type.
+        park: FunctionId,
+        /// The asynchronous value passed to the park implementation.
+        awaitable: T,
+        /// The continuation resumed when the asynchronous value settles.
+        continuation: Continuation,
+    },
+    /// Execution yielded one generator value.
     Yielded {
-        /// The continuation used to resume execution.
-        continuation: C,
-        /// The value yielded to the caller.
-        value: Y,
+        /// The value yielded to the generator owner.
+        value: T,
+        /// The continuation resumed by the next generator command.
+        continuation: Continuation,
     },
     /// Execution stopped for host inspection.
     Stopped {
-        /// The continuation used to continue execution.
-        continuation: C,
         /// The reason execution stopped.
         reason: StopReason,
     },
-}
-
-impl<C, O, Y> Outcome<C, O, Y> {
-    /// Transform the continuation carried by a suspended outcome.
-    pub fn map_continuation<T>(self, map: impl FnOnce(C) -> T) -> Outcome<T, O, Y> {
-        match self {
-            Self::Completed { value } => Outcome::Completed { value },
-            Self::Yielded {
-                continuation,
-                value,
-            } => Outcome::Yielded {
-                continuation: map(continuation),
-                value,
-            },
-            Self::Stopped {
-                continuation,
-                reason,
-            } => Outcome::Stopped {
-                continuation: map(continuation),
-                reason,
-            },
-        }
-    }
 }
 
 /// Reason execution stopped before completion.
@@ -88,7 +72,7 @@ pub struct InstructionStop {
     pub reason: StopReason,
 }
 
-/// One stop skipped once when resuming a retained continuation.
+/// One stop skipped once when continuing retained execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ResumeSkip {
     /// Program point that produced the retained stop.

@@ -1261,6 +1261,7 @@ dependencies = [
  "destack_serde",
  "destack_source",
  "serde",
+ "smallvec",
 ]
 
 [[package]]

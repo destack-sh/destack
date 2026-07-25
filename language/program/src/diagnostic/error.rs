@@ -5,8 +5,8 @@ use destack_mir::Space;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocationSiteId, FrameLayoutId, FrameSlotId, FrameStateId, FunctionId, GlobalId, LayoutId,
-    Signature, SignatureId, TypeId, ValueMismatch,
+    AllocationSiteId, FrameLayoutId, FrameStateId, FunctionId, GlobalId, LayoutId, Signature,
+    SignatureId, TypeId, ValueMismatch,
 };
 
 /// Result of one Program operation.
@@ -19,6 +19,13 @@ pub enum Error {
     ValueMismatch {
         /// The mismatched value tags.
         mismatch: ValueMismatch,
+    },
+    /// A multiword value carries the wrong concrete program type.
+    ValueTypeMismatch {
+        /// The required program type.
+        expected: TypeId,
+        /// The supplied program type.
+        actual: TypeId,
     },
     /// An integer value does not match its program width.
     IntegerWidthMismatch {
@@ -101,8 +108,6 @@ pub enum Error {
         /// The global without storage.
         global: GlobalId,
     },
-    /// A continuation contains no captured frames.
-    EmptyContinuation,
     /// A frame state id does not name a Program frame state.
     UndefinedFrameState {
         /// The missing frame state id.
@@ -113,12 +118,9 @@ pub enum Error {
         /// The missing frame layout id.
         frame_layout: FrameLayoutId,
     },
-    /// A continuation frame names bytes outside its byte storage.
-    InvalidFrameRange {
-        /// The frame state whose byte range is invalid.
-        frame_state: FrameStateId,
-    },
-    /// A continuation frame byte width differs from its frame layout.
+    /// A suspended continuation contains no frames.
+    EmptyContinuation,
+    /// A captured frame byte width differs from its frame layout.
     FrameByteLengthMismatch {
         /// The mismatched frame state.
         frame_state: FrameStateId,
@@ -127,24 +129,14 @@ pub enum Error {
         /// The captured frame byte width.
         actual: usize,
     },
-    /// A frame slot id does not name a slot in its frame layout.
-    UndefinedFrameSlot {
-        /// The containing frame layout.
-        frame_layout: FrameLayoutId,
-        /// The missing frame slot.
-        slot: FrameSlotId,
-    },
-    /// A frame slot names bytes outside its captured frame.
+    /// A canonical frame slot names bytes outside its captured frame.
     FrameSlotOutOfBounds {
         /// The containing frame state.
         frame_state: FrameStateId,
-        /// The out-of-bounds frame slot.
-        slot: FrameSlotId,
-    },
-    /// A frame state does not name a continuation site.
-    UndefinedContinuationSite {
-        /// The frame state without a continuation site.
-        frame_state: FrameStateId,
+        /// The containing frame layout.
+        frame_layout: FrameLayoutId,
+        /// The out-of-bounds byte offset.
+        offset: u32,
     },
     /// A compact trace table operation failed.
     Trace {
@@ -224,6 +216,11 @@ impl fmt::Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ValueMismatch { mismatch } => mismatch.fmt(formatter),
+            Self::ValueTypeMismatch { expected, actual } => write!(
+                formatter,
+                "expected value type {}, found {}",
+                expected.0, actual.0
+            ),
             Self::IntegerWidthMismatch { expected, actual } => write!(
                 formatter,
                 "expected a {expected}-bit integer, found a {actual}-bit integer"
@@ -273,19 +270,13 @@ impl fmt::Display for Error {
             Self::MissingGlobalStorage { global } => {
                 write!(formatter, "global {global:?} has no static storage")
             }
-            Self::EmptyContinuation => formatter.write_str("continuation contains no frames"),
             Self::UndefinedFrameState { frame_state } => {
                 write!(formatter, "undefined frame state {frame_state:?}")
             }
             Self::UndefinedFrameLayout { frame_layout } => {
                 write!(formatter, "undefined frame layout {frame_layout:?}")
             }
-            Self::InvalidFrameRange { frame_state } => {
-                write!(
-                    formatter,
-                    "frame state {frame_state:?} has an invalid byte range"
-                )
-            }
+            Self::EmptyContinuation => formatter.write_str("continuation contains no frames"),
             Self::FrameByteLengthMismatch {
                 frame_state,
                 expected,
@@ -294,20 +285,14 @@ impl fmt::Display for Error {
                 formatter,
                 "frame state {frame_state:?} requires {expected} bytes, found {actual}"
             ),
-            Self::UndefinedFrameSlot { frame_layout, slot } => write!(
+            Self::FrameSlotOutOfBounds {
+                frame_state,
+                frame_layout,
+                offset,
+            } => write!(
                 formatter,
-                "undefined frame slot {slot:?} in frame layout {frame_layout:?}"
+                "frame slot at byte {offset} exceeds layout {frame_layout:?} for state {frame_state:?}"
             ),
-            Self::FrameSlotOutOfBounds { frame_state, slot } => write!(
-                formatter,
-                "frame slot {slot:?} exceeds frame state {frame_state:?}"
-            ),
-            Self::UndefinedContinuationSite { frame_state } => {
-                write!(
-                    formatter,
-                    "undefined continuation site for frame state {frame_state:?}"
-                )
-            }
             Self::Trace { error } => error.fmt(formatter),
             Self::Heap { error } => error.fmt(formatter),
         }

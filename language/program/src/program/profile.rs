@@ -5,10 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::GlobalAddress;
 
-use super::{
-    AllocationSiteId, CallSiteId, ContinuationSiteId, CounterId, EdgeSiteId, Program, SamplerId,
-    WordLayout,
-};
+use super::{AllocationSiteId, CallSiteId, CounterId, EdgeSiteId, Program, SamplerId, WordLayout};
 
 const STANDARD_SAMPLE_BUCKET_LIMIT: u32 = 32;
 
@@ -25,8 +22,6 @@ pub struct Profile {
     pub calls: Vec<CallProfile>,
     /// Control-flow edge site profiles.
     pub edges: Vec<EdgeProfile>,
-    /// Continuation site profiles.
-    pub continuations: Vec<ContinuationProfile>,
     /// Explicit sample profiles indexed by program sampler id.
     pub samples: Vec<SampleProfile>,
 }
@@ -66,15 +61,6 @@ pub struct CallProfile {
 pub struct EdgeProfile {
     /// Number of observed transfers.
     pub count: u64,
-}
-
-/// Runtime profile for one continuation site.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ContinuationProfile {
-    /// Number of observed continuation captures.
-    pub captured: u64,
-    /// Number of observed continuation resumes.
-    pub resumed: u64,
 }
 
 /// Runtime profile for one explicit sample site.
@@ -163,7 +149,6 @@ impl Profile {
             allocations: vec![AllocationProfile::new(); sites.allocation_count(sections)],
             calls: vec![CallProfile::new(); sites.call_count(sections)],
             edges: vec![EdgeProfile::new(); sites.edge_count(sections)],
-            continuations: vec![ContinuationProfile::new(); sites.continuation_count(sections)],
             samples: vec![SampleProfile::new(); sampler_count],
         }
     }
@@ -174,15 +159,9 @@ impl Profile {
         let allocations_empty = self.allocations.iter().all(AllocationProfile::is_empty);
         let calls_empty = self.calls.iter().all(CallProfile::is_empty);
         let edges_empty = self.edges.iter().all(EdgeProfile::is_empty);
-        let continuations_empty = self.continuations.iter().all(ContinuationProfile::is_empty);
         let samples_empty = self.samples.iter().all(SampleProfile::is_empty);
 
-        counters_empty
-            && allocations_empty
-            && calls_empty
-            && edges_empty
-            && continuations_empty
-            && samples_empty
+        counters_empty && allocations_empty && calls_empty && edges_empty && samples_empty
     }
 
     /// Record one explicit counter increment.
@@ -210,18 +189,6 @@ impl Profile {
     #[inline]
     pub fn record_edge(&mut self, site: EdgeSiteId) {
         self.edges[site.index()].count += 1;
-    }
-
-    /// Record one continuation capture.
-    #[inline]
-    pub fn record_continuation_capture(&mut self, site: ContinuationSiteId) {
-        self.continuations[site.index()].captured += 1;
-    }
-
-    /// Record one continuation resume.
-    #[inline]
-    pub fn record_continuation_resume(&mut self, site: ContinuationSiteId) {
-        self.continuations[site.index()].resumed += 1;
     }
 
     /// Record one sampled word key.
@@ -369,21 +336,6 @@ impl EdgeProfile {
     /// Return whether no edge transfer was observed.
     pub const fn is_empty(&self) -> bool {
         self.count == 0
-    }
-}
-
-impl ContinuationProfile {
-    /// Create one empty continuation profile.
-    pub const fn new() -> Self {
-        Self {
-            captured: 0,
-            resumed: 0,
-        }
-    }
-
-    /// Return whether no continuation lifecycle event was observed.
-    pub const fn is_empty(&self) -> bool {
-        self.captured == 0 && self.resumed == 0
     }
 }
 

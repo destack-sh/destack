@@ -15,7 +15,7 @@ use crate::{
 };
 
 const PROGRAM_MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
-const PROGRAM_VERSION: u16 = 1;
+const PROGRAM_VERSION: u16 = 2;
 
 /// Program image load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,7 +65,7 @@ pub struct ProgramBuilder {
     drops: Vec<DropEntry>,
     /// Runtime layouts.
     layouts: Vec<LayoutBuilder>,
-    /// Runtime frames.
+    /// Canonical frame states and layouts.
     frames: FrameTableBuilder,
     /// Program functions.
     functions: FunctionTableBuilder,
@@ -119,7 +119,7 @@ struct Header {
     drops: DropTable,
     /// Runtime layout table.
     layouts: LayoutTable,
-    /// Runtime frame table.
+    /// Canonical frame table.
     frames: FrameTable,
     /// Program function table.
     functions: FunctionTable,
@@ -255,7 +255,7 @@ impl ProgramBuilder {
         self
     }
 
-    /// Set the runtime frame table.
+    /// Set canonical frame states and layouts.
     pub fn frames(mut self, frames: FrameTableBuilder) -> Self {
         self.frames = frames;
 
@@ -350,7 +350,7 @@ impl ProgramBuilder {
         header.types = TypeTable::pack(&mut sections, self.types);
         header.drops = DropTable::pack(&mut sections, self.drops);
         header.layouts = LayoutTable::pack(&mut sections, self.layouts);
-        header.frames = self.frames.build(&mut sections);
+        header.frames = FrameTable::pack(self.frames, &mut sections);
         header.functions = self.functions.build(&mut sections);
         header.dispatch = self.dispatch.build(&mut sections);
         header.sites = self.sites.build(&mut sections);
@@ -453,8 +453,8 @@ mod tests {
     use destack_mir::{TargetLayout, TraceTable};
 
     use crate::{
-        DispatchTableBuilder, FrameTableBuilder, FunctionTableBuilder, Program, ProgramBuilder,
-        ProgramInfoBuilder, SiteTableBuilder,
+        DispatchTableBuilder, FunctionTableBuilder, Program, ProgramBuilder, ProgramInfoBuilder,
+        SiteTableBuilder,
     };
 
     /// Load one complete Program directly from its retained image storage.
@@ -469,10 +469,6 @@ mod tests {
 
         assert_eq!(loaded.bytes(), program.bytes());
         assert_eq!(loaded.string(name), Some("main"));
-        assert_eq!(
-            loaded.bytecode().bodies(loaded.sections()),
-            program.bytecode().bodies(program.sections()),
-        );
     }
 
     /// Build one minimal section-backed Program.
@@ -487,7 +483,6 @@ mod tests {
             .types([])
             .drops([])
             .layouts([])
-            .frames(FrameTableBuilder::new())
             .functions(FunctionTableBuilder::new())
             .dispatch(DispatchTableBuilder::new())
             .sites(SiteTableBuilder::new())

@@ -13,15 +13,15 @@ use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocationSiteId, BindingId, Continuation, DispatchTable, DropEntry, DropTable, DynamicEntry,
-    DynamicTable, DynamicTableId, Error, FrameLayout, FrameLayoutId, FrameSlot, FrameSlotId,
-    FrameState, FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global,
+    AllocationSiteId, BindingId, CallSite, CallSiteId, Continuation, DispatchTable, DropEntry,
+    DropTable, DynamicEntry, DynamicTable, DynamicTableId, Error, FrameLayout, FrameLayoutId,
+    FrameSlot, FrameState, FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global,
     GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
     LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite,
     SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage,
-    StaticSpace, StringTable, TensorDimension, TensorLayout, TensorViewLayout, TypeId, TypeTable,
-    Value, VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout,
-    native, wasm,
+    StaticSpace, StringTable, SuspensionSite, SuspensionSiteId, TensorDimension, TensorLayout,
+    TensorViewLayout, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable,
+    VirtualTableId, Word, WordLayout, native, wasm,
 };
 
 /// Linked program.
@@ -39,7 +39,7 @@ pub struct Program {
     pub(crate) drops: DropTable,
     /// Runtime layouts keyed by layout id.
     pub(crate) layouts: LayoutTable,
-    /// Runtime frame table.
+    /// Canonical frame states and layouts.
     pub(crate) frames: FrameTable,
     /// Program function table.
     pub(crate) functions: FunctionTable,
@@ -61,7 +61,7 @@ pub struct Program {
     /// Initial local static storage for each worker.
     pub(crate) local_static_space: StaticImage,
 
-    /// Bytecode used for interpretation, deoptimization, and continuation resume.
+    /// Bytecode used for interpretation and deoptimization.
     pub(crate) bytecode: bytecode::Code,
     /// Native code when generated for this program.
     pub(crate) native: Option<native::Code>,
@@ -202,6 +202,16 @@ impl Program {
     /// Return program sites.
     pub fn sites(&self) -> &SiteTable {
         &self.sites
+    }
+
+    /// Return the call site at one program point.
+    pub fn call(&self, point: ProgramPoint) -> Option<(CallSiteId, &CallSite)> {
+        self.sites.call(self.sections(), point)
+    }
+
+    /// Return the coroutine suspension site at one program point.
+    pub fn suspension(&self, point: ProgramPoint) -> Option<(SuspensionSiteId, &SuspensionSite)> {
+        self.sites.suspension(self.sections(), point)
     }
 
     /// Decode one profile sample key using its program site type.
@@ -363,8 +373,8 @@ impl Program {
             .iter()
             .enumerate()
             .map(|(index, site)| {
-                let Some(layout) = self.layout(site.storage_type) else {
-                    return Err(Error::undefined_type(site.storage_type));
+                let Some(layout) = self.layout_by_id(site.layout) else {
+                    return Err(Error::undefined_layout(site.layout));
                 };
 
                 // dynamically sized tensors derive their complete plan at execution
@@ -441,32 +451,19 @@ impl Program {
             .owns_address_range(sections, global, address, byte_len)
     }
 
-    /// Return the frame layout for one layout id when present.
-    pub fn frame_layout_by_id(&self, frame_layout: FrameLayoutId) -> Option<&FrameLayout> {
-        self.frames.layout(self.sections(), frame_layout)
-    }
-
-    /// Return one frame state.
+    /// Return one canonical frame state.
     pub fn frame_state(&self, frame_state: FrameStateId) -> Option<&FrameState> {
         self.frames.state(self.sections(), frame_state)
     }
 
-    /// Return one frame slot by id.
-    pub fn frame_slot(&self, layout: &FrameLayout, slot: FrameSlotId) -> Option<&FrameSlot> {
-        self.frames.slot(self.sections(), layout, slot)
+    /// Return one canonical frame layout.
+    pub fn frame_layout(&self, layout: FrameLayoutId) -> Option<&FrameLayout> {
+        self.frames.layout(self.sections(), layout)
     }
 
-    /// Return the closure environment slot for one frame layout.
-    pub fn frame_environment_slot<'a>(&'a self, layout: &FrameLayout) -> Option<&'a FrameSlot> {
-        let sections = self.sections();
-        let slots = self.frames.slots(sections, layout);
-
-        layout.environment(slots)
-    }
-
-    /// Return the live slots for one frame state.
-    pub fn frame_live_slots<'a>(&'a self, state: &'a FrameState) -> &'a [FrameSlotId] {
-        self.frames.live_slots(self.sections(), state)
+    /// Return the live slots in one canonical frame layout.
+    pub fn frame_slots<'a>(&'a self, layout: &'a FrameLayout) -> &'a [FrameSlot] {
+        self.frames.slots(self.sections(), layout)
     }
 
     /// Return the canonical layout for one type.
@@ -549,17 +546,39 @@ impl Program {
     }
 
     /// Encode one program value through its runtime layout.
-    pub fn encode_value(&self, ty: TypeId, value: &Value) -> Result<Option<Word>> {
+    pub fn encode_value(&self, ty: TypeId, value: &Value) -> Result<Vec<Word>> {
         let Some(layout) = self.layout(ty) else {
             return Err(Error::undefined_type(ty));
         };
 
-        // accept only values represented by one execution word
-        let Some(layout) = layout.word_layout() else {
+        // preserve an already encoded multiword value
+        if let Value::Words { ty: actual, words } = value {
+            if *actual != ty {
+                return Err(Error::ValueTypeMismatch {
+                    expected: ty,
+                    actual: *actual,
+                });
+            }
+
+            let expected = (layout.size as usize).div_ceil(Word::BYTE_LEN);
+            if words.len() != expected {
+                return Err(Error::ValueWordCountMismatch {
+                    ty,
+                    expected,
+                    actual: words.len(),
+                });
+            }
+
+            return Ok(words.to_vec());
+        }
+
+        // encode scalar host values through one execution word
+        let Some(word_layout) = layout.word_layout() else {
             return Err(Error::UnsupportedValue { ty });
         };
+        let word = value.encode(word_layout)?;
 
-        value.encode(layout)
+        Ok(word.into_iter().collect())
     }
 
     /// Decode one program value from its execution result words.
@@ -568,13 +587,22 @@ impl Program {
             return Err(Error::undefined_type(ty));
         };
 
-        // accept only values represented by one execution word
-        let Some(layout) = layout.word_layout() else {
-            return Err(Error::UnsupportedValue { ty });
+        // preserve non-scalar values as exact execution words
+        let Some(word_layout) = layout.word_layout() else {
+            let expected = (layout.size as usize).div_ceil(Word::BYTE_LEN);
+            if words.len() != expected {
+                return Err(Error::ValueWordCountMismatch {
+                    ty,
+                    expected,
+                    actual: words.len(),
+                });
+            }
+
+            return Ok(Value::words(ty, words.iter().copied()));
         };
 
         // require exactly the words implied by the selected layout
-        let expected = usize::from(layout != WordLayout::Void);
+        let expected = usize::from(word_layout != WordLayout::Void);
         if words.len() != expected {
             return Err(Error::ValueWordCountMismatch {
                 ty,
@@ -584,11 +612,11 @@ impl Program {
         }
 
         // decode void without indexing the empty result range
-        if layout == WordLayout::Void {
+        if word_layout == WordLayout::Void {
             return Ok(Value::Void);
         }
 
-        Value::decode(layout, words[0])
+        Value::decode(word_layout, words[0])
     }
 
     /// Return the scalar layout for one type.
@@ -605,11 +633,6 @@ impl Program {
         let environment = function.environment()?;
 
         self.word_layout(environment)
-    }
-
-    /// Return whether one frame slot is stored in one execution word.
-    pub fn frame_slot_is_word(&self, slot: &FrameSlot) -> bool {
-        self.is_word_type(slot.ty)
     }
 
     /// Return the byte width for one type in a runtime frame.
@@ -649,6 +672,103 @@ impl Program {
         visit_heap_root_slots(&trace_map, 0, bytes, ReferenceRange::All, visit).map_err(Error::from)
     }
 
+    /// Visit mutable heap roots retained by one suspended continuation.
+    pub fn visit_continuation_root_slots(
+        &self,
+        continuation: &mut Continuation,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> Result<()> {
+        let innermost = continuation.innermost().ok_or(Error::EmptyContinuation)?;
+        let mut frame_byte_offset = 0usize;
+
+        // compute the complete canonical call chain byte length
+        for &frame_state in continuation.states() {
+            let state = self
+                .frame_state(frame_state)
+                .ok_or(Error::UndefinedFrameState { frame_state })?;
+            let layout = self
+                .frame_layout(state.layout)
+                .ok_or(Error::UndefinedFrameLayout {
+                    frame_layout: state.layout,
+                })?;
+            frame_byte_offset = frame_byte_offset.next_multiple_of(layout.alignment as usize);
+            frame_byte_offset += layout.byte_len as usize;
+        }
+
+        // require the exact canonical call chain byte length
+        let expected = frame_byte_offset;
+        let actual = continuation.bytes().len();
+        if actual != expected {
+            return Err(Error::FrameByteLengthMismatch {
+                frame_state: innermost,
+                expected,
+                actual,
+            });
+        }
+
+        // visit every canonical value through its exact Program type
+        let (states, bytes) = continuation.parts_mut();
+        let mut frame_byte_offset = 0usize;
+        for &frame_state in states {
+            let state = self
+                .frame_state(frame_state)
+                .ok_or(Error::UndefinedFrameState { frame_state })?;
+            let layout = self
+                .frame_layout(state.layout)
+                .ok_or(Error::UndefinedFrameLayout {
+                    frame_layout: state.layout,
+                })?;
+            frame_byte_offset = frame_byte_offset.next_multiple_of(layout.alignment as usize);
+
+            for slot in self.frame_slots(layout) {
+                let start = frame_byte_offset + slot.offset as usize;
+                let end = start + slot.byte_len as usize;
+                let bytes = bytes
+                    .get_mut(start..end)
+                    .ok_or(Error::FrameSlotOutOfBounds {
+                        frame_state,
+                        frame_layout: state.layout,
+                        offset: slot.offset,
+                    })?;
+                self.visit_byte_root_slots(slot.ty, bytes, visit)?;
+            }
+
+            frame_byte_offset += layout.byte_len as usize;
+        }
+
+        Ok(())
+    }
+
+    /// Visit mutable frame pointers from one byte range.
+    pub fn visit_byte_frame_pointers(
+        &self,
+        ty: TypeId,
+        bytes: &mut [u8],
+        visit: &mut dyn FnMut(&mut [u8]) -> HeapResult<()>,
+    ) -> Result<()> {
+        let layout_id = self
+            .layout_id(ty)
+            .ok_or_else(|| Error::undefined_type(ty))?;
+        let layout = self
+            .layout_by_id(layout_id)
+            .ok_or_else(|| Error::undefined_layout(layout_id))?;
+
+        // require one complete value representation
+        let layout_bytes = layout.size as usize;
+        if bytes.len() != layout_bytes {
+            return Err(Error::ByteLengthMismatch {
+                ty,
+                expected: layout_bytes,
+                actual: bytes.len(),
+            });
+        }
+
+        self.traces
+            .view(self.sections())
+            .visit_frame_pointer_slots(layout.trace, bytes, visit)
+            .map_err(Error::from)
+    }
+
     /// Visit mutable heap root slots from one static space.
     pub fn visit_static_root_slots(
         &self,
@@ -669,116 +789,45 @@ impl Program {
         Ok(())
     }
 
-    /// Visit mutable heap root slots retained by one continuation.
-    pub fn visit_continuation_root_slots(
+    /// Visit mutable heap roots retained by one runtime value.
+    pub fn visit_value_root_slots(
         &self,
-        continuation: &mut Continuation,
+        value: &mut Value,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
-        for frame_index in 0..continuation.frames.len() {
-            let frame = continuation.frames[frame_index];
-            let state = self
-                .frame_state(frame.frame_state)
-                .ok_or(Error::UndefinedFrameState {
-                    frame_state: frame.frame_state,
+        match value {
+            Value::HeapReference(reference) => {
+                visit(RootSlot::HeapReference(reference)).map_err(Error::from)
+            }
+            Value::SharedHeapReference(reference) => {
+                visit(RootSlot::SharedHeapReference(reference)).map_err(Error::from)
+            }
+            Value::Words { ty, words } => {
+                let byte_len = self
+                    .layout(*ty)
+                    .ok_or_else(|| Error::undefined_type(*ty))?
+                    .size as usize;
+                let bytes = Word::bytes_mut(words);
+                let actual = bytes.len();
+                let bytes = bytes.get_mut(..byte_len).ok_or(Error::ByteLengthMismatch {
+                    ty: *ty,
+                    expected: byte_len,
+                    actual,
                 })?;
-            let layout =
-                self.frame_layout_by_id(state.frame_layout)
-                    .ok_or(Error::UndefinedFrameLayout {
-                        frame_layout: state.frame_layout,
-                    })?;
-            let bytes =
-                continuation
-                    .frame_bytes_mut(frame_index)
-                    .ok_or(Error::InvalidFrameRange {
-                        frame_state: frame.frame_state,
-                    })?;
 
-            // reject frame bytes that do not match the linked frame layout
-            if bytes.len() != layout.byte_len() as usize {
-                return Err(Error::FrameByteLengthMismatch {
-                    frame_state: frame.frame_state,
-                    expected: layout.byte_len() as usize,
-                    actual: bytes.len(),
-                });
+                self.visit_byte_root_slots(*ty, bytes, visit)
             }
-
-            // visit only values live at the captured program point
-            for slot_id in self.frame_live_slots(state) {
-                let slot = self
-                    .frame_slot(layout, *slot_id)
-                    .ok_or(Error::UndefinedFrameSlot {
-                        frame_layout: state.frame_layout,
-                        slot: *slot_id,
-                    })?;
-                let start = slot.offset as usize;
-                let end = start + slot.byte_len as usize;
-                let bytes = bytes
-                    .get_mut(start..end)
-                    .ok_or(Error::FrameSlotOutOfBounds {
-                        frame_state: frame.frame_state,
-                        slot: *slot_id,
-                    })?;
-
-                self.visit_byte_root_slots(slot.ty, bytes, visit)?;
-            }
+            _ => Ok(()),
         }
-
-        Ok(())
     }
 
-    /// Return the program point for one resume state.
+    /// Return the program point for one frame state.
     pub fn frame_point(&self, frame_state: FrameStateId) -> Option<ProgramPoint> {
-        self.frame_state(frame_state).map(|state| state.point)
+        Some(self.frame_state(frame_state)?.point)
     }
 
-    /// Return one resume state id for one program point.
+    /// Return one frame state id for one program point.
     pub fn frame_state_at(&self, point: ProgramPoint) -> Option<FrameStateId> {
         self.frames.state_at(self.sections(), point)
-    }
-
-    /// Return the function containing the innermost continuation frame.
-    pub fn continuation_function(&self, continuation: &Continuation) -> Result<FunctionId> {
-        let frame = continuation.innermost().ok_or(Error::EmptyContinuation)?;
-        let state = self
-            .frame_state(frame.frame_state)
-            .ok_or(Error::UndefinedFrameState {
-                frame_state: frame.frame_state,
-            })?;
-
-        Ok(state.point.function)
-    }
-
-    /// Return the value type yielded by one suspended continuation.
-    pub fn continuation_yield_type(&self, continuation: &Continuation) -> Result<TypeId> {
-        let frame = continuation.innermost().ok_or(Error::EmptyContinuation)?;
-        let (_, site) = self
-            .sites
-            .continuation_state(self.sections(), frame.frame_state)
-            .ok_or(Error::UndefinedContinuationSite {
-                frame_state: frame.frame_state,
-            })?;
-
-        Ok(site.yielded_type)
-    }
-
-    /// Return the value type received by one suspended continuation.
-    pub fn continuation_resume_type(&self, continuation: &Continuation) -> Result<TypeId> {
-        let frame = continuation.innermost().ok_or(Error::EmptyContinuation)?;
-        let (_, site) = self
-            .sites
-            .continuation_state(self.sections(), frame.frame_state)
-            .ok_or(Error::UndefinedContinuationSite {
-                frame_state: frame.frame_state,
-            })?;
-
-        Ok(site.resumed_type)
-    }
-
-    /// Return the frame layout for one function when present.
-    pub fn frame_layout(&self, function: FunctionId) -> Option<&FrameLayout> {
-        let frame_layout = self.function(function)?.frame_layout()?;
-
-        self.frame_layout_by_id(frame_layout)
     }
 }

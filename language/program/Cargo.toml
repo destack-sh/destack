@@ -12,6 +12,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+# language
 destack_bytecode = { workspace = true }
 destack_core = { workspace = true }
 destack_heap = { workspace = true }
@@ -19,7 +20,10 @@ destack_memory = { workspace = true }
 destack_mir = { workspace = true }
 destack_serde = { workspace = true }
 destack_source = { workspace = true }
+
+# general
 serde = { workspace = true, features = ["derive", "rc"] }
+smallvec = { workspace = true, features = ["serde"] }
 
 [lints]
 workspace = true

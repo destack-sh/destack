@@ -4,10 +4,11 @@ use destack_core::{FloatFormat, float_to_bits};
 use destack_heap::{HeapReference, SharedHeapReference};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 use crate::Error;
 
-use super::{Word, WordLayout};
+use super::{TypeId, Word, WordLayout};
 
 /// One value passed into or out of program execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -58,6 +59,13 @@ pub enum Value {
     SharedHeapReference(SharedHeapReference),
     /// One native address.
     Address(usize),
+    /// One typed value represented by one or more execution words.
+    Words {
+        /// The concrete Program type.
+        ty: TypeId,
+        /// The exact execution words.
+        words: SmallVec<[Word; 2]>,
+    },
 }
 
 impl Value {
@@ -170,6 +178,14 @@ impl Value {
         Self::Address(address)
     }
 
+    /// Create one typed multiword value.
+    pub fn words(ty: TypeId, words: impl IntoIterator<Item = Word>) -> Self {
+        Self::Words {
+            ty,
+            words: words.into_iter().collect(),
+        }
+    }
+
     /// Return this value's tag.
     pub const fn tag(&self) -> ValueTag {
         match self {
@@ -185,6 +201,31 @@ impl Value {
             Self::HeapReference(_) => ValueTag::HeapReference,
             Self::SharedHeapReference(_) => ValueTag::SharedHeapReference,
             Self::Address(_) => ValueTag::Address,
+            Self::Words { .. } => ValueTag::Words,
+        }
+    }
+
+    /// Return the concrete type carried by a multiword value.
+    pub const fn ty(&self) -> Option<TypeId> {
+        match self {
+            Self::Words { ty, .. } => Some(*ty),
+            _ => None,
+        }
+    }
+
+    /// Return the raw words carried by a multiword value.
+    pub fn as_words(&self) -> Option<&[Word]> {
+        match self {
+            Self::Words { words, .. } => Some(words),
+            _ => None,
+        }
+    }
+
+    /// Return the raw words carried by a multiword value mutably.
+    pub fn as_words_mut(&mut self) -> Option<&mut [Word]> {
+        match self {
+            Self::Words { words, .. } => Some(words),
+            _ => None,
         }
     }
 
@@ -319,6 +360,8 @@ pub enum ValueTag {
     SharedHeapReference,
     /// The native address tag.
     Address,
+    /// The typed multiword value tag.
+    Words,
 }
 
 /// One value tag mismatch.
