@@ -4,6 +4,8 @@ use std::fmt::{self, Display, Formatter};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use super::ByteRange;
+
 /// Error produced while applying text changes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TextChangeError {
@@ -26,6 +28,8 @@ pub enum TextChangeError {
         /// The requested zero-based UTF-16 column.
         character: u32,
     },
+    /// A byte offset exceeds the source offset representation.
+    OffsetOutOfRange,
 }
 
 impl Display for TextChangeError {
@@ -52,6 +56,9 @@ impl Display for TextChangeError {
             Self::CharacterOutOfRange { character } => {
                 write!(formatter, "text change column is out of range: {character}")
             }
+            Self::OffsetOutOfRange => {
+                write!(formatter, "text change byte offset is out of range")
+            }
         }
     }
 }
@@ -74,6 +81,22 @@ pub struct TextRange {
     pub start: TextPosition,
     /// End position.
     pub end: TextPosition,
+}
+
+impl TextRange {
+    /// Convert this UTF-16 text range into byte offsets.
+    pub fn byte_range(self, text: &str) -> Result<ByteRange, TextChangeError> {
+        let line_offsets = line_start_offsets(text);
+        let start = position_to_byte(text, &line_offsets, self.start)?;
+        let end = position_to_byte(text, &line_offsets, self.end)?;
+        if start > end {
+            return Err(TextChangeError::RangeOrder);
+        }
+        let start = u32::try_from(start).map_err(|_| TextChangeError::OffsetOutOfRange)?;
+        let end = u32::try_from(end).map_err(|_| TextChangeError::OffsetOutOfRange)?;
+
+        Ok(ByteRange { start, end })
+    }
 }
 
 /// One zero-based UTF-16 text position.
@@ -109,12 +132,9 @@ pub fn apply_text_change(text: &mut String, change: &TextChange) -> Result<(), T
     };
 
     // translate utf16 positions into byte offsets for the current text
-    let line_offsets = line_start_offsets(text);
-    let start = position_to_byte(text, &line_offsets, range.start)?;
-    let end = position_to_byte(text, &line_offsets, range.end)?;
-    if start > end {
-        return Err(TextChangeError::RangeOrder);
-    }
+    let range = range.byte_range(text)?;
+    let start = range.start as usize;
+    let end = range.end as usize;
 
     // reject invalid patch boundaries loudly
     if !text.is_char_boundary(start) || !text.is_char_boundary(end) {
