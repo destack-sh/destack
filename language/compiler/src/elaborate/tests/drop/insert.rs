@@ -36,7 +36,7 @@ entry:
 function test(v0: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>):
     v1: int32 = load v0
-    call later()
+    call later(): () => void
     return
 }
 "#,
@@ -53,7 +53,7 @@ function test(v0: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>):
     v1: int32 = load v0
     free v0
-    call later()
+    call later(): () => void
     return
 }
 "#,
@@ -158,7 +158,7 @@ entry(v0: ref<int32, unique, mutable>, v1: boolean):
     branch v1, b1(v0), b2(v0)
 
 b1(v2: ref<int32, unique, mutable>):
-    call consume(v2)
+    call consume(v2): (ref<int32, unique, mutable>) => void
     return
 
 b2(v3: ref<int32, unique, mutable>):
@@ -180,7 +180,7 @@ entry(v0: ref<int32, unique, mutable>, v1: boolean):
     branch v1, b1(v0), b2(v0)
 
 b1(v2: ref<int32, unique, mutable>):
-    call consume(v2)
+    call consume(v2): (ref<int32, unique, mutable>) => void
     return
 
 b2(v3: ref<int32, unique, mutable>):
@@ -205,7 +205,7 @@ entry(v0: ref<int32, unique, mutable>, v1: boolean):
     branch v1, b1, b2
 
 b1:
-    call consume(v0)
+    call consume(v0): (ref<int32, unique, mutable>) => void
     return
 
 b2:
@@ -227,7 +227,7 @@ entry(v0: ref<int32, unique, mutable>, v1: boolean):
     branch v1, b1, b2
 
 b1:
-    call consume(v0)
+    call consume(v0): (ref<int32, unique, mutable>) => void
     return
 
 b2:
@@ -246,7 +246,7 @@ external function callee(): int32
 
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
-    invoke callee() => b1 | cleanup
+    invoke callee(): () => int32 => b1 | cleanup
 
 b1(v1: int32):
     return v1
@@ -264,7 +264,7 @@ external function callee(): int32
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
     free v0
-    invoke callee() => b1 | cleanup
+    invoke callee(): () => int32 => b1 | cleanup
 
 b1(v1: int32):
     return v1
@@ -284,7 +284,7 @@ external function callee(): int32
 
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
-    invoke callee() => b1 | cleanup
+    invoke callee(): () => int32 => b1 | cleanup
 
 b1(v1: int32):
     v2: int32 = load v0
@@ -302,7 +302,7 @@ external function callee(): int32
 
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
-    invoke callee() => b1 | cleanup
+    invoke callee(): () => int32 => b1 | cleanup
 
 b1(v1: int32):
     v2: int32 = load v0
@@ -371,7 +371,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     v2: Pair = aggregate (v0, v1)
     v3: ref<int32, unique, mutable> = field.get v2, 0
     v4: ref<int32, unique, mutable> = field.get v2, 1
-    call consume(v3)
+    call consume(v3): (ref<int32, unique, mutable>) => void
     return
 }
 "#,
@@ -396,7 +396,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     v3: ref<int32, unique, mutable> = field.get v2, 0
     v4: ref<int32, unique, mutable> = field.get v2, 1
     free v4
-    call consume(v3)
+    call consume(v3): (ref<int32, unique, mutable>) => void
     return
 }
 
@@ -441,7 +441,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<
     v7: ref<int32, unique, mutable> = field.get v4, 1
     v6: ref<int32, unique, mutable> = field.get v5, 0
     v8: ref<int32, unique, mutable> = field.get v5, 1
-    call consume(v6)
+    call consume(v6): (ref<int32, unique, mutable>) => void
     return
 }
 "#,
@@ -475,7 +475,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<
     v6: ref<int32, unique, mutable> = field.get v5, 0
     v8: ref<int32, unique, mutable> = field.get v5, 1
     free v8
-    call consume(v6)
+    call consume(v6): (ref<int32, unique, mutable>) => void
     return
 }
 
@@ -534,17 +534,21 @@ entry(v0: Value):
 }
 
 function Value.destruct(v0: ref<Value, borrowed, exclusive>): void {
+    local l0: ref<int32, unique, mutable>
+
 entry(v0: ref<Value, borrowed, exclusive>):
-    v1: ref<uint8, borrowed, exclusive> = field.address v0, 0
-    v2: uint8 = load v1
-    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 1
-    v4: uint8 = 0
-    v5: boolean = int.eq v2, v4
-    branch v5, b1, b2
+    v1: Value = load v0
+    v2: uint8 = field.get v1, 0
+    v3: ref<int32, unique, mutable> = field.get v1, 1
+    local.set l0, v3
+    v4: ref<ref<int32, unique, mutable>, borrowed, exclusive, space(frame)> = local.address l0
+    v5: uint8 = 0
+    v6: boolean = int.eq v2, v5
+    branch v6, b1, b2
 
 b1:
-    v6: ref<int32, unique, mutable> = load v3
-    free v6
+    v7: ref<int32, unique, mutable> = load v4
+    free v7
     jump b2
 
 b2:

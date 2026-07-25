@@ -37,7 +37,7 @@ entry(v0: ref<int32, unique, mutable>):
 function Box.destruct(v0: ref<Box, borrowed, exclusive>): void {
 entry(v0: ref<Box, borrowed, exclusive>):
     v1: ref<Box, borrowed, exclusive> = cast.bit v0 -> ref<Box, borrowed, exclusive>
-    call dropBox(v1)
+    call dropBox(v1): (ref<Box, borrowed, exclusive>) => void
     v2: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
     v3: ref<int32, unique, mutable> = load v2
     free v3
@@ -90,42 +90,10 @@ entry(v0: ref<int32, unique, mutable>):
 function Box.destruct(v0: ref<Box, borrowed, exclusive>): void {
 entry(v0: ref<Box, borrowed, exclusive>):
     v1: ref<Box, borrowed, exclusive> = cast.bit v0 -> ref<Box, borrowed, exclusive>
-    call dropBox(v1)
+    call dropBox(v1): (ref<Box, borrowed, exclusive>) => void
     v2: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
     v3: ref<int32, unique, mutable> = load v2
     free v3
-    return
-}
-"#,
-    );
-}
-
-#[test]
-fn test_insert_drop_for_dynamic_value() {
-    let mut program = TestProgram::mir(
-        r#"
-@copy
-type Writer {
-    write: fn() => uint32;
-}
-
-function test(v0: dynamic<Writer>): void {
-entry(v0: dynamic<Writer>):
-    return
-}
-"#,
-    );
-
-    program.assert_drop_mir(
-        r#"
-@copy
-type Writer {
-    write: fn() => uint32;
-}
-
-function test(v0: dynamic<Writer>): void {
-entry(v0: dynamic<Writer>):
-    drop v0
     return
 }
 "#,
@@ -213,7 +181,7 @@ entry:
 function Item.destruct(v0: ref<Item, borrowed, exclusive>): void {
 entry(v0: ref<Item, borrowed, exclusive>):
     v1: ref<Item, borrowed, exclusive> = cast.bit v0 -> ref<Item, borrowed, exclusive>
-    call dropItem(v1)
+    call dropItem(v1): (ref<Item, borrowed, exclusive>) => void
     v2: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
     v3: ref<int32, unique, mutable> = load v2
     free v3
@@ -259,7 +227,7 @@ entry:
 function Item.destruct(v0: ref<Item, borrowed, exclusive>): void {
 entry(v0: ref<Item, borrowed, exclusive>):
     v1: ref<Item, borrowed, exclusive> = cast.bit v0 -> ref<Item, borrowed, exclusive>
-    call dropItem(v1)
+    call dropItem(v1): (ref<Item, borrowed, exclusive>) => void
     v2: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
     v3: ref<int32, unique, mutable> = load v2
     free v3
@@ -270,7 +238,7 @@ entry(v0: ref<Item, borrowed, exclusive>):
 }
 
 #[test]
-fn test_generate_struct_destructor_with_dynamic_field() {
+fn test_skip_destructor_for_dynamic_field() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -304,15 +272,6 @@ type Entry {
 function test(v0: dynamic<Writer>): void {
 entry(v0: dynamic<Writer>):
     v1: Entry = aggregate (v0)
-    drop v1
-    return
-}
-
-function Entry.destruct(v0: ref<Entry, borrowed, exclusive>): void {
-entry(v0: ref<Entry, borrowed, exclusive>):
-    v1: ref<dynamic<Writer>, borrowed, exclusive> = field.address v0, 0
-    v2: dynamic<Writer> = load v1
-    drop v2
     return
 }
 "#,
@@ -352,8 +311,7 @@ function Buffer.destruct(v0: ref<Buffer, borrowed, exclusive>): void {
 entry(v0: ref<Buffer, borrowed, exclusive>):
     v1: ref<slice<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
     v2: slice<int32, unique, mutable> = load v1
-    v3: slice<int32, unique, mutable> = load v1
-    free v3
+    free v2
     return
 }
 "#,
@@ -430,18 +388,22 @@ entry(v0: Value):
 }
 
 function Value.destruct(v0: ref<Value, borrowed, exclusive>): void {
+    local l0: ValueStorage
+
 entry(v0: ref<Value, borrowed, exclusive>):
-    v1: ref<uint8, borrowed, exclusive> = field.address v0, 0
-    v2: uint8 = load v1
-    v3: ref<ValueStorage, borrowed, exclusive> = field.address v0, 1
-    v4: uint8 = 0
-    v5: boolean = int.eq v2, v4
-    branch v5, b1, b2
+    v1: Value = load v0
+    v2: uint8 = field.get v1, 0
+    v3: ValueStorage = field.get v1, 1
+    local.set l0, v3
+    v4: ref<ValueStorage, borrowed, exclusive, space(frame)> = local.address l0
+    v5: uint8 = 0
+    v6: boolean = int.eq v2, v5
+    branch v6, b1, b2
 
 b1:
-    v6: ref<ref<int32, unique, mutable>, borrowed, exclusive> = cast.bit v3 -> ref<ref<int32, unique, mutable>, borrowed, exclusive>
-    v7: ref<int32, unique, mutable> = load v6
-    free v7
+    v7: ref<ref<int32, unique, mutable>, borrowed, exclusive, space(frame)> = cast.bit v4 -> ref<ref<int32, unique, mutable>, borrowed, exclusive, space(frame)>
+    v8: ref<int32, unique, mutable> = load v7
+    free v8
     jump b2
 
 b2:
@@ -624,7 +586,7 @@ entry(v0: ref<Box, borrowed, exclusive>):
 }
 
 #[test]
-fn test_generate_unique_slice_dynamic_element_destructor() {
+fn test_free_unique_slice_with_dynamic_elements() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -648,32 +610,7 @@ type Writer {
 
 function test(v0: slice<dynamic<Writer>, unique, mutable>): void {
 entry(v0: slice<dynamic<Writer>, unique, mutable>):
-    drop v0
-    return
-}
-
-function slice.dynamic.Writer.destruct(v0: ref<slice<dynamic<Writer>, unique, mutable>, borrowed, exclusive>): void {
-entry(v0: ref<slice<dynamic<Writer>, unique, mutable>, borrowed, exclusive>):
-    v1: slice<dynamic<Writer>, unique, mutable> = load v0
-    v2: usize = slice.length v1
-    v3: usize = 0
-    jump b1(v2)
-
-b1(v4: usize):
-    v5: boolean = int.ne v4, v3
-    branch v5, b2, b3
-
-b2:
-    v6: usize = 1
-    v7: usize = int.sub v4, v6
-    v8: ref<dynamic<Writer>, unique, mutable> = element.address v1, v7
-    v9: dynamic<Writer> = load v8
-    drop v9
-    jump b1(v7)
-
-b3:
-    v10: slice<dynamic<Writer>, unique, mutable> = load v0
-    free v10
+    free v0
     return
 }
 "#,

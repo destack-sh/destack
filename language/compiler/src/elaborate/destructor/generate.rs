@@ -31,16 +31,16 @@ impl ElaborateState<'_> {
                 for instruction in &block.instructions {
                     match self.tree.get(*instruction) {
                         mir::Instruction::NewZeroed {
-                            layout,
+                            storage_type,
                             result_type,
                             ..
                         }
                         | mir::Instruction::NewUninit {
-                            layout,
+                            storage_type,
                             result_type,
                             ..
                         } if self.is_managed_storage_type(*result_type) => {
-                            allocations.push(*layout);
+                            allocations.push(*storage_type);
                         }
                         mir::Instruction::NewSliceZeroed {
                             element,
@@ -62,11 +62,15 @@ impl ElaborateState<'_> {
                 let terminator = self.tree.get(block.terminator);
                 match terminator {
                     mir::Terminator::NewZeroedTry {
-                        layout, success, ..
+                        storage_type,
+                        success,
+                        ..
                     }
                     | mir::Terminator::NewUninitTry {
-                        layout, success, ..
-                    } if self.target_is_managed(success) => allocations.push(*layout),
+                        storage_type,
+                        success,
+                        ..
+                    } if self.target_is_managed(success) => allocations.push(*storage_type),
                     mir::Terminator::NewSliceZeroedTry {
                         element, success, ..
                     }
@@ -256,14 +260,15 @@ impl ElaborateState<'_> {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         let name = self.drop_name(ty)?;
-        let pointer = self.tree.intern_type(mir::Type::Reference {
+        let pointer_type = mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Local,
             access: mir::Access::Exclusive,
             pointee: ty,
             nullability: mir::Nullability::None,
-        });
+        };
+        let pointer = self.tree.intern_type(pointer_type);
         let parameters = vec![mir::FunctionParameter::new(mir::Value::new(0), pointer)];
         let void = self.tree.void_type();
 
@@ -322,6 +327,7 @@ impl ElaborateState<'_> {
         let name = match self.tree.get(ty) {
             mir::Type::Void => "void".to_string(),
             mir::Type::Boolean => "boolean".to_string(),
+            mir::Type::Character => "char".to_string(),
             mir::Type::Int { width, is_signed } => {
                 if *is_signed {
                     format!("int{width}")
@@ -331,9 +337,11 @@ impl ElaborateState<'_> {
             }
             mir::Type::Isize => "isize".to_string(),
             mir::Type::Usize => "usize".to_string(),
-            mir::Type::Dynamic { constraint, .. } => {
+            mir::Type::Dynamic {
+                constraint, space, ..
+            } => {
                 let constraint = self.drop_name_stem(*constraint)?;
-                format!("dynamic.{constraint}")
+                format!("dynamic.{constraint}.{}", space.label())
             }
             mir::Type::Reference { kind, pointee, .. } => {
                 let pointee = self.drop_name_stem(*pointee)?;
@@ -536,6 +544,10 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
                 access,
                 ..
             } => {
+                if !Self::type_emits(self.drops, self.builder.tree(), element) {
+                    return;
+                }
+
                 let value = self.builder.load(pointer, ty);
 
                 self.drop_slice(element, space, access, value);
@@ -545,7 +557,7 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
                 storage,
                 cases,
                 ..
-            } => self.drop_variant(pointer, discriminant, storage, cases),
+            } => self.drop_variant(ty, pointer, discriminant, storage, cases),
             _ => {}
         }
     }
@@ -558,13 +570,9 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
         access: mir::Access,
         value: mir::Value,
     ) {
-        if !Self::type_emits(self.drops, self.builder.tree(), element) {
-            return;
-        }
-
         // build loop state
-        let usize_type = self.builder.ensure_usize_type();
-        let element_pointer = self.builder.reference_type(
+        let usize_type = self.builder.tree_mut().intern_type(mir::Type::Usize);
+        let element_pointer = self.reference_type(
             mir::ReferenceKind::Unique,
             element,
             access,
@@ -605,6 +613,7 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
     /// Emit drop for one logical variant value.
     fn drop_variant(
         &mut self,
+        variant_type: mir::TypeId,
         pointer: mir::Value,
         discriminant_type: mir::TypeId,
         storage_type: mir::TypeId,
@@ -630,13 +639,13 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
             .map(|_| self.builder.block())
             .collect::<Vec<_>>();
         let mut check = self.builder.current_block();
-        let discriminant_pointer_type = self.storage_pointer_type(discriminant_type);
-        let discriminant_pointer = self
-            .builder
-            .field_addr(pointer, 0, discriminant_pointer_type);
-        let discriminant = self.builder.load(discriminant_pointer, discriminant_type);
-        let storage_pointer_type = self.storage_pointer_type(storage_type);
-        let storage_pointer = self.builder.field_addr(pointer, 1, storage_pointer_type);
+        let variant = self.builder.load(pointer, variant_type);
+        let discriminant = self.builder.field_get(variant, 0);
+        let storage = self.builder.field_get(variant, 1);
+        let storage_local = self.builder.local(storage_type, mir::Mutability::Mutable);
+        self.builder.local_set(storage_local, storage);
+        let storage_pointer_type = self.frame_pointer_type(storage_type);
+        let storage_pointer = self.builder.local_addr(storage_local, storage_pointer_type);
         let case_count = cases.len();
 
         // dispatch on the active tag
@@ -690,14 +699,13 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
         {
             let storage = self.builder.load(storage_pointer, storage_type);
             let payload_reference =
-                self.builder
-                    .reference_type(kind, payload_type, access, space, nullability);
+                self.reference_type(kind, payload_type, access, space, nullability);
 
             return self.builder.bitcast(storage, payload_reference);
         }
 
         // reinterpret inline variant storage in place
-        let payload_pointer_type = self.storage_pointer_type(payload_type);
+        let payload_pointer_type = self.frame_pointer_type(payload_type);
 
         self.builder.bitcast(storage_pointer, payload_pointer_type)
     }
@@ -707,14 +715,6 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
         // run the user hook before destroying owned children
         if let Some(hook) = self.drops.hook(ty) {
             self.call_hook(pointer, hook);
-        }
-
-        // release a dynamic payload root through its runtime type
-        if matches!(self.builder.tree().get(ty), mir::Type::Dynamic { .. }) {
-            let value = self.builder.load(pointer, ty);
-            self.builder.drop_value(value);
-
-            return;
         }
 
         // recurse through unique indirection at runtime
@@ -761,13 +761,45 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
 
     /// Return one exclusive borrowed reference type for generated destruction code.
     fn storage_pointer_type(&mut self, pointee: mir::TypeId) -> mir::TypeId {
-        self.builder.reference_type(
+        self.reference_type(
             mir::ReferenceKind::Borrowed,
             pointee,
             mir::Access::Exclusive,
             mir::Space::Local,
             mir::Nullability::None,
         )
+    }
+
+    /// Return one exclusive borrowed frame reference type for generated temporaries.
+    fn frame_pointer_type(&mut self, pointee: mir::TypeId) -> mir::TypeId {
+        self.reference_type(
+            mir::ReferenceKind::Borrowed,
+            pointee,
+            mir::Access::Exclusive,
+            mir::Space::Frame,
+            mir::Nullability::None,
+        )
+    }
+
+    /// Return a reference type for generated destruction code.
+    fn reference_type(
+        &mut self,
+        kind: mir::ReferenceKind,
+        pointee: mir::TypeId,
+        access: mir::Access,
+        space: mir::Space,
+        nullability: mir::Nullability,
+    ) -> mir::TypeId {
+        let reference = mir::Type::Reference {
+            kind,
+            lifetime: mir::Lifetime::empty(),
+            space,
+            access,
+            pointee,
+            nullability,
+        };
+
+        self.builder.tree_mut().intern_type(reference)
     }
 
     /// Emit drop for one unique reference's pointee.
@@ -806,7 +838,6 @@ impl<'a, 'b> DestructorEmitter<'a, 'b> {
                 pointee,
                 ..
             } => Self::type_emits(drops, tree, *pointee),
-            mir::Type::Dynamic { .. } => true,
             _ => false,
         }
     }

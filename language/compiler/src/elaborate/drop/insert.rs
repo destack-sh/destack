@@ -79,7 +79,7 @@ impl ElaborateState<'_> {
         }
     }
 
-    /// Build executable drop instructions for one complete value.
+    /// Build drop instructions for one complete value.
     fn instructions_for_drop(
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
@@ -117,9 +117,7 @@ impl ElaborateState<'_> {
         value: mir::Value,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Vec<mir::Instruction> {
-        if self.drops.destructor(ty).is_some()
-            || matches!(self.tree.get(ty), mir::Type::Dynamic { .. })
-        {
+        if self.drops.destructor(ty).is_some() {
             return vec![mir::Instruction::Drop { value }];
         }
 
@@ -173,7 +171,6 @@ impl ElaborateState<'_> {
                 pointee,
                 ..
             } => self.type_emits_drop_code(*pointee),
-            mir::Type::Dynamic { .. } => true,
             _ => false,
         }
     }

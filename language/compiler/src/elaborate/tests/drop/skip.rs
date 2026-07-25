@@ -223,7 +223,7 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>):
-    call consume(v0)
+    call consume(v0): (ref<int32, unique, mutable>) => void
     return
 }
 "#,
@@ -239,7 +239,7 @@ entry(v0: ref<int32, unique, mutable>):
 
 function test(v0: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>):
-    call consume(v0)
+    call consume(v0): (ref<int32, unique, mutable>) => void
     return
 }
 "#,
