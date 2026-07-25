@@ -6,18 +6,20 @@ use std::sync::Arc;
 use destack_artifact::ArtifactKey;
 use destack_repository::TraceView;
 #[cfg(not(target_arch = "wasm32"))]
+use destack_program::Value;
+#[cfg(not(target_arch = "wasm32"))]
 use destack_repository::{Environment, Profile, Repository, Revision};
 #[cfg(not(target_arch = "wasm32"))]
 use destack_runtime::runtime::World;
 #[cfg(not(target_arch = "wasm32"))]
-use destack_runtime::runtime::machine::{Entry, Execution, Value};
+use destack_runtime::runtime::machine::{Entry, Execution};
 use destack_serde::Reflect;
 #[cfg(target_arch = "wasm32")]
 use destack_source::DiagnosticCollection;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_source::{ModuleId, TargetId};
 #[cfg(not(target_arch = "wasm32"))]
-use destack_vm::MachineOptions;
+use destack_vm::MachineLimits;
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -246,7 +248,7 @@ fn run_entry_module(
     let environment = environment_for_source(entry_source, args);
     let mut world =
         World::new(&runtime_options, environment.clone()).map_err(|error| format!("{error}"))?;
-    let execution = Execution::vm(MachineOptions::default());
+    let execution = Execution::vm(MachineLimits::default());
     let runtime_id = world
         .spawn_runtime(
             environment,
@@ -320,6 +322,15 @@ fn format_value_for_eval(value: &Value) -> String {
         Value::HeapReference(_) | Value::SharedHeapReference(_) | Value::Address(_) => {
             format!("{value:?}")
         }
+        Value::Words { ty, words } => {
+            let words = words
+                .iter()
+                .map(|word| format!("0x{:016x}", word.bits()))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            format!("t{}({words})", ty.0)
+        }
     }
 }
 
@@ -370,6 +381,17 @@ fn value_payload(value: &Value) -> serde_json::Value {
         Value::Char(value) => serde_json::Value::String(value.to_string()),
         Value::HeapReference(_) | Value::SharedHeapReference(_) | Value::Address(_) => {
             serde_json::Value::String(format!("{value:?}"))
+        }
+        Value::Words { ty, words } => {
+            let words = words
+                .iter()
+                .map(|word| format!("0x{:016x}", word.bits()))
+                .collect::<Vec<_>>();
+
+            serde_json::json!({
+                "type": ty.0,
+                "words": words,
+            })
         }
     }
 }
