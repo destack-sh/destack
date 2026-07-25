@@ -200,20 +200,17 @@ impl Compiler {
             })
     }
 
-    /// Resolve the target profile id for one module in one revision.
+    /// Resolve the profile id selected by one target in one revision.
     pub(crate) fn profile_id_for_target(
         &self,
         revision: Revision,
-        module_id: ModuleId,
         target_id: &TargetId,
     ) -> CompilerResult<ProfileId> {
         let profile = self
             .repository
-            .profile_for_module_target(revision, module_id, *target_id)
+            .profile_for_target(revision, *target_id)
             .map_err(|error| CompilerError::Internal {
-                message: format!(
-                    "failed to resolve target profile for module {module_id:?} target {target_id:?}: {error}"
-                ),
+                message: format!("failed to resolve profile for target {target_id:?}: {error}"),
             })?;
 
         Ok(profile.id())

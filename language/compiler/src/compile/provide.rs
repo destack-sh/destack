@@ -86,17 +86,17 @@ impl Compiler {
                 target,
             } => self.collect_mir_optimized(module, profile, target, context),
             ArtifactKey::Script { module, target } => {
-                let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+                let profile = self.profile_id_for_target(context.revision(), &target)?;
 
                 self.collect_script(module, profile, target, context)
             }
             ArtifactKey::Object { module, target } => {
-                let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+                let profile = self.profile_id_for_target(context.revision(), &target)?;
 
                 self.collect_object(module, profile, target, context)
             }
             ArtifactKey::Asset { module, target } => {
-                let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+                let profile = self.profile_id_for_target(context.revision(), &target)?;
 
                 self.collect_asset(module, profile, target, context)
             }
@@ -199,17 +199,17 @@ impl Compiler {
                 target,
             } => self.provide_mir_optimized(module, profile, target, context),
             ArtifactKey::Script { module, target } => {
-                let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+                let profile = self.profile_id_for_target(context.revision(), &target)?;
 
                 self.provide_script(module, profile, target, context)
             }
             ArtifactKey::Object { module, target } => {
-                let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+                let profile = self.profile_id_for_target(context.revision(), &target)?;
 
                 self.provide_object(module, profile, target, context)
             }
             ArtifactKey::Asset { module, target } => {
-                let profile = self.profile_id_for_target(context.revision(), module, &target)?;
+                let profile = self.profile_id_for_target(context.revision(), &target)?;
 
                 self.provide_asset(module, profile, target, context)
             }

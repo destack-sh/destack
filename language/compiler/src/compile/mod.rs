@@ -4,6 +4,7 @@ mod error;
 mod phase;
 mod provide;
 mod repository;
+mod target;
 
 pub use compiler::*;
 pub use diagnostic::*;

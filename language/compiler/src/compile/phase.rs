@@ -17,15 +17,19 @@ pub enum CompilerPhase {
     /// Materialize comptime and patch DIR.
     Materialize = 7,
     /// Lower patched DIR into MIR.
-    Lower = 9,
+    Lower = 8,
     /// Verify lowered MIR.
-    Verify = 10,
+    Verify = 9,
+    /// Elaborate verified MIR.
+    Elaborate = 10,
+    /// Analyze elaborated MIR.
+    Analyze = 11,
     /// Optimize MIR.
-    Optimize = 11,
+    Optimize = 12,
     /// Emit per-module target artifacts.
-    Emit = 12,
+    Emit = 13,
     /// Link target and product artifacts.
-    Link = 13,
+    Link = 14,
 }
 
 impl std::fmt::Display for CompilerPhase {
@@ -52,6 +56,8 @@ impl CompilerPhase {
             Self::Materialize => "materialize",
             Self::Lower => "lower",
             Self::Verify => "verify",
+            Self::Elaborate => "elaborate",
+            Self::Analyze => "analyze",
             Self::Optimize => "optimize",
             Self::Emit => "emit",
             Self::Link => "link",
@@ -70,6 +76,8 @@ impl CompilerPhase {
             Self::Materialize => "materialize comptime code and patch DIR",
             Self::Lower => "lower DIR into MIR",
             Self::Verify => "verify MIR semantic invariants",
+            Self::Elaborate => "elaborate implicit MIR operations",
+            Self::Analyze => "analyze MIR across modules",
             Self::Optimize => "optimize MIR",
             Self::Emit => "emit per-module target artifacts",
             Self::Link => "link target and product artifacts",
@@ -88,6 +96,8 @@ impl CompilerPhase {
             Self::Materialize => 'M',
             Self::Lower => 'L',
             Self::Verify => 'V',
+            Self::Elaborate => 'E',
+            Self::Analyze => 'A',
             Self::Optimize => 'O',
             Self::Emit => 'G',
             Self::Link => 'K',
@@ -95,7 +105,7 @@ impl CompilerPhase {
     }
 
     /// All phases in build order.
-    pub const ALL: [CompilerPhase; 12] = [
+    pub const ALL: [CompilerPhase; 14] = [
         Self::Bind,
         Self::Import,
         Self::Expand,
@@ -105,6 +115,8 @@ impl CompilerPhase {
         Self::Materialize,
         Self::Lower,
         Self::Verify,
+        Self::Elaborate,
+        Self::Analyze,
         Self::Optimize,
         Self::Emit,
         Self::Link,
