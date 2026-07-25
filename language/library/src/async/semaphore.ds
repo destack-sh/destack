@@ -2,7 +2,7 @@ import { todo } from "destack:error";
 import { Dispose } from "destack:memory";
 import { Atomic } from "destack:sync";
 
-import { Promise } from "./promise.ds";
+import { Task } from "./task.ds";
 
 /// Asynchronous counting semaphore.
 export local class AsyncSemaphore {
@@ -20,7 +20,7 @@ export local class AsyncSemaphore {
     }
 
     /// Acquire one permit by suspending the current task if needed.
-    acquire(): Promise<AsyncSemaphorePermit> {
+    acquire(): Task<AsyncSemaphorePermit> {
         todo("AsyncSemaphore.acquire")
     }
 
@@ -30,7 +30,7 @@ export local class AsyncSemaphore {
     }
 
     /// Acquire `count` permits by suspending the current task if needed.
-    acquireMany(count: usize): Promise<AsyncSemaphorePermit> {
+    acquireMany(count: usize): Task<AsyncSemaphorePermit> {
         todo("AsyncSemaphore.acquireMany")
     }
 

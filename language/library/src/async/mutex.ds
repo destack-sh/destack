@@ -2,7 +2,7 @@ import { todo } from "destack:error";
 import { Default, Dispose, WithAccess } from "destack:memory";
 import { Dereference } from "destack:ops";
 
-import { Promise } from "./promise.ds";
+import { Task } from "./task.ds";
 
 /// Asynchronous mutual exclusion lock.
 export local class AsyncMutex<T> {
@@ -15,7 +15,7 @@ export local class AsyncMutex<T> {
     }
 
     /// Lock this mutex by suspending the current task.
-    lock(): Promise<AsyncMutexGuard<T>> {
+    lock(): Task<AsyncMutexGuard<T>> {
         todo("AsyncMutex.lock")
     }
 

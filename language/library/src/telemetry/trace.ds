@@ -1,5 +1,6 @@
-import { Promise } from "destack:async";
+import { Promise, Task } from "destack:async";
 import { Context } from "destack:context";
+import { Copy } from "destack:memory";
 
 import { Fields } from "./field.ds";
 import {
@@ -150,7 +151,7 @@ export class Tracer {
     }
 
     /// Run async `body` inside one span.
-    spanAsync<T>(
+    spanAsync<T: Copy>(
         &readonly this,
         name: &readonly string,
         body: (span: Span) => Promise<T>,
@@ -159,6 +160,20 @@ export class Tracer {
         let active = this.start(name, options);
 
         body(active).finally(() => active.end())
+    }
+
+    /// Run task `body` inside one span.
+    async spanAsync<T>(
+        &readonly this,
+        name: &readonly string,
+        body: (span: Span) => Task<T>,
+        options?: SpanOptions,
+    ): Task<T> {
+        let active = this.start(name, options);
+        const value = await body(active);
+        active.end();
+
+        value
     }
 }
 
@@ -178,11 +193,20 @@ export function span<T>(name: &readonly string, body: (span: Span) => T, options
 }
 
 /// Run async `body` inside one span.
-export function spanAsync<T>(
+export function spanAsync<T: Copy>(
     name: &readonly string,
     body: (span: Span) => Promise<T>,
     options?: SpanOptions,
 ): Promise<T> {
+    tracer().spanAsync(name, body, options)
+}
+
+/// Run task `body` inside one span.
+export async function spanAsync<T>(
+    name: &readonly string,
+    body: (span: Span) => Task<T>,
+    options?: SpanOptions,
+): Task<T> {
     tracer().spanAsync(name, body, options)
 }
 

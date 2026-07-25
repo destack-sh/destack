@@ -1,5 +1,4 @@
-import { AsyncResult } from "destack:async";
-import { Promise } from "destack:async";
+import { AsyncResult, Promise, Task } from "destack:async";
 import { todo } from "destack:error";
 import { Panic } from "destack:error";
 import { SharedSafe } from "destack:memory";
@@ -68,7 +67,7 @@ export newtype WorkerExit =
 export newtype WorkerError = { kind: "terminated" } | { kind: "panicked"; panic: Panic };
 
 /// Entry function for a worker.
-export type WorkerEntry<T, R> = (message: T) => R | Promise<R>;
+export type WorkerEntry<T, R> = (message: T) => R | Task<R>;
 
 /// Worker spawn options.
 export interface WorkerOptions {

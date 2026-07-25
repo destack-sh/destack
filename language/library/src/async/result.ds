@@ -1,114 +1,126 @@
 import { Result } from "destack:error";
-import { Default } from "destack:memory";
+import { Copy, Default } from "destack:memory";
 import { FromResidual } from "destack:ops";
 
 import { Promise } from "./promise.ds";
+import { Task } from "./task.ds";
 
 /// Async recoverable success or failure.
 @languageItem("error.AsyncResult")
-export newtype AsyncResult<T, E> = Promise<Result<T, E>>;
+export newtype AsyncResult<T, E> = Task<Result<T, E>>;
 
 export extension<T, E> of AsyncResult<T, E> {
     /// Create a successful async result.
     static ok(value: T): AsyncResult<T, E> {
-        AsyncResult(Promise.resolve(Result.ok(value)))
+        AsyncResult(Task.resolve(Result.ok(value)))
     }
 
     /// Create a failed async result.
     static err(error: E): AsyncResult<T, E> {
-        AsyncResult(Promise.resolve(Result.err(error)))
+        AsyncResult(Task.resolve(Result.err(error)))
     }
 
     /// Wrap an already computed result.
     static from(result: Result<T, E>): AsyncResult<T, E> {
-        AsyncResult(Promise.resolve(result))
+        AsyncResult(Task.resolve(result))
     }
 
-    /// Lift an infallible promise into an async result.
-    static fromPromise(promise: Promise<T>): AsyncResult<T, E> {
-        AsyncResult(promise.then((value) => Result.ok(value)))
+    /// Lift an infallible promise into an async result task.
+    static async fromPromise(promise: Promise<T>): AsyncResult<T, E> where T: Copy {
+        Result.ok(await promise)
     }
 
     /// Map the success value.
-    map<U>(f: (value: T) => U): AsyncResult<U, E> {
-        AsyncResult(this.then((result) => result.map(f)))
+    async map<U>(this, f: (value: T) => U): AsyncResult<U, E> {
+        const result = await this;
+
+        result.map(f)
     }
 
     /// Map the failure value.
-    mapErr<F>(f: (error: E) => F): AsyncResult<T, F> {
-        AsyncResult(this.then((result) => result.mapErr(f)))
+    async mapErr<F>(this, f: (error: E) => F): AsyncResult<T, F> {
+        const result = await this;
+
+        result.mapErr(f)
     }
 
     /// Continue with another async result-returning operation.
-    andThen<U, F>(f: (value: T) => AsyncResult<U, F>): AsyncResult<U, E | F> {
-        AsyncResult(
-            this.then(async (result): Promise<Result<U, E | F>> => {
-                match (result) {
-                    // rebuild the continuation result at the joined error type
-                    Result.Ok { value } => match (await f(value)) {
-                        Result.Ok { value } => Result.ok(value)
-                        Result.Err { error } => Result.err(error)
-                    }
-                    Result.Err { error } => Result.err(error)
-                }
-            }),
-        )
+    async andThen<U, F>(this, f: (value: T) => AsyncResult<U, F>): AsyncResult<U, E | F> {
+        const result = await this;
+
+        match (result) {
+            // rebuild the continuation result at the joined error type
+            Result.Ok { value } => match (await f(value)) {
+                Result.Ok { value } => Result.ok(value)
+                Result.Err { error } => Result.err(error)
+            }
+            Result.Err { error } => Result.err(error)
+        }
     }
 
     /// Continue with a synchronous result-returning operation.
-    andThenSync<U, F>(f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
-        AsyncResult(this.then((result) => result.andThen(f)))
+    async andThenSync<U, F>(this, f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
+        const result = await this;
+
+        result.andThen(f)
     }
 
     /// Recover from a failure with another async result.
-    orElse<F>(f: (error: E) => AsyncResult<T, F>): AsyncResult<T, F> {
-        AsyncResult(
-            this.then(async (result) => {
-                match (result) {
-                    Result.Ok { value } => Result.ok(value)
-                    Result.Err { error } => await f(error)
-                }
-            }),
-        )
+    async orElse<F>(this, f: (error: E) => AsyncResult<T, F>): AsyncResult<T, F> {
+        const result = await this;
+
+        match (result) {
+            Result.Ok { value } => Result.ok(value)
+            Result.Err { error } => await f(error)
+        }
     }
 
     /// Fold either result variant into one async value.
-    async match<U>(arms: { ok: (value: T) => U; err: (error: E) => U }): Promise<U> {
+    async match<U>(this, arms: { ok: (value: T) => U; err: (error: E) => U }): Task<U> {
         const result = await this;
+
         result.match(arms)
     }
 
     /// Run a side effect on success and keep the original result.
-    tap(f: (value: T) => void): AsyncResult<T, E> {
-        AsyncResult(this.then((result) => result.tap(f)))
+    async tap(this, f: (value: T) => void): AsyncResult<T, E> {
+        const result = await this;
+
+        result.tap(f)
     }
 
     /// Run a side effect on failure and keep the original result.
-    tapErr(f: (error: E) => void): AsyncResult<T, E> {
-        AsyncResult(this.then((result) => result.tapErr(f)))
+    async tapErr(this, f: (error: E) => void): AsyncResult<T, E> {
+        const result = await this;
+
+        result.tapErr(f)
     }
 
-    /// Return a promise for the success value or panic.
-    async unwrap(): Promise<T> {
+    /// Return a task for the success value or panic.
+    async unwrap(this): Task<T> {
         const result = await this;
+
         result.unwrap()
     }
 
-    /// Return a promise for the success value or `default`.
-    async unwrapOr(default: T): Promise<T> {
+    /// Return a task for the success value or `default`.
+    async unwrapOr(this, default: T): Task<T> {
         const result = await this;
+
         result.unwrapOr(default)
     }
 
-    /// Return a promise for the success value or the default value.
-    async unwrapOrDefault(): Promise<T> where T: Default {
+    /// Return a task for the success value or the default value.
+    async unwrapOrDefault(this): Task<T> where T: Default {
         const result = await this;
+
         result.unwrapOrDefault()
     }
 
-    /// Return a promise for the success value or compute one from the error.
-    async unwrapOrElse(f: (error: E) => T): Promise<T> {
+    /// Return a task for the success value or compute one from the error.
+    async unwrapOrElse(this, f: (error: E) => T): Task<T> {
         const result = await this;
+
         result.unwrapOrElse(f)
     }
 }

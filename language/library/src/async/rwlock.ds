@@ -2,7 +2,7 @@ import { todo } from "destack:error";
 import { Default, Dispose, WithAccess } from "destack:memory";
 import { Dereference } from "destack:ops";
 
-import { Promise } from "./promise.ds";
+import { Task } from "./task.ds";
 
 /// Asynchronous reader-writer lock.
 export local class AsyncRwLock<T> {
@@ -15,7 +15,7 @@ export local class AsyncRwLock<T> {
     }
 
     /// Lock this value for shared reading.
-    read(): Promise<AsyncRwLockReadGuard<T>> {
+    read(): Task<AsyncRwLockReadGuard<T>> {
         todo("AsyncRwLock.read")
     }
 
@@ -25,7 +25,7 @@ export local class AsyncRwLock<T> {
     }
 
     /// Lock this value for exclusive writing.
-    write(): Promise<AsyncRwLockWriteGuard<T>> {
+    write(): Task<AsyncRwLockWriteGuard<T>> {
         todo("AsyncRwLock.write")
     }
 

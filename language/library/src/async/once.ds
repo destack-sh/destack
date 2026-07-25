@@ -2,6 +2,7 @@ import { Result, todo } from "destack:error";
 import { MaybeUninit } from "destack:memory";
 
 import { Promise } from "./promise.ds";
+import { Task } from "./task.ds";
 
 /// One-time async execution state.
 export local class AsyncOnce {
@@ -32,7 +33,7 @@ export local class AsyncOnceCell<T> {
     }
 
     /// Get the value or initialize it.
-    getOrInit(init: () => Promise<T>): Promise<&readonly T> {
+    getOrInit(init: () => Task<T>): Promise<&readonly T> {
         todo("AsyncOnceCell.getOrInit")
     }
 
