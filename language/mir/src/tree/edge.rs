@@ -25,12 +25,20 @@ pub enum Successor {
     SwitchDefault,
     /// The resume target of an await terminator.
     AwaitResume,
+    /// The cancellation target of an await terminator.
+    AwaitCancel,
     /// The unwind target of an await terminator.
     AwaitUnwind,
     /// The resume target of a yield terminator.
     YieldResume,
     /// The unwind target of a yield terminator.
     YieldUnwind,
+    /// The yielded target of a resume terminator.
+    ResumeYield,
+    /// The returned target of a resume terminator.
+    ResumeReturn,
+    /// The unwind target of a resume terminator.
+    ResumeUnwind,
     /// The normal continuation of an invoke.
     InvokeNormal,
     /// The unwind continuation of an invoke.

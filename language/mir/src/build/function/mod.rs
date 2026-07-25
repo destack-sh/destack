@@ -8,6 +8,7 @@ mod memory;
 mod rewrite;
 mod ssa;
 mod value;
+mod waiter;
 
 pub use builder::*;
 pub use header::*;

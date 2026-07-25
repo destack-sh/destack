@@ -392,9 +392,10 @@ impl CostModel {
             mir::Instruction::Free { .. } => cost.release += 1,
             mir::Instruction::BarrierWrite { .. } => cost.write_barrier += 1,
             mir::Instruction::Call { call, .. } => cost.add_call(call),
-            mir::Instruction::ContinuationResume { .. } => cost.indirect_call += 1,
             mir::Instruction::Drop { .. } => cost.drop += 1,
-            mir::Instruction::Intrinsic { .. } => cost.intrinsic_call += 1,
+            mir::Instruction::WaiterQueue { .. }
+            | mir::Instruction::WaiterCancel { .. }
+            | mir::Instruction::Intrinsic { .. } => cost.intrinsic_call += 1,
         }
 
         cost
@@ -422,6 +423,10 @@ impl CostModel {
             | mir::Terminator::Yield { .. } => cost.branch += 1,
             mir::Terminator::Await { .. } => {
                 cost.direct_call += 1;
+                cost.branch += 1;
+            }
+            mir::Terminator::Resume { .. } => {
+                cost.indirect_call += 1;
                 cost.branch += 1;
             }
             mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {

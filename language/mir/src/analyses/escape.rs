@@ -365,15 +365,18 @@ entry:
     fn test_escape_marks_awaited_allocation() {
         let program = TestProgram::new(
             r#"
-external function park(ref<int32, unique, mutable>, uint64): void
+external function park(ref<int32, unique, mutable>, waiter<int32>): void
 
 async function test(): int32 {
 entry:
     v0: ref<int32, unique, mutable> = new.zeroed int32
-    await park(v0) => resumed | failed
+    await park(v0) => resumed | cancelled | failed
 
 resumed(v1: int32):
     return v1
+
+cancelled:
+    return
 
 failed:
     unwind.resume

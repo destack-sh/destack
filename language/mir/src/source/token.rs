@@ -127,6 +127,8 @@ pub enum TokenType {
     Await,
     /// `yield`
     Yield,
+    /// `resume`
+    Resume,
     /// `panic`
     Panic,
     /// `unwind.resume`
@@ -217,6 +219,7 @@ impl TokenType {
                 | Self::Switch
                 | Self::Await
                 | Self::Yield
+                | Self::Resume
                 | Self::Panic
                 | Self::UnwindResume
                 | Self::Abort
@@ -243,6 +246,7 @@ impl TokenType {
             "switch" => Self::Switch,
             "await" => Self::Await,
             "yield" => Self::Yield,
+            "resume" => Self::Resume,
             "panic" => Self::Panic,
             "unwind.resume" => Self::UnwindResume,
             "abort" => Self::Abort,

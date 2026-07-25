@@ -335,13 +335,16 @@ impl Tree {
                 signature: self.intern_representation(signature),
             },
             Type::Continuation {
-                resume_type,
+                command_type,
                 yield_type,
                 return_type,
             } => Type::Continuation {
-                resume_type: self.intern_representation(resume_type),
+                command_type: self.intern_representation(command_type),
                 yield_type: self.intern_representation(yield_type),
                 return_type: self.intern_representation(return_type),
+            },
+            Type::Waiter { value_type } => Type::Waiter {
+                value_type: self.intern_representation(value_type),
             },
         };
 
@@ -559,13 +562,16 @@ impl Tree {
                 signature: self.instantiate_type_lifetimes(signature, arguments),
             },
             Type::Continuation {
-                resume_type,
+                command_type,
                 yield_type,
                 return_type,
             } => Type::Continuation {
-                resume_type: self.instantiate_type_lifetimes(resume_type, arguments),
+                command_type: self.instantiate_type_lifetimes(command_type, arguments),
                 yield_type: self.instantiate_type_lifetimes(yield_type, arguments),
                 return_type: self.instantiate_type_lifetimes(return_type, arguments),
+            },
+            Type::Waiter { value_type } => Type::Waiter {
+                value_type: self.instantiate_type_lifetimes(value_type, arguments),
             },
         };
 

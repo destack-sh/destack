@@ -407,6 +407,7 @@ impl Parser {
             "atomic" => self.parse_atomic_type()?,
             "dynamic" => self.parse_dynamic_type()?,
             "continuation" => self.parse_continuation_type()?,
+            "waiter" => self.parse_waiter_type()?,
             "uninit" => self.parse_uninit_type()?,
             "variant" => self.parse_variant_type()?,
             _ => {
@@ -489,7 +490,7 @@ impl Parser {
     fn parse_continuation_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (resume_type, _) = self.parse_type_use_part()?;
+        let (command_type, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
         let (yield_type, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
@@ -497,10 +498,20 @@ impl Parser {
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Continuation {
-            resume_type,
+            command_type,
             yield_type,
             return_type,
         })
+    }
+
+    /// Parse an asynchronous waiter capability type.
+    fn parse_waiter_type(&mut self) -> ParseResult<Type> {
+        self.bump();
+        self.eat_token(TokenType::LessThan)?;
+        let (value_type, _) = self.parse_type_use_part()?;
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok(Type::Waiter { value_type })
     }
 
     /// Parse a linear uninitialized allocation token type.

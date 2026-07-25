@@ -167,7 +167,8 @@ impl PureExpression {
             mir::Instruction::Const { .. }
             | mir::Instruction::Call { .. }
             | mir::Instruction::ContinuationNew { .. }
-            | mir::Instruction::ContinuationResume { .. }
+            | mir::Instruction::WaiterQueue { .. }
+            | mir::Instruction::WaiterCancel { .. }
             | mir::Instruction::Drop { .. }
             | mir::Instruction::Intrinsic { .. }
             | mir::Instruction::Load { .. }

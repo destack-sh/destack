@@ -192,17 +192,34 @@ impl<'a> FunctionBuilder<'a> {
         value: Value,
         resume_block: LocalNodeId<Block>,
         resume_arguments: Vec<Value>,
+        cancel_block: LocalNodeId<Block>,
+        cancel_arguments: Vec<Value>,
         unwind: Option<(LocalNodeId<Block>, Vec<Value>)>,
     ) {
         let block = self.current_block();
-        let (resume, unwind) =
-            self.suspension_targets(block, resume_block, resume_arguments, unwind);
+        self.add_predecessor(block, resume_block);
+        self.add_predecessor(block, cancel_block);
+        let resume_arguments = self.tree.add_values(&resume_arguments);
+        let cancel_arguments = self.tree.add_values(&cancel_arguments);
+        let resume = BlockTarget::new(resume_block, resume_arguments);
+        let cancel = BlockTarget::new(cancel_block, cancel_arguments);
+
+        // build the optional panic unwind target
+        let unwind = if let Some((unwind_block, unwind_arguments)) = unwind {
+            self.add_predecessor(block, unwind_block);
+            let unwind_arguments = self.tree.add_values(&unwind_arguments);
+
+            Some(BlockTarget::new(unwind_block, unwind_arguments))
+        } else {
+            None
+        };
 
         let terminator_id = self.tree.get(block).terminator;
         *self.tree.get_mut(terminator_id) = Terminator::Await {
             park,
             value,
             resume,
+            cancel,
             unwind,
         };
     }

@@ -70,14 +70,6 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::ContinuationNew { .. }
                 | Instruction::NewZeroed { .. }
                 | Instruction::NewUninit { .. } => {}
-                Instruction::ContinuationResume {
-                    continuation,
-                    command,
-                    ..
-                } => {
-                    Self::replace_value_in_slot(continuation, from, to);
-                    Self::replace_value_in_slot(command, from, to);
-                }
                 Instruction::FunctionBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
@@ -85,6 +77,13 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(function, from, to);
                 }
                 Instruction::FunctionEnvironmentCurrent { .. } => {}
+                Instruction::WaiterQueue { waiter, value } => {
+                    Self::replace_value_in_slot(waiter, from, to);
+                    Self::replace_value_in_slot(value, from, to);
+                }
+                Instruction::WaiterCancel { waiter } => {
+                    Self::replace_value_in_slot(waiter, from, to);
+                }
                 Instruction::Breakpoint => {}
                 Instruction::Binary { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);

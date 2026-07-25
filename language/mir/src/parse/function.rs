@@ -1036,12 +1036,13 @@ impl Parser {
                 self.eat_token(TokenType::OpenParenthesis)?;
                 let value = self.parse_value()?;
                 self.eat_token(TokenType::CloseParenthesis)?;
-                let (resume, unwind) = self.parse_suspension_targets()?;
+                let (resume, cancel, unwind) = self.parse_await_targets()?;
 
                 Ok(Terminator::Await {
                     park,
                     value,
                     resume,
+                    cancel,
                     unwind,
                 })
             }
@@ -1053,6 +1054,22 @@ impl Parser {
                 Ok(Terminator::Yield {
                     value,
                     resume,
+                    unwind,
+                })
+            }
+            TokenType::Resume => {
+                self.bump();
+                let continuation = self.parse_value()?;
+                self.eat_token(TokenType::OpenParenthesis)?;
+                let command = self.parse_value()?;
+                self.eat_token(TokenType::CloseParenthesis)?;
+                let (yielded, returned, unwind) = self.parse_resume_targets()?;
+
+                Ok(Terminator::Resume {
+                    continuation,
+                    command,
+                    yielded,
+                    returned,
                     unwind,
                 })
             }
@@ -1509,6 +1526,25 @@ impl Parser {
         Ok(BlockTarget::new(block, arguments))
     }
 
+    /// Parse resume, cancellation, and optional unwind targets for one await.
+    fn parse_await_targets(
+        &mut self,
+    ) -> ParseResult<(BlockTarget, BlockTarget, Option<BlockTarget>)> {
+        self.eat_token(TokenType::FatArrow)?;
+        let resume = self.parse_block_target()?;
+        self.eat_token(TokenType::Pipe)?;
+        let cancel = self.parse_block_target()?;
+
+        // parse the optional panic unwind target
+        if !self.eat_token_if(TokenType::Pipe) {
+            return Ok((resume, cancel, None));
+        }
+
+        let unwind = self.parse_block_target()?;
+
+        Ok((resume, cancel, Some(unwind)))
+    }
+
     /// Parse normal and optional unwind targets for one suspension point.
     fn parse_suspension_targets(&mut self) -> ParseResult<(BlockTarget, Option<BlockTarget>)> {
         self.eat_token(TokenType::FatArrow)?;
@@ -1522,6 +1558,25 @@ impl Parser {
         let unwind = self.parse_block_target()?;
 
         Ok((resume, Some(unwind)))
+    }
+
+    /// Parse yielded, returned, and optional unwind targets for one continuation resume.
+    fn parse_resume_targets(
+        &mut self,
+    ) -> ParseResult<(BlockTarget, BlockTarget, Option<BlockTarget>)> {
+        self.eat_token(TokenType::FatArrow)?;
+        let yielded = self.parse_block_target()?;
+        self.eat_token(TokenType::Pipe)?;
+        let returned = self.parse_block_target()?;
+
+        // parse the optional panic unwind target
+        if !self.eat_token_if(TokenType::Pipe) {
+            return Ok((yielded, returned, None));
+        }
+
+        let unwind = self.parse_block_target()?;
+
+        Ok((yielded, returned, Some(unwind)))
     }
 
     /// Parse mandatory normal and unwind continuations for one invoke.

@@ -519,12 +519,17 @@ pub enum Type {
 
     /// Move-only handle for one suspended coroutine execution.
     Continuation {
-        /// The value accepted when resuming after a yield.
-        resume_type: TypeId,
+        /// The command accepted when resuming after a yield.
+        command_type: TypeId,
         /// The value produced by each yield.
         yield_type: TypeId,
         /// The value produced by final return.
         return_type: TypeId,
+    },
+    /// Move-only capability for settling one parked asynchronous continuation.
+    Waiter {
+        /// The value accepted when queueing the suspended execution.
+        value_type: TypeId,
     },
 }
 
@@ -658,6 +663,7 @@ impl Type {
                 | Type::Reference { .. }
                 | Type::Vector { .. }
                 | Type::Continuation { .. }
+                | Type::Waiter { .. }
         )
     }
 
@@ -665,7 +671,8 @@ impl Type {
     pub fn byte_size(&self, tree: &Tree, pointer_width_bits: u16) -> Option<u64> {
         match self {
             Type::Int { width, .. } => byte_width(*width),
-            Type::Isize | Type::Usize | Type::Continuation { .. } => byte_width(pointer_width_bits),
+            Type::Isize | Type::Usize => byte_width(pointer_width_bits),
+            Type::Continuation { .. } | Type::Waiter { .. } => byte_width(u64::BITS as u16),
             Type::Float(format) => byte_width(format.width()),
             Type::WithLifetimes { base, .. } => tree.get(*base).byte_size(tree, pointer_width_bits),
             Type::Uninit { value } | Type::ManuallyDrop { value } => {
@@ -890,8 +897,8 @@ impl Type {
             | Type::FunctionPointer { .. }
             | Type::Function { .. } => Copy::Yes,
 
-            // continuation handles uniquely own suspended execution
-            Type::Continuation { .. } => Copy::No,
+            // execution handles uniquely own suspended execution
+            Type::Continuation { .. } | Type::Waiter { .. } => Copy::No,
         }
     }
 }

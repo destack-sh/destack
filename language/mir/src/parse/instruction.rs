@@ -105,6 +105,8 @@ impl Parser {
                     | "breakpoint"
                     | "profile.increment"
                     | "profile.sample"
+                    | "waiter.queue"
+                    | "waiter.cancel"
             )
         {
             return Err(ParseError::invalid(
@@ -156,6 +158,18 @@ impl Parser {
                 self.eat_token(TokenType::Comma)?;
                 let source = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::TensorCopy { target, source }
+            }
+
+            // waiter operations
+            "waiter.queue" => {
+                let waiter = self.parse_value_segment(&mut segment_spans)?;
+                self.eat_token(TokenType::Comma)?;
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::WaiterQueue { waiter, value }
+            }
+            "waiter.cancel" => {
+                let waiter = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::WaiterCancel { waiter }
             }
 
             // calls and intrinsics
@@ -412,7 +426,7 @@ impl Parser {
                         Instruction::FunctionEnvironmentCurrent { destination }
                     }
 
-                    // continuation construction and execution
+                    // continuation construction
                     "continuation.new" => {
                         let function = self.parse_function_segment(&mut segment_spans)?;
                         let arguments = self.parse_call_argument_segments(&mut segment_spans)?;
@@ -423,17 +437,6 @@ impl Parser {
                             arguments,
                         }
                     }
-                    "continuation.resume" => {
-                        let continuation = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let command = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::ContinuationResume {
-                            destination,
-                            continuation,
-                            command,
-                        }
-                    }
-
                     // memory operations
                     "load" => {
                         let pointer = self.parse_value_segment(&mut segment_spans)?;

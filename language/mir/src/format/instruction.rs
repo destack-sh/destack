@@ -277,26 +277,21 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 let arguments = f.context().tree.get_values(*arguments);
                 format_value_list(arguments, f)
             }
-            Instruction::ContinuationResume {
-                destination,
-                continuation,
-                command,
-            } => {
-                format_typed_destination(*destination, f)?;
+            Instruction::WaiterQueue { waiter, value } => {
                 write!(
                     f,
                     [
+                        token("waiter.queue"),
                         space(),
-                        token("="),
-                        space(),
-                        token("continuation.resume"),
-                        space(),
-                        continuation,
+                        waiter,
                         token(","),
                         space(),
-                        command
+                        value
                     ]
                 )
+            }
+            Instruction::WaiterCancel { waiter } => {
+                write!(f, [token("waiter.cancel"), space(), waiter])
             }
             Instruction::Load {
                 destination,

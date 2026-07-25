@@ -589,14 +589,17 @@ b2:
     fn test_call_graph_await_direct() {
         let test = TestProgram::new(
             r#"
-external function park(int32, uint64): void
+external function park(int32, waiter<int32>): void
 
 async function test(v0: int32): int32 {
 entry(v0: int32):
-    await park(v0) => resumed | failed
+    await park(v0) => resumed | cancelled | failed
 
 resumed(v1: int32):
     return v1
+
+cancelled:
+    return
 
 failed:
     unwind.resume

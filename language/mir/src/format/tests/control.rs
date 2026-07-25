@@ -30,16 +30,19 @@ b3:
 fn test_format_coroutines() {
     assert_format(
         r#"
-external function park(int32, uint64): void
+external function park(int32, waiter<int32>): void
 
 async function wait(v0: int32): int32 {
 entry(v0: int32):
-    await park(v0) => b1 | b2
+    await park(v0) => b1 | b2 | b3
 
 b1(v1: int32):
     return v1
 
 b2:
+    return
+
+b3:
     unwind.resume
 }
 
@@ -56,15 +59,18 @@ b2:
 
 async function* stream(v0: int32): int32 {
 entry(v0: int32):
-    await park(v0) => b1 | b3
+    await park(v0) => b1 | b3 | b4
 
 b1(v1: int32):
-    yield v1 => b2 | b3
+    yield v1 => b2 | b4
 
 b2(v2: int32):
     return v2
 
 b3:
+    return
+
+b4:
     unwind.resume
 }
 "#,
@@ -87,22 +93,31 @@ b2:
     unwind.resume
 }
 
-type Yielded {
-    value: int32;
-    continuation: continuation<int32, int32, int32>;
-}
-
-type Returned {
-    value: int32;
-}
-
-type ResumeResult = variant<uint8, Yielded> { 0uint8 = Yielded; 1uint8 = Returned; };
-
-function owner(v0: int32, v1: int32): ResumeResult {
+function owner(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: continuation<int32, int32, int32> = continuation.new generate(v0)
-    v3: ResumeResult = continuation.resume v2, v1
+    resume v2(v1) => b1 | b2 | b3
+
+b1(v3: int32, v4: continuation<int32, int32, int32>):
     return v3
+
+b2(v5: int32):
+    return v5
+
+b3:
+    unwind.resume
+}
+
+function settle(v0: waiter<int32>, v1: int32): void {
+entry(v0: waiter<int32>, v1: int32):
+    waiter.queue v0, v1
+    return
+}
+
+function cancel(v0: waiter<int32>): void {
+entry(v0: waiter<int32>):
+    waiter.cancel v0
+    return
 }
 "#,
     );

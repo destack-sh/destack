@@ -155,14 +155,19 @@ pub enum Instruction {
         /// The captured arguments stored in the tree's value buffer.
         arguments: ValueSlice,
     },
-    /// Resume one continuation until it yields or returns.
-    ContinuationResume {
-        /// The SSA value to define with the continuation result.
-        destination: Value,
-        /// The continuation to consume.
-        continuation: Value,
-        /// The resume command to deliver.
-        command: Value,
+
+    // waiters
+    /// Queue one runtime waiter with its completed value.
+    WaiterQueue {
+        /// The waiter capability to consume.
+        waiter: Value,
+        /// The value delivered to the suspended execution.
+        value: Value,
+    },
+    /// Cancel one runtime waiter.
+    WaiterCancel {
+        /// The waiter capability to consume.
+        waiter: Value,
     },
 
     // memory (pointers)
@@ -912,7 +917,7 @@ impl Instruction {
             Instruction::FunctionEnvironment { destination, .. } => Some(*destination),
             Instruction::FunctionEnvironmentCurrent { destination, .. } => Some(*destination),
             Instruction::ContinuationNew { destination, .. } => Some(*destination),
-            Instruction::ContinuationResume { destination, .. } => Some(*destination),
+            Instruction::WaiterQueue { .. } | Instruction::WaiterCancel { .. } => None,
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::Aggregate { destination, .. } => Some(*destination),
@@ -1012,11 +1017,8 @@ impl Instruction {
             Instruction::FunctionEnvironment { function, .. } => smallvec![*function],
             Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
             Instruction::ContinuationNew { .. } => smallvec![],
-            Instruction::ContinuationResume {
-                continuation,
-                command,
-                ..
-            } => smallvec![*continuation, *command],
+            Instruction::WaiterQueue { waiter, value } => smallvec![*waiter, *value],
+            Instruction::WaiterCancel { waiter } => smallvec![*waiter],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             // arguments stored externally
@@ -1186,11 +1188,8 @@ impl Instruction {
             Instruction::FunctionEnvironment { .. }
             | Instruction::FunctionEnvironmentCurrent { .. } => smallvec![],
             Instruction::ContinuationNew { .. } => self.argument_slice_values(tree),
-            Instruction::ContinuationResume {
-                continuation,
-                command,
-                ..
-            } => smallvec![*continuation, *command],
+            Instruction::WaiterQueue { waiter, value } => smallvec![*waiter, *value],
+            Instruction::WaiterCancel { waiter } => smallvec![*waiter],
             Instruction::VectorInsert { vector, value, .. }
             | Instruction::TensorPad {
                 tensor: vector,
