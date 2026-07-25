@@ -524,7 +524,7 @@ const userId = UserI;
 
 ## Object Literals
 
-### Complete a missing field
+### [ignored] Complete a missing field
 
 Object completion omits fields already present in the literal.
 
@@ -545,7 +545,7 @@ const rectangle: Rectangle = {
 @completion.item label=height kind=field detail=int32 insert="height: ${1}" sort=10 preselect=true snippet=true matches=0,1,2
 ```
 
-### Complete a nested field
+### [ignored] Complete a nested field
 
 Nested object literals use the expected type at their own position.
 

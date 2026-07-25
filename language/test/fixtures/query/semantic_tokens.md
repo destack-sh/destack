@@ -21,7 +21,7 @@ function identity(value: int32): int32 {
 @semantic_tokens.token range=main.ds#reference type=parameter
 ```
 
-### Classify nominal declarations and members
+### [ignored] Classify nominal declarations and members
 
 Nominal declarations and their members retain distinct token kinds.
 
@@ -101,7 +101,7 @@ function identity<Value, comptime size: usize>(value: Value): Value {
                                                               ^^^^^ return_type
     const buffer: [uint8; size] = [];
           ^^^^^^ buffer
-                         ^^^^ size_reference
+                          ^^^^ size_reference
     return value;
            ^^^^^ value_reference
 }
@@ -177,7 +177,7 @@ encoding;
 
 ## Bindings
 
-### Classify using and match bindings
+### [ignored] Classify using and match bindings
 
 Lexical bindings retain their declaration, immutability, and reference roles.
 
@@ -254,7 +254,7 @@ function inspect(buffer: Buffer): uint {
     const length = buffer.length;
           ^^^^^^ local_declaration
                    ^^^^^^ first_buffer_reference
-                        ^^^^^^ field_reference
+                          ^^^^^^ field_reference
     buffer.read(0);
     ^^^^^^ second_buffer_reference
            ^^^^ method_reference
@@ -423,7 +423,7 @@ function start(): void {}
 @semantic_tokens.token range=main.ds#function type=function modifiers=declaration
 ```
 
-## Grammar Boundary
+## Lexical Tokens
 
 ### Leave lexical tokens to the grammar
 

@@ -8,7 +8,7 @@ Highlights distinguish writes from reads of the selected local symbol.
 
 ```ds main.ds
 let foo = 1;
-      ^^^ occurrence:definition
+    ^^^ occurrence:definition
 
 foo = 2;
 ^^^ occurrence:write

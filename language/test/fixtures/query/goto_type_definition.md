@@ -17,7 +17,7 @@ const point = Point { x: 1 };
 ```
 
 ```query goto_type_definition main.ds#reference
-@goto_type_definition.target relation=type_definition location=main.ds#definition symbol=main.ds#Point@1
+@goto_type_definition.target origin=main.ds#reference location=main.ds:1:1-3:2 selection=main.ds#definition symbol=main.ds#Point@1
 ```
 
 ### Resolve a class-valued binding
@@ -34,7 +34,7 @@ declare const widget: Widget;
 ```
 
 ```query goto_type_definition main.ds#reference:widget
-@goto_type_definition.target relation=type_definition location=main.ds#definition:widget symbol=main.ds#Widget@1
+@goto_type_definition.target origin=main.ds#reference:widget location=main.ds:1:1-2:2 selection=main.ds#definition:widget symbol=main.ds#Widget@1
 ```
 
 ### Resolve a typed parameter
@@ -52,7 +52,7 @@ function inspect(config: Config): void {}
 ```
 
 ```query goto_type_definition main.ds#reference:config
-@goto_type_definition.target relation=type_definition location=main.ds#definition:config symbol=main.ds#Config@1
+@goto_type_definition.target origin=main.ds#reference:config location=main.ds:1:1-3:2 selection=main.ds#definition:config symbol=main.ds#Config@1
 ```
 
 ### Resolve an enum-valued binding
@@ -70,7 +70,7 @@ const color: Color = Color.Red;
 ```
 
 ```query goto_type_definition main.ds#reference:color
-@goto_type_definition.target relation=type_definition location=main.ds#definition:color symbol=main.ds#Color@1
+@goto_type_definition.target origin=main.ds#reference:color location=main.ds:1:1-3:2 selection=main.ds#definition:color symbol=main.ds#Color@1
 ```
 
 ## Type References
@@ -88,7 +88,7 @@ declare const animal: Animal;
 ```
 
 ```query goto_type_definition main.ds#reference:animal
-@goto_type_definition.target relation=type_definition location=main.ds#definition:animal symbol=main.ds#Animal@1
+@goto_type_definition.target origin=main.ds#reference:animal location=main.ds:1:1-1:16 selection=main.ds#definition:animal symbol=main.ds#Animal@1
 ```
 
 ### Resolve a local type alias
@@ -104,7 +104,7 @@ declare const userId: UserId;
 ```
 
 ```query goto_type_definition main.ds#reference:user_id
-@goto_type_definition.target relation=type_definition location=main.ds#definition:user_id symbol=main.ds#UserId@1
+@goto_type_definition.target origin=main.ds#reference:user_id location=main.ds:1:1-1:20 selection=main.ds#definition:user_id symbol=main.ds#UserId@1
 ```
 
 ## Imports
@@ -128,7 +128,7 @@ const widget = Widget { value: 1 };
 ```
 
 ```query goto_type_definition main.ds#reference
-@goto_type_definition.target relation=type_definition location=model.ds#definition symbol=model.ds#Widget@1
+@goto_type_definition.target origin=main.ds#reference location=model.ds:1:1-3:2 selection=model.ds#definition symbol=model.ds#Widget@1
 ```
 
 ## Scalar Values
@@ -163,8 +163,8 @@ declare const shape: Circle | Square;
 ```
 
 ```query goto_type_definition main.ds#reference
-@goto_type_definition.target relation=type_definition location=main.ds#definition:circle symbol=main.ds#Circle@1
-@goto_type_definition.target relation=type_definition location=main.ds#definition:square symbol=main.ds#Square@2
+@goto_type_definition.target origin=main.ds#reference location=main.ds:1:1-1:16 selection=main.ds#definition:circle symbol=main.ds#Circle@1
+@goto_type_definition.target origin=main.ds#reference location=main.ds:2:1-2:16 selection=main.ds#definition:square symbol=main.ds#Square@2
 ```
 
 ### Resolve the nominal member of a nullable union
@@ -180,7 +180,7 @@ declare const user: User | null;
 ```
 
 ```query goto_type_definition main.ds#reference
-@goto_type_definition.target relation=type_definition location=main.ds#definition:user symbol=main.ds#User@1
+@goto_type_definition.target origin=main.ds#reference location=main.ds:1:1-1:14 selection=main.ds#definition:user symbol=main.ds#User@1
 ```
 
 ## Imported Types
@@ -204,7 +204,7 @@ const options: Options = { enabled: true };
 ```
 
 ```query goto_type_definition main.ds#reference:imported_type
-@goto_type_definition.target relation=type_definition location=model.ds#definition:imported_type symbol=model.ds#Options@1
+@goto_type_definition.target origin=main.ds#reference:imported_type location=model.ds:1:1-3:2 selection=model.ds#definition:imported_type symbol=model.ds#Options@1
 ```
 
 ### Resolve an imported type alias
@@ -226,7 +226,7 @@ declare const settings: AppSettings;
 ```
 
 ```query goto_type_definition main.ds#reference:settings
-@goto_type_definition.target relation=type_definition location=model.ds#definition:settings symbol=model.ds#Settings@1
+@goto_type_definition.target origin=main.ds#reference:settings location=model.ds:1:1-3:2 selection=model.ds#definition:settings symbol=model.ds#Settings@1
 ```
 
 ### Resolve imported types and values together
@@ -256,7 +256,7 @@ const isEnabled = enabled();
 ```
 
 ```query goto_type_definition main.ds#reference:mixed
-@goto_type_definition.target relation=type_definition location=types.ds#definition:mixed symbol=types.ds#Settings@1
+@goto_type_definition.target origin=main.ds#reference:mixed location=types.ds:1:1-3:2 selection=types.ds#definition:mixed symbol=types.ds#Settings@1
 ```
 
 ### Follow re-exports
@@ -286,7 +286,7 @@ declare const options: Options;
 ```
 
 ```query goto_type_definition main.ds#reference:options
-@goto_type_definition.target relation=type_definition location=model.ds#definition:options symbol=model.ds#ServiceOptions@1
+@goto_type_definition.target origin=main.ds#reference:options location=model.ds:1:1-3:2 selection=model.ds#definition:options symbol=model.ds#ServiceOptions@1
 ```
 
 ## Import Forms
@@ -310,7 +310,7 @@ declare const settings: models.Settings;
 ```
 
 ```query goto_type_definition main.ds#reference:namespace
-@goto_type_definition.target relation=type_definition location=model.ds#definition:namespace symbol=model.ds#Settings@1
+@goto_type_definition.target origin=main.ds#reference:namespace location=model.ds:1:1-3:2 selection=model.ds#definition:namespace symbol=model.ds#Settings@1
 ```
 
 ### Resolve a default class import
@@ -331,7 +331,7 @@ declare const widget: WidgetModel;
 ```
 
 ```query goto_type_definition main.ds#reference:default
-@goto_type_definition.target relation=type_definition location=model.ds#definition:default symbol=model.ds#Widget@1
+@goto_type_definition.target origin=main.ds#reference:default location=model.ds:1:1-2:2 selection=model.ds#definition:default symbol=model.ds#Widget@1
 ```
 
 ### Follow a default re-export alias
@@ -356,7 +356,7 @@ declare const widget: Widget;
 ```
 
 ```query goto_type_definition main.ds#reference:reexport
-@goto_type_definition.target relation=type_definition location=model.ds#definition:reexport symbol=model.ds#Widget@1
+@goto_type_definition.target origin=main.ds#reference:reexport location=model.ds:1:1-2:2 selection=model.ds#definition:reexport symbol=model.ds#Widget@1
 ```
 
 ## Ownership Forms
@@ -380,15 +380,15 @@ declare const pointer: *Buffer;
 ```
 
 ```query goto_type_definition main.ds#reference:borrowed
-@goto_type_definition.target relation=type_definition location=main.ds#definition:buffer symbol=main.ds#Buffer@1
+@goto_type_definition.target origin=main.ds#reference:borrowed location=main.ds:1:1-3:2 selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
 ```
 
 ```query goto_type_definition main.ds#reference:owned
-@goto_type_definition.target relation=type_definition location=main.ds#definition:buffer symbol=main.ds#Buffer@1
+@goto_type_definition.target origin=main.ds#reference:owned location=main.ds:1:1-3:2 selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
 ```
 
 ```query goto_type_definition main.ds#reference:pointer
-@goto_type_definition.target relation=type_definition location=main.ds#definition:buffer symbol=main.ds#Buffer@1
+@goto_type_definition.target origin=main.ds#reference:pointer location=main.ds:1:1-3:2 selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
 ```
 
 ## Explicit Receivers
@@ -408,7 +408,7 @@ function read(this: Counter): Counter {
 ```
 
 ```query goto_type_definition main.ds#reference:counter
-@goto_type_definition.target relation=type_definition location=main.ds#definition:counter symbol=main.ds#Counter@1
+@goto_type_definition.target origin=main.ds#reference:counter location=main.ds:1:1-1:17 selection=main.ds#definition:counter symbol=main.ds#Counter@1
 ```
 
 ## Generic Applications
@@ -428,7 +428,7 @@ declare const box: Box<int32>;
 ```
 
 ```query goto_type_definition main.ds#reference:box
-@goto_type_definition.target relation=type_definition location=main.ds#definition:box symbol=main.ds#Box@1
+@goto_type_definition.target origin=main.ds#reference:box location=main.ds:1:1-3:2 selection=main.ds#definition:box symbol=main.ds#Box@1
 ```
 
 ## Type and Value Names
@@ -454,7 +454,7 @@ declare const config: SharedConfig;
 ```
 
 ```query goto_type_definition main.ds#reference:config
-@goto_type_definition.target relation=type_definition location=model.ds#definition:config symbol=model.ds#Config@1
+@goto_type_definition.target origin=main.ds#reference:config location=model.ds#definition:config symbol=model.ds#Config@1
 ```
 
 ## Missing Symbols

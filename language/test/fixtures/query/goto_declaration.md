@@ -15,7 +15,7 @@ const other = value;
 ```
 
 ```query goto_declaration main.ds#reference:value
-@goto_declaration.target relation=declaration location=main.ds#declaration:value symbol=main.ds#value@1
+@goto_declaration.target origin=main.ds#reference:value location=main.ds#declaration:value symbol=main.ds#value@1
 ```
 
 ## Imports
@@ -39,7 +39,7 @@ const message = greet("World");
 ```
 
 ```query goto_declaration main.ds#reference:greet
-@goto_declaration.target relation=declaration location=main.ds#declaration:import_greet symbol=main.ds#greet@1
+@goto_declaration.target origin=main.ds#reference:greet location=main.ds#declaration:import_greet symbol=main.ds#greet@1
 ```
 
 ### Resolve an aliased import declaration
@@ -61,7 +61,7 @@ const message = localGreet("World");
 ```
 
 ```query goto_declaration alias_main.ds#reference:local_greet
-@goto_declaration.target relation=declaration location=alias_main.ds#declaration:import_local_greet symbol=alias_main.ds#localGreet@1
+@goto_declaration.target origin=alias_main.ds#reference:local_greet location=alias_main.ds:1:10-1:29 selection=alias_main.ds#declaration:import_local_greet symbol=alias_main.ds#localGreet@1
 ```
 
 ### Keep the imported and local sides of an alias distinct
@@ -83,11 +83,11 @@ welcome();
 ```
 
 ```query goto_declaration main.ds#imported_name
-@goto_declaration.target relation=declaration location=library.ds#declaration:exported_greet symbol=library.ds#greet@1
+@goto_declaration.target origin=main.ds#imported_name location=library.ds:1:1-1:33 selection=library.ds#declaration:exported_greet symbol=library.ds#greet@1
 ```
 
 ```query goto_declaration main.ds#reference:local_welcome
-@goto_declaration.target relation=declaration location=main.ds#declaration:local_welcome symbol=main.ds#welcome@1
+@goto_declaration.target origin=main.ds#reference:local_welcome location=main.ds:1:10-1:26 selection=main.ds#declaration:local_welcome symbol=main.ds#welcome@1
 ```
 
 ### Resolve a re-exported alias declaration
@@ -113,7 +113,7 @@ const message = greetAlias("World");
 ```
 
 ```query goto_declaration alias_main.ds#reference:greet_alias
-@goto_declaration.target relation=declaration location=alias_main.ds#declaration:import_greet_alias symbol=alias_main.ds#greetAlias@1
+@goto_declaration.target origin=alias_main.ds#reference:greet_alias location=alias_main.ds#declaration:import_greet_alias symbol=alias_main.ds#greetAlias@1
 ```
 
 ### Resolve an imported type declaration
@@ -135,7 +135,7 @@ const item: Thing = Thing { value: 1 };
 ```
 
 ```query goto_declaration main.ds#reference:thing
-@goto_declaration.target relation=declaration location=main.ds#declaration:import_thing symbol=main.ds#Thing@1
+@goto_declaration.target origin=main.ds#reference:thing location=main.ds#declaration:import_thing symbol=main.ds#Thing@1
 ```
 
 ### Resolve a namespace import declaration
@@ -155,7 +155,7 @@ utilities.ping();
 ```
 
 ```query goto_declaration main.ds#reference:utilities
-@goto_declaration.target relation=declaration location=main.ds#declaration:import_utilities symbol=main.ds#utilities@1
+@goto_declaration.target origin=main.ds#reference:utilities location=main.ds:1:8-1:22 selection=main.ds#declaration:import_utilities symbol=main.ds#utilities@1
 ```
 
 ### Resolve each segment of a namespace type path
@@ -179,11 +179,11 @@ type Selected = models.Settings;
 ```
 
 ```query goto_declaration main.ds#reference:models
-@goto_declaration.target relation=declaration location=main.ds#declaration:models symbol=main.ds#models@1
+@goto_declaration.target origin=main.ds#reference:models location=main.ds:1:8-1:19 selection=main.ds#declaration:models symbol=main.ds#models@1
 ```
 
 ```query goto_declaration main.ds#reference:settings
-@goto_declaration.target relation=declaration location=model.ds#declaration:settings symbol=model.ds#Settings@1
+@goto_declaration.target origin=main.ds#reference:settings location=model.ds:1:1-3:2 selection=model.ds#declaration:settings symbol=model.ds#Settings@1
 ```
 
 ### Resolve a re-exported import declaration
@@ -209,7 +209,7 @@ const message = greet("World");
 ```
 
 ```query goto_declaration main.ds#reference:greet
-@goto_declaration.target relation=declaration location=main.ds#declaration:import_greet symbol=main.ds#greet@1
+@goto_declaration.target origin=main.ds#reference:greet location=main.ds#declaration:import_greet symbol=main.ds#greet@1
 ```
 
 ### Resolve declarations for type and value imports
@@ -241,11 +241,11 @@ const value = settings();
 ```
 
 ```query goto_declaration main.ds#reference:settings_type
-@goto_declaration.target relation=declaration location=main.ds#declaration:import_settings_type symbol=main.ds#Settings@1
+@goto_declaration.target origin=main.ds#reference:settings_type location=main.ds#declaration:import_settings_type symbol=main.ds#Settings@1
 ```
 
 ```query goto_declaration main.ds#reference:settings_value
-@goto_declaration.target relation=declaration location=main.ds#declaration:import_settings_value symbol=main.ds#settings@2
+@goto_declaration.target origin=main.ds#reference:settings_value location=main.ds#declaration:import_settings_value symbol=main.ds#settings@2
 ```
 
 ### Resolve an imported type alias declaration
@@ -267,7 +267,7 @@ const typed: ApplicationSettings = { enabled: true };
 ```
 
 ```query goto_declaration main_alias.ds#reference:application_settings
-@goto_declaration.target relation=declaration location=main_alias.ds#declaration:import_application_settings symbol=main_alias.ds#ApplicationSettings@1
+@goto_declaration.target origin=main_alias.ds#reference:application_settings location=main_alias.ds:1:10-1:41 selection=main_alias.ds#declaration:import_application_settings symbol=main_alias.ds#ApplicationSettings@1
 ```
 
 ### Resolve a re-exported type alias declaration
@@ -293,7 +293,7 @@ const typed: Configuration = { enabled: true };
 ```
 
 ```query goto_declaration main_reexport_type.ds#reference:configuration
-@goto_declaration.target relation=declaration location=main_reexport_type.ds#declaration:import_configuration symbol=main_reexport_type.ds#Configuration@1
+@goto_declaration.target origin=main_reexport_type.ds#reference:configuration location=main_reexport_type.ds#declaration:import_configuration symbol=main_reexport_type.ds#Configuration@1
 ```
 
 ### Resolve a default import declaration
@@ -315,7 +315,7 @@ const value = buildValue();
 ```
 
 ```query goto_declaration default_main.ds#reference:build_value
-@goto_declaration.target relation=declaration location=default_main.ds#declaration:import_build_value symbol=default_main.ds#buildValue@1
+@goto_declaration.target origin=default_main.ds#reference:build_value location=default_main.ds#declaration:import_build_value symbol=default_main.ds#buildValue@1
 ```
 
 ### Resolve declarations through default re-export alias chains
@@ -341,7 +341,7 @@ const value = buildWidget();
 ```
 
 ```query goto_declaration main.ds#reference:buildWidget
-@goto_declaration.target relation=declaration location=main.ds#declaration:buildWidget symbol=main.ds#buildWidget@1
+@goto_declaration.target origin=main.ds#reference:buildWidget location=main.ds#declaration:buildWidget symbol=main.ds#buildWidget@1
 ```
 
 ## Pattern Bindings
@@ -360,7 +360,7 @@ const value = left;
 ```
 
 ```query goto_declaration main.ds#reference:left
-@goto_declaration.target relation=declaration location=main.ds#declaration:left symbol=main.ds#left@2
+@goto_declaration.target origin=main.ds#reference:left location=main.ds#declaration:left symbol=main.ds#left@2
 ```
 
 ## Generic Parameters
@@ -378,7 +378,7 @@ function identity<T>(value: T): T {
 ```
 
 ```query goto_declaration main.ds#reference:type_parameter
-@goto_declaration.target relation=declaration location=main.ds#declaration:type_parameter symbol=main.ds#T@2
+@goto_declaration.target origin=main.ds#reference:type_parameter location=main.ds#declaration:type_parameter symbol=main.ds#T@2
 ```
 
 ## Members
@@ -400,7 +400,7 @@ function read(point: Point): int32 {
 ```
 
 ```query goto_declaration main.ds#reference:field
-@goto_declaration.target relation=declaration location=main.ds#declaration:field symbol=main.ds#x@2
+@goto_declaration.target origin=main.ds#reference:field location=main.ds:2:5-2:13 selection=main.ds#declaration:field symbol=main.ds#x@2
 ```
 
 ### Resolve every exact member declaration selected through a union
@@ -425,8 +425,8 @@ function start(service: Alpha | Beta): void {
 ```
 
 ```query goto_declaration main.ds#reference
-@goto_declaration.target relation=declaration location=main.ds#declaration:alpha_run symbol=main.ds#run@2
-@goto_declaration.target relation=declaration location=main.ds#declaration:beta_run symbol=main.ds#run@5
+@goto_declaration.target origin=main.ds#reference location=main.ds:2:5-2:19 selection=main.ds#declaration:alpha_run symbol=main.ds#run@2
+@goto_declaration.target origin=main.ds#reference location=main.ds:6:5-6:19 selection=main.ds#declaration:beta_run symbol=main.ds#run@5
 ```
 
 ## Labels
@@ -446,7 +446,7 @@ function choose(): int32 {
 ```
 
 ```query goto_declaration main.ds#reference:outer
-@goto_declaration.target relation=declaration location=main.ds#declaration:outer symbol=main.ds#outer@2
+@goto_declaration.target origin=main.ds#reference:outer location=main.ds#declaration:outer symbol=main.ds#outer@2
 ```
 
 ## Missing Symbols

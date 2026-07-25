@@ -15,7 +15,7 @@ const bar = foo;
 ```
 
 ```query goto_definition main.ds#reference:foo
-@goto_definition.target relation=definition location=main.ds#definition:foo symbol=main.ds#foo@1
+@goto_definition.target origin=main.ds#reference:foo location=main.ds#definition:foo symbol=main.ds#foo@1
 ```
 
 ### Resolve a function parameter definition
@@ -31,7 +31,7 @@ function add(x: int32, y: int32): int32 {
 ```
 
 ```query goto_definition main.ds#reference:x
-@goto_definition.target relation=definition location=main.ds#definition:x symbol=main.ds#x@2
+@goto_definition.target origin=main.ds#reference:x location=main.ds:1:14-1:22 selection=main.ds#definition:x symbol=main.ds#x@2
 ```
 
 ## Functions
@@ -51,7 +51,7 @@ const message = greet("World");
 ```
 
 ```query goto_definition main.ds#reference:greet
-@goto_definition.target relation=definition location=main.ds#definition:greet symbol=main.ds#greet@1
+@goto_definition.target origin=main.ds#reference:greet location=main.ds:1:1-3:2 selection=main.ds#definition:greet symbol=main.ds#greet@1
 ```
 
 ## Struct Fields
@@ -75,7 +75,7 @@ function main() {
 ```
 
 ```query goto_definition main.ds#reference:point_x
-@goto_definition.target relation=definition location=main.ds#definition:point_x symbol=main.ds#x@2
+@goto_definition.target origin=main.ds#reference:point_x location=main.ds:2:5-2:13 selection=main.ds#definition:point_x symbol=main.ds#x@2
 ```
 
 ## Class Methods
@@ -99,7 +99,7 @@ function main() {
 ```
 
 ```query goto_definition main.ds#reference:logger_log
-@goto_definition.target relation=definition location=main.ds#definition:logger_log symbol=main.ds#log@2
+@goto_definition.target origin=main.ds#reference:logger_log location=main.ds:2:5-3:6 selection=main.ds#definition:logger_log symbol=main.ds#log@2
 ```
 
 ## Static Methods
@@ -121,7 +121,7 @@ const result = Arithmetic.twice(2);
 ```
 
 ```query goto_definition main.ds#reference:twice
-@goto_definition.target relation=definition location=main.ds#definition:twice symbol=main.ds#twice@2
+@goto_definition.target origin=main.ds#reference:twice location=main.ds:2:5-4:6 selection=main.ds#definition:twice symbol=main.ds#twice@2
 ```
 
 ### Resolve every exact method selected through a union
@@ -146,8 +146,8 @@ function start(service: Alpha | Beta): void {
 ```
 
 ```query goto_definition main.ds#reference
-@goto_definition.target relation=definition location=main.ds#definition:alpha_run symbol=main.ds#run@2
-@goto_definition.target relation=definition location=main.ds#definition:beta_run symbol=main.ds#run@5
+@goto_definition.target origin=main.ds#reference location=main.ds:2:5-2:19 selection=main.ds#definition:alpha_run symbol=main.ds#run@2
+@goto_definition.target origin=main.ds#reference location=main.ds:6:5-6:19 selection=main.ds#definition:beta_run symbol=main.ds#run@5
 ```
 
 ## Extension Methods
@@ -174,7 +174,7 @@ function main() {
 ```
 
 ```query goto_definition main.ds#reference:calculator_add
-@goto_definition.target relation=definition location=main.ds#definition:calculator_add symbol=main.ds#add@3
+@goto_definition.target origin=main.ds#reference:calculator_add location=main.ds:4:5-6:6 selection=main.ds#definition:calculator_add symbol=main.ds#add@3
 ```
 
 ## Enum Members
@@ -195,7 +195,7 @@ const current = Status.Pending;
 ```
 
 ```query goto_definition main.ds#reference:pending
-@goto_definition.target relation=definition location=main.ds#definition:pending symbol=main.ds#Pending@2
+@goto_definition.target origin=main.ds#reference:pending location=main.ds#definition:pending symbol=main.ds#Pending@2
 ```
 
 ## Associated Constants
@@ -215,7 +215,7 @@ const width = Buffer.Width;
 ```
 
 ```query goto_definition main.ds#reference:width
-@goto_definition.target relation=definition location=main.ds#definition:width symbol=main.ds#Width@2
+@goto_definition.target origin=main.ds#reference:width location=main.ds:2:5-2:35 selection=main.ds#definition:width symbol=main.ds#Width@2
 ```
 
 ## Type and Value Symbols
@@ -247,11 +247,11 @@ const value = optionsValue;
 ```
 
 ```query goto_definition main.ds#reference:type_options
-@goto_definition.target relation=definition location=types.ds#definition:type_options symbol=types.ds#Options@1
+@goto_definition.target origin=main.ds#reference:type_options location=types.ds:1:1-3:2 selection=types.ds#definition:type_options symbol=types.ds#Options@1
 ```
 
 ```query goto_definition main.ds#reference:value_options
-@goto_definition.target relation=definition location=values.ds#definition:value_options symbol=values.ds#optionsValue@1
+@goto_definition.target origin=main.ds#reference:value_options location=values.ds#definition:value_options symbol=values.ds#optionsValue@1
 ```
 
 ### Resolve definition through aliased imports
@@ -273,7 +273,7 @@ const message = localGreeting("Destack");
 ```
 
 ```query goto_definition alias_main.ds#reference:local_greeting
-@goto_definition.target relation=definition location=alias_library.ds#definition:greet_alias_source symbol=alias_library.ds#greetAliasSource@1
+@goto_definition.target origin=alias_main.ds#reference:local_greeting location=alias_library.ds:1:1-3:2 selection=alias_library.ds#definition:greet_alias_source symbol=alias_library.ds#greetAliasSource@1
 ```
 
 ## Associated Types
@@ -295,7 +295,7 @@ type EventLabel = Message<"orders">.Label<"created">;
 ```
 
 ```query goto_definition main.ds#reference:associated_label
-@goto_definition.target relation=definition location=main.ds#definition:associated_label symbol=main.ds#Label@3
+@goto_definition.target origin=main.ds#reference:associated_label location=main.ds#definition:associated_label symbol=main.ds#Label@3
 ```
 
 ## Overloads
@@ -322,11 +322,11 @@ const textValue = parse("ok");
 ```
 
 ```query goto_definition main.ds#reference:parse_integer
-@goto_definition.target relation=definition location=main.ds#definition:parse_integer symbol=main.ds#parse@1
+@goto_definition.target origin=main.ds#reference:parse_integer location=main.ds:1:1-3:2 selection=main.ds#definition:parse_integer symbol=main.ds#parse@1
 ```
 
 ```query goto_definition main.ds#reference:parse_string
-@goto_definition.target relation=definition location=main.ds#definition:parse_string symbol=main.ds#parse@3
+@goto_definition.target origin=main.ds#reference:parse_string location=main.ds:5:1-7:2 selection=main.ds#definition:parse_string symbol=main.ds#parse@3
 ```
 
 ## Construction
@@ -346,7 +346,7 @@ const user = new User("Ada");
 ```
 
 ```query goto_definition main.ds#reference:user
-@goto_definition.target relation=definition location=main.ds#definition:user symbol=main.ds#User@1
+@goto_definition.target origin=main.ds#reference:user location=main.ds:1:1-3:2 selection=main.ds#definition:user symbol=main.ds#User@1
 ```
 
 ### Resolve newtype construction to the newtype definition
@@ -362,7 +362,7 @@ const userId = UserId("user-1");
 ```
 
 ```query goto_definition main.ds#reference:user_id
-@goto_definition.target relation=definition location=main.ds#definition:user_id symbol=main.ds#UserId@1
+@goto_definition.target origin=main.ds#reference:user_id location=main.ds:1:1-1:24 selection=main.ds#definition:user_id symbol=main.ds#UserId@1
 ```
 
 ### Resolve tagged construction to the variant definition
@@ -379,7 +379,7 @@ const status = Status.Ok({ value: "ready" });
 ```
 
 ```query goto_definition main.ds#reference:ok
-@goto_definition.target relation=definition location=main.ds#definition:ok symbol=main.ds#Ok@3
+@goto_definition.target origin=main.ds#reference:ok location=main.ds#definition:ok symbol=main.ds#Ok@3
 ```
 
 ## Imports and Exports
@@ -405,7 +405,7 @@ api.ping();
 ```
 
 ```query goto_definition main.ds#reference:namespace_export_target
-@goto_definition.target relation=definition location=base.ds#definition:namespace_export_target symbol=base.ds#ping@1
+@goto_definition.target origin=main.ds#reference:namespace_export_target location=base.ds:1:1-1:32 selection=base.ds#definition:namespace_export_target symbol=base.ds#ping@1
 ```
 
 ### Go to a definition through a default re-export alias
@@ -431,7 +431,7 @@ const value = buildWidget();
 ```
 
 ```query goto_definition main.ds#reference:buildWidget
-@goto_definition.target relation=definition location=library.ds#definition:buildWidget symbol=library.ds#buildWidget@1
+@goto_definition.target origin=main.ds#reference:buildWidget location=library.ds:1:1-3:2 selection=library.ds#definition:buildWidget symbol=library.ds#buildWidget@1
 ```
 
 ## Imported Functions
@@ -455,7 +455,7 @@ const message = greet("Destack");
 ```
 
 ```query goto_definition main.ds#reference:imported_function
-@goto_definition.target relation=definition location=library.ds#definition:imported_function symbol=library.ds#greet@1
+@goto_definition.target origin=main.ds#reference:imported_function location=library.ds:1:1-3:2 selection=library.ds#definition:imported_function symbol=library.ds#greet@1
 ```
 
 ### Resolve an aliased import
@@ -477,7 +477,7 @@ const message = welcome("Destack");
 ```
 
 ```query goto_definition main.ds#reference:aliased_import
-@goto_definition.target relation=definition location=library.ds#definition:aliased_import symbol=library.ds#greet@1
+@goto_definition.target origin=main.ds#reference:aliased_import location=library.ds:1:1-3:2 selection=library.ds#definition:aliased_import symbol=library.ds#greet@1
 ```
 
 ## Re-Exports
@@ -505,7 +505,7 @@ const message = greet("Destack");
 ```
 
 ```query goto_definition main.ds#reference:named_reexport
-@goto_definition.target relation=definition location=library.ds#definition:named_reexport symbol=library.ds#greet@1
+@goto_definition.target origin=main.ds#reference:named_reexport location=library.ds:1:1-3:2 selection=library.ds#definition:named_reexport symbol=library.ds#greet@1
 ```
 
 ### Resolve a default re-export alias
@@ -531,7 +531,7 @@ const value = buildWidget();
 ```
 
 ```query goto_definition main.ds#reference:default_reexport
-@goto_definition.target relation=definition location=library.ds#definition:default_reexport symbol=library.ds#buildWidget@1
+@goto_definition.target origin=main.ds#reference:default_reexport location=library.ds:1:1-3:2 selection=library.ds#definition:default_reexport symbol=library.ds#buildWidget@1
 ```
 
 ## Imported Types
@@ -555,7 +555,7 @@ const options: Options = { enabled: true };
 ```
 
 ```query goto_definition main.ds#reference:imported_type
-@goto_definition.target relation=definition location=model.ds#definition:imported_type symbol=model.ds#Options@1
+@goto_definition.target origin=main.ds#reference:imported_type location=model.ds:1:1-3:2 selection=model.ds#definition:imported_type symbol=model.ds#Options@1
 ```
 
 ### Resolve an imported type alias
@@ -577,7 +577,7 @@ const options: Configuration = { enabled: true };
 ```
 
 ```query goto_definition main.ds#reference:aliased_type
-@goto_definition.target relation=definition location=model.ds#definition:aliased_type symbol=model.ds#Options@1
+@goto_definition.target origin=main.ds#reference:aliased_type location=model.ds:1:1-3:2 selection=model.ds#definition:aliased_type symbol=model.ds#Options@1
 ```
 
 ## Missing Symbols
@@ -615,7 +615,7 @@ function main(): int32 {
 ```
 
 ```query goto_definition main.ds#reference:value
-@goto_definition.target relation=definition location=main.ds#definition:value symbol=main.ds#value@1
+@goto_definition.target origin=main.ds#reference:value location=main.ds#definition:value symbol=main.ds#value@1
 ```
 
 ## Pattern Bindings
@@ -635,7 +635,7 @@ const total = match (pair) {
 ```
 
 ```query goto_definition main.ds#reference:match_left
-@goto_definition.target relation=definition location=main.ds#definition:match_left symbol=main.ds#left@3
+@goto_definition.target origin=main.ds#reference:match_left location=main.ds#definition:match_left symbol=main.ds#left@3
 ```
 
 ## Labels
@@ -655,7 +655,7 @@ function choose(): int32 {
 ```
 
 ```query goto_definition main.ds#reference:outer
-@goto_definition.target relation=definition location=main.ds#definition:outer symbol=main.ds#outer@2
+@goto_definition.target origin=main.ds#reference:outer location=main.ds#definition:outer symbol=main.ds#outer@2
 ```
 
 ## Calls
@@ -675,7 +675,7 @@ const query = sql`select ${1}`;
 ```
 
 ```query goto_definition main.ds#reference:sql
-@goto_definition.target relation=definition location=main.ds#definition:sql symbol=main.ds#sql@1
+@goto_definition.target origin=main.ds#reference:sql location=main.ds:1:1-3:2 selection=main.ds#definition:sql symbol=main.ds#sql@1
 ```
 
 ### Resolve a comptime call definition
@@ -693,7 +693,7 @@ const value = comptime build();
 ```
 
 ```query goto_definition main.ds#reference:build
-@goto_definition.target relation=definition location=main.ds#definition:build symbol=main.ds#build@1
+@goto_definition.target origin=main.ds#reference:build location=main.ds:1:1-3:2 selection=main.ds#definition:build symbol=main.ds#build@1
 ```
 
 ## Using Bindings
@@ -713,7 +713,7 @@ const value = session;
 ```
 
 ```query goto_definition main.ds#reference:session
-@goto_definition.target relation=definition location=main.ds#definition:session symbol=main.ds#session@2
+@goto_definition.target origin=main.ds#reference:session location=main.ds#definition:session symbol=main.ds#session@2
 ```
 
 ## Annotations
@@ -732,5 +732,5 @@ class Service {}
 ```
 
 ```query goto_definition main.ds#reference:tracked
-@goto_definition.target relation=definition location=main.ds#definition:tracked symbol=main.ds#tracked@1
+@goto_definition.target origin=main.ds#reference:tracked location=main.ds:1:1-1:21 selection=main.ds#definition:tracked symbol=main.ds#tracked@1
 ```

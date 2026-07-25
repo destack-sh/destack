@@ -13,7 +13,7 @@ const next = count;
 ```
 
 ```query rename_target main.ds#definition
-@rename_target.target placeholder=count range=main.ds#definition location=main.ds#definition symbol=main.ds#count@1
+@rename_target.target placeholder=count location=main.ds#definition symbol=main.ds#count@1
 ```
 
 ### Resolve a reference
@@ -27,7 +27,7 @@ const next = count;
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=count range=main.ds#reference location=main.ds#reference symbol=main.ds#count@1
+@rename_target.target placeholder=count location=main.ds#reference symbol=main.ds#count@1
 ```
 
 ## Members
@@ -48,7 +48,7 @@ function read(counter: Counter): int32 {
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=count range=main.ds#reference location=main.ds#reference symbol=main.ds#count@2
+@rename_target.target placeholder=count location=main.ds#reference symbol=main.ds#count@2
 ```
 
 ### Resolve a string-keyed field access
@@ -67,7 +67,7 @@ function read(counter: Counter): int32 {
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=count range=main.ds#reference location=main.ds#reference symbol=main.ds#count@2
+@rename_target.target placeholder=count location=main.ds#reference symbol=main.ds#count@2
 ```
 
 ## Methods
@@ -88,7 +88,7 @@ function start(service: Service): void {
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=run range=main.ds#reference location=main.ds#reference symbol=main.ds#run@2
+@rename_target.target placeholder=run location=main.ds#reference symbol=main.ds#run@2
 ```
 
 ### Resolve an extension method access
@@ -111,7 +111,7 @@ function total(calculator: Calculator): int32 {
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=add range=main.ds#reference location=main.ds#reference symbol=main.ds#add@3
+@rename_target.target placeholder=add location=main.ds#reference symbol=main.ds#add@3
 ```
 
 ## Associated Constants
@@ -130,7 +130,7 @@ const width = Buffer.Width;
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=Width range=main.ds#reference location=main.ds#reference symbol=main.ds#Width@2
+@rename_target.target placeholder=Width location=main.ds#reference symbol=main.ds#Width@2
 ```
 
 ## Enum Members
@@ -149,7 +149,7 @@ const color = Color.Red;
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=Red range=main.ds#reference location=main.ds#reference symbol=main.ds#Red@2
+@rename_target.target placeholder=Red location=main.ds#reference symbol=main.ds#Red@2
 ```
 
 ### Resolve a tagged variant access
@@ -165,7 +165,7 @@ const status = Status.Ok({ value: "ready" });
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=Ok range=main.ds#reference location=main.ds#reference symbol=main.ds#Ok@3
+@rename_target.target placeholder=Ok location=main.ds#reference symbol=main.ds#Ok@3
 ```
 
 ## Member Declarations
@@ -182,7 +182,7 @@ struct Point {
 ```
 
 ```query rename_target main.ds#definition
-@rename_target.target placeholder=x range=main.ds#definition location=main.ds#definition symbol=main.ds#x@2
+@rename_target.target placeholder=x location=main.ds#definition symbol=main.ds#x@2
 ```
 
 ## Generic Parameters
@@ -199,7 +199,7 @@ function identity<T>(value: T): T {
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=T range=main.ds#reference location=main.ds#reference symbol=main.ds#T@2
+@rename_target.target placeholder=T location=main.ds#reference symbol=main.ds#T@2
 ```
 
 ### Resolve a type parameter in a template literal
@@ -212,7 +212,7 @@ type Route<T extends string> = `api:${T}`;
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=T range=main.ds#reference location=main.ds#reference symbol=main.ds#T@2
+@rename_target.target placeholder=T location=main.ds#reference symbol=main.ds#T@2
 ```
 
 ### Resolve a comptime type parameter
@@ -225,7 +225,7 @@ type Buffer<comptime size: usize> = [uint8; size];
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=size range=main.ds#reference location=main.ds#reference symbol=main.ds#size@2
+@rename_target.target placeholder=size location=main.ds#reference symbol=main.ds#size@2
 ```
 
 ## Pattern Bindings
@@ -244,7 +244,7 @@ const value = left;
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=left range=main.ds#reference location=main.ds#reference symbol=main.ds#left@2
+@rename_target.target placeholder=left location=main.ds#reference symbol=main.ds#left@2
 ```
 
 ### Resolve a match binding
@@ -262,7 +262,7 @@ const total = match (pair) {
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=left range=main.ds#reference location=main.ds#reference symbol=main.ds#left@3
+@rename_target.target placeholder=left location=main.ds#reference symbol=main.ds#left@3
 ```
 
 ### Resolve the local value of an object shorthand
@@ -277,7 +277,7 @@ const point = { horizontal };
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=horizontal range=main.ds#reference location=main.ds#reference symbol=main.ds#horizontal@1
+@rename_target.target placeholder=horizontal location=main.ds#reference symbol=main.ds#horizontal@1
 ```
 
 ## Overloads
@@ -300,7 +300,7 @@ const value = parse(1);
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=parse range=main.ds#reference location=main.ds#reference symbol=main.ds#parse@1
+@rename_target.target placeholder=parse location=main.ds#reference symbol=main.ds#parse@1
 ```
 
 ## Construction
@@ -319,7 +319,7 @@ const user = new User("Ada");
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=User range=main.ds#reference location=main.ds#reference symbol=main.ds#User@1
+@rename_target.target placeholder=User location=main.ds#reference symbol=main.ds#User@1
 ```
 
 ## Labels
@@ -338,7 +338,7 @@ function choose(): int32 {
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=outer range=main.ds#reference location=main.ds#reference symbol=main.ds#outer@2
+@rename_target.target placeholder=outer location=main.ds#reference symbol=main.ds#outer@2
 ```
 
 ## Calls
@@ -357,7 +357,7 @@ const query = sql`select ${1}`;
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=sql range=main.ds#reference location=main.ds#reference symbol=main.ds#sql@1
+@rename_target.target placeholder=sql location=main.ds#reference symbol=main.ds#sql@1
 ```
 
 ### Resolve a comptime call
@@ -374,7 +374,7 @@ const value = comptime build();
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=build range=main.ds#reference location=main.ds#reference symbol=main.ds#build@1
+@rename_target.target placeholder=build location=main.ds#reference symbol=main.ds#build@1
 ```
 
 ## Annotations
@@ -392,7 +392,7 @@ class Service {}
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=tracked range=main.ds#reference location=main.ds#reference symbol=main.ds#tracked@1
+@rename_target.target placeholder=tracked location=main.ds#reference symbol=main.ds#tracked@1
 ```
 
 ### Resolve a parameter annotation
@@ -407,7 +407,7 @@ function start(@tracked value: int32): void {}
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=tracked range=main.ds#reference location=main.ds#reference symbol=main.ds#tracked@1
+@rename_target.target placeholder=tracked location=main.ds#reference symbol=main.ds#tracked@1
 ```
 
 ## Using Bindings
@@ -426,7 +426,7 @@ const value = session;
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=session range=main.ds#reference location=main.ds#reference symbol=main.ds#session@2
+@rename_target.target placeholder=session location=main.ds#reference symbol=main.ds#session@2
 ```
 
 ## Import Bindings
@@ -447,7 +447,7 @@ welcome();
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=welcome range=main.ds#reference location=main.ds#reference symbol=main.ds#welcome@1
+@rename_target.target placeholder=welcome location=main.ds#reference symbol=main.ds#welcome@1
 ```
 
 ### Resolve a namespace import alias
@@ -466,7 +466,7 @@ api.ping();
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=api range=main.ds#reference location=main.ds#reference symbol=main.ds#api@1
+@rename_target.target placeholder=api location=main.ds#reference symbol=main.ds#api@1
 ```
 
 ### Resolve a default import binding
@@ -485,7 +485,7 @@ welcome();
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=welcome range=main.ds#reference location=main.ds#reference symbol=main.ds#welcome@1
+@rename_target.target placeholder=welcome location=main.ds#reference symbol=main.ds#welcome@1
 ```
 
 ### Resolve an imported type alias
@@ -506,7 +506,7 @@ declare const settings: Settings;
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=Settings range=main.ds#reference location=main.ds#reference symbol=main.ds#Settings@1
+@rename_target.target placeholder=Settings location=main.ds#reference symbol=main.ds#Settings@1
 ```
 
 ### Resolve the imported side of an alias
@@ -525,7 +525,7 @@ welcome();
 ```
 
 ```query rename_target main.ds#imported_name
-@rename_target.target placeholder=greet range=main.ds#imported_name location=main.ds#imported_name symbol=library.ds#greet@1
+@rename_target.target placeholder=greet location=main.ds#imported_name symbol=library.ds#greet@1
 ```
 
 ### Resolve a namespace re-export alias
@@ -547,7 +547,7 @@ import { api } from "./barrel.ds";
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=api range=main.ds#reference location=main.ds#reference symbol=barrel.ds#api@1
+@rename_target.target placeholder=api location=main.ds#reference symbol=barrel.ds#api@1
 ```
 
 ## Export Declarations
@@ -562,7 +562,7 @@ export default function greet(): void {}
 ```
 
 ```query rename_target main.ds#definition
-@rename_target.target placeholder=greet range=main.ds#definition location=main.ds#definition symbol=main.ds#greet@1
+@rename_target.target placeholder=greet location=main.ds#definition symbol=main.ds#greet@1
 ```
 
 ## Invalid Targets
@@ -666,5 +666,5 @@ type EventLabel = Message<"orders">.Label<"created">;
 ```
 
 ```query rename_target main.ds#reference
-@rename_target.target placeholder=Label range=main.ds#reference location=main.ds#reference symbol=main.ds#Label@3
+@rename_target.target placeholder=Label location=main.ds#reference symbol=main.ds#Label@3
 ```

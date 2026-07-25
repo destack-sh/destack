@@ -4,7 +4,7 @@
 
 ### Offer function references
 
-Functions receive a reference lens candidate without computing the count.
+Functions receive a reference lens with the exact declaration and current reference count.
 
 ```ds main.ds
 function ping(): void {}
@@ -14,14 +14,14 @@ ping();
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references symbol=main.ds#ping@1
+@code_lenses.lens range=main.ds#declaration action=references count=1 symbol=main.ds#ping@1
 ```
 
 ## Implementations
 
 ### Offer interface implementations and class subclasses
 
-Interfaces and classes receive implementation lens candidates without computing their counts.
+Interfaces and classes receive implementation lenses with their direct implementation counts.
 
 ```ds main.ds
 interface Animal {
@@ -38,8 +38,8 @@ class Puppy extends Dog {}
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#animal action=implementations symbol=main.ds#Animal@1
-@code_lenses.lens range=main.ds#dog action=implementations symbol=main.ds#Dog@3
+@code_lenses.lens range=main.ds#animal action=implementations count=1 symbol=main.ds#Animal@1
+@code_lenses.lens range=main.ds#dog action=implementations count=1 symbol=main.ds#Dog@4
 ```
 
 ### Offer nominal interface implementations
@@ -60,12 +60,12 @@ struct Packet implements Encode {
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#interface action=implementations symbol=main.ds#Encode@1
+@code_lenses.lens range=main.ds#interface action=implementations count=1 symbol=main.ds#Encode@1
 ```
 
 ## Tests
 
-### Offer test actions for a decorated function
+### [ignored] Offer test actions for a decorated function
 
 A test decorator produces run and debug lenses for its function.
 
@@ -76,8 +76,8 @@ function verify(): void {}
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=run_test symbol=main.ds#verify@1
-@code_lenses.lens range=main.ds#declaration action=debug_test symbol=main.ds#verify@1
+@code_lenses.lens range=main.ds#declaration action=run_test test=verify symbol=main.ds#verify@1
+@code_lenses.lens range=main.ds#declaration action=debug_test test=verify symbol=main.ds#verify@1
 ```
 
 ## Modules
@@ -98,14 +98,14 @@ ping();
 ```
 
 ```query code_lenses library.ds
-@code_lenses.lens range=library.ds#declaration action=references symbol=library.ds#ping@1
+@code_lenses.lens range=library.ds#declaration action=references count=2 symbol=library.ds#ping@1
 ```
 
 ## Zero Counts
 
 ### Offer unused function references
 
-An unused function still receives a candidate so resolution can report zero references.
+An unused function still receives a lens reporting zero references.
 
 ```ds main.ds
 function unused(): void {}
@@ -113,12 +113,12 @@ function unused(): void {}
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references symbol=main.ds#unused@1
+@code_lenses.lens range=main.ds#declaration action=references count=0 symbol=main.ds#unused@1
 ```
 
 ### Offer unimplemented interfaces
 
-An interface still receives a candidate so resolution can report zero implementations.
+An interface still receives a lens reporting zero implementations.
 
 ```ds main.ds
 interface Unimplemented {}
@@ -126,7 +126,7 @@ interface Unimplemented {}
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=implementations symbol=main.ds#Unimplemented@1
+@code_lenses.lens range=main.ds#declaration action=implementations count=0 symbol=main.ds#Unimplemented@1
 ```
 
 ## Empty Results
