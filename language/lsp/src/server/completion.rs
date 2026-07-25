@@ -2,7 +2,7 @@ use destack_lsp_types as lsp;
 use destack_query as query;
 
 /// Convert completion kind to LSP completion item kind.
-pub(super) fn completion_kind_to_lsp(kind: query::CompletionKind) -> lsp::CompletionItemKind {
+pub(super) fn kind(kind: query::CompletionKind) -> lsp::CompletionItemKind {
     match kind {
         query::CompletionKind::Text => lsp::CompletionItemKind::TEXT,
         query::CompletionKind::Method => lsp::CompletionItemKind::METHOD,

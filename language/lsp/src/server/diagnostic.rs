@@ -1,102 +1,36 @@
-use std::path::Path;
-use std::sync::Arc;
-
-use destack_core::StableHasher;
-use destack_lsp_types as lsp;
-use destack_query as query;
-use destack_source::{
-    Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticTag, File, FileId, Span,
-};
-use destack_workspace::{
-    DiagnosticSnapshot, DiagnosticsRequest, Error, ReloadReason, ReloadRequest, Workspace,
-};
-use serde_json::Value;
 use std::hash::Hash;
 
-use super::edit::patch_set_to_workspace_edit;
-use super::position::byte_span_to_range;
+use destack_core::StableHasher;
+use destack_lsp_server::jsonrpc;
+use destack_lsp_types as lsp;
+use destack_query as query;
+use destack_source::{Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticTag, File, Span};
+use serde_json::Value;
 
-/// Return diagnostic snapshots for one root.
-pub(super) fn diagnostic_root_snapshots(
-    workspace: &dyn Workspace,
-    root: &Path,
-) -> Result<Vec<DiagnosticSnapshot>, Error> {
-    let revision = workspace.revision(root)?;
-    let views = workspace.diagnostics(DiagnosticsRequest::Root(root.to_path_buf()))?;
-
-    Ok(views
-        .iter()
-        .map(|view| DiagnosticSnapshot::new(revision, view))
-        .collect())
-}
-
-/// Return diagnostic snapshots for the root owning one path.
-pub(super) fn diagnostic_path_snapshots(
-    workspace: &dyn Workspace,
-    path: &Path,
-) -> Result<Vec<DiagnosticSnapshot>, Error> {
-    let root = workspace.root(path)?;
-
-    diagnostic_root_snapshots(workspace, &root)
-}
-
-/// Return one diagnostic snapshot for a path.
-pub(super) fn diagnostic_file_snapshot(
-    workspace: &dyn Workspace,
-    path: &Path,
-) -> Result<Option<DiagnosticSnapshot>, Error> {
-    let root = workspace.root(path)?;
-    let revision = workspace.revision(&root)?;
-    let views = workspace.diagnostics(DiagnosticsRequest::File(path.to_path_buf()))?;
-
-    Ok(views
-        .first()
-        .map(|view| DiagnosticSnapshot::new(revision, view)))
-}
-
-/// Return diagnostic snapshots for every open root.
-pub(super) fn diagnostic_snapshots(
-    workspace: &dyn Workspace,
-) -> Result<Vec<DiagnosticSnapshot>, Error> {
-    let mut diagnostics = Vec::new();
-    for root in workspace.roots() {
-        diagnostics.extend(diagnostic_root_snapshots(workspace, &root)?);
-    }
-
-    Ok(diagnostics)
-}
-
-/// Reload all roots and return current diagnostic snapshots.
-pub(super) fn reload_diagnostic_snapshots(
-    workspace: &dyn Workspace,
-) -> Result<Vec<DiagnosticSnapshot>, Error> {
-    workspace.reload(ReloadRequest {
-        roots: Vec::new(),
-        reason: ReloadReason::Manual,
-    })?;
-
-    diagnostic_snapshots(workspace)
-}
+use super::error::{internal_error, workspace_error};
+use super::source::SourceFiles;
+use super::{edit, position};
+use crate::uri;
 
 /// Convert a Destack diagnostic to an LSP diagnostic.
-pub(super) fn diagnostic_to_lsp_diagnostic<F>(
+pub(super) fn item(
     diagnostic: &Diagnostic,
-    file_for_id: &F,
-) -> Option<lsp::Diagnostic>
-where
-    F: Fn(FileId) -> Option<Arc<File>>,
-{
+    files: &SourceFiles,
+) -> jsonrpc::Result<lsp::Diagnostic> {
     let primary = diagnostic.primary_label();
-    let primary_file = file_for_id(primary.target.file())?;
+    let primary_file = files.file(primary.target.file()).map_err(workspace_error)?;
     if !label_matches_file(primary, &primary_file) {
-        return None;
+        return Err(internal_error(format!(
+            "diagnostic {} primary label does not match source file {:?}",
+            diagnostic.id, primary_file.id
+        )));
     }
 
     let primary_span = primary
         .target
         .span()
         .unwrap_or_else(|| Span::empty(primary.target.file()));
-    let range = byte_span_to_range(&primary_file, primary_span);
+    let range = position::range(&primary_file, primary_span)?;
 
     // severity
     let severity = match diagnostic.severity {
@@ -106,34 +40,32 @@ where
     };
 
     // related locations
-    let related_locations = diagnostic
-        .labels()
-        .filter_map(|label| {
-            let file = file_for_id(label.target.file())?;
-            if !label_matches_file(label, &file) {
-                return None;
-            }
+    let mut related_locations = Vec::with_capacity(diagnostic.labels.len());
+    for label in diagnostic.labels() {
+        let file = files.file(label.target.file()).map_err(workspace_error)?;
+        if !label_matches_file(label, &file) {
+            return Err(internal_error(format!(
+                "diagnostic {} label does not match source file {:?}",
+                diagnostic.id, file.id
+            )));
+        }
 
-            let uri = file.uri.as_ref().parse::<lsp::Uri>().ok()?;
+        let span = label
+            .target
+            .span()
+            .unwrap_or_else(|| Span::empty(label.target.file()));
+        let uri = uri::file(&file)?;
+        let range = position::range(&file, span)?;
+        let message = label
+            .message
+            .clone()
+            .unwrap_or_else(|| diagnostic.message.clone());
 
-            Some(lsp::DiagnosticRelatedInformation {
-                location: lsp::Location {
-                    uri,
-                    range: byte_span_to_range(
-                        &file,
-                        label
-                            .target
-                            .span()
-                            .unwrap_or_else(|| Span::empty(label.target.file())),
-                    ),
-                },
-                message: label
-                    .message
-                    .clone()
-                    .unwrap_or_else(|| "related location".to_string()),
-            })
-        })
-        .collect::<Vec<_>>();
+        related_locations.push(lsp::DiagnosticRelatedInformation {
+            location: lsp::Location { uri, range },
+            message,
+        });
+    }
     let related_information = if related_locations.is_empty() {
         None
     } else {
@@ -157,7 +89,7 @@ where
     };
 
     // diagnostic
-    Some(lsp::Diagnostic {
+    Ok(lsp::Diagnostic {
         range,
         severity,
         code: Some(lsp::NumberOrString::String(diagnostic.id.clone())),
@@ -171,22 +103,9 @@ where
 }
 
 /// Compute a deterministic result id for a diagnostics payload.
-pub(super) fn diagnostic_result_id(diagnostics: &[Diagnostic]) -> String {
+pub(super) fn result_id(diagnostics: &[Diagnostic]) -> String {
     let mut hasher = StableHasher::new();
-    diagnostics.len().hash(&mut hasher);
-    for diagnostic in diagnostics {
-        diagnostic.id.hash(&mut hasher);
-        diagnostic.message.hash(&mut hasher);
-        let primary = diagnostic.primary_label();
-        primary.content.hash(&mut hasher);
-        primary.target.hash(&mut hasher);
-        let severity = match diagnostic.severity {
-            DiagnosticSeverity::Error => 0u8,
-            DiagnosticSeverity::Warning => 1u8,
-            DiagnosticSeverity::Note => 2u8,
-        };
-        severity.hash(&mut hasher);
-    }
+    diagnostics.hash(&mut hasher);
 
     format!("{:x}", hasher.finish_u64())
 }
@@ -197,7 +116,7 @@ fn label_matches_file(label: &DiagnosticLabel, file: &File) -> bool {
 }
 
 /// Convert a workspace code action kind to an LSP code action kind.
-pub(super) fn code_action_kind_to_lsp(kind: query::CodeActionKind) -> lsp::CodeActionKind {
+fn code_action_kind(kind: query::CodeActionKind) -> lsp::CodeActionKind {
     match kind {
         query::CodeActionKind::QuickFix => lsp::CodeActionKind::QUICKFIX,
         query::CodeActionKind::Refactor => lsp::CodeActionKind::REFACTOR,
@@ -210,14 +129,14 @@ pub(super) fn code_action_kind_to_lsp(kind: query::CodeActionKind) -> lsp::CodeA
 }
 
 /// Convert a code action to an LSP code action.
-pub(super) fn code_action_to_lsp(
+pub(super) fn code_action(
     action: &query::CodeAction,
     include_edit: bool,
     data: Option<Value>,
-    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
-) -> Option<lsp::CodeActionOrCommand> {
+    files: &SourceFiles,
+) -> jsonrpc::Result<lsp::CodeActionOrCommand> {
     let edit = if include_edit && !action.patches.is_empty() {
-        Some(patch_set_to_workspace_edit(&action.patches, file_for_id))
+        Some(edit::workspace(&action.patches, files)?)
     } else {
         None
     };
@@ -229,9 +148,9 @@ pub(super) fn code_action_to_lsp(
             reason: reason.clone(),
         });
 
-    Some(lsp::CodeActionOrCommand::CodeAction(lsp::CodeAction {
+    Ok(lsp::CodeActionOrCommand::CodeAction(lsp::CodeAction {
         title: action.title.clone(),
-        kind: Some(code_action_kind_to_lsp(action.kind)),
+        kind: Some(code_action_kind(action.kind)),
         diagnostics: None,
         edit,
         command: None,

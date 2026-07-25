@@ -1,75 +1,133 @@
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
 
+use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::Revision;
-use destack_source::{File, FileId};
-use serde_json::{from_value, json, to_value};
+use destack_source::{File, Span};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use serde_json::{from_value, to_value};
 
-use super::position::{byte_span_to_range, span_to_location};
-use super::symbol::symbol_kind_to_lsp;
-use crate::uri::{lsp_uri_for_file, lsp_uri_for_path};
+use super::error::{internal_error, workspace_error};
+use super::source::SourceFiles;
+use super::{position, symbol};
+use crate::uri;
 
-/// Convert one navigation target to an LSP location.
-pub(super) fn navigation_target_to_location(
-    target: &query::NavigationTarget,
-    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
-) -> Option<lsp::Location> {
-    span_to_location(target.target.span, file_for_id)
+/// State carried between hierarchy requests.
+#[derive(Debug, Serialize, Deserialize)]
+pub(super) struct HierarchyContinuation<T> {
+    /// The workspace path that anchors the query program.
+    pub(super) path: PathBuf,
+    /// The semantic revision that produced the item.
+    pub(super) revision: Revision,
+    /// The query item expanded by the next request.
+    pub(super) item: T,
 }
 
-/// Convert navigation targets to LSP locations.
-pub(super) fn navigation_targets_to_locations(
+impl<T> HierarchyContinuation<T> {
+    /// Create hierarchy continuation state.
+    fn new(path: &Path, revision: Revision, item: T) -> Self {
+        Self {
+            path: path.to_path_buf(),
+            revision,
+            item,
+        }
+    }
+}
+
+impl<T: Serialize> HierarchyContinuation<T> {
+    /// Encode hierarchy continuation state for an LSP data field.
+    fn encode(self) -> jsonrpc::Result<serde_json::Value> {
+        to_value(self).map_err(internal_error)
+    }
+}
+
+impl<T: DeserializeOwned> HierarchyContinuation<T> {
+    /// Decode hierarchy continuation state from an LSP data field.
+    pub(super) fn decode(data: Option<&serde_json::Value>) -> Result<Self, String> {
+        let data = data.ok_or_else(|| "hierarchy item has no query payload".to_string())?;
+        from_value(data.clone())
+            .map_err(|error| format!("hierarchy item has an invalid query payload: {error}"))
+    }
+}
+
+/// Convert one navigation target to an LSP location link.
+fn link(
+    target: &query::NavigationTarget,
+    files: &SourceFiles,
+) -> jsonrpc::Result<lsp::LocationLink> {
+    // map the authored origin
+    let origin_file = files
+        .file(target.origin.span.file)
+        .map_err(workspace_error)?;
+    let origin_selection_range = position::range(&origin_file, target.origin.span)?;
+
+    // map the destination ranges
+    let file = files
+        .file(target.target.span.file)
+        .map_err(workspace_error)?;
+    let target_uri = uri::file(&file)?;
+    let (target_range, target_selection_range) =
+        ranges(&file, target.target.span, target.target.selection_span)?;
+
+    Ok(lsp::LocationLink {
+        origin_selection_range: Some(origin_selection_range),
+        target_uri,
+        target_range,
+        target_selection_range,
+    })
+}
+
+/// Convert navigation targets to LSP location links.
+pub(super) fn links(
     targets: &[query::NavigationTarget],
-    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
-) -> Vec<lsp::Location> {
-    targets
-        .iter()
-        .filter_map(|target| navigation_target_to_location(target, file_for_id))
-        .collect()
+    files: &SourceFiles,
+) -> jsonrpc::Result<Vec<lsp::LocationLink>> {
+    targets.iter().map(|target| link(target, files)).collect()
 }
 
 /// Convert a document highlight to an LSP document highlight.
-pub(super) fn document_highlight_to_lsp(
+pub(super) fn highlight(
     file: &File,
     highlight: &query::Highlight,
-) -> Option<lsp::DocumentHighlight> {
-    let range = byte_span_to_range(file, highlight.range);
+) -> jsonrpc::Result<lsp::DocumentHighlight> {
+    let range = position::range(file, highlight.range)?;
     let kind = match highlight.kind {
-        query::HighlightKind::Text => Some(lsp::DocumentHighlightKind::TEXT),
-        query::HighlightKind::Read => Some(lsp::DocumentHighlightKind::READ),
-        query::HighlightKind::Write => Some(lsp::DocumentHighlightKind::WRITE),
+        query::HighlightKind::Text => lsp::DocumentHighlightKind::TEXT,
+        query::HighlightKind::Read => lsp::DocumentHighlightKind::READ,
+        query::HighlightKind::Write => lsp::DocumentHighlightKind::WRITE,
     };
-    Some(lsp::DocumentHighlight { range, kind })
+
+    Ok(lsp::DocumentHighlight {
+        range,
+        kind: Some(kind),
+    })
 }
 
 /// Convert a document symbol to an LSP document symbol.
 #[allow(deprecated)]
-pub(super) fn document_symbol_to_lsp(
+pub(super) fn outline(
     file: &File,
-    symbol: &query::Symbol,
-) -> Option<lsp::DocumentSymbol> {
-    let range = byte_span_to_range(file, symbol.range);
-    let selection_range = byte_span_to_range(file, symbol.selection_range);
-    let kind = symbol_kind_to_lsp(symbol.kind);
+    symbol: &query::OutlineSymbol,
+) -> jsonrpc::Result<lsp::DocumentSymbol> {
+    let (range, selection_range) = ranges(file, symbol.range, symbol.selection_range)?;
+    let kind = symbol::kind(symbol.kind);
 
     // recursively convert children
     let children = if symbol.children.is_empty() {
         None
     } else {
-        let converted: Vec<_> = symbol
+        let converted = symbol
             .children
             .iter()
-            .filter_map(|c| document_symbol_to_lsp(file, c))
-            .collect();
-        if converted.is_empty() {
-            None
-        } else {
-            Some(converted)
-        }
+            .map(|child| outline(file, child))
+            .collect::<jsonrpc::Result<Vec<_>>>()?;
+
+        Some(converted)
     };
 
-    Some(lsp::DocumentSymbol {
+    Ok(lsp::DocumentSymbol {
         name: symbol.name.clone(),
         detail: symbol.detail.clone(),
         kind,
@@ -82,70 +140,60 @@ pub(super) fn document_symbol_to_lsp(
 }
 
 /// Convert a selection range to an LSP selection range.
-pub(super) fn selection_range_to_lsp(
+pub(super) fn selection(
     file: &File,
     range: query::SelectionRange,
-) -> lsp::SelectionRange {
-    let lsp_range = byte_span_to_range(file, range.range);
+) -> jsonrpc::Result<lsp::SelectionRange> {
+    let lsp_range = position::range(file, range.range)?;
     let parent = range
         .parent
-        .map(|p| Box::new(selection_range_to_lsp(file, *p)));
-    lsp::SelectionRange {
+        .map(|parent| selection(file, *parent).map(Box::new))
+        .transpose()?;
+
+    Ok(lsp::SelectionRange {
         range: lsp_range,
         parent,
-    }
+    })
 }
 
 /// Convert a document link to an LSP document link.
-pub(super) fn document_link_to_lsp(file: &File, link: &query::Link) -> Option<lsp::DocumentLink> {
-    let range = byte_span_to_range(file, link.range);
-    let target = match &link.target {
-        query::LinkTarget::File { path } => lsp_uri_for_path(path),
-        query::LinkTarget::Url { url } => url.parse::<lsp::Uri>().ok(),
-        query::LinkTarget::Position { path, line, column } => {
-            // encode position in fragment, e.g. file:///path#L10,5
-            file_position_uri_from_path_string(path, *line, *column)
-        }
-    };
-    Some(lsp::DocumentLink {
+pub(super) fn document_link(file: &File, link: &query::Link) -> jsonrpc::Result<lsp::DocumentLink> {
+    let range = position::range(file, link.range)?;
+    let target = uri::path(&link.path).ok_or_else(|| {
+        internal_error(format!(
+            "document link path has no representable LSP URI: {}",
+            link.path
+        ))
+    })?;
+
+    Ok(lsp::DocumentLink {
         range,
-        target,
+        target: Some(target),
         tooltip: link.tooltip.clone(),
         data: None,
     })
 }
 
-/// Build a file URI with a line and column fragment.
-fn file_position_uri_from_path_string(path: &str, line: u32, column: u32) -> Option<lsp::Uri> {
-    let uri = lsp_uri_for_path(path)?;
-    let uri = format!("{}#L{},{column}", uri.as_str(), line + 1);
-    uri.parse::<lsp::Uri>().ok()
-}
-
 /// Convert a call item to an LSP call item.
-pub(super) fn call_item_to_lsp(
+pub(super) fn call_item(
+    path: &Path,
     revision: Revision,
     item: &query::CallItem,
-    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
-) -> Option<lsp::CallHierarchyItem> {
-    let file = file_for_id(item.target.span.file)?;
-    let uri = lsp_uri_for_file(&file)?;
-    let range = byte_span_to_range(&file, item.target.span);
-    let selection_span = item.target.selection_span.unwrap_or(item.target.span);
-    let selection_range = byte_span_to_range(&file, selection_span);
+    files: &SourceFiles,
+) -> jsonrpc::Result<lsp::CallHierarchyItem> {
+    let file = files.file(item.target.span.file).map_err(workspace_error)?;
+    let uri = uri::file(&file)?;
+    let (range, selection_range) = ranges(&file, item.target.span, item.target.selection_span)?;
     let kind = match item.kind {
         query::CallItemKind::Function => lsp::SymbolKind::FUNCTION,
         query::CallItemKind::Method => lsp::SymbolKind::METHOD,
         query::CallItemKind::Constructor => lsp::SymbolKind::CONSTRUCTOR,
     };
 
-    let query_item = to_value(item).ok()?;
-    let data = Some(json!({
-        "revision": revision,
-        "query_item": query_item,
-    }));
+    let continuation = HierarchyContinuation::new(path, revision, item.clone());
+    let data = Some(continuation.encode()?);
 
-    Some(lsp::CallHierarchyItem {
+    Ok(lsp::CallHierarchyItem {
         name: item.name.clone(),
         kind,
         tags: None,
@@ -155,75 +203,77 @@ pub(super) fn call_item_to_lsp(
         selection_range,
         data,
     })
-}
-
-/// Extract a query call item and revision from lsp item data.
-pub(super) fn call_item_from_lsp(
-    item: &lsp::CallHierarchyItem,
-) -> Option<(Revision, query::CallItem)> {
-    let data = item.data.as_ref()?;
-    let revision = data.get("revision")?.clone();
-    let revision = from_value(revision).ok()?;
-    let query_item = data.get("query_item")?.clone();
-    let query_item = from_value(query_item).ok()?;
-
-    Some((revision, query_item))
 }
 
 /// Convert an incoming call to LSP format.
-pub(super) fn incoming_call_to_lsp(
+pub(super) fn incoming_call(
+    path: &Path,
     revision: Revision,
     call: &query::IncomingCall,
-    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
-) -> Option<lsp::CallHierarchyIncomingCall> {
-    let from = call_item_to_lsp(revision, &call.from, file_for_id)?;
-    let file = file_for_id(call.from.target.span.file)?;
+    files: &SourceFiles,
+) -> jsonrpc::Result<lsp::CallHierarchyIncomingCall> {
+    let from = call_item(path, revision, &call.from, files)?;
+    let file = files
+        .file(call.from.target.span.file)
+        .map_err(workspace_error)?;
+    if let Some(span) = call.from_ranges.iter().find(|span| span.file != file.id) {
+        return Err(internal_error(format!(
+            "incoming call range belongs to another file: {span:?}"
+        )));
+    }
     let from_ranges = call
         .from_ranges
         .iter()
-        .map(|span| byte_span_to_range(&file, *span))
-        .collect();
+        .map(|span| position::range(&file, *span))
+        .collect::<jsonrpc::Result<Vec<_>>>()?;
 
-    Some(lsp::CallHierarchyIncomingCall { from, from_ranges })
+    Ok(lsp::CallHierarchyIncomingCall { from, from_ranges })
 }
 
 /// Convert an outgoing call to LSP format.
-pub(super) fn outgoing_call_to_lsp(
+pub(super) fn outgoing_call(
+    path: &Path,
     revision: Revision,
     call: &query::OutgoingCall,
-    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
-) -> Option<lsp::CallHierarchyOutgoingCall> {
-    let to = call_item_to_lsp(revision, &call.to, file_for_id)?;
+    source_file: &File,
+    files: &SourceFiles,
+) -> jsonrpc::Result<lsp::CallHierarchyOutgoingCall> {
+    let to = call_item(path, revision, &call.to, files)?;
+    if let Some(span) = call
+        .from_ranges
+        .iter()
+        .find(|span| span.file != source_file.id)
+    {
+        return Err(internal_error(format!(
+            "outgoing call range belongs to another file: {span:?}"
+        )));
+    }
 
     let from_ranges = call
         .from_ranges
         .iter()
-        .filter_map(|span| file_for_id(span.file).map(|file| byte_span_to_range(&file, *span)))
-        .collect();
+        .map(|span| position::range(source_file, *span))
+        .collect::<jsonrpc::Result<Vec<_>>>()?;
 
-    Some(lsp::CallHierarchyOutgoingCall { to, from_ranges })
+    Ok(lsp::CallHierarchyOutgoingCall { to, from_ranges })
 }
 
 /// Convert a type item to an LSP type hierarchy item.
-pub(super) fn type_item_to_lsp(
+pub(super) fn type_item(
+    path: &Path,
     revision: Revision,
     item: &query::TypeItem,
-    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
-) -> Option<lsp::TypeHierarchyItem> {
-    let file = file_for_id(item.target.span.file)?;
-    let uri = lsp_uri_for_file(&file)?;
-    let range = byte_span_to_range(&file, item.target.span);
-    let selection_span = item.target.selection_span.unwrap_or(item.target.span);
-    let selection_range = byte_span_to_range(&file, selection_span);
-    let kind = symbol_kind_to_lsp(item.kind);
+    files: &SourceFiles,
+) -> jsonrpc::Result<lsp::TypeHierarchyItem> {
+    let file = files.file(item.target.span.file).map_err(workspace_error)?;
+    let uri = uri::file(&file)?;
+    let (range, selection_range) = ranges(&file, item.target.span, item.target.selection_span)?;
+    let kind = symbol::kind(item.kind);
 
-    let query_item = to_value(item).ok()?;
-    let data = Some(json!({
-        "revision": revision,
-        "query_item": query_item,
-    }));
+    let continuation = HierarchyContinuation::new(path, revision, item.clone());
+    let data = Some(continuation.encode()?);
 
-    Some(lsp::TypeHierarchyItem {
+    Ok(lsp::TypeHierarchyItem {
         name: item.name.clone(),
         kind,
         tags: None,
@@ -233,33 +283,22 @@ pub(super) fn type_item_to_lsp(
         selection_range,
         data,
     })
-}
-
-/// Extract a query type item and revision from lsp item data.
-pub(super) fn type_item_from_lsp(
-    item: &lsp::TypeHierarchyItem,
-) -> Option<(Revision, query::TypeItem)> {
-    let data = item.data.as_ref()?;
-    let revision = data.get("revision")?.clone();
-    let revision = from_value(revision).ok()?;
-    let query_item = data.get("query_item")?.clone();
-    let query_item = from_value(query_item).ok()?;
-
-    Some((revision, query_item))
 }
 
 /// Convert a symbol search to an LSP symbol search.
 #[allow(deprecated)]
-pub(super) fn workspace_symbol_to_lsp(
-    symbol: &query::SymbolMatch,
-    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
-) -> Option<lsp::SymbolInformation> {
-    let file = file_for_id(symbol.target.span.file)?;
-    let uri = lsp_uri_for_file(&file)?;
-    let range = byte_span_to_range(&file, symbol.target.span);
-    let kind = symbol_kind_to_lsp(symbol.kind);
+pub(super) fn search_symbol(
+    symbol: &query::SearchSymbol,
+    files: &SourceFiles,
+) -> jsonrpc::Result<lsp::SymbolInformation> {
+    let file = files
+        .file(symbol.target.span.file)
+        .map_err(workspace_error)?;
+    let uri = uri::file(&file)?;
+    let range = position::range(&file, symbol.target.span)?;
+    let kind = symbol::kind(symbol.kind);
 
-    Some(lsp::SymbolInformation {
+    Ok(lsp::SymbolInformation {
         name: symbol.name.clone(),
         kind,
         tags: None,
@@ -267,4 +306,25 @@ pub(super) fn workspace_symbol_to_lsp(
         location: lsp::Location { uri, range },
         container_name: symbol.container.clone(),
     })
+}
+
+/// Convert one full source range and its contained selection range.
+fn ranges(
+    file: &File,
+    range: Span,
+    selection_range: Span,
+) -> jsonrpc::Result<(lsp::Range, lsp::Range)> {
+    let is_contained = range.file == selection_range.file
+        && range.start <= selection_range.start
+        && selection_range.end <= range.end;
+    if !is_contained {
+        return Err(internal_error(format!(
+            "selection range {selection_range:?} is not contained by target range {range:?}"
+        )));
+    }
+
+    let range = position::range(file, range)?;
+    let selection_range = position::range(file, selection_range)?;
+
+    Ok((range, selection_range))
 }

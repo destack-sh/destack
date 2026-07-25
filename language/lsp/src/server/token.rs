@@ -1,8 +1,10 @@
+use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_source::File;
 
-use super::position::byte_to_utf16_position;
+use super::error::internal_error;
+use super::position;
 
 /// Semantic token types in legend order (index = type id).
 pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 22] = [
@@ -53,8 +55,8 @@ pub(super) fn legend() -> lsp::SemanticTokensLegend {
     }
 }
 
-/// Convert a query SemanticTokenType to legend index.
-fn token_type_to_index(token_type: query::SemanticTokenType) -> u32 {
+/// Return the legend index for a semantic token type.
+fn type_index(token_type: query::SemanticTokenType) -> u32 {
     match token_type {
         query::SemanticTokenType::Namespace => 0,
         query::SemanticTokenType::Type => 1,
@@ -78,15 +80,16 @@ fn token_type_to_index(token_type: query::SemanticTokenType) -> u32 {
         query::SemanticTokenType::Regexp => 19,
         query::SemanticTokenType::Operator => 20,
         query::SemanticTokenType::Decorator => 21,
-        query::SemanticTokenType::Label => 8, // map to variable (no LSP Label type)
+        // map labels to variables because LSP has no label token type
+        query::SemanticTokenType::Label => 8,
     }
 }
 
 /// Convert semantic tokens to delta-encoded LSP format.
-pub(super) fn tokens_to_lsp(
+pub(super) fn encode(
     file: &File,
     tokens: &[query::SemanticToken],
-) -> Vec<lsp::SemanticToken> {
+) -> jsonrpc::Result<Vec<lsp::SemanticToken>> {
     // set up delta encoding state
     let mut result = Vec::with_capacity(tokens.len());
     let mut prev_line = 0u32;
@@ -94,60 +97,79 @@ pub(super) fn tokens_to_lsp(
 
     // emit tokens in document order
     for token in tokens {
+        if token.span.file != file.id {
+            return Err(internal_error(format!(
+                "semantic token {:?} does not belong to source file {:?}",
+                token.span, file.id
+            )));
+        }
+
         // resolve token positions
-        let (start_line, start_char) = byte_to_utf16_position(file, token.span.start);
-        let (end_line, end_char) = byte_to_utf16_position(file, token.span.end);
+        let start = position::position(file, token.span.start)?;
+        let end = position::position(file, token.span.end)?;
 
         // cache type and modifiers for split segments
-        let token_type = token_type_to_index(token.token_type);
+        let token_type = type_index(token.token_type);
         let modifiers = token.modifiers.bits();
 
         // emit single line tokens
-        if start_line == end_line {
-            let length = end_char.saturating_sub(start_char);
+        if start.line == end.line {
+            let Some(length) = end.character.checked_sub(start.character) else {
+                return Err(internal_error(format!(
+                    "semantic token has reversed span: {:?}",
+                    token.span
+                )));
+            };
             if length == 0 {
-                continue;
+                return Err(internal_error(format!(
+                    "semantic token has an empty span: {:?}",
+                    token.span
+                )));
             }
             push_token(
                 &mut result,
                 &mut prev_line,
                 &mut prev_char,
-                start_line,
-                start_char,
+                start.line,
+                start.character,
                 length,
                 token_type,
                 modifiers,
-            );
+            )?;
             continue;
         }
 
         // emit first line segment
-        let Some(line_span) = file.get_line_span(start_line) else {
-            continue;
-        };
-        if let Some(length) = utf16_len_between(file, token.span.start, line_span.end)
-            && length > 0
-        {
+        let line_span = file.get_line_span(start.line).ok_or_else(|| {
+            internal_error(format!(
+                "semantic token starts outside source file: {:?}",
+                token.span
+            ))
+        })?;
+        let length = utf16_len_between(file, token.span.start, line_span.end)?;
+        if length > 0 {
             push_token(
                 &mut result,
                 &mut prev_line,
                 &mut prev_char,
-                start_line,
-                start_char,
+                start.line,
+                start.character,
                 length,
                 token_type,
                 modifiers,
-            );
+            )?;
         }
 
         // emit middle line segments
-        for line in (start_line + 1)..end_line {
-            let Some(line_span) = file.get_line_span(line) else {
-                continue;
-            };
-            if let Some(length) = utf16_len_between(file, line_span.start, line_span.end)
-                && length > 0
-            {
+        for line in (start.line + 1)..end.line {
+            let line_span = file.get_line_span(line).ok_or_else(|| {
+                internal_error(format!(
+                    "semantic token crosses a missing source line: {:?}",
+                    token.span
+                ))
+            })?;
+            let length = utf16_len_between(file, line_span.start, line_span.end)?;
+            if length > 0 {
                 push_token(
                     &mut result,
                     &mut prev_line,
@@ -157,35 +179,44 @@ pub(super) fn tokens_to_lsp(
                     length,
                     token_type,
                     modifiers,
-                );
+                )?;
             }
         }
 
         // emit last line segment
-        if end_char > 0 {
+        if end.character > 0 {
             push_token(
                 &mut result,
                 &mut prev_line,
                 &mut prev_char,
-                end_line,
+                end.line,
                 0,
-                end_char,
+                end.character,
                 token_type,
                 modifiers,
-            );
+            )?;
         }
     }
 
-    result
+    Ok(result)
 }
 
 /// Convert a byte span to utf16 length.
-fn utf16_len_between(file: &File, start: u32, end: u32) -> Option<u32> {
+fn utf16_len_between(file: &File, start: u32, end: u32) -> jsonrpc::Result<u32> {
     if start > end || end > file.len {
-        return None;
+        return Err(internal_error(format!(
+            "source range {start}..{end} is outside file {:?} with length {}",
+            file.id, file.len
+        )));
     }
-    let slice = &file.text()[start as usize..end as usize];
-    Some(slice.encode_utf16().count() as u32)
+    let Some(slice) = file.text().get(start as usize..end as usize) else {
+        return Err(internal_error(format!(
+            "source range {start}..{end} is not on character boundaries in file {:?}",
+            file.id
+        )));
+    };
+
+    Ok(slice.encode_utf16().count() as u32)
 }
 
 /// Push a token in delta encoded form.
@@ -199,11 +230,15 @@ fn push_token(
     length: u32,
     token_type: u32,
     modifiers: u32,
-) {
+) -> jsonrpc::Result<()> {
     // compute delta encoding
-    let delta_line = line.saturating_sub(*prev_line);
+    let Some(delta_line) = line.checked_sub(*prev_line) else {
+        return Err(internal_error("semantic tokens are not in source order"));
+    };
     let delta_start = if delta_line == 0 {
-        character.saturating_sub(*prev_char)
+        character
+            .checked_sub(*prev_char)
+            .ok_or_else(|| internal_error("semantic tokens are not in source order"))?
     } else {
         character
     };
@@ -219,4 +254,6 @@ fn push_token(
     // update previous position
     *prev_line = line;
     *prev_char = character;
+
+    Ok(())
 }

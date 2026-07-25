@@ -1,16 +1,18 @@
-use destack_formatter::{FormatFileError, format_source, format_source_range};
-use destack_lsp_types::TextEdit;
+use destack_formatter::{format_source, format_source_range};
+use destack_lsp_server::jsonrpc;
+use destack_lsp_types as lsp;
 use destack_repository::FormatterOptions;
 use destack_source::{DiagnosticSeverity, File, Span};
 
-use super::position::byte_span_to_range;
+use super::error::internal_error;
+use super::position;
 
 /// Format one file image and return a document edit.
 pub(super) fn file_edit(
     file: &File,
     formatter: FormatterOptions,
-) -> Result<Option<TextEdit>, FormatFileError> {
-    let formatted = format_source(file, file.text(), formatter)?;
+) -> jsonrpc::Result<Option<lsp::TextEdit>> {
+    let formatted = format_source(file, file.text(), formatter).map_err(internal_error)?;
     if formatted
         .diagnostics
         .has_diagnostics_of_severity(DiagnosticSeverity::Error)
@@ -18,8 +20,8 @@ pub(super) fn file_edit(
         return Ok(None);
     }
 
-    Ok(Some(TextEdit {
-        range: byte_span_to_range(file, Span::new(file.id, 0, file.len)),
+    Ok(Some(lsp::TextEdit {
+        range: position::range(file, Span::new(file.id, 0, file.len))?,
         new_text: formatted.text,
     }))
 }
@@ -30,8 +32,9 @@ pub(super) fn range_edit(
     formatter: FormatterOptions,
     start: u32,
     end: u32,
-) -> Result<Option<TextEdit>, FormatFileError> {
-    let formatted = format_source_range(file, file.text(), formatter, start, end)?;
+) -> jsonrpc::Result<Option<lsp::TextEdit>> {
+    let formatted =
+        format_source_range(file, file.text(), formatter, start, end).map_err(internal_error)?;
     if formatted
         .diagnostics
         .has_diagnostics_of_severity(DiagnosticSeverity::Error)
@@ -42,8 +45,8 @@ pub(super) fn range_edit(
         return Ok(None);
     };
 
-    Ok(Some(TextEdit {
-        range: byte_span_to_range(file, edit.span),
+    Ok(Some(lsp::TextEdit {
+        range: position::range(file, edit.span)?,
         new_text: edit.text,
     }))
 }

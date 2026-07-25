@@ -1,137 +1,112 @@
-use std::borrow::Cow;
-use std::cmp;
-use std::sync::Arc;
-
+use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
-use destack_source::{File, FileId, Span};
+use destack_source::{File, Span};
 
-use crate::uri::lsp_uri_for_file;
+use super::error::{internal_error, workspace_error};
+use super::source::SourceFiles;
+use crate::uri;
 
-/// Convert byte span to LSP range.
-pub(super) fn byte_span_to_range(source: &File, span: Span) -> lsp::Range {
-    let (start_line, start_column) = byte_to_utf16_position_clamped(source, span.start);
-    let (end_line, end_column) = byte_to_utf16_position_clamped(source, span.end);
-
-    lsp::Range {
-        start: lsp::Position {
-            line: start_line,
-            character: start_column,
-        },
-        end: lsp::Position {
-            line: end_line,
-            character: end_column,
-        },
+/// Convert one exact byte span to an LSP range.
+pub(super) fn range(source: &File, span: Span) -> jsonrpc::Result<lsp::Range> {
+    if span.file != source.id {
+        return Err(internal_error(format!(
+            "span {:?} does not belong to source file {:?}",
+            span, source.id
+        )));
     }
+    if span.start > span.end {
+        return Err(internal_error(format!("span is reversed: {span:?}")));
+    }
+
+    let start = position(source, span.start)?;
+    let end = position(source, span.end)?;
+
+    Ok(lsp::Range { start, end })
 }
 
-/// Convert LSP position to byte offset in source.
-pub(super) fn position_to_byte(source: &File, position: &lsp::Position) -> Option<u32> {
-    let line_start_offsets = line_start_offsets_for_file(source);
+/// Convert an LSP position to an exact byte offset in source.
+pub(super) fn offset(source: &File, position: &lsp::Position) -> jsonrpc::Result<u32> {
+    let line_start_offsets = source.line_start_offsets().ok_or_else(|| {
+        jsonrpc::Error::invalid_params(format!("source file {:?} has no line index", source.id))
+    })?;
 
-    // resolve the requested line range
+    // resolve the requested source line
     let line_index = position.line as usize;
-    let line_start = *line_start_offsets.get(line_index).unwrap_or(&source.len);
-    let next_start = line_start_offsets
-        .get(line_index + 1)
-        .copied()
+    let line_start = *line_start_offsets.get(line_index).ok_or_else(|| {
+        jsonrpc::Error::invalid_params(format!(
+            "line {} is outside source file {:?}",
+            position.line, source.id
+        ))
+    })?;
+    let next_line_start = line_start_offsets.get(line_index + 1).copied();
+    let line_end = next_line_start
+        .map(|offset| offset - 1)
         .unwrap_or(source.len);
-    let slice = &source.text()[line_start as usize..next_start as usize];
+    let line = source
+        .text()
+        .get(line_start as usize..line_end as usize)
+        .ok_or_else(|| {
+            internal_error(format!(
+                "line {} has an invalid byte range in source file {:?}",
+                position.line, source.id
+            ))
+        })?;
 
-    // walk UTF-16 units to the requested character
-    let mut utf16_units = 0u32;
-    let mut byte_offset = 0usize;
-    for character in slice.chars() {
-        if utf16_units >= position.character {
+    // resolve the requested UTF-16 column
+    let mut utf16_column = 0u32;
+    let mut byte_column = 0u32;
+    for character in line.chars() {
+        if utf16_column == position.character {
             break;
         }
 
-        let character_units = character.len_utf16() as u32;
-        if utf16_units + character_units > position.character {
-            break;
+        let character_width = character.len_utf16() as u32;
+        if utf16_column + character_width > position.character {
+            return Err(jsonrpc::Error::invalid_params(format!(
+                "character {} splits a UTF-16 surrogate pair on line {}",
+                position.character, position.line
+            )));
         }
 
-        utf16_units += character_units;
-        byte_offset += character.len_utf8();
+        utf16_column += character_width;
+        byte_column += character.len_utf8() as u32;
     }
 
-    // clamp columns past the line end
-    if utf16_units < position.character {
-        return Some(next_start);
+    if utf16_column != position.character {
+        return Err(jsonrpc::Error::invalid_params(format!(
+            "character {} is outside line {}",
+            position.character, position.line
+        )));
     }
 
-    Some(line_start + byte_offset as u32)
+    Ok(line_start + byte_column)
 }
 
-/// Convert byte offset to LSP position.
-pub(super) fn byte_to_utf16_position(source: &File, byte_index: u32) -> (u32, u32) {
-    byte_to_utf16_position_clamped(source, byte_index)
+/// Convert one exact byte offset to an LSP position.
+pub(super) fn position(source: &File, byte_index: u32) -> jsonrpc::Result<lsp::Position> {
+    let Some((line, byte_column)) = source.get_position(byte_index) else {
+        return Err(internal_error(format!(
+            "byte offset {byte_index} is outside source file {:?} with length {}",
+            source.id, source.len
+        )));
+    };
+    let line_start = byte_index - byte_column;
+    let Some(prefix) = source.text().get(line_start as usize..byte_index as usize) else {
+        return Err(internal_error(format!(
+            "byte offset {byte_index} is not a character boundary in source file {:?}",
+            source.id
+        )));
+    };
+    let character = prefix.encode_utf16().count() as u32;
+
+    Ok(lsp::Position { line, character })
 }
 
 /// Convert a span to an LSP location.
-pub(super) fn span_to_location(
-    span: Span,
-    file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
-) -> Option<lsp::Location> {
-    let file = file_for_id(span.file)?;
-    let range = byte_span_to_range(&file, span);
-    let uri = lsp_uri_for_file(&file)?;
+pub(super) fn location(span: Span, files: &SourceFiles) -> jsonrpc::Result<lsp::Location> {
+    let file = files.file(span.file).map_err(workspace_error)?;
+    let range = range(&file, span)?;
+    let uri = uri::file(&file)?;
 
-    Some(lsp::Location { uri, range })
-}
-
-/// Convert byte offset to LSP position with explicit end-of-file clamping.
-fn byte_to_utf16_position_clamped(source: &File, byte_index: u32) -> (u32, u32) {
-    let line_start_offsets = line_start_offsets_for_file(source);
-
-    // clamp out-of-bounds positions to end of file
-    let byte_index = cmp::min(byte_index, source.len);
-
-    // resolve the destination line for the clamped byte index
-    let line_index = match line_start_offsets.binary_search(&byte_index) {
-        Ok(index) => index as u32,
-        Err(index) => index.saturating_sub(1) as u32,
-    };
-    let line_start = line_start_offsets[line_index as usize];
-    let next_start = line_start_offsets
-        .get(line_index as usize + 1)
-        .copied()
-        .unwrap_or(source.len);
-    let slice = &source.text()[line_start as usize..next_start as usize];
-
-    // walk UTF-16 units to the target byte
-    let target_offset = (byte_index - line_start) as usize;
-    let mut consumed = 0usize;
-    let mut utf16_column = 0u32;
-    for character in slice.chars() {
-        if consumed >= target_offset {
-            break;
-        }
-
-        let length = character.len_utf8();
-        if consumed + length > target_offset {
-            break;
-        }
-
-        consumed += length;
-        utf16_column += character.len_utf16() as u32;
-    }
-
-    (line_index, utf16_column)
-}
-
-/// Return line-start offsets for one file, computing them when missing.
-fn line_start_offsets_for_file(source: &File) -> Cow<'_, [u32]> {
-    if let Some(line_start_offsets) = source.line_start_offsets() {
-        return Cow::Borrowed(line_start_offsets);
-    }
-
-    // derive offsets from text for loaded editor images
-    let mut line_start_offsets = vec![0];
-    for (offset, character) in source.text().char_indices() {
-        if character == '\n' {
-            line_start_offsets.push(offset as u32 + 1);
-        }
-    }
-
-    Cow::Owned(line_start_offsets)
+    Ok(lsp::Location { uri, range })
 }

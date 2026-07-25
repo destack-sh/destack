@@ -1,26 +1,98 @@
+use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 
 use destack_lsp_types as lsp;
-use destack_source::{File, TextChange, TextPosition, TextRange, WATCHABLE_FILE_TYPES};
-use destack_workspace::FileImage;
+use destack_repository::Revision;
+use destack_source::{File, FileId, TextChange, TextPosition, TextRange, WATCHABLE_FILE_TYPES};
+use destack_workspace::{Error, FileImagesRequest, Workspace};
+
+/// Source files loaded from one exact workspace revision.
+pub(super) struct SourceFiles {
+    /// Files keyed by source file id.
+    files: HashMap<FileId, Arc<File>>,
+}
+
+impl SourceFiles {
+    /// Create an empty source file set.
+    pub(super) fn new() -> Self {
+        Self {
+            files: HashMap::new(),
+        }
+    }
+
+    /// Load the requested source files from one exact revision.
+    pub(super) fn load(
+        workspace: &dyn Workspace,
+        path: &Path,
+        revision: Revision,
+        file_ids: impl IntoIterator<Item = FileId>,
+    ) -> Result<Self, Error> {
+        let mut requested: Vec<FileId> = file_ids.into_iter().collect();
+        requested.sort_unstable();
+        requested.dedup();
+        if requested.is_empty() {
+            return Ok(Self::new());
+        }
+
+        // load every file in one workspace request
+        let root = workspace.root(path)?;
+        let request = FileImagesRequest {
+            revision,
+            file_ids: requested.clone(),
+        };
+        let images = workspace.file_images(&root, request)?;
+        for image in &images {
+            if requested.binary_search(&image.id).is_err() {
+                return Err(Error::Internal {
+                    detail: format!("workspace returned unrequested file image {:?}", image.id),
+                });
+            }
+        }
+        let mut files = Self::new();
+        for image in images {
+            let file = Arc::new(image.into_file()?);
+            files.insert(file)?;
+        }
+
+        // require an exact response for the requested ids
+        if let Some(file_id) = requested
+            .iter()
+            .find(|file_id| !files.files.contains_key(file_id))
+        {
+            return Err(Error::Internal {
+                detail: format!("workspace omitted requested file image {file_id:?}"),
+            });
+        }
+
+        Ok(files)
+    }
+
+    /// Return one loaded source file.
+    pub(super) fn file(&self, file_id: FileId) -> Result<Arc<File>, Error> {
+        self.files
+            .get(&file_id)
+            .cloned()
+            .ok_or_else(|| Error::Internal {
+                detail: format!("source files do not contain requested file {file_id:?}"),
+            })
+    }
+
+    /// Add one exact source file.
+    pub(super) fn insert(&mut self, file: Arc<File>) -> Result<(), Error> {
+        let file_id = file.id;
+        if self.files.insert(file_id, file).is_some() {
+            return Err(Error::Internal {
+                detail: format!("source files contain duplicate file {file_id:?}"),
+            });
+        }
+
+        Ok(())
+    }
+}
 
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 1] = ["**/destack.json"];
-
-/// Build a source file from an image payload.
-pub(super) fn file_from_image(image: &FileImage) -> Option<Arc<File>> {
-    let content = image.content.as_ref()?;
-    let file = File::from_text(
-        image.id,
-        image.name.clone(),
-        image.uri.clone(),
-        image.path.clone(),
-        image.file_type,
-        content.to_string(),
-    );
-
-    Some(Arc::new(file))
-}
 
 /// Build file watcher patterns for the client.
 pub(super) fn file_watchers() -> Vec<lsp::FileSystemWatcher> {
@@ -57,9 +129,7 @@ pub(super) fn tracked_file_globs() -> Vec<&'static str> {
 }
 
 /// Convert LSP text changes into source text changes.
-pub(super) fn text_changes_from_lsp(
-    changes: Vec<lsp::TextDocumentContentChangeEvent>,
-) -> Vec<TextChange> {
+pub(super) fn changes(changes: Vec<lsp::TextDocumentContentChangeEvent>) -> Vec<TextChange> {
     changes
         .into_iter()
         .map(|change| TextChange {
