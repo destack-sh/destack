@@ -65,10 +65,10 @@ impl<'a> ModuleLowerer<'a> {
     /// Lower the module, returning the artifact and its diagnostics.
     pub(crate) fn lower(
         &mut self,
-        pointer_bytes: u8,
+        target_layout: mir::TargetLayout,
     ) -> CompilerResult<(MirLowered, Vec<Box<dyn DiagnosticLike>>)> {
         let mut builder = mir::ModuleBuilder::new();
-        builder.set_pointer_bytes(pointer_bytes);
+        builder.set_target_layout(target_layout);
 
         // declare identities: types, callable headers, globals, imports, instances
         let (bodies, mut errors) = self.declare_module(&mut builder)?;
@@ -90,10 +90,10 @@ impl<'a> ModuleLowerer<'a> {
             Err(error) => return Err(error),
         }
 
-        // compute layouts for every aggregate type in the module
-        let pointer_bytes = builder.pointer_bytes();
+        // compute layouts for every represented type in the module
+        let target = builder.target_layout();
         let (tree, layouts) = builder.tree_and_layouts_mut();
-        let mut layouts = LayoutBuilder::new(self.module, tree, layouts, pointer_bytes);
+        let mut layouts = LayoutBuilder::new(self.module, tree, layouts, target);
         layouts.layout_reachable_types()?;
 
         // publish dynamic dispatch over the laid-out types

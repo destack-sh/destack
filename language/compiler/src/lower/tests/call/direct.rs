@@ -25,8 +25,8 @@ entry(v0: int32):
 
 function test.main.quad(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call test.main.double(v0)
-    v2: int32 = call test.main.double(v1)
+    v1: int32 = call test.main.double(v0): (int32) => int32
+    v2: int32 = call test.main.double(v1): (int32) => int32
     return v2
 }
 "#,
@@ -56,7 +56,7 @@ entry:
 
 function test.main.run(v0: int32): int32 {
 entry(v0: int32):
-    call test.main.noop()
+    call test.main.noop(): () => void
     return v0
 }
 "#,

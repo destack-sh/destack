@@ -22,7 +22,7 @@ function sample(): float64 {
         r#"
 function test.main.sample(): float64 {
 entry:
-    v0: float64 = call destack.clock.now()
+    v0: float64 = call destack.clock.now(): () => float64
     return v0
 }
 

@@ -90,10 +90,10 @@ function test.main.tally(v0: int32): int32 {
 entry(v0: int32):
     v1: ref<Counter, managed, mutable> = new.zeroed Counter
     v2: ref<Counter, borrowed, exclusive> = cast.bit v1 -> ref<Counter, borrowed, exclusive>
-    call test.main.Counter.constructor(v2, v0)
+    call test.main.Counter.constructor(v2, v0): (ref<Counter, borrowed, exclusive>, int32) => void
     local.set l0, v1
     v3: ref<Counter, managed, mutable> = local.get l0
-    v4: int32 = call test.main.Counter.bump(v3)
+    v4: int32 = call test.main.Counter.bump(v3): (ref<Counter, managed, mutable>) => int32
     v5: ref<Counter, managed, mutable> = local.get l0
     v6: ref<int32, borrowed, mutable> = field.address v5, 0
     v7: int32 = load v6
@@ -427,7 +427,7 @@ entry(v0: ref<Counter, borrowed, 'a, readonly>):
 function test.main.main(v0: ref<Counter, managed, mutable>): int32 {
 entry(v0: ref<Counter, managed, mutable>):
     v1: ref<Counter, borrowed, readonly> = cast.bit v0 -> ref<Counter, borrowed, readonly>
-    v2: int32 = call test.main.peek(v1)
+    v2: int32 = call test.main.peek(v1): (ref<Counter, borrowed, lifetime(0), readonly>) => int32
     return v2
 }
 /// @layout.struct name=Counter size=4 align=4
@@ -475,7 +475,7 @@ function test.main.own(v0: int32): int32 {
 
 entry(v0: int32):
     v1: ref<Counter, borrowed, exclusive> = local.address l0
-    call test.main.Counter.constructor(v1, v0)
+    call test.main.Counter.constructor(v1, v0): (ref<Counter, borrowed, exclusive>, int32) => void
     v2: Counter = local.get l0
     local.set l1, v2
     v3: Counter = local.get l1

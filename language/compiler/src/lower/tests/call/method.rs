@@ -48,7 +48,7 @@ entry:
     v2: Point = aggregate (v0, v1)
     local.set l0, v2
     v3: ref<Point, borrowed, exclusive> = local.address l0
-    v4: int32 = call test.main.Point.length(v3)
+    v4: int32 = call test.main.Point.length(v3): (ref<Point, borrowed, lifetime(0), exclusive>) => int32
     return v4
 }
 /// @layout.struct name=Point size=8 align=4
@@ -105,7 +105,7 @@ entry:
     local.set l0, v1
     v2: ref<Counter, borrowed, exclusive> = local.address l0
     v3: int32 = 5
-    call test.main.Counter.bump(v2, v3)
+    call test.main.Counter.bump(v2, v3): (ref<Counter, borrowed, lifetime(0), exclusive>, int32) => void
     v4: Counter = local.get l0
     v5: int32 = field.get v4, 0
     return v5
@@ -148,7 +148,7 @@ entry(v0: ref<User, managed, mutable>):
 
 function test.main.keep(v0: ref<User, managed, mutable>): ref<User, managed, mutable> {
 entry(v0: ref<User, managed, mutable>):
-    v1: ref<User, managed, mutable> = call test.main.User.identity(v0)
+    v1: ref<User, managed, mutable> = call test.main.User.identity(v0): (ref<User, managed, mutable>) => ref<User, managed, mutable>
     return v1
 }
 /// @layout.struct name=User size=4 align=4
@@ -198,7 +198,7 @@ function test.main.probe(v0: Status): boolean {
 entry(v0: Status):
     local.set l0, v0
     v1: ref<Status, borrowed, exclusive> = local.address l0
-    v2: boolean = call test.main.Status.isActive(v1)
+    v2: boolean = call test.main.Status.isActive(v1): (ref<Status, borrowed, lifetime(0), exclusive>) => boolean
     return v2
 }
 /// @layout.variant name=Status size=8 align=8
@@ -258,9 +258,9 @@ function test.main.open(): int32 {
 entry:
     v0: int32 = 7
     v1: ref<Box, borrowed, exclusive> = local.address l0
-    call test.main.Box.constructor(v1, v0)
+    call test.main.Box.constructor(v1, v0): (ref<Box, borrowed, exclusive>, int32) => void
     v2: Box = local.get l0
-    v3: int32 = call test.main.Box.unwrap(v2)
+    v3: int32 = call test.main.Box.unwrap(v2): (Box) => int32
     return v3
 }
 /// @layout.struct name=Box size=4 align=4

@@ -25,11 +25,11 @@ function test.main.choose(v0: int32, v1: int32, v2: boolean): float64 {
     local l0: int32
 
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.main.pick(v0, v1, v2)
+    v3: int32 = call test.main.pick(v0, v1, v2): (int32, int32, boolean) => int32
     local.set l0, v3
     v4: float64 = 1.5
     v5: float64 = 2.5
-    v6: float64 = call test.main.pick_1(v4, v5, v2)
+    v6: float64 = call test.main.pick_1(v4, v5, v2): (float64, float64, boolean) => float64
     return v6
 }
 
@@ -90,7 +90,7 @@ function keep(value: (int32, boolean)): (int32, boolean) {
         r#"
 function test.main.keep(v0: (int32, boolean)): (int32, boolean) {
 entry(v0: (int32, boolean)):
-    v1: (int32, boolean) = call test.main.identity(v0)
+    v1: (int32, boolean) = call test.main.identity(v0): ((int32, boolean)) => (int32, boolean)
     return v1
 }
 
@@ -198,7 +198,7 @@ function test.main.narrow(v0: boolean): float64 {
 entry(v0: boolean):
     v1: float64 = 1
     v2: float64 = 2
-    v3: float64 = call test.main.pick(v1, v2, v0)
+    v3: float64 = call test.main.pick(v1, v2, v0): (float64, float64, boolean) => float64
     return v3
 }
 
@@ -206,7 +206,7 @@ function test.main.wide(v0: boolean): float64 {
 entry(v0: boolean):
     v1: float64 = 30.5
     v2: float64 = 40.5
-    v3: float64 = call test.main.pick(v1, v2, v0)
+    v3: float64 = call test.main.pick(v1, v2, v0): (float64, float64, boolean) => float64
     return v3
 }
 
@@ -250,13 +250,13 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
         r#"
 function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.main.retry(v0, v1, v2)
+    v3: int32 = call test.main.retry(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
 function test.main.retry(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.main.pick(v0, v1, v2)
+    v3: int32 = call test.main.pick(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
@@ -305,7 +305,7 @@ function choose(low: int32, high: int32, flag: boolean): int32 {
         r#"
 function test.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.lib.pick(v0, v1, v2)
+    v3: int32 = call test.lib.pick(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
@@ -363,17 +363,71 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
         r#"
 function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.lib.retry(v0, v1, v2)
+    v3: int32 = call test.lib.retry(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
 function test.lib.retry(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.lib.pick(v0, v1, v2)
+    v3: int32 = call test.lib.pick(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
 function test.lib.pick(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    branch v2, b1, b2
+
+b1:
+    return v0
+
+b2:
+    return v1
+}
+"#,
+    );
+}
+
+#[test]
+fn test_lower_instance_names_under_a_named_package() {
+    let session = TestSession::builder()
+        .module(
+            "destack.json",
+            r#"{
+  "name": "app",
+  "compiler": {
+    "emitStats": true,
+    "emitEvents": true,
+    "emitCheckedTypes": true
+  }
+}"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+function pick<T>(chosen: T, other: T, flag: boolean): T {
+    if (flag) {
+        return chosen;
+    }
+    return other;
+}
+
+function choose(low: int32, high: int32, flag: boolean): int32 {
+    return pick(low, high, flag);
+}
+"#,
+        )
+        .build();
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function app.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
+entry(v0: int32, v1: int32, v2: boolean):
+    v3: int32 = call app.main.pick(v0, v1, v2): (int32, int32, boolean) => int32
+    return v3
+}
+
+function app.main.pick(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 

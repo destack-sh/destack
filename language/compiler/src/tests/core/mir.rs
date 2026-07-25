@@ -1,7 +1,9 @@
+use bytecode::{BytecodeFormatOptions, format_bytecode};
 use destack_artifact::{
     ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DiagnosticLike, DiagnosticRecord, MirLowered,
+    DiagnosticError, DiagnosticLike, DiagnosticRecord, MirLowered, MirOptimized,
 };
+use destack_bytecode as bytecode;
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{ProviderContext, Revision};
@@ -10,6 +12,10 @@ use destack_source::{
     PackageId, ProfileId, Span, TargetId, Uri,
 };
 use std::sync::Arc;
+
+use crate::lower::LayoutBuilder;
+use crate::tests::snapshot::assert_snapshot;
+use crate::{BytecodeEmitter, ObjectEmitter};
 
 /// MIR program under compiler tests.
 pub(crate) struct TestProgram {
@@ -27,8 +33,8 @@ impl TestProgram {
         let file_id = FileId::new(0);
         let file = Arc::new(File::from_text(
             file_id,
-            "<test.mir>".to_string(),
-            Uri::from_string("<test.mir>"),
+            "<test.dsm>".to_string(),
+            Uri::from_string("<test.dsm>"),
             None,
             FileType::Text,
             source.to_string(),
@@ -75,6 +81,66 @@ impl TestProgram {
     /// Return the test target id.
     pub(crate) fn target_id(&self) -> TargetId {
         test_target_id()
+    }
+
+    /// Assert emitted bytecode for this MIR program.
+    pub(crate) fn assert_bytecode(&self, expected: &str) -> bytecode::Object {
+        let mut tree = self.lowered.tree.clone();
+        let mut layouts = self.lowered.layouts.clone();
+
+        // complete physical layouts before exercising the emission boundary
+        let mut builder = LayoutBuilder::new(
+            self.module_id(),
+            &mut tree,
+            &mut layouts,
+            self.lowered.target,
+        );
+        builder
+            .layout_reachable_types()
+            .expect("test MIR layouts should lower");
+
+        let optimized = MirOptimized {
+            tree,
+            target: self.lowered.target,
+            types: self.lowered.types.clone(),
+            layouts,
+            dispatch: self.lowered.dispatch.clone(),
+            drops: self.lowered.drops.clone(),
+            memory: self.lowered.memory.clone(),
+            effects: self.lowered.effects.clone(),
+            profile: self.lowered.profile.clone(),
+        };
+
+        // emit and format the exact relocatable bytecode object
+        let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new())
+            .expect("test MIR should emit object metadata");
+        let mut function_names = optimized
+            .tree
+            .iter_nodes::<mir::Function>()
+            .map(|(id, function)| {
+                let index = object
+                    .function_index(id)
+                    .expect("emitted function should have an object index");
+                let name = self.strings.get(function.name).to_string();
+
+                (index, name)
+            })
+            .collect::<Vec<_>>();
+        function_names.sort_unstable_by_key(|(index, _)| *index);
+        let function_names = function_names
+            .into_iter()
+            .map(|(_, name)| name)
+            .collect::<Vec<_>>();
+        let (bytecode, _) = BytecodeEmitter::new(self.module_id(), &optimized, &object)
+            .emit()
+            .expect("test MIR should emit bytecode");
+        let formatted =
+            format_bytecode(&bytecode, &function_names, BytecodeFormatOptions::default())
+                .expect("test bytecode should format");
+
+        assert_snapshot(formatted, expected);
+
+        bytecode
     }
 
     /// Return the type id with one display name.

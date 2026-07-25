@@ -19,7 +19,7 @@ mod substitution;
 
 pub(in crate::lower) use alias::AliasForm;
 pub(in crate::lower) use dispatch::DynamicSource;
-pub(in crate::lower) use layout::LayoutBuilder;
+pub(crate) use layout::LayoutBuilder;
 pub(in crate::lower) use lifetime::LifetimeParameters;
 pub(in crate::lower) use lower::TypeLowerer;
 pub(in crate::lower) use nominal::*;

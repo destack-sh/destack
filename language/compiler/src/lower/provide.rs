@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, TargetArch,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
 };
 use destack_core::FxIndexMap;
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
 
 use crate::lower::{LowerModuleState, ModuleLowerer};
-use crate::{Compiler, CompilerError, CompilerResult};
+use crate::{Compiler, CompilerError, CompilerResult, LowerError};
 
 impl Compiler {
     /// Collect the lowering inputs for one module and target.
@@ -91,12 +91,14 @@ impl Compiler {
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("target '{target}' not found"),
                 })?;
-        let pointer_bytes = target_config
-            .native
-            .arch
-            .as_ref()
-            .map(TargetArch::pointer_bytes)
-            .unwrap_or(8);
+        let target_layout = self
+            .target_layout(&target_config, target)
+            .map_err(|message| LowerError::InvalidTarget {
+                anchor: target.package_id().into(),
+                package: target.package_id(),
+                target,
+                message,
+            })?;
 
         // load provider inputs
         let artifacts = self.artifact_reader(context);
@@ -179,7 +181,7 @@ impl Compiler {
             ),
         );
         let mut lowerer = ModuleLowerer::new(module, strings, modules);
-        let (lowered, mut errors) = lowerer.lower(pointer_bytes)?;
+        let (lowered, mut errors) = lowerer.lower(target_layout)?;
 
         // emit every lowering diagnostic and fail the artifact when any occurred
         let Some(last) = errors.pop() else {

@@ -1,8 +1,10 @@
 use crate::{Compiler, MaterializeError, MaterializeResult};
 
-use destack_source::ModuleId;
+use destack_dir as dir;
+use destack_heap as heap;
+use destack_program as program;
 use destack_repository::ProfileId;
-use {destack_dir as dir, destack_program as program, destack_heap as heap, destack_vm as vm};
+use destack_source::ModuleId;
 
 #[allow(dead_code)]
 impl Compiler {
@@ -26,7 +28,6 @@ impl Compiler {
     /// Convert an engine boundary value into a static term.
     pub(crate) fn value_to_static_term(
         &self,
-        _machine: &vm::Machine,
         _heap: &heap::Heap,
         value: &program::Value,
     ) -> Option<dir::StaticTerm> {
@@ -97,8 +98,12 @@ impl Compiler {
             }
         };
 
-        let expression_any =
-            tree.reserve_from(dir::NodeType::TypeExpression, anchor_id, scope, Some(parent_id));
+        let expression_any = tree.reserve_from(
+            dir::NodeType::TypeExpression,
+            anchor_id,
+            scope,
+            Some(parent_id),
+        );
         let expression_id = tree.insert(expression_any, expression);
 
         Ok(expression_id)
@@ -308,12 +313,8 @@ impl Compiler {
                     self.static_property_key_to_key(module_id, profile_id, anchor_id, *key)?;
 
                 // build the field value expression
-                let value_any = tree.reserve_from(
-                    dir::NodeType::Expression,
-                    anchor_id,
-                    scope,
-                    Some(parent_id),
-                );
+                let value_any =
+                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let value_expression = self.static_term_to_expression(
                     tree, types, module_id, profile_id, anchor_id, value_any, scope, value,
                 )?;
@@ -337,12 +338,8 @@ impl Compiler {
                     .transpose()?;
 
                 // build the method body expression
-                let body_any = tree.reserve_from(
-                    dir::NodeType::Expression,
-                    anchor_id,
-                    scope,
-                    Some(parent_id),
-                );
+                let body_any =
+                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let body_expression = self.static_term_to_expression(
                     tree, types, module_id, profile_id, anchor_id, body_any, scope, body,
                 )?;
@@ -356,12 +353,8 @@ impl Compiler {
             }
             dir::StaticProperty::Spread { value } => {
                 // build the spread value expression
-                let value_any = tree.reserve_from(
-                    dir::NodeType::Expression,
-                    anchor_id,
-                    scope,
-                    Some(parent_id),
-                );
+                let value_any =
+                    tree.reserve_from(dir::NodeType::Expression, anchor_id, scope, Some(parent_id));
                 let value_expression = self.static_term_to_expression(
                     tree, types, module_id, profile_id, anchor_id, value_any, scope, value,
                 )?;

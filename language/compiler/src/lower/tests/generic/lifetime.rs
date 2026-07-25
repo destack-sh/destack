@@ -254,7 +254,7 @@ entry(v0: int32, v1: ref<User, borrowed, 'a, readonly>):
 function test.main.inspectManaged(v0: int32, v1: ref<User, managed, mutable>): int32 {
 entry(v0: int32, v1: ref<User, managed, mutable>):
     v2: ref<User, borrowed, readonly> = cast.bit v1 -> ref<User, borrowed, readonly>
-    v3: int32 = call test.main.inspect(v0, v2)
+    v3: int32 = call test.main.inspect(v0, v2): (int32, ref<User, borrowed, lifetime(0), readonly>) => int32
     return v3
 }
 

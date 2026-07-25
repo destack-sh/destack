@@ -142,7 +142,11 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         match terminator {
-            IntrinsicTerminator::TrapAbort => self.builder.trap_abort(),
+            IntrinsicTerminator::Abort => {
+                let values = self.lower_provided_arguments(resolution)?;
+
+                self.builder.abort(values.into_iter().next());
+            }
             IntrinsicTerminator::Unreachable => self.builder.unreachable(),
             IntrinsicTerminator::Panic => {
                 let values = self.lower_provided_arguments(resolution)?;
@@ -596,12 +600,13 @@ impl FunctionLowerer<'_, '_, '_> {
         let subject = self.lower_type(subject)?;
 
         let pointer_bytes = (self.builder.pointer_bits() / 8) as u8;
+        let target = mir::TargetLayout::for_pointer_bytes(pointer_bytes);
         let mut layouts = mir::LayoutTable::default();
         let mut builder = LayoutBuilder::new(
             self.lowerer.module,
             self.builder.tree_mut(),
             &mut layouts,
-            pointer_bytes,
+            target,
         );
         let id = builder.layout_type(subject)?;
 

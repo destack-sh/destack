@@ -28,7 +28,7 @@ function total(base: int32): int32 {
         r#"
 function test.main.total(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call test.math.add(v0, v0)
+    v1: int32 = call test.math.add(v0, v0): (int32, int32) => int32
     return v1
 }
 
@@ -79,7 +79,7 @@ function test.main.stretch(v0: int32): int32 {
     local l0: test.point.Point
 
 entry(v0: int32):
-    v1: test.point.Point = call test.point.diagonal(v0, v0)
+    v1: test.point.Point = call test.point.diagonal(v0, v0): (int32, int32) => test.point.Point
     local.set l0, v1
     v2: test.point.Point = local.get l0
     v3: int32 = field.get v2, 0
@@ -142,7 +142,7 @@ entry(v0: int32):
     v1: test.point.Point = aggregate (v0, v0)
     local.set l0, v1
     v2: ref<test.point.Point, borrowed, exclusive> = local.address l0
-    v3: int32 = call test.point.Point.length(v2)
+    v3: int32 = call test.point.Point.length(v2): (ref<test.point.Point, borrowed, lifetime(0), exclusive>) => int32
     return v3
 }
 
@@ -198,8 +198,8 @@ entry:
     v0: int32 = 7
     v1: ref<test.box.Box, managed, mutable> = new.zeroed test.box.Box
     v2: ref<test.box.Box, borrowed, exclusive> = cast.bit v1 -> ref<test.box.Box, borrowed, exclusive>
-    call test.box.Box.constructor(v2, v0)
-    v3: int32 = call test.box.Box.weigh(v1)
+    call test.box.Box.constructor(v2, v0): (ref<test.box.Box, borrowed, exclusive>, int32) => void
+    v3: int32 = call test.box.Box.weigh(v1): (ref<test.box.Box, managed, mutable>) => int32
     return v3
 }
 

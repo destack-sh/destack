@@ -66,7 +66,7 @@ entry:
     local.set l1, v5
     v6: ref<Vector, borrowed, exclusive> = local.address l0
     v7: Vector = local.get l1
-    v8: Vector = call test.main.Vector.add(v6, v7)
+    v8: Vector = call test.main.Vector.add(v6, v7): (ref<Vector, borrowed, lifetime(0), exclusive>, Vector) => Vector
     local.set l2, v8
     v9: Vector = local.get l2
     v10: int32 = field.get v9, 0
@@ -127,7 +127,7 @@ entry:
     v1: Charge = aggregate (v0)
     local.set l0, v1
     v2: ref<Charge, borrowed, exclusive> = local.address l0
-    v3: Charge = call test.main.Charge.negate(v2)
+    v3: Charge = call test.main.Charge.negate(v2): (ref<Charge, borrowed, lifetime(0), exclusive>) => Charge
     local.set l1, v3
     v4: Charge = local.get l1
     v5: int32 = field.get v4, 0

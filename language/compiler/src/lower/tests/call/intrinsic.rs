@@ -41,7 +41,7 @@ function bend(value: int32): int32 {
     session.assert_mir_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error id=unsupported-native-construct message="native compilation does not support the 'time.warp' intrinsic"
+/// @diagnostic.error id=unsupported-lower-construct message="MIR lowering does not support the 'time.warp' intrinsic"
 /// @diagnostic.label file="main.ds"
 "#,
     );
@@ -65,7 +65,7 @@ function halt(): int32 {
         r#"
 function test.main.halt(): int32 {
 entry:
-    trap.abort
+    abort
 
 b1:
     return
