@@ -147,8 +147,6 @@ pub enum RuntimeBinding {
     WriteBarrier,
     /// Runtime safepoint cooperation.
     Safepoint,
-    /// Coroutine suspension into the runtime scheduler.
-    Yield,
     /// Stop execution for host inspection.
     Stop,
     /// Native to bytecode deoptimization.
@@ -157,7 +155,7 @@ pub enum RuntimeBinding {
     Trap,
     /// Language panic exit.
     Panic,
-    /// Active language unwind continuation.
+    /// Continue the active language unwind.
     UnwindResume,
     /// Current worker-local execution context.
     ContextCurrent,
@@ -186,7 +184,6 @@ impl RuntimeBinding {
             Self::Unpin => "__destack_unpin",
             Self::WriteBarrier => "__destack_write_barrier",
             Self::Safepoint => "__destack_safepoint",
-            Self::Yield => "__destack_yield",
             Self::Stop => "__destack_stop",
             Self::Deopt => "__destack_deopt",
             Self::Trap => "__destack_trap",

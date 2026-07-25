@@ -3,7 +3,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use super::{NativeContext, NativeContinuation, NativeExitCode, NativeTrapCode, NativeValue};
+use super::{NativeContext, NativeExitCode, NativeTrapCode, NativeValue};
 
 /// Native runtime service status code.
 pub type NativeRuntimeStatusCode = u32;
@@ -110,32 +110,16 @@ pub type NativeWriteBarrier = unsafe extern "C" fn(
 ) -> NativeRuntimeStatusCode;
 
 /// Cooperate with the runtime at one native safepoint.
-pub type NativeSafepoint = unsafe extern "C" fn(
-    context: *mut NativeContext,
-    safepoint: u32,
-    continuation: NativeContinuation,
-) -> NativeRuntimeStatusCode;
-
-/// Suspend execution into the runtime scheduler.
-pub type NativeYield = unsafe extern "C" fn(
-    context: *mut NativeContext,
-    value: NativeValue,
-    continuation: NativeContinuation,
-) -> NativeExitCode;
+pub type NativeSafepoint =
+    unsafe extern "C" fn(context: *mut NativeContext, safepoint: u32) -> NativeRuntimeStatusCode;
 
 /// Stop execution for host inspection.
-pub type NativeStop = unsafe extern "C" fn(
-    context: *mut NativeContext,
-    safepoint: u32,
-    continuation: NativeContinuation,
-) -> NativeExitCode;
+pub type NativeStop =
+    unsafe extern "C" fn(context: *mut NativeContext, safepoint: u32) -> NativeExitCode;
 
-/// Deoptimize native execution into continuation state.
-pub type NativeDeopt = unsafe extern "C" fn(
-    context: *mut NativeContext,
-    safepoint: u32,
-    continuation: NativeContinuation,
-) -> NativeExitCode;
+/// Deoptimize native execution into interpreter state.
+pub type NativeDeopt =
+    unsafe extern "C" fn(context: *mut NativeContext, safepoint: u32) -> NativeExitCode;
 
 /// Report one native trap.
 pub type NativeTrapExit =

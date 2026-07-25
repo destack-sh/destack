@@ -14,8 +14,6 @@ use crate::{FrameStateId, FunctionId, TypeId};
 pub struct CodeMap {
     /// Native function code ranges.
     function: SectionSlice<FunctionCode>,
-    /// Native continuation resume code ranges.
-    resume: SectionSlice<ResumeCode>,
     /// Native safepoints keyed by safepoint id.
     safepoint: SectionSlice<Optional<Safepoint>>,
     /// Native roots referenced by safepoints.
@@ -27,8 +25,6 @@ pub struct CodeMap {
 pub struct CodeMapBuilder {
     /// Native function code ranges.
     functions: Vec<FunctionCode>,
-    /// Native continuation resume code ranges.
-    resumes: Vec<ResumeCode>,
     /// Native safepoints keyed by safepoint id.
     safepoints: Vec<Option<SafepointBuilder>>,
 }
@@ -42,13 +38,6 @@ impl CodeMapBuilder {
     /// Set native function code ranges.
     pub fn functions(mut self, functions: impl IntoIterator<Item = FunctionCode>) -> Self {
         self.functions = functions.into_iter().collect();
-
-        self
-    }
-
-    /// Set native continuation resume code ranges.
-    pub fn resumes(mut self, resumes: impl IntoIterator<Item = ResumeCode>) -> Self {
-        self.resumes = resumes.into_iter().collect();
 
         self
     }
@@ -75,7 +64,6 @@ impl CodeMapBuilder {
 
         CodeMap {
             function: sections.insert(self.functions),
-            resume: sections.insert(self.resumes),
             safepoint: sections.insert(safepoints),
             root: sections.insert(roots.into_entries()),
         }
@@ -91,11 +79,6 @@ impl CodeMap {
     /// Return native function code ranges.
     pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [FunctionCode] {
         sections.entries(self.function)
-    }
-
-    /// Return native resume code ranges.
-    pub fn resumes<'a>(&self, sections: SectionImage<'a>) -> &'a [ResumeCode] {
-        sections.entries(self.resume)
     }
 
     /// Return native safepoints.
@@ -133,23 +116,6 @@ impl FunctionCode {
     /// Create one native function code range.
     pub fn new(function: FunctionId, range: CodeRange) -> Self {
         Self { function, range }
-    }
-}
-
-/// One native resume entry code range.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct ResumeCode {
-    /// The frame state resumed by this range.
-    pub frame_state: FrameStateId,
-    /// The native code byte range.
-    pub range: CodeRange,
-}
-
-impl ResumeCode {
-    /// Create one native resume code range.
-    pub fn new(frame_state: FrameStateId, range: CodeRange) -> Self {
-        Self { frame_state, range }
     }
 }
 

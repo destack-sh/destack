@@ -12,16 +12,14 @@ pub type NativeExitCode = u32;
 pub enum NativeExitKind {
     /// Execution completed normally.
     Completed = 0,
-    /// Execution yielded a continuation.
-    Yielded = 1,
     /// Execution trapped.
-    Trapped = 2,
-    /// Execution deoptimized into continuation state.
-    Deoptimized = 3,
+    Trapped = 1,
+    /// Execution deoptimized into interpreter state.
+    Deoptimized = 2,
     /// Execution stopped with a language panic.
-    Panicked = 4,
+    Panicked = 3,
     /// Execution stopped for host inspection.
-    Stopped = 5,
+    Stopped = 4,
 }
 
 impl NativeExitKind {
@@ -52,11 +50,10 @@ impl TryFrom<NativeExitCode> for NativeExitKind {
     fn try_from(code: NativeExitCode) -> Result<Self, Self::Error> {
         match code {
             0 => Ok(Self::Completed),
-            1 => Ok(Self::Yielded),
-            2 => Ok(Self::Trapped),
-            3 => Ok(Self::Deoptimized),
-            4 => Ok(Self::Panicked),
-            5 => Ok(Self::Stopped),
+            1 => Ok(Self::Trapped),
+            2 => Ok(Self::Deoptimized),
+            3 => Ok(Self::Panicked),
+            4 => Ok(Self::Stopped),
             code => Err(NativeExitError { code }),
         }
     }

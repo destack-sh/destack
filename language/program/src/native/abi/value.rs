@@ -3,7 +3,7 @@ use std::fmt;
 
 use destack_heap::{HeapReference, SharedHeapReference};
 
-use crate::{Value, ValueTag};
+use crate::{TypeId, Value, ValueTag};
 
 /// Native ABI value tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,8 +67,8 @@ impl NativeValue {
     }
 
     /// Encode one program value.
-    pub fn from_value(value: &Value) -> Self {
-        match value {
+    pub fn from_value(value: &Value) -> Result<Self, NativeValueError> {
+        let value = match value {
             Value::Void => Self::VOID,
             Value::Bool(value) => Self::new(NativeValueTag::Bool, 1, u64::from(*value), 0),
             Value::Int { value, width } => {
@@ -101,7 +101,12 @@ impl NativeValue {
                 *address as u64,
                 0,
             ),
-        }
+            Value::Words { ty, .. } => {
+                return Err(NativeValueError::UnsupportedValue { ty: *ty });
+            }
+        };
+
+        Ok(value)
     }
 
     /// Decode one program value.
@@ -241,6 +246,11 @@ pub enum NativeValueError {
         /// The value type being decoded.
         value_type: ValueTag,
     },
+    /// The native scalar ABI cannot carry one multiword value.
+    UnsupportedValue {
+        /// The unsupported program type.
+        ty: TypeId,
+    },
 }
 
 impl fmt::Display for NativeValueError {
@@ -256,6 +266,9 @@ impl fmt::Display for NativeValueError {
             Self::InvalidChar { value } => write!(formatter, "invalid native char value {value}"),
             Self::OutOfRange { value_type } => {
                 write!(formatter, "native value for {value_type:?} is out of range")
+            }
+            Self::UnsupportedValue { ty } => {
+                write!(formatter, "native scalar ABI cannot carry type {}", ty.0)
             }
         }
     }
