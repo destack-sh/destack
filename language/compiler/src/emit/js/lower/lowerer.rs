@@ -1,4 +1,3 @@
-use destack_artifact::{DirBound, DirParsed};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_js as js;
@@ -16,9 +15,9 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) source_strings: &'a StringPool,
 
     /// The DIR roots.
-    pub(crate) dir_roots: &'a Vec<dir::LocalNodeId<dir::Expression>>,
+    pub(crate) dir_roots: &'a [dir::LocalNodeId<dir::Expression>],
     /// The DIR tree.
-    pub(crate) dir_tree: &'a dir::Tree,
+    pub(crate) dir_tree: dir::View<'a>,
     /// The symbol table.
     pub(crate) symbols: dir::BindingTable<'static>,
     /// The type table.
@@ -140,9 +139,9 @@ impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowerer.
     pub(crate) fn new(
         module: &'a Module,
-        parsed: &'a DirParsed,
+        tree: dir::View<'a>,
+        roots: &'a [dir::LocalNodeId<dir::Expression>],
         source_strings: &'a StringPool,
-        bound: &'a DirBound,
         symbols: dir::BindingTable<'static>,
         types: &'a dir::TypeTable<'static>,
         statics: &'a dir::StaticTable<'static>,
@@ -155,8 +154,8 @@ impl<'a> ModuleLowerer<'a> {
         Self {
             module,
             source_strings,
-            dir_tree: &parsed.tree,
-            dir_roots: bound.roots.as_ref(),
+            dir_tree: tree,
+            dir_roots: roots,
             symbols,
             types,
             statics,

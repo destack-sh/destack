@@ -17,24 +17,6 @@ pub enum EmitError {
         target: String,
     },
 
-    /// Unresolved function reference.
-    #[diagnostic(id = "unresolved-function", message = "unresolved function: {name}")]
-    UnresolvedFunction {
-        anchor: DiagnosticAnchor,
-        module: ModuleId,
-        name: String,
-    },
-
-    /// Native code generation is unavailable.
-    #[diagnostic(
-        id = "native-emit-unavailable",
-        message = "native code generation is unavailable"
-    )]
-    NativeEmitUnavailable {
-        anchor: DiagnosticAnchor,
-        module: ModuleId,
-    },
-
     // -------------------------------------------------------------------------
     // types
     // -------------------------------------------------------------------------
@@ -75,28 +57,6 @@ pub enum EmitError {
         anchor: DiagnosticAnchor,
         module: ModuleId,
         message: String,
-    },
-
-    /// Unresolved construct.
-    #[diagnostic(id = "unresolved-construct", message = "unresolved construct")]
-    UnresolvedConstruct {
-        anchor: DiagnosticAnchor,
-        module: ModuleId,
-    },
-
-    // -------------------------------------------------------------------------
-    // bounds and access
-    // -------------------------------------------------------------------------
-    /// Out of bounds access (tuple/array element index).
-    #[diagnostic(
-        id = "out-of-bounds",
-        message = "index {index} out of bounds (len {len})"
-    )]
-    OutOfBounds {
-        anchor: DiagnosticAnchor,
-        module: ModuleId,
-        index: u32,
-        len: usize,
     },
 
     // -------------------------------------------------------------------------

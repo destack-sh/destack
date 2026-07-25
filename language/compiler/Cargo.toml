@@ -12,6 +12,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+destack_bytecode = { workspace = true }
 # language
 destack_artifact = { workspace = true }
 destack_artifact_macros = { workspace = true }
@@ -26,7 +27,6 @@ destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
 destack_source = { workspace = true }
-destack_vm = { workspace = true }
 destack_repository = { path = "../repository", default-features = false }
 
 # general

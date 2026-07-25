@@ -35,6 +35,9 @@ impl Compiler {
         let checked = artifacts
             .dir_checked(module_id, profile)
             .map_err(CompilerError::from)?;
+        let materialized = artifacts
+            .dir_materialized(module_id, profile)
+            .map_err(CompilerError::from)?;
 
         // emit one structured script
         let (script, errors) = ScriptGenerator::new(
@@ -45,6 +48,7 @@ impl Compiler {
             expanded,
             declared,
             checked,
+            materialized,
             self.repository.string_pool().clone(),
             target,
         )

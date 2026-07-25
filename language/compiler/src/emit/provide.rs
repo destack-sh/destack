@@ -1,10 +1,13 @@
-use crate::{Compiler, CompilerResult, EmitError};
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset};
-use destack_repository::ProviderContext;
 use std::sync::Arc;
 
-use destack_repository::ProfileId;
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset};
+use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
+
+use crate::{Compiler, CompilerError, CompilerResult, EmitError};
+
+use super::ObjectEmitter;
+use super::bytecode::BytecodeEmitter;
 
 impl Compiler {
     /// Collect inputs for one structured script.
@@ -25,30 +28,32 @@ impl Compiler {
                 })?;
         let mut dependencies = ArtifactDependencySet::default();
 
-        // declare the DIR tables used by JS emit
-        if target_config.uses_js_emit_pipeline() {
-            dependencies.require(ArtifactKey::dir_parsed(module));
-            dependencies.require(ArtifactKey::dir_bound(module, profile));
-            dependencies.require(ArtifactKey::dir_imported(module, profile));
-            dependencies.require(ArtifactKey::dir_expanded(module, profile));
-            dependencies.require(ArtifactKey::dir_checked(module, profile));
-        }
-        // reject unsupported script pipelines
-        else {
-            let input = self.script_input(module, profile, &target, &target_config)?;
-            dependencies.require(input);
+        if !target_config.emit.is_script() {
+            return Err(EmitError::UnsupportedTarget {
+                anchor: module.into(),
+                module,
+                target: target.to_string(),
+            }
+            .into());
         }
 
+        // declare the DIR tables consumed by script emission
+        dependencies.require(ArtifactKey::dir_parsed(module));
+        dependencies.require(ArtifactKey::dir_bound(module, profile));
+        dependencies.require(ArtifactKey::dir_imported(module, profile));
+        dependencies.require(ArtifactKey::dir_expanded(module, profile));
+        dependencies.require(ArtifactKey::dir_checked(module, profile));
+        dependencies.require(ArtifactKey::dir_materialized(module, profile));
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
         Ok(dependencies)
     }
 
-    /// Collect inputs for one compiled-code object.
+    /// Collect inputs for one Program object.
     pub(crate) fn collect_object(
         &self,
         module: ModuleId,
-        _profile: ProfileId,
+        profile: ProfileId,
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
@@ -62,9 +67,18 @@ impl Compiler {
                 })?;
         let mut dependencies = ArtifactDependencySet::default();
 
-        // resolve the object input
-        let input = self.object_input(module, &target, &target_config)?;
-        dependencies.require(input);
+        if !target_config.emit.is_program() {
+            return Err(EmitError::UnsupportedTarget {
+                anchor: module.into(),
+                module,
+                target: target.to_string(),
+            }
+            .into());
+        }
+
+        // declare optimized code and its module dependency source
+        dependencies.require(ArtifactKey::mir_optimized(module, profile, target));
+        dependencies.require(ArtifactKey::dir_resolved(module, profile));
 
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
@@ -75,22 +89,12 @@ impl Compiler {
     pub(crate) fn collect_asset(
         &self,
         module: ModuleId,
-        profile: ProfileId,
+        _profile: ProfileId,
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
-        // the asset input depends on the source payload
-        let target_config =
-            self.target_or_builtin(context, target)?
-                .ok_or_else(|| EmitError::Internal {
-                    anchor: module.into(),
-                    module,
-                    message: format!("target '{target}' not found"),
-                })?;
-        let input = self.asset_input(module, profile, &target, &target_config)?;
-
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(input);
+        dependencies.require(ArtifactKey::data(module));
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
         Ok(dependencies)
@@ -113,7 +117,7 @@ impl Compiler {
                     message: format!("target '{target}' not found"),
                 })?;
         let target_name = self.target_name(context.revision(), target)?;
-        let resolved_profile = self.profile_id_for_target(context.revision(), module, &target)?;
+        let resolved_profile = self.profile_id_for_target(context.revision(), &target)?;
         if resolved_profile != profile {
             return Err(EmitError::Internal {
                 anchor: module.into(),
@@ -125,21 +129,23 @@ impl Compiler {
             .into());
         }
 
-        // emit script from the declared input
+        if !target_config.emit.is_script() {
+            return Err(EmitError::UnsupportedTarget {
+                anchor: module.into(),
+                module,
+                target: target_name,
+            }
+            .into());
+        }
+
+        // emit script from materialized DIR
         let artifacts = self.artifact_reader(context);
-        let output = self.emit_target_script(
-            module,
-            profile,
-            &target_config,
-            &target_name,
-            context,
-            &artifacts,
-        )?;
+        let output = self.emit_script(module, &target_config, profile, context, &artifacts)?;
 
         Ok(ArtifactPayload::Script(Arc::new(output)))
     }
 
-    /// Build one compiled-code object.
+    /// Build one Program object.
     pub(crate) fn provide_object(
         &self,
         module: ModuleId,
@@ -156,7 +162,7 @@ impl Compiler {
                     message: format!("target '{target}' not found"),
                 })?;
         let target_name = self.target_name(context.revision(), target)?;
-        let resolved_profile = self.profile_id_for_target(context.revision(), module, &target)?;
+        let resolved_profile = self.profile_id_for_target(context.revision(), &target)?;
         if resolved_profile != profile {
             return Err(EmitError::Internal {
                 anchor: module.into(),
@@ -167,9 +173,30 @@ impl Compiler {
             }
             .into());
         }
+        if !target_config.emit.is_program() {
+            return Err(EmitError::UnsupportedTarget {
+                anchor: module.into(),
+                module,
+                target: target_name,
+            }
+            .into());
+        }
 
-        // emit object from the declared input
-        let output = self.emit_target_object(module, &target_config, &target_name)?;
+        // preserve optimized MIR and its direct module dependencies
+        let artifacts = self.artifact_reader(context);
+        let mir = artifacts
+            .mir_optimized(module, profile, target)
+            .map_err(CompilerError::from)?;
+        let resolved = artifacts
+            .dir_resolved(module, profile)
+            .map_err(CompilerError::from)?;
+        let modules = resolved
+            .dependency_modules()
+            .filter(|target| *target != module)
+            .collect::<Vec<_>>();
+        let object = ObjectEmitter::new(module, &mir, modules)?;
+        let (bytecode, frames) = BytecodeEmitter::new(module, &mir, &object).emit()?;
+        let output = object.build(bytecode, frames);
 
         Ok(ArtifactPayload::Object(Arc::new(output)))
     }

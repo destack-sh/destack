@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed, EmitFormat, Script,
-    ScriptBody, ScriptLanguage,
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirMaterialized, DirParsed,
+    EmitFormat, Script, ScriptBody, ScriptLanguage,
 };
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
@@ -28,6 +28,8 @@ pub(crate) struct ScriptGenerator<'a> {
     declared: Arc<DirDeclared>,
     /// The current checked DIR artifact.
     checked: Arc<DirChecked>,
+    /// The current materialized DIR artifact.
+    materialized: Arc<DirMaterialized>,
     /// The shared string pool.
     strings: Arc<StringPool>,
     /// The target configuration.
@@ -44,6 +46,7 @@ impl<'a> ScriptGenerator<'a> {
         expanded: Arc<DirExpanded>,
         declared: Arc<DirDeclared>,
         checked: Arc<DirChecked>,
+        materialized: Arc<DirMaterialized>,
         strings: Arc<StringPool>,
         target: &'a Target,
     ) -> Self {
@@ -55,6 +58,7 @@ impl<'a> ScriptGenerator<'a> {
             expanded,
             declared,
             checked,
+            materialized,
             strings,
             target,
         }
@@ -63,7 +67,7 @@ impl<'a> ScriptGenerator<'a> {
     /// Emit one structured script.
     pub(crate) fn emit(self) -> Result<(Script, Vec<EmitError>), EmitError> {
         // validate target
-        if !self.target.uses_js_emit_pipeline() {
+        if !self.target.emit.is_script() {
             return Err(self.unsupported_target("expected JS, TS, or HTML".to_string()));
         }
 
@@ -75,6 +79,7 @@ impl<'a> ScriptGenerator<'a> {
         let expanded = self.expanded.as_ref();
         let declared = self.declared.as_ref();
         let checked = self.checked.as_ref();
+        let materialized = self.materialized.as_ref();
 
         // asset modules are linked directly in the JS linker
         if !module.is_code() {
@@ -94,6 +99,7 @@ impl<'a> ScriptGenerator<'a> {
             expanded,
             declared,
             checked,
+            materialized,
         )?;
         let errors = lower.errors;
 

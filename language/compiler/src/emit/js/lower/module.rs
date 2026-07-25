@@ -1,5 +1,8 @@
-use destack_artifact::{DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirParsed};
+use destack_artifact::{
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirMaterialized, DirParsed,
+};
 use destack_core::StringPool;
+use destack_dir as dir;
 use destack_js as js;
 use destack_repository::Module;
 
@@ -26,14 +29,25 @@ pub(in crate::emit::js) fn lower_module(
     expanded: &DirExpanded,
     declared: &DirDeclared,
     checked: &DirChecked,
+    materialized: &DirMaterialized,
 ) -> Result<ModuleLowerOutput, EmitError> {
-    let bindings = expanded.binding_table(bound);
+    let bindings = materialized.binding_table(bound, expanded);
     let modules = expanded.module_table(imported);
-    let types = checked.type_table(bound, expanded, declared);
-    let statics = checked.static_table(bound, expanded, declared);
-    let generics = checked.generic_table(declared);
+    let types = materialized.type_table(bound, expanded, declared, checked);
+    let statics = materialized.static_table(bound, expanded, declared, checked);
+    let generics = materialized.generic_table(declared, checked);
+    let patches = [expanded.patch.clone(), materialized.patch.clone()];
+    let view = dir::View::with_patches(&parsed.tree, &patches);
     let mut lowerer = ModuleLowerer::new(
-        module, parsed, strings, bound, bindings, &types, &statics, &generics, modules,
+        module,
+        view,
+        materialized.roots.as_ref(),
+        strings,
+        bindings,
+        &types,
+        &statics,
+        &generics,
+        modules,
     );
     lowerer.lower_module()?;
 
