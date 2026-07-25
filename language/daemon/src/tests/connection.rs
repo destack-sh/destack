@@ -9,8 +9,7 @@ use destack_repository::{
 };
 use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
 use destack_workspace::protocol::{
-    FileOperationRequest, FrameCodec, OpenRootRequest, RootOpenOptions, WorkspaceRequest,
-    WorkspaceResponse,
+    FileOperationRequest, FrameCodec, OpenRootRequest, WorkspaceRequest, WorkspaceResponse,
 };
 use destack_workspace::{
     Client, ClientOptions, ConnectOptions, FileOperation, IpcError, IpcListener, Service,
@@ -337,7 +336,6 @@ fn test_workspace_ipc_restart_resubscribe() {
     let connection = server.connect();
     let response = connection.send_request(WorkspaceRequest::OpenRoot(OpenRootRequest {
         root: server.root_path().to_path_buf(),
-        options: RootOpenOptions::default(),
     }));
     let handle_id = match response {
         Ok(WorkspaceResponse::RootOpened(response)) => response.handle,
@@ -372,7 +370,6 @@ fn test_workspace_ipc_restart_resubscribe() {
     let connection = server.connect();
     let response = connection.send_request(WorkspaceRequest::OpenRoot(OpenRootRequest {
         root: server.root_path().to_path_buf(),
-        options: RootOpenOptions::default(),
     }));
     let handle_id = match response {
         Ok(WorkspaceResponse::RootOpened(response)) => response.handle,

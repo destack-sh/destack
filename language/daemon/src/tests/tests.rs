@@ -9,11 +9,11 @@ use destack_source::{
     MemoryFileWatcher,
 };
 use destack_workspace::protocol::{
-    OpenRootRequest, RootId, RootOpenOptions, WatchBatch, WorkspaceRequest, WorkspaceResponse,
+    OpenRootRequest, RootId, WatchBatch, WorkspaceRequest, WorkspaceResponse,
 };
 use destack_workspace::{
     Client, ClientOptions, FileUpdate, LocalWorkspace, Server, ServerError, ServerOptions,
-    UpdateBatch, Watch, WatchPolicy, loopback_transport_pair, source_watch_options,
+    UpdateBatch, Watch, WatchPolicy, Workspace, loopback_transport_pair, source_watch_options,
 };
 
 use crate::{Daemon, OpenedWorkspace};
@@ -179,37 +179,49 @@ impl TestDaemon {
 
     /// Resolve the tracked file id for a path.
     pub fn file_id_for_path(&self, path: impl AsRef<Path>) -> FileId {
-        let path = self.path_for(path);
-        let view = self
-            .local_workspace()
-            .file_view(&path)
-            .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
-
-        view.file_id
+        self.file_for_path(path).id
     }
 
     /// Return the current revision scoped file snapshot for a path.
     pub fn file_for_path(&self, path: impl AsRef<Path>) -> Arc<destack_source::File> {
         let path = self.path_for(path);
-        let view = self
-            .local_workspace()
-            .file_view(&path)
-            .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
+        let workspace = self.local_workspace();
+        let root = workspace
+            .root_at(&path)
+            .unwrap_or_else(|error| panic!("missing root for {}: {error}", path.display()));
+        let session = workspace
+            .session(&root)
+            .unwrap_or_else(|error| panic!("missing session for {}: {error}", path.display()));
+        let revision = workspace
+            .revision(&root)
+            .unwrap_or_else(|error| panic!("missing revision for {}: {error}", path.display()));
+        let file_id = session.file_id(&path);
+        let mut files = workspace
+            .read_files(&root, revision, vec![file_id])
+            .unwrap_or_else(|error| panic!("missing file for {}: {error}", path.display()));
 
-        view.file
+        files
+            .pop()
+            .unwrap_or_else(|| panic!("missing file for {}", path.display()))
     }
 
     /// Return the current revision scoped module id for a path.
     pub fn module_id_for_path(&self, path: impl AsRef<Path>) -> destack_source::ModuleId {
         let path = self.path_for(path);
-        let view = self
-            .local_workspace()
-            .file_view(&path)
-            .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
-        let repository = view.repository();
+        let workspace = self.local_workspace();
+        let root = workspace
+            .root_at(&path)
+            .unwrap_or_else(|error| panic!("missing root for {}: {error}", path.display()));
+        let session = workspace
+            .session(&root)
+            .unwrap_or_else(|error| panic!("missing session for {}: {error}", path.display()));
+        let revision = workspace
+            .revision(&root)
+            .unwrap_or_else(|error| panic!("missing revision for {}: {error}", path.display()));
+        let file_id = session.file_id(&path);
 
-        repository
-            .module_id_for_file(view.revision(), view.file_id)
+        self.repository
+            .module_id_for_file(revision, file_id)
             .unwrap_or_else(|error| {
                 panic!(
                     "failed to resolve module id for '{}' in revision: {error}",
@@ -473,10 +485,7 @@ impl TestProtocolHarness {
 
     /// Open one explicit root and return the handle id.
     pub fn open_root_path(&self, root: PathBuf) -> RootId {
-        let open = OpenRootRequest {
-            root,
-            options: RootOpenOptions::default(),
-        };
+        let open = OpenRootRequest { root };
         match self.send_request(WorkspaceRequest::OpenRoot(open)) {
             WorkspaceResponse::RootOpened(response) => response.handle,
             other => panic!("unexpected response: {other:?}"),
