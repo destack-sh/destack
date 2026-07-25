@@ -1,41 +1,29 @@
-use super::assert_format_eq;
+use super::format_fixture;
 
-/// Format packed aggregate and variant operations canonically.
+/// Format physical aggregate byte placement and variant layouts canonically.
 #[test]
 fn test_format_aggregate_operations() {
-    assert_format_eq(
-        r#"
-type Pair
-
-type Choice
-export function values(r0:int32,r1:int32,r2:words<2>):int32{
-r4:words<2>=aggregate Pair(r0,r1)
-r6:int32=field.get r4,Pair,0
-r7:words<2>=field.set r4,Pair,1,r1
-r9:int32=element.get r7,Pair,0
-r10:words<2>=element.set r7,Pair,1,r0
-r12:words<2>=variant.new Choice,1,r1
-r14:uint32=variant.tag r12,Choice
-r15:int32=variant.payload r12,Choice,1
-return r15
+    let input = r#"
+function f0(): t0 {
+    aggregate r2,([r0,0,4],[r1,8,8])
+extract r4, r2,0,4
+insert r5, r2,8,8,r1
+variant.new r7, l1,1,r0
+variant.tag r9, r7,l1
+return r4
 }
-"#,
-        r#"
-type Pair
-
-type Choice
-
-export function values(r0: int32, r1: int32, r2: words<2>): int32 {
-    r4: words<2> = aggregate Pair (r0, r1)
-    r6: int32 = field.get r4, Pair, 0
-    r7: words<2> = field.set r4, Pair, 1, r1
-    r9: int32 = element.get r7, Pair, 0
-    r10: words<2> = element.set r7, Pair, 1, r0
-    r12: words<2> = variant.new Choice, 1, r1
-    r14: uint32 = variant.tag r12, Choice
-    r15: int32 = variant.payload r12, Choice, 1
-    return r15
+"#;
+    let expected = r#"
+function f0(): t0 {
+    aggregate r2, ([r0, 0, 4], [r1, 8, 8])
+    extract r4, r2, 0, 4
+    insert r5, r2, 8, 8, r1
+    variant.new r7, l1, 1, r0
+    variant.tag r9, r7, l1
+    return r4
 }
-"#,
-    );
+"#;
+
+    let formatted = format_fixture(input);
+    assert_eq!(formatted, expected.trim());
 }

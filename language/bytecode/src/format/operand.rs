@@ -1,8 +1,8 @@
 use destack_fir::format::{FormatError, FormatResult};
 
 use crate::{
-    CodeOffset, CounterId, DynamicRelocation, Error, Label, ReferenceType, RegisterId,
-    RegisterRange, SamplerId, Scalar, Symbol, ValueType, VectorType,
+    CodeOffset, CounterId, Error, Label, ReferenceType, RegisterId, Relocation, SamplerId,
+    TensorOperand, VectorType,
 };
 
 use super::instruction::InstructionFormatter;
@@ -20,18 +20,9 @@ impl<'code> InstructionFormatter<'code, '_, '_> {
         Ok(registers.collect())
     }
 
-    /// Read one packed register range as logical value ids.
-    pub(super) fn register_value_ids(&mut self) -> FormatResult<Vec<RegisterId>> {
-        let (start, word_count) = self.register_range_id()?;
-        let range = RegisterRange::new(start, word_count);
-        let registers = self.formatter.context().register_values(range)?;
-
-        Ok(registers)
-    }
-
     /// Read one contiguous register range id and width.
-    pub(super) fn register_range_id(&mut self) -> FormatResult<(RegisterId, u16)> {
-        let range = self.operands.range().map_err(FormatError::from)?;
+    pub(super) fn register_span_id(&mut self) -> FormatResult<(RegisterId, u16)> {
+        let range = self.operands.span().map_err(FormatError::from)?;
 
         Ok((range.start, range.word_count))
     }
@@ -41,19 +32,21 @@ impl<'code> InstructionFormatter<'code, '_, '_> {
         self.operands.vector_type().map_err(FormatError::from)
     }
 
-    /// Read one scalar representation operand.
-    pub(super) fn scalar(&mut self) -> FormatResult<Scalar> {
-        self.operands.scalar().map_err(FormatError::from)
-    }
-
     /// Read one reference representation operand.
     pub(super) fn reference(&mut self) -> FormatResult<ReferenceType> {
         self.operands.reference().map_err(FormatError::from)
     }
 
-    /// Read one complete bytecode value type operand.
-    pub(super) fn value_type(&mut self) -> FormatResult<ValueType> {
-        self.operands.value_type().map_err(FormatError::from)
+    /// Read one tensor register span and runtime type.
+    pub(super) fn tensor(&mut self) -> FormatResult<TensorOperand> {
+        self.operands.tensor().map_err(FormatError::from)
+    }
+
+    /// Read one counted tensor operand list.
+    pub(super) fn tensors(&mut self) -> FormatResult<Vec<TensorOperand>> {
+        let tensors = self.operands.tensors().map_err(FormatError::from)?;
+
+        Ok(tensors.collect())
     }
 
     /// Read one counted unsigned 16-bit list.
@@ -70,44 +63,31 @@ impl<'code> InstructionFormatter<'code, '_, '_> {
         Ok(values.collect())
     }
 
-    /// Read one relocated symbol name.
-    pub(super) fn symbol(&mut self) -> FormatResult<String> {
-        let target = self.symbol_target()?;
+    /// Read one relocated operand as canonical text.
+    pub(super) fn relocation_text(&mut self) -> FormatResult<String> {
+        let (relocation, index) = self.relocation()?;
 
-        self.formatter
-            .context()
-            .relocation_name(target)
-            .map(str::to_string)
+        self.formatter.context().relocation_text(relocation, index)
     }
 
-    /// Read one relocated symbol name and target.
-    pub(super) fn symbol_with_target(&mut self) -> FormatResult<(String, Symbol)> {
-        let target = self.symbol_target()?;
-        let name = self
+    /// Read one relocation and its canonical text.
+    pub(super) fn relocation_with_text(&mut self) -> FormatResult<(String, Relocation)> {
+        let (relocation, index) = self.relocation()?;
+        let text = self
             .formatter
             .context()
-            .relocation_name(target)?
-            .to_string();
+            .relocation_text(relocation, index)?;
 
-        Ok((name, target))
+        Ok((text, relocation))
     }
 
-    /// Read one relocated symbol target.
-    pub(super) fn symbol_target(&mut self) -> FormatResult<Symbol> {
+    /// Read one instruction relocation.
+    pub(super) fn relocation(&mut self) -> FormatResult<(Relocation, u32)> {
         let offset = self.operand_offset();
-        let target = self.formatter.context().relocation(offset)?;
-        self.u32()?;
+        let relocation = self.formatter.context().relocation(offset)?;
+        let index = self.u32()?;
 
-        Ok(target)
-    }
-
-    /// Read one dynamic dispatch table relocation.
-    pub(super) fn dynamic_relocation(&mut self) -> FormatResult<DynamicRelocation> {
-        let offset = self.operand_offset();
-        let relocation = self.formatter.context().dynamic_relocation(offset)?;
-        self.u32()?;
-
-        Ok(relocation)
+        Ok((relocation, index))
     }
 
     /// Return the next operand's function-local byte offset.

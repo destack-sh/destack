@@ -5,8 +5,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    BytecodeFormatContext, CodeOffset, CodeRange, Comparison, Label, Opcode, Scalar, ScalarCheck,
-    Trap,
+    BytecodeFormatContext, CodeOffset, CodeRange, Comparison, Label, Opcode, RegisterSpan,
+    RelocationTag, Scalar, ScalarCheck, Trap,
 };
 
 use super::instruction::InstructionFormatter;
@@ -219,6 +219,7 @@ impl InstructionFormatter<'_, '_, '_> {
             Opcode::JUMP => self.format_jump(),
             Opcode::BRANCH => self.format_boolean_branch(),
             Opcode::SWITCH => self.format_switch(),
+            Opcode::AWAIT => self.format_await(),
             Opcode::YIELD => self.format_yield(),
             Opcode::RETURN => self.format_return(),
             Opcode::TRAP => self.format_trap(),
@@ -271,40 +272,55 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_label(failure)
     }
 
-    /// Format one coroutine yield.
-    fn format_yield(&mut self) -> FormatResult<()> {
-        // write the resume result assignment
-        let function = *self.formatter.context().active_function()?;
-        let types = self.formatter.context().object.value_types();
-        self.results(function.body.resume_parameters(types))?;
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("yield")]
-        )?;
-
-        // write yielded logical values
-        let (value, word_count) = self.register_range_id()?;
-        let ty = self.value_type()?;
-        if word_count != ty.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "yield value range does not match its type",
-            });
-        }
-        if word_count > 0 {
-            let actual = self.formatter.context().register_type(value)?;
-            if actual != ty {
-                return Err(FormatError::SyntaxError {
-                    message: "yield value does not match its register type",
-                });
-            }
-
-            write!(self.formatter, [space()])?;
-            self.write_register(value)?;
-        }
-
-        // write resume and unwind destinations
+    /// Format one asynchronous suspension.
+    fn format_await(&mut self) -> FormatResult<()> {
+        // decode the complete suspension operation
+        let (results, result_count) = self.register_span_id()?;
+        let results = RegisterSpan::new(results, result_count);
+        let (park, relocation) = self.relocation_with_text()?;
+        let (awaitable, awaitable_count) = self.register_span_id()?;
+        let awaitable = RegisterSpan::new(awaitable, awaitable_count);
         let resume = self.branch()?;
         let unwind = self.branch()?;
+        if relocation.tag != RelocationTag::FUNCTION {
+            return Err(FormatError::SyntaxError {
+                message: "await does not reference a function",
+            });
+        }
+
+        // write the selected park function and awaitable value
+        self.write_token("await")?;
+        self.write_token(" ")?;
+        self.write_span(results)?;
+        self.write_comma()?;
+        self.write_text(&park)?;
+        self.write_comma()?;
+        self.write_span(awaitable)?;
+
+        self.write_suspension_targets(resume, unwind)
+    }
+
+    /// Format one generator suspension.
+    fn format_yield(&mut self) -> FormatResult<()> {
+        self.write_token("yield")?;
+        self.write_token(" ")?;
+        self.result_span()?;
+        self.write_comma()?;
+        let (start, word_count) = self.register_span_id()?;
+        self.write_span(RegisterSpan::new(start, word_count))?;
+        self.format_suspension_targets()
+    }
+
+    /// Format resume and unwind destinations for one suspension.
+    fn format_suspension_targets(&mut self) -> FormatResult<()> {
+        let resume = self.branch()?;
+        let unwind = self.branch()?;
+
+        self.write_suspension_targets(resume, unwind)
+    }
+
+    /// Write resume and unwind destinations for one suspension.
+    fn write_suspension_targets(&mut self, resume: Label, unwind: Label) -> FormatResult<()> {
         write!(self.formatter, [space(), token("=>"), space()])?;
         self.write_label(resume)?;
         write!(self.formatter, [space(), token("|"), space()])?;
@@ -313,16 +329,12 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one function return.
     fn format_return(&mut self) -> FormatResult<()> {
-        // write every logical return value
-        let values = self.register_value_ids()?;
+        // write the returned physical span
+        let (start, word_count) = self.register_span_id()?;
         self.write_token("return")?;
-        for (index, value) in values.into_iter().enumerate() {
-            if index == 0 {
-                write!(self.formatter, [space()])?;
-            } else {
-                write!(self.formatter, [token(","), space()])?;
-            }
-            self.write_register(value)?;
+        if word_count > 0 {
+            write!(self.formatter, [space()])?;
+            self.write_span(RegisterSpan::new(start, word_count))?;
         }
 
         Ok(())
@@ -341,11 +353,11 @@ impl InstructionFormatter<'_, '_, '_> {
     fn format_panic(&mut self, opcode: Opcode) -> FormatResult<()> {
         self.write_token("panic")?;
         if opcode == Opcode::PANIC_VALUE {
-            let ty = self.symbol()?;
-            let values = self.register_value_ids()?;
+            let ty = self.relocation_text()?;
+            let (start, word_count) = self.register_span_id()?;
             write!(self.formatter, [space()])?;
-            self.write_registers(&values)?;
-            write!(self.formatter, [token(":"), space()])?;
+            self.write_span(RegisterSpan::new(start, word_count))?;
+            self.write_comma()?;
             self.write_text(&ty)?;
         }
 
@@ -363,8 +375,8 @@ impl InstructionFormatter<'_, '_, '_> {
 
         // write the expected runtime type when required
         if matches!(opcode, Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE) {
-            let ty = self.symbol()?;
-            write!(self.formatter, [token(":"), space()])?;
+            let ty = self.relocation_text()?;
+            self.write_comma()?;
             self.write_text(&ty)?;
         }
 

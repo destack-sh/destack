@@ -1,26 +1,20 @@
 use super::assert_format_eq;
 
-/// Format value and slice `new` operations canonically.
+/// Format value and slice allocations with direct site identities.
 #[test]
 fn test_format_new() {
     assert_format_eq(
         r#"
-type Point
-
-export function allocate(r0:uint64):ref<managed,space(local)>{
-r1:ref<managed,space(local)>=new.local.managed.zeroed Point
-r2:uninit<slice<Point,managed,space(local)>>=new.local.managed.slice.uninit Point,r0
-r4:slice<Point,managed,space(local)>=new.complete r2
+function f0(): t0 {
+    new.local.managed.zeroed r1, a0
+new.local.managed.slice.uninit r2:r3, a1,r0
 return r1
 }
 "#,
         r#"
-type Point
-
-export function allocate(r0: uint64): ref<managed, space(local)> {
-    r1: ref<managed, space(local)> = new.local.managed.zeroed Point
-    r2: uninit<slice<Point, managed, space(local)>> = new.local.managed.slice.uninit Point, r0
-    r4: slice<Point, managed, space(local)> = new.complete r2
+function f0(): t0 {
+    new.local.managed.zeroed r1, a0
+    new.local.managed.slice.uninit r2:r3, a1, r0
     return r1
 }
 "#,

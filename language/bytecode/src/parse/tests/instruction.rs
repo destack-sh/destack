@@ -7,8 +7,7 @@ use super::TestParser;
 fn test_parse_runtime_instructions() {
     let (object, opcodes) = TestParser::new(
         r#"
-export function observed(r0: uint64): void {
-    breakpoint
+function f0(): t0 {    breakpoint
     profile.increment counter(4)
     profile.sample sampler(7), r0
     return
@@ -25,6 +24,6 @@ export function observed(r0: uint64): void {
             Opcode::RETURN,
         ]
     );
-    assert_eq!(object.functions()[0].body.counter_count, 5);
-    assert_eq!(object.functions()[0].body.sampler_count, 8);
+    assert_eq!(object.functions()[0].counter_count, 5);
+    assert_eq!(object.functions()[0].sampler_count, 8);
 }

@@ -1,10 +1,8 @@
 use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
 
 use crate::{
-    BooleanOperation, CastOperation, FloatOperation, IntegerOperation, Opcode, Operand, RegisterId,
-    Scalar, ValueType,
+    BooleanOperation, CastOperation, IntegerOperation, Opcode, Operand, RegisterSpan, Scalar,
+    ValueType,
 };
 
 use super::instruction::InstructionFormatter;
@@ -14,12 +12,9 @@ impl InstructionFormatter<'_, '_, '_> {
     pub(super) fn format_named_constant(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
             Opcode::CONSTANT_TYPE => self.format_type_constant(),
-            Opcode::CONSTANT_BYTES => self.format_constant_bytes(),
             Opcode::CONSTANT_INT128 | Opcode::CONSTANT_UINT128 => self.format_wide_constant(opcode),
             Opcode::CONSTANT_NULL | Opcode::CONSTANT_UNDEFINED => self.format_nullish(opcode),
-            Opcode::CONSTANT_UNINIT | Opcode::CONSTANT_ZEROED => {
-                self.format_storage_constant(opcode)
-            }
+            Opcode::CONSTANT_ZEROED => self.format_zeroed(),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid constant opcode",
             }),
@@ -28,59 +23,23 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one linked runtime type identity.
     fn format_type_constant(&mut self) -> FormatResult<()> {
-        self.result(ValueType::type_id())?;
-        let symbol = self.symbol()?;
+        self.write_opcode("constant.type")?;
+        self.result()?;
+        let symbol = self.relocation_text()?;
 
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("constant.type"),
-                space()
-            ]
-        )?;
+        self.write_comma()?;
         self.write_text(&symbol)
-    }
-
-    /// Format one immutable byte sequence constant.
-    fn format_constant_bytes(&mut self) -> FormatResult<()> {
-        let (result, word_count) = self.register_range_id()?;
-        if word_count != 2 {
-            return Err(FormatError::SyntaxError {
-                message: "constant byte result must occupy two register words",
-            });
-        }
-
-        // write the pointer and byte length results
-        self.write_result(result, ValueType::pointer())?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_result(RegisterId(result.0 + 1), ValueType::scalar(Scalar::Uint64))?;
-
-        // write the linked constant name
-        let constant = self.symbol()?;
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("constant.bytes"),
-                space()
-            ]
-        )?;
-        self.write_text(&constant)
     }
 
     /// Format one signed or unsigned 128 bit constant.
     fn format_wide_constant(&mut self, opcode: Opcode) -> FormatResult<()> {
-        let ty = if opcode == Opcode::CONSTANT_INT128 {
-            ValueType::int128()
+        let name = if opcode == Opcode::CONSTANT_INT128 {
+            "constant.int128"
         } else {
-            ValueType::uint128()
+            "constant.uint128"
         };
-        self.result_range(ty)?;
+        self.write_opcode(name)?;
+        self.result_span()?;
 
         // preserve the declared signedness in source text
         let bits = self.u128()?;
@@ -89,46 +48,43 @@ impl InstructionFormatter<'_, '_, '_> {
         } else {
             bits.to_string()
         };
-        write!(self.formatter, [space(), token("="), space()])?;
+        self.write_comma()?;
         self.write_text(&value)
     }
 
     /// Format one nullish pointer or reference constant.
     fn format_nullish(&mut self, opcode: Opcode) -> FormatResult<()> {
-        let result = self.register_id()?;
-        let ty = self.value_type()?;
-        self.write_result(result, ty)?;
         let literal = if opcode == Opcode::CONSTANT_NULL {
-            "null"
+            "constant.null"
         } else {
-            "undefined"
+            "constant.undefined"
         };
+        self.write_opcode(literal)?;
 
-        write!(self.formatter, [space(), token("="), space()])?;
-        self.write_text(literal)
+        self.result()?;
+
+        Ok(())
     }
 
-    /// Format one storage initialization value.
-    fn format_storage_constant(&mut self, opcode: Opcode) -> FormatResult<()> {
-        self.declared_result_range()?;
-        let literal = if opcode == Opcode::CONSTANT_UNINIT {
-            "uninit"
-        } else {
-            "zeroed"
-        };
+    /// Format one zero-initialized storage value.
+    fn format_zeroed(&mut self) -> FormatResult<()> {
+        self.write_opcode("constant.zeroed")?;
 
-        write!(self.formatter, [space(), token("="), space()])?;
-        self.write_text(literal)
+        self.result_span()?;
+
+        Ok(())
     }
 
     /// Format one scalar constant.
     pub(super) fn format_constant(&mut self, scalar: Scalar) -> FormatResult<()> {
-        self.result(ValueType::scalar(scalar))?;
+        let name = format!("constant.{}", scalar.name());
+        self.write_opcode(&name)?;
+        self.result()?;
         let bits = self.u64()?;
         let literal = scalar.literal(bits);
 
         // write the canonical literal
-        write!(self.formatter, [space(), token("="), space()])?;
+        self.write_comma()?;
         self.write_text(&literal)?;
 
         Ok(())
@@ -136,34 +92,16 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one boolean operation.
     pub(super) fn format_boolean(&mut self, operation: BooleanOperation) -> FormatResult<()> {
-        let name = format!("int.{}", operation.name());
-        self.format_scalar_operation(&name, &[ValueType::scalar(Scalar::Boolean)])
+        let name = format!("int.{}.boolean", operation.name());
+        self.format_scalar_operation(&name)
     }
 
     /// Format one regular scalar operation.
     pub(super) fn format_scalar(&mut self, operation: &str, scalar: Scalar) -> FormatResult<()> {
-        let opcode = self.instruction.opcode();
-        let integer = opcode.integer_operation().map(|(operation, _)| operation);
-        let float = opcode.float_operation().map(|(operation, _)| operation);
-        let result = if integer.is_some_and(IntegerOperation::is_comparison)
-            || float.is_some_and(FloatOperation::is_comparison)
-        {
-            ValueType::scalar(Scalar::Boolean)
-        } else if integer.is_some_and(IntegerOperation::is_count) {
-            ValueType::scalar(Scalar::Uint32)
-        } else {
-            ValueType::scalar(scalar)
-        };
-        let results = if integer.is_some_and(IntegerOperation::is_overflowing) {
-            vec![result, ValueType::scalar(Scalar::Boolean)]
-        } else {
-            vec![result]
-        };
         let prefix = if scalar.is_float() { "float" } else { "int" };
+        let name = format!("{prefix}.{operation}.{}", scalar.name());
 
-        let name = format!("{prefix}.{operation}");
-
-        self.format_scalar_operation(&name, &results)
+        self.format_scalar_operation(&name)
     }
 
     /// Format one 128-bit integer operation.
@@ -172,26 +110,15 @@ impl InstructionFormatter<'_, '_, '_> {
         operation: IntegerOperation,
         is_signed: bool,
     ) -> FormatResult<()> {
-        let scalar = if is_signed {
+        let ty = if is_signed {
             ValueType::int128()
         } else {
             ValueType::uint128()
         };
-        let primary = if operation.is_comparison() {
-            ValueType::scalar(Scalar::Boolean)
-        } else if operation.is_count() {
-            ValueType::scalar(Scalar::Uint32)
-        } else {
-            scalar
-        };
-        let results = if operation.is_overflowing() {
-            vec![primary, ValueType::scalar(Scalar::Boolean)]
-        } else {
-            vec![primary]
-        };
-        let name = format!("int.{}", operation.name());
+        let ty = self.formatter.context().value_type_text(ty)?.to_string();
+        let name = format!("int.{}.{ty}", operation.name());
 
-        self.format_scalar_operation(&name, &results)
+        self.format_scalar_operation(&name)
     }
 
     /// Format one scalar cast.
@@ -201,32 +128,25 @@ impl InstructionFormatter<'_, '_, '_> {
         source: ValueType,
         target: ValueType,
     ) -> FormatResult<()> {
-        self.result(target)?;
-        let input = self.register_id()?;
         let operation = operation
             .name(source, target)
             .ok_or(FormatError::SyntaxError {
                 message: "cast has no canonical name",
             })?;
+        let source = self.formatter.context().value_type_text(source)?;
+        let target = self.formatter.context().value_type_text(target)?;
+        let name = format!("cast.{operation}.{source}.{target}");
+        self.write_opcode(&name)?;
+        self.result()?;
+        let input = self.register_id()?;
 
-        // write the typed conversion
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("cast.")]
-        )?;
-        self.write_text(operation)?;
-        self.write_token(" ")?;
-        self.write_register(input)?;
-        write!(self.formatter, [space(), token("->"), space()])?;
-        write!(self.formatter, [target])
+        // write the converted register
+        self.write_comma()?;
+        self.write_register(input)
     }
 
     /// Format one regular scalar operation from its exact operand layout.
-    fn format_scalar_operation(
-        &mut self,
-        name: &str,
-        result_types: &[ValueType],
-    ) -> FormatResult<()> {
+    fn format_scalar_operation(&mut self, name: &str) -> FormatResult<()> {
         let layout = self
             .instruction
             .opcode()
@@ -234,50 +154,42 @@ impl InstructionFormatter<'_, '_, '_> {
             .ok_or(FormatError::SyntaxError {
                 message: "scalar opcode has no operand layout",
             })?;
-        let mut result_types = result_types.iter().copied();
-        let mut results = Vec::new();
-        let mut arguments = Vec::new();
+        self.write_opcode(name)?;
+        let mut is_first = true;
 
-        // decode results and arguments from the exact opcode layout
+        // write operands in their exact encoded order
         for operand in layout.operands() {
+            if !is_first {
+                self.write_comma()?;
+            }
             match operand {
                 Operand::Result => {
-                    let ty = result_types.next().ok_or(FormatError::SyntaxError {
-                        message: "scalar result has no value type",
-                    })?;
                     let register = self.register_id()?;
-                    results.push((register, ty));
+                    self.write_register(register)?;
                 }
                 Operand::ResultRange => {
-                    let ty = result_types.next().ok_or(FormatError::SyntaxError {
-                        message: "scalar result has no value type",
-                    })?;
-                    let (register, word_count) = self.register_range_id()?;
-                    if word_count != ty.word_count() {
-                        return Err(FormatError::SyntaxError {
-                            message: "scalar result width does not match its type",
-                        });
-                    }
-                    results.push((register, ty));
+                    let (register, word_count) = self.register_span_id()?;
+                    self.write_span(RegisterSpan::new(register, word_count))?;
                 }
-                Operand::Register => arguments.push(self.register_id()?),
+                Operand::Register => {
+                    let register = self.register_id()?;
+                    self.write_register(register)?;
+                }
                 Operand::RegisterList => {
                     let count = self.u16()?;
-                    for _ in 0..count {
-                        arguments.push(self.register_id()?);
-                    }
-                }
-                Operand::RegisterRange => {
-                    let (register, word_count) = self.register_range_id()?;
-                    if word_count > 0 {
-                        let ty = self.formatter.context().register_type(register)?;
-                        if word_count != ty.word_count() {
-                            return Err(FormatError::SyntaxError {
-                                message: "scalar argument width does not match its type",
-                            });
+                    self.write_token("[")?;
+                    for index in 0..count {
+                        if index > 0 {
+                            self.write_comma()?;
                         }
-                        arguments.push(register);
+                        let register = self.register_id()?;
+                        self.write_register(register)?;
                     }
+                    self.write_token("]")?;
+                }
+                Operand::RegisterSpan => {
+                    let (register, word_count) = self.register_span_id()?;
+                    self.write_span(RegisterSpan::new(register, word_count))?;
                 }
                 _ => {
                     return Err(FormatError::SyntaxError {
@@ -285,33 +197,7 @@ impl InstructionFormatter<'_, '_, '_> {
                     });
                 }
             }
-        }
-        if result_types.next().is_some() {
-            return Err(FormatError::SyntaxError {
-                message: "scalar operation has unused result types",
-            });
-        }
-
-        // write every typed result before the operation
-        for (index, (register, ty)) in results.iter().copied().enumerate() {
-            if index > 0 {
-                write!(self.formatter, [token(","), space()])?;
-            }
-            self.write_result(register, ty)?;
-        }
-        if !results.is_empty() {
-            write!(self.formatter, [space(), token("="), space()])?;
-        }
-
-        // write the operation and ordered register arguments
-        self.write_text(name)?;
-        for (index, argument) in arguments.into_iter().enumerate() {
-            if index == 0 {
-                write!(self.formatter, [space()])?;
-            } else {
-                write!(self.formatter, [token(","), space()])?;
-            }
-            self.write_register(argument)?;
+            is_first = false;
         }
 
         Ok(())

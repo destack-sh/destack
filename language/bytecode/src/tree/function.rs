@@ -1,116 +1,127 @@
-use destack_core::{EntryRange, Optional, SectionEntry, StringId};
+use destack_core::{EntryRange, Optional, SectionEntry};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{CodeOffset, CodeRange, FrameSlot, ValueType};
+use crate::{CodeOffset, CodeRange, FrameMap, RegisterSpan, TypeId};
 
-/// One bytecode function declaration or definition.
-#[repr(C, align(8))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct Function {
-    /// The stable function symbol name.
-    pub name: StringId,
-    /// The physical function body.
-    pub body: Body,
-    /// Stable hash of the relocatable encoded function body.
-    pub code_hash: u64,
-    /// The function linkage.
-    pub linkage: Linkage,
-    /// Reserved function bytes.
-    reserved: [u8; 7],
-}
+/// The execution form of one bytecode function.
+#[repr(transparent)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
+pub struct Coroutine(u8);
 
-/// One executable bytecode function body.
-#[repr(C, align(8))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct Body {
-    /// The physical parameter value types.
-    pub parameters: EntryRange<ValueType>,
-    /// The physical result value types.
-    pub results: EntryRange<ValueType>,
-    /// The parameters delivered when this function resumes.
-    pub resume_parameters: EntryRange<ValueType>,
-    /// The logical value types partitioning the physical register file.
-    pub register_types: EntryRange<ValueType>,
-    /// The frame slots for this definition.
-    pub frame_slots: EntryRange<FrameSlot>,
-    /// The function-relative byte offset of each logical operation.
-    pub operation_offsets: EntryRange<CodeOffset>,
-    /// The hidden callable environment type when present.
-    pub environment: Optional<ValueType>,
-    /// The encoded function body when this object defines the function.
-    pub code: Optional<CodeRange>,
-    /// The first dense Program counter assigned to this function.
-    pub counter_start: u32,
-    /// The number of function-local profile counters.
-    pub counter_count: u32,
-    /// The first dense Program sampler assigned to this function.
-    pub sampler_start: u32,
-    /// The number of function-local profile samplers.
-    pub sampler_count: u32,
-    /// The number of 64-bit words in the register file.
-    pub register_count: u16,
-}
+impl Coroutine {
+    /// An ordinary function that cannot suspend.
+    pub const NONE: Self = Self(0);
+    /// An asynchronous function that may await.
+    pub const ASYNC: Self = Self(1);
+    /// A generator function that may yield.
+    pub const GENERATOR: Self = Self(2);
+    /// An asynchronous generator that may await and yield.
+    pub const ASYNC_GENERATOR: Self = Self(3);
 
-impl Function {
-    /// Create one bytecode function declaration or definition.
-    pub const fn new(name: StringId, body: Body, code_hash: u64, linkage: Linkage) -> Self {
-        Self {
-            name,
-            body,
-            code_hash,
-            linkage,
-            reserved: [0; 7],
+    /// Select one execution form from TS-compatible modifiers.
+    pub const fn new(is_async: bool, is_generator: bool) -> Self {
+        match (is_async, is_generator) {
+            (false, false) => Self::NONE,
+            (true, false) => Self::ASYNC,
+            (false, true) => Self::GENERATOR,
+            (true, true) => Self::ASYNC_GENERATOR,
         }
+    }
+
+    /// Return whether this function may await.
+    pub const fn is_async(self) -> bool {
+        matches!(self, Self::ASYNC | Self::ASYNC_GENERATOR)
+    }
+
+    /// Return whether this function may yield.
+    pub const fn is_generator(self) -> bool {
+        matches!(self, Self::GENERATOR | Self::ASYNC_GENERATOR)
     }
 }
 
-impl Body {
-    /// Create one executable bytecode function body.
-    #[allow(clippy::too_many_arguments)]
+/// One physical bytecode function.
+#[repr(C, align(8))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct Function {
+    /// The encoded function body when this object defines the function.
+    pub code: Optional<CodeRange>,
+    /// Physical entry parameters in declaration order.
+    pub parameters: EntryRange<Parameter>,
+    /// Physical frame maps used by this function.
+    pub frames: EntryRange<FrameMap>,
+    /// Function-relative byte offsets of logical operations.
+    pub operations: EntryRange<CodeOffset>,
+    /// The function result type.
+    pub result: TypeId,
+    /// The number of 64-bit words in the register file.
+    pub register_count: u16,
+    /// The function's coroutine execution form.
+    pub coroutine: Coroutine,
+    /// Reserved function byte.
+    reserved: u8,
+    /// The number of function-local profile counters.
+    pub counter_count: u32,
+    /// The number of function-local profile samplers.
+    pub sampler_count: u32,
+}
+
+impl Function {
+    /// Create one imported physical function declaration.
+    pub const fn declaration(
+        parameters: EntryRange<Parameter>,
+        result: TypeId,
+        coroutine: Coroutine,
+    ) -> Self {
+        Self::new(
+            Optional::none(),
+            parameters,
+            EntryRange::empty(),
+            EntryRange::empty(),
+            result,
+            0,
+            coroutine,
+            0,
+            0,
+        )
+    }
+
+    /// Create one physical bytecode function.
     pub const fn new(
-        parameters: EntryRange<ValueType>,
-        results: EntryRange<ValueType>,
-        resume_parameters: EntryRange<ValueType>,
-        environment: Optional<ValueType>,
-        register_count: u16,
-        register_types: EntryRange<ValueType>,
-        frame_slots: EntryRange<FrameSlot>,
-        operation_offsets: EntryRange<CodeOffset>,
         code: Optional<CodeRange>,
+        parameters: EntryRange<Parameter>,
+        frames: EntryRange<FrameMap>,
+        operations: EntryRange<CodeOffset>,
+        result: TypeId,
+        register_count: u16,
+        coroutine: Coroutine,
         counter_count: u32,
         sampler_count: u32,
     ) -> Self {
         Self {
-            parameters,
-            results,
-            resume_parameters,
-            register_types,
-            frame_slots,
-            operation_offsets,
-            environment,
             code,
-            counter_start: 0,
-            counter_count,
-            sampler_start: 0,
-            sampler_count,
+            parameters,
+            frames,
+            operations,
+            result,
             register_count,
+            coroutine,
+            reserved: 0,
+            counter_count,
+            sampler_count,
         }
     }
 
-    /// Return this function's physical parameter types.
-    pub fn parameters<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
-        self.parameters.slice(types)
+    /// Return this function's encoded code range when defined.
+    pub fn code(&self) -> Option<CodeRange> {
+        self.code.get()
     }
 
-    /// Return this function's physical result types.
-    pub fn results<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
-        self.results.slice(types)
-    }
-
-    /// Borrow the parameters delivered when this function resumes.
-    pub fn resume_parameters<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
-        self.resume_parameters.slice(types)
+    /// Return physical entry parameters in declaration order.
+    pub fn parameters<'a>(&self, parameters: &'a [Parameter]) -> &'a [Parameter] {
+        self.parameters.slice(parameters)
     }
 
     /// Return the register file word count.
@@ -118,31 +129,31 @@ impl Body {
         self.register_count as usize
     }
 
-    /// Return the logical value types partitioning this function's register file.
-    pub fn register_types<'a>(&self, types: &'a [ValueType]) -> &'a [ValueType] {
-        self.register_types.slice(types)
-    }
-
-    /// Return this function's frame slots.
-    pub fn frame_slots<'a>(&self, slots: &'a [FrameSlot]) -> &'a [FrameSlot] {
-        self.frame_slots.slice(slots)
-    }
-
     /// Return this function's logical operation offsets.
-    pub fn operation_offsets<'a>(&self, offsets: &'a [CodeOffset]) -> &'a [CodeOffset] {
-        self.operation_offsets.slice(offsets)
+    pub fn operations<'a>(&self, operations: &'a [CodeOffset]) -> &'a [CodeOffset] {
+        self.operations.slice(operations)
     }
 
     /// Return one logical operation's function-relative byte offset.
-    pub fn operation_offset(&self, offsets: &[CodeOffset], operation: u32) -> Option<CodeOffset> {
-        self.operation_offsets(offsets)
-            .get(operation as usize)
-            .copied()
+    pub fn operation(&self, operations: &[CodeOffset], operation: u32) -> Option<CodeOffset> {
+        self.operations(operations).get(operation as usize).copied()
     }
+}
 
-    /// Return this function's encoded code range when defined.
-    pub fn code(&self) -> Option<CodeRange> {
-        self.code.get()
+/// One physical bytecode function parameter.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct Parameter {
+    /// The entry registers containing the parameter value.
+    pub registers: RegisterSpan,
+    /// The parameter type identity.
+    pub ty: TypeId,
+}
+
+impl Parameter {
+    /// Create one physical bytecode function parameter.
+    pub const fn new(registers: RegisterSpan, ty: TypeId) -> Self {
+        Self { registers, ty }
     }
 }
 
@@ -155,20 +166,6 @@ pub struct FunctionId(pub u32);
 
 impl FunctionId {
     /// Return this id as a dense object index.
-    pub const fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-/// A bytecode register id.
-#[repr(transparent)]
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub struct RegisterId(pub u16);
-
-impl RegisterId {
-    /// Return this id as a dense register index.
     pub const fn index(self) -> usize {
         self.0 as usize
     }
@@ -202,81 +199,9 @@ impl SamplerId {
     }
 }
 
-/// One contiguous bytecode register range.
-#[repr(C)]
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub struct RegisterRange {
-    /// The first register word.
-    pub start: RegisterId,
-    /// The number of register words.
-    pub word_count: u16,
-}
-
-impl RegisterRange {
-    /// Create one contiguous register range.
-    pub const fn new(start: RegisterId, word_count: u16) -> Self {
-        Self { start, word_count }
-    }
-
-    /// Create an empty register range.
-    pub const fn empty() -> Self {
-        Self::new(RegisterId(0), 0)
-    }
-
-    /// Pack logical values into one contiguous register range.
-    pub fn pack(registers: &[RegisterId], types: &[ValueType]) -> Option<Self> {
-        if registers.len() != types.len() {
-            return None;
-        }
-
-        // encode an empty window canonically
-        if registers.is_empty() {
-            return Some(Self::empty());
-        }
-
-        // require every logical value immediately after its predecessor
-        let start = registers[0];
-        let mut next = u32::from(start.0);
-        for (register, ty) in registers.iter().zip(types) {
-            if u32::from(register.0) != next {
-                return None;
-            }
-            next += u32::from(ty.word_count());
-        }
-        let word_count = u16::try_from(next - u32::from(start.0)).ok()?;
-
-        Some(Self::new(start, word_count))
-    }
-}
-
-/// The linkage of one bytecode symbol.
-#[repr(transparent)]
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub struct Linkage(pub u8);
-
-impl Linkage {
-    /// A definition visible only inside its object.
-    pub const LOCAL: Self = Self(0);
-    /// A definition exported by its object.
-    pub const EXPORT: Self = Self(1);
-    /// A definition supplied by another object.
-    pub const EXTERNAL: Self = Self(2);
-
-    /// Return whether this linkage is defined by the bytecode object format.
-    pub const fn is_defined(self) -> bool {
-        self.0 <= Self::EXTERNAL.0
-    }
-}
-
-const _: () = assert!(size_of::<Body>() == 96);
-const _: () = assert!(size_of::<Function>() == 120);
+const _: () = assert!(size_of::<Function>() == 56);
+const _: () = assert!(size_of::<Parameter>() == 8);
+const _: () = assert!(size_of::<Coroutine>() == 1);
 const _: () = assert!(size_of::<FunctionId>() == 4);
-const _: () = assert!(size_of::<RegisterId>() == 2);
 const _: () = assert!(size_of::<CounterId>() == 4);
 const _: () = assert!(size_of::<SamplerId>() == 4);
-const _: () = assert!(size_of::<RegisterRange>() == 4);
-const _: () = assert!(size_of::<Linkage>() == 1);

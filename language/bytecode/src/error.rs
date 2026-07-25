@@ -7,6 +7,8 @@ pub enum Error {
     InvalidResults,
     /// The instruction destinations are not one contiguous register range.
     NoncontiguousResults,
+    /// No logical operation is available to mark.
+    MissingOperation,
     /// A branch label is not defined in dense declaration order.
     InvalidLabel(u32),
     /// A branch references an undefined label.
@@ -48,13 +50,14 @@ impl fmt::Display for Error {
             Self::NoncontiguousResults => {
                 formatter.write_str("instruction results are not contiguous")
             }
+            Self::MissingOperation => formatter.write_str("no bytecode operation is active"),
             Self::InvalidLabel(label) => {
                 write!(
                     formatter,
-                    "bytecode label l{label} is not dense and ordered"
+                    "bytecode label b{label} is not dense and ordered"
                 )
             }
-            Self::UnknownLabel(label) => write!(formatter, "unknown bytecode label l{label}"),
+            Self::UnknownLabel(label) => write!(formatter, "unknown bytecode label b{label}"),
             Self::TruncatedInstruction => formatter.write_str("truncated bytecode instruction"),
             Self::InvalidInstructionLength(byte_len) => {
                 write!(formatter, "invalid bytecode instruction length {byte_len}")

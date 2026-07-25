@@ -1,124 +1,69 @@
 use crate::{
     BooleanOperation, CastOperation, FloatOperation, InstructionBuilder, IntegerOperation, Opcode,
-    ParseError, ParseResult, Parser, RegisterId, RegisterRange, Scalar, Symbol, Token, TokenType,
+    ParseError, ParseResult, Parser, RegisterSpan, RelocationTag, Scalar, Token, TokenType,
     ValueTag, ValueType,
 };
 
 use super::function::FunctionParser;
 
 impl Parser<'_> {
-    /// Parse one literal selected by its declared result type.
-    pub(super) fn parse_literal(
+    /// Parse one constant instruction.
+    pub(super) fn parse_constant_operation(
         &mut self,
-        results: &[RegisterId],
-        result_types: &[ValueType],
+        name: &str,
+        token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let ty = *result_types
-            .first()
-            .ok_or_else(|| ParseError::new("expected literal result type", self.peek().span))?;
-
-        // encode scalar literals in one word
-        if let Some(scalar) = ty.scalar_type() {
+        if let Some(scalar) = name.strip_prefix("constant.").and_then(Scalar::from_name) {
+            let opcode = Opcode::constant(scalar);
+            let results = self.parse_definitions(opcode)?;
             let bits = self.parse_scalar_bits(scalar)?;
-            let mut instruction = InstructionBuilder::new(Opcode::constant(scalar));
+            let mut instruction = InstructionBuilder::new(opcode);
             instruction.u64(bits);
 
-            return function.emit(instruction, results, &[ty], self.empty_span());
+            return function.emit(instruction, &results, self.empty_span());
         }
-
-        // encode signed and unsigned 128 bit literals in two words
-        if matches!(ty.tag(), ValueTag::INT128 | ValueTag::UINT128) {
+        if name == "constant.int128" || name == "constant.uint128" {
+            let opcode = if name == "constant.int128" {
+                Opcode::CONSTANT_INT128
+            } else {
+                Opcode::CONSTANT_UINT128
+            };
+            let results = self.parse_definitions(opcode)?;
             let literal = self.eat_token(TokenType::Integer)?;
             let text = self.text(literal).replace('_', "");
-            let bits = if ty.tag() == ValueTag::INT128 {
+            let bits = if name == "constant.int128" {
                 text.parse::<i128>().map(|value| value as u128)
             } else {
                 text.parse::<u128>()
             }
             .map_err(|_| ParseError::new("expected 128 bit integer", literal.span))?;
-            let opcode = if ty.tag() == ValueTag::INT128 {
-                Opcode::CONSTANT_INT128
-            } else {
-                Opcode::CONSTANT_UINT128
-            };
             let mut instruction = InstructionBuilder::new(opcode);
             instruction.u128(bits);
 
-            return function.emit(instruction, results, &[ty], self.empty_span());
+            return function.emit(instruction, &results, self.empty_span());
         }
+        if name == "constant.type" {
+            let results = self.parse_definitions(Opcode::CONSTANT_TYPE)?;
+            let ty = self.parse_type_id()?;
+            let mut instruction = InstructionBuilder::new(Opcode::CONSTANT_TYPE);
+            instruction.relocation(RelocationTag::TYPE, ty.0);
 
-        // encode one null pointer or reference niche
-        if (ty.is_pointer() || ty.is_initialized_reference()) && self.eat_name_if("null") {
-            let mut instruction = InstructionBuilder::new(Opcode::CONSTANT_NULL);
-            instruction.value_type(ty);
-
-            return function.emit(instruction, results, &[ty], self.empty_span());
+            return function.emit(instruction, &results, self.empty_span());
         }
-
-        // encode one undefined reference niche
-        if ty.is_initialized_reference() && self.eat_name_if("undefined") {
-            let mut instruction = InstructionBuilder::new(Opcode::CONSTANT_UNDEFINED);
-            instruction.value_type(ty);
-
-            return function.emit(instruction, results, &[ty], self.empty_span());
-        }
-
-        // preserve storage initialization without imposing a scalar representation
-        let opcode = if self.eat_name_if("uninit") {
-            Some(Opcode::CONSTANT_UNINIT)
-        } else if self.eat_name_if("zeroed") {
-            Some(Opcode::CONSTANT_ZEROED)
-        } else {
-            None
+        let opcode = match name {
+            "constant.null" => Some(Opcode::CONSTANT_NULL),
+            "constant.undefined" => Some(Opcode::CONSTANT_UNDEFINED),
+            "constant.zeroed" => Some(Opcode::CONSTANT_ZEROED),
+            _ => None,
         };
         if let Some(opcode) = opcode {
+            let results = self.parse_definitions(opcode)?;
             let instruction = InstructionBuilder::new(opcode);
 
-            return function.emit(instruction, results, &[ty], self.empty_span());
+            return function.emit(instruction, &results, self.empty_span());
         }
-
-        Err(ParseError::new(
-            "literal does not match its declared result type",
-            self.peek().span,
-        ))
-    }
-
-    /// Parse one immutable byte-sequence constant instruction.
-    pub(super) fn parse_constant_operation(
-        &mut self,
-        name: &str,
-        token: Token,
-        results: &[RegisterId],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        if name == "constant.type" {
-            let ty = self.parse_type_name()?;
-            let mut instruction = InstructionBuilder::new(Opcode::CONSTANT_TYPE);
-            instruction.symbol(Symbol::ty(ty.0));
-
-            return function.emit(
-                instruction,
-                results,
-                &[ValueType::type_id()],
-                self.empty_span(),
-            );
-        }
-        if name != "constant.bytes" {
-            return Err(ParseError::new("unknown constant operation", token.span));
-        }
-        let constant = self.eat_token(TokenType::Identifier)?;
-        let constant = self
-            .symbols
-            .constants
-            .get(self.text(constant))
-            .copied()
-            .ok_or_else(|| ParseError::new("unknown constant", constant.span))?;
-        let types = [ValueType::pointer(), ValueType::scalar(Scalar::Uint64)];
-        let mut instruction = InstructionBuilder::new(Opcode::CONSTANT_BYTES);
-        instruction.symbol(Symbol::constant(constant.0));
-
-        function.emit(instruction, results, &types, self.empty_span())
+        Err(ParseError::new("unknown constant operation", token.span))
     }
 
     /// Parse one scalar constant into its canonical register bits.
@@ -184,28 +129,19 @@ impl Parser<'_> {
         &mut self,
         name: &str,
         token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        let (name, result_type) = name
+            .rsplit_once('.')
+            .ok_or_else(|| ParseError::new("cast operation has no result type", token.span))?;
+        let (name, source_type) = name
+            .rsplit_once('.')
+            .ok_or_else(|| ParseError::new("cast operation has no source type", token.span))?;
+        let source_type = self.parse_cast_type(source_type, token)?;
+        let result_type = self.parse_cast_type(result_type, token)?;
+        let result = self.parse_register()?;
+        self.eat_token(TokenType::Comma)?;
         let input = self.parse_register()?;
-        let source_type = function
-            .value_type(input)
-            .ok_or_else(|| ParseError::new("cast reads an uninitialized value", token.span))?;
-        let [result_type] = result_types else {
-            return Err(ParseError::new("cast requires one result", token.span));
-        };
-        let result_type = *result_type;
-
-        // require the explicit target to match the declared result
-        self.eat_token(TokenType::Arrow)?;
-        let explicit = self.parse_value_type()?;
-        if explicit != result_type {
-            return Err(ParseError::new(
-                "cast target does not match its declared result",
-                token.span,
-            ));
-        }
 
         // resolve the exact conversion from its operation and value types
         let operation_name = name
@@ -215,12 +151,28 @@ impl Parser<'_> {
             .ok_or_else(|| ParseError::new("expected cast operation", token.span))?;
         let opcode = Opcode::cast(operation, source_type, result_type)
             .ok_or_else(|| ParseError::new("invalid cast", token.span))?;
+        let results = [RegisterSpan::new(result, 1)];
 
         // encode the conversion over one register word
         let mut instruction = InstructionBuilder::new(opcode);
         instruction.register(input);
 
-        function.emit(instruction, results, &[result_type], self.empty_span())
+        function.emit(instruction, &results, self.empty_span())
+    }
+
+    /// Parse one scalar or pointer type selected by a cast opcode.
+    fn parse_cast_type(&self, name: &str, token: Token) -> ParseResult<ValueType> {
+        if let Some(scalar) = Scalar::from_name(name) {
+            Ok(ValueType::scalar(scalar))
+        } else if name == "int128" {
+            Ok(ValueType::int128())
+        } else if name == "uint128" {
+            Ok(ValueType::uint128())
+        } else if name == "pointer" {
+            Ok(ValueType::pointer())
+        } else {
+            Err(ParseError::new("invalid cast type", token.span))
+        }
     }
 
     /// Parse one integer or floating point operation selected by its values.
@@ -228,87 +180,46 @@ impl Parser<'_> {
         &mut self,
         name: &str,
         token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let (prefix, operation_name) = name
+        let (operation_name, ty) = name
+            .rsplit_once('.')
+            .ok_or_else(|| ParseError::new("expected numeric representation", token.span))?;
+        let ty = match ty {
+            "int128" => ValueType::int128(),
+            "uint128" => ValueType::uint128(),
+            name => Scalar::from_name(name)
+                .map(ValueType::scalar)
+                .ok_or_else(|| ParseError::new("expected numeric representation", token.span))?,
+        };
+        let (prefix, operation_name) = operation_name
             .split_once('.')
             .ok_or_else(|| ParseError::new("expected numeric operation", token.span))?;
-        let (operation_name, signedness) = operation_name
-            .rsplit_once('.')
-            .filter(|(_, suffix)| matches!(*suffix, "s" | "u"))
-            .map_or((operation_name, None), |(name, suffix)| {
-                (name, Some(suffix))
-            });
 
         // resolve the operation before consuming its logical inputs
         let (integer, float, input_count) =
             self.resolve_numeric_operation(prefix, operation_name, token)?;
-        let inputs = self.parse_exact_registers(input_count)?;
-        let input_type = inputs
-            .first()
-            .and_then(|input| function.value_type(*input))
-            .ok_or_else(|| ParseError::new("numeric operation reads no typed input", token.span))?;
-        let signedness_matches = match signedness {
-            Some("s") => input_type.is_signed_integer(),
-            Some("u") => input_type.is_unsigned_integer(),
-            None => true,
-            _ => false,
-        };
-        if !signedness_matches {
-            return Err(ParseError::new(
-                "integer signedness does not match its input",
-                token.span,
-            ));
-        }
 
         // encode 128 bit integer operations as contiguous register ranges
-        if matches!(input_type.tag(), ValueTag::INT128 | ValueTag::UINT128) {
+        if matches!(ty.tag(), ValueTag::INT128 | ValueTag::UINT128) {
             return self.parse_wide_integer(
                 integer.ok_or_else(|| {
                     ParseError::new("128 bit values require an integer operation", token.span)
                 })?,
-                input_type,
-                token,
-                results,
-                result_types,
-                &inputs,
+                ty,
+                input_count,
                 function,
             );
         }
 
-        // select the exact scalar opcode from the first input value
-        let scalar = input_type.scalar_type().ok_or_else(|| {
-            ParseError::new("numeric operation requires scalar inputs", token.span)
-        })?;
-        let (opcode, result_type) =
+        // select the exact scalar opcode from its canonical suffix
+        let scalar = ty
+            .scalar_type()
+            .ok_or_else(|| ParseError::new("expected scalar representation", token.span))?;
+        let (opcode, _) =
             self.resolve_scalar_operation(operation_name, integer, float, scalar, token)?;
-
-        // derive the exact logical result types
-        let result_types_expected = if integer.is_some_and(IntegerOperation::is_overflowing) {
-            vec![result_type, ValueType::scalar(Scalar::Boolean)]
-        } else {
-            vec![result_type]
-        };
-
-        // match every input and declared result type
-        let uses_count = integer.is_some_and(IntegerOperation::uses_count);
-        let inputs_match = inputs.iter().enumerate().all(|(index, input)| {
-            let expected = if uses_count && index == 1 {
-                ValueType::scalar(Scalar::Uint32)
-            } else {
-                input_type
-            };
-
-            function.has_type(*input, expected)
-        });
-        if !inputs_match || result_types != result_types_expected {
-            return Err(ParseError::new(
-                "numeric values do not match the operation",
-                token.span,
-            ));
-        }
+        let results = self.parse_definitions(opcode)?;
+        let inputs = self.parse_exact_registers(input_count)?;
 
         // encode scalar result and input registers
         let mut instruction = InstructionBuilder::new(opcode);
@@ -316,12 +227,7 @@ impl Parser<'_> {
             instruction.register(input);
         }
 
-        function.emit(
-            instruction,
-            results,
-            &result_types_expected,
-            self.empty_span(),
-        )
+        function.emit(instruction, &results, self.empty_span())
     }
 
     /// Resolve one integer or floating point operation and its input count.
@@ -403,56 +309,29 @@ impl Parser<'_> {
         &mut self,
         operation: IntegerOperation,
         ty: ValueType,
-        token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
-        inputs: &[RegisterId],
+        input_count: usize,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let is_signed = ty.tag() == ValueTag::INT128;
         let opcode = Opcode::integer128(operation, is_signed);
-        let expected_results = if operation.is_comparison() {
-            vec![ValueType::scalar(Scalar::Boolean)]
-        } else if operation.is_count() {
-            vec![ValueType::scalar(Scalar::Uint32)]
-        } else if operation.is_overflowing() {
-            vec![ty, ValueType::scalar(Scalar::Boolean)]
-        } else {
-            vec![ty]
-        };
-        if result_types != expected_results {
-            return Err(ParseError::new(
-                "128 bit results do not match the operation",
-                token.span,
-            ));
-        }
-
-        // match logical inputs without exposing their physical words in text
-        let inputs_match = inputs.iter().enumerate().all(|(index, input)| {
-            let expected = if operation.uses_count() && index == 1 {
-                ValueType::scalar(Scalar::Uint32)
-            } else {
-                ty
-            };
-
-            function.has_type(*input, expected)
-        });
-        if !inputs_match {
-            return Err(ParseError::new(
-                "128 bit inputs do not match the operation",
-                token.span,
-            ));
+        let results = self.parse_definitions(opcode)?;
+        let mut inputs = Vec::with_capacity(input_count);
+        for index in 0..input_count {
+            if index > 0 {
+                self.eat_token(TokenType::Comma)?;
+            }
+            inputs.push(self.parse_register_span()?);
         }
 
         // encode wide inputs as ranges and scalar counts as registers
         let mut instruction = InstructionBuilder::new(opcode);
-        for (index, input) in inputs.iter().copied().enumerate() {
+        for (index, input) in inputs.into_iter().enumerate() {
             if operation.uses_count() && index == 1 {
-                instruction.register(input);
+                instruction.register(input.start);
             } else {
-                instruction.range(RegisterRange::new(input, ty.word_count()));
+                instruction.span(input);
             }
         }
-        function.emit(instruction, results, &expected_results, self.empty_span())
+        function.emit(instruction, &results, self.empty_span())
     }
 }

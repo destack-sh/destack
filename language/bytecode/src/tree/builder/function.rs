@@ -1,6 +1,6 @@
 use crate::{
-    CodeOffset, DynamicRelocation, Error, Instruction, InstructionBuilder, InstructionRelocation,
-    Label, Opcode, Operand, RegisterId, RegisterRange, Result,
+    CodeOffset, Error, Instruction, InstructionBuilder, Label, Opcode, Operand, RegisterId,
+    RegisterSpan, Relocation, Result,
 };
 
 /// One bytecode function body under construction.
@@ -8,16 +8,14 @@ use crate::{
 pub struct FunctionBuilder {
     /// The encoded instruction bytes.
     code: Vec<u8>,
-    /// The byte offset of each logical operation in order.
-    operation_offsets: Vec<CodeOffset>,
+    /// The byte offset of each logical operation.
+    operations: Vec<CodeOffset>,
     /// The label byte offsets.
     labels: Vec<CodeOffset>,
     /// The branch operands awaiting label resolution.
     branches: Vec<Branch>,
-    /// The symbol operands awaiting object linking.
-    relocations: Vec<InstructionRelocation>,
-    /// The dynamic dispatch operands awaiting object linking.
-    dynamic_relocations: Vec<DynamicRelocation>,
+    /// The identity operands awaiting object linking.
+    relocations: Vec<Relocation>,
     /// The greatest register index plus one.
     register_count: u16,
     /// The greatest profile counter index plus one.
@@ -31,12 +29,12 @@ pub struct FunctionBuilder {
 pub struct FunctionBody {
     /// The encoded instruction bytes.
     pub code: Vec<u8>,
-    /// The byte offset of each logical operation in order.
-    pub operation_offsets: Vec<CodeOffset>,
-    /// The symbol operands awaiting object linking.
-    pub relocations: Vec<InstructionRelocation>,
-    /// The dynamic dispatch operands awaiting object linking.
-    pub dynamic_relocations: Vec<DynamicRelocation>,
+    /// The byte offset of each logical operation.
+    pub operations: Vec<CodeOffset>,
+    /// The label byte offsets.
+    pub labels: Vec<CodeOffset>,
+    /// The identity operands awaiting object linking.
+    pub relocations: Vec<Relocation>,
     /// The number of 64-bit words in the register file.
     pub register_count: u16,
     /// The number of function-local profile counters.
@@ -62,35 +60,28 @@ impl FunctionBuilder {
         Self::default()
     }
 
-    /// Begin one logical operation at the current byte offset.
-    pub fn begin_operation(&mut self) {
-        self.operation_offsets
-            .push(CodeOffset(self.code.len() as u32));
-    }
-
     /// Define one dense branch label at the current byte offset.
     pub fn define(&mut self, label: Label) -> Result<()> {
         if label.index() != self.labels.len() {
             return Err(Error::InvalidLabel(label.0));
         }
 
-        let offset = CodeOffset(self.code.len() as u32);
-        self.labels.push(offset);
+        self.labels.push(CodeOffset(self.code.len() as u32));
 
         Ok(())
     }
 
-    /// Append one instruction with its destination register ranges.
+    /// Append one instruction with its destination register spans.
     pub fn emit(
         &mut self,
         instruction: InstructionBuilder,
-        definitions: &[RegisterRange],
+        definitions: &[RegisterSpan],
     ) -> Result<CodeOffset> {
         let result_bytes = Self::encode_results(instruction.opcode, definitions)?;
 
         // include every physical register touched by the instruction
-        for range in definitions.iter().chain(&instruction.ranges) {
-            self.include_range(*range)?;
+        for span in definitions.iter().chain(&instruction.spans) {
+            self.include_span(*span)?;
         }
         for register in &instruction.registers {
             self.include(*register)?;
@@ -106,16 +97,10 @@ impl FunctionBuilder {
         let instruction_end = self.code.len();
         let operand_base = instruction_end - operands.len();
 
-        // retain symbolic operands for object linking
-        for symbol in instruction.symbols {
+        // retain linked identities at their exact code offsets
+        for relocation in instruction.relocations {
             let byte_offset = (operand_base + result_byte_len) as u32;
-            self.relocations.push(symbol.rebase(byte_offset));
-        }
-
-        // retain dynamic dispatch operands for object linking
-        for table in instruction.dynamic_tables {
-            let byte_offset = (operand_base + result_byte_len) as u32;
-            self.dynamic_relocations.push(table.rebase(byte_offset));
+            self.relocations.push(relocation.rebase(byte_offset));
         }
 
         // retain branch labels for displacement resolution
@@ -130,15 +115,36 @@ impl FunctionBuilder {
         Ok(offset)
     }
 
+    /// Begin one logical operation at the current byte offset.
+    pub fn begin_operation(&mut self) -> u32 {
+        let operation = self.operations.len() as u32;
+        self.operations.push(CodeOffset(self.code.len() as u32));
+
+        operation
+    }
+
+    /// Return the current instruction byte offset.
+    pub const fn code_offset(&self) -> CodeOffset {
+        CodeOffset(self.code.len() as u32)
+    }
+
+    /// Anchor the current logical operation at the current byte offset.
+    pub fn anchor_operation(&mut self) -> Result<()> {
+        let operation = self.operations.last_mut().ok_or(Error::MissingOperation)?;
+        *operation = CodeOffset(self.code.len() as u32);
+
+        Ok(())
+    }
+
     /// Resolve all labels and finish this function body.
     pub fn build(mut self) -> Result<FunctionBody> {
         self.resolve_branches()?;
 
         Ok(FunctionBody {
             code: self.code,
-            operation_offsets: self.operation_offsets,
+            operations: self.operations,
+            labels: self.labels,
             relocations: self.relocations,
-            dynamic_relocations: self.dynamic_relocations,
             register_count: self.register_count,
             counter_count: self.counter_count,
             sampler_count: self.sampler_count,
@@ -150,13 +156,13 @@ impl FunctionBuilder {
         self.register_count
     }
 
-    /// Reserve one contiguous register range in the function register file.
-    pub fn reserve(&mut self, range: RegisterRange) -> Result<()> {
-        self.include_range(range)
+    /// Reserve one contiguous register span in the function register file.
+    pub fn reserve(&mut self, span: RegisterSpan) -> Result<()> {
+        self.include_span(span)
     }
 
     /// Encode destination operands from one opcode layout.
-    fn encode_results(opcode: Opcode, definitions: &[RegisterRange]) -> Result<Vec<u8>> {
+    fn encode_results(opcode: Opcode, definitions: &[RegisterSpan]) -> Result<Vec<u8>> {
         let layout = opcode.layout().ok_or(Error::InvalidOpcode(opcode.code()))?;
         let result_count = layout
             .operands()
@@ -212,7 +218,7 @@ impl FunctionBuilder {
     }
 
     /// Return the physical width of contiguous logical results.
-    fn packed_word_count(definitions: &[RegisterRange]) -> Result<u16> {
+    fn packed_word_count(definitions: &[RegisterSpan]) -> Result<u16> {
         let Some(first) = definitions.first() else {
             return Err(Error::InvalidResults);
         };
@@ -239,13 +245,13 @@ impl FunctionBuilder {
         Ok(())
     }
 
-    /// Include every register in one contiguous range.
-    fn include_range(&mut self, range: RegisterRange) -> Result<()> {
-        if range.word_count == 0 {
+    /// Include every register in one contiguous span.
+    fn include_span(&mut self, span: RegisterSpan) -> Result<()> {
+        if span.word_count == 0 {
             return Ok(());
         }
 
-        let end = u32::from(range.start.0) + u32::from(range.word_count);
+        let end = u32::from(span.start.0) + u32::from(span.word_count);
         let register_count = u16::try_from(end).map_err(|_| Error::RegisterFileTooLarge(end))?;
         self.register_count = self.register_count.max(register_count);
 

@@ -62,11 +62,6 @@ impl<'a> TokenCursor<'a> {
         self.tokens[position]
     }
 
-    /// Return all lexical tokens.
-    pub(super) fn tokens(&self) -> &[Token] {
-        &self.tokens
-    }
-
     /// Return the current raw token position.
     pub(super) const fn position(&self) -> usize {
         self.position
@@ -77,11 +72,6 @@ impl<'a> TokenCursor<'a> {
         self.position = position;
     }
 
-    /// Move to the start of the source.
-    pub(super) fn reset(&mut self) {
-        self.position = 0;
-    }
-
     /// Skip whitespace, comments, and newlines.
     fn skip_trivia(&mut self) {
         while self.tokens[self.position].is_trivia() {
@@ -90,7 +80,7 @@ impl<'a> TokenCursor<'a> {
     }
 }
 
-impl<'a> Parser<'a> {
+impl<'source> Parser<'source> {
     /// Return the next non-trivia token.
     pub(super) fn peek(&mut self) -> Token {
         self.cursor.peek()
@@ -102,7 +92,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Return one token's exact source text.
-    pub(super) fn text(&self, token: Token) -> &'a str {
+    pub(super) fn text(&self, token: Token) -> &'source str {
         self.cursor.text(token)
     }
 

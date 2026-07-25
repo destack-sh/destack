@@ -9,8 +9,7 @@ use super::TestParser;
 fn test_load_object_image() {
     let image = TestParser::new(
         r#"
-export function answer(): int32 {
-    r0: int32 = 42
+function f0(): t0 {    constant.int32 r0, 42
     return r0
 }
 "#,
@@ -21,7 +20,7 @@ export function answer(): int32 {
 
     // preserve the complete encoded object and its navigable sections
     assert_eq!(object.bytes(), image.bytes());
-    assert_eq!(object.string(object.functions()[0].name), Some("answer"));
+    assert_eq!(object.functions()[0].register_count, 1);
 
     // execute normal object navigation over the mapped instruction stream
     let opcodes = object

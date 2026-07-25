@@ -1,9 +1,9 @@
 mod aggregate;
 mod atomic;
 mod call;
+mod continuation;
 mod control;
 mod cursor;
-mod declaration;
 mod dynamic;
 mod error;
 mod function;
@@ -17,7 +17,6 @@ mod profile;
 mod reference;
 mod scalar;
 mod slice;
-mod symbol;
 mod tensor;
 mod r#type;
 mod value;

@@ -1,6 +1,6 @@
 use crate::{
-    CounterId, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, SamplerId,
-    Token, TokenType, ValueType,
+    CounterId, InstructionBuilder, Opcode, ParseError, ParseResult, Parser, SamplerId, Token,
+    TokenType,
 };
 
 use super::function::FunctionParser;
@@ -11,7 +11,6 @@ impl Parser<'_> {
         &mut self,
         name: &str,
         token: Token,
-        results: &[RegisterId],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let opcode = match name {
@@ -19,6 +18,7 @@ impl Parser<'_> {
             "profile.sample" => Opcode::PROFILE_SAMPLE,
             _ => return Err(ParseError::new("unknown profile operation", token.span)),
         };
+        let results = self.parse_definitions(opcode)?;
         let mut instruction = InstructionBuilder::new(opcode);
 
         // increment one function-local counter
@@ -42,18 +42,9 @@ impl Parser<'_> {
                 .map_err(|error| ParseError::new(error.to_string(), token.span))?;
             self.eat_token(TokenType::Comma)?;
             let value = self.parse_register()?;
-            let is_profile_value = function
-                .value_type(value)
-                .is_some_and(ValueType::is_profile_value);
-            if !is_profile_value {
-                return Err(ParseError::new(
-                    "profile sample requires one runtime word value",
-                    token.span,
-                ));
-            }
             instruction.register(value);
         }
 
-        function.emit(instruction, results, &[], self.empty_span())
+        function.emit(instruction, &results, self.empty_span())
     }
 }

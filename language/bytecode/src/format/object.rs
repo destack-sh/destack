@@ -8,27 +8,7 @@ impl<'a> Format<'a, BytecodeFormatContext<'a>> for Object {
     fn format(&self, formatter: &mut BytecodeFormatter<'a, '_>) -> FormatResult<()> {
         let mut is_first = true;
 
-        // write runtime type symbols
-        for name in self.types() {
-            Self::separate(&mut is_first, formatter)?;
-            let name = formatter.context().string(*name)?;
-            write!(formatter, [token("type"), space(), copied_text(name)])?;
-        }
-
-        // write named immutable constants
-        for constant in self.constants() {
-            if constant.name.get().is_none() {
-                continue;
-            }
-            Self::separate(&mut is_first, formatter)?;
-            constant.format(self.constant_bytes(), formatter)?;
-        }
-
-        // write globals and functions
-        for global in self.globals() {
-            Self::separate(&mut is_first, formatter)?;
-            global.format(formatter)?;
-        }
+        // write physical functions in object order
         for (index, function) in self.functions().iter().enumerate() {
             Self::separate(&mut is_first, formatter)?;
             function.format_at(FunctionId(index as u32), formatter)?;

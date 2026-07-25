@@ -1,20 +1,16 @@
 use crate::{
-    FunctionId, Initialization, New, NewKind, Opcode, ReferenceKind, Space, Symbol, TypeId,
+    FunctionId, Initialization, New, NewKind, Opcode, ReferenceKind, RelocationTag, Space,
 };
 
 use super::TestParser;
 
-/// Parse value and slice `new` operations with type relocations.
+/// Parse value and slice allocations with direct allocation site relocations.
 #[test]
 fn test_parse_new() {
     let (object, opcodes) = TestParser::new(
         r#"
-type Point
-
-export function allocate(r0: uint64): ref<managed, space(local)> {
-    r1: ref<managed, space(local)> = new.local.managed.zeroed Point
-    r2: uninit<slice<Point, managed, space(local)>> = new.local.managed.slice.uninit Point, r0
-    r4: slice<Point, managed, space(local)> = new.complete r2
+function f0(): t0 {    new.local.managed.zeroed r1, a0
+    new.local.managed.slice.uninit r2:r3, a1, r0
     return r1
 }
 "#,
@@ -39,15 +35,15 @@ export function allocate(r0: uint64): ref<managed, space(local)> {
                 is_fallible: false,
             })
             .expect("new opcode"),
-            Opcode::NEW_COMPLETE,
             Opcode::RETURN,
         ]
     );
-    assert_eq!(object.instruction_relocations().len(), 2);
-    assert!(
+    assert_eq!(
         object
-            .instruction_relocations()
+            .relocations()
             .iter()
-            .all(|relocation| relocation.symbol == Symbol::ty(TypeId(0).0))
+            .map(|relocation| relocation.tag)
+            .collect::<Vec<_>>(),
+        vec![RelocationTag::ALLOCATION, RelocationTag::ALLOCATION]
     );
 }

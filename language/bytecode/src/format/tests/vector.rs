@@ -5,15 +5,15 @@ use super::assert_format_eq;
 fn test_format_vector_operations() {
     assert_format_eq(
         r#"
-export function splat(r0:int32):vector<int32,4>{
-r1:vector<int32,4>=vector.splat r0
-return r1
+function f0(): t0 {
+    vector.splat.int32x4 r1:r2, r0
+return r1:r2
 }
 "#,
         r#"
-export function splat(r0: int32): vector<int32, 4> {
-    r1: vector<int32, 4> = vector.splat r0
-    return r1
+function f0(): t0 {
+    vector.splat.int32x4 r1:r2, r0
+    return r1:r2
 }
 "#,
     );
@@ -24,16 +24,16 @@ export function splat(r0: int32): vector<int32, 4> {
 fn test_format_vector_memory() {
     assert_format_eq(
         r#"
-export function copy(r0:pointer):void{
-r1:vector<int32,4>=load r0
-store r0,r1
+function f0(): t0 {
+    vector.load.int32x4 r1:r2, r0
+vector.store.int32x4 r0,r1:r2
 return
 }
 "#,
         r#"
-export function copy(r0: pointer): void {
-    r1: vector<int32, 4> = load r0
-    store r0, r1
+function f0(): t0 {
+    vector.load.int32x4 r1:r2, r0
+    vector.store.int32x4 r0, r1:r2
     return
 }
 "#,

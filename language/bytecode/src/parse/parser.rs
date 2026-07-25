@@ -1,171 +1,54 @@
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+
 use destack_source::{FileId, Span};
 
-use crate::{
-    ConstantId, FunctionId, GlobalId, Linkage, ObjectBuilder, ParseError, ParseResult, Token,
-    TokenType, TypeId,
-};
+use crate::{Function, FunctionId, ObjectBuilder};
 
 use super::cursor::TokenCursor;
-use super::symbol::SymbolTable;
 
-/// Parser over one tokenized bytecode module.
-#[derive(Debug)]
-pub struct Parser<'a> {
+/// Parser over one tokenized bytecode object.
+pub struct Parser<'source> {
     /// Tokenized source cursor.
-    pub(super) cursor: TokenCursor<'a>,
+    pub(super) cursor: TokenCursor<'source>,
     /// Bytecode object being built.
     pub(super) object: ObjectBuilder,
-    /// Symbols indexed before declarations are parsed.
-    pub(super) symbols: SymbolTable,
+    /// Dense function ids keyed by source name.
+    pub(super) functions: HashMap<String, FunctionId>,
+    /// Source names in dense function order.
+    pub(super) function_names: Vec<String>,
+    /// Parsed declarations in dense function order.
+    pub(super) declarations: Vec<Option<Function>>,
+    /// Functions with one parsed physical definition.
+    pub(super) definitions: HashSet<FunctionId>,
 }
 
-impl<'a> Parser<'a> {
+impl fmt::Debug for Parser<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_struct("Parser").finish_non_exhaustive()
+    }
+}
+
+impl<'source> Parser<'source> {
     /// Create one parser.
-    pub fn new(file_id: FileId, source: &'a str) -> Self {
+    pub fn new(file_id: FileId, source: &'source str) -> Self {
         Self {
             cursor: TokenCursor::new(file_id, source),
             object: ObjectBuilder::new(),
-            symbols: SymbolTable::default(),
+            functions: HashMap::new(),
+            function_names: Vec::new(),
+            declarations: Vec::new(),
+            definitions: HashSet::new(),
         }
+    }
+
+    /// Return source names in dense function order.
+    pub fn function_names(&self) -> &[String] {
+        &self.function_names
     }
 
     /// Return an empty span in this parser's source file.
     pub(super) fn empty_span(&self) -> Span {
         Span::empty(self.cursor.file_id)
-    }
-
-    /// Return the raw token index of every top-level declaration.
-    pub(super) fn declaration_positions(&self) -> ParseResult<Vec<usize>> {
-        let mut positions = Vec::new();
-        let mut brace_depth = 0usize;
-        let mut parenthesis_depth = 0usize;
-        let mut bracket_depth = 0usize;
-        let mut is_line_start = true;
-
-        for (position, token) in self.cursor.tokens().iter().copied().enumerate() {
-            // retain line starts across indentation and comments
-            if token.ty == TokenType::Newline {
-                is_line_start = true;
-                continue;
-            }
-            if matches!(token.ty, TokenType::Whitespace | TokenType::Comment) {
-                continue;
-            }
-
-            // collect declarations only outside nested forms and function bodies
-            let is_top_level = brace_depth == 0 && parenthesis_depth == 0 && bracket_depth == 0;
-            if is_line_start && is_top_level && token.ty == TokenType::Identifier {
-                positions.push(position);
-            }
-
-            // reject unmatched closing delimiters during the declaration pass
-            let is_unmatched = matches!(token.ty, TokenType::CloseBrace if brace_depth == 0)
-                || matches!(
-                    token.ty,
-                    TokenType::CloseParenthesis if parenthesis_depth == 0
-                )
-                || matches!(token.ty, TokenType::CloseBracket if bracket_depth == 0);
-            if is_unmatched {
-                return Err(ParseError::new("unmatched closing delimiter", token.span));
-            }
-
-            // track exact delimiter nesting for multiline declarations
-            match token.ty {
-                TokenType::OpenBrace => brace_depth += 1,
-                TokenType::CloseBrace => brace_depth -= 1,
-                TokenType::OpenParenthesis => parenthesis_depth += 1,
-                TokenType::CloseParenthesis => parenthesis_depth -= 1,
-                TokenType::OpenBracket => bracket_depth += 1,
-                TokenType::CloseBracket => bracket_depth -= 1,
-                _ => {}
-            }
-            is_line_start = false;
-        }
-
-        // reject declarations left inside an unterminated form or body
-        if brace_depth != 0 || parenthesis_depth != 0 || bracket_depth != 0 {
-            return Err(ParseError::new("unterminated delimiter", self.empty_span()));
-        }
-
-        Ok(positions)
-    }
-
-    /// Assign dense ids to every top-level symbol.
-    pub(super) fn index_declarations(&mut self, positions: &[usize]) -> ParseResult<()> {
-        self.index_symbols(positions)?;
-        self.cursor.reset();
-
-        Ok(())
-    }
-
-    /// Assign dense ids to every linkable declaration.
-    fn index_symbols(&mut self, positions: &[usize]) -> ParseResult<()> {
-        for position in positions {
-            let (_, keyword) = self.begin_declaration(*position)?;
-            let keyword_text = self.text(keyword).to_string();
-            let is_declaration = matches!(
-                keyword_text.as_str(),
-                "type" | "constant" | "function" | "global"
-            );
-            if !is_declaration {
-                continue;
-            }
-
-            let name = self.eat_token(TokenType::Identifier)?;
-            let text = self.text(name).to_string();
-
-            match keyword_text.as_str() {
-                "type" => {
-                    if self.symbols.types.contains_key(&text) {
-                        return Err(ParseError::new("duplicate symbol", name.span));
-                    }
-                    let ty = TypeId(self.symbols.types.len() as u32);
-                    self.symbols.types.insert(text.clone(), ty);
-                    let name = self.object.intern_string(&text);
-                    self.object.push_type(name);
-                }
-                "constant" => {
-                    if self.symbols.constants.contains_key(&text) {
-                        return Err(ParseError::new("duplicate symbol", name.span));
-                    }
-                    let constant = ConstantId(self.symbols.constants.len() as u32);
-                    self.symbols.constants.insert(text, constant);
-                }
-                "function" => {
-                    if self.symbols.functions.contains_key(&text) {
-                        return Err(ParseError::new("duplicate symbol", name.span));
-                    }
-                    let function = FunctionId(self.symbols.functions.len() as u32);
-                    self.symbols.functions.insert(text, function);
-                    self.symbols
-                        .function_declarations
-                        .push(super::symbol::FunctionDeclaration {
-                            parameters: Vec::new(),
-                            results: Vec::new(),
-                            environment: None,
-                            resume_parameters: Vec::new(),
-                        });
-                }
-                "global" => {
-                    if self.symbols.globals.contains_key(&text) {
-                        return Err(ParseError::new("duplicate symbol", name.span));
-                    }
-                    let global = GlobalId(self.symbols.globals.len() as u32);
-                    self.symbols.globals.insert(text, global);
-                }
-                _ => {}
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Begin one indexed declaration and return its linkage and keyword.
-    pub(super) fn begin_declaration(&mut self, position: usize) -> ParseResult<(Linkage, Token)> {
-        self.cursor.seek(position);
-        let modifiers = self.parse_declaration_modifiers();
-        let keyword = self.eat_token(TokenType::Identifier)?;
-
-        Ok((modifiers.linkage(), keyword))
     }
 }

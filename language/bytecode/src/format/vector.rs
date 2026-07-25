@@ -1,32 +1,22 @@
 use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
 
 use crate::{
-    ConvertMode, FloatOperation, IntegerOperation, ReduceOperation, RegisterId, Scalar, ValueType,
+    ConvertMode, FloatOperation, IntegerOperation, ReduceOperation, RegisterId, RegisterSpan,
     VectorOperation, VectorType,
 };
 
 use super::instruction::InstructionFormatter;
 
 impl InstructionFormatter<'_, '_, '_> {
-    /// Format one fixed width vector operation.
-    pub(super) fn format_vector(&mut self) -> FormatResult<()> {
-        let operation =
-            self.instruction
-                .opcode()
-                .vector_operation()
-                .ok_or(FormatError::SyntaxError {
-                    message: "vector instruction has an invalid opcode",
-                })?;
-
+    /// Format one fixed-width vector instruction.
+    pub(super) fn format_vector(&mut self, operation: VectorOperation) -> FormatResult<()> {
         match operation {
             VectorOperation::Splat => self.format_vector_splat(),
             VectorOperation::Insert => self.format_vector_insert(),
             VectorOperation::Extract => self.format_vector_extract(),
             VectorOperation::Shuffle => self.format_vector_shuffle(),
-            VectorOperation::Element => self.format_vector_element(false),
-            VectorOperation::Compare => self.format_vector_element(true),
+            VectorOperation::Element => self.format_vector_element(),
+            VectorOperation::Compare => self.format_vector_compare(),
             VectorOperation::Select => self.format_vector_select(),
             VectorOperation::Reduce => self.format_vector_reduce(),
             VectorOperation::Convert => self.format_vector_convert(),
@@ -35,366 +25,232 @@ impl InstructionFormatter<'_, '_, '_> {
         }
     }
 
-    /// Format one scalar broadcast.
+    /// Format one vector splat.
     fn format_vector_splat(&mut self) -> FormatResult<()> {
-        let result = self.register_range_id()?;
+        let result = self.read_span()?;
         let value = self.register_id()?;
         let vector = self.vector_type()?;
-        self.require_vector_value(value, ValueType::scalar(vector.scalar))?;
-
-        self.vector_result(result, vector)?;
-
-        // write the scalar broadcast
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("vector.splat"), space()]
-        )?;
-        self.write_register(value)?;
-
-        Ok(())
+        self.write_vector_opcode("splat", vector)?;
+        self.write_span(result)?;
+        self.write_comma()?;
+        self.write_register(value)
     }
 
-    /// Format one lane replacement.
+    /// Format one vector lane insertion.
     fn format_vector_insert(&mut self) -> FormatResult<()> {
-        let result = self.register_range_id()?;
-        let (input, input_word_count) = self.register_range_id()?;
+        let result = self.read_span()?;
+        let input = self.read_span()?;
         let index = self.register_id()?;
         let value = self.register_id()?;
         let vector = self.vector_type()?;
-        let input_type = self.formatter.context().register_type(input)?;
-        if input_type != ValueType::vector(vector) || input_word_count != input_type.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "vector insertion reads an invalid input range",
-            });
-        }
-        self.require_vector_value(index, ValueType::scalar(Scalar::Uint32))?;
-        self.require_vector_value(value, ValueType::scalar(vector.scalar))?;
-
-        // write the lane replacement
-        self.vector_result(result, vector)?;
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("vector.insert"),
-                space()
-            ]
-        )?;
-        self.write_register(input)?;
-        write!(self.formatter, [token(","), space()])?;
+        self.write_vector_opcode("insert", vector)?;
+        self.write_span(result)?;
+        self.write_comma()?;
+        self.write_span(input)?;
+        self.write_comma()?;
         self.write_register(index)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(value)?;
-
-        Ok(())
+        self.write_comma()?;
+        self.write_register(value)
     }
 
-    /// Format one lane extraction.
+    /// Format one vector lane extraction.
     fn format_vector_extract(&mut self) -> FormatResult<()> {
         let result = self.register_id()?;
-        let (input, input_word_count) = self.register_range_id()?;
+        let input = self.read_span()?;
         let index = self.register_id()?;
         let vector = self.vector_type()?;
-        let input_type = self.formatter.context().register_type(input)?;
-        if input_type != ValueType::vector(vector) || input_word_count != input_type.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "vector extraction reads an invalid input range",
-            });
-        }
-        self.require_vector_value(index, ValueType::scalar(Scalar::Uint32))?;
-
-        // write the lane projection
-        self.write_result(result, ValueType::scalar(vector.scalar))?;
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("vector.extract"),
-                space()
-            ]
-        )?;
-        self.write_register(input)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(index)?;
-
-        Ok(())
+        self.write_vector_opcode("extract", vector)?;
+        self.write_register(result)?;
+        self.write_comma()?;
+        self.write_span(input)?;
+        self.write_comma()?;
+        self.write_register(index)
     }
 
-    /// Format one static lane shuffle.
+    /// Format one vector lane shuffle.
     fn format_vector_shuffle(&mut self) -> FormatResult<()> {
-        let result = self.register_range_id()?;
+        let result = self.read_span()?;
         let inputs = self.register_ids()?;
         let lanes = self.u16_list()?;
         let vector = self.vector_type()?;
-        let vector_type = ValueType::vector(vector);
-        for input in &inputs {
-            self.require_vector_value(*input, vector_type)?;
-        }
-        let lane_limit = u32::from(vector.lane_count) * 2;
-        let are_lanes_valid = lanes.len() == vector.lane_count as usize
-            && lanes.iter().all(|lane| u32::from(*lane) < lane_limit);
-        if !are_lanes_valid {
-            return Err(FormatError::SyntaxError {
-                message: "vector shuffle has invalid lanes",
-            });
-        }
-
-        // write the selected lane ordering
-        self.vector_result(result, vector)?;
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("vector.shuffle"),
-                space()
-            ]
-        )?;
-        self.write_registers(&inputs)?;
-        write!(self.formatter, [token(","), space(), token("[")])?;
-
-        // write the lane selection in encoded order
-        for (index, lane) in lanes.into_iter().enumerate() {
-            if index > 0 {
-                write!(self.formatter, [token(","), space()])?;
-            }
-            self.write_text(&lane.to_string())?;
-        }
-        self.write_token("]")?;
-
-        Ok(())
+        self.write_vector_opcode("shuffle", vector)?;
+        self.write_span(result)?;
+        self.write_comma()?;
+        self.write_vector_spans(&inputs, vector)?;
+        self.write_comma()?;
+        self.write_u16s(&lanes)
     }
 
     /// Format one elementwise vector operation.
-    fn format_vector_element(&mut self, is_comparison: bool) -> FormatResult<()> {
-        let result = self.register_range_id()?;
+    fn format_vector_element(&mut self) -> FormatResult<()> {
+        let result = self.read_span()?;
         let inputs = self.register_ids()?;
         let vector = self.vector_type()?;
         let operator = self.u16()?;
-        let operation = self.vector_operator(vector, operator)?;
-        let result_type = if is_comparison { vector.mask() } else { vector };
-        for input in &inputs {
-            self.require_vector_value(*input, ValueType::vector(vector))?;
-        }
-
-        self.vector_result(result, result_type)?;
-
-        // write comparisons as an explicit scalar operator operand
-        if is_comparison {
-            write!(
-                self.formatter,
-                [
-                    space(),
-                    token("="),
-                    space(),
-                    token("vector.compare"),
-                    space()
-                ]
-            )?;
-            self.write_text(&operation)?;
-            write!(self.formatter, [token(","), space()])?;
-        } else {
-            write!(self.formatter, [space(), token("="), space()])?;
-            self.write_text(&operation)?;
-            write!(self.formatter, [space()])?;
-        }
-        self.write_registers(&inputs)?;
-
-        Ok(())
+        let operator = self.vector_operator(vector, operator, false)?;
+        self.write_vector_opcode(&operator, vector)?;
+        self.write_span(result)?;
+        self.write_comma()?;
+        self.write_vector_spans(&inputs, vector)
     }
 
-    /// Format one lane selection.
-    fn format_vector_select(&mut self) -> FormatResult<()> {
-        let result = self.register_range_id()?;
+    /// Format one vector comparison.
+    fn format_vector_compare(&mut self) -> FormatResult<()> {
+        let result = self.read_span()?;
         let inputs = self.register_ids()?;
         let vector = self.vector_type()?;
-        let [condition, left, right] = inputs.as_slice() else {
-            return Err(FormatError::SyntaxError {
-                message: "vector selection has an invalid input count",
-            });
-        };
-        self.require_vector_value(*condition, ValueType::vector(vector.mask()))?;
-        self.require_vector_value(*left, ValueType::vector(vector))?;
-        self.require_vector_value(*right, ValueType::vector(vector))?;
-
-        // write the lane selection
-        self.vector_result(result, vector)?;
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("select"), space()]
-        )?;
-        self.write_registers(&inputs)?;
-
-        Ok(())
+        let operator = self.u16()?;
+        let operator = self.vector_operator(vector, operator, true)?;
+        let operation = format!("compare.{operator}");
+        self.write_vector_opcode(&operation, vector)?;
+        self.write_span(result)?;
+        self.write_comma()?;
+        self.write_vector_spans(&inputs, vector)
     }
 
-    /// Format one horizontal reduction.
+    /// Format one vector lane selection.
+    fn format_vector_select(&mut self) -> FormatResult<()> {
+        let result = self.read_span()?;
+        let inputs = self.register_ids()?;
+        let [condition, left, right] = inputs.as_slice() else {
+            return Err(FormatError::SyntaxError {
+                message: "vector select requires three inputs",
+            });
+        };
+        let vector = self.vector_type()?;
+        self.write_vector_opcode("select", vector)?;
+        self.write_span(result)?;
+        self.write_comma()?;
+        self.write_span(RegisterSpan::new(*condition, vector.mask().word_count()))?;
+        self.write_comma()?;
+        self.write_span(RegisterSpan::new(*left, vector.word_count()))?;
+        self.write_comma()?;
+        self.write_span(RegisterSpan::new(*right, vector.word_count()))
+    }
+
+    /// Format one vector reduction.
     fn format_vector_reduce(&mut self) -> FormatResult<()> {
         let result = self.register_id()?;
-        let (input, input_word_count) = self.register_range_id()?;
+        let input = self.read_span()?;
         let vector = self.vector_type()?;
-        let input_type = self.formatter.context().register_type(input)?;
-        if input_type != ValueType::vector(vector) || input_word_count != input_type.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "vector reduction reads an invalid input range",
-            });
-        }
         let operation =
             ReduceOperation::from_code(self.u16()? as u8).ok_or(FormatError::SyntaxError {
                 message: "vector reduction has an invalid operation",
             })?;
-
-        // write the horizontal reduction
-        self.write_result(result, ValueType::scalar(vector.scalar))?;
-        let prefix = if vector.scalar.is_float() {
-            "float"
-        } else {
-            "int"
-        };
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("vector.reduce"),
-                space()
-            ]
-        )?;
-        self.write_text(prefix)?;
-        self.write_token(".")?;
-        self.write_text(operation.name())?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(input)?;
-
-        Ok(())
+        let operation = format!("reduce.{}", operation.name());
+        self.write_vector_opcode(&operation, vector)?;
+        self.write_register(result)?;
+        self.write_comma()?;
+        self.write_span(input)
     }
 
-    /// Format one lane representation conversion.
+    /// Format one vector conversion.
     fn format_vector_convert(&mut self) -> FormatResult<()> {
-        let result = self.register_range_id()?;
-        let (input, input_word_count) = self.register_range_id()?;
+        let result = self.read_span()?;
+        let input = self.read_span()?;
         let source = self.vector_type()?;
         let target = self.vector_type()?;
         let mode = ConvertMode::from_code(self.u16()? as u8).ok_or(FormatError::SyntaxError {
             message: "vector conversion has an invalid mode",
         })?;
-
-        // require the encoded source range to match the register file
-        let input_type = self.formatter.context().register_type(input)?;
-        if input_type != ValueType::vector(source) || input_word_count != input_type.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "vector conversion reads an invalid source range",
-            });
-        }
-
-        // write the representation conversion
-        self.vector_result(result, target)?;
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("vector.convert"),
-                space()
-            ]
-        )?;
-        self.write_text(mode.name())?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(input)?;
-
-        Ok(())
+        let operation = format!(
+            "vector.convert.{}.{}.{}",
+            mode.name(),
+            source.name(),
+            target.name()
+        );
+        self.write_opcode(&operation)?;
+        self.write_span(result)?;
+        self.write_comma()?;
+        self.write_span(input)
     }
 
     /// Format one vector load.
     fn format_vector_load(&mut self) -> FormatResult<()> {
-        let result = self.register_range_id()?;
+        let result = self.read_span()?;
         let pointer = self.register_id()?;
         let vector = self.vector_type()?;
-        self.require_vector_value(pointer, ValueType::pointer())?;
-
-        // write the typed vector load
-        self.vector_result(result, vector)?;
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("load"), space()]
-        )?;
-        self.write_register(pointer)?;
-
-        Ok(())
+        self.write_vector_opcode("load", vector)?;
+        self.write_span(result)?;
+        self.write_comma()?;
+        self.write_register(pointer)
     }
 
     /// Format one vector store.
     fn format_vector_store(&mut self) -> FormatResult<()> {
         let pointer = self.register_id()?;
-        let (value, word_count) = self.register_range_id()?;
+        let value = self.read_span()?;
         let vector = self.vector_type()?;
-        self.require_vector_value(pointer, ValueType::pointer())?;
-
-        // require the encoded input range to match the register file
-        let value_type = self.formatter.context().register_type(value)?;
-        if value_type != ValueType::vector(vector) || word_count != value_type.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "vector store reads an invalid value range",
-            });
-        }
-
-        // write the typed vector store
-        write!(self.formatter, [token("store"), space()])?;
+        let operation = format!("vector.store.{}", vector.name());
+        self.write_text(&operation)?;
+        self.write_token(" ")?;
         self.write_register(pointer)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(value)?;
-
-        Ok(())
+        self.write_comma()?;
+        self.write_span(value)
     }
 
-    /// Append one vector result range.
-    fn vector_result(&mut self, result: (RegisterId, u16), vector: VectorType) -> FormatResult<()> {
-        let ty = ValueType::vector(vector);
+    /// Write one vector opcode and its representation suffix.
+    fn write_vector_opcode(&mut self, operation: &str, vector: VectorType) -> FormatResult<()> {
+        let operation = format!("vector.{operation}.{}", vector.name());
 
-        // require the physical result range to fit the logical vector
-        if result.1 != ty.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "vector result width does not match its type",
-            });
-        }
-
-        self.write_result(result.0, ty)
+        self.write_opcode(&operation)
     }
 
-    /// Decode one typed vector operator name.
-    fn vector_operator(&self, vector: VectorType, code: u16) -> FormatResult<String> {
-        let prefix = if vector.scalar.is_float() {
-            "float"
-        } else {
-            "int"
-        };
-        let operation = if vector.scalar.is_float() {
-            FloatOperation::from_code(code as u8).map(FloatOperation::name)
-        } else {
-            IntegerOperation::from_code(code as u8).map(IntegerOperation::name)
-        };
-        let operation = operation.ok_or(FormatError::SyntaxError {
-            message: "vector instruction has an invalid operation",
-        })?;
-
-        Ok(format!("{prefix}.{operation}"))
-    }
-
-    /// Require one register to contain an exact vector operand type.
-    fn require_vector_value(&self, register: RegisterId, expected: ValueType) -> FormatResult<()> {
-        if self.formatter.context().register_type(register)? != expected {
-            return Err(FormatError::SyntaxError {
-                message: "vector operand does not match its encoded type",
-            });
+    /// Write physical spans for vector start registers.
+    fn write_vector_spans(
+        &mut self,
+        registers: &[RegisterId],
+        vector: VectorType,
+    ) -> FormatResult<()> {
+        for (index, register) in registers.iter().copied().enumerate() {
+            if index > 0 {
+                self.write_comma()?;
+            }
+            self.write_span(RegisterSpan::new(register, vector.word_count()))?;
         }
 
         Ok(())
+    }
+
+    /// Decode one vector scalar operation.
+    fn vector_operator(
+        &self,
+        vector: VectorType,
+        code: u16,
+        is_comparison: bool,
+    ) -> FormatResult<String> {
+        let name = if vector.scalar.is_float() {
+            FloatOperation::from_code(code as u8)
+                .filter(|operation| !is_comparison || operation.is_comparison())
+                .map(FloatOperation::name)
+        } else {
+            IntegerOperation::from_code(code as u8)
+                .filter(|operation| !is_comparison || operation.is_comparison())
+                .map(IntegerOperation::name)
+        };
+
+        name.map(str::to_string).ok_or(FormatError::SyntaxError {
+            message: "vector operation has an invalid scalar operation",
+        })
+    }
+
+    /// Read one physical register span.
+    fn read_span(&mut self) -> FormatResult<RegisterSpan> {
+        let (start, word_count) = self.register_span_id()?;
+
+        Ok(RegisterSpan::new(start, word_count))
+    }
+
+    /// Write one unsigned lane list.
+    fn write_u16s(&mut self, values: &[u16]) -> FormatResult<()> {
+        self.write_token("[")?;
+        for (index, value) in values.iter().enumerate() {
+            if index > 0 {
+                self.write_comma()?;
+            }
+            self.write_text(&value.to_string())?;
+        }
+
+        self.write_token("]")
     }
 }

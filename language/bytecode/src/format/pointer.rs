@@ -1,8 +1,5 @@
+use crate::{Opcode, RegisterId, RegisterSpan};
 use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
-
-use crate::{Opcode, Scalar, ValueType};
 
 use super::instruction::InstructionFormatter;
 
@@ -10,10 +7,11 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one pointer operation.
     pub(super) fn format_pointer(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
+            Opcode::ADDRESS => self.format_address(),
             Opcode::GLOBAL_ADDRESS => self.format_global_address(),
-            Opcode::FRAME_ADDRESS => self.format_frame_address(),
-            Opcode::POINTER_OFFSET => self.format_pointer_offset(),
-            Opcode::POINTER_INDEX => self.format_pointer_index(),
+            Opcode::POINTER_ADD_IMMEDIATE => self.format_pointer_add_immediate(),
+            Opcode::POINTER_ADD => self.format_pointer_add(),
+            Opcode::POINTER_ADD_SCALED => self.format_pointer_add_scaled(),
             Opcode::POINTER_DISTANCE => self.format_pointer_distance(),
             Opcode::REFERENCE_POINTER => self.format_reference_pointer(),
             _ => Err(FormatError::SyntaxError {
@@ -26,127 +24,94 @@ impl InstructionFormatter<'_, '_, '_> {
     fn format_reference_pointer(&mut self) -> FormatResult<()> {
         let result = self.register_id()?;
         let reference = self.register_id()?;
-        self.reference()?;
+        let reference_type = self.reference()?;
 
-        self.write_result(result, ValueType::pointer())?;
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("reference.pointer"),
-                space()
-            ]
-        )?;
+        self.write_reference_opcode("reference.pointer", reference_type)?;
+        self.write_result(result)?;
+        self.write_comma()?;
         self.write_register(reference)
     }
 
     /// Format one linked global address.
     fn format_global_address(&mut self) -> FormatResult<()> {
-        self.result(ValueType::pointer())?;
-        let symbol = self.symbol()?;
+        self.write_opcode("global.address")?;
+        self.result()?;
+        let symbol = self.relocation_text()?;
 
         // write the linked global
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("global.address"),
-                space()
-            ]
-        )?;
+        self.write_comma()?;
         self.write_text(&symbol)
     }
 
-    /// Format one frame-slot address.
-    fn format_frame_address(&mut self) -> FormatResult<()> {
-        self.result(ValueType::pointer())?;
-        let slot = format!("s{}", self.u32()?);
+    /// Format the stable address of one register value.
+    fn format_address(&mut self) -> FormatResult<()> {
+        self.write_opcode("address")?;
+        self.result()?;
+        let (register, word_count) = self.register_span_id()?;
+        let value = RegisterSpan::new(register, word_count);
 
-        // write the fixed frame slot
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("frame.address"),
-                space()
-            ]
-        )?;
-        self.write_text(&slot)
+        // write the addressable register value
+        self.write_comma()?;
+        self.write_span(value)
     }
 
-    /// Format one constant pointer offset.
-    fn format_pointer_offset(&mut self) -> FormatResult<()> {
-        self.result(ValueType::pointer())?;
+    /// Format one immediate pointer addition.
+    fn format_pointer_add_immediate(&mut self) -> FormatResult<()> {
+        let result = self.register_id()?;
         let pointer = self.register_id()?;
         let offset = self.i32()?.to_string();
 
-        // write the base and byte displacement
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("pointer.offset"),
-                space()
-            ]
-        )?;
-        self.write_register(pointer)?;
-        write!(self.formatter, [token(","), space()])?;
+        // write the base and immediate byte displacement
+        self.write_pointer_add(result, pointer)?;
         self.write_text(&offset)
     }
 
-    /// Format one scaled pointer index.
-    fn format_pointer_index(&mut self) -> FormatResult<()> {
-        self.result(ValueType::pointer())?;
+    /// Format one register pointer addition.
+    fn format_pointer_add(&mut self) -> FormatResult<()> {
+        let result = self.register_id()?;
         let pointer = self.register_id()?;
-        let index = self.register_id()?;
-        let stride = self.u32()?.to_string();
+        let offset = self.register_id()?;
 
-        // write the scaled address calculation
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("pointer.index"),
-                space()
-            ]
-        )?;
+        // write the base and register byte offset
+        self.write_pointer_add(result, pointer)?;
+        self.write_register(offset)
+    }
+
+    /// Format one scaled register pointer addition.
+    fn format_pointer_add_scaled(&mut self) -> FormatResult<()> {
+        let result = self.register_id()?;
+        let pointer = self.register_id()?;
+        let offset = self.register_id()?;
+        let scale = self.u32()?.to_string();
+
+        // write the base, register offset, and static byte scale
+        self.write_pointer_add(result, pointer)?;
+        self.write_register(offset)?;
+        self.write_comma()?;
+        self.write_text(&scale)
+    }
+
+    /// Write one pointer addition through its first operand.
+    fn write_pointer_add(&mut self, result: RegisterId, pointer: RegisterId) -> FormatResult<()> {
+        self.write_opcode("pointer.add")?;
+        self.write_register(result)?;
+        self.write_comma()?;
         self.write_register(pointer)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(index)?;
-        write!(self.formatter, [token(","), space(), token("stride(")])?;
-        self.write_text(&stride)?;
-        self.write_token(")")
+        self.write_comma()
     }
 
     /// Format one signed distance between two pointers.
     fn format_pointer_distance(&mut self) -> FormatResult<()> {
-        self.result(ValueType::scalar(Scalar::Int64))?;
+        let result = self.register_id()?;
         let left = self.register_id()?;
         let right = self.register_id()?;
 
-        // write both address operands
-        write!(
-            self.formatter,
-            [
-                space(),
-                token("="),
-                space(),
-                token("pointer.distance"),
-                space()
-            ]
-        )?;
+        // write both pointer operands
+        self.write_opcode("pointer.distance")?;
+        self.write_register(result)?;
+        self.write_comma()?;
         self.write_register(left)?;
-        write!(self.formatter, [token(","), space()])?;
+        self.write_comma()?;
         self.write_register(right)
     }
 }

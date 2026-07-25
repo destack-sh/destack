@@ -1,4 +1,4 @@
-use crate::{Error, ReferenceType, Result, TensorOperand, ValueType};
+use crate::{Error, Placement, ReferenceType, Result, TensorOperand, ValueType};
 
 /// One encoded instruction operand.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -11,9 +11,11 @@ pub enum Operand {
     /// One input register encoded as an unsigned 16-bit index.
     Register,
     /// One input range encoded as a 16-bit start and 16-bit word count.
-    RegisterRange,
+    RegisterSpan,
     /// A 16-bit count followed by unsigned 16-bit input register indices.
     RegisterList,
+    /// One counted sequence of physical aggregate placements.
+    Aggregate,
 
     // control flow
     /// One signed 32-bit branch displacement from the end of the instruction.
@@ -24,18 +26,18 @@ pub enum Operand {
     // linked identities
     /// One relocatable runtime type symbol encoded as an unsigned 32-bit index.
     Type,
+    /// One relocatable runtime layout symbol encoded as an unsigned 32-bit index.
+    Layout,
     /// One relocatable function symbol encoded as an unsigned 32-bit index.
     Function,
     /// One relocatable global symbol encoded as an unsigned 32-bit index.
     Global,
-    /// One relocatable immutable constant encoded as an unsigned 32-bit index.
-    Constant,
     /// One relocatable dynamic dispatch table encoded as an unsigned 32-bit index.
     DynamicTable,
+    /// One relocatable allocation site encoded as an unsigned 32-bit index.
+    Allocation,
 
     // function-local identities
-    /// One function-local frame slot encoded as an unsigned 32-bit index.
-    FrameSlot,
     /// One function-local profile counter encoded as an unsigned 32-bit index.
     Counter,
     /// One function-local profile sampler encoded as an unsigned 32-bit index.
@@ -50,9 +52,9 @@ pub enum Operand {
     VectorType,
     /// One complete fixed-width bytecode value type.
     ValueType,
-    /// One tensor register range and runtime type symbol.
+    /// One tensor register range and runtime layout symbol.
     Tensor,
-    /// A 16-bit count followed by tensor register ranges and runtime type symbols.
+    /// A 16-bit count followed by tensor register ranges and runtime layout symbols.
     TensorList,
 
     // execution controls
@@ -111,14 +113,14 @@ impl Operand {
             | Self::Unsigned16 => Some(size_of::<u16>()),
             Self::Reference => Some(size_of::<ReferenceType>()),
             Self::ValueType => Some(ValueType::BYTE_LEN),
-            Self::ResultRange | Self::RegisterRange => Some(size_of::<[u16; 2]>()),
+            Self::ResultRange | Self::RegisterSpan => Some(size_of::<[u16; 2]>()),
             Self::Branch
             | Self::Type
+            | Self::Layout
             | Self::Function
             | Self::Global
-            | Self::Constant
             | Self::DynamicTable
-            | Self::FrameSlot
+            | Self::Allocation
             | Self::Counter
             | Self::Sampler
             | Self::FenceAccess
@@ -130,6 +132,7 @@ impl Operand {
             Self::Bits64 => Some(size_of::<u64>()),
             Self::Bits128 => Some(size_of::<u128>()),
             Self::RegisterList
+            | Self::Aggregate
             | Self::Switch
             | Self::TensorList
             | Self::ContractionAxes
@@ -157,6 +160,7 @@ impl Operand {
         // consume the exact variable-width operand shape
         match self {
             Self::RegisterList | Self::Unsigned16List => cursor.take_list::<u16>()?,
+            Self::Aggregate => cursor.take_list_bytes(Placement::BYTE_LEN)?,
             Self::TensorList => cursor.take_list_bytes(TensorOperand::BYTE_LEN)?,
             Self::Unsigned32List => cursor.take_list::<u32>()?,
             Self::Bits64List => cursor.take_list::<u64>()?,

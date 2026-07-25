@@ -2,76 +2,39 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{MemoryOperation, Opcode, Scalar, ValueType};
+use crate::{MemoryOperation, Opcode, RegisterSpan, Scalar};
 
 use super::instruction::InstructionFormatter;
 
 impl InstructionFormatter<'_, '_, '_> {
-    /// Format one canonical frame-slot value operation.
-    pub(super) fn format_frame(&mut self, opcode: Opcode) -> FormatResult<()> {
-        match opcode {
-            Opcode::FRAME_LOAD => self.format_frame_load(),
-            Opcode::FRAME_STORE => self.format_frame_store(),
-            _ => Err(FormatError::SyntaxError {
-                message: "invalid frame opcode",
-            }),
-        }
-    }
-
-    /// Format one canonical frame-slot load.
-    fn format_frame_load(&mut self) -> FormatResult<()> {
-        self.declared_result_range()?;
-        let slot = format!("s{}", self.u32()?);
-
-        // write the canonical frame slot
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("frame.load"), space()]
-        )?;
-        self.write_text(&slot)
-    }
-
-    /// Format one canonical frame-slot store.
-    fn format_frame_store(&mut self) -> FormatResult<()> {
-        let slot = format!("s{}", self.u32()?);
-        let (value, _) = self.register_range_id()?;
-
-        // write the canonical frame slot and logical value
-        write!(self.formatter, [token("frame.store"), space()])?;
-        self.write_text(&slot)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(value)
-    }
-
     /// Format one packed value load.
     pub(super) fn format_load(&mut self) -> FormatResult<()> {
-        self.declared_result_range()?;
+        self.write_opcode("load")?;
+        self.result_span()?;
         let pointer = self.register_id()?;
-        let ty = self.symbol()?;
+        let byte_len = self.u32()?.to_string();
 
-        // write the pointer and Program storage type
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("load"), space()]
-        )?;
+        // write the pointer and exact copied byte length
+        self.write_comma()?;
         self.write_register(pointer)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_text(&ty)
+        self.write_comma()?;
+        self.write_text(&byte_len)
     }
 
     /// Format one packed value store.
     pub(super) fn format_store(&mut self) -> FormatResult<()> {
         let pointer = self.register_id()?;
-        let (value, _) = self.register_range_id()?;
-        let ty = self.symbol()?;
+        let (value, word_count) = self.register_span_id()?;
+        let value = RegisterSpan::new(value, word_count);
+        let byte_len = self.u32()?.to_string();
 
-        // write the pointer, value, and Program storage type
+        // write the pointer, value, and exact copied byte length
         write!(self.formatter, [token("store"), space()])?;
         self.write_register(pointer)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(value)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_text(&ty)
+        self.write_comma()?;
+        self.write_span(value)?;
+        self.write_comma()?;
+        self.write_text(&byte_len)
     }
 
     /// Format one scalar load or store.
@@ -85,13 +48,11 @@ impl InstructionFormatter<'_, '_, '_> {
 
         // load one scalar value
         if operation == MemoryOperation::Load {
-            self.result(ValueType::scalar(scalar))?;
+            let name = format!("{operation_name}.{scalar_name}");
+            self.write_opcode(&name)?;
+            self.result()?;
             let pointer = self.register_id()?;
-            write!(self.formatter, [space(), token("="), space()])?;
-            self.write_text(operation_name)?;
-            self.write_token(".")?;
-            self.write_text(scalar_name)?;
-            self.write_token(" ")?;
+            self.write_comma()?;
             self.write_register(pointer)
         }
         // store one scalar value
@@ -158,17 +119,16 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one byte comparison.
     fn format_byte_compare(&mut self) -> FormatResult<()> {
         // decode the signed result and comparison range
-        self.result(ValueType::scalar(Scalar::Int32))?;
+        let result = self.register_id()?;
         let left = self.register_id()?;
         let right = self.register_id()?;
         let byte_len = self.register_id()?;
         let name = self.opcode_name(Opcode::COMPARE_BYTES)?;
 
         // write the comparison range
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token(name), space()]
-        )?;
+        self.write_opcode(name)?;
+        self.write_register(result)?;
+        self.write_comma()?;
         self.write_register(left)?;
         write!(self.formatter, [token(","), space()])?;
         self.write_register(right)?;

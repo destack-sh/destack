@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 
 use crate::{
-    CodeOffset, CounterId, Error, InstructionLayout, Opcode, Operand, ReferenceType, RegisterId,
-    RegisterRange, Result, SamplerId, Scalar, TensorOperand, TypeId, ValueType, VectorType,
+    CodeOffset, CounterId, Error, InstructionLayout, LayoutId, Opcode, Operand, Placement,
+    ReferenceType, RegisterId, RegisterSpan, Result, SamplerId, Scalar, TensorOperand, ValueType,
+    VectorType,
 };
 
 /// One borrowed instruction in a bytecode stream.
@@ -210,6 +211,30 @@ impl<'a> Instruction<'a> {
         Operands::new(self.operand_bytes())
     }
 
+    /// Return the physical register ranges written by this instruction.
+    pub fn results(self) -> Result<Vec<RegisterSpan>> {
+        let layout = self
+            .opcode()
+            .layout()
+            .ok_or(Error::InvalidOpcode(self.opcode().code()))?;
+        let mut operands = self.operands();
+        let mut results = Vec::new();
+
+        // decode the leading result operands shared by every operation family
+        for operand in layout.operands() {
+            match operand {
+                Operand::Result => {
+                    let register = operands.register()?;
+                    results.push(RegisterSpan::new(register, 1));
+                }
+                Operand::ResultRange => results.push(operands.span()?),
+                _ => break,
+            }
+        }
+
+        Ok(results)
+    }
+
     /// Read one little-endian 16-bit operand.
     pub fn read_u16(self, byte_offset: usize) -> Result<u16> {
         Self::decode_u16(self.operand_bytes(), byte_offset)
@@ -324,12 +349,19 @@ impl<'a> Operands<'a> {
         Ok(Registers { bytes })
     }
 
-    /// Read one contiguous register range.
-    pub fn range(&mut self) -> Result<RegisterRange> {
+    /// Read one counted list of physical aggregate placements.
+    pub fn placements(&mut self) -> Result<Placements<'a>> {
+        let bytes = self.list(Placement::BYTE_LEN)?;
+
+        Ok(Placements { bytes })
+    }
+
+    /// Read one contiguous register span.
+    pub fn span(&mut self) -> Result<RegisterSpan> {
         let start = self.register()?;
         let word_count = self.u16()?;
 
-        Ok(RegisterRange::new(start, word_count))
+        Ok(RegisterSpan::new(start, word_count))
     }
 
     /// Read one reference representation.
@@ -356,10 +388,10 @@ impl<'a> Operands<'a> {
 
     /// Read one tensor operand.
     pub fn tensor(&mut self) -> Result<TensorOperand> {
-        let registers = self.range()?;
-        let ty = TypeId(self.u32()?);
+        let registers = self.span()?;
+        let layout = LayoutId(self.u32()?);
 
-        Ok(TensorOperand::new(registers, ty))
+        Ok(TensorOperand::new(registers, layout))
     }
 
     /// Read one counted list of tensor operands.
@@ -499,6 +531,51 @@ impl Iterator for Registers<'_> {
 
 impl ExactSizeIterator for Registers<'_> {}
 
+/// One iterator over encoded physical aggregate placements.
+#[derive(Clone, Copy, Debug)]
+pub struct Placements<'a> {
+    /// The unread placement bytes.
+    bytes: &'a [u8],
+}
+
+impl Placements<'_> {
+    /// Return the number of unread placements.
+    pub const fn len(&self) -> usize {
+        self.bytes.len() / Placement::BYTE_LEN
+    }
+
+    /// Return whether no placements remain.
+    pub const fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+}
+
+impl Iterator for Placements<'_> {
+    type Item = Placement;
+
+    /// Decode the next physical aggregate placement.
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytes = self.bytes.get(..Placement::BYTE_LEN)?;
+        self.bytes = &self.bytes[Placement::BYTE_LEN..];
+        let register = u16::from_le_bytes([bytes[0], bytes[1]]);
+        let word_count = u16::from_le_bytes([bytes[2], bytes[3]]);
+        let byte_offset = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
+        let byte_len = u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]);
+        let registers = RegisterSpan::new(RegisterId(register), word_count);
+
+        Some(Placement::new(registers, byte_offset, byte_len))
+    }
+
+    /// Return the exact remaining placement count.
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+
+        (len, Some(len))
+    }
+}
+
+impl ExactSizeIterator for Placements<'_> {}
+
 impl Tensors<'_> {
     /// Return the number of unread tensor operands.
     pub const fn len(&self) -> usize {
@@ -520,10 +597,10 @@ impl Iterator for Tensors<'_> {
         self.bytes = &self.bytes[TensorOperand::BYTE_LEN..];
         let start = u16::from_le_bytes([bytes[0], bytes[1]]);
         let word_count = u16::from_le_bytes([bytes[2], bytes[3]]);
-        let ty = TypeId(u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]));
-        let registers = RegisterRange::new(RegisterId(start), word_count);
+        let layout = LayoutId(u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]));
+        let registers = RegisterSpan::new(RegisterId(start), word_count);
 
-        Some(TensorOperand::new(registers, ty))
+        Some(TensorOperand::new(registers, layout))
     }
 
     /// Return the exact remaining tensor operand count.

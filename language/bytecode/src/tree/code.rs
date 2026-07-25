@@ -2,7 +2,9 @@ use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Body, ConstantValue, Error, FrameSlot, Instruction, Instructions, ValueType};
+use crate::{
+    Error, FrameMap, FrameMapId, Function, Instruction, Instructions, Parameter, RegisterSpan,
+};
 
 /// Linked executable bytecode stored in Program sections.
 #[repr(C, align(8))]
@@ -10,136 +12,177 @@ use crate::{Body, ConstantValue, Error, FrameSlot, Instruction, Instructions, Va
     Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub struct Code {
-    /// Flattened function value types.
-    value_types: SectionSlice<ValueType>,
-    /// Flattened frame slots.
-    frame_slots: SectionSlice<FrameSlot>,
-    /// Linked immutable byte sequences.
-    constants: SectionSlice<ConstantValue>,
-    /// Concatenated linked constant bytes.
-    constant_bytes: SectionSlice<u8>,
-    /// Linked bytecode bodies in Program function order.
-    bodies: SectionSlice<Body>,
-    /// Contiguous code bytes for every linked function.
+    /// Physical functions in Program function order.
+    functions: SectionSlice<Function>,
+    /// Flattened physical function parameters.
+    parameters: SectionSlice<Parameter>,
+    /// Physical frame maps in canonical frame state order.
+    frames: SectionSlice<FrameMap>,
+    /// Flattened register spans referenced by frame maps.
+    registers: SectionSlice<RegisterSpan>,
+    /// Function-relative byte offsets of logical operations.
+    operations: SectionSlice<CodeOffset>,
+    /// Contiguous linked instruction bytes.
     code: SectionSlice<u8>,
-    /// Function-relative byte offsets for logical operations.
-    operation_offsets: SectionSlice<CodeOffset>,
 }
 
 impl Code {
-    /// Return all linked function value types.
-    pub fn value_types<'a>(&self, sections: SectionImage<'a>) -> &'a [ValueType] {
-        sections.entries(self.value_types)
+    /// Return all linked bytecode functions.
+    pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [Function] {
+        sections.entries(self.functions)
     }
 
-    /// Return all linked frame slots.
-    pub fn frame_slots<'a>(&self, sections: SectionImage<'a>) -> &'a [FrameSlot] {
-        sections.entries(self.frame_slots)
+    /// Return one linked function by its Program function index.
+    pub fn function<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        function_index: usize,
+    ) -> Option<&'a Function> {
+        self.functions(sections).get(function_index)
     }
 
-    /// Return all linked immutable byte sequences.
-    pub fn constants<'a>(&self, sections: SectionImage<'a>) -> &'a [ConstantValue] {
-        sections.entries(self.constants)
+    /// Return flattened physical function parameters.
+    pub fn parameters<'a>(&self, sections: SectionImage<'a>) -> &'a [Parameter] {
+        sections.entries(self.parameters)
     }
 
-    /// Return all linked immutable constant bytes.
-    pub fn constant_bytes<'a>(&self, sections: SectionImage<'a>) -> &'a [u8] {
-        sections.entries(self.constant_bytes)
+    /// Return physical frame maps in canonical frame state order.
+    pub fn frames<'a>(&self, sections: SectionImage<'a>) -> &'a [FrameMap] {
+        sections.entries(self.frames)
     }
 
-    /// Return all linked bytecode bodies.
-    pub fn bodies<'a>(&self, sections: SectionImage<'a>) -> &'a [Body] {
-        sections.entries(self.bodies)
+    /// Return one physical frame map by canonical frame state index.
+    pub fn frame<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        frame_index: usize,
+    ) -> Option<&'a FrameMap> {
+        self.frames(sections).get(frame_index)
     }
 
-    /// Return the contiguous linked instruction bytes.
+    /// Return the physical frame map at one function-relative byte offset.
+    pub fn frame_at<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        function_index: usize,
+        offset: CodeOffset,
+    ) -> Option<(FrameMapId, &'a FrameMap)> {
+        let function = self.function(sections, function_index)?;
+        let frames = function.frames.slice(self.frames(sections));
+        let index = frames
+            .binary_search_by_key(&offset, |frame| frame.code_offset)
+            .ok()?;
+        let frame = FrameMapId(function.frames.start + index as u32);
+
+        Some((frame, &frames[index]))
+    }
+
+    /// Return flattened register spans referenced by frame maps.
+    pub fn registers<'a>(&self, sections: SectionImage<'a>) -> &'a [RegisterSpan] {
+        sections.entries(self.registers)
+    }
+
+    /// Return function-relative byte offsets of logical operations.
+    pub fn operations<'a>(&self, sections: SectionImage<'a>) -> &'a [CodeOffset] {
+        sections.entries(self.operations)
+    }
+
+    /// Return contiguous linked instruction bytes.
     pub fn bytes<'a>(&self, sections: SectionImage<'a>) -> &'a [u8] {
         sections.entries(self.code)
     }
 
-    /// Return one linked bytecode body by its Program function index.
-    pub fn body<'a>(&self, sections: SectionImage<'a>, function_index: usize) -> Option<&'a Body> {
-        self.bodies(sections).get(function_index)
-    }
-
-    /// Iterate one linked function's instructions by its Program table index.
+    /// Iterate one linked function's instructions.
     pub fn instructions<'a>(
         &self,
         sections: SectionImage<'a>,
         function_index: usize,
     ) -> Option<Instructions<'a>> {
-        let body = self.body(sections, function_index)?;
-        let code = body.code()?;
+        let function = self.function(sections, function_index)?;
+        let code = function.code()?;
 
         Some(code.instructions(self.bytes(sections)))
     }
 
-    /// Read one instruction by logical operation index.
+    /// Read one instruction by function-relative byte offset.
     pub fn instruction<'a>(
         &self,
         sections: SectionImage<'a>,
         function_index: usize,
-        operation: u32,
+        offset: CodeOffset,
     ) -> Result<Option<Instruction<'a>>, Error> {
-        let Some(body) = self.body(sections, function_index) else {
+        let Some(function) = self.function(sections, function_index) else {
             return Ok(None);
         };
-        let Some(code) = body.code() else {
-            return Ok(None);
-        };
-        let Some(offset) =
-            body.operation_offset(sections.entries(self.operation_offsets), operation)
-        else {
+        let Some(code) = function.code() else {
             return Ok(None);
         };
 
         code.instruction(self.bytes(sections), offset).map(Some)
     }
 
-    /// Return the logical operation at one exact function byte offset.
-    pub fn operation_at(
+    /// Read one instruction by logical operation index.
+    pub fn operation<'a>(
         &self,
-        sections: SectionImage<'_>,
+        sections: SectionImage<'a>,
         function_index: usize,
-        offset: CodeOffset,
-    ) -> Option<u32> {
-        let body = self.body(sections, function_index)?;
-        let offsets = body.operation_offsets(sections.entries(self.operation_offsets));
-        let operation = offsets.binary_search(&offset).ok()?;
+        operation: u32,
+    ) -> Result<Option<Instruction<'a>>, Error> {
+        let Some(function) = self.function(sections, function_index) else {
+            return Ok(None);
+        };
+        let Some(code) = function.code() else {
+            return Ok(None);
+        };
+        let Some(offset) = function.operation(self.operations(sections), operation) else {
+            return Ok(None);
+        };
 
-        u32::try_from(operation).ok()
+        code.instruction(self.bytes(sections), offset).map(Some)
     }
 
-    /// Return one function-relative byte offset by logical operation index.
+    /// Return one logical operation's function-relative byte offset.
     pub fn operation_offset(
         &self,
         sections: SectionImage<'_>,
         function_index: usize,
         operation: u32,
     ) -> Option<CodeOffset> {
-        let body = self.body(sections, function_index)?;
+        let function = self.function(sections, function_index)?;
 
-        body.operation_offset(sections.entries(self.operation_offsets), operation)
+        function.operation(self.operations(sections), operation)
+    }
+
+    /// Return the logical operation beginning at one function-relative byte offset.
+    pub fn operation_at(
+        &self,
+        sections: SectionImage<'_>,
+        function_index: usize,
+        offset: CodeOffset,
+    ) -> Option<u32> {
+        let function = self.function(sections, function_index)?;
+        let operations = function.operations(self.operations(sections));
+        let operation = operations.binary_search(&offset).ok()?;
+
+        Some(operation as u32)
     }
 }
 
 /// Linked bytecode under construction.
 #[derive(Clone, Debug, Default)]
 pub struct CodeBuilder {
-    /// Flattened function value types.
-    value_types: Vec<ValueType>,
-    /// Flattened frame slots.
-    frame_slots: Vec<FrameSlot>,
-    /// Linked immutable byte sequences.
-    constants: Vec<ConstantValue>,
-    /// Concatenated linked constant bytes.
-    constant_bytes: Vec<u8>,
-    /// Linked bodies in Program function order.
-    bodies: Vec<Body>,
-    /// Encoded function bytes.
+    /// Physical functions in Program function order.
+    functions: Vec<Function>,
+    /// Flattened physical function parameters.
+    parameters: Vec<Parameter>,
+    /// Physical frame maps in canonical frame state order.
+    frames: Vec<FrameMap>,
+    /// Flattened register spans referenced by frame maps.
+    registers: Vec<RegisterSpan>,
+    /// Function-relative byte offsets of logical operations.
+    operations: Vec<CodeOffset>,
+    /// Contiguous linked instruction bytes.
     code: Vec<u8>,
-    /// Function-relative byte offsets for logical operations.
-    operation_offsets: Vec<CodeOffset>,
 }
 
 impl CodeBuilder {
@@ -148,73 +191,57 @@ impl CodeBuilder {
         Self::default()
     }
 
-    /// Set flattened function value types.
-    pub fn value_types(mut self, entries: impl IntoIterator<Item = ValueType>) -> Self {
-        self.value_types = entries.into_iter().collect();
+    /// Set physical functions in Program function order.
+    pub fn functions(mut self, functions: impl IntoIterator<Item = Function>) -> Self {
+        self.functions = functions.into_iter().collect();
 
         self
     }
 
-    /// Set flattened frame slots.
-    pub fn frame_slots(mut self, entries: impl IntoIterator<Item = FrameSlot>) -> Self {
-        self.frame_slots = entries.into_iter().collect();
+    /// Set flattened physical function parameters.
+    pub fn parameters(mut self, parameters: impl IntoIterator<Item = Parameter>) -> Self {
+        self.parameters = parameters.into_iter().collect();
 
         self
     }
 
-    /// Set linked immutable byte sequences.
-    pub fn constants(mut self, entries: impl IntoIterator<Item = ConstantValue>) -> Self {
-        self.constants = entries.into_iter().collect();
+    /// Set physical frame maps in canonical frame state order.
+    pub fn frames(mut self, frames: impl IntoIterator<Item = FrameMap>) -> Self {
+        self.frames = frames.into_iter().collect();
 
         self
     }
 
-    /// Set linked immutable constant bytes.
-    pub fn constant_bytes(mut self, bytes: impl Into<Vec<u8>>) -> Self {
-        self.constant_bytes = bytes.into();
+    /// Set flattened register spans referenced by frame maps.
+    pub fn registers(mut self, registers: impl IntoIterator<Item = RegisterSpan>) -> Self {
+        self.registers = registers.into_iter().collect();
 
         self
     }
 
-    /// Set linked bodies in Program function order.
-    pub fn bodies(mut self, entries: impl IntoIterator<Item = Body>) -> Self {
-        self.bodies = entries.into_iter().collect();
+    /// Set function-relative byte offsets of logical operations.
+    pub fn operations(mut self, operations: impl IntoIterator<Item = CodeOffset>) -> Self {
+        self.operations = operations.into_iter().collect();
 
         self
     }
 
-    /// Set encoded function bytes.
-    pub fn code(mut self, bytes: impl Into<Vec<u8>>) -> Self {
-        self.code = bytes.into();
-
-        self
-    }
-
-    /// Set function-relative logical operation offsets.
-    pub fn operation_offsets(mut self, offsets: impl IntoIterator<Item = CodeOffset>) -> Self {
-        self.operation_offsets = offsets.into_iter().collect();
+    /// Set contiguous linked instruction bytes.
+    pub fn code(mut self, code: impl Into<Vec<u8>>) -> Self {
+        self.code = code.into();
 
         self
     }
 
     /// Build linked executable bytecode in Program sections.
     pub fn build(self, sections: &mut SectionBuilder) -> Code {
-        let value_types = sections.insert(self.value_types);
-        let frame_slots = sections.insert(self.frame_slots);
-        let constants = sections.insert(self.constants);
-        let constant_bytes = sections.insert(self.constant_bytes);
-        let bodies = sections.insert(self.bodies);
-        let code = sections.insert(self.code);
-        let operation_offsets = sections.insert(self.operation_offsets);
-
         Code {
-            value_types,
-            frame_slots,
-            constants,
-            constant_bytes,
-            bodies,
-            code,
-            operation_offsets,
+            functions: sections.insert(self.functions),
+            parameters: sections.insert(self.parameters),
+            frames: sections.insert(self.frames),
+            registers: sections.insert(self.registers),
+            operations: sections.insert(self.operations),
+            code: sections.insert(self.code),
         }
     }
 }
@@ -280,6 +307,6 @@ impl CodeOffset {
     }
 }
 
-const _: () = assert!(size_of::<Code>() == 112);
+const _: () = assert!(size_of::<Code>() == 96);
 const _: () = assert!(size_of::<CodeRange>() == 8);
 const _: () = assert!(size_of::<CodeOffset>() == 4);

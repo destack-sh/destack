@@ -5,15 +5,15 @@ use super::assert_format_eq;
 fn test_format_runtime_instructions() {
     assert_format_eq(
         r#"
-export function observed(r0:uint64):void{
-breakpoint
+function f0(): t0 {
+    breakpoint
 profile.increment counter(3)
 profile.sample sampler(4),r0
 return
 }
 "#,
         r#"
-export function observed(r0: uint64): void {
+function f0(): t0 {
     breakpoint
     profile.increment counter(3)
     profile.sample sampler(4), r0

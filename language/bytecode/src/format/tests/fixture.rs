@@ -4,11 +4,14 @@ use crate::{BytecodeFormatOptions, Parser, format_bytecode};
 
 /// Format one bytecode fixture.
 pub(crate) fn format_fixture(source: &str) -> String {
-    let object = Parser::new(FileId::new(0), source)
-        .parse()
-        .expect("parse bytecode");
-    let formatted =
-        format_bytecode(&object, BytecodeFormatOptions::default()).expect("format bytecode");
+    let mut parser = Parser::new(FileId::new(0), source);
+    let object = parser.parse().expect("parse bytecode");
+    let formatted = format_bytecode(
+        &object,
+        parser.function_names(),
+        BytecodeFormatOptions::default(),
+    )
+    .expect("format bytecode");
 
     formatted.trim().to_string()
 }

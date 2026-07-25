@@ -25,6 +25,20 @@ impl VectorType {
         }
     }
 
+    /// Parse one canonical opcode representation name.
+    pub fn from_name(name: &str) -> Option<Self> {
+        let (scalar, lane_count) = name.rsplit_once('x')?;
+        let scalar = Scalar::from_name(scalar)?;
+        let lane_count = lane_count.parse::<u16>().ok()?;
+
+        (lane_count != 0).then_some(Self::new(scalar, lane_count))
+    }
+
+    /// Return the canonical opcode representation name.
+    pub fn name(self) -> String {
+        format!("{}x{}", self.scalar.name(), self.lane_count)
+    }
+
     /// Return the number of contiguous register words occupied by this vector.
     pub const fn word_count(self) -> u16 {
         let bit_count = self.scalar.bit_width() as u32 * self.lane_count as u32;

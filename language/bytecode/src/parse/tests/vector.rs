@@ -7,12 +7,8 @@ use super::TestParser;
 fn test_parse_vector_registers() {
     let (object, opcodes) = TestParser::new(
         r#"
-export function add(
-    r0: vector<int32, 4>,
-    r2: vector<int32, 4>,
-): vector<int32, 4> {
-    r4: vector<int32, 4> = int.add r0, r2
-    return r4
+function f0(): t0 {    vector.add.int32x4 r4:r5, r0:r1, r2:r3
+    return r4:r5
 }
 "#,
     )
@@ -22,7 +18,7 @@ export function add(
         opcodes,
         vec![Opcode::vector(VectorOperation::Element), Opcode::RETURN]
     );
-    assert_eq!(object.functions()[0].body.register_count, 6);
+    assert_eq!(object.functions()[0].register_count, 6);
 }
 
 /// Parse vector memory operations into their exact opcodes.
@@ -30,9 +26,8 @@ export function add(
 fn test_parse_vector_memory() {
     let (_, opcodes) = TestParser::new(
         r#"
-export function copy(r0: pointer): void {
-    r1: vector<int32, 4> = load r0
-    store r0, r1
+function f0(): t0 {    vector.load.int32x4 r1:r2, r0
+    vector.store.int32x4 r0, r1:r2
     return
 }
 "#,

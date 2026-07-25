@@ -1,4 +1,4 @@
-use crate::{Comparison, FunctionId, Opcode, Result, Scalar, ScalarCheck, ValueType};
+use crate::{Comparison, FunctionId, Opcode, Result, Scalar, ScalarCheck};
 
 use super::TestParser;
 
@@ -7,15 +7,14 @@ use super::TestParser;
 fn test_parse_branch_targets() {
     let object = TestParser::new(
         r#"
-export function choose(r0: boolean): boolean {
-    branch r0, l0, l1
+function f0(): t0 {    branch r0, b0, b1
 
-l0:
-    r1: boolean = true
+b0:
+    constant.boolean r1, true
     return r1
 
-l1:
-    r1: boolean = false
+b1:
+    constant.boolean r1, false
     return r1
 }
 "#,
@@ -47,23 +46,20 @@ l1:
 fn test_parse_checked_control_flow() {
     let (_, opcodes) = TestParser::new(
         r#"
-type User
+function f0(): t0 {    check.nonzero.int32 r0 else b3
+    check.type r2, t0 else b3
+    branch.lt.int32 r0, r1 => b0, b2
 
-export function choose(r0: int32, r1: int32, r2: typeId): int32 {
-    check.nonzero.int32 r0 else l3
-    check.type r2: User else l3
-    branch.lt.int32 r0, r1 => l0, l2
+b0:
+    switch r0 { 0 => b1, default => b2 }
 
-l0:
-    switch r0 { 0 => l1, default => l2 }
-
-l1:
+b1:
     return r0
 
-l2:
+b2:
     return r1
 
-l3:
+b3:
     trap bounds
 }
 "#,
@@ -84,55 +80,50 @@ l3:
     );
 }
 
-/// Parse continuation edges, caught panic values, and panic propagation.
+/// Parse panic values and panic propagation.
 #[test]
-fn test_parse_suspension_and_panic() {
-    let object = TestParser::new(
+fn test_parse_panic() {
+    let (_, opcodes) = TestParser::new(
         r#"
-export function suspend(r0: int32) resume(int32): int32 {
-    r1: int32 = yield r0 => l0 | l1
-
-l0:
-    return r1
-
-l1:
-    unwind.resume
-}
-
-type Failure
-
-export function fail(r0: ref<managed, space(local)>): void {
-    panic r0: Failure
+function f0(): t0 {    panic r0, t0
 }
 "#,
     )
-    .parse();
-    let suspend = object
-        .instructions(FunctionId(0))
-        .expect("suspending function")
-        .map(|instruction| instruction.expect("valid instruction").opcode())
-        .collect::<Vec<_>>();
-    let fail = object
-        .instructions(FunctionId(1))
-        .expect("failing function")
-        .map(|instruction| instruction.expect("valid instruction").opcode())
-        .collect::<Vec<_>>();
+    .parse_opcodes(FunctionId(0));
+
+    assert_eq!(opcodes, vec![Opcode::PANIC_VALUE]);
+}
+
+/// Parse await and yield suspension with explicit continuation edges.
+#[test]
+fn test_parse_suspension() {
+    let (_, opcodes) = TestParser::new(
+        r#"
+function f0(): t0 {    await r2:r3, f1, r0 => b0 | b2
+
+b0:
+    yield r4:r5, r2:r3 => b1 | b2
+
+b1:
+    return r4:r5
+
+b2:
+    unwind.resume
+}
+
+function f1(): t0 {    return
+}
+"#,
+    )
+    .parse_opcodes(FunctionId(0));
 
     assert_eq!(
-        suspend,
-        vec![Opcode::YIELD, Opcode::RETURN, Opcode::UNWIND_RESUME]
+        opcodes,
+        vec![
+            Opcode::AWAIT,
+            Opcode::YIELD,
+            Opcode::RETURN,
+            Opcode::UNWIND_RESUME,
+        ]
     );
-    let function = object.function(FunctionId(0)).expect("suspending function");
-    assert_eq!(
-        function.body.resume_parameters(object.value_types()),
-        &[ValueType::scalar(Scalar::Int32)]
-    );
-    for (operation, opcode) in suspend.iter().copied().enumerate() {
-        let instruction = object
-            .instruction(FunctionId(0), operation as u32)
-            .expect("valid instruction")
-            .expect("operation instruction");
-        assert_eq!(instruction.opcode(), opcode);
-    }
-    assert_eq!(fail, vec![Opcode::PANIC_VALUE]);
 }

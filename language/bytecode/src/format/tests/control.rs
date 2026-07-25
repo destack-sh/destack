@@ -5,24 +5,24 @@ use super::assert_format_eq;
 fn test_format_control_flow() {
     assert_format_eq(
         r#"
-export function choose(r0:boolean):boolean{
-branch r0,l0,l1
-l0:r1:boolean=true
+function f0(): t0 {
+    branch r0,b0,b1
+b0:constant.boolean r1,true
 return r1
-l1:r1:boolean=false
+b1:constant.boolean r1,false
 return r1
 }
 "#,
         r#"
-export function choose(r0: boolean): boolean {
-    branch r0, l0, l1
+function f0(): t0 {
+    branch r0, b0, b1
 
-l0:
-    r1: boolean = true
+b0:
+    constant.boolean r1, true
     return r1
 
-l1:
-    r1: boolean = false
+b1:
+    constant.boolean r1, false
     return r1
 }
 "#,
@@ -34,80 +34,95 @@ l1:
 fn test_format_checked_control_flow() {
     assert_format_eq(
         r#"
-type User
-
-export function choose(r0:int32,r1:int32,r2:typeId,r3:pointer):int32{
-check.nonzero.int32 r0 else l3
-check.type r2:User else l3
-check.null r3 else l3
-branch.lt.int32 r0,r1=>l0,l2
-l0:
-switch r0{0=>l1,default=>l2}
-l1:
+function f0(): t0 {
+    check.nonzero.int32 r0 else b3
+check.type r2, t0 else b3
+check.null r3 else b3
+branch.lt.int32 r0,r1=>b0,b2
+b0:
+switch r0{0=>b1,default=>b2}
+b1:
 return r0
-l2:
+b2:
 return r1
-l3:
+b3:
 trap bounds
 }
 "#,
         r#"
-type User
+function f0(): t0 {
+    check.nonzero.int32 r0 else b3
+    check.type r2, t0 else b3
+    check.null r3 else b3
+    branch.lt.int32 r0, r1 => b0, b2
 
-export function choose(r0: int32, r1: int32, r2: typeId, r3: pointer): int32 {
-    check.nonzero.int32 r0 else l3
-    check.type r2: User else l3
-    check.null r3 else l3
-    branch.lt.int32 r0, r1 => l0, l2
+b0:
+    switch r0 { 0 => b1, default => b2 }
 
-l0:
-    switch r0 { 0 => l1, default => l2 }
-
-l1:
+b1:
     return r0
 
-l2:
+b2:
     return r1
 
-l3:
+b3:
     trap bounds
 }
 "#,
     );
 }
 
-/// Format continuation edges and panic values canonically.
+/// Format panic values canonically.
 #[test]
-fn test_format_suspension_and_panic() {
+fn test_format_panic() {
     assert_format_eq(
         r#"
-export function suspend(r0:int32) resume(int32):int32{
-r1:int32=yield r0=>l0|l1
-l0:return r1
-l1:unwind.resume
-}
-
-type Failure
-
-export function fail(r0:ref<managed,space(local)>):void{
-panic r0:Failure
+function f0(): t0 {
+    panic r0, t0
 }
 "#,
         r#"
-type Failure
+function f0(): t0 {
+    panic r0, t0
+}
+"#,
+    );
+}
 
-export function suspend(r0: int32) resume(int32): int32 {
-    r1: int32 = yield r0 => l0 | l1
+/// Format await and yield suspension canonically.
+#[test]
+fn test_format_suspension() {
+    assert_format_eq(
+        r#"
+function f0(): t0 {
+    await r2:r3,f1,r0=>b0|b2
+b0:
+yield r4:r5,r2:r3=>b1|b2
+b1:
+return r4:r5
+b2:
+unwind.resume
+}
+function f1(): t0 {
+    return
+}
+"#,
+        r#"
+function f0(): t0 {
+    await r2:r3, f1, r0 => b0 | b2
 
-l0:
-    return r1
+b0:
+    yield r4:r5, r2:r3 => b1 | b2
 
-l1:
+b1:
+    return r4:r5
+
+b2:
     unwind.resume
 }
 
-export function fail(r0: ref<managed, space(local)>): void {
-    panic r0: Failure
+function f1(): t0 {
+    return
 }
 "#,
     );

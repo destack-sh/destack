@@ -4,7 +4,7 @@ use destack_fir::write;
 
 use crate::{
     AtomicAccess, AtomicOperation, CompareExchangeAccess, ExecutionScope, FenceAccess, Scalar,
-    StorageSet, ValueType,
+    StorageSet,
 };
 
 use super::instruction::InstructionFormatter;
@@ -16,14 +16,11 @@ impl InstructionFormatter<'_, '_, '_> {
         operation: AtomicOperation,
         scalar: Scalar,
     ) -> FormatResult<()> {
-        self.format_atomic_results(operation, scalar)?;
+        let name = format!("atomic.{}.{}", operation.name(), scalar.name());
+        self.write_opcode(&name)?;
+        self.write_atomic_results(operation)?;
 
-        // write the operation and target pointer
-        self.write_token("atomic.")?;
-        self.write_text(operation.name())?;
-        self.write_token(".")?;
-        self.write_text(scalar.name())?;
-        self.write_token(" ")?;
+        // write the target pointer
         let pointer = self.register_id()?;
         self.write_register(pointer)?;
 
@@ -43,21 +40,17 @@ impl InstructionFormatter<'_, '_, '_> {
     }
 
     /// Format the logical results of one atomic operation.
-    fn format_atomic_results(
-        &mut self,
-        operation: AtomicOperation,
-        scalar: Scalar,
-    ) -> FormatResult<()> {
+    fn write_atomic_results(&mut self, operation: AtomicOperation) -> FormatResult<()> {
         if operation == AtomicOperation::Store {
             return Ok(());
         }
 
-        self.result(operation.result_type(scalar))?;
+        self.result()?;
         if operation.is_compare_exchange() {
-            write!(self.formatter, [token(","), space()])?;
-            self.result(ValueType::scalar(Scalar::Boolean))?;
+            self.write_comma()?;
+            self.result()?;
         }
-        write!(self.formatter, [space(), token("="), space()])
+        self.write_comma()
     }
 
     /// Format one regular atomic memory access.

@@ -69,6 +69,8 @@ pub enum TokenType {
     Comma,
     /// `|`.
     Pipe,
+    /// `*`.
+    Star,
     /// `=`.
     Equal,
     /// `->`.

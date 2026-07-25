@@ -1,15 +1,17 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{RegisterRange, TypeId};
+use crate::{FloatOperation, IntegerOperation, LayoutId, RegisterSpan};
+
+const ELEMENT_OPERATOR_FLOAT: u16 = 1 << 8;
 
 /// One tensor value consumed by an instruction.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct TensorOperand {
     /// The register words containing the tensor value.
-    pub registers: RegisterRange,
-    /// The type that selects the tensor layout.
-    pub ty: TypeId,
+    pub registers: RegisterSpan,
+    /// The layout used to interpret the tensor value.
+    pub layout: LayoutId,
 }
 
 impl TensorOperand {
@@ -17,8 +19,70 @@ impl TensorOperand {
     pub(crate) const BYTE_LEN: usize = size_of::<u16>() * 2 + size_of::<u32>();
 
     /// Create one tensor operand.
-    pub const fn new(registers: RegisterRange, ty: TypeId) -> Self {
-        Self { registers, ty }
+    pub const fn new(registers: RegisterSpan, layout: LayoutId) -> Self {
+        Self { registers, layout }
+    }
+}
+
+/// One scalar operation applied independently to tensor elements.
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct ElementOperation(u16);
+
+impl ElementOperation {
+    /// Parse one canonical integer or floating-point element operation.
+    pub fn from_name(name: &str) -> Option<Self> {
+        let (domain, name) = name.split_once('.')?;
+
+        match domain {
+            "int" => IntegerOperation::from_name(name).map(Self::integer),
+            "float" => FloatOperation::from_name(name).map(Self::float),
+            _ => None,
+        }
+    }
+
+    /// Create one integer element operation.
+    pub const fn integer(operation: IntegerOperation) -> Self {
+        Self(operation as u16)
+    }
+
+    /// Create one floating-point element operation.
+    pub const fn float(operation: FloatOperation) -> Self {
+        Self(ELEMENT_OPERATOR_FLOAT | operation as u16)
+    }
+
+    /// Decode one stable element operation code.
+    pub const fn from_code(code: u16) -> Option<Self> {
+        let operation = Self(code);
+
+        if operation.integer_operation().is_some() || operation.float_operation().is_some() {
+            Some(operation)
+        } else {
+            None
+        }
+    }
+
+    /// Return the stable element operation code.
+    pub const fn code(self) -> u16 {
+        self.0
+    }
+
+    /// Return the integer operation when selected.
+    pub const fn integer_operation(self) -> Option<IntegerOperation> {
+        if self.0 & ELEMENT_OPERATOR_FLOAT == 0 {
+            IntegerOperation::from_code(self.0 as u8)
+        } else {
+            None
+        }
+    }
+
+    /// Return the floating-point operation when selected.
+    pub const fn float_operation(self) -> Option<FloatOperation> {
+        if self.0 & ELEMENT_OPERATOR_FLOAT != 0 {
+            FloatOperation::from_code((self.0 & !ELEMENT_OPERATOR_FLOAT) as u8)
+        } else {
+            None
+        }
     }
 }
 
@@ -80,6 +144,7 @@ impl TensorOperation {
     /// Return the tensor operation with one canonical name.
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
+            "element" => Some(Self::Element),
             "compare" => Some(Self::Compare),
             "select" => Some(Self::Select),
             "transpose" => Some(Self::Transpose),

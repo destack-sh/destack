@@ -3,7 +3,6 @@ use destack_source::FileId;
 use crate::{FunctionId, Object, Opcode, Parser};
 
 /// A bytecode parser test fixture.
-#[derive(Debug, Clone, Copy)]
 pub(crate) struct TestParser<'a> {
     /// The bytecode source.
     source: &'a str,
@@ -17,9 +16,9 @@ impl<'a> TestParser<'a> {
 
     /// Parse one bytecode object and require valid source.
     pub(crate) fn parse(self) -> Object {
-        Parser::new(FileId::new(0), self.source)
-            .parse()
-            .expect("parse bytecode")
+        let mut parser = Parser::new(FileId::new(0), self.source);
+
+        parser.parse().expect("parse bytecode")
     }
 
     /// Parse one bytecode object and return one function's opcode sequence.

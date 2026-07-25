@@ -2,93 +2,59 @@ use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Symbol, TypeId};
+/// The Program identity selected by one relocation.
+#[repr(transparent)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
+pub struct RelocationTag(pub u8);
 
-/// One symbolic operand in an instruction stream.
+impl RelocationTag {
+    /// A runtime type.
+    pub const TYPE: Self = Self(0);
+    /// A runtime layout.
+    pub const LAYOUT: Self = Self(1);
+    /// A function.
+    pub const FUNCTION: Self = Self(2);
+    /// A global.
+    pub const GLOBAL: Self = Self(3);
+    /// A dynamic dispatch table.
+    pub const DYNAMIC: Self = Self(5);
+    /// An allocation site.
+    pub const ALLOCATION: Self = Self(6);
+    /// A profile counter.
+    pub const COUNTER: Self = Self(8);
+    /// A profile sampler.
+    pub const SAMPLER: Self = Self(9);
+}
+
+/// One relocatable identity operand in an instruction stream.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct InstructionRelocation {
-    /// The first byte of the encoded operand.
+pub struct Relocation {
+    /// The first byte of the encoded identity operand.
     pub byte_offset: u32,
-    /// The referenced object-local symbol.
-    pub symbol: Symbol,
+    /// The Program identity selected by the operand.
+    pub tag: RelocationTag,
+    /// Reserved relocation bytes.
+    reserved: [u8; 3],
 }
 
-impl InstructionRelocation {
-    /// Create one symbolic operand relocation.
-    pub const fn new(byte_offset: u32, symbol: Symbol) -> Self {
+impl Relocation {
+    /// Create one instruction operand relocation.
+    pub const fn new(byte_offset: u32, tag: RelocationTag) -> Self {
         Self {
             byte_offset,
-            symbol,
+            tag,
+            reserved: [0; 3],
         }
     }
 
-    /// Rebase this relocation into its containing byte section.
+    /// Rebase this relocation into its containing code section.
     pub const fn rebase(self, byte_offset: u32) -> Self {
-        Self::new(self.byte_offset + byte_offset, self.symbol)
+        Self::new(self.byte_offset + byte_offset, self.tag)
     }
 }
 
-/// One unresolved dynamic dispatch table operand.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct DynamicRelocation {
-    /// The first byte of the encoded operand.
-    pub byte_offset: u32,
-    /// The object-local concrete type.
-    pub concrete: TypeId,
-    /// The object-local dynamic constraint.
-    pub constraint: TypeId,
-}
-
-impl DynamicRelocation {
-    /// Create one dynamic dispatch table relocation.
-    pub const fn new(byte_offset: u32, concrete: TypeId, constraint: TypeId) -> Self {
-        Self {
-            byte_offset,
-            concrete,
-            constraint,
-        }
-    }
-
-    /// Rebase this relocation into its containing byte section.
-    pub const fn rebase(self, byte_offset: u32) -> Self {
-        Self::new(
-            self.byte_offset + byte_offset,
-            self.concrete,
-            self.constraint,
-        )
-    }
-}
-
-/// One symbolic operand in the constant byte section.
-#[repr(C, align(8))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct ConstantRelocation {
-    /// The first byte of the encoded operand.
-    pub byte_offset: u32,
-    /// The referenced object-local symbol.
-    pub symbol: Symbol,
-    /// The signed byte addend applied to the linked symbol.
-    pub addend: i64,
-}
-
-impl ConstantRelocation {
-    /// Create one immutable constant relocation.
-    pub const fn new(byte_offset: u32, symbol: Symbol, addend: i64) -> Self {
-        Self {
-            byte_offset,
-            symbol,
-            addend,
-        }
-    }
-
-    /// Rebase this relocation into its containing byte section.
-    pub const fn rebase(self, byte_offset: u32) -> Self {
-        Self::new(self.byte_offset + byte_offset, self.symbol, self.addend)
-    }
-}
-
-const _: () = assert!(size_of::<InstructionRelocation>() == 12);
-const _: () = assert!(size_of::<DynamicRelocation>() == 12);
-const _: () = assert!(size_of::<ConstantRelocation>() == 24);
+const _: () = assert!(size_of::<Relocation>() == 8);
+const _: () = assert!(size_of::<RelocationTag>() == 1);

@@ -5,15 +5,15 @@ use super::assert_format_eq;
 fn test_format_scalar_operations() {
     assert_format_eq(
         r#"
-export function add(r0:int32,r1:int32):(int32,boolean){
-r2:int32,r3:boolean=int.add.overflowing r0,r1
-return r2,r3
+function f0(): t0 {
+    int.add.overflowing.int32 r2,r3, r0,r1
+return r2:r3
 }
 "#,
         r#"
-export function add(r0: int32, r1: int32): (int32, boolean) {
-    r2: int32, r3: boolean = int.add.overflowing r0, r1
-    return r2, r3
+function f0(): t0 {
+    int.add.overflowing.int32 r2, r3, r0, r1
+    return r2:r3
 }
 "#,
     );
@@ -24,29 +24,23 @@ export function add(r0: int32, r1: int32): (int32, boolean) {
 fn test_format_casts() {
     assert_format_eq(
         r#"
-export function convert(r0:int64,r1:float64,r2:pointer,r3:uint64):(int32,uint64,pointer,uint64,float32){
-r4:int32=cast.truncate r0->int32
-r5:uint64=cast.floatToInt.u r1->uint64
-r6:pointer=cast.intToPointer r3->pointer
-r7:uint64=cast.pointerToInt r2->uint64
-r8:float32=cast.floatTruncate r1->float32
-return r4,r5,r6,r7,r8
+function f0(): t0 {
+    cast.truncate.int64.int32 r4, r0
+cast.floatToInt.u.float64.uint64 r5, r1
+cast.intToPointer.uint64.pointer r6, r3
+cast.pointerToInt.pointer.uint64 r7, r2
+cast.floatTruncate.float64.float32 r8, r1
+return r4:r8
 }
 "#,
         r#"
-export function convert(r0: int64, r1: float64, r2: pointer, r3: uint64): (
-    int32,
-    uint64,
-    pointer,
-    uint64,
-    float32
-) {
-    r4: int32 = cast.truncate r0 -> int32
-    r5: uint64 = cast.floatToInt.u r1 -> uint64
-    r6: pointer = cast.intToPointer r3 -> pointer
-    r7: uint64 = cast.pointerToInt r2 -> uint64
-    r8: float32 = cast.floatTruncate r1 -> float32
-    return r4, r5, r6, r7, r8
+function f0(): t0 {
+    cast.truncate.int64.int32 r4, r0
+    cast.floatToInt.u.float64.uint64 r5, r1
+    cast.intToPointer.uint64.pointer r6, r3
+    cast.pointerToInt.pointer.uint64 r7, r2
+    cast.floatTruncate.float64.float32 r8, r1
+    return r4:r8
 }
 "#,
     );
@@ -57,17 +51,17 @@ export function convert(r0: int64, r1: float64, r2: pointer, r3: uint64): (
 fn test_format_wide_literals() {
     assert_format_eq(
         r#"
-export function literals():(int128,uint128){
-r0:int128=-1
-r2:uint128=340282366920938463463374607431768211455
-return r0,r2
+function f0(): t0 {
+    constant.int128 r0, -1
+constant.uint128 r2, 340282366920938463463374607431768211455
+return r0:r3
 }
 "#,
         r#"
-export function literals(): (int128, uint128) {
-    r0: int128 = -1
-    r2: uint128 = 340282366920938463463374607431768211455
-    return r0, r2
+function f0(): t0 {
+    constant.int128 r0, -1
+    constant.uint128 r2, 340282366920938463463374607431768211455
+    return r0:r3
 }
 "#,
     );
@@ -78,19 +72,19 @@ export function literals(): (int128, uint128) {
 fn test_format_non_finite_literals() {
     assert_format_eq(
         r#"
-export function literals():(float16,float32,float64){
-r0:float16=bits(0x7e01)
-r1:float32=Infinity
-r2:float64=-Infinity
-return r0,r1,r2
+function f0(): t0 {
+    constant.float16 r0, bits(0x7e01)
+constant.float32 r1, Infinity
+constant.float64 r2, -Infinity
+return r0:r2
 }
 "#,
         r#"
-export function literals(): (float16, float32, float64) {
-    r0: float16 = bits(0x7e01)
-    r1: float32 = Infinity
-    r2: float64 = -Infinity
-    return r0, r1, r2
+function f0(): t0 {
+    constant.float16 r0, bits(0x7e01)
+    constant.float32 r1, Infinity
+    constant.float64 r2, -Infinity
+    return r0:r2
 }
 "#,
     );

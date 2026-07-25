@@ -5,35 +5,30 @@ use super::assert_format_eq;
 fn test_format_reference_operations() {
     assert_format_eq(
         r#"
-type Point
+function f0(): t0
 
-export function references(r0:pointer,r1:ref<managed,space(local)>,r2:ref<unique,space(local)>,r3:uint64):ref<managed,space(local)>{
-r4:ref<managed,space(local)>=load r0,Point
-store r0,r4,Point
-pin r4
-unpin r4
-barrier r4,r3,r3
-drop r0:Point
-free r2
+function f1(): t0 {
+    load r4, r0,8
+store r0,r4,8
+pin.local.managed r4
+unpin.local.managed r4
+barrier.local.managed r4,r3,r3
+drop r0,f0
+free.local.unique r2
 return r4
 }
 "#,
         r#"
-type Point
+function f0(): t0
 
-export function references(
-    r0: pointer,
-    r1: ref<managed, space(local)>,
-    r2: ref<unique, space(local)>,
-    r3: uint64,
-): ref<managed, space(local)> {
-    r4: ref<managed, space(local)> = load r0, Point
-    store r0, r4, Point
-    pin r4
-    unpin r4
-    barrier r4, r3, r3
-    drop r0: Point
-    free r2
+function f1(): t0 {
+    load r4, r0, 8
+    store r0, r4, 8
+    pin.local.managed r4
+    unpin.local.managed r4
+    barrier.local.managed r4, r3, r3
+    drop r0, f0
+    free.local.unique r2
     return r4
 }
 "#,

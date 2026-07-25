@@ -5,8 +5,7 @@ use crate::{Lexer, TokenType};
 /// Lex declarations, dotted operations, and control arrows into exact token categories.
 #[test]
 fn test_lex_bytecode_source() {
-    let source =
-        "export function run(r0: int32): int32 {\n    r1: int32 = invoke work(r0) => l0 | l1\n}";
+    let source = "function f0 {\ninvoke r1, f1, r0 => b0 | b1\n}";
     let tokens = Lexer::lex(FileId::new(7), source);
     let tokens = tokens
         .iter()
@@ -22,30 +21,19 @@ fn test_lex_bytecode_source() {
     assert_eq!(
         tokens,
         vec![
-            (TokenType::Identifier, "export"),
             (TokenType::Identifier, "function"),
-            (TokenType::Identifier, "run"),
-            (TokenType::OpenParenthesis, "("),
-            (TokenType::Identifier, "r0"),
-            (TokenType::Colon, ":"),
-            (TokenType::Identifier, "int32"),
-            (TokenType::CloseParenthesis, ")"),
-            (TokenType::Colon, ":"),
-            (TokenType::Identifier, "int32"),
+            (TokenType::Identifier, "f0"),
             (TokenType::OpenBrace, "{"),
-            (TokenType::Identifier, "r1"),
-            (TokenType::Colon, ":"),
-            (TokenType::Identifier, "int32"),
-            (TokenType::Equal, "="),
             (TokenType::Identifier, "invoke"),
-            (TokenType::Identifier, "work"),
-            (TokenType::OpenParenthesis, "("),
+            (TokenType::Identifier, "r1"),
+            (TokenType::Comma, ","),
+            (TokenType::Identifier, "f1"),
+            (TokenType::Comma, ","),
             (TokenType::Identifier, "r0"),
-            (TokenType::CloseParenthesis, ")"),
             (TokenType::FatArrow, "=>"),
-            (TokenType::Identifier, "l0"),
+            (TokenType::Identifier, "b0"),
             (TokenType::Pipe, "|"),
-            (TokenType::Identifier, "l1"),
+            (TokenType::Identifier, "b1"),
             (TokenType::CloseBrace, "}"),
             (TokenType::End, ""),
         ]

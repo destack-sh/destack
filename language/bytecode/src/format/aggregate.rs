@@ -2,19 +2,17 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::Opcode;
+use crate::{Opcode, Placement, RegisterSpan, RelocationTag};
 
 use super::instruction::InstructionFormatter;
 
 impl InstructionFormatter<'_, '_, '_> {
-    /// Format one aggregate or variant value operation.
+    /// Format one packed value or variant operation.
     pub(super) fn format_aggregate(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
             Opcode::AGGREGATE => self.format_aggregate_new(),
-            Opcode::FIELD_GET | Opcode::ELEMENT_GET | Opcode::VARIANT_PAYLOAD => {
-                self.format_projection(opcode)
-            }
-            Opcode::FIELD_SET | Opcode::ELEMENT_SET => self.format_update(opcode),
+            Opcode::EXTRACT => self.format_extract(),
+            Opcode::INSERT => self.format_insert(),
             Opcode::VARIANT_NEW => self.format_variant_new(),
             Opcode::VARIANT_TAG => self.format_variant_tag(),
             _ => Err(FormatError::SyntaxError {
@@ -23,98 +21,127 @@ impl InstructionFormatter<'_, '_, '_> {
         }
     }
 
-    /// Format one aggregate construction.
+    /// Format one packed aggregate construction.
     fn format_aggregate_new(&mut self) -> FormatResult<()> {
-        self.declared_result_range()?;
-        let ty = self.symbol()?;
-        let fields = self.register_ids()?;
+        self.write_opcode("aggregate")?;
+        self.result_span()?;
+        let placements = self
+            .operands
+            .placements()
+            .map_err(FormatError::from)?
+            .collect::<Vec<_>>();
 
-        // write fields in logical source order
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("aggregate"), space()]
-        )?;
-        self.write_text(&ty)?;
-        write!(self.formatter, [space(), token("(")])?;
-        self.write_registers(&fields)?;
+        // write each exact physical source placement
+        self.write_comma()?;
+        self.write_token("(")?;
+        for (index, placement) in placements.into_iter().enumerate() {
+            if index > 0 {
+                write!(self.formatter, [token(","), soft_line_break_or_space()])?;
+            }
+            self.write_placement(placement)?;
+        }
         self.write_token(")")
     }
 
-    /// Format one field, element, or variant payload projection.
-    fn format_projection(&mut self, opcode: Opcode) -> FormatResult<()> {
-        self.declared_result_range()?;
-        let (source, _) = self.register_range_id()?;
-        let ty = self.symbol()?;
-        let index = self.u32()?.to_string();
+    /// Format one value extraction by byte range.
+    fn format_extract(&mut self) -> FormatResult<()> {
+        self.write_opcode("extract")?;
+        self.result_span()?;
+        let (source, word_count) = self.register_span_id()?;
+        let source = RegisterSpan::new(source, word_count);
+        let byte_offset = self.u32()?.to_string();
+        let byte_len = self.u32()?.to_string();
 
-        // write one logical projection
-        write!(self.formatter, [space(), token("="), space()])?;
-        self.write_text(self.opcode_name(opcode)?)?;
-        self.write_token(" ")?;
-        self.write_register(source)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_text(&ty)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_text(&index)
+        // write the exact source byte range
+        self.write_comma()?;
+        self.write_span(source)?;
+        self.write_comma()?;
+        self.write_text(&byte_offset)?;
+        self.write_comma()?;
+        self.write_text(&byte_len)
     }
 
-    /// Format one persistent aggregate field or element update.
-    fn format_update(&mut self, opcode: Opcode) -> FormatResult<()> {
-        self.declared_result_range()?;
-        let (source, _) = self.register_range_id()?;
-        let ty = self.symbol()?;
-        let index = self.u32()?.to_string();
-        let (value, _) = self.register_range_id()?;
+    /// Format one persistent value insertion by byte range.
+    fn format_insert(&mut self) -> FormatResult<()> {
+        self.write_opcode("insert")?;
+        self.result_span()?;
+        let (aggregate, aggregate_word_count) = self.register_span_id()?;
+        let aggregate = RegisterSpan::new(aggregate, aggregate_word_count);
+        let byte_offset = self.u32()?.to_string();
+        let byte_len = self.u32()?.to_string();
+        let (value, value_word_count) = self.register_span_id()?;
+        let value = RegisterSpan::new(value, value_word_count);
 
-        // write the original value and replacement component
-        write!(self.formatter, [space(), token("="), space()])?;
-        self.write_text(self.opcode_name(opcode)?)?;
-        self.write_token(" ")?;
-        self.write_register(source)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_text(&ty)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_text(&index)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_register(value)
+        // write the copied aggregate and exact replacement byte range
+        self.write_comma()?;
+        self.write_span(aggregate)?;
+        self.write_comma()?;
+        self.write_text(&byte_offset)?;
+        self.write_comma()?;
+        self.write_text(&byte_len)?;
+        self.write_comma()?;
+        self.write_span(value)
     }
 
     /// Format one variant construction.
     fn format_variant_new(&mut self) -> FormatResult<()> {
-        self.declared_result_range()?;
-        let ty = self.symbol()?;
+        self.write_opcode("variant.new")?;
+        self.result_span()?;
+        let layout = self.layout()?;
         let case = self.u32()?.to_string();
-        let (payload, payload_word_count) = self.register_range_id()?;
+        let (payload, payload_word_count) = self.register_span_id()?;
 
-        // write the case and payload when present
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("variant.new"), space()]
-        )?;
-        self.write_text(&ty)?;
-        write!(self.formatter, [token(","), space()])?;
+        // write the linked layout, case, and optional payload
+        self.write_comma()?;
+        self.write_text(&layout)?;
+        self.write_comma()?;
         self.write_text(&case)?;
         if payload_word_count > 0 {
-            write!(self.formatter, [token(","), space()])?;
-            self.write_register(payload)?;
+            self.write_comma()?;
+            self.write_span(RegisterSpan::new(payload, payload_word_count))?;
         }
 
         Ok(())
     }
 
-    /// Format one variant discriminant projection.
+    /// Format one variant discriminant extraction.
     fn format_variant_tag(&mut self) -> FormatResult<()> {
-        self.declared_result_range()?;
-        let (variant, _) = self.register_range_id()?;
-        let ty = self.symbol()?;
+        self.write_opcode("variant.tag")?;
+        self.result_span()?;
+        let (variant, word_count) = self.register_span_id()?;
+        let variant = RegisterSpan::new(variant, word_count);
+        let layout = self.layout()?;
 
-        // write the logical discriminant projection
-        write!(
-            self.formatter,
-            [space(), token("="), space(), token("variant.tag"), space()]
-        )?;
-        self.write_register(variant)?;
-        write!(self.formatter, [token(","), space()])?;
-        self.write_text(&ty)
+        // write the variant and exact linked layout
+        self.write_comma()?;
+        self.write_span(variant)?;
+        self.write_comma()?;
+        self.write_text(&layout)
+    }
+
+    /// Write one physical aggregate placement.
+    fn write_placement(&mut self, placement: Placement) -> FormatResult<()> {
+        let byte_offset = placement.byte_offset.to_string();
+        let byte_len = placement.byte_len.to_string();
+
+        write!(self.formatter, [token("[")])?;
+        self.write_register(placement.registers.start)?;
+        self.write_comma()?;
+        self.write_text(&byte_offset)?;
+        self.write_comma()?;
+        self.write_text(&byte_len)?;
+        self.write_token("]")
+    }
+
+    /// Read one relocated runtime layout name.
+    fn layout(&mut self) -> FormatResult<String> {
+        let (relocation, index) = self.relocation()?;
+        if relocation.tag != RelocationTag::LAYOUT {
+            return Err(FormatError::SyntaxError {
+                message: "variant operation does not reference a layout",
+            });
+        }
+
+        Ok(format!("l{index}"))
     }
 }

@@ -1,5 +1,6 @@
 use crate::{
-    Label, ParseError, ParseResult, Parser, RegisterId, Scalar, Token, TokenType, ValueType,
+    Label, Opcode, Operand, ParseError, ParseResult, Parser, RegisterId, RegisterSpan, Scalar,
+    Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -7,26 +8,10 @@ use super::function::FunctionParser;
 impl Parser<'_> {
     /// Parse and append one complete bytecode instruction.
     pub(super) fn parse_instruction(&mut self, function: &mut FunctionParser) -> ParseResult<()> {
-        // parse the optional result declaration
-        let (results, result_types) = self.parse_instruction_results()?;
-        if self.is_literal(&result_types) {
-            return self.parse_literal(&results, &result_types, function);
-        }
-
         // parse and dispatch the operation name
         let operation = self.eat_token(TokenType::Identifier)?;
         let name = self.text(operation).to_string();
-        self.parse_operation(&name, operation, &results, &result_types, function)?;
-
-        // match every result against its declaration
-        if !function.values_match(&results, &result_types) {
-            return Err(ParseError::new(
-                "instruction result type does not match its declaration",
-                operation.span,
-            ));
-        }
-
-        Ok(())
+        self.parse_operation(&name, operation, function)
     }
 
     /// Parse one operation after its result declaration.
@@ -34,152 +19,107 @@ impl Parser<'_> {
         &mut self,
         name: &str,
         token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // dispatch operations by their first name component
         let prefix = name.split_once('.').map_or(name, |(prefix, _)| prefix);
         match prefix {
             // constants
-            "constant" => self.parse_constant_operation(name, token, results, function),
+            "constant" => self.parse_constant_operation(name, token, function),
 
             // scalar, vector, tensor, and register values
-            "int" | "float" if result_types.first().is_some_and(|ty| ty.is_tensor()) => {
-                self.parse_tensor_operation(name, token, results, result_types, function)
-            }
-            "int" | "float"
-                if result_types
-                    .first()
-                    .and_then(|ty| ty.vector_type())
-                    .is_some() =>
-            {
-                self.parse_vector_operation(name, token, results, result_types, function)
-            }
-            "int" | "float" => {
-                self.parse_numeric_operation(name, token, results, result_types, function)
-            }
-            "vector" => {
-                let name = name
-                    .strip_prefix("vector.")
-                    .ok_or_else(|| ParseError::new("expected vector operation", token.span))?;
-                self.parse_vector_operation(name, token, results, result_types, function)
-            }
-            "tensor" => self.parse_tensor_operation(name, token, results, result_types, function),
-            "select"
-                if result_types
-                    .first()
-                    .and_then(|ty| ty.vector_type())
-                    .is_some() =>
-            {
-                self.parse_vector_operation(name, token, results, result_types, function)
-            }
-            "select" | "equal" => self.parse_value_operation(name, token, results, function),
-            "move" if name == "move" => self.parse_value_operation(name, token, results, function),
+            "int" | "float" => self.parse_numeric_operation(name, token, function),
+            "vector" => self.parse_vector_operation(name, token, function),
+            "tensor" => self.parse_tensor_operation(name, token, function),
+            "select" | "equal" => self.parse_value_operation(name, token, function),
+            "move" if name == "move" => self.parse_value_operation(name, token, function),
 
             // aggregates
-            "aggregate" | "field" | "element" | "variant" => {
-                self.parse_aggregate_operation(name, token, results, result_types, function)
+            "aggregate" | "extract" | "insert" | "variant" => {
+                self.parse_aggregate_operation(name, token, function)
             }
 
             // addresses
-            "global" | "reference" | "pointer" => {
-                self.parse_pointer_operation(name, token, results, function)
-            }
-            "frame" if name == "frame.address" => {
-                self.parse_pointer_operation(name, token, results, function)
+            "address" | "global" | "reference" | "pointer" => {
+                self.parse_pointer_operation(name, token, function)
             }
 
             // byte ranges, prefetch, and memory
-            "copy" | "move" | "fill" | "compare" | "prefetch" | "load" | "store" | "frame" => {
-                self.parse_memory_operation(name, token, results, result_types, function)
+            "copy" | "move" | "fill" | "compare" | "prefetch" | "load" | "store" => {
+                self.parse_memory_operation(name, token, function)
             }
-            "atomic" => self.parse_atomic_operation(name, token, results, result_types, function),
+            "atomic" => self.parse_atomic_operation(name, token, function),
 
             // function values, slices, and dynamic values
-            "function" => {
-                self.parse_function_operation(name, token, results, result_types, function)
-            }
-            "slice" => self.parse_slice_operation(name, token, results, result_types, function),
-            "dynamic" => self.parse_dynamic_operation(name, token, results, result_types, function),
+            "function" => self.parse_function_operation(name, token, function),
+            "slice" => self.parse_slice_operation(name, token, function),
+            "dynamic" => self.parse_dynamic_operation(name, token, function),
 
             // new and destruction
-            "new" => self.parse_new(name, token, results, result_types, function),
-            "free" | "drop" => self.parse_reference_operation(name, token, results, function),
+            "new" => self.parse_new(name, token, function),
+            "free" | "drop" => self.parse_reference_operation(name, token, function),
 
             // address stability
-            "pin" | "unpin" => self.parse_reference_operation(name, token, results, function),
+            "pin" | "unpin" => self.parse_reference_operation(name, token, function),
 
             // collector protocol
-            "barrier" => self.parse_reference_operation(name, token, results, function),
+            "barrier" => self.parse_reference_operation(name, token, function),
 
             // calls
-            "call" | "invoke" | "tail" => {
-                self.parse_call_operation(name, token, results, result_types, function)
-            }
+            "call" | "invoke" | "tail" => self.parse_call_operation(name, token, function),
+
+            // continuations
+            "continuation" => self.parse_continuation_operation(name, token, function),
 
             // control flow
-            "branch" if name != "branch" => self.parse_branch(name, token, results, function),
-            "jump" | "branch" | "switch" | "yield" | "return" | "trap" | "unreachable"
-            | "breakpoint" => self.parse_control_operation(name, token, results, function),
+            "branch" if name != "branch" => self.parse_branch(name, token, function),
+            "jump" | "branch" | "switch" | "await" | "yield" | "return" | "trap"
+            | "unreachable" | "breakpoint" => self.parse_control_operation(name, token, function),
 
             // panic and unwind
-            "panic" | "unwind" => self.parse_control_operation(name, token, results, function),
+            "panic" | "unwind" => self.parse_control_operation(name, token, function),
 
             // runtime checks, casts, and profile instrumentation
-            "check" => self.parse_check_operation(name, token, results, function),
-            "cast" => self.parse_cast_operation(name, token, results, result_types, function),
-            "profile" => self.parse_profile_operation(name, token, results, function),
+            "check" => self.parse_check_operation(name, token, function),
+            "cast" => self.parse_cast_operation(name, token, function),
+            "profile" => self.parse_profile_operation(name, token, function),
 
             _ => Err(ParseError::new("unknown bytecode operation", token.span)),
         }
     }
 
-    /// Return whether the next token begins a typed literal assignment.
-    fn is_literal(&mut self, result_types: &[ValueType]) -> bool {
-        if result_types.len() != 1 {
-            return false;
-        }
-        let token = self.peek();
-        let is_number = matches!(token.ty, TokenType::Integer | TokenType::Float);
-        let is_named = token.ty == TokenType::Identifier
-            && matches!(
-                self.text(token),
-                "true"
-                    | "false"
-                    | "Infinity"
-                    | "-Infinity"
-                    | "NaN"
-                    | "bits"
-                    | "null"
-                    | "undefined"
-                    | "uninit"
-                    | "zeroed"
-            );
+    /// Parse destination operands from the leading result layout.
+    pub(super) fn parse_definitions(&mut self, opcode: Opcode) -> ParseResult<Vec<RegisterSpan>> {
+        let layout = opcode
+            .layout()
+            .ok_or_else(|| ParseError::new("unknown opcode layout", self.previous().span))?;
+        let result_operands = layout
+            .operands()
+            .iter()
+            .take_while(|operand| matches!(operand, Operand::Result | Operand::ResultRange))
+            .copied()
+            .collect::<Vec<_>>();
+        let has_inputs = result_operands.len() < layout.operands().len();
+        let mut definitions = Vec::with_capacity(result_operands.len());
 
-        is_number || is_named
-    }
+        // parse each physical destination in encoded order
+        for (index, operand) in result_operands.iter().copied().enumerate() {
+            let definition = if operand == Operand::ResultRange && self.eat_name_if("_") {
+                RegisterSpan::empty()
+            } else if operand == Operand::Result {
+                RegisterSpan::new(self.parse_register()?, 1)
+            } else {
+                self.parse_register_span()?
+            };
+            definitions.push(definition);
 
-    /// Parse the typed result declarations before one instruction.
-    fn parse_instruction_results(&mut self) -> ParseResult<(Vec<RegisterId>, Vec<ValueType>)> {
-        if !self.is_register() {
-            return Ok((Vec::new(), Vec::new()));
-        }
-
-        let mut registers = Vec::new();
-        let mut types = Vec::new();
-        loop {
-            registers.push(self.parse_register()?);
-            self.eat_token(TokenType::Colon)?;
-            types.push(self.parse_value_type()?);
-
-            if !self.eat_token_if(TokenType::Comma) {
-                break;
+            // separate destinations from each other and from the first input
+            if index + 1 < result_operands.len() || has_inputs {
+                self.eat_token(TokenType::Comma)?;
             }
         }
-        self.eat_token(TokenType::Equal)?;
 
-        Ok((registers, types))
+        Ok(definitions)
     }
 
     /// Return whether the next token starts a register result list.
@@ -203,7 +143,7 @@ impl Parser<'_> {
     pub(super) fn parse_label_token(&self, token: Token) -> ParseResult<Label> {
         let index = self
             .text(token)
-            .strip_prefix('l')
+            .strip_prefix('b')
             .ok_or_else(|| ParseError::new("expected branch label", token.span))?;
         let index = index
             .parse::<u32>()
@@ -218,6 +158,18 @@ impl Parser<'_> {
 
         Scalar::from_name(self.text(token))
             .ok_or_else(|| ParseError::new("expected scalar type", token.span))
+    }
+
+    /// Parse one object-local allocation site id.
+    pub(super) fn parse_allocation_id(&mut self) -> ParseResult<u32> {
+        let token = self.eat_token(TokenType::Identifier)?;
+        let index = self
+            .text(token)
+            .strip_prefix('a')
+            .and_then(|index| index.parse().ok())
+            .ok_or_else(|| ParseError::new("expected allocation site id", token.span))?;
+
+        Ok(index)
     }
 
     /// Parse one exact number of comma-separated registers.

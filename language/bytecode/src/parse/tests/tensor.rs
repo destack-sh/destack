@@ -1,19 +1,13 @@
-use crate::{FunctionId, Opcode, Symbol, TensorOperation};
+use crate::{FunctionId, Opcode, RelocationTag, TensorOperation};
 
 use super::TestParser;
 
-/// Parse tensor operations with explicit runtime type relocations.
+/// Parse tensor operations with direct layout and allocation relocations.
 #[test]
 fn test_parse_tensor_operation() {
     let (object, opcodes) = TestParser::new(
         r#"
-type Matrix
-
-export function add(
-    r0: tensor<int32, Matrix, space(local)>,
-    r1: tensor<int32, Matrix, space(local)>,
-): tensor<int32, Matrix, space(local)> {
-    r2: tensor<int32, Matrix, space(local)> = int.add r0, r1
+function f0(): t0 {    tensor.element r2, [(r0, l0), (r1, l0)], int.add, a0
     return r2
 }
 "#,
@@ -23,11 +17,16 @@ export function add(
         opcodes,
         vec![Opcode::tensor(TensorOperation::Element), Opcode::RETURN]
     );
-    assert_eq!(object.instruction_relocations().len(), 3);
-    assert!(
+    assert_eq!(
         object
-            .instruction_relocations()
+            .relocations()
             .iter()
-            .all(|relocation| relocation.symbol == Symbol::ty(0))
+            .map(|relocation| relocation.tag)
+            .collect::<Vec<_>>(),
+        vec![
+            RelocationTag::LAYOUT,
+            RelocationTag::LAYOUT,
+            RelocationTag::ALLOCATION,
+        ]
     );
 }

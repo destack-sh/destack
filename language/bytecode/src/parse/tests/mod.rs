@@ -1,8 +1,8 @@
 mod aggregate;
 mod atomic;
 mod call;
+mod continuation;
 mod control;
-mod declaration;
 mod dynamic;
 mod fixture;
 mod function;

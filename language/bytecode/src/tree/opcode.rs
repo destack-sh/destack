@@ -115,7 +115,7 @@ opcodes! {
     MOVE_RANGE = 0x0011 {
         text: "move",
         signature: "(source: value) => value",
-        operands: [ResultRange, RegisterRange],
+        operands: [ResultRange, RegisterSpan],
     }
     SELECT = 0x0012 {
         text: "select",
@@ -125,7 +125,7 @@ opcodes! {
     SELECT_RANGE = 0x0013 {
         text: "select",
         signature: "(condition: boolean, then: value, else: value) => value",
-        operands: [ResultRange, Register, RegisterRange, RegisterRange],
+        operands: [ResultRange, Register, RegisterSpan, RegisterSpan],
     }
     EQUAL = 0x0014 {
         text: "equal",
@@ -141,51 +141,31 @@ opcodes! {
     // aggregates
     AGGREGATE = 0x0016 {
         text: "aggregate",
-        signature: "(type: TypeId, fields: value[]) => value",
-        operands: [ResultRange, Type, RegisterList],
+        signature: "(placements: placement[]) => value",
+        operands: [ResultRange, Aggregate],
     }
-    FIELD_GET = 0x0017 {
-        text: "field.get",
-        signature: "(aggregate: value, type: TypeId, field: uint32) => value",
-        operands: [ResultRange, RegisterRange, Type, Unsigned32],
+    EXTRACT = 0x0017 {
+        text: "extract",
+        signature: "(value: value, byteOffset: uint32, byteLength: uint32) => value",
+        operands: [ResultRange, RegisterSpan, Unsigned32, Unsigned32],
     }
-    FIELD_SET = 0x0018 {
-        text: "field.set",
-        signature: "(aggregate: value, type: TypeId, field: uint32, value: value) => value",
-        operands: [ResultRange, RegisterRange, Type, Unsigned32, RegisterRange],
-    }
-    ELEMENT_GET = 0x0019 {
-        text: "element.get",
-        signature: "(aggregate: value, type: TypeId, index: uint32) => value",
-        operands: [ResultRange, RegisterRange, Type, Unsigned32],
-    }
-    ELEMENT_SET = 0x001a {
-        text: "element.set",
-        signature: "(aggregate: value, type: TypeId, index: uint32, value: value) => value",
-        operands: [ResultRange, RegisterRange, Type, Unsigned32, RegisterRange],
+    INSERT = 0x0018 {
+        text: "insert",
+        signature: "(aggregate: value, byteOffset: uint32, byteLength: uint32, value: value) => value",
+        operands: [ResultRange, RegisterSpan, Unsigned32, Unsigned32, RegisterSpan],
     }
     VARIANT_NEW = 0x001b {
         text: "variant.new",
-        signature: "(type: TypeId, case: uint32, payload?: value) => value",
-        operands: [ResultRange, Type, Unsigned32, RegisterRange],
+        signature: "(layout: LayoutId, case: uint32, payload?: value) => value",
+        operands: [ResultRange, Layout, Unsigned32, RegisterSpan],
     }
     VARIANT_TAG = 0x001c {
         text: "variant.tag",
-        signature: "(variant: value, type: TypeId) => value",
-        operands: [ResultRange, RegisterRange, Type],
-    }
-    VARIANT_PAYLOAD = 0x001d {
-        text: "variant.payload",
-        signature: "(variant: value, type: TypeId, case: uint32) => value",
-        operands: [ResultRange, RegisterRange, Type, Unsigned32],
+        signature: "(variant: value, layout: LayoutId) => value",
+        operands: [ResultRange, RegisterSpan, Layout],
     }
 
     // constants
-    CONSTANT_BYTES = 0x0020 {
-        text: "constant.bytes",
-        signature: "(constant: ConstantId) => (pointer, uint64)",
-        operands: [ResultRange, Constant],
-    }
     CONSTANT_INT128 = 0x0021 {
         text: "constant.int128",
         signature: "(bits: int128) => int128",
@@ -198,18 +178,13 @@ opcodes! {
     }
     CONSTANT_NULL = 0x0023 {
         text: "null",
-        signature: "(type: ValueType) => value",
-        operands: [Result, ValueType],
+        signature: "() => value",
+        operands: [Result],
     }
     CONSTANT_UNDEFINED = 0x0024 {
         text: "undefined",
-        signature: "(type: ValueType) => value",
-        operands: [Result, ValueType],
-    }
-    CONSTANT_UNINIT = 0x0025 {
-        text: "uninit",
-        signature: "() => uninit",
-        operands: [ResultRange],
+        signature: "() => value",
+        operands: [Result],
     }
     CONSTANT_ZEROED = 0x0026 {
         text: "zeroed",
@@ -223,27 +198,32 @@ opcodes! {
         signature: "(global: GlobalId) => pointer",
         operands: [Result, Global],
     }
-    FRAME_ADDRESS = 0x0031 {
-        text: "frame.address",
-        signature: "(slot: FrameSlotId) => pointer",
-        operands: [Result, FrameSlot],
+    ADDRESS = 0x0031 {
+        text: "address",
+        signature: "(value: value) => pointer",
+        operands: [Result, RegisterSpan],
     }
-    POINTER_OFFSET = 0x0032 {
-        text: "pointer.offset",
-        signature: "(base: pointer, offset: int32) => pointer",
+    POINTER_ADD_IMMEDIATE = 0x0032 {
+        text: "pointer.add",
+        signature: "(base: pointer, byteOffset: int32) => pointer",
         operands: [Result, Register, Signed32],
     }
-    POINTER_INDEX = 0x0033 {
-        text: "pointer.index",
-        signature: "(base: pointer, index: uint64, stride: uint32) => pointer",
+    POINTER_ADD = 0x0033 {
+        text: "pointer.add",
+        signature: "(base: pointer, byteOffset: int64) => pointer",
+        operands: [Result, Register, Register],
+    }
+    POINTER_ADD_SCALED = 0x0034 {
+        text: "pointer.add",
+        signature: "(base: pointer, offset: int64, scale: uint32) => pointer",
         operands: [Result, Register, Register, Unsigned32],
     }
-    POINTER_DISTANCE = 0x0034 {
+    POINTER_DISTANCE = 0x0035 {
         text: "pointer.distance",
         signature: "(left: pointer, right: pointer) => int64",
         operands: [Result, Register, Register],
     }
-    REFERENCE_POINTER = 0x0035 {
+    REFERENCE_POINTER = 0x0036 {
         text: "reference.pointer",
         signature: "(reference: ref) => pointer",
         operands: [Result, Register, Reference],
@@ -286,25 +266,14 @@ opcodes! {
     // memory
     LOAD = 0x0050 {
         text: "load",
-        signature: "(pointer: pointer, type: TypeId) => value",
-        operands: [ResultRange, Register, Type],
+        signature: "(pointer: pointer, byteLength: uint32) => value",
+        operands: [ResultRange, Register, Unsigned32],
     }
     STORE = 0x0051 {
         text: "store",
-        signature: "(pointer: pointer, value: value, type: TypeId) => void",
-        operands: [Register, RegisterRange, Type],
+        signature: "(pointer: pointer, value: value, byteLength: uint32) => void",
+        operands: [Register, RegisterSpan, Unsigned32],
     }
-    FRAME_LOAD = 0x0052 {
-        text: "frame.load",
-        signature: "(slot: FrameSlotId) => value",
-        operands: [ResultRange, FrameSlot],
-    }
-    FRAME_STORE = 0x0053 {
-        text: "frame.store",
-        signature: "(slot: FrameSlotId, value: value) => void",
-        operands: [FrameSlot, RegisterRange],
-    }
-
     // function values
     FUNCTION_ADDRESS = 0x0060 {
         text: "function.address",
@@ -316,27 +285,11 @@ opcodes! {
         signature: "(function: FunctionId, environment: ref) => function",
         operands: [ResultRange, Function, Register],
     }
-    FUNCTION_ENVIRONMENT = 0x0063 {
-        text: "function.environment",
-        signature: "(function: function) => ref",
-        operands: [Result, ValueType, RegisterRange],
-    }
-    FUNCTION_ENVIRONMENT_CURRENT = 0x0064 {
-        text: "function.environment.current",
-        signature: "() => ref",
-        operands: [Result],
-    }
-
     // slices
     SLICE_VIEW = 0x0070 {
         text: "slice.view",
-        signature: "(slice: slice, start: uint64, length: uint64) => slice",
-        operands: [ResultRange, RegisterRange, Type, Register, Register],
-    }
-    SLICE_LENGTH = 0x0071 {
-        text: "slice.length",
-        signature: "(slice: slice) => uint64",
-        operands: [Result, RegisterRange],
+        signature: "(slice: slice, stride: uint32, start: uint64, length: uint64) => slice",
+        operands: [ResultRange, RegisterSpan, Unsigned32, Register, Register],
     }
 
     // dynamic values
@@ -345,23 +298,13 @@ opcodes! {
         signature: "(payload: ref, table: DynamicTableId) => dynamic",
         operands: [ResultRange, Register, DynamicTable],
     }
-    DYNAMIC_PAYLOAD = 0x0079 {
-        text: "dynamic.payload",
-        signature: "(value: dynamic) => ref",
-        operands: [Result, RegisterRange],
-    }
     DYNAMIC_TYPE = 0x007a {
         text: "dynamic.type",
         signature: "(value: dynamic) => typeId",
-        operands: [Result, RegisterRange],
+        operands: [Result, RegisterSpan],
     }
 
     // allocation and destruction
-    NEW_COMPLETE = 0x0080 {
-        text: "new.complete",
-        signature: "(value: uninit) => value",
-        operands: [ResultRange, RegisterRange],
-    }
     FREE = 0x0081 {
         text: "free",
         signature: "(value: ref<unique>) => void",
@@ -369,8 +312,8 @@ opcodes! {
     }
     DROP = 0x0082 {
         text: "drop",
-        signature: "(value: value, type: TypeId) => void",
-        operands: [RegisterRange, Type],
+        signature: "(value: value, destructor: FunctionId) => void",
+        operands: [RegisterSpan, Function],
     }
     PIN = 0x0088 {
         text: "pin",
@@ -394,64 +337,75 @@ opcodes! {
     CALL = 0x00a0 {
         text: "call",
         signature: "(callee: FunctionId, arguments: value[]) => value[]",
-        operands: [ResultRange, Function, RegisterRange],
+        operands: [ResultRange, Function, RegisterSpan],
     }
     CALL_INDIRECT = 0x00a1 {
         text: "call.indirect",
         signature: "(callee: function | functionPointer, arguments: value[]) => value[]",
-        operands: [ResultRange, RegisterRange, RegisterRange],
+        operands: [ResultRange, RegisterSpan, RegisterSpan],
     }
     CALL_VIRTUAL = 0x00a2 {
         text: "call.virtual",
         signature: "(receiver: ref, dispatchOffset: uint32, slot: uint16, arguments: value[]) => value[]",
-        operands: [ResultRange, Register, Reference, Unsigned32, Unsigned16, RegisterRange],
+        operands: [ResultRange, Register, Reference, Unsigned32, Unsigned16, RegisterSpan],
     }
     CALL_DYNAMIC = 0x00a3 {
         text: "call.dynamic",
         signature: "(receiver: dynamic, slot: uint16, arguments: value[]) => value[]",
-        operands: [ResultRange, RegisterRange, Unsigned16, RegisterRange],
+        operands: [ResultRange, RegisterSpan, Unsigned16, RegisterSpan],
     }
     INVOKE = 0x00a4 {
         text: "invoke",
         signature: "(callee: FunctionId, arguments: value[], normal: label, unwind: label) => value[]",
-        operands: [ResultRange, Function, RegisterRange, Branch, Branch],
+        operands: [ResultRange, Function, RegisterSpan, Branch, Branch],
     }
     INVOKE_INDIRECT = 0x00a5 {
         text: "invoke.indirect",
         signature: "(callee: function | functionPointer, arguments: value[], normal: label, unwind: label) => value[]",
-        operands: [ResultRange, RegisterRange, RegisterRange, Branch, Branch],
+        operands: [ResultRange, RegisterSpan, RegisterSpan, Branch, Branch],
     }
     INVOKE_VIRTUAL = 0x00a6 {
         text: "invoke.virtual",
         signature: "(receiver: ref, dispatchOffset: uint32, slot: uint16, arguments: value[], normal: label, unwind: label) => value[]",
-        operands: [ResultRange, Register, Reference, Unsigned32, Unsigned16, RegisterRange, Branch, Branch],
+        operands: [ResultRange, Register, Reference, Unsigned32, Unsigned16, RegisterSpan, Branch, Branch],
     }
     INVOKE_DYNAMIC = 0x00a7 {
         text: "invoke.dynamic",
         signature: "(receiver: dynamic, slot: uint16, arguments: value[], normal: label, unwind: label) => value[]",
-        operands: [ResultRange, RegisterRange, Unsigned16, RegisterRange, Branch, Branch],
+        operands: [ResultRange, RegisterSpan, Unsigned16, RegisterSpan, Branch, Branch],
     }
     TAIL_CALL = 0x00a8 {
         text: "tail.call",
         signature: "(callee: FunctionId, arguments: value[]) => never",
-        operands: [Function, RegisterRange],
+        operands: [Function, RegisterSpan],
     }
     TAIL_CALL_INDIRECT = 0x00a9 {
         text: "tail.call.indirect",
         signature: "(callee: function | functionPointer, arguments: value[]) => never",
-        operands: [RegisterRange, RegisterRange],
+        operands: [RegisterSpan, RegisterSpan],
     }
     TAIL_CALL_VIRTUAL = 0x00aa {
         text: "tail.call.virtual",
         signature: "(receiver: ref, dispatchOffset: uint32, slot: uint16, arguments: value[]) => never",
-        operands: [Register, Reference, Unsigned32, Unsigned16, RegisterRange],
+        operands: [Register, Reference, Unsigned32, Unsigned16, RegisterSpan],
     }
     TAIL_CALL_DYNAMIC = 0x00ab {
         text: "tail.call.dynamic",
         signature: "(receiver: dynamic, slot: uint16, arguments: value[]) => never",
-        operands: [RegisterRange, Unsigned16, RegisterRange],
+        operands: [RegisterSpan, Unsigned16, RegisterSpan],
     }
 
+    // continuations
+    CONTINUATION_NEW = 0x00ac {
+        text: "continuation.new",
+        signature: "(function: FunctionId, captures: value[]) => continuation",
+        operands: [Result, Function, RegisterSpan],
+    }
+    CONTINUATION_RESUME = 0x00ad {
+        text: "continuation.resume",
+        signature: "(continuation: continuation, command: value) => value",
+        operands: [ResultRange, Register, RegisterSpan],
+    }
     // control flow
     JUMP = 0x00b0 {
         text: "jump",
@@ -468,27 +422,32 @@ opcodes! {
         signature: "(value: uint32, cases: (uint32, label)[], fallback: label) => never",
         operands: [Register, Switch, Branch],
     }
-    YIELD = 0x00b3 {
-        text: "yield",
-        signature: "(value?: value, resume: label, unwind: label) => never",
-        operands: [ResultRange, RegisterRange, ValueType, Branch, Branch],
+    AWAIT = 0x00b3 {
+        text: "await",
+        signature: "(park: function, awaitable: value, resume: label, unwind: label) => value",
+        operands: [ResultRange, Function, RegisterSpan, Branch, Branch],
     }
-    RETURN = 0x00b4 {
+    YIELD = 0x00b4 {
+        text: "yield",
+        signature: "(value: value, resume: label, unwind: label) => value",
+        operands: [ResultRange, RegisterSpan, Branch, Branch],
+    }
+    RETURN = 0x00b5 {
         text: "return",
         signature: "(results: value[]) => never",
-        operands: [RegisterRange],
+        operands: [RegisterSpan],
     }
-    TRAP = 0x00b5 {
+    TRAP = 0x00b6 {
         text: "trap",
         signature: "(kind: TrapKind) => never",
         operands: [Unsigned16],
     }
-    UNREACHABLE = 0x00b6 {
+    UNREACHABLE = 0x00b7 {
         text: "unreachable",
         signature: "() => never",
         operands: [],
     }
-    BREAKPOINT = 0x00b7 {
+    BREAKPOINT = 0x00b8 {
         text: "breakpoint",
         signature: "() => void",
         operands: [],
@@ -503,7 +462,7 @@ opcodes! {
     PANIC_VALUE = 0x00c2 {
         text: "panic",
         signature: "(value: value) => never",
-        operands: [Type, RegisterRange],
+        operands: [Type, RegisterSpan],
     }
     UNWIND_RESUME = 0x00c3 {
         text: "unwind.resume",
@@ -1140,6 +1099,56 @@ impl Opcode {
         )
     }
 
+    /// Return whether execution may continue at the next encoded instruction.
+    pub fn falls_through(self) -> bool {
+        if self.is_terminal() {
+            return false;
+        }
+
+        if matches!(
+            self,
+            Self::JUMP
+                | Self::BRANCH
+                | Self::SWITCH
+                | Self::AWAIT
+                | Self::YIELD
+                | Self::INVOKE
+                | Self::INVOKE_INDIRECT
+                | Self::INVOKE_VIRTUAL
+                | Self::INVOKE_DYNAMIC
+        ) {
+            return false;
+        }
+
+        if self.comparison().is_some() {
+            return false;
+        }
+
+        !self
+            .new_operation()
+            .is_some_and(|operation| operation.is_fallible)
+    }
+
+    /// Return the explicit branch that receives this operation's results.
+    pub fn result_branch(self) -> Option<usize> {
+        if matches!(
+            self,
+            Self::AWAIT
+                | Self::YIELD
+                | Self::INVOKE
+                | Self::INVOKE_INDIRECT
+                | Self::INVOKE_VIRTUAL
+                | Self::INVOKE_DYNAMIC
+        ) || self
+            .new_operation()
+            .is_some_and(|operation| operation.is_fallible)
+        {
+            Some(0)
+        } else {
+            None
+        }
+    }
+
     /// Return this opcode's exact stable code.
     pub const fn code(self) -> u16 {
         self.0
@@ -1227,37 +1236,37 @@ impl Opcode {
         if operation.is_count() {
             Some(InstructionLayout::new(&[
                 Operand::Result,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
             ]))
         } else if operation.is_comparison() {
             Some(InstructionLayout::new(&[
                 Operand::Result,
-                Operand::RegisterRange,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
+                Operand::RegisterSpan,
             ]))
         } else if operation.is_overflowing() {
             Some(InstructionLayout::new(&[
                 Operand::ResultRange,
                 Operand::Result,
-                Operand::RegisterRange,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
+                Operand::RegisterSpan,
             ]))
         } else if operation.input_count() == 1 {
             Some(InstructionLayout::new(&[
                 Operand::ResultRange,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
             ]))
         } else if operation.uses_count() {
             Some(InstructionLayout::new(&[
                 Operand::ResultRange,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
                 Operand::Register,
             ]))
         } else {
             Some(InstructionLayout::new(&[
                 Operand::ResultRange,
-                Operand::RegisterRange,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
+                Operand::RegisterSpan,
             ]))
         }
     }
@@ -1351,7 +1360,7 @@ impl Opcode {
         if is_slice && is_fallible {
             Some(InstructionLayout::new(&[
                 Operand::ResultRange,
-                Operand::Type,
+                Operand::Allocation,
                 Operand::Register,
                 Operand::Branch,
                 Operand::Branch,
@@ -1359,18 +1368,21 @@ impl Opcode {
         } else if is_slice {
             Some(InstructionLayout::new(&[
                 Operand::ResultRange,
-                Operand::Type,
+                Operand::Allocation,
                 Operand::Register,
             ]))
         } else if is_fallible {
             Some(InstructionLayout::new(&[
                 Operand::Result,
-                Operand::Type,
+                Operand::Allocation,
                 Operand::Branch,
                 Operand::Branch,
             ]))
         } else {
-            Some(InstructionLayout::new(&[Operand::Result, Operand::Type]))
+            Some(InstructionLayout::new(&[
+                Operand::Result,
+                Operand::Allocation,
+            ]))
         }
     }
 
@@ -1426,14 +1438,14 @@ impl Opcode {
             }
             operation if operation == VectorOperation::Insert as u16 => &[
                 Operand::ResultRange,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
                 Operand::Register,
                 Operand::Register,
                 Operand::VectorType,
             ],
             operation if operation == VectorOperation::Extract as u16 => &[
                 Operand::Result,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
                 Operand::Register,
                 Operand::VectorType,
             ],
@@ -1461,13 +1473,13 @@ impl Opcode {
             ],
             operation if operation == VectorOperation::Reduce as u16 => &[
                 Operand::Result,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
                 Operand::VectorType,
                 Operand::Operator,
             ],
             operation if operation == VectorOperation::Convert as u16 => &[
                 Operand::ResultRange,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
                 Operand::VectorType,
                 Operand::VectorType,
                 Operand::Operator,
@@ -1477,7 +1489,7 @@ impl Opcode {
             }
             operation if operation == VectorOperation::Store as u16 => &[
                 Operand::Register,
-                Operand::RegisterRange,
+                Operand::RegisterSpan,
                 Operand::VectorType,
             ],
             _ => return None,
@@ -1497,21 +1509,13 @@ impl Opcode {
                 &[
                     Operand::Result,
                     Operand::TensorList,
-                    Operand::Scalar,
                     Operand::Operator,
-                    Operand::Scalar,
-                    Operand::Reference,
-                    Operand::Type,
+                    Operand::Allocation,
                 ][..]
             }
-            operation if operation == TensorOperation::Select as u16 => &[
-                Operand::Result,
-                Operand::TensorList,
-                Operand::Scalar,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
-            ],
+            operation if operation == TensorOperation::Select as u16 => {
+                &[Operand::Result, Operand::TensorList, Operand::Allocation]
+            }
             operation
                 if operation == TensorOperation::Transpose as u16
                     || operation == TensorOperation::Broadcast as u16 =>
@@ -1520,18 +1524,14 @@ impl Opcode {
                     Operand::Result,
                     Operand::Tensor,
                     Operand::Unsigned16List,
-                    Operand::Scalar,
-                    Operand::Reference,
-                    Operand::Type,
+                    Operand::Allocation,
                 ]
             }
             operation if operation == TensorOperation::Reshape as u16 => &[
                 Operand::Result,
                 Operand::Tensor,
                 Operand::RegisterList,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
             operation if operation == TensorOperation::Slice as u16 => &[
                 Operand::Result,
@@ -1539,149 +1539,99 @@ impl Opcode {
                 Operand::RegisterList,
                 Operand::RegisterList,
                 Operand::RegisterList,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
             operation if operation == TensorOperation::Pad as u16 => &[
                 Operand::Result,
                 Operand::Tensor,
                 Operand::Register,
-                Operand::Scalar,
                 Operand::RegisterList,
                 Operand::RegisterList,
                 Operand::RegisterList,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
             operation if operation == TensorOperation::Concat as u16 => &[
                 Operand::Result,
                 Operand::TensorList,
                 Operand::Unsigned16,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
-            operation if operation == TensorOperation::Splat as u16 => &[
-                Operand::Result,
-                Operand::Register,
-                Operand::Scalar,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
-            ],
+            operation if operation == TensorOperation::Splat as u16 => {
+                &[Operand::Result, Operand::Register, Operand::Allocation]
+            }
             operation if operation == TensorOperation::Convert as u16 => &[
                 Operand::Result,
                 Operand::Tensor,
-                Operand::Scalar,
-                Operand::Scalar,
                 Operand::Operator,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
-            operation if operation == TensorOperation::Bitcast as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
-            ],
+            operation if operation == TensorOperation::Bitcast as u16 => {
+                &[Operand::Result, Operand::Tensor, Operand::Allocation]
+            }
             operation if operation == TensorOperation::Reduce as u16 => &[
                 Operand::Result,
                 Operand::Tensor,
                 Operand::Register,
-                Operand::Scalar,
                 Operand::Operator,
                 Operand::Unsigned16List,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
             operation if operation == TensorOperation::IndexReduce as u16 => &[
                 Operand::Result,
                 Operand::Tensor,
-                Operand::Scalar,
                 Operand::Operator,
                 Operand::Unsigned16,
                 Operand::Unsigned16,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
             operation if operation == TensorOperation::Contract as u16 => &[
                 Operand::Result,
                 Operand::TensorList,
-                Operand::Scalar,
                 Operand::ContractionAxes,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
             operation if operation == TensorOperation::Gather as u16 => &[
                 Operand::Result,
                 Operand::TensorList,
                 Operand::GatherAxes,
                 Operand::Bits64List,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
             operation if operation == TensorOperation::Scatter as u16 => &[
                 Operand::Result,
                 Operand::TensorList,
-                Operand::Scalar,
                 Operand::ScatterAxes,
                 Operand::Operator,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
-            operation if operation == TensorOperation::Load as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::RegisterList,
-                Operand::Scalar,
-            ],
-            operation if operation == TensorOperation::Extract as u16 => &[
-                Operand::Result,
-                Operand::Tensor,
-                Operand::RegisterList,
-                Operand::Scalar,
-            ],
-            operation if operation == TensorOperation::Store as u16 => &[
-                Operand::Tensor,
-                Operand::RegisterList,
-                Operand::Register,
-                Operand::Scalar,
-            ],
+            operation if operation == TensorOperation::Load as u16 => {
+                &[Operand::Result, Operand::Tensor, Operand::RegisterList]
+            }
+            operation if operation == TensorOperation::Extract as u16 => {
+                &[Operand::Result, Operand::Tensor, Operand::RegisterList]
+            }
+            operation if operation == TensorOperation::Store as u16 => {
+                &[Operand::Tensor, Operand::RegisterList, Operand::Register]
+            }
             operation if operation == TensorOperation::Fill as u16 => {
-                &[Operand::Tensor, Operand::Register, Operand::Scalar]
+                &[Operand::Tensor, Operand::Register]
             }
-            operation if operation == TensorOperation::Copy as u16 => {
-                &[Operand::TensorList, Operand::Scalar]
-            }
+            operation if operation == TensorOperation::Copy as u16 => &[Operand::TensorList],
             operation if operation == TensorOperation::View as u16 => &[
                 Operand::ResultRange,
                 Operand::Tensor,
                 Operand::RegisterList,
                 Operand::RegisterList,
                 Operand::RegisterList,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Layout,
             ],
             operation if operation == TensorOperation::Convolution as u16 => &[
                 Operand::Result,
                 Operand::TensorList,
-                Operand::Scalar,
                 Operand::ConvolutionAxes,
                 Operand::Window,
                 Operand::ConvolutionGroups,
-                Operand::Scalar,
-                Operand::Reference,
-                Operand::Type,
+                Operand::Allocation,
             ],
             _ => return None,
         };

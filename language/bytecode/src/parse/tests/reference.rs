@@ -1,6 +1,6 @@
 use crate::{
-    FunctionId, Opcode, ReferenceKind, ReferenceType, RegisterId, RegisterRange, Space, TypeId,
-    ValueType,
+    FunctionId, Opcode, ReferenceKind, ReferenceType, RegisterId, RegisterSpan, RelocationTag,
+    Space, ValueType,
 };
 
 use super::TestParser;
@@ -10,26 +10,19 @@ use super::TestParser;
 fn test_parse_reference_operations() {
     let (object, opcodes) = TestParser::new(
         r#"
-type Point
-
-export function references(
-    r0: pointer,
-    r1: ref<managed, space(local)>,
-    r2: ref<unique, space(local)>,
-    r3: uint64,
-): ref<managed, space(local)> {
-    r4: ref<managed, space(local)> = load r0, Point
-    store r0, r4, Point
-    pin r4
-    unpin r4
-    barrier r4, r3, r3
-    drop r0: Point
-    free r2
+function f0(): t0
+function f1(): t0 {    load r4, r0, 8
+    store r0, r4, 8
+    pin.local.managed r4
+    unpin.local.managed r4
+    barrier.local.managed r4, r3, r3
+    drop r0, f0
+    free.local.unique r2
     return r4
 }
 "#,
     )
-    .parse_opcodes(FunctionId(0));
+    .parse_opcodes(FunctionId(1));
 
     assert_eq!(
         opcodes,
@@ -44,11 +37,18 @@ export function references(
             Opcode::RETURN,
         ]
     );
-    assert_eq!(object.instruction_relocations().len(), 3);
+    assert_eq!(
+        object
+            .relocations()
+            .iter()
+            .map(|relocation| relocation.tag)
+            .collect::<Vec<_>>(),
+        vec![RelocationTag::FUNCTION]
+    );
 
     // retain the managed reference representation for collector operations
     let instruction = object
-        .instruction(FunctionId(0), 4)
+        .operation(FunctionId(1), 4)
         .expect("valid instruction")
         .expect("barrier instruction");
     let mut operands = instruction.operands();
@@ -58,21 +58,21 @@ export function references(
         ReferenceType::new(ReferenceKind::MANAGED, Space::LOCAL)
     );
 
-    // retain the complete logical value and concrete destructor type
+    // retain the complete logical value and direct destructor identity
     let instruction = object
-        .instruction(FunctionId(0), 5)
+        .operation(FunctionId(1), 5)
         .expect("valid instruction")
         .expect("drop instruction");
     let mut operands = instruction.operands();
     assert_eq!(
-        operands.range().expect("value registers"),
-        RegisterRange::new(RegisterId(0), ValueType::pointer().word_count())
+        operands.span().expect("value registers"),
+        RegisterSpan::new(RegisterId(0), ValueType::pointer().word_count())
     );
-    assert_eq!(operands.u32().expect("dropped type"), TypeId(0).0);
+    assert_eq!(operands.u32().expect("destructor"), 0);
 
     // retain the unique local representation required to free the allocation
     let instruction = object
-        .instruction(FunctionId(0), 6)
+        .operation(FunctionId(1), 6)
         .expect("valid instruction")
         .expect("free instruction");
     let mut operands = instruction.operands();

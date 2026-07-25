@@ -1,4 +1,3 @@
-use destack_core::StringId;
 use destack_fir::format::{Format, FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -26,7 +25,7 @@ impl<'a> BytecodeFormatContext<'a> {
                 let constraint = ty.constraint().ok_or(FormatError::SyntaxError {
                     message: "dynamic value has no constraint type",
                 })?;
-                let name = self.type_name(constraint)?;
+                let name = self.type_text(constraint);
                 let reference = ty.dynamic_reference().ok_or(FormatError::SyntaxError {
                     message: "dynamic value has no payload reference",
                 })?;
@@ -43,27 +42,22 @@ impl<'a> BytecodeFormatContext<'a> {
                 .ok_or(FormatError::SyntaxError {
                     message: "bytecode object contains an invalid vector type",
                 }),
-            ValueTag::WORDS => Ok(format!("words<{}>", ty.word_count())),
+            ValueTag::INDEXED => {
+                let ty = ty.indexed_type().ok_or(FormatError::SyntaxError {
+                    message: "indexed value has no runtime type",
+                })?;
+
+                Ok(self.type_text(ty))
+            }
             _ => Err(FormatError::SyntaxError {
                 message: "bytecode object contains an invalid value type",
             }),
         }
     }
 
-    /// Return one required stable string.
-    pub(super) fn string(&self, id: StringId) -> FormatResult<&'a str> {
-        self.object.string(id).ok_or(FormatError::SyntaxError {
-            message: "bytecode object references a missing string",
-        })
-    }
-
-    /// Return one required type symbol name.
-    pub(super) fn type_name(&self, ty: TypeId) -> FormatResult<&'a str> {
-        let name = self.object.type_name(ty).ok_or(FormatError::SyntaxError {
-            message: "bytecode object references a missing type",
-        })?;
-
-        self.string(name)
+    /// Return one canonical object-local type id.
+    pub(super) fn type_text(&self, ty: TypeId) -> String {
+        format!("t{}", ty.0)
     }
 
     /// Return one reference value type text.
@@ -92,7 +86,17 @@ impl<'a> BytecodeFormatContext<'a> {
         if ty.tag() == ValueTag::FUNCTION_POINTER {
             Ok("fn".to_string())
         } else {
-            Ok("function".to_string())
+            let reference = ty.function_reference().ok_or(FormatError::SyntaxError {
+                message: "function value has no environment reference",
+            })?;
+            let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
+                message: "function value has invalid environment ownership",
+            })?;
+            let space = reference.space().name().ok_or(FormatError::SyntaxError {
+                message: "function value has invalid environment space",
+            })?;
+
+            Ok(format!("function<{kind}, space({space})>"))
         }
     }
 
@@ -104,7 +108,7 @@ impl<'a> BytecodeFormatContext<'a> {
         let reference = ty.slice_reference().ok_or(FormatError::SyntaxError {
             message: "slice value has invalid reference qualifiers",
         })?;
-        let element = self.type_name(element)?;
+        let element = self.type_text(element);
         let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
             message: "slice value has invalid ownership",
         })?;
@@ -129,7 +133,7 @@ impl<'a> BytecodeFormatContext<'a> {
         let tensor = ty.tensor_type().ok_or(FormatError::SyntaxError {
             message: "tensor value has no runtime type",
         })?;
-        let name = self.type_name(tensor)?;
+        let name = self.type_text(tensor);
         let constructor = if ty.tag() == ValueTag::TENSOR {
             "tensor"
         } else {
@@ -148,7 +152,7 @@ impl<'a> BytecodeFormatContext<'a> {
             })?;
 
             Ok(format!(
-                "{constructor}<{}, {name}, {kind}, space({space}), {}>",
+                "{constructor}<{name}, {}, {kind}, space({space}), {}>",
                 scalar.name(),
                 ty.word_count()
             ))
@@ -161,7 +165,7 @@ impl<'a> BytecodeFormatContext<'a> {
             })?;
 
             Ok(format!(
-                "{constructor}<{}, {name}, space({space})>",
+                "{constructor}<{name}, {}, space({space})>",
                 scalar.name()
             ))
         }

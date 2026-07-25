@@ -1,4 +1,4 @@
-use crate::{FunctionId, Linkage, Opcode, Symbol};
+use crate::{FunctionId, Opcode, RelocationTag};
 
 use super::TestParser;
 
@@ -7,22 +7,17 @@ use super::TestParser;
 fn test_parse_direct_call() {
     let (object, opcodes) = TestParser::new(
         r#"
-external function double(int32): int32
-
-export function apply(r0: int32): int32 {
-    r1: int32 = call double(r0)
+function f0(): t0 {    call r1, f1, r0
     return r1
 }
+
+function f1(): t0
 "#,
     )
-    .parse_opcodes(FunctionId(1));
+    .parse_opcodes(FunctionId(0));
     assert_eq!(opcodes, vec![Opcode::CALL, Opcode::RETURN]);
-    assert_eq!(object.functions()[0].linkage, Linkage::EXTERNAL);
-    assert_eq!(object.instruction_relocations().len(), 1);
-    assert_eq!(
-        object.instruction_relocations()[0].symbol,
-        Symbol::function(0)
-    );
+    assert!(object.functions()[1].code().is_none());
+    assert_eq!(object.relocations()[0].tag, RelocationTag::FUNCTION);
 }
 
 /// Parse invoke control flow with explicit normal and unwind destinations.
@@ -30,15 +25,13 @@ export function apply(r0: int32): int32 {
 fn test_parse_invoke_edges() {
     let (_, opcodes) = TestParser::new(
         r#"
-external function parse(int32): int32
+function f0(): t0
+function f1(): t0 {    invoke r1, f0, r0 => b0 | b1
 
-export function checked(r0: int32): int32 {
-    r1: int32 = invoke parse(r0) => l0 | l1
-
-l0:
+b0:
     return r1
 
-l1:
+b1:
     unwind.resume
 }
 "#,

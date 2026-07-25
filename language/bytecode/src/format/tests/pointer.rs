@@ -1,37 +1,29 @@
 use super::assert_format_eq;
 
-/// Format global, frame, offset, index, and distance pointers canonically.
+/// Format global, register, additive, and distance pointer operations canonically.
 #[test]
 fn test_format_pointer_operations() {
     assert_format_eq(
         r#"
-type Pair
-local global state:Pair=zero
-
-export function pointers(r0:uint64):int64{
-slot s0:Pair
-r1:pointer=global.address state
-r2:pointer=frame.address s0
-r3:pointer=pointer.offset r1,16
-r4:pointer=pointer.index r2,r0,stride(8)
-r5:int64=pointer.distance r4,r3
-return r5
+function f0(): t0 {
+    global.address r3, g0
+address r4, r1
+pointer.add r5, r3,16
+pointer.add r6, r4,r0
+pointer.add r7, r4,r0,8
+pointer.distance r8, r7,r5
+return r8
 }
 "#,
         r#"
-type Pair
-
-local global state: Pair = zero
-
-export function pointers(r0: uint64): int64 {
-    slot s0: Pair
-
-    r1: pointer = global.address state
-    r2: pointer = frame.address s0
-    r3: pointer = pointer.offset r1, 16
-    r4: pointer = pointer.index r2, r0, stride(8)
-    r5: int64 = pointer.distance r4, r3
-    return r5
+function f0(): t0 {
+    global.address r3, g0
+    address r4, r1
+    pointer.add r5, r3, 16
+    pointer.add r6, r4, r0
+    pointer.add r7, r4, r0, 8
+    pointer.distance r8, r7, r5
+    return r8
 }
 "#,
     );

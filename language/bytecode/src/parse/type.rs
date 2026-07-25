@@ -1,29 +1,11 @@
 use destack_source::Span;
 
 use crate::{
-    ParseError, ParseResult, Parser, ReferenceKind, ReferenceType, Scalar, Space, TokenType,
-    TypeId, ValueType, VectorType,
+    LayoutId, ParseError, ParseResult, Parser, ReferenceKind, ReferenceType, Scalar, Space,
+    TokenType, TypeId, ValueType, VectorType,
 };
 
 impl Parser<'_> {
-    /// Parse one parenthesized logical value type list.
-    pub(super) fn parse_value_types(&mut self) -> ParseResult<Vec<ValueType>> {
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let mut types = Vec::new();
-
-        // parse each logical value in source order
-        while !self.eat_token_if(TokenType::CloseParenthesis) {
-            types.push(self.parse_value_type()?);
-            if !self.eat_token_if(TokenType::Comma) {
-                self.eat_token(TokenType::CloseParenthesis)?;
-
-                break;
-            }
-        }
-
-        Ok(types)
-    }
-
     /// Parse one logical bytecode value type.
     pub(super) fn parse_value_type(&mut self) -> ParseResult<ValueType> {
         let token = self.eat_token(TokenType::Identifier)?;
@@ -45,7 +27,11 @@ impl Parser<'_> {
             }
             "uninit" => self.parse_uninit_type(),
             "fn" => Ok(ValueType::function_pointer()),
-            "function" => Ok(ValueType::function()),
+            "function" => {
+                let (kind, space) = self.parse_reference_qualifiers()?;
+
+                Ok(ValueType::function(ReferenceType::new(kind, space)))
+            }
             "slice" => {
                 let (element, kind, space) = self.parse_slice_type()?;
 
@@ -53,7 +39,7 @@ impl Parser<'_> {
             }
             "dynamic" => {
                 self.eat_token(TokenType::LessThan)?;
-                let constraint = self.parse_type_name()?;
+                let constraint = self.parse_type_id()?;
                 self.eat_token(TokenType::Comma)?;
                 let space = self.parse_space()?;
                 self.eat_token(TokenType::GreaterThan)?;
@@ -61,15 +47,15 @@ impl Parser<'_> {
                 Ok(ValueType::dynamic(constraint, space))
             }
             "tensor" => {
-                let (scalar, ty, space) = self.parse_tensor_type()?;
+                let (ty, scalar, space) = self.parse_tensor_type()?;
 
                 Ok(ValueType::tensor(scalar, ty, space))
             }
             "tensorView" => {
                 self.eat_token(TokenType::LessThan)?;
-                let scalar = self.parse_scalar_name()?;
+                let ty = self.parse_type_id()?;
                 self.eat_token(TokenType::Comma)?;
-                let ty = self.parse_type_name()?;
+                let scalar = self.parse_scalar_name()?;
                 self.eat_token(TokenType::Comma)?;
                 let kind = self.parse_reference_kind()?;
                 self.eat_token(TokenType::Comma)?;
@@ -87,17 +73,6 @@ impl Parser<'_> {
                 Ok(ty)
             }
             "vector" => self.parse_vector(token.span),
-            "words" => {
-                self.eat_token(TokenType::LessThan)?;
-                let word_count = self.parse_u16()?;
-                self.eat_token(TokenType::GreaterThan)?;
-                let ty = ValueType::words(word_count);
-                if !ty.is_defined() {
-                    return Err(ParseError::new("invalid word value type", token.span));
-                }
-
-                Ok(ty)
-            }
             _ => Err(ParseError::new("expected bytecode value type", token.span)),
         }
     }
@@ -132,7 +107,7 @@ impl Parser<'_> {
     /// Parse one slice element, ownership, and space argument list.
     fn parse_slice_type(&mut self) -> ParseResult<(TypeId, ReferenceKind, Space)> {
         self.eat_token(TokenType::LessThan)?;
-        let element = self.parse_type_name()?;
+        let element = self.parse_type_id()?;
         self.eat_token(TokenType::Comma)?;
         let kind = self.parse_reference_kind()?;
         self.eat_token(TokenType::Comma)?;
@@ -143,16 +118,16 @@ impl Parser<'_> {
     }
 
     /// Parse one tensor element representation and runtime type.
-    fn parse_tensor_type(&mut self) -> ParseResult<(Scalar, TypeId, Space)> {
+    fn parse_tensor_type(&mut self) -> ParseResult<(TypeId, Scalar, Space)> {
         self.eat_token(TokenType::LessThan)?;
-        let scalar = self.parse_scalar_name()?;
+        let ty = self.parse_type_id()?;
         self.eat_token(TokenType::Comma)?;
-        let ty = self.parse_type_name()?;
+        let scalar = self.parse_scalar_name()?;
         self.eat_token(TokenType::Comma)?;
         let space = self.parse_space()?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok((scalar, ty, space))
+        Ok((ty, scalar, space))
     }
 
     /// Parse one reference ownership and space argument list.
@@ -186,22 +161,22 @@ impl Parser<'_> {
         Ok(space)
     }
 
-    /// Parse one type symbol name.
-    pub(super) fn parse_type_name(&mut self) -> ParseResult<TypeId> {
+    /// Parse one object-local type id.
+    pub(super) fn parse_type_id(&mut self) -> ParseResult<TypeId> {
         let token = self.eat_token(TokenType::Identifier)?;
-        let text = self.text(token).to_string();
-        if let Some(ty) = self.symbols.types.get(&text).copied() {
-            return Ok(ty);
-        }
-        if Scalar::from_name(&text).is_none() {
-            return Err(ParseError::new("unknown type", token.span));
-        }
-
-        let name = self.object.intern_string(&text);
-        let ty = self.object.push_type(name);
-        self.symbols.types.insert(text, ty);
+        let ty = TypeId::from_name(self.text(token))
+            .ok_or_else(|| ParseError::new("expected type id", token.span))?;
 
         Ok(ty)
+    }
+
+    /// Parse one object-local layout id.
+    pub(super) fn parse_layout_id(&mut self) -> ParseResult<LayoutId> {
+        let token = self.eat_token(TokenType::Identifier)?;
+        let layout = LayoutId::from_name(self.text(token))
+            .ok_or_else(|| ParseError::new("expected layout id", token.span))?;
+
+        Ok(layout)
     }
 
     /// Parse one fixed-width vector type.

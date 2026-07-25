@@ -5,34 +5,23 @@ use super::assert_format_eq;
 fn test_format_memory() {
     assert_format_eq(
         r#"
-type Pair
-
-export function copy(r0:pointer,r1:pointer,r2:uint64,r3:int32,r4:words<2>):int32{
-slot s0:Pair=r4[2]
-frame.store s0,r4
-r6:words<2>=frame.load s0
-r8:pointer=frame.address s0
-store.int32 r8,r3
-r9:int32=load.int32 r8
+function f0(): t0 {
+    address r6, r4
+store.int32 r6,r3
+load.int32 r7, r6
 copy.bytes r1->r0,r2
 prefetch.read r1
-return r9
+return r7
 }
 "#,
         r#"
-type Pair
-
-export function copy(r0: pointer, r1: pointer, r2: uint64, r3: int32, r4: words<2>): int32 {
-    slot s0: Pair = r4[2]
-
-    frame.store s0, r4
-    r6: words<2> = frame.load s0
-    r8: pointer = frame.address s0
-    store.int32 r8, r3
-    r9: int32 = load.int32 r8
+function f0(): t0 {
+    address r6, r4
+    store.int32 r6, r3
+    load.int32 r7, r6
     copy.bytes r1 -> r0, r2
     prefetch.read r1
-    return r9
+    return r7
 }
 "#,
     );

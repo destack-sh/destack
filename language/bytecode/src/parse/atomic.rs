@@ -1,7 +1,7 @@
 use crate::{
     AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, ExecutionScope, FenceAccess,
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, Scalar, StorageSet,
-    Token, TokenType, ValueType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterSpan, Scalar,
+    StorageSet, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -12,21 +12,26 @@ impl Parser<'_> {
         &mut self,
         name: &str,
         token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         // fixed operations
         if name == "atomic.fence" {
-            return self.parse_atomic_fence(results, function);
+            let results = self.parse_definitions(Opcode::ATOMIC_FENCE)?;
+
+            return self.parse_atomic_fence(&results, function);
         }
-        self.parse_atomic_access(name, token, results, result_types, function)
+        let (operation, scalar) = self.parse_atomic_name(name, token)?;
+        let opcode = Opcode::atomic(operation, scalar)
+            .ok_or_else(|| ParseError::new("invalid atomic operation", token.span))?;
+        let results = self.parse_definitions(opcode)?;
+
+        self.parse_atomic_access(operation, scalar, token, &results, function)
     }
 
     /// Parse one atomic fence.
     fn parse_atomic_fence(
         &mut self,
-        results: &[RegisterId],
+        results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let order = self.parse_atomic_order()?;
@@ -53,43 +58,21 @@ impl Parser<'_> {
         let mut instruction = InstructionBuilder::new(Opcode::ATOMIC_FENCE);
         instruction.u32(access.bits());
 
-        function.emit(instruction, results, &[], self.empty_span())
+        function.emit(instruction, results, self.empty_span())
     }
 
     /// Parse one typed atomic memory access.
     fn parse_atomic_access(
         &mut self,
-        name: &str,
+        operation: AtomicOperation,
+        scalar: Scalar,
         token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
+        results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let (operation, scalar) = self.parse_atomic_name(name, token)?;
-
         // parse the pointer and optional scalar value
         let pointer = self.parse_register()?;
-        if !function.has_type(pointer, ValueType::pointer()) {
-            return Err(ParseError::new(
-                "atomic operation requires a native pointer",
-                token.span,
-            ));
-        }
-        let scalar_type = ValueType::scalar(scalar);
-        let value = self.parse_atomic_value(operation, scalar_type, token, function)?;
-        let expected_results = if operation == AtomicOperation::Store {
-            Vec::new()
-        } else if operation.is_compare_exchange() {
-            vec![scalar_type, ValueType::scalar(Scalar::Boolean)]
-        } else {
-            vec![operation.result_type(scalar)]
-        };
-        if result_types != expected_results {
-            return Err(ParseError::new(
-                "atomic results do not match its operation",
-                token.span,
-            ));
-        }
+        let value = self.parse_atomic_value(operation)?;
 
         // encode regular operands
         let opcode = Opcode::atomic(operation, scalar)
@@ -101,9 +84,7 @@ impl Parser<'_> {
         }
 
         // encode operation specific operands
-        if let Some(replacement) =
-            self.parse_atomic_replacement(operation, scalar_type, token, function)?
-        {
+        if let Some(replacement) = self.parse_atomic_replacement(operation)? {
             instruction.register(replacement);
         }
         // encode operation specific memory access
@@ -111,7 +92,7 @@ impl Parser<'_> {
         let access = self.parse_atomic_access_bits(operation, token)?;
         instruction.u16(access);
 
-        function.emit(instruction, results, &expected_results, self.empty_span())
+        function.emit(instruction, results, self.empty_span())
     }
 
     /// Parse one typed atomic operation name.
@@ -146,9 +127,6 @@ impl Parser<'_> {
     fn parse_atomic_value(
         &mut self,
         operation: AtomicOperation,
-        scalar_type: ValueType,
-        token: Token,
-        function: &FunctionParser,
     ) -> ParseResult<Option<RegisterId>> {
         if operation == AtomicOperation::Load {
             return Ok(None);
@@ -156,12 +134,6 @@ impl Parser<'_> {
 
         self.eat_token(TokenType::Comma)?;
         let value = self.parse_register()?;
-        if !function.has_type(value, scalar_type) {
-            return Err(ParseError::new(
-                "atomic value does not match its scalar type",
-                token.span,
-            ));
-        }
 
         Ok(Some(value))
     }
@@ -170,9 +142,6 @@ impl Parser<'_> {
     fn parse_atomic_replacement(
         &mut self,
         operation: AtomicOperation,
-        scalar_type: ValueType,
-        token: Token,
-        function: &FunctionParser,
     ) -> ParseResult<Option<RegisterId>> {
         if !operation.is_compare_exchange() {
             return Ok(None);
@@ -180,12 +149,6 @@ impl Parser<'_> {
 
         self.eat_token(TokenType::Comma)?;
         let replacement = self.parse_register()?;
-        if !function.has_type(replacement, scalar_type) {
-            return Err(ParseError::new(
-                "atomic replacement does not match its scalar type",
-                token.span,
-            ));
-        }
 
         Ok(Some(replacement))
     }

@@ -1,6 +1,5 @@
 use crate::{
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind, RegisterId,
-    RegisterRange, Token, TokenType, ValueType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterSpan, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -11,130 +10,58 @@ impl Parser<'_> {
         &mut self,
         name: &str,
         token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        let opcode = match name {
+            "dynamic.bind" => Opcode::DYNAMIC_BIND,
+            "dynamic.type" => Opcode::DYNAMIC_TYPE,
+            _ => return Err(ParseError::new("unknown dynamic operation", token.span)),
+        };
+        let results = self.parse_definitions(opcode)?;
+
         match name {
-            "dynamic.bind" => self.parse_dynamic_bind(token, results, result_types, function),
-            "dynamic.payload" => self.parse_dynamic_payload(token, results, result_types, function),
-            "dynamic.type" => self.parse_dynamic_type(token, results, function),
-            _ => Err(ParseError::new("unknown dynamic operation", token.span)),
+            "dynamic.bind" => self.parse_dynamic_bind(&results, function),
+            "dynamic.type" => self.parse_dynamic_type(&results, function),
+            _ => Err(ParseError::new("invalid dynamic operation", token.span)),
         }
     }
 
     /// Parse one dynamic value construction.
     fn parse_dynamic_bind(
         &mut self,
-        token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
+        results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // match the declared dynamic result
-        let result_type = result_types
-            .first()
-            .copied()
-            .filter(|ty| ty.is_dynamic())
-            .ok_or_else(|| ParseError::new("dynamic.bind requires a dynamic result", token.span))?;
-
-        // match a managed payload in the dynamic value's space
+        // parse the erased payload and exact dispatch identity
         let payload = self.parse_register()?;
-        let payload_type = function.value_type(payload).ok_or_else(|| {
-            ParseError::new("dynamic.bind reads an uninitialized payload", token.span)
-        })?;
-        let dynamic_reference = result_type.dynamic_reference().ok_or_else(|| {
-            ParseError::new("dynamic result has no payload reference", token.span)
-        })?;
-        let payload_reference = payload_type.reference_type();
-        if dynamic_reference.kind() != ReferenceKind::MANAGED
-            || payload_reference != Some(dynamic_reference)
-        {
-            return Err(ParseError::new(
-                "dynamic.bind requires a managed reference in the dynamic value's space",
-                token.span,
-            ));
-        }
+        self.eat_token(TokenType::Comma)?;
+        let token = self.eat_token(TokenType::Identifier)?;
+        let table = self
+            .text(token)
+            .strip_prefix('d')
+            .and_then(|index| index.parse::<u32>().ok())
+            .ok_or_else(|| ParseError::new("expected dynamic table id", token.span))?;
 
-        // resolve the concrete implementation selected by this binding
-        self.eat_token(TokenType::Colon)?;
-        let concrete = self.parse_type_name()?;
-        let constraint = result_type
-            .constraint()
-            .ok_or_else(|| ParseError::new("dynamic result has no constraint", token.span))?;
         // encode the erased payload and linked dispatch table
         let mut instruction = InstructionBuilder::new(Opcode::DYNAMIC_BIND);
         instruction.register(payload);
-        instruction.dynamic_table(concrete, constraint);
+        instruction.dynamic_table(table);
 
-        function.emit(instruction, results, &[result_type], self.empty_span())
-    }
-
-    /// Parse one erased dynamic payload access.
-    fn parse_dynamic_payload(
-        &mut self,
-        token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        // match the complete dynamic input
-        let dynamic = self.parse_register()?;
-        let dynamic_type = function.value_type(dynamic).filter(|ty| ty.is_dynamic());
-        let dynamic_type = dynamic_type.ok_or_else(|| {
-            ParseError::new("dynamic.payload requires a dynamic value", token.span)
-        })?;
-
-        // match the erased managed payload result
-        let reference = dynamic_type
-            .dynamic_reference()
-            .ok_or_else(|| ParseError::new("dynamic value has no payload reference", token.span))?;
-        let result_type = result_types
-            .first()
-            .copied()
-            .filter(|ty| ty.reference_type() == Some(reference))
-            .ok_or_else(|| {
-                ParseError::new(
-                    "dynamic.payload result must match its managed payload reference",
-                    token.span,
-                )
-            })?;
-
-        // encode the erased payload projection
-        let mut instruction = InstructionBuilder::new(Opcode::DYNAMIC_PAYLOAD);
-        instruction.range(RegisterRange::new(dynamic, 2));
-
-        function.emit(instruction, results, &[result_type], self.empty_span())
+        function.emit(instruction, results, self.empty_span())
     }
 
     /// Parse one dynamic runtime type access.
     fn parse_dynamic_type(
         &mut self,
-        token: Token,
-        results: &[RegisterId],
+        results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        // match the complete dynamic input
-        let dynamic = self.parse_register()?;
-        if !function
-            .value_type(dynamic)
-            .is_some_and(ValueType::is_dynamic)
-        {
-            return Err(ParseError::new(
-                "dynamic.type requires a dynamic value",
-                token.span,
-            ));
-        }
+        let dynamic = self.parse_register_span()?;
 
         // encode the runtime type projection
         let mut instruction = InstructionBuilder::new(Opcode::DYNAMIC_TYPE);
-        instruction.range(RegisterRange::new(dynamic, 2));
+        instruction.span(dynamic);
 
-        function.emit(
-            instruction,
-            results,
-            &[ValueType::type_id()],
-            self.empty_span(),
-        )
+        function.emit(instruction, results, self.empty_span())
     }
 }

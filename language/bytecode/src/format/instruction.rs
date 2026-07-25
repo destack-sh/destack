@@ -3,7 +3,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    BytecodeFormatter, CodeOffset, Instruction, Label, Opcode, Operands, RegisterId, ValueType,
+    BytecodeFormatter, CodeOffset, Instruction, Label, Opcode, Operands, RegisterId, RegisterSpan,
 };
 
 impl<'object> Instruction<'object> {
@@ -95,8 +95,8 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             self.format_check(operation, scalar)
         } else if let Some((comparison, scalar)) = opcode.comparison() {
             self.format_branch(comparison, scalar)
-        } else if opcode.vector_operation().is_some() {
-            self.format_vector()
+        } else if let Some(operation) = opcode.vector_operation() {
+            self.format_vector(operation)
         } else if opcode.tensor_operation().is_some() {
             self.format_tensor()
         } else {
@@ -118,29 +118,25 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
 
             // aggregates
             Opcode::AGGREGATE
-            | Opcode::FIELD_GET
-            | Opcode::FIELD_SET
-            | Opcode::ELEMENT_GET
-            | Opcode::ELEMENT_SET
+            | Opcode::EXTRACT
+            | Opcode::INSERT
             | Opcode::VARIANT_NEW
-            | Opcode::VARIANT_TAG
-            | Opcode::VARIANT_PAYLOAD => self.format_aggregate(opcode),
+            | Opcode::VARIANT_TAG => self.format_aggregate(opcode),
 
             // constants
             Opcode::CONSTANT_TYPE
-            | Opcode::CONSTANT_BYTES
             | Opcode::CONSTANT_INT128
             | Opcode::CONSTANT_UINT128
             | Opcode::CONSTANT_NULL
             | Opcode::CONSTANT_UNDEFINED
-            | Opcode::CONSTANT_UNINIT
             | Opcode::CONSTANT_ZEROED => self.format_named_constant(opcode),
 
             // addresses
-            Opcode::GLOBAL_ADDRESS
-            | Opcode::FRAME_ADDRESS
-            | Opcode::POINTER_OFFSET
-            | Opcode::POINTER_INDEX
+            Opcode::ADDRESS
+            | Opcode::GLOBAL_ADDRESS
+            | Opcode::POINTER_ADD_IMMEDIATE
+            | Opcode::POINTER_ADD
+            | Opcode::POINTER_ADD_SCALED
             | Opcode::POINTER_DISTANCE
             | Opcode::REFERENCE_POINTER => self.format_pointer(opcode),
 
@@ -156,24 +152,17 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             // memory
             Opcode::LOAD => self.format_load(),
             Opcode::STORE => self.format_store(),
-            Opcode::FRAME_LOAD | Opcode::FRAME_STORE => self.format_frame(opcode),
 
             // function values
-            Opcode::FUNCTION_ADDRESS
-            | Opcode::FUNCTION_BIND
-            | Opcode::FUNCTION_ENVIRONMENT
-            | Opcode::FUNCTION_ENVIRONMENT_CURRENT => self.format_function_value(opcode),
+            Opcode::FUNCTION_ADDRESS | Opcode::FUNCTION_BIND => self.format_function_value(opcode),
 
             // slices
-            Opcode::SLICE_VIEW | Opcode::SLICE_LENGTH => self.format_slice(opcode),
+            Opcode::SLICE_VIEW => self.format_slice(opcode),
 
             // dynamic values
-            Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_PAYLOAD | Opcode::DYNAMIC_TYPE => {
-                self.format_dynamic(opcode)
-            }
+            Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_TYPE => self.format_dynamic(opcode),
 
             // allocation and destruction
-            Opcode::NEW_COMPLETE => self.format_new_complete(),
             Opcode::FREE | Opcode::DROP => self.format_reference(opcode),
 
             // address stability
@@ -196,10 +185,16 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::TAIL_CALL_VIRTUAL
             | Opcode::TAIL_CALL_DYNAMIC => self.format_call(opcode),
 
+            // continuations
+            Opcode::CONTINUATION_NEW | Opcode::CONTINUATION_RESUME => {
+                self.format_continuation(opcode)
+            }
+
             // control flow
             Opcode::JUMP
             | Opcode::BRANCH
             | Opcode::SWITCH
+            | Opcode::AWAIT
             | Opcode::YIELD
             | Opcode::RETURN
             | Opcode::TRAP
@@ -238,6 +233,12 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
         write!(self.formatter, [copied_text(text)])
     }
 
+    /// Write one opcode followed by its operand separator.
+    pub(super) fn write_opcode(&mut self, name: &str) -> FormatResult<()> {
+        self.write_text(name)?;
+        self.write_token(" ")
+    }
+
     /// Write one physical register name.
     pub(super) fn write_register(&mut self, register: RegisterId) -> FormatResult<()> {
         let register = format!("r{}", register.0);
@@ -262,13 +263,13 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
         Ok(())
     }
 
-    /// Write one comma-separated break opportunity.
-    pub(super) fn comma(&mut self) -> FormatResult<()> {
+    /// Write one breakable comma separator.
+    pub(super) fn write_comma(&mut self) -> FormatResult<()> {
         write!(self.formatter, [token(","), soft_line_break_or_space()])
     }
 
-    /// Write one unpunctuated break opportunity.
-    pub(super) fn continuation(&mut self) -> FormatResult<()> {
+    /// Write one unpunctuated line break opportunity.
+    pub(super) fn write_break(&mut self) -> FormatResult<()> {
         write!(self.formatter, [soft_line_break_or_space()])
     }
 
@@ -279,80 +280,44 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
         })
     }
 
-    /// Append one result register.
-    pub(super) fn result(&mut self, ty: ValueType) -> FormatResult<()> {
+    /// Write one result register.
+    pub(super) fn result(&mut self) -> FormatResult<RegisterId> {
         let register = self.register_id()?;
-        self.write_result(register, ty)
-    }
-
-    /// Append one previously decoded result register.
-    pub(super) fn write_result(&mut self, register: RegisterId, ty: ValueType) -> FormatResult<()> {
-        if self.formatter.context().register_type(register)? != ty {
-            return Err(FormatError::SyntaxError {
-                message: "instruction result type differs from its register type",
-            });
-        }
-
-        let name = self.formatter.context().value_type_text(ty)?.to_string();
         self.write_register(register)?;
-        self.write_token(": ")?;
-        self.write_text(&name)?;
 
-        Ok(())
+        Ok(register)
     }
 
-    /// Append the first register of one result range.
-    pub(super) fn result_range(&mut self, ty: ValueType) -> FormatResult<()> {
-        let (register, word_count) = self.register_range_id()?;
-        if word_count != ty.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "instruction result width does not match its type",
-            });
-        }
-        self.write_result(register, ty)
+    /// Write one previously decoded result register.
+    pub(super) fn write_result(&mut self, register: RegisterId) -> FormatResult<()> {
+        self.write_register(register)
     }
 
-    /// Append one result range using its declared register type.
-    pub(super) fn declared_result_range(&mut self) -> FormatResult<ValueType> {
-        let (register, word_count) = self.register_range_id()?;
-        let ty = self.formatter.context().register_type(register)?;
-        if word_count != ty.word_count() {
-            return Err(FormatError::SyntaxError {
-                message: "instruction result width does not match its register type",
-            });
-        }
-        self.write_result(register, ty)?;
+    /// Write one result register span.
+    pub(super) fn result_span(&mut self) -> FormatResult<RegisterSpan> {
+        let (register, word_count) = self.register_span_id()?;
+        let span = RegisterSpan::new(register, word_count);
+        self.write_span(span)?;
 
-        Ok(ty)
+        Ok(span)
     }
 
-    /// Append the logical values in one encoded result range.
-    pub(super) fn results(&mut self, types: &[ValueType]) -> FormatResult<()> {
-        let (start, word_count) = self.register_range_id()?;
-        self.write_results(start, word_count, types)
-    }
-
-    /// Append logical values in one previously decoded result range.
-    pub(super) fn write_results(
-        &mut self,
-        start: RegisterId,
-        word_count: u16,
-        types: &[ValueType],
-    ) -> FormatResult<()> {
-        let expected_word_count = types.iter().map(|ty| ty.word_count()).sum::<u16>();
-        if word_count != expected_word_count {
-            return Err(FormatError::SyntaxError {
-                message: "instruction result range does not match its value types",
-            });
+    /// Write one result register span with an inclusive end.
+    pub(super) fn write_span(&mut self, span: RegisterSpan) -> FormatResult<()> {
+        if span.word_count == 0 {
+            return self.write_token("_");
         }
 
-        let mut register = start;
-        for (index, ty) in types.iter().enumerate() {
-            if index > 0 {
-                write!(self.formatter, [token(","), space()])?;
+        self.write_register(span.start)?;
+        if span.word_count > 1 {
+            let end = span.end() - 1;
+            if end >= u16::MAX as u32 {
+                return Err(FormatError::SyntaxError {
+                    message: "register span exceeds the bytecode register file",
+                });
             }
-            self.write_result(register, *ty)?;
-            register.0 += ty.word_count();
+            self.write_token(":")?;
+            self.write_register(RegisterId(end as u16))?;
         }
 
         Ok(())

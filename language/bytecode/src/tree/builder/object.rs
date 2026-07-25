@@ -1,44 +1,27 @@
-use destack_core::{EntryRange, LocalStringPool, Optional, SectionBuilder, StringId};
+use destack_core::{EntryRange, SectionBuilder};
 
 use crate::tree::object::Header;
 use crate::{
-    CodeOffset, CodeRange, Constant, ConstantId, ConstantRelocation, ConstantValue,
-    DynamicRelocation, FrameSlot, Function, FunctionId, Global, GlobalId, InstructionRelocation,
-    Object, StringEntry, TypeId, ValueType,
+    CodeOffset, CodeRange, FrameMap, Function, Object, Parameter, RegisterSpan, Relocation,
 };
 
 /// Bytecode object under construction.
 #[derive(Debug, Default)]
 pub struct ObjectBuilder {
-    /// Strings interned while this object is built.
-    strings: LocalStringPool,
-
-    /// Type symbols.
-    types: Vec<StringId>,
-    /// Flattened function value types.
-    value_types: Vec<ValueType>,
-
-    /// Global declarations and definitions.
-    globals: Vec<Global>,
-    /// Immutable constants.
-    constants: Vec<Constant>,
-    /// Concatenated constant bytes.
-    constant_bytes: Vec<u8>,
-
-    /// Fixed frame slots.
-    frame_slots: Vec<FrameSlot>,
-    /// Function declarations and definitions.
+    /// Physical functions in object-local function order.
     functions: Vec<Function>,
-    /// Encoded function bytes.
+    /// Flattened physical function parameters.
+    parameters: Vec<Parameter>,
+    /// Physical frame maps in object-local frame state order.
+    frames: Vec<FrameMap>,
+    /// Flattened register spans referenced by frame maps.
+    registers: Vec<RegisterSpan>,
+    /// Function-relative byte offsets of logical operations.
+    operations: Vec<CodeOffset>,
+    /// Relocatable identity operands in function code.
+    relocations: Vec<Relocation>,
+    /// Contiguous instruction bytes for every defined function.
     code: Vec<u8>,
-    /// Relocations inside function bytes.
-    instruction_relocations: Vec<InstructionRelocation>,
-    /// Dynamic dispatch relocations inside function bytes.
-    dynamic_relocations: Vec<DynamicRelocation>,
-    /// Relocations inside constant bytes.
-    constant_relocations: Vec<ConstantRelocation>,
-    /// Function-relative byte offsets for logical operations.
-    operation_offsets: Vec<CodeOffset>,
 }
 
 impl ObjectBuilder {
@@ -47,230 +30,88 @@ impl ObjectBuilder {
         Self::default()
     }
 
-    /// Set interned object strings.
-    pub fn strings(mut self, strings: LocalStringPool) -> Self {
-        self.strings = strings;
-
-        self
-    }
-
-    /// Set type symbols.
-    pub fn types(mut self, types: impl IntoIterator<Item = StringId>) -> Self {
-        self.types = types.into_iter().collect();
-
-        self
-    }
-
-    /// Set flattened function value types.
-    pub fn value_types(mut self, value_types: impl IntoIterator<Item = ValueType>) -> Self {
-        self.value_types = value_types.into_iter().collect();
-
-        self
-    }
-
-    /// Set global declarations and definitions.
-    pub fn globals(mut self, globals: impl IntoIterator<Item = Global>) -> Self {
-        self.globals = globals.into_iter().collect();
-
-        self
-    }
-
-    /// Set immutable constants.
-    pub fn constants(mut self, constants: impl IntoIterator<Item = Constant>) -> Self {
-        self.constants = constants.into_iter().collect();
-
-        self
-    }
-
-    /// Set immutable constant bytes.
-    pub fn constant_bytes(mut self, constant_bytes: impl Into<Vec<u8>>) -> Self {
-        self.constant_bytes = constant_bytes.into();
-
-        self
-    }
-
-    /// Set frame slots.
-    pub fn frame_slots(mut self, frame_slots: impl IntoIterator<Item = FrameSlot>) -> Self {
-        self.frame_slots = frame_slots.into_iter().collect();
-
-        self
-    }
-
-    /// Set function declarations and definitions.
+    /// Set physical functions in object-local function order.
     pub fn functions(mut self, functions: impl IntoIterator<Item = Function>) -> Self {
         self.functions = functions.into_iter().collect();
 
         self
     }
 
-    /// Set encoded function bytes.
+    /// Set flattened physical function parameters.
+    pub fn parameters(mut self, parameters: impl IntoIterator<Item = Parameter>) -> Self {
+        self.parameters = parameters.into_iter().collect();
+
+        self
+    }
+
+    /// Set physical frame maps in object-local frame state order.
+    pub fn frames(mut self, frames: impl IntoIterator<Item = FrameMap>) -> Self {
+        self.frames = frames.into_iter().collect();
+
+        self
+    }
+
+    /// Set flattened register spans referenced by frame maps.
+    pub fn registers(mut self, registers: impl IntoIterator<Item = RegisterSpan>) -> Self {
+        self.registers = registers.into_iter().collect();
+
+        self
+    }
+
+    /// Set function-relative byte offsets of logical operations.
+    pub fn operations(mut self, operations: impl IntoIterator<Item = CodeOffset>) -> Self {
+        self.operations = operations.into_iter().collect();
+
+        self
+    }
+
+    /// Set relocatable identity operands in function code.
+    pub fn relocations(mut self, relocations: impl IntoIterator<Item = Relocation>) -> Self {
+        self.relocations = relocations.into_iter().collect();
+
+        self
+    }
+
+    /// Set contiguous instruction bytes for every defined function.
     pub fn code(mut self, code: impl Into<Vec<u8>>) -> Self {
         self.code = code.into();
 
         self
     }
 
-    /// Set relocations inside function bytes.
-    pub fn instruction_relocations(
-        mut self,
-        relocations: impl IntoIterator<Item = InstructionRelocation>,
-    ) -> Self {
-        self.instruction_relocations = relocations.into_iter().collect();
-
-        self
-    }
-
-    /// Set dynamic dispatch relocations inside function bytes.
-    pub fn dynamic_relocations(
-        mut self,
-        relocations: impl IntoIterator<Item = DynamicRelocation>,
-    ) -> Self {
-        self.dynamic_relocations = relocations.into_iter().collect();
-
-        self
-    }
-
-    /// Set relocations inside constant bytes.
-    pub fn constant_relocations(
-        mut self,
-        relocations: impl IntoIterator<Item = ConstantRelocation>,
-    ) -> Self {
-        self.constant_relocations = relocations.into_iter().collect();
-
-        self
-    }
-
-    /// Set function-relative logical operation offsets.
-    pub fn operation_offsets(mut self, offsets: impl IntoIterator<Item = CodeOffset>) -> Self {
-        self.operation_offsets = offsets.into_iter().collect();
-
-        self
-    }
-
-    /// Append logical operation offsets and return their range.
-    pub(crate) fn push_operation_offsets(
+    /// Append physical function parameters and return their object-local range.
+    pub(crate) fn push_parameters(
         &mut self,
-        offsets: impl IntoIterator<Item = CodeOffset>,
+        parameters: impl IntoIterator<Item = Parameter>,
+    ) -> EntryRange<Parameter> {
+        let start = self.parameters.len();
+        self.parameters.extend(parameters);
+
+        EntryRange::new(start as u32, (self.parameters.len() - start) as u32)
+    }
+
+    /// Append logical operation offsets and return their object-local range.
+    pub(crate) fn push_operations(
+        &mut self,
+        operations: impl IntoIterator<Item = CodeOffset>,
     ) -> EntryRange<CodeOffset> {
-        let start = self.operation_offsets.len();
-        self.operation_offsets.extend(offsets);
+        let start = self.operations.len();
+        self.operations.extend(operations);
 
-        EntryRange::new(start as u32, (self.operation_offsets.len() - start) as u32)
-    }
-
-    /// Intern one stable string and return its content id.
-    pub(crate) fn intern_string(&mut self, text: &str) -> StringId {
-        self.strings.intern(text)
-    }
-
-    /// Return the number of type symbols.
-    pub(crate) fn type_count(&self) -> usize {
-        self.types.len()
-    }
-
-    /// Append one type symbol.
-    pub(crate) fn push_type(&mut self, name: StringId) -> TypeId {
-        let ty = TypeId(self.types.len() as u32);
-        self.types.push(name);
-
-        ty
-    }
-
-    /// Return the number of globals.
-    pub(crate) fn global_count(&self) -> usize {
-        self.globals.len()
-    }
-
-    /// Append one global and return its object-local id.
-    pub(crate) fn push_global(&mut self, global: Global) -> GlobalId {
-        let id = GlobalId(self.globals.len() as u32);
-        self.globals.push(global);
-
-        id
-    }
-
-    /// Return the number of immutable constants.
-    pub(crate) fn constant_count(&self) -> usize {
-        self.constants.len()
-    }
-
-    /// Append one nonzero-aligned immutable constant and return its object-local id.
-    pub(crate) fn push_constant(
-        &mut self,
-        name: Optional<StringId>,
-        alignment_bytes: u32,
-        bytes: impl AsRef<[u8]>,
-    ) -> ConstantId {
-        let bytes = bytes.as_ref();
-        let alignment_bytes = alignment_bytes as usize;
-        let aligned_byte_len = self.constant_bytes.len().next_multiple_of(alignment_bytes);
-        self.constant_bytes.resize(aligned_byte_len, 0);
-        let start = self.constant_bytes.len() as u32;
-        let range = EntryRange::new(start, bytes.len() as u32);
-        let id = ConstantId(self.constants.len() as u32);
-        self.constant_bytes.extend_from_slice(bytes);
-        self.constants.push(Constant {
-            name,
-            value: ConstantValue {
-                alignment_bytes: alignment_bytes as u32,
-                bytes: range,
-            },
-        });
-
-        id
-    }
-
-    /// Append one relocation relative to an immutable constant.
-    pub(crate) fn push_constant_relocation(
-        &mut self,
-        constant: ConstantId,
-        relocation: ConstantRelocation,
-    ) {
-        let constant = &self.constants[constant.index()];
-        self.constant_relocations
-            .push(relocation.rebase(constant.value.bytes.start));
-    }
-
-    /// Return the number of frame slots.
-    pub(crate) fn frame_slot_count(&self) -> usize {
-        self.frame_slots.len()
-    }
-
-    /// Append one frame slot.
-    pub(crate) fn push_frame_slot(&mut self, slot: FrameSlot) {
-        self.frame_slots.push(slot);
-    }
-
-    /// Return the number of functions.
-    pub(crate) fn function_count(&self) -> usize {
-        self.functions.len()
-    }
-
-    /// Append one function and return its object-local id.
-    pub(crate) fn push_function(&mut self, function: Function) -> FunctionId {
-        let id = FunctionId(self.functions.len() as u32);
-        self.functions.push(function);
-
-        id
+        EntryRange::new(start as u32, (self.operations.len() - start) as u32)
     }
 
     /// Append one encoded function body and return its code range.
     pub(crate) fn push_code(
         &mut self,
         bytes: &[u8],
-        relocations: impl IntoIterator<Item = InstructionRelocation>,
-        dynamic_relocations: impl IntoIterator<Item = DynamicRelocation>,
+        relocations: impl IntoIterator<Item = Relocation>,
     ) -> CodeRange {
         let byte_offset = self.code.len() as u32;
         let byte_len = bytes.len() as u32;
         self.code.extend_from_slice(bytes);
-        self.instruction_relocations.extend(
+        self.relocations.extend(
             relocations
-                .into_iter()
-                .map(|relocation| relocation.rebase(byte_offset)),
-        );
-        self.dynamic_relocations.extend(
-            dynamic_relocations
                 .into_iter()
                 .map(|relocation| relocation.rebase(byte_offset)),
         );
@@ -281,77 +122,27 @@ impl ObjectBuilder {
         }
     }
 
-    /// Append value types and return their range.
-    pub(crate) fn push_value_types(
-        &mut self,
-        values: impl IntoIterator<Item = ValueType>,
-    ) -> EntryRange<ValueType> {
-        let start = self.value_types.len();
-        self.value_types.extend(values);
-
-        EntryRange::new(start as u32, (self.value_types.len() - start) as u32)
-    }
-
     /// Build one immutable bytecode object.
     pub fn build(self) -> Object {
-        let mut string_entries = Vec::with_capacity(self.strings.len());
-        let mut string_bytes = Vec::new();
-
-        // pack strings in stable identity order for binary search
-        let mut strings = self.strings.iter().collect::<Vec<_>>();
-        strings.sort_unstable_by_key(|(id, _)| *id);
-        for (id, text) in strings {
-            let start = string_bytes.len() as u32;
-            let bytes = EntryRange::new(start, text.len() as u32);
-            string_bytes.extend_from_slice(text.as_bytes());
-            string_entries.push(StringEntry { id, bytes });
-        }
-
         let mut sections = SectionBuilder::new();
         let mut header = Header::new();
         let header_section = sections.insert([header]);
 
-        // pack strings and type tables
-        let strings = sections.insert(string_entries);
-        let string_bytes = sections.insert(string_bytes);
-        let types = sections.insert(self.types);
-        let value_types = sections.insert(self.value_types);
+        // pack physical execution tables
+        header.functions = sections.insert(self.functions);
+        header.parameters = sections.insert(self.parameters);
+        header.frames = sections.insert(self.frames);
+        header.registers = sections.insert(self.registers);
+        header.operations = sections.insert(self.operations);
 
-        // pack global and function tables
-        let globals = sections.insert(self.globals);
-        let constants = sections.insert(self.constants);
-        let constant_bytes = sections.insert(self.constant_bytes);
-        let frame_slots = sections.insert(self.frame_slots);
-        let functions = sections.insert(self.functions);
-
-        // pack encoded instructions and relocations
-        let code = sections.insert(self.code);
-        let instruction_relocations = sections.insert(self.instruction_relocations);
-        let dynamic_relocations = sections.insert(self.dynamic_relocations);
-        let constant_relocations = sections.insert(self.constant_relocations);
-        let operation_offsets = sections.insert(self.operation_offsets);
+        // pack relocations and executable bytes
+        header.relocations = sections.insert(self.relocations);
+        header.code = sections.insert(self.code);
 
         // finalize the fixed header after all section offsets are known
         header.byte_len = sections.view().byte_len() as u64;
-        header.strings = strings;
-        header.string_bytes = string_bytes;
-        header.types = types;
-        header.value_types = value_types;
-
-        header.globals = globals;
-        header.constants = constants;
-        header.constant_bytes = constant_bytes;
-        header.frame_slots = frame_slots;
-        header.functions = functions;
-
-        header.code = code;
-        header.instruction_relocations = instruction_relocations;
-        header.dynamic_relocations = dynamic_relocations;
-        header.constant_relocations = constant_relocations;
-        header.operation_offsets = operation_offsets;
         sections.replace(header_section, [header]);
-        let storage = sections.build();
 
-        Object::from_storage(storage)
+        Object::from_storage(sections.build())
     }
 }

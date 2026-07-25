@@ -21,7 +21,7 @@ pub struct ValueType {
     /// The lane count for vector values.
     lane_count: u16,
     /// The object-local type selected by the tag.
-    symbol: u32,
+    type_id: u32,
 }
 
 /// The ownership carried by one bytecode reference.
@@ -38,6 +38,8 @@ impl ReferenceKind {
     pub const UNIQUE: Self = Self(1);
     /// Non-owning checked access.
     pub const BORROWED: Self = Self(2);
+    /// Unowned direct access.
+    pub const RAW: Self = Self(3);
 
     /// Return the reference kind with one canonical name.
     pub fn from_name(name: &str) -> Option<Self> {
@@ -45,13 +47,14 @@ impl ReferenceKind {
             "managed" => Some(Self::MANAGED),
             "unique" => Some(Self::UNIQUE),
             "borrowed" => Some(Self::BORROWED),
+            "raw" => Some(Self::RAW),
             _ => None,
         }
     }
 
     /// Return whether this ownership is defined by the bytecode ISA.
     pub const fn is_defined(self) -> bool {
-        self.0 <= Self::BORROWED.0
+        self.0 <= Self::RAW.0
     }
 
     /// Return the canonical bytecode text name.
@@ -60,6 +63,7 @@ impl ReferenceKind {
             Self::MANAGED => Some("managed"),
             Self::UNIQUE => Some("unique"),
             Self::BORROWED => Some("borrowed"),
+            Self::RAW => Some("raw"),
             _ => None,
         }
     }
@@ -77,19 +81,25 @@ impl Space {
     pub const LOCAL: Self = Self(0);
     /// Runtime-shared storage.
     pub const SHARED: Self = Self(1);
+    /// Activation frame storage.
+    pub const FRAME: Self = Self(2);
+    /// Program static storage.
+    pub const STATIC: Self = Self(3);
 
     /// Return the space with one canonical name.
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "local" => Some(Self::LOCAL),
             "shared" => Some(Self::SHARED),
+            "frame" => Some(Self::FRAME),
+            "static" => Some(Self::STATIC),
             _ => None,
         }
     }
 
     /// Return whether this space is defined by the bytecode ISA.
     pub const fn is_defined(self) -> bool {
-        self.0 <= Self::SHARED.0
+        self.0 <= Self::STATIC.0
     }
 
     /// Return the canonical bytecode text name.
@@ -97,6 +107,8 @@ impl Space {
         match self {
             Self::LOCAL => Some("local"),
             Self::SHARED => Some("shared"),
+            Self::FRAME => Some("frame"),
+            Self::STATIC => Some("static"),
             _ => None,
         }
     }
@@ -191,8 +203,8 @@ impl ValueTag {
     pub const TENSOR_VIEW: Self = Self(13);
     /// One inline fixed-width vector.
     pub const VECTOR: Self = Self(14);
-    /// One legalized logical value spanning opaque register words.
-    pub const WORDS: Self = Self(15);
+    /// One indexed type spanning contiguous register words.
+    pub const INDEXED: Self = Self(15);
     /// No runtime value or register words.
     pub const VOID: Self = Self(16);
 
@@ -247,8 +259,15 @@ impl ValueType {
     }
 
     /// Create one callable pointer and environment pair.
-    pub const fn function() -> Self {
-        Self::new(ValueTag::FUNCTION, 0, 2, 0, 0)
+    pub const fn function(reference: ReferenceType) -> Self {
+        Self {
+            tag: ValueTag::FUNCTION,
+            scalar: 0,
+            reference,
+            word_count: 2,
+            lane_count: 0,
+            type_id: 0,
+        }
     }
 
     /// Create one initialized slice value type.
@@ -273,7 +292,7 @@ impl ValueType {
             reference: ReferenceType::new(ReferenceKind::MANAGED, space),
             word_count: 2,
             lane_count: 0,
-            symbol: constraint.0,
+            type_id: constraint.0,
         }
     }
 
@@ -285,7 +304,7 @@ impl ValueType {
             reference: ReferenceType::new(ReferenceKind::MANAGED, space),
             word_count: 1,
             lane_count: 0,
-            symbol: ty.0,
+            type_id: ty.0,
         }
     }
 
@@ -302,7 +321,7 @@ impl ValueType {
             reference,
             word_count,
             lane_count: 0,
-            symbol: ty.0,
+            type_id: ty.0,
         }
     }
 
@@ -327,9 +346,9 @@ impl ValueType {
         )
     }
 
-    /// Create one legalized opaque register value.
-    pub const fn words(word_count: u16) -> Self {
-        Self::new(ValueTag::WORDS, 0, word_count, 0, 0)
+    /// Create one indexed value type.
+    pub const fn indexed(ty: TypeId, word_count: u16) -> Self {
+        Self::new(ValueTag::INDEXED, 0, word_count, 0, ty.0)
     }
 
     /// Create the zero-width void type.
@@ -431,7 +450,7 @@ impl ValueType {
         } else if self.tag.0 == ValueTag::UNINIT_SLICE.0 {
             Some(Self::new_slice(
                 ValueTag::SLICE,
-                TypeId(self.symbol),
+                TypeId(self.type_id),
                 self.reference,
             ))
         } else {
@@ -459,10 +478,19 @@ impl ValueType {
         self.tag.0 == ValueTag::FUNCTION.0
     }
 
+    /// Return the captured environment reference carried by a function value.
+    pub const fn function_reference(self) -> Option<ReferenceType> {
+        if self.is_function() {
+            Some(self.reference)
+        } else {
+            None
+        }
+    }
+
     /// Return the element type for a slice value.
     pub const fn slice_element(self) -> Option<TypeId> {
         if self.is_slice() {
-            Some(TypeId(self.symbol))
+            Some(TypeId(self.type_id))
         } else {
             None
         }
@@ -485,7 +513,7 @@ impl ValueType {
     /// Return the constraint type for a dynamic value.
     pub const fn constraint(self) -> Option<TypeId> {
         if self.tag.0 == ValueTag::DYNAMIC.0 {
-            Some(TypeId(self.symbol))
+            Some(TypeId(self.type_id))
         } else {
             None
         }
@@ -508,7 +536,7 @@ impl ValueType {
     /// Return the runtime type for a tensor handle or tensor view.
     pub const fn tensor_type(self) -> Option<TypeId> {
         if self.tag.0 == ValueTag::TENSOR.0 || self.tag.0 == ValueTag::TENSOR_VIEW.0 {
-            Some(TypeId(self.symbol))
+            Some(TypeId(self.type_id))
         } else {
             None
         }
@@ -532,19 +560,37 @@ impl ValueType {
         }
     }
 
-    /// Replace the object-local runtime type symbol.
-    pub fn map_symbols<E>(
+    /// Return the indexed runtime type.
+    pub const fn indexed_type(self) -> Option<TypeId> {
+        if self.tag.0 == ValueTag::INDEXED.0 {
+            Some(TypeId(self.type_id))
+        } else {
+            None
+        }
+    }
+
+    /// Return whether this is an indexed value type.
+    pub const fn is_indexed(self) -> bool {
+        self.tag.0 == ValueTag::INDEXED.0
+    }
+
+    /// Replace the embedded object-local type.
+    pub fn map_type<E>(
         self,
         map_type: impl FnOnce(TypeId) -> Result<TypeId, E>,
     ) -> Result<Self, E> {
-        let symbol =
-            if self.is_slice() || self.is_dynamic() || self.is_tensor() || self.is_tensor_view() {
-                map_type(TypeId(self.symbol))?.0
-            } else {
-                self.symbol
-            };
+        let type_id = if self.is_slice()
+            || self.is_dynamic()
+            || self.is_tensor()
+            || self.is_tensor_view()
+            || self.is_indexed()
+        {
+            map_type(TypeId(self.type_id))?.0
+        } else {
+            self.type_id
+        };
 
-        Ok(Self { symbol, ..self })
+        Ok(Self { type_id, ..self })
     }
 
     /// Return whether this is an owning tensor handle.
@@ -580,13 +626,17 @@ impl ValueType {
                     && self.word_count == 1
                     && self.reference.is_defined()
                     && self.lane_count == 0
-                    && self.symbol == 0
+                    && self.type_id == 0
             }
             ValueTag::FUNCTION_POINTER => {
                 self.scalar == 0 && self.word_count == 1 && self.has_no_qualifiers()
             }
             ValueTag::FUNCTION => {
-                self.scalar == 0 && self.word_count == 2 && self.has_no_qualifiers()
+                self.scalar == 0
+                    && self.word_count == 2
+                    && self.reference.is_defined()
+                    && self.lane_count == 0
+                    && self.type_id == 0
             }
             ValueTag::DYNAMIC => {
                 self.scalar == 0
@@ -619,13 +669,15 @@ impl ValueType {
                     return false;
                 };
 
-                self.word_count == ty.word_count() && self.reference.bits() == 0 && self.symbol == 0
+                self.word_count == ty.word_count()
+                    && self.reference.bits() == 0
+                    && self.type_id == 0
             }
-            ValueTag::WORDS => {
+            ValueTag::INDEXED => {
                 self.scalar == 0
                     && self.word_count != 0
                     && self.lane_count == 0
-                    && self.has_no_qualifiers()
+                    && self.reference.bits() == 0
             }
             ValueTag::VOID => self.scalar == 0 && self.word_count == 0 && self.has_no_qualifiers(),
             _ => false,
@@ -636,7 +688,7 @@ impl ValueType {
     pub const fn bytes(self) -> [u8; Self::BYTE_LEN] {
         let word_count = self.word_count.to_le_bytes();
         let lane_count = self.lane_count.to_le_bytes();
-        let symbol = self.symbol.to_le_bytes();
+        let type_id = self.type_id.to_le_bytes();
 
         [
             self.tag.0,
@@ -647,10 +699,10 @@ impl ValueType {
             word_count[1],
             lane_count[0],
             lane_count[1],
-            symbol[0],
-            symbol[1],
-            symbol[2],
-            symbol[3],
+            type_id[0],
+            type_id[1],
+            type_id[2],
+            type_id[3],
         ]
     }
 
@@ -662,21 +714,27 @@ impl ValueType {
             reference: ReferenceType::new(ReferenceKind(bytes[2]), Space(bytes[3])),
             word_count: u16::from_le_bytes([bytes[4], bytes[5]]),
             lane_count: u16::from_le_bytes([bytes[6], bytes[7]]),
-            symbol: u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]),
+            type_id: u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]),
         };
 
         if ty.is_defined() { Some(ty) } else { None }
     }
 
     /// Create one canonical non-reference value type.
-    const fn new(tag: ValueTag, scalar: u8, word_count: u16, lane_count: u16, symbol: u32) -> Self {
+    const fn new(
+        tag: ValueTag,
+        scalar: u8,
+        word_count: u16,
+        lane_count: u16,
+        type_id: u32,
+    ) -> Self {
         Self {
             tag,
             scalar,
             reference: ReferenceType::new(ReferenceKind::MANAGED, Space::LOCAL),
             word_count,
             lane_count,
-            symbol,
+            type_id,
         }
     }
 
@@ -688,7 +746,7 @@ impl ValueType {
             reference,
             word_count: 1,
             lane_count: 0,
-            symbol: 0,
+            type_id: 0,
         }
     }
 
@@ -700,7 +758,7 @@ impl ValueType {
             reference,
             word_count: 2,
             lane_count: 0,
-            symbol: element.0,
+            type_id: element.0,
         }
     }
 
@@ -711,7 +769,7 @@ impl ValueType {
 
     /// Return whether fields unused by an unqualified value are zero.
     const fn has_no_qualifiers(self) -> bool {
-        self.reference.bits() == 0 && self.lane_count == 0 && self.symbol == 0
+        self.reference.bits() == 0 && self.lane_count == 0 && self.type_id == 0
     }
 }
 

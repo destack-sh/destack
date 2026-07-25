@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::Opcode;
+use crate::{Opcode, ReferenceType, RegisterSpan, RelocationTag};
 
 use super::instruction::InstructionFormatter;
 
@@ -24,42 +24,66 @@ impl InstructionFormatter<'_, '_, '_> {
     fn format_reference_lifetime(&mut self, opcode: Opcode) -> FormatResult<()> {
         // decode the affected reference
         let value = self.register_id()?;
-        self.reference()?;
+        let reference = self.reference()?;
         let name = self.opcode_name(opcode)?;
 
         // write the lifetime operation
-        self.write_text(name)?;
-        self.write_token(" ")?;
-        self.write_register(value)
+        self.write_reference_opcode(name, reference)?;
+        self.write_register(value)?;
+
+        Ok(())
     }
 
     /// Format one explicit value destruction.
     fn format_drop(&mut self) -> FormatResult<()> {
-        // decode the value and concrete type
-        let (value, _) = self.register_range_id()?;
-        let ty = self.symbol()?;
+        // decode the value and linked destructor
+        let (value, word_count) = self.register_span_id()?;
+        let value = RegisterSpan::new(value, word_count);
+        let (destructor, relocation) = self.relocation_with_text()?;
+        if relocation.tag != RelocationTag::FUNCTION {
+            return Err(FormatError::SyntaxError {
+                message: "drop does not reference a function",
+            });
+        }
 
         // write the destruction
         self.write_token("drop ")?;
-        self.write_register(value)?;
-        write!(self.formatter, [token(":"), space()])?;
-        self.write_text(&ty)
+        self.write_span(value)?;
+        self.write_comma()?;
+        self.write_text(&destructor)
     }
 
     /// Format one managed reference write barrier.
     fn format_barrier(&mut self) -> FormatResult<()> {
         // decode the changed object byte range
         let object = self.register_id()?;
-        self.reference()?;
+        let reference = self.reference()?;
         let offset = self.register_id()?;
         let byte_len = self.register_id()?;
 
         // write the barrier range
-        write!(self.formatter, [token("barrier"), space()])?;
+        self.write_reference_opcode("barrier", reference)?;
         self.write_register(object)?;
         write!(self.formatter, [token(","), space()])?;
         self.write_register(offset)?;
         write!(self.formatter, [token(","), space()])?;
         self.write_register(byte_len)
+    }
+
+    /// Write one operation selected by reference space and ownership.
+    pub(super) fn write_reference_opcode(
+        &mut self,
+        operation: &str,
+        reference: ReferenceType,
+    ) -> FormatResult<()> {
+        let space = reference.space().name().ok_or(FormatError::SyntaxError {
+            message: "reference operation has an invalid space",
+        })?;
+        let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
+            message: "reference operation has an invalid ownership",
+        })?;
+        let name = format!("{operation}.{space}.{kind}");
+
+        self.write_opcode(&name)
     }
 }

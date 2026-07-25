@@ -14,6 +14,6 @@ impl Label {
 impl fmt::Display for Label {
     /// Format this label in canonical bytecode text form.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "l{}", self.0)
+        write!(formatter, "b{}", self.0)
     }
 }

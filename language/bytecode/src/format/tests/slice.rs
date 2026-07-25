@@ -1,28 +1,21 @@
 use super::assert_format_eq;
 
-/// Format slice views and lengths as two-word values.
+/// Format strided slice views and physical length extraction.
 #[test]
 fn test_format_slice_operations() {
     assert_format_eq(
         r#"
-type Point
-
-export function sliceRange(r0:slice<Point,managed,space(local)>,r2:uint64):(slice<Point,managed,space(local)>,uint64){
-r3:slice<Point,managed,space(local)>=slice.view r0,r2,r2
-r5:uint64=slice.length r3
-return r3,r5
+function f0(): t0 {
+    slice.view r3:r4, r0:r1,8,r2,r2
+extract r5, r3:r4,8,8
+return r3:r5
 }
 "#,
         r#"
-type Point
-
-export function sliceRange(r0: slice<Point, managed, space(local)>, r2: uint64): (
-    slice<Point, managed, space(local)>,
-    uint64
-) {
-    r3: slice<Point, managed, space(local)> = slice.view r0, r2, r2
-    r5: uint64 = slice.length r3
-    return r3, r5
+function f0(): t0 {
+    slice.view r3:r4, r0:r1, 8, r2, r2
+    extract r5, r3:r4, 8, 8
+    return r3:r5
 }
 "#,
     );

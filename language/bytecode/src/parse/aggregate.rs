@@ -1,220 +1,164 @@
 use crate::{
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterId, RegisterRange, Symbol,
-    Token, TokenType, ValueType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, Placement, RegisterSpan,
+    RelocationTag, Token, TokenType,
 };
 
 use super::function::FunctionParser;
 
 impl Parser<'_> {
-    /// Parse one aggregate or variant value operation.
+    /// Parse one packed value or variant operation.
     pub(super) fn parse_aggregate_operation(
         &mut self,
         name: &str,
         token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
+        let opcode = match name {
+            "aggregate" => Opcode::AGGREGATE,
+            "extract" => Opcode::EXTRACT,
+            "insert" => Opcode::INSERT,
+            "variant.new" => Opcode::VARIANT_NEW,
+            "variant.tag" => Opcode::VARIANT_TAG,
+            _ => return Err(ParseError::new("unknown aggregate operation", token.span)),
+        };
+        let results = self.parse_definitions(opcode)?;
+
         match name {
-            "aggregate" => self.parse_aggregate(token, results, result_types, function),
-            "field.get" => {
-                self.parse_projection(Opcode::FIELD_GET, token, results, result_types, function)
-            }
-            "field.set" => {
-                self.parse_update(Opcode::FIELD_SET, token, results, result_types, function)
-            }
-            "element.get" => {
-                self.parse_projection(Opcode::ELEMENT_GET, token, results, result_types, function)
-            }
-            "element.set" => {
-                self.parse_update(Opcode::ELEMENT_SET, token, results, result_types, function)
-            }
-            "variant.new" => self.parse_variant_new(token, results, result_types, function),
-            "variant.tag" => self.parse_variant_tag(token, results, result_types, function),
-            "variant.payload" => self.parse_projection(
-                Opcode::VARIANT_PAYLOAD,
-                token,
-                results,
-                result_types,
-                function,
-            ),
-            _ => Err(ParseError::new("unknown aggregate operation", token.span)),
+            "aggregate" => self.parse_aggregate(token, &results, function),
+            "extract" => self.parse_extract(&results, function),
+            "insert" => self.parse_insert(&results, function),
+            "variant.new" => self.parse_variant_new(&results, function),
+            "variant.tag" => self.parse_variant_tag(&results, function),
+            _ => Err(ParseError::new("invalid aggregate operation", token.span)),
         }
     }
 
-    /// Parse one aggregate construction.
+    /// Parse one packed aggregate construction.
     fn parse_aggregate(
         &mut self,
         token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
+        results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let result_type = Self::one_result(token, result_types)?;
-        let ty = self.parse_type_name()?;
         self.eat_token(TokenType::OpenParenthesis)?;
-        let fields = self.parse_register_list(TokenType::CloseParenthesis, token, function)?;
+        let mut placements = Vec::new();
 
-        // encode logical field starts in source order
-        let mut instruction = InstructionBuilder::new(Opcode::AGGREGATE);
-        instruction.symbol(Symbol::ty(ty.0));
-        instruction
-            .registers(&fields)
-            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
-
-        function.emit(instruction, results, &[result_type], self.empty_span())
-    }
-
-    /// Parse one field, element, or variant payload projection.
-    fn parse_projection(
-        &mut self,
-        opcode: Opcode,
-        token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let result_type = Self::one_result(token, result_types)?;
-        let source = self.parse_value_range(token, function)?;
-        self.eat_token(TokenType::Comma)?;
-        let ty = self.parse_type_name()?;
-        self.eat_token(TokenType::Comma)?;
-        let index = self.parse_u32()?;
-
-        // encode one logical projection against the linked memory layout
-        let mut instruction = InstructionBuilder::new(opcode);
-        instruction.range(source);
-        instruction.symbol(Symbol::ty(ty.0));
-        instruction.u32(index);
-
-        function.emit(instruction, results, &[result_type], self.empty_span())
-    }
-
-    /// Parse one persistent aggregate field or element update.
-    fn parse_update(
-        &mut self,
-        opcode: Opcode,
-        token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let result_type = Self::one_result(token, result_types)?;
-        let source = self.parse_value_range(token, function)?;
-        self.eat_token(TokenType::Comma)?;
-        let ty = self.parse_type_name()?;
-        self.eat_token(TokenType::Comma)?;
-        let index = self.parse_u32()?;
-        self.eat_token(TokenType::Comma)?;
-        let value = self.parse_value_range(token, function)?;
-
-        // retain the source and replace one logical component
-        let mut instruction = InstructionBuilder::new(opcode);
-        instruction.range(source);
-        instruction.symbol(Symbol::ty(ty.0));
-        instruction.u32(index);
-        instruction.range(value);
-
-        function.emit(instruction, results, &[result_type], self.empty_span())
-    }
-
-    /// Parse one variant construction with an optional payload.
-    fn parse_variant_new(
-        &mut self,
-        token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let result_type = Self::one_result(token, result_types)?;
-        let ty = self.parse_type_name()?;
-        self.eat_token(TokenType::Comma)?;
-        let case = self.parse_u32()?;
-        let payload = if self.eat_token_if(TokenType::Comma) {
-            self.parse_value_range(token, function)?
-        } else {
-            RegisterRange::empty()
-        };
-
-        // encode the case and optional packed payload
-        let mut instruction = InstructionBuilder::new(Opcode::VARIANT_NEW);
-        instruction.symbol(Symbol::ty(ty.0));
-        instruction.u32(case);
-        instruction.range(payload);
-
-        function.emit(instruction, results, &[result_type], self.empty_span())
-    }
-
-    /// Parse one variant discriminant projection.
-    fn parse_variant_tag(
-        &mut self,
-        token: Token,
-        results: &[RegisterId],
-        result_types: &[ValueType],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let result_type = Self::one_result(token, result_types)?;
-        let source = self.parse_value_range(token, function)?;
-        self.eat_token(TokenType::Comma)?;
-        let ty = self.parse_type_name()?;
-
-        // retain the linked variant layout used to decode the tag
-        let mut instruction = InstructionBuilder::new(Opcode::VARIANT_TAG);
-        instruction.range(source);
-        instruction.symbol(Symbol::ty(ty.0));
-
-        function.emit(instruction, results, &[result_type], self.empty_span())
-    }
-
-    /// Parse one complete logical value range.
-    fn parse_value_range(
-        &mut self,
-        token: Token,
-        function: &FunctionParser,
-    ) -> ParseResult<RegisterRange> {
-        let register = self.parse_register()?;
-        let ty = function
-            .value_type(register)
-            .ok_or_else(|| ParseError::new("operation reads an uninitialized value", token.span))?;
-
-        Ok(RegisterRange::new(register, ty.word_count()))
-    }
-
-    /// Parse one comma-separated register list.
-    fn parse_register_list(
-        &mut self,
-        close: TokenType,
-        token: Token,
-        function: &FunctionParser,
-    ) -> ParseResult<Vec<RegisterId>> {
-        let mut registers = Vec::new();
-        while !self.eat_token_if(close) {
-            let register = self.parse_register()?;
-            if function.value_type(register).is_none() {
-                return Err(ParseError::new(
-                    "aggregate field must begin an initialized value",
-                    token.span,
-                ));
-            }
-            registers.push(register);
+        // parse each physical source placement
+        while !self.eat_token_if(TokenType::CloseParenthesis) {
+            placements.push(self.parse_placement()?);
             if !self.eat_token_if(TokenType::Comma) {
-                self.eat_token(close)?;
+                self.eat_token(TokenType::CloseParenthesis)?;
 
                 break;
             }
         }
 
-        Ok(registers)
+        // encode the exact packed byte layout
+        let mut instruction = InstructionBuilder::new(Opcode::AGGREGATE);
+        instruction
+            .placements(&placements)
+            .map_err(|error| ParseError::new(error.to_string(), token.span))?;
+
+        function.emit(instruction, results, self.empty_span())
     }
 
-    /// Return the one declared result type required by an aggregate operation.
-    fn one_result(token: Token, result_types: &[ValueType]) -> ParseResult<ValueType> {
-        match result_types {
-            [ty] => Ok(*ty),
-            _ => Err(ParseError::new(
-                "aggregate operation requires one result",
-                token.span,
-            )),
-        }
+    /// Parse one value extraction by byte range.
+    fn parse_extract(
+        &mut self,
+        results: &[RegisterSpan],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let source = self.parse_register_span()?;
+        self.eat_token(TokenType::Comma)?;
+        let byte_offset = self.parse_u32()?;
+        self.eat_token(TokenType::Comma)?;
+        let byte_len = self.parse_u32()?;
+
+        // encode the exact copied byte range
+        let mut instruction = InstructionBuilder::new(Opcode::EXTRACT);
+        instruction.span(source);
+        instruction.u32(byte_offset);
+        instruction.u32(byte_len);
+
+        function.emit(instruction, results, self.empty_span())
+    }
+
+    /// Parse one persistent value insertion by byte range.
+    fn parse_insert(
+        &mut self,
+        results: &[RegisterSpan],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let aggregate = self.parse_register_span()?;
+        self.eat_token(TokenType::Comma)?;
+        let byte_offset = self.parse_u32()?;
+        self.eat_token(TokenType::Comma)?;
+        let byte_len = self.parse_u32()?;
+        self.eat_token(TokenType::Comma)?;
+        let value = self.parse_register_span()?;
+
+        // encode the copy and exact replacement byte range
+        let mut instruction = InstructionBuilder::new(Opcode::INSERT);
+        instruction.span(aggregate);
+        instruction.u32(byte_offset);
+        instruction.u32(byte_len);
+        instruction.span(value);
+
+        function.emit(instruction, results, self.empty_span())
+    }
+
+    /// Parse one variant construction with an optional payload.
+    fn parse_variant_new(
+        &mut self,
+        results: &[RegisterSpan],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let layout = self.parse_layout_id()?;
+        self.eat_token(TokenType::Comma)?;
+        let case = self.parse_u32()?;
+        let payload = if self.eat_token_if(TokenType::Comma) {
+            self.parse_register_span()?
+        } else {
+            RegisterSpan::empty()
+        };
+
+        // encode the selected layout, case, and optional payload
+        let mut instruction = InstructionBuilder::new(Opcode::VARIANT_NEW);
+        instruction.relocation(RelocationTag::LAYOUT, layout.0);
+        instruction.u32(case);
+        instruction.span(payload);
+
+        function.emit(instruction, results, self.empty_span())
+    }
+
+    /// Parse one variant discriminant extraction.
+    fn parse_variant_tag(
+        &mut self,
+        results: &[RegisterSpan],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let variant = self.parse_register_span()?;
+        self.eat_token(TokenType::Comma)?;
+        let layout = self.parse_layout_id()?;
+
+        // encode the exact linked variant layout
+        let mut instruction = InstructionBuilder::new(Opcode::VARIANT_TAG);
+        instruction.span(variant);
+        instruction.relocation(RelocationTag::LAYOUT, layout.0);
+
+        function.emit(instruction, results, self.empty_span())
+    }
+
+    /// Parse one physical aggregate placement.
+    fn parse_placement(&mut self) -> ParseResult<Placement> {
+        self.eat_token(TokenType::OpenBracket)?;
+        let registers = self.parse_register_span()?;
+        self.eat_token(TokenType::Comma)?;
+        let byte_offset = self.parse_u32()?;
+        self.eat_token(TokenType::Comma)?;
+        let byte_len = self.parse_u32()?;
+        self.eat_token(TokenType::CloseBracket)?;
+
+        Ok(Placement::new(registers, byte_offset, byte_len))
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
-    CounterId, DynamicRelocation, Error, InstructionRelocation, Label, Opcode, ReferenceKind,
-    RegisterId, RegisterRange, Result, SamplerId, Scalar, Space, Symbol, TensorOperand, TypeId,
-    ValueType, VectorType,
+    CounterId, Error, Label, Opcode, Placement, ReferenceKind, RegisterId, RegisterSpan,
+    Relocation, RelocationTag, Result, SamplerId, Scalar, Space, TensorOperand, ValueType,
+    VectorType,
 };
 
 /// Encoded operands for one instruction under construction.
@@ -11,16 +11,14 @@ pub struct InstructionBuilder {
     pub(crate) opcode: Opcode,
     /// Encoded operands in schema order.
     pub(crate) bytes: Vec<u8>,
-    /// Symbol operands awaiting object linking.
-    pub(crate) symbols: Vec<InstructionRelocation>,
-    /// Dynamic dispatch operands awaiting object linking.
-    pub(crate) dynamic_tables: Vec<DynamicRelocation>,
+    /// Operands awaiting object linking.
+    pub(crate) relocations: Vec<Relocation>,
     /// Branch operands awaiting local label resolution.
     pub(crate) branches: Vec<(usize, Label)>,
     /// Individual register words read by the instruction.
     pub(crate) registers: Vec<RegisterId>,
-    /// Logical register ranges read by the instruction.
-    pub(crate) ranges: Vec<RegisterRange>,
+    /// Contiguous register spans read by the instruction.
+    pub(crate) spans: Vec<RegisterSpan>,
     /// Greatest profile counter index plus one.
     pub(crate) counter_count: u32,
     /// Greatest profile sampler index plus one.
@@ -33,11 +31,10 @@ impl InstructionBuilder {
         Self {
             opcode,
             bytes: Vec::new(),
-            symbols: Vec::new(),
-            dynamic_tables: Vec::new(),
+            relocations: Vec::new(),
             branches: Vec::new(),
             registers: Vec::new(),
-            ranges: Vec::new(),
+            spans: Vec::new(),
             counter_count: 0,
             sampler_count: 0,
         }
@@ -60,11 +57,34 @@ impl InstructionBuilder {
         Ok(())
     }
 
-    /// Append one contiguous register range.
-    pub fn range(&mut self, range: RegisterRange) {
-        self.ranges.push(range);
-        self.u16(range.start.0);
-        self.u16(range.word_count);
+    /// Append one counted list of physical span starts.
+    pub fn span_starts(&mut self, spans: &[RegisterSpan]) -> Result<()> {
+        self.encode_count(spans.len())?;
+        for span in spans {
+            self.spans.push(*span);
+            self.u16(span.start.0);
+        }
+
+        Ok(())
+    }
+
+    /// Append one counted physical aggregate placement list.
+    pub fn placements(&mut self, placements: &[Placement]) -> Result<()> {
+        self.encode_count(placements.len())?;
+        for placement in placements {
+            self.span(placement.registers);
+            self.u32(placement.byte_offset);
+            self.u32(placement.byte_len);
+        }
+
+        Ok(())
+    }
+
+    /// Append one contiguous register span.
+    pub fn span(&mut self, span: RegisterSpan) {
+        self.spans.push(span);
+        self.u16(span.start.0);
+        self.u16(span.word_count);
     }
 
     /// Append one unsigned 16-bit operand.
@@ -95,7 +115,7 @@ impl InstructionBuilder {
             .ok_or(Error::CounterOutOfRange(counter.0))?;
 
         self.counter_count = self.counter_count.max(count);
-        self.u32(counter.0);
+        self.relocation(RelocationTag::COUNTER, counter.0);
 
         Ok(())
     }
@@ -108,7 +128,7 @@ impl InstructionBuilder {
             .ok_or(Error::SamplerOutOfRange(sampler.0))?;
 
         self.sampler_count = self.sampler_count.max(count);
-        self.u32(sampler.0);
+        self.relocation(RelocationTag::SAMPLER, sampler.0);
 
         Ok(())
     }
@@ -138,20 +158,16 @@ impl InstructionBuilder {
         self.bytes.extend_from_slice(&value.to_le_bytes());
     }
 
-    /// Append one object-local symbol operand.
-    pub fn symbol(&mut self, symbol: Symbol) {
+    /// Append one relocatable object-local operand.
+    pub fn relocation(&mut self, tag: RelocationTag, index: u32) {
         let byte_offset = self.bytes.len() as u32;
-        self.u32(symbol.index);
-        self.symbols
-            .push(InstructionRelocation::new(byte_offset, symbol));
+        self.u32(index);
+        self.relocations.push(Relocation::new(byte_offset, tag));
     }
 
     /// Append one unresolved dynamic dispatch table operand.
-    pub fn dynamic_table(&mut self, concrete: TypeId, constraint: TypeId) {
-        let byte_offset = self.bytes.len() as u32;
-        self.u32(0);
-        self.dynamic_tables
-            .push(DynamicRelocation::new(byte_offset, concrete, constraint));
+    pub fn dynamic_table(&mut self, table: u32) {
+        self.relocation(RelocationTag::DYNAMIC, table);
     }
 
     /// Append one unresolved branch operand.
@@ -181,8 +197,8 @@ impl InstructionBuilder {
 
     /// Append one tensor operand.
     pub fn tensor(&mut self, tensor: TensorOperand) {
-        self.range(tensor.registers);
-        self.symbol(Symbol::ty(tensor.ty.0));
+        self.span(tensor.registers);
+        self.relocation(RelocationTag::LAYOUT, tensor.layout.0);
     }
 
     /// Append one counted tensor operand list.

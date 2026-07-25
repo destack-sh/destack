@@ -5,58 +5,53 @@ use super::assert_format_eq;
 fn test_format_calls() {
     assert_format_eq(
         r#"
-type Constraint
-type Concrete
-external function add(int32,int32):int32
-function closureBody(environment r0:ref<managed,space(local)>,r1:int32,r2:int32):int32{
-r3:int32=int.add r1,r2
-r4:ref<managed,space(local)>=function.environment.current
+function f0(): t0
+
+function f1(): t0 {
+    int.add.int32 r3, r1,r2
+move r4, r0
 return r3
 }
-export function calls(r0:int32,r1:int32,r2:function,r4:ref<managed,space(local)>):int32{
-r5:dynamic<Constraint,space(local)>=dynamic.bind r4:Concrete
-r7:int32=call add(r0,r1)
-r7:int32=call.indirect r2(r0,r1)
-r7:int32=call.virtual r4,dispatch 0,slot 0(r0,r1)
-r7:int32=call.dynamic r5,slot 0(r0,r1)
-r8:typeId=dynamic.type r5
-r9:ref<managed,space(local)>=dynamic.payload r5
-r10:function=function.bind closureBody,r9
-r12:ref<managed,space(local)>=function.environment r10
-r7:int32=invoke.indirect r10(r0,r1)=>l0|l1
-l0:return r7
-l1:unwind.resume
+function f2(): t0 {
+    dynamic.bind r5:r6, r4,d0
+call r7, f0,r0:r1
+call.indirect r7, r2:r3,r0:r1
+call.virtual r7, r4,ref<managed,space(local)>,dispatch 0,slot 0,r0:r1
+call.dynamic r7, r5:r6,slot 0,r0:r1
+dynamic.type r8, r5:r6
+extract r9, r5:r6,0,8
+function.bind r10:r11, f1,r9
+extract r12, r10:r11,8,8
+invoke.indirect r7, r10:r11,r0:r1=>b0|b1
+b0:return r7
+b1:unwind.resume
 }
 "#,
         r#"
-type Constraint
+function f0(): t0
 
-type Concrete
-
-external function add(int32, int32): int32
-
-function closureBody(environment r0: ref<managed, space(local)>, r1: int32, r2: int32): int32 {
-    r3: int32 = int.add r1, r2
-    r4: ref<managed, space(local)> = function.environment.current
+function f1(): t0 {
+    int.add.int32 r3, r1, r2
+    move r4, r0
     return r3
 }
 
-export function calls(r0: int32, r1: int32, r2: function, r4: ref<managed, space(local)>): int32 {
-    r5: dynamic<Constraint, space(local)> = dynamic.bind r4: Concrete
-    r7: int32 = call add(r0, r1)
-    r7: int32 = call.indirect r2(r0, r1)
-    r7: int32 = call.virtual r4, dispatch 0, slot 0(r0, r1)
-    r7: int32 = call.dynamic r5, slot 0(r0, r1)
-    r8: typeId = dynamic.type r5
-    r9: ref<managed, space(local)> = dynamic.payload r5
-    r10: function = function.bind closureBody, r9
-    r12: ref<managed, space(local)> = function.environment r10
-    r7: int32 = invoke.indirect r10(r0, r1) => l0 | l1
+function f2(): t0 {
+    dynamic.bind r5:r6, r4, d0
+    call r7, f0, r0:r1
+    call.indirect r7, r2:r3, r0:r1
+    call.virtual r7, r4, ref<managed, space(local)>, dispatch 0, slot 0, r0:r1
+    call.dynamic r7, r5:r6, slot 0, r0:r1
+    dynamic.type r8, r5:r6
+    extract r9, r5:r6, 0, 8
+    function.bind r10:r11, f1, r9
+    extract r12, r10:r11, 8, 8
+    invoke.indirect r7, r10:r11, r0:r1 => b0 | b1
 
-l0:
+b0:
     return r7
 
-l1:
+b1:
     unwind.resume
 }
 "#,

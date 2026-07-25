@@ -1,44 +1,27 @@
-use crate::{
-    FrameSlot, FunctionId, MemoryOperation, Opcode, RegisterId, RegisterRange, Scalar, TypeId,
-};
+use crate::{FunctionId, MemoryOperation, Opcode, Scalar};
 
 use super::TestParser;
 
-/// Parse frame slots and scalar memory operations.
+/// Parse register addresses and scalar memory operations.
 #[test]
-fn test_parse_frame_memory() {
-    let (object, opcodes) = TestParser::new(
+fn test_parse_memory() {
+    let (_, opcodes) = TestParser::new(
         r#"
-type Pair
-
-export function update(r0: int32, r1: pointer, r2: pointer, r3: uint64, r4: words<2>): int32 {
-    slot s0: Pair = r4[2]
-
-    frame.store s0, r4
-    r6: words<2> = frame.load s0
-    r8: pointer = frame.address s0
-    store.int32 r8, r0
-    r9: int32 = load.int32 r8
+function f0(): t0 {    address r6, r4
+    store.int32 r6, r0
+    load.int32 r7, r6
     copy.bytes r1 -> r2, r3
     prefetch.read r1
-    return r9
+    return r7
 }
 "#,
     )
     .parse_opcodes(FunctionId(0));
-    assert_eq!(
-        object.frame_slots(),
-        &[FrameSlot::from_registers(
-            TypeId(0),
-            RegisterRange::new(RegisterId(4), 2)
-        )]
-    );
+
     assert_eq!(
         opcodes,
         vec![
-            Opcode::FRAME_STORE,
-            Opcode::FRAME_LOAD,
-            Opcode::FRAME_ADDRESS,
+            Opcode::ADDRESS,
             Opcode::memory(MemoryOperation::Store, Scalar::Int32),
             Opcode::memory(MemoryOperation::Load, Scalar::Int32),
             Opcode::COPY_BYTES,
