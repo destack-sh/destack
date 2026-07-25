@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 import { AsyncDispose, Drop } from "destack:memory";
 
+import { Awaitable } from "./awaitable.ds";
 import { Waiter } from "./continuation.ds";
 import { Promise } from "./promise.ds";
 
@@ -9,7 +10,7 @@ import { Promise } from "./promise.ds";
 /// Awaiting consumes the task and transfers its result.
 /// Dropping the task detaches the result while its scope retains the execution.
 @languageItem("async.Task")
-export local struct Task<T> implements Drop {
+export local struct Task<T> implements Awaitable<T>, Drop {
     /// Opaque task identity.
     private handle: uint64;
 
@@ -19,8 +20,7 @@ export local struct Task<T> implements Drop {
     }
 
     /// Park one waiter until a task completes.
-    @languageItem("async.Task.park")
-    private static park<T>(task: Task<T>, waiter: Waiter<T>): void {
+    static park<T>(task: Task<T>, waiter: Waiter<T>): void {
         parkTask(task, waiter);
     }
 

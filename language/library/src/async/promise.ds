@@ -2,6 +2,7 @@ import { todo, trap } from "destack:error";
 import { Iterable } from "destack:iter";
 import { Copy } from "destack:memory";
 
+import { Awaitable } from "./awaitable.ds";
 import { Waiter } from "./continuation.ds";
 import { queueMicrotask } from "./task.ds";
 
@@ -11,7 +12,7 @@ import { queueMicrotask } from "./task.ds";
 /// and panic remains the Worker fault boundary.
 /// Every observer receives the same copyable value.
 @languageItem("async.Promise")
-export local class Promise<T: Copy> {
+export local class Promise<T: Copy> implements Awaitable<T> {
     /// The current settlement state.
     private state: PromiseState<T>;
 
@@ -113,8 +114,7 @@ export local class Promise<T: Copy> {
     }
 
     /// Park one waiter until a promise fulfills.
-    @languageItem("async.Promise.park")
-    private static park<T: Copy>(promise: Promise<T>, waiter: Waiter<T>): void {
+    static park<T: Copy>(promise: Promise<T>, waiter: Waiter<T>): void {
         promise.addWaiter(new PromiseAwaiter(waiter));
     }
 

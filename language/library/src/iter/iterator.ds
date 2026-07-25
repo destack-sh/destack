@@ -21,8 +21,8 @@ export struct IteratorReturn<R = void> {
     /// The result tag.
     kind: "return" = "return";
 
-    /// The return value.
-    value: R;
+    /// The return value, absent after an iterator is already exhausted.
+    value: R | undefined;
 }
 
 /// A protocol for producing a sequence of values.

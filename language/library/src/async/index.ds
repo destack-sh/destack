@@ -1,3 +1,4 @@
+export * from "./awaitable.ds";
 export * from "./continuation.ds";
 export * from "./generator.ds";
 export * from "./iterator.ds";
