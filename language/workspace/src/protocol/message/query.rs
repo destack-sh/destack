@@ -288,8 +288,7 @@ mod tests {
         let request = QueryRequestBody {
             expected_revision: Some(Revision::from_test_value(7)),
             request: QueryRequest::SearchSymbols(SearchSymbolsRequest {
-                profile_id: ProfileId::new(1),
-                module_ids: Vec::new(),
+                profile_ids: vec![ProfileId::new(1)],
                 query: "main".to_string(),
                 max_results: 16,
             }),

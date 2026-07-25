@@ -9,11 +9,9 @@ use destack_query::{
     GotoTypeDefinitionResponse, HighlightResponse, HoverResponse, IncomingCallsResponse,
     InlayHintsResponse, InlineResponse, LinksResponse, Module, ModuleQueryContext,
     OutgoingCallsResponse, OutlineResponse, ProgramQueryContext, QueryRequest, QueryResponse,
-    RenameFilesResponse, RenameResponse, RenameTargetResponse, ResolveCodeLensResponse,
-    SearchSymbolsResponse, SelectionRangesResponse, SemanticTokensResponse, SignatureHelpResponse,
-    SubtypesResponse, SupertypesResponse, TypeItemResponse, module_query_artifacts,
-    module_query_context, program_query_context, rename_files, resolve_code_lens,
-    specifier_artifacts,
+    RenameFilesResponse, RenameResponse, RenameTargetResponse, SearchSymbolsResponse,
+    SelectionRangesResponse, SemanticTokensResponse, SignatureHelpResponse, SubtypesResponse,
+    SupertypesResponse, TypeItemResponse, rename_files, rename_files_artifacts,
 };
 use destack_repository::{ArtifactReader, Revision};
 use destack_serde::Reflect;
@@ -172,10 +170,6 @@ impl Snapshot {
 
                 QueryResponse::CodeLenses(CodeLensesResponse { lenses })
             }
-            QueryRequest::ResolveCodeLens(params) => {
-                let lens = resolve_code_lens(&params.lens);
-                QueryResponse::ResolveCodeLens(ResolveCodeLensResponse { lens })
-            }
             QueryRequest::FoldingRanges(params) => {
                 let context = self.module_context(params.module)?;
                 let ranges = context.folding_ranges(params.file_id);
@@ -198,17 +192,15 @@ impl Snapshot {
             }
             QueryRequest::Outline(params) => {
                 let context = self.module_context(params.module)?;
-                let symbols = context.outline(params.file_id);
+                let program = self.program_context(&[params.module.profile_id])?;
+                let symbols = context.outline(&program, params.file_id);
 
                 QueryResponse::Outline(OutlineResponse { symbols })
             }
             QueryRequest::SearchSymbols(params) => {
-                let context = self.program_context(&[params.profile_id])?;
-                let symbols = context.search_symbols(
-                    &params.query,
-                    params.max_results as usize,
-                    &params.module_ids,
-                );
+                let context = self.program_context(&params.profile_ids)?;
+                let symbols = context.search_symbols(&params.query, params.max_results as usize);
+
                 QueryResponse::SearchSymbols(SearchSymbolsResponse { symbols })
             }
             QueryRequest::Links(params) => {
@@ -326,13 +318,13 @@ impl Snapshot {
             QueryRequest::RenameTarget(params) => {
                 let context = self.module_context(params.position.module)?;
                 let program = self.program_context(&[params.position.module.profile_id])?;
-                let result = context.rename_target(
+                let target = context.rename_target(
                     &program,
                     params.position.file_id,
                     params.position.offset,
                 );
 
-                QueryResponse::RenameTarget(RenameTargetResponse { result })
+                QueryResponse::RenameTarget(RenameTargetResponse { target })
             }
             QueryRequest::Rename(params) => {
                 let context = self.module_context(params.position.module)?;
@@ -347,9 +339,10 @@ impl Snapshot {
                 QueryResponse::Rename(RenameResponse { edit })
             }
             QueryRequest::RenameFiles(params) => {
-                let modules = self.modules(&params.profile_ids)?;
+                let program = self.program_context(&params.profile_ids)?;
+                let modules = program.modules().collect::<Vec<_>>();
                 for module in &modules {
-                    self.require_specifiers(*module)?;
+                    self.provide_rename_files_artifacts(*module)?;
                 }
 
                 let edit = rename_files(
@@ -416,7 +409,7 @@ impl Snapshot {
     fn module_context(&self, module: Module) -> Result<ModuleQueryContext<'_>, Error> {
         let repository = self.repository();
         let revision = self.revision();
-        let required = module_query_artifacts(module.module_id, module.profile_id);
+        let required = ModuleQueryContext::artifacts(module.module_id, module.profile_id);
 
         // provide the queried module's exact context artifacts
         self.session()
@@ -428,9 +421,9 @@ impl Snapshot {
                 ),
             })?;
 
-        // build the module view over the ready revision state
+        // build the module context over the ready revision state
         let context =
-            module_query_context(repository, revision, module.module_id, module.profile_id);
+            ModuleQueryContext::new(repository, revision, module.module_id, module.profile_id);
 
         Ok(context)
     }
@@ -466,7 +459,7 @@ impl Snapshot {
             indexes.push((*profile_id, index));
         }
 
-        Ok(program_query_context(repository, revision, indexes))
+        Ok(ProgramQueryContext::new(repository, revision, indexes))
     }
 
     /// Return the active package index for one profile.
@@ -493,34 +486,9 @@ impl Snapshot {
         Ok(packages)
     }
 
-    /// Return every module in the selected profiles.
-    fn modules(&self, profile_ids: &[ProfileId]) -> Result<Vec<Module>, Error> {
-        let repository = self.repository();
-        let revision = self.revision();
-        let module_ids = repository.module_ids(revision)?;
-        let mut modules = Vec::new();
-
-        // select each module that participates in each profile
-        for profile_id in profile_ids {
-            for module_id in &module_ids {
-                let profile = repository.module_profile_by_id(revision, *module_id, *profile_id)?;
-                if profile.is_none() {
-                    continue;
-                }
-
-                modules.push(Module {
-                    module_id: *module_id,
-                    profile_id: *profile_id,
-                });
-            }
-        }
-
-        Ok(modules)
-    }
-
-    /// Require the artifacts read while rewriting one module's specifiers.
-    fn require_specifiers(&self, module: Module) -> Result<(), Error> {
-        let required_artifacts = specifier_artifacts(module.module_id, module.profile_id);
+    /// Provide the artifacts read while rewriting one module's specifiers.
+    fn provide_rename_files_artifacts(&self, module: Module) -> Result<(), Error> {
+        let required_artifacts = rename_files_artifacts(module.module_id, module.profile_id);
         self.session()
             .provide(self.revision(), &required_artifacts)
             .map_err(|error| Error::Internal {
