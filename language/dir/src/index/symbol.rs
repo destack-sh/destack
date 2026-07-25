@@ -1,6 +1,4 @@
-use crate::{
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Mutability, Postings, SymbolKind, SymbolRole,
-};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, Mutability, Postings, SymbolKind, SymbolRole};
 use destack_serde::Reflect;
 use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
@@ -36,14 +34,12 @@ pub struct SymbolEntry {
     pub file: FileId,
     /// The source range.
     pub span: Span,
-    /// The checked type of the symbol when known.
-    pub ty: Option<GlobalTypeId>,
+    /// The declaration name range.
+    pub selection: Span,
     /// The containing declaration display name.
     pub container: Option<String>,
     /// The binding mutability when this is a value binding.
     pub mutability: Option<Mutability>,
-    /// Whether this symbol is exported from its declaring module.
-    pub is_exported: bool,
 }
 
 impl SymbolIndex {
@@ -93,6 +89,8 @@ impl SymbolEntry {
             self.file,
             self.span.start,
             self.span.end,
+            self.selection.start,
+            self.selection.end,
             self.symbol,
         );
         let right = (
@@ -102,6 +100,8 @@ impl SymbolEntry {
             other.file,
             other.span.start,
             other.span.end,
+            other.selection.start,
+            other.selection.end,
             other.symbol,
         );
 

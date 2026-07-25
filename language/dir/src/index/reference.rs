@@ -8,19 +8,29 @@ use serde::{Deserialize, Serialize};
 pub struct ReferenceIndex {
     /// The references ordered by target symbol.
     by_target: Vec<ReferenceEntry>,
+    /// The references ordered by declaration symbol.
+    by_declaration: Vec<ReferenceEntry>,
 }
 
-/// Reference postings by target symbol.
+/// Reference postings by target and declaration symbols.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ReferencePostings {
     /// Reference target postings.
     pub targets: Postings<GlobalSymbolId>,
+    /// Reference declaration postings.
+    pub declarations: Postings<GlobalSymbolId>,
 }
 
 impl ReferenceIndex {
     /// Create a reference index from entries.
-    pub fn new(entries: Vec<ReferenceEntry>) -> Self {
-        let mut index = Self { by_target: entries };
+    pub fn new(
+        target_entries: Vec<ReferenceEntry>,
+        declaration_entries: Vec<ReferenceEntry>,
+    ) -> Self {
+        let mut index = Self {
+            by_target: target_entries,
+            by_declaration: declaration_entries,
+        };
         index.finish();
 
         index
@@ -28,28 +38,44 @@ impl ReferenceIndex {
 
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
-        self.by_target.sort_by(ReferenceEntry::compare_by_target);
+        self.by_target.sort_by(ReferenceEntry::compare_by_symbol);
         self.by_target.dedup();
+        self.by_declaration
+            .sort_by(ReferenceEntry::compare_by_symbol);
+        self.by_declaration.dedup();
     }
 
     /// Iterate references to one target symbol.
     pub fn target_entries(&self, target: GlobalSymbolId) -> impl Iterator<Item = &ReferenceEntry> {
-        let range = self.target_range(target);
+        let range = Self::entry_range(&self.by_target, target);
 
         self.by_target[range].iter()
     }
 
-    /// Return all indexed references.
-    pub fn entries(&self) -> &[ReferenceEntry] {
+    /// Iterate references to one declaration symbol.
+    pub fn declaration_entries(
+        &self,
+        declaration: GlobalSymbolId,
+    ) -> impl Iterator<Item = &ReferenceEntry> {
+        let range = Self::entry_range(&self.by_declaration, declaration);
+
+        self.by_declaration[range].iter()
+    }
+
+    /// Return all indexed target references.
+    pub fn target_references(&self) -> &[ReferenceEntry] {
         &self.by_target
     }
 
-    /// Return the stored range for one target symbol.
-    fn target_range(&self, target: GlobalSymbolId) -> std::ops::Range<usize> {
-        let start = self
-            .by_target
-            .partition_point(|entry| entry.target < target);
-        let end = self.by_target[start..].partition_point(|entry| entry.target == target) + start;
+    /// Return all indexed declaration references.
+    pub fn declaration_references(&self) -> &[ReferenceEntry] {
+        &self.by_declaration
+    }
+
+    /// Return the stored range for one symbol.
+    fn entry_range(entries: &[ReferenceEntry], symbol: GlobalSymbolId) -> std::ops::Range<usize> {
+        let start = entries.partition_point(|entry| entry.symbol < symbol);
+        let end = entries[start..].partition_point(|entry| entry.symbol == symbol) + start;
 
         start..end
     }
@@ -62,33 +88,53 @@ impl ReferencePostings {
             let module = ordinal as u32;
 
             indexes[ordinal]
-                .entries()
+                .target_references()
                 .iter()
-                .map(move |entry| (entry.target, module))
+                .map(move |entry| (entry.symbol, module))
+        }));
+        let declarations = Postings::from_pairs((0..indexes.len()).flat_map(|ordinal| {
+            let module = ordinal as u32;
+
+            indexes[ordinal]
+                .declaration_references()
+                .iter()
+                .map(move |entry| (entry.symbol, module))
         }));
 
-        Self { targets }
+        Self {
+            targets,
+            declarations,
+        }
     }
 }
 
 /// One indexed reference occurrence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ReferenceEntry {
-    /// The referenced symbol.
-    pub target: GlobalSymbolId,
+    /// The symbol indexing this occurrence.
+    pub symbol: GlobalSymbolId,
     /// The source range.
     pub span: Span,
+    /// Whether the authored name names the semantic target directly.
+    pub is_target_name: bool,
 }
 
 impl ReferenceEntry {
-    /// Compare two references in target lookup order.
-    fn compare_by_target(&self, other: &Self) -> std::cmp::Ordering {
-        let left = (self.target, self.span.file, self.span.start, self.span.end);
+    /// Compare two references in symbol lookup order.
+    fn compare_by_symbol(&self, other: &Self) -> std::cmp::Ordering {
+        let left = (
+            self.symbol,
+            self.span.file,
+            self.span.start,
+            self.span.end,
+            self.is_target_name,
+        );
         let right = (
-            other.target,
+            other.symbol,
             other.span.file,
             other.span.start,
             other.span.end,
+            other.is_target_name,
         );
 
         left.cmp(&right)

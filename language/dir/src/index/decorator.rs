@@ -17,8 +17,6 @@ pub struct DecoratorIndex {
 pub struct DecoratorPostings {
     /// Named decorator postings.
     pub names: Postings<String>,
-    /// Modules that contain unnamed decorators.
-    pub unnamed: Vec<u32>,
 }
 
 /// One indexed decorator application.
@@ -77,20 +75,8 @@ impl DecoratorPostings {
                 .iter()
                 .filter_map(move |entry| entry.name.clone().map(|name| (name, module)))
         }));
-        let mut unnamed = (0..indexes.len())
-            .filter_map(|ordinal| {
-                indexes[ordinal]
-                    .entries()
-                    .iter()
-                    .any(|entry| entry.name.is_none())
-                    .then_some(ordinal as u32)
-            })
-            .collect::<Vec<_>>();
 
-        unnamed.sort();
-        unnamed.dedup();
-
-        Self { names, unnamed }
+        Self { names }
     }
 }
 

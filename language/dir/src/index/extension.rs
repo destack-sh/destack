@@ -42,7 +42,7 @@ impl ExtensionIndex {
     }
 
     /// Iterate blanket extensions.
-    pub fn blankets(&self) -> impl Iterator<Item = &ExtensionEntry> {
+    pub fn blanket_entries(&self) -> impl Iterator<Item = &ExtensionEntry> {
         self.by_root.iter().filter(|entry| entry.root.is_none())
     }
 

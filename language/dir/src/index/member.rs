@@ -174,7 +174,7 @@ pub struct MemberEntry {
     pub name: String,
     /// The member kind.
     pub kind: MemberKind,
-    /// The symbol whose member surface receives this member.
+    /// The symbol this member belongs to or extends.
     pub owner: Option<GlobalSymbolId>,
     /// The symbol whose definition declares this member.
     pub declaring: GlobalSymbolId,
@@ -186,6 +186,8 @@ pub struct MemberEntry {
     pub file: FileId,
     /// The source range.
     pub span: Span,
+    /// The member name range when authored.
+    pub selection: Option<Span>,
     /// The containing symbol display name.
     pub container: Option<String>,
     /// The checked type of the member when known.
@@ -194,17 +196,14 @@ pub struct MemberEntry {
     pub origin: MemberOrigin,
     /// The checked member space.
     pub space: MemberSpace,
-    /// Whether implementers must supply this member.
-    pub is_abstract: bool,
-    /// Whether this member overrides an inherited member.
-    pub is_override: bool,
-    /// Whether this member supplies a default implementation.
-    pub is_default: bool,
-    /// Whether this member belongs to the static surface.
-    pub is_static: bool,
 }
 
 impl MemberEntry {
+    /// Return the sortable member name range.
+    fn selection_key(&self) -> Option<(FileId, u32, u32)> {
+        self.selection.map(|span| (span.file, span.start, span.end))
+    }
+
     /// Compare two members in stable source order.
     pub fn compare_by_source(&self, other: &Self) -> std::cmp::Ordering {
         let left = (
@@ -212,6 +211,7 @@ impl MemberEntry {
             self.file,
             self.span.start,
             self.span.end,
+            self.selection_key(),
             self.owner,
             self.declaring,
             self.symbol,
@@ -221,6 +221,7 @@ impl MemberEntry {
             other.file,
             other.span.start,
             other.span.end,
+            other.selection_key(),
             other.owner,
             other.declaring,
             other.symbol,
@@ -238,6 +239,7 @@ impl MemberEntry {
             self.file,
             self.span.start,
             self.span.end,
+            self.selection_key(),
             self.declaring,
             self.symbol,
         );
@@ -248,6 +250,7 @@ impl MemberEntry {
             other.file,
             other.span.start,
             other.span.end,
+            other.selection_key(),
             other.declaring,
             other.symbol,
         );
@@ -264,6 +267,7 @@ impl MemberEntry {
             self.file,
             self.span.start,
             self.span.end,
+            self.selection_key(),
             self.owner,
             self.symbol,
         );
@@ -274,6 +278,7 @@ impl MemberEntry {
             other.file,
             other.span.start,
             other.span.end,
+            other.selection_key(),
             other.owner,
             other.symbol,
         );
@@ -291,6 +296,7 @@ impl MemberEntry {
             self.file,
             self.span.start,
             self.span.end,
+            self.selection_key(),
         );
         let right = (
             other.symbol,
@@ -300,6 +306,7 @@ impl MemberEntry {
             other.file,
             other.span.start,
             other.span.end,
+            other.selection_key(),
         );
 
         left.cmp(&right)
@@ -311,6 +318,8 @@ impl MemberEntry {
 pub enum MemberKind {
     /// Field member.
     Field,
+    /// Getter or setter property member.
+    Property,
     /// Method member.
     Method,
     /// Constructor member.
