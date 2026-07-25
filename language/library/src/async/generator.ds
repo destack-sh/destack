@@ -87,14 +87,10 @@ export local class Generator<Y, R = void, N = void> {
             return IteratorResult(IteratorYield { kind: "yield", value: result.value });
         }
         // store final completion
-        else if (result.kind == "return") {
+        else {
             this.state = GeneratorCompleted { kind: "completed" };
 
             return IteratorResult(IteratorReturn { kind: "return", value: result.value });
-        }
-        // reject unexpected async parking
-        else {
-            trap("sync generator parked without yielding")
         }
     }
 }
@@ -209,7 +205,7 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
 
     /// Advance queued requests while the body remains suspended.
     private advance(): void {
-        // drain requests until the body awaits or completes
+        // drain queued requests until completion
         while (this.state.kind == "suspended") {
             let request = this.dequeue();
             if (request == undefined) {
@@ -226,24 +222,6 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
                     : continuation.complete(request.value);
             this.finish(request, result);
         }
-    }
-
-    /// Receive the next result from a continuation parked by `Await`.
-    @languageItem("async.AsyncGenerator.receive")
-    private static receive<Y: Copy, R: Copy, N>(
-        generator: AsyncGenerator<Y, R, N>,
-        result: ContinuationResult<N | undefined, Y, R>,
-    ): void {
-        // require the request retained by the awaited operation
-        if (generator.state.kind != "awaiting") {
-            trap("async generator is not awaiting")
-        }
-
-        // resume the request retained across the awaited operation
-        let request = generator.state.request;
-        generator.state = AsyncGeneratorRunning { kind: "running" };
-        generator.finish(request, result);
-        generator.advance();
     }
 
     /// Finish one active request.
@@ -265,7 +243,7 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
             };
         }
         // resolve final completion
-        else if (result.kind == "return") {
+        else {
             request.resolvers.resolve(
                 IteratorResult(IteratorReturn {
                     kind: "return",
@@ -274,13 +252,6 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
             );
             this.state = AsyncGeneratorCompleted { kind: "completed" };
             this.finishQueuedRequests();
-        }
-        // keep ownership while the body awaits
-        else {
-            this.state = AsyncGeneratorAwaiting {
-                kind: "awaiting",
-                request,
-            };
         }
     }
 
@@ -332,7 +303,6 @@ local struct GeneratorCompleted {
 /// State of an async generator object.
 type AsyncGeneratorState<Y: Copy, R: Copy, N> =
     | AsyncGeneratorSuspended<Y, R, N>
-    | AsyncGeneratorAwaiting<Y, R, N>
     | AsyncGeneratorRunning
     | AsyncGeneratorCompleted;
 
@@ -343,15 +313,6 @@ local struct AsyncGeneratorSuspended<Y: Copy, R: Copy, N> {
 
     /// Continuation to resume for the next consumer request.
     continuation: Continuation<N | undefined, Y, R>;
-}
-
-/// Async generator state while its body is awaiting another asynchronous value.
-local struct AsyncGeneratorAwaiting<Y: Copy, R: Copy, N> {
-    /// The state tag.
-    kind: "awaiting";
-
-    /// The request waiting for the next body yield or return.
-    request: AsyncGeneratorRequest<Y, R, N>;
 }
 
 /// Running async generator state.

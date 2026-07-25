@@ -10,7 +10,7 @@ export local struct Continuation<TResume = void, TYield = never, TReturn = void>
 
     /// Resume this continuation with one value.
     ///
-    /// This returns the next yield, return, or park result immediately.
+    /// This returns the next yield or return result.
     resume(this, value: TResume): ContinuationResult<TResume, TYield, TReturn> {
         return resumeContinuation<TResume, TYield, TReturn>(this, value);
     }
