@@ -214,12 +214,28 @@ define_language_items! {
             /// Generator result type alias.
             GeneratorResult => (Type, "async/generator", "GeneratorResult"),
 
-            /// Yield from the current async generator.
-            AsyncGeneratorYield => (
+            /// Create one generator from its first continuation.
+            GeneratorCreate => (
                 Function,
                 "async/generator",
-                "asyncGeneratorYield",
-                "async.AsyncGenerator.yield"
+                "create",
+                "async.Generator.create"
+            ),
+
+            /// Create one async generator from its first continuation.
+            AsyncGeneratorCreate => (
+                Function,
+                "async/generator",
+                "create",
+                "async.AsyncGenerator.create"
+            ),
+
+            /// Receive one resumed async generator result.
+            AsyncGeneratorReceive => (
+                Function,
+                "async/generator",
+                "receive",
+                "async.AsyncGenerator.receive"
             ),
         }
 
@@ -238,16 +254,16 @@ define_language_items! {
             Continuation => (Struct, "async/continuation", "Continuation"),
 
             /// Continuation resume command newtype.
-            ContinuationResume => (Newtype, "async/continuation", "ContinuationResume"),
+            Resume => (Newtype, "async/continuation", "Resume"),
 
             /// Continuation resume cancel struct.
-            ContinuationResumeCancel => (Struct, "async/continuation", "ContinuationResumeCancel"),
+            ResumeCancel => (Struct, "async/continuation", "ResumeCancel"),
 
             /// Continuation resume next struct.
-            ContinuationResumeNext => (Struct, "async/continuation", "ContinuationResumeNext"),
+            ResumeNext => (Struct, "async/continuation", "ResumeNext"),
 
             /// Continuation resume return struct.
-            ContinuationResumeReturn => (Struct, "async/continuation", "ContinuationResumeReturn"),
+            ResumeReturn => (Struct, "async/continuation", "ResumeReturn"),
 
             /// Continuation parked struct.
             ContinuationParked => (Struct, "async/continuation", "ContinuationParked"),
@@ -261,11 +277,8 @@ define_language_items! {
             /// Continuation yield struct.
             ContinuationYield => (Struct, "async/continuation", "ContinuationYield"),
 
-            /// Queue one microtask.
-            QueueMicrotask => (Function, "async/continuation", "queueMicrotask"),
-
-            /// Suspend the current continuation.
-            SuspendContinuation => (Function, "async/continuation", "suspendContinuation"),
+            /// Asynchronous waiter struct.
+            Waiter => (Struct, "async/continuation", "Waiter"),
         }
 
         /// `destack:async/promise`.
@@ -273,8 +286,33 @@ define_language_items! {
             /// Promise class.
             Promise => (Class, "async/promise", "Promise"),
 
+            /// Park one waiter until fulfillment.
+            PromisePark => (
+                Function,
+                "async/promise",
+                "park",
+                "async.Promise.park"
+            ),
+
             /// Promise resolver pair.
             PromiseResolvers => (Struct, "async/promise", "PromiseResolvers"),
+        }
+
+        /// `destack:async/task`.
+        task {
+            /// Task struct.
+            Task => (Struct, "async/task", "Task"),
+
+            /// Park one waiter until task completion.
+            TaskPark => (
+                Function,
+                "async/task",
+                "park",
+                "async.Task.park"
+            ),
+
+            /// Queue one microtask.
+            QueueMicrotask => (Function, "async/task", "queueMicrotask"),
         }
     }
 
@@ -1391,6 +1429,15 @@ define_language_items! {
 
             /// Structured value serializer.
             Serializer => (NewtypeInterface, "serde/serde", "Serializer"),
+        }
+    }
+
+    /// Stream types.
+    stream {
+        /// `destack:stream/stream`.
+        stream {
+            /// Single-consumer stream interface.
+            Stream => (NewtypeInterface, "stream/stream", "Stream"),
         }
     }
 
