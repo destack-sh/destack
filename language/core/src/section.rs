@@ -611,12 +611,6 @@ impl SectionBuilder {
         unsafe { SectionImage::from_chunks_unchecked(&self.storage, self.byte_len) }
     }
 
-    /// Return immutable aligned storage chunks.
-    #[cfg(test)]
-    fn chunks(&self) -> &[u128] {
-        &self.storage
-    }
-
     /// Build immutable aligned section storage.
     pub fn build(self) -> SectionStorage {
         SectionStorage::Owned {
