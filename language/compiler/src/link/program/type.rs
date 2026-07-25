@@ -1,112 +1,141 @@
-use std::collections::HashMap;
-
-use destack_core::SectionPacker;
+use destack_artifact as artifact;
 use destack_mir as mir;
 use destack_program::{
-    CellLayout, ElementLayout, FunctionLayoutBuilder, LayoutField, LayoutId, LayoutShapeBuilder,
-    NewtypeLayout, ReferenceFlags, ReferenceLayout, ScalarFormat, Signature, SliceLayout,
-    TensorLayoutBuilder, TensorShardingAxis, TensorShardingBuilder, TensorViewLayoutBuilder,
-    TypeDescriptorBuilder, TypeId, TypeTable, VariantCaseLayout, VariantLayoutBuilder,
+    ElementLayout, FunctionLayoutBuilder, LayoutField, LayoutShapeBuilder, NewtypeLayout,
+    ObjectLayoutBuilder, ReferenceFlags, ReferenceLayout, ScalarFormat, SignatureId, SliceLayout,
+    TensorDimension, TensorLayoutBuilder, TensorShardingAxis, TensorShardingBuilder,
+    TensorViewLayoutBuilder, TypeDescriptorBuilder, TypeId, VariantCaseLayout,
+    VariantLayoutBuilder,
 };
+use destack_source::ModuleId;
 
 use crate::LinkResult;
 
 use super::ProgramLinker;
 
-/// Link MIR types into program type descriptors.
+/// Link MIR types into the program type table.
 #[derive(Debug)]
 pub(crate) struct TypeLinker<'a> {
-    /// The MIR tree being linked.
-    tree: &'a mir::Tree,
-    /// Target ABI layout.
-    target_layout: &'a mir::TargetLayout,
-    /// Canonical MIR type table.
-    types: &'a mir::TypeTable,
-    /// Dense program id projection.
-    program: &'a ProgramLinker,
+    /// Program linker owning final type identities.
+    program: &'a ProgramLinker<'a>,
+}
+
+/// Program type projection for one emitted object.
+#[derive(Debug)]
+pub(crate) struct ObjectTypes<'a> {
+    /// Module that owns the MIR type identities.
+    module: ModuleId,
+    /// The object containing module-local type declarations.
+    object: &'a artifact::Object,
+    /// Program linker owning final type identities.
+    program: &'a ProgramLinker<'a>,
 }
 
 impl<'a> TypeLinker<'a> {
     /// Create one type linker.
+    pub(crate) fn new(program: &'a ProgramLinker<'a>) -> Self {
+        Self { program }
+    }
+
+    /// Link the program type table.
+    pub(crate) fn link(&self) -> LinkResult<Vec<TypeDescriptorBuilder>> {
+        let mut descriptors = vec![None; self.program.types_by_id().len()];
+
+        // merge every module-local descriptor and reject conflicts
+        for (module, object) in self.program.objects() {
+            let types = ObjectTypes::new(*module, object, self.program);
+            for object_type in object.types() {
+                if !self.program.has_type(*module, object_type.id) {
+                    continue;
+                }
+
+                let descriptor = types.descriptor(object_type.id);
+                let ty = self.program.type_id(*module, object_type.id);
+                let entry = &mut descriptors[ty.index()];
+                if let Some(previous) = entry {
+                    if *previous != descriptor {
+                        return Err(self
+                            .program
+                            .invalid_input(format!("type {ty:?} has conflicting descriptors")));
+                    }
+                } else {
+                    *entry = Some(descriptor);
+                }
+            }
+        }
+
+        // preserve dense type order in the packed table
+        let mut entries = Vec::with_capacity(descriptors.len());
+        for (index, descriptor) in descriptors.into_iter().enumerate() {
+            let ty = TypeId::from(index as u32);
+            let descriptor = descriptor.ok_or_else(|| {
+                self.program
+                    .invalid_input(format!("type {ty:?} has no descriptor"))
+            })?;
+            entries.push(descriptor);
+        }
+
+        Ok(entries)
+    }
+}
+
+impl<'a> ObjectTypes<'a> {
+    /// Create one object type projection.
     pub(crate) fn new(
-        tree: &'a mir::Tree,
-        target_layout: &'a mir::TargetLayout,
-        types: &'a mir::TypeTable,
-        program: &'a ProgramLinker,
+        module: ModuleId,
+        object: &'a artifact::Object,
+        program: &'a ProgramLinker<'a>,
     ) -> Self {
         Self {
-            tree,
-            target_layout,
-            types,
+            module,
+            object,
             program,
         }
     }
 
     /// Return the program pointer byte width.
     pub(crate) const fn pointer_bytes(&self) -> u8 {
-        self.target_layout.pointer_bytes()
+        self.object.target().pointer_bytes()
     }
 
-    /// Link the program type table.
-    pub(crate) fn link(
-        &self,
-        sections: &mut SectionPacker,
-        layout_ids: &HashMap<mir::TypeId, LayoutId>,
-    ) -> LinkResult<TypeTable> {
-        let mut descriptors = Vec::new();
-
-        // project MIR type descriptors into dense program ids
-        for (type_id, _) in self.tree.iter_nodes::<mir::Type>() {
-            let program_type = self.type_id(type_id);
-            let descriptor = self.descriptor(type_id, layout_ids)?;
-
-            debug_assert_eq!(program_type.index(), descriptors.len());
-            descriptors.push(descriptor);
-        }
-
-        Ok(TypeTable::pack(sections, descriptors))
+    /// Return one module-local MIR type.
+    pub(crate) fn get(&self, ty: mir::TypeId) -> &mir::Type {
+        &self
+            .object
+            .ty(ty)
+            .unwrap_or_else(|| unreachable!("missing emitted type {ty:?}"))
+            .definition
     }
 
     /// Project one MIR type into a program type descriptor.
-    pub(crate) fn descriptor(
-        &self,
-        type_id: mir::LocalNodeId<mir::Type>,
-        layout_ids: &HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
-    ) -> LinkResult<TypeDescriptorBuilder> {
+    pub(crate) fn descriptor(&self, type_id: mir::LocalNodeId<mir::Type>) -> TypeDescriptorBuilder {
         let storage_type = self.storage_type(type_id);
-        let layout = self.program_layout_id(storage_type, layout_ids)?;
+        let layout = self.program.layout_id(self.module, storage_type);
         let supertypes = self.supertypes(type_id);
-        let drop = self.program.drop_id(type_id);
+        let drop = self.program.drop_id(self.module, type_id);
 
-        Ok(TypeDescriptorBuilder {
-            layout,
-            supertypes,
-            drop,
-        })
-    }
-
-    /// Return the program cell layout for one MIR type id.
-    pub(crate) fn cell_layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<CellLayout> {
-        let ty = self.storage_type(ty);
-
-        self.cell_layout_node(self.tree.get(ty))
+        let descriptor = TypeDescriptorBuilder::new(layout).supertypes(supertypes);
+        match drop {
+            Some(drop) => descriptor.drop(drop),
+            None => descriptor,
+        }
     }
 
     /// Return the scalar layout for one MIR type id.
     pub(crate) fn scalar_format(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<ScalarFormat> {
         let ty = self.storage_type(ty);
 
-        self.scalar_layout_node(self.tree.get(ty))
+        self.scalar_layout_node(self.get(ty))
     }
 
-    /// Lower one MIR layout shape into a program layout shape.
+    /// Project one MIR layout shape into a program layout shape.
     pub(crate) fn layout_shape(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
         shape: &mir::LayoutShape,
     ) -> Option<LayoutShapeBuilder> {
         let repr = self.storage_type(ty);
-        let type_shape = self.tree.get(repr);
+        let type_shape = self.get(repr);
 
         Some(match shape {
             mir::LayoutShape::None => LayoutShapeBuilder::None,
@@ -124,99 +153,99 @@ impl<'a> TypeLinker<'a> {
             mir::LayoutShape::Vector(layout) => {
                 LayoutShapeBuilder::Vector(self.element_layout(layout))
             }
-            mir::LayoutShape::Tensor(layout) => LayoutShapeBuilder::Tensor(TensorLayoutBuilder {
-                element: self.type_id(layout.element),
-                format: layout.format,
-                sharding: self.tensor_sharding(&layout.sharding),
-                rank: layout.rank,
-            }),
+            mir::LayoutShape::Tensor(layout) => {
+                let mir::Type::Tensor { space, shape, .. } = type_shape else {
+                    return None;
+                };
+                LayoutShapeBuilder::Tensor(
+                    TensorLayoutBuilder::new(
+                        *space,
+                        self.type_id(layout.element),
+                        layout.format,
+                        shape.iter().map(Self::tensor_dimension),
+                    )
+                    .sharding(self.tensor_sharding(&layout.sharding)),
+                )
+            }
             mir::LayoutShape::TensorView(layout) => {
-                LayoutShapeBuilder::TensorView(TensorViewLayoutBuilder {
-                    element: self.type_id(layout.element),
-                    format: layout.format,
-                    sharding: self.tensor_sharding(&layout.sharding),
-                    rank: layout.rank,
-                })
+                self.tensor_view_layout_shape(type_shape, layout)?
             }
             mir::LayoutShape::Variant(layout) => {
-                LayoutShapeBuilder::Variant(VariantLayoutBuilder {
-                    discriminant: self.type_id(layout.discriminant),
-                    storage: self.type_id(layout.storage),
-                    encoding: layout.encoding,
-                    cases: layout
-                        .cases
-                        .iter()
-                        .map(|variant| VariantCaseLayout {
-                            discriminant: variant.discriminant,
-                            ty: self.type_id(variant.ty),
-                            payload_offset: variant.payload_offset,
-                        })
-                        .collect(),
-                })
+                let cases = layout.cases.iter().map(|variant| VariantCaseLayout {
+                    discriminant: variant.discriminant,
+                    ty: self.type_id(variant.ty),
+                    payload_offset: variant.payload_offset,
+                });
+                LayoutShapeBuilder::Variant(
+                    VariantLayoutBuilder::new(
+                        self.type_id(layout.discriminant),
+                        self.type_id(layout.storage),
+                        layout.encoding,
+                    )
+                    .cases(cases),
+                )
             }
             mir::LayoutShape::Object(layout) => {
-                LayoutShapeBuilder::Object(self.layout_fields(&layout.fields))
+                let mut object = ObjectLayoutBuilder::new(self.layout_fields(&layout.fields));
+                if let Some(dispatch_offset) = layout.dispatch_offset {
+                    object = object.dispatch_offset(dispatch_offset);
+                }
+
+                LayoutShapeBuilder::Object(object)
             }
             mir::LayoutShape::Dynamic => LayoutShapeBuilder::Dynamic,
             mir::LayoutShape::Function => self.function_layout_shape(type_shape)?,
-            mir::LayoutShape::Newtype(layout) => LayoutShapeBuilder::Newtype(NewtypeLayout {
-                backing_type: self.type_id(layout.backing_type),
-                backing_layout: LayoutId::new(layout.backing_layout.raw()),
-            }),
+            mir::LayoutShape::Newtype(layout) => {
+                let backing_type = self.type_id(layout.backing_type);
+                let backing_layout = self.program.layout_id(self.module, layout.backing_type);
+
+                LayoutShapeBuilder::Newtype(NewtypeLayout {
+                    backing_type,
+                    backing_layout,
+                })
+            }
         })
     }
 
     /// Return the program type id for one MIR type.
     pub(crate) fn type_id(&self, ty: mir::LocalNodeId<mir::Type>) -> TypeId {
-        self.program.type_id(ty)
+        self.program.type_id(self.module, ty)
     }
 
     /// Return flattened program supertypes for one MIR type.
     fn supertypes(&self, ty: mir::LocalNodeId<mir::Type>) -> Vec<TypeId> {
         let mut supertypes = Vec::new();
-        let Some(lineage) = self.types.lineage(ty) else {
-            return supertypes;
-        };
-
-        // record class inheritance chain
-        let mut parent = lineage.parent;
-        while let Some(parent_type) = parent {
-            let parent_id = self.type_id(parent_type);
-            if !supertypes.contains(&parent_id) {
-                supertypes.push(parent_id);
-            }
-
-            let parent_lineage = self.types.lineage(parent_type);
-            if let Some(parent_lineage) = parent_lineage {
-                for interface in &parent_lineage.interfaces {
-                    let interface_id = self.type_id(*interface);
-                    if !supertypes.contains(&interface_id) {
-                        supertypes.push(interface_id);
-                    }
-                }
-            }
-
-            parent = parent_lineage.and_then(|lineage| lineage.parent);
-        }
-
-        // record implemented interface constraints
-        for interface in &lineage.interfaces {
-            let interface_id = self.type_id(*interface);
-            if !supertypes.contains(&interface_id) {
-                supertypes.push(interface_id);
-            }
-        }
+        self.append_supertypes(ty, ty, &mut supertypes);
 
         supertypes
     }
 
-    /// Map a MIR reference to one executable pointer cell layout.
-    pub(crate) fn reference_cell_layout(
-        &self,
-        space: mir::Space,
-        kind: mir::ReferenceKind,
-    ) -> CellLayout {
-        CellLayout::reference(space, kind)
+    /// Append transitive parents and interfaces for one MIR type.
+    fn append_supertypes(&self, root: mir::TypeId, ty: mir::TypeId, supertypes: &mut Vec<TypeId>) {
+        let Some(lineage) = self.object.ty(ty).and_then(|ty| ty.lineage.as_ref()) else {
+            return;
+        };
+
+        // append the parent hierarchy before implemented interfaces
+        if let Some(parent) = lineage.parent {
+            self.append_supertype(root, parent, supertypes);
+        }
+
+        // append each interface and its own inherited interfaces
+        for &interface in &lineage.interfaces {
+            self.append_supertype(root, interface, supertypes);
+        }
+    }
+
+    /// Append one supertype once, followed by its ancestry.
+    fn append_supertype(&self, root: mir::TypeId, ty: mir::TypeId, supertypes: &mut Vec<TypeId>) {
+        let id = self.type_id(ty);
+        if ty == root || supertypes.contains(&id) {
+            return;
+        }
+
+        supertypes.push(id);
+        self.append_supertypes(root, ty, supertypes);
     }
 
     /// Return the program storage type for one MIR type.
@@ -225,65 +254,15 @@ impl<'a> TypeLinker<'a> {
         mut ty: mir::LocalNodeId<mir::Type>,
     ) -> mir::LocalNodeId<mir::Type> {
         loop {
-            match self.tree.get(ty) {
+            match self.get(ty) {
                 mir::Type::WithLifetimes { base, .. }
                 | mir::Type::Uninit { value: base }
                 | mir::Type::Atomic { value: base }
-                | mir::Type::Newtype { inner: base, .. } => {
+                | mir::Type::ManuallyDrop { value: base } => {
                     ty = *base;
                 }
                 _ => return ty,
             }
-        }
-    }
-
-    /// Return the program layout id for one MIR storage type when one exists.
-    fn program_layout_id(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-        layout_ids: &HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
-    ) -> LinkResult<LayoutId> {
-        let layout = layout_ids
-            .get(&ty)
-            .ok_or_else(|| self.program.invalid_input(format!("layout for {ty:?}")))?;
-
-        Ok(*layout)
-    }
-
-    /// Return the cell layout for one MIR type.
-    fn cell_layout_node(&self, ty: &mir::Type) -> Option<CellLayout> {
-        match ty {
-            mir::Type::Void => Some(CellLayout::Void),
-            mir::Type::Boolean => Some(CellLayout::Boolean),
-            mir::Type::Int { width, is_signed } => {
-                let width = u8::try_from(*width).ok()?;
-
-                if *is_signed {
-                    Some(CellLayout::Int { width })
-                } else {
-                    Some(CellLayout::Uint { width })
-                }
-            }
-            mir::Type::Isize => Some(CellLayout::Int {
-                width: self.pointer_bytes() * 8,
-            }),
-            mir::Type::Usize | mir::Type::TypeDescriptor => Some(CellLayout::Uint {
-                width: self.pointer_bytes() * 8,
-            }),
-            mir::Type::TypeId => Some(CellLayout::Uint {
-                width: u32::BITS as u8,
-            }),
-            mir::Type::Float(mir::FloatType::Float16) => Some(CellLayout::Float16),
-            mir::Type::Float(mir::FloatType::Bfloat16) => Some(CellLayout::Bfloat16),
-            mir::Type::Float(mir::FloatType::Float32) => Some(CellLayout::Float32),
-            mir::Type::Float(mir::FloatType::Float64) => Some(CellLayout::Float64),
-            mir::Type::Reference { kind, space, .. } => {
-                Some(self.reference_cell_layout(*space, *kind))
-            }
-            mir::Type::FunctionPointer { .. } => Some(CellLayout::FunctionPointer),
-            mir::Type::Tensor { .. } => Some(CellLayout::HeapReference),
-            mir::Type::FunctionSignature { .. } | mir::Type::Function { .. } => None,
-            _ => None,
         }
     }
 
@@ -301,11 +280,12 @@ impl<'a> TypeLinker<'a> {
                 format: *float_type,
             }),
             mir::Type::Boolean => Some(ScalarFormat::Boolean),
+            mir::Type::Character => Some(ScalarFormat::Character),
             _ => None,
         }
     }
 
-    /// Lower one scalar-like MIR type into a program layout shape.
+    /// Project one scalar-like MIR type into a program layout shape.
     fn scalar_layout_shape(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -330,7 +310,7 @@ impl<'a> TypeLinker<'a> {
         }
     }
 
-    /// Lower one MIR slice type into a program layout shape.
+    /// Project one MIR slice type into a program layout shape.
     fn slice_layout_shape(&self, type_shape: &mir::Type) -> Option<LayoutShapeBuilder> {
         let mir::Type::Slice {
             kind,
@@ -352,7 +332,50 @@ impl<'a> TypeLinker<'a> {
         }))
     }
 
-    /// Lower one MIR function type into a program layout shape.
+    /// Project one MIR tensor view into its executable descriptor layout.
+    fn tensor_view_layout_shape(
+        &self,
+        type_shape: &mir::Type,
+        layout: &mir::TensorViewLayout,
+    ) -> Option<LayoutShapeBuilder> {
+        let mir::Type::TensorView {
+            kind,
+            space,
+            access,
+            element,
+            shape,
+            nullability,
+            ..
+        } = type_shape
+        else {
+            return None;
+        };
+        let reference = ReferenceLayout {
+            pointee: self.type_id(*element),
+            flags: ReferenceFlags::new(*kind, *space, *access, *nullability),
+        };
+        let layout = TensorViewLayoutBuilder::new(
+            reference,
+            self.type_id(layout.element),
+            layout.format,
+            shape.iter().map(Self::tensor_dimension),
+        )
+        .sharding(self.tensor_sharding(&layout.sharding));
+
+        Some(LayoutShapeBuilder::TensorView(layout))
+    }
+
+    /// Project one MIR tensor dimension into executable shape metadata.
+    fn tensor_dimension(dimension: &mir::TensorDimension) -> TensorDimension {
+        match dimension {
+            mir::TensorDimension::Static(size) => TensorDimension::fixed(*size),
+            mir::TensorDimension::Symbol(_) | mir::TensorDimension::Dynamic => {
+                TensorDimension::dynamic()
+            }
+        }
+    }
+
+    /// Project one MIR function type into a program layout shape.
     fn function_layout_shape(&self, type_shape: &mir::Type) -> Option<LayoutShapeBuilder> {
         let mir::Type::Function {
             signature,
@@ -362,13 +385,13 @@ impl<'a> TypeLinker<'a> {
             return None;
         };
 
-        Some(LayoutShapeBuilder::Function(FunctionLayoutBuilder {
-            signature: self.signature(*signature)?,
-            environment: self.type_id(*environment),
-        }))
+        Some(LayoutShapeBuilder::Function(FunctionLayoutBuilder::new(
+            self.signature(*signature)?,
+            self.type_id(*environment),
+        )))
     }
 
-    /// Lower one MIR element layout.
+    /// Project one MIR element layout.
     fn element_layout(&self, layout: &mir::ElementLayout) -> ElementLayout {
         ElementLayout {
             element: self.type_id(layout.element),
@@ -377,22 +400,28 @@ impl<'a> TypeLinker<'a> {
         }
     }
 
-    /// Lower MIR layout fields.
+    /// Project MIR layout fields.
     fn layout_fields(&self, fields: &[mir::LayoutField]) -> Vec<LayoutField> {
-        fields
+        let mut fields = fields
             .iter()
-            .map(|field| LayoutField {
-                name: field.name.into(),
-                ty: self.type_id(field.ty),
-                offset: field.offset,
-                size: field.size,
-                alignment: field.alignment,
-                source_index: field.source_index.into(),
+            .map(|field| {
+                let layout = LayoutField {
+                    name: field.name.into(),
+                    ty: self.type_id(field.ty),
+                    offset: field.offset,
+                    size: field.size,
+                    alignment: field.alignment,
+                };
+
+                (field.source_index, layout)
             })
-            .collect()
+            .collect::<Vec<_>>();
+        fields.sort_by_key(|(source_index, _)| *source_index);
+
+        fields.into_iter().map(|(_, field)| field).collect()
     }
 
-    /// Lower one MIR tensor sharding descriptor.
+    /// Project one MIR tensor sharding descriptor.
     fn tensor_sharding(&self, sharding: &mir::TensorSharding) -> TensorShardingBuilder {
         match sharding {
             mir::TensorSharding::Unsharded => TensorShardingBuilder::Unsharded,
@@ -405,7 +434,7 @@ impl<'a> TypeLinker<'a> {
         }
     }
 
-    /// Lower one MIR tensor sharding axis.
+    /// Project one MIR tensor sharding axis.
     fn tensor_sharding_axis(&self, axis: &mir::TensorShardingAxis) -> TensorShardingAxis {
         match axis {
             mir::TensorShardingAxis::Shard { axis } => TensorShardingAxis::Shard { axis: *axis },
@@ -417,22 +446,9 @@ impl<'a> TypeLinker<'a> {
     }
 
     /// Return one program function signature.
-    pub(crate) fn signature(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<Signature> {
+    pub(crate) fn signature(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<SignatureId> {
         let ty = self.storage_type(ty);
-        let ty = self.tree.get(ty);
-        let mir::Type::FunctionSignature {
-            parameters, result, ..
-        } = ty
-        else {
-            return None;
-        };
 
-        Some(Signature {
-            parameters: parameters
-                .iter()
-                .map(|parameter| self.program.type_id(parameter.ty))
-                .collect(),
-            result: self.program.type_id(*result),
-        })
+        self.program.type_signature_id(self.module, ty)
     }
 }

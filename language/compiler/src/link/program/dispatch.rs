@@ -1,99 +1,157 @@
-use destack_core::SectionPacker;
+use std::collections::HashMap;
+
 use destack_mir as mir;
 use destack_program::{
-    DispatchTable, DynamicEntry, DynamicNamedEntry, DynamicShapeBuilder, DynamicSlot,
-    DynamicTableBuilder, VirtualTableBuilder,
+    DispatchTableBuilder, DynamicEntry, DynamicNamedEntry, DynamicShapeBuilder, DynamicSlot,
+    DynamicTableBuilder, TypeId, VirtualTableBuilder,
 };
+use destack_source::ModuleId;
 
 use super::ProgramLinker;
+use crate::LinkResult;
 
 /// Link MIR dispatch entries into program dispatch tables.
 #[derive(Debug)]
 pub(crate) struct DispatchLinker<'a> {
-    /// MIR dispatch table produced by lower and optimization.
-    dispatch: &'a mir::DispatchTable,
     /// Dense program id projection.
-    program: &'a ProgramLinker,
+    program: &'a ProgramLinker<'a>,
 }
 
 impl<'a> DispatchLinker<'a> {
     /// Create one dispatch linker.
-    pub(crate) fn new(dispatch: &'a mir::DispatchTable, program: &'a ProgramLinker) -> Self {
-        Self { dispatch, program }
+    pub(crate) fn new(program: &'a ProgramLinker<'a>) -> Self {
+        Self { program }
     }
 
     /// Link program dispatch tables.
-    pub(crate) fn link(&self, sections: &mut SectionPacker) -> DispatchTable {
+    pub(crate) fn link(&self) -> LinkResult<DispatchTableBuilder> {
         let mut virtuals = Vec::new();
         let mut dynamics = Vec::new();
         let mut dynamic_shapes = Vec::new();
+        let mut shape_index = HashMap::new();
 
-        // project virtual dispatch entries into program ids
-        for virtual_table in self.dispatch.iter_virtual_tables() {
-            virtuals.push(VirtualTableBuilder {
-                ty: self.program.type_id(virtual_table.ty),
-                methods: virtual_table
-                    .methods
-                    .iter()
-                    .map(|function| self.program.function_id(*function))
-                    .collect(),
-            });
-        }
+        // project every object's dispatch rows into canonical program ids
+        for (module, object) in self.program.objects() {
+            for virtual_table in object.dispatch().iter_virtual_tables() {
+                let id = self
+                    .program
+                    .virtual_table_id(*module, virtual_table.concrete)
+                    .ok_or_else(|| self.program.invalid_input("missing virtual table id"))?;
+                let concrete = self.program.type_id(*module, virtual_table.concrete);
+                let table = VirtualTableBuilder::new(concrete).methods(
+                    virtual_table
+                        .methods
+                        .iter()
+                        .map(|function| self.program.function_id(*module, *function))
+                        .collect::<Vec<_>>(),
+                );
+                if id.index() == virtuals.len() {
+                    virtuals.push(table);
+                } else if virtuals.get(id.index()) != Some(&table) {
+                    return Err(self.program.invalid_input(format!(
+                        "virtual table {concrete:?} has conflicting definitions"
+                    )));
+                }
+            }
 
-        // project dynamic shapes into program ids
-        for shape in self.dispatch.iter_dynamic_shapes() {
-            dynamic_shapes.push(DynamicShapeBuilder {
-                constraint: self.program.type_id(shape.constraint),
-                slots: shape
+            for shape in object.dispatch().iter_dynamic_shapes() {
+                let constraint = self.program.type_id(*module, shape.constraint);
+                let slots = shape
                     .slots
                     .iter()
-                    .map(|slot| self.dynamic_slot(slot))
-                    .collect(),
-            });
-        }
+                    .map(|slot| self.dynamic_slot(*module, slot))
+                    .collect::<LinkResult<Vec<_>>>()?;
+                let shape = DynamicShapeBuilder::new(constraint).slots(slots);
+                self.insert_dynamic_shape(
+                    &mut dynamic_shapes,
+                    &mut shape_index,
+                    constraint,
+                    shape,
+                )?;
+            }
 
-        // project dynamic table entries into program ids
-        for dynamic_table in self.dispatch.iter_dynamic_tables() {
-            dynamics.push(DynamicTableBuilder {
-                concrete: self.program.type_id(dynamic_table.concrete),
-                constraint: self.program.type_id(dynamic_table.constraint),
-                entries: dynamic_table
+            for dynamic_table in object.dispatch().iter_dynamic_tables() {
+                let id = self
+                    .program
+                    .dynamic_table_id(*module, dynamic_table.concrete, dynamic_table.constraint)
+                    .ok_or_else(|| self.program.invalid_input("missing dynamic table id"))?;
+                let concrete = self.program.type_id(*module, dynamic_table.concrete);
+                let constraint = self.program.type_id(*module, dynamic_table.constraint);
+                let entries = dynamic_table
                     .entries
                     .iter()
-                    .map(|entry| self.dynamic_entry(entry))
-                    .collect(),
-                names: dynamic_table
-                    .names
-                    .iter()
-                    .map(|named| DynamicNamedEntry {
-                        name: named.name,
-                        entry: self.dynamic_entry(&named.entry),
-                    })
-                    .collect(),
-            });
+                    .map(|entry| self.dynamic_entry(*module, entry));
+                let names = dynamic_table.names.iter().map(|named| DynamicNamedEntry {
+                    name: named.name,
+                    entry: self.dynamic_entry(*module, &named.entry),
+                });
+                let table = DynamicTableBuilder::new(concrete, constraint)
+                    .entries(entries)
+                    .names(names);
+
+                if id.index() == dynamics.len() {
+                    dynamics.push(table);
+                } else if dynamics.get(id.index()) != Some(&table) {
+                    return Err(self.program.invalid_input(format!(
+                        "dynamic table {concrete:?} has conflicting definitions"
+                    )));
+                }
+            }
         }
 
-        DispatchTable::pack(sections, virtuals, dynamics, dynamic_shapes)
+        Ok(DispatchTableBuilder::new()
+            .virtual_tables(virtuals)
+            .dynamic_tables(dynamics)
+            .dynamic_shapes(dynamic_shapes))
     }
 
     /// Project one MIR dynamic entry into program ids.
-    fn dynamic_entry(&self, entry: &mir::DynamicEntry) -> DynamicEntry {
+    fn dynamic_entry(&self, module: ModuleId, entry: &mir::DynamicEntry) -> DynamicEntry {
         match entry {
             mir::DynamicEntry::Field { offset } => DynamicEntry::field_offset(*offset),
             mir::DynamicEntry::Function { function } => {
-                DynamicEntry::function(self.program.function_id(*function))
+                DynamicEntry::function(self.program.function_id(module, *function))
             }
             mir::DynamicEntry::Absent => DynamicEntry::absent(),
         }
     }
 
     /// Project one MIR dynamic slot into program ids.
-    fn dynamic_slot(&self, slot: &mir::DynamicSlot) -> DynamicSlot {
+    fn dynamic_slot(&self, module: ModuleId, slot: &mir::DynamicSlot) -> LinkResult<DynamicSlot> {
         match slot {
-            mir::DynamicSlot::Field { name, .. } => DynamicSlot::field(*name),
+            mir::DynamicSlot::Field { name, .. } => Ok(DynamicSlot::field(*name)),
             mir::DynamicSlot::Function { name, signature } => {
-                DynamicSlot::function(*name, self.program.type_id(*signature))
+                let signature = self
+                    .program
+                    .type_signature_id(module, *signature)
+                    .ok_or_else(|| self.program.invalid_input("missing dynamic slot signature"))?;
+
+                Ok(DynamicSlot::function(*name, signature))
             }
         }
+    }
+
+    /// Insert one canonical dynamic shape or reject a conflicting duplicate.
+    fn insert_dynamic_shape(
+        &self,
+        shapes: &mut Vec<DynamicShapeBuilder>,
+        indices: &mut HashMap<TypeId, usize>,
+        constraint: TypeId,
+        shape: DynamicShapeBuilder,
+    ) -> LinkResult<()> {
+        let Some(index) = indices.get(&constraint).copied() else {
+            indices.insert(constraint, shapes.len());
+            shapes.push(shape);
+
+            return Ok(());
+        };
+
+        if shapes[index] != shape {
+            return Err(self.program.invalid_input(format!(
+                "dynamic shape for type {constraint:?} has conflicting definitions"
+            )));
+        }
+
+        Ok(())
     }
 }

@@ -230,7 +230,7 @@ impl JsLinker<'_> {
                 ),
             ));
         }
-        let profile_id = self.profile_id_for_module(module_id)?;
+        let profile_id = self.profile_id()?;
 
         let replacement = self.same_output_import_replacement(
             module,

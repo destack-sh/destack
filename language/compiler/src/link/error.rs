@@ -92,74 +92,28 @@ pub enum LinkError {
     /// Invalid executable input.
     #[diagnostic(id = "invalid-executable-input", message = "invalid input: {context}")]
     InvalidInput {
+        /// The package containing the invalid input.
         anchor: DiagnosticAnchor,
+        /// The package being linked.
         package: PackageId,
+        /// The invalid input detail.
         context: String,
     },
 
-    /// Type mismatch while linking executable output.
+    /// Type mismatch while linking a Program.
     #[diagnostic(
         id = "type-mismatch",
         message = "type mismatch: expected {expected}, found {actual}"
     )]
     TypeMismatch {
+        /// The package containing the mismatched type.
         anchor: DiagnosticAnchor,
+        /// The package being linked.
         package: PackageId,
+        /// The expected type.
         expected: String,
+        /// The actual type.
         actual: String,
-    },
-
-    /// Invalid instruction while linking executable output.
-    #[diagnostic(
-        id = "invalid-link-instruction",
-        message = "invalid instruction: {context}"
-    )]
-    InvalidInstruction {
-        anchor: DiagnosticAnchor,
-        package: PackageId,
-        context: String,
-    },
-
-    /// Invalid cast while linking executable output.
-    #[diagnostic(id = "invalid-linked-cast", message = "invalid cast: {context}")]
-    InvalidCast {
-        anchor: DiagnosticAnchor,
-        package: PackageId,
-        context: String,
-    },
-
-    /// Invalid field access while linking executable output.
-    #[diagnostic(
-        id = "invalid-field-access",
-        message = "invalid field access: field {index} but value has {field_count} field(s)"
-    )]
-    InvalidFieldAccess {
-        anchor: DiagnosticAnchor,
-        package: PackageId,
-        index: u32,
-        field_count: usize,
-    },
-
-    /// Invalid pointer type while linking executable output.
-    #[diagnostic(
-        id = "invalid-pointer-type",
-        message = "invalid pointer type: {actual}"
-    )]
-    InvalidPointerType {
-        anchor: DiagnosticAnchor,
-        package: PackageId,
-        actual: String,
-    },
-
-    /// Unsupported instruction while linking executable output.
-    #[diagnostic(
-        id = "unsupported-instruction",
-        message = "unsupported instruction: {name}"
-    )]
-    UnsupportedInstruction {
-        anchor: DiagnosticAnchor,
-        package: PackageId,
-        name: String,
     },
 
     /// Unsupported zero initializer while linking executable output.
@@ -168,25 +122,39 @@ pub enum LinkError {
         message = "unsupported zero initializer: {ty}"
     )]
     UnsupportedZeroInitializer {
+        /// The package containing the unsupported initializer.
         anchor: DiagnosticAnchor,
+        /// The package being linked.
         package: PackageId,
+        /// The unsupported initialized type.
         ty: String,
-    },
-
-    /// Undefined function while linking executable output.
-    #[diagnostic(id = "undefined-function", message = "undefined function: {function}")]
-    UndefinedFunction {
-        anchor: DiagnosticAnchor,
-        package: PackageId,
-        function: String,
     },
 
     /// Executable layout cannot encode a value.
     #[diagnostic(id = "layout-overflow", message = "layout overflow: {context}")]
     LayoutOverflow {
+        /// The package containing the overflowing layout.
         anchor: DiagnosticAnchor,
+        /// The package being linked.
         package: PackageId,
+        /// The layout overflow detail.
         context: String,
+    },
+
+    /// Code generation is unavailable for one Program target.
+    #[diagnostic(
+        id = "code-generation-unavailable",
+        message = "code generation is unavailable: {target}: {format}"
+    )]
+    CodeGenerationUnavailable {
+        /// The package selecting the unavailable generator.
+        anchor: DiagnosticAnchor,
+        /// The package being linked.
+        package: PackageId,
+        /// The target selecting the unavailable generator.
+        target: TargetId,
+        /// The unavailable code format.
+        format: String,
     },
 
     // -------------------------------------------------------------------------

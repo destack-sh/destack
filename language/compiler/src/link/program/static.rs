@@ -1,39 +1,46 @@
-use std::collections::HashMap;
-
-use destack_core::{SectionPacker, float_from_bits, float_to_bits};
+use destack_artifact::Object;
+use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
-use destack_program::vm::FunctionPointer;
-use destack_program::{Global, GlobalAllocator, GlobalLocation, GlobalTable, StaticImage};
+use destack_program::{Global, GlobalAllocator, GlobalLocation};
+use destack_source::ModuleId;
 
 use crate::LinkResult;
 
 use super::ProgramLinker;
-use super::vm::StorageLayout;
 
 /// Linked static memory spaces for one program.
 #[derive(Debug)]
 pub(crate) struct ProgramStatics {
     /// Program global table.
-    pub(crate) globals: GlobalTable,
+    pub(crate) globals: Vec<Global>,
     /// Immutable program constants.
-    pub(crate) constants: StaticImage,
+    pub(crate) constants: Vec<u8>,
     /// Shared mutable program statics.
-    pub(crate) shared: StaticImage,
+    pub(crate) shared: Vec<u8>,
     /// Local mutable program statics.
-    pub(crate) local: StaticImage,
+    pub(crate) local: Vec<u8>,
 }
 
 /// Link MIR globals into program static spaces.
 #[derive(Debug)]
 pub(crate) struct StaticLinker<'a> {
-    /// MIR tree being linked.
-    tree: &'a mir::Tree,
-    /// Target ABI layout for static scalar encoding.
-    target_layout: &'a mir::TargetLayout,
     /// Program linker owning dense program id projection.
-    program: &'a ProgramLinker,
-    /// Executable value storage layouts by MIR type id.
-    layouts: &'a HashMap<mir::TypeId, StorageLayout>,
+    program: &'a ProgramLinker<'a>,
+}
+
+/// Link one module's MIR globals into program static spaces.
+#[derive(Debug)]
+struct GlobalLinker<'a> {
+    /// Module that owns the MIR identities being linked.
+    module: ModuleId,
+    /// Object containing the global and type declarations being linked.
+    object: &'a Object,
+    /// Target ABI layout for static scalar encoding.
+    target_layout: mir::TargetLayout,
+    /// Program linker owning dense program id projection.
+    program: &'a ProgramLinker<'a>,
+    /// Complete MIR target layouts.
+    layouts: &'a mir::LayoutTable,
 }
 
 /// One initialized byte range inside a global payload.
@@ -49,94 +56,120 @@ struct InitializerRange {
 
 impl<'a> StaticLinker<'a> {
     /// Create one static linker.
-    pub(crate) fn new(
-        tree: &'a mir::Tree,
-        target_layout: &'a mir::TargetLayout,
-        program: &'a ProgramLinker,
-        layouts: &'a HashMap<mir::TypeId, StorageLayout>,
+    pub(crate) fn new(program: &'a ProgramLinker<'a>) -> Self {
+        Self { program }
+    }
+
+    /// Link constant, shared static, and local static spaces.
+    pub(crate) fn link(&self) -> LinkResult<ProgramStatics> {
+        let mut constants = GlobalAllocator::new();
+        let mut shared = GlobalAllocator::new();
+        let mut local = GlobalAllocator::new();
+        let mut globals = Vec::new();
+
+        // split canonical global definitions by placement
+        for &(module, global_id) in self.program.globals_by_id() {
+            let object = self.program.object(module);
+            let linker = GlobalLinker::new(
+                module,
+                object,
+                object.target(),
+                self.program,
+                object.layouts(),
+            );
+            linker.link_global(
+                global_id,
+                &mut constants,
+                &mut shared,
+                &mut local,
+                &mut globals,
+            )?;
+        }
+
+        Ok(ProgramStatics {
+            globals,
+            constants: constants.build(),
+            shared: shared.build(),
+            local: local.build(),
+        })
+    }
+}
+
+impl<'a> GlobalLinker<'a> {
+    /// Create one global linker.
+    fn new(
+        module: ModuleId,
+        object: &'a Object,
+        target_layout: mir::TargetLayout,
+        program: &'a ProgramLinker<'a>,
+        layouts: &'a mir::LayoutTable,
     ) -> Self {
         Self {
-            tree,
+            module,
+            object,
             target_layout,
             program,
             layouts,
         }
     }
 
-    /// Link constant, shared static, and local static spaces.
-    pub(crate) fn link(&self, sections: &mut SectionPacker) -> LinkResult<ProgramStatics> {
-        let mut constants = GlobalAllocator::new();
-        let mut shared = GlobalAllocator::new();
-        let mut local = GlobalAllocator::new();
-        let mut globals = Vec::new();
+    /// Link one defined MIR global into its program static space.
+    fn link_global(
+        &self,
+        global_id: mir::GlobalId,
+        constants: &mut GlobalAllocator,
+        shared: &mut GlobalAllocator,
+        local: &mut GlobalAllocator,
+        globals: &mut Vec<Global>,
+    ) -> LinkResult<()> {
+        let global = self.object.global(global_id).ok_or_else(|| {
+            self.program
+                .invalid_input(format!("missing global {global_id:?}"))
+        })?;
 
-        // split globals by MIR placement
-        for (global_id, global) in self.tree.iter_nodes::<mir::Global>() {
-            if global.is_import() {
-                continue;
-            }
+        let ty = global.ty;
+        let layout = self.layout(ty)?;
+        let bytes = match global.initializer.as_ref() {
+            Some(initializer) => self.initializer_bytes(initializer, ty)?,
+            None => vec![0; layout.byte_len()],
+        };
 
-            let ty = global.ty;
-            let layout = self.layouts.get(&ty).ok_or_else(|| {
-                self.program
-                    .type_mismatch("program global layout", format!("{ty:?}"))
-            })?;
-            let bytes = match global.initializer.as_ref() {
-                Some(initializer) => self.initializer_bytes(initializer, ty)?,
-                None => vec![0; layout.byte_len],
-            };
-
-            match global.space {
-                mir::Space::Static => {
-                    self.define_global_bytes(
-                        &mut constants,
-                        &mut globals,
-                        GlobalLocation::Constant,
-                        global_id,
-                        ty,
-                        layout.alignment(),
-                        false,
-                        &bytes,
-                    )?;
-                }
-                mir::Space::Shared => {
-                    self.define_global_bytes(
-                        &mut shared,
-                        &mut globals,
-                        GlobalLocation::SharedStatic,
-                        global_id,
-                        ty,
-                        layout.alignment(),
-                        global.is_mutable(),
-                        &bytes,
-                    )?;
-                }
-                mir::Space::Local => {
-                    self.define_global_bytes(
-                        &mut local,
-                        &mut globals,
-                        GlobalLocation::LocalStatic,
-                        global_id,
-                        ty,
-                        layout.alignment(),
-                        global.is_mutable(),
-                        &bytes,
-                    )?;
-                }
-                mir::Space::Frame => {
-                    return Err(self
-                        .program
-                        .invalid_input(format!("global {global_id:?} cannot use frame storage")));
-                }
+        match global.space {
+            mir::Space::Static => self.define_global_bytes(
+                constants,
+                globals,
+                GlobalLocation::Constant,
+                ty,
+                layout.alignment as usize,
+                false,
+                &bytes,
+            )?,
+            mir::Space::Shared => self.define_global_bytes(
+                shared,
+                globals,
+                GlobalLocation::SharedStatic,
+                ty,
+                layout.alignment as usize,
+                global.is_mutable(),
+                &bytes,
+            )?,
+            mir::Space::Local => self.define_global_bytes(
+                local,
+                globals,
+                GlobalLocation::LocalStatic,
+                ty,
+                layout.alignment as usize,
+                global.is_mutable(),
+                &bytes,
+            )?,
+            mir::Space::Frame => {
+                return Err(self
+                    .program
+                    .invalid_input(format!("global {global_id:?} cannot use frame storage")));
             }
         }
 
-        Ok(ProgramStatics {
-            globals: GlobalTable::pack(sections, globals),
-            constants: constants.finish(sections),
-            shared: shared.finish(sections),
-            local: local.finish(sections),
-        })
+        Ok(())
     }
 
     /// Encode one static initializer into bytes.
@@ -145,25 +178,22 @@ impl<'a> StaticLinker<'a> {
         initializer: &mir::GlobalInitializer,
         ty: mir::TypeId,
     ) -> LinkResult<Vec<u8>> {
-        let layout = self.layouts.get(&ty).ok_or_else(|| {
-            self.program
-                .type_mismatch("program initializer layout", format!("{ty:?}"))
-        })?;
+        let layout = self.layout(ty)?;
 
-        if layout.is_scalar() {
-            return self.scalar_initializer_bytes(initializer, ty, layout.byte_len);
+        if self.is_scalar(ty) {
+            return self.scalar_initializer_bytes(initializer, ty, layout.byte_len());
         }
 
         match initializer {
             mir::GlobalInitializer::Zero => {
                 self.validate_zero_initializer(ty)?;
 
-                Ok(vec![0; layout.byte_len])
+                Ok(vec![0; layout.byte_len()])
             }
             mir::GlobalInitializer::Bytes(bytes) => {
-                if bytes.len() != layout.byte_len {
+                if bytes.len() != layout.byte_len() {
                     return Err(self.program.type_mismatch(
-                        format!("{} initializer bytes", layout.byte_len),
+                        format!("{} initializer bytes", layout.byte_len()),
                         format!("{} initializer bytes", bytes.len()),
                     ));
                 }
@@ -227,7 +257,7 @@ impl<'a> StaticLinker<'a> {
         ty: mir::TypeId,
         byte_len: usize,
     ) -> LinkResult<Vec<u8>> {
-        let ty_node = self.tree.get(self.tree.repr_type(ty));
+        let ty_node = self.storage_type(ty)?;
         let mir::Type::FunctionPointer { .. } = ty_node else {
             return Err(self
                 .program
@@ -242,8 +272,8 @@ impl<'a> StaticLinker<'a> {
             ));
         }
 
-        let function = FunctionPointer::from(self.program.function_id(function));
-        let bytes = self.unsigned_bytes(function.bits() as u128, byte_len);
+        let function = self.program.function_id(self.module, function);
+        let bytes = self.unsigned_bytes(u128::from(function.0), byte_len);
 
         Ok(bytes)
     }
@@ -255,11 +285,11 @@ impl<'a> StaticLinker<'a> {
         ty: mir::TypeId,
         byte_len: usize,
     ) -> LinkResult<Vec<u8>> {
-        let ty = self.tree.repr_type(ty);
-        let ty_node = self.tree.get(ty);
+        let ty_node = self.storage_type(ty)?;
 
         match ty_node {
             mir::Type::Boolean => self.boolean_constant_bytes(constant, byte_len),
+            mir::Type::Character => self.character_constant_bytes(constant, byte_len),
             mir::Type::Int { width, is_signed } => {
                 self.integer_constant_bytes(constant, *width, *is_signed, byte_len)
             }
@@ -309,6 +339,22 @@ impl<'a> StaticLinker<'a> {
         Ok(vec![u8::from(*value)])
     }
 
+    /// Encode one character constant.
+    fn character_constant_bytes(
+        &self,
+        constant: &mir::Constant,
+        byte_len: usize,
+    ) -> LinkResult<Vec<u8>> {
+        let mir::Constant::Char { value } = constant else {
+            return Err(self
+                .program
+                .type_mismatch("character initializer", format!("{constant:?}")));
+        };
+        self.validate_integer_byte_len(u32::BITS as u16, byte_len)?;
+
+        Ok(self.unsigned_bytes(u128::from(*value as u32), byte_len))
+    }
+
     /// Encode one integer-like constant.
     fn integer_constant_bytes(
         &self,
@@ -340,7 +386,6 @@ impl<'a> StaticLinker<'a> {
                     format!("{value}"),
                 )
             })?,
-            mir::Constant::Char { value } => i128::from(*value as u32),
             _ => {
                 return Err(self.program.type_mismatch(
                     format!("signed {width} bit initializer"),
@@ -364,7 +409,6 @@ impl<'a> StaticLinker<'a> {
         let value = match constant {
             mir::Constant::UInt { value, .. } => *value,
             mir::Constant::Int { value, .. } if *value >= 0 => *value as u128,
-            mir::Constant::Char { value } => u128::from(*value as u32),
             _ => {
                 return Err(self.program.type_mismatch(
                     format!("unsigned {width} bit initializer"),
@@ -421,19 +465,24 @@ impl<'a> StaticLinker<'a> {
         nullability: mir::Nullability,
         byte_len: usize,
     ) -> LinkResult<Vec<u8>> {
-        let mir::Constant::Null = constant else {
-            return Err(self
-                .program
-                .type_mismatch("reference initializer", format!("{constant:?}")));
+        let bits = match constant {
+            mir::Constant::Null if nullability.allows_null() => 0usize,
+            mir::Constant::Undefined if nullability.allows_undefined() => 1usize,
+            _ => {
+                return Err(self
+                    .program
+                    .type_mismatch("reference initializer", format!("{constant:?}")));
+            }
         };
-
-        if !nullability.allows_null() {
-            return Err(self
-                .program
-                .unsupported_zero_initializer("non-null reference"));
+        let bytes = bits.to_le_bytes();
+        if byte_len != bytes.len() {
+            return Err(self.program.type_mismatch(
+                format!("{} byte reference initializer", bytes.len()),
+                format!("{byte_len} byte initializer"),
+            ));
         }
 
-        Ok(vec![0; byte_len])
+        Ok(bytes.to_vec())
     }
 
     /// Validate integer initializer storage width.
@@ -518,18 +567,18 @@ impl<'a> StaticLinker<'a> {
     /// Encode one signed integer in target byte order.
     fn signed_bytes(&self, value: i128, byte_len: usize) -> Vec<u8> {
         let mut bytes = vec![if value < 0 { 0xff } else { 0 }; byte_len];
-        let source = match self.target_layout.endian {
-            mir::Endian::Little => value.to_le_bytes(),
-            mir::Endian::Big => value.to_be_bytes(),
+        let source = if self.target_layout.endian.is_little() {
+            value.to_le_bytes()
+        } else {
+            value.to_be_bytes()
         };
         let copied = source.len().min(byte_len);
-        match self.target_layout.endian {
-            mir::Endian::Little => bytes[..copied].copy_from_slice(&source[..copied]),
-            mir::Endian::Big => {
-                let source_start = source.len() - copied;
-                let target_start = byte_len - copied;
-                bytes[target_start..].copy_from_slice(&source[source_start..]);
-            }
+        if self.target_layout.endian.is_little() {
+            bytes[..copied].copy_from_slice(&source[..copied]);
+        } else {
+            let source_start = source.len() - copied;
+            let target_start = byte_len - copied;
+            bytes[target_start..].copy_from_slice(&source[source_start..]);
         }
 
         bytes
@@ -538,18 +587,18 @@ impl<'a> StaticLinker<'a> {
     /// Encode one unsigned integer in target byte order.
     fn unsigned_bytes(&self, value: u128, byte_len: usize) -> Vec<u8> {
         let mut bytes = vec![0; byte_len];
-        let source = match self.target_layout.endian {
-            mir::Endian::Little => value.to_le_bytes(),
-            mir::Endian::Big => value.to_be_bytes(),
+        let source = if self.target_layout.endian.is_little() {
+            value.to_le_bytes()
+        } else {
+            value.to_be_bytes()
         };
         let copied = source.len().min(byte_len);
-        match self.target_layout.endian {
-            mir::Endian::Little => bytes[..copied].copy_from_slice(&source[..copied]),
-            mir::Endian::Big => {
-                let source_start = source.len() - copied;
-                let target_start = byte_len - copied;
-                bytes[target_start..].copy_from_slice(&source[source_start..]);
-            }
+        if self.target_layout.endian.is_little() {
+            bytes[..copied].copy_from_slice(&source[..copied]);
+        } else {
+            let source_start = source.len() - copied;
+            let target_start = byte_len - copied;
+            bytes[target_start..].copy_from_slice(&source[source_start..]);
         }
 
         bytes
@@ -557,12 +606,7 @@ impl<'a> StaticLinker<'a> {
 
     /// Validate one zero initializer against the declared type.
     fn validate_zero_initializer(&self, ty: mir::TypeId) -> LinkResult<()> {
-        let layout = self.layouts.get(&ty).ok_or_else(|| {
-            self.program
-                .type_mismatch("program initializer layout", format!("{ty:?}"))
-        })?;
-
-        if layout.is_scalar() {
+        if self.is_scalar(ty) {
             self.validate_zero_scalar_type(ty)?;
 
             return Ok(());
@@ -577,8 +621,7 @@ impl<'a> StaticLinker<'a> {
 
     /// Validate whether one scalar type accepts a zero initializer.
     fn validate_zero_scalar_type(&self, ty: mir::TypeId) -> LinkResult<()> {
-        let ty = self.tree.repr_type(ty);
-        let ty_node = self.tree.get(ty).clone();
+        let ty_node = self.storage_type(ty)?;
 
         match ty_node {
             mir::Type::Void
@@ -587,6 +630,7 @@ impl<'a> StaticLinker<'a> {
             | mir::Type::Usize
             | mir::Type::Float(_)
             | mir::Type::Boolean
+            | mir::Type::Character
             | mir::Type::TypeId => Ok(()),
             mir::Type::Reference {
                 kind: _,
@@ -615,10 +659,7 @@ impl<'a> StaticLinker<'a> {
         elements: &[mir::GlobalInitializer],
         ty: mir::TypeId,
     ) -> LinkResult<Vec<u8>> {
-        let layout = self.layouts.get(&ty).ok_or_else(|| {
-            self.program
-                .type_mismatch("program payload layout", format!("{ty:?}"))
-        })?;
+        let layout = self.layout(ty)?;
         let ranges = self.initializer_ranges(ty)?;
         if elements.len() != ranges.len() {
             return Err(self.program.type_mismatch(
@@ -627,7 +668,7 @@ impl<'a> StaticLinker<'a> {
             ));
         }
 
-        let mut bytes = vec![0u8; layout.byte_len];
+        let mut bytes = vec![0u8; layout.byte_len()];
         for (element, range) in elements.iter().zip(ranges) {
             let value_bytes = self.initializer_bytes(element, range.ty)?;
             if value_bytes.len() != range.byte_len {
@@ -652,80 +693,123 @@ impl<'a> StaticLinker<'a> {
 
     /// Return initializer byte ranges for one payload type.
     fn initializer_ranges(&self, ty: mir::TypeId) -> LinkResult<Vec<InitializerRange>> {
-        let layout = self.layouts.get(&ty).ok_or_else(|| {
-            self.program
-                .type_mismatch("program payload layout", format!("{ty:?}"))
-        })?;
+        let layout = self.layout(ty)?;
 
-        if let Some(field_count) = layout.field_count() {
-            let mut ranges = Vec::with_capacity(field_count);
-            for index in 0..field_count {
-                let field = layout
-                    .field(index as u32)
-                    .ok_or_else(|| self.program.invalid_field_access(index as u32, field_count))?;
-                ranges.push(InitializerRange {
-                    ty: field.ty,
-                    offset: field.offset,
-                    byte_len: field.byte_len,
-                });
+        match &layout.shape {
+            mir::LayoutShape::Struct(layout) => Ok(self.field_ranges(&layout.fields)),
+            mir::LayoutShape::Tuple(layout) => Ok(self.field_ranges(&layout.elements)),
+            mir::LayoutShape::Object(layout) => Ok(self.field_ranges(&layout.fields)),
+            mir::LayoutShape::Array(element) | mir::LayoutShape::Vector(element) => {
+                self.element_ranges(element)
             }
-
-            return Ok(ranges);
+            _ => Err(self
+                .program
+                .type_mismatch("aggregate initializer layout", format!("{ty:?}"))),
         }
+    }
 
-        let element = layout.element().ok_or_else(|| {
-            self.program
-                .type_mismatch("indexed initializer layout", format!("{ty:?}"))
-        })?;
-        let element_count = layout.element_count().ok_or_else(|| {
-            self.program
-                .invalid_input("indexed initializer element count")
-        })?;
-        let mut ranges = Vec::with_capacity(element_count);
-        for index in 0..element_count {
-            let offset = element
-                .stride
+    /// Return initializer ranges for source-ordered fields.
+    fn field_ranges(&self, fields: &[mir::LayoutField]) -> Vec<InitializerRange> {
+        let mut fields = fields.iter().collect::<Vec<_>>();
+        fields.sort_by_key(|field| field.source_index);
+
+        fields
+            .into_iter()
+            .map(|field| InitializerRange {
+                ty: field.ty,
+                offset: field.offset as usize,
+                byte_len: field.size as usize,
+            })
+            .collect()
+    }
+
+    /// Return initializer ranges for one fixed repeated layout.
+    fn element_ranges(&self, element: &mir::ElementLayout) -> LinkResult<Vec<InitializerRange>> {
+        let element_layout = self.layout(element.element)?;
+        let count = element.count as usize;
+        let stride = element.stride as usize;
+        let mut ranges = Vec::with_capacity(count);
+
+        // project one byte range per fixed element
+        for index in 0..count {
+            let offset = stride
                 .checked_mul(index)
                 .ok_or_else(|| self.program.layout_overflow("initializer element offset"))?;
             ranges.push(InitializerRange {
-                ty: element.ty,
+                ty: element.element,
                 offset,
-                byte_len: element.byte_len,
+                byte_len: element_layout.byte_len(),
             });
         }
 
         Ok(ranges)
     }
 
+    /// Return the complete target layout for one MIR type.
+    fn layout(&self, ty: mir::TypeId) -> LinkResult<&mir::Layout> {
+        self.layouts.type_layout(ty).ok_or_else(|| {
+            self.program
+                .type_mismatch("program layout", format!("{ty:?}"))
+        })
+    }
+
+    /// Return whether one MIR value uses scalar static storage.
+    fn is_scalar(&self, ty: mir::TypeId) -> bool {
+        let Some(ty) = self.object.storage_type(ty) else {
+            return false;
+        };
+        let Some(ty) = self.object.ty(ty).map(|ty| &ty.definition) else {
+            return false;
+        };
+
+        matches!(
+            ty,
+            mir::Type::Void
+                | mir::Type::Boolean
+                | mir::Type::Character
+                | mir::Type::Int { .. }
+                | mir::Type::Isize
+                | mir::Type::Usize
+                | mir::Type::Float(_)
+                | mir::Type::TypeDescriptor
+                | mir::Type::TypeId
+                | mir::Type::Reference { .. }
+                | mir::Type::FunctionPointer { .. }
+                | mir::Type::Tensor { .. }
+        )
+    }
+
+    /// Return one transparent object-local storage type.
+    fn storage_type(&self, ty: mir::TypeId) -> LinkResult<&mir::Type> {
+        let ty = self
+            .object
+            .storage_type(ty)
+            .ok_or_else(|| self.program.invalid_input(format!("missing type {ty:?}")))?;
+        let ty = self
+            .object
+            .ty(ty)
+            .ok_or_else(|| self.program.invalid_input(format!("missing type {ty:?}")))?;
+
+        Ok(&ty.definition)
+    }
+
     /// Define one global byte region in program static memory.
     fn define_global_bytes(
         &self,
         allocator: &mut GlobalAllocator,
-        globals: &mut Vec<Option<Global>>,
+        globals: &mut Vec<Global>,
         location: GlobalLocation,
-        global: mir::GlobalId,
         ty: mir::TypeId,
         alignment: usize,
         is_mutable: bool,
         bytes: &[u8],
     ) -> LinkResult<()> {
-        let global_id = self.program.global_id(global);
-        let index = global_id.index();
-        if globals.len() <= index {
-            globals.resize(index + 1, None);
-        }
-        if globals[index].is_some() {
-            return Err(self
-                .program
-                .internal(format!("duplicate program global {global:?}")));
-        }
-
         let (offset, byte_len) = allocator.allocate(alignment, bytes);
-        globals[index] = Some(Global::new(
+        globals.push(Global::new(
             location,
             offset,
             byte_len,
-            self.program.type_id(ty),
+            self.program.type_id(self.module, ty),
             is_mutable,
         ));
 

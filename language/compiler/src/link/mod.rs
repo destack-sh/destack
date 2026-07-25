@@ -1,6 +1,5 @@
 mod error;
 mod js;
-mod native;
 mod package;
 mod product;
 mod program;

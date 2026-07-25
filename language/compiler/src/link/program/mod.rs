@@ -1,16 +1,24 @@
+mod bytecode;
 mod dispatch;
 mod drop;
+mod frame;
 mod function;
 mod layout;
 mod linker;
+mod site;
 mod r#static;
 mod r#type;
-mod vm;
 
+#[cfg(test)]
+mod tests;
+
+pub(crate) use bytecode::BytecodeLinker;
 pub(crate) use dispatch::DispatchLinker;
 pub(crate) use drop::DropLinker;
+pub(crate) use frame::FrameLinker;
 pub(crate) use function::FunctionLinker;
 pub(crate) use layout::LayoutLinker;
 pub use linker::ProgramLinker;
+pub(crate) use site::SiteLinker;
 pub(crate) use r#static::StaticLinker;
-pub(crate) use r#type::TypeLinker;
+pub(crate) use r#type::{ObjectTypes, TypeLinker};

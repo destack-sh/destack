@@ -105,9 +105,7 @@ impl JsLinker<'_> {
         }
 
         // load the bound source context on demand
-        self.ensure_profile_for_target(module_id)?;
-
-        let profile_id = self.profile_id_for_module(module_id)?;
+        let profile_id = self.profile_id()?;
         let dir = self
             .artifacts
             .dir_bound(module_id, profile_id)
@@ -268,7 +266,7 @@ impl JsLinker<'_> {
                 module_id,
                 scope_id,
             } => {
-                let profile_id = self.profile_id_for_module(module_id)?;
+                let profile_id = self.profile_id()?;
                 let source_context = self
                     .minify_source_context(module_id, source_contexts)?
                     .ok_or_else(|| LinkError::Internal {

@@ -299,7 +299,7 @@ impl<'a> JsLinker<'a> {
     ) -> LinkResult<Script> {
         let source_module = self.module(module_id)?;
         let source_module = source_module.as_ref();
-        let profile_id = self.profile_id_for_module(module_id)?;
+        let profile_id = self.profile_id()?;
         let dir = self
             .artifacts
             .dir_bound(module_id, profile_id)

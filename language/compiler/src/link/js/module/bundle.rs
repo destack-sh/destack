@@ -390,7 +390,7 @@ impl JsLinker<'_> {
     ) -> LinkResult<js::Module> {
         let profile_id = self
             .compiler
-            .profile_id_for_target(context.revision(), module_id, target_id)
+            .profile_id_for_target(context.revision(), target_id)
             .map_err(|error| Compiler::link_error(package_id, error))?;
 
         self.rewrite_module(

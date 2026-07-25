@@ -204,9 +204,8 @@ impl<'a> JsLinker<'a> {
                 continue;
             }
 
-            self.ensure_profile_for_target(module_id)?;
             let module = self.module(module_id)?;
-            let profile_id = self.profile_id_for_module(module_id)?;
+            let profile_id = self.profile_id()?;
 
             // asset modules link directly from patched module state
             if !module.is_code() {
@@ -257,7 +256,7 @@ impl<'a> JsLinker<'a> {
             return Ok(Vec::new());
         }
 
-        let profile_id = self.profile_id_for_module(module_id)?;
+        let profile_id = self.profile_id()?;
         let script = self.script(module_id)?;
         let Some(script) = script.ecmascript_module() else {
             return Ok(Vec::new());

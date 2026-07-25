@@ -29,11 +29,11 @@ impl<'a> ProductLinker<'a> {
         let product_name = compiler
             .repository
             .product_name(context.revision(), product)
-            .map_err(|error| product_error(package, product, error))?;
+            .map_err(|error| Self::error(package, product, error))?;
         let targets = compiler
             .repository
             .product_targets(context.revision(), package, &product_name)
-            .map_err(|error| product_error(package, product, error))?;
+            .map_err(|error| Self::error(package, product, error))?;
 
         Ok(Self {
             compiler,
@@ -75,7 +75,7 @@ impl<'a> ProductLinker<'a> {
 
     /// Return the artifacts required by one product target.
     fn required_artifact_keys(&self, target: TargetId, config: &Target) -> Vec<ArtifactKey> {
-        if config.emit.is_native_family() {
+        if config.emit.is_program() {
             vec![ArtifactKey::program(self.package, target)]
         } else {
             vec![ArtifactKey::bundle(self.package, target)]
@@ -89,9 +89,9 @@ impl<'a> ProductLinker<'a> {
         target: TargetId,
         config: &Target,
     ) -> ProductTarget {
-        let includes_bundle = !config.emit.is_native_family();
+        let includes_bundle = config.emit.is_script();
 
-        let includes_program = config.emit.is_native_family();
+        let includes_program = config.emit.is_program();
 
         ProductTarget::new(
             target_name,
@@ -104,21 +104,21 @@ impl<'a> ProductLinker<'a> {
             includes_program,
         )
     }
-}
 
-/// Map one product resolution failure into a link diagnostic.
-fn product_error(package: PackageId, product: ProductId, error: RepositoryError) -> LinkError {
-    match error {
-        RepositoryError::MissingProduct { .. } => LinkError::MissingProduct {
-            anchor: package.into(),
-            package,
-            product,
-        },
-        error => LinkError::InvalidProduct {
-            anchor: package.into(),
-            package,
-            product,
-            message: error.to_string(),
-        },
+    /// Map one product resolution failure into a link diagnostic.
+    fn error(package: PackageId, product: ProductId, error: RepositoryError) -> LinkError {
+        match error {
+            RepositoryError::MissingProduct { .. } => LinkError::MissingProduct {
+                anchor: package.into(),
+                package,
+                product,
+            },
+            error => LinkError::InvalidProduct {
+                anchor: package.into(),
+                package,
+                product,
+                message: error.to_string(),
+            },
+        }
     }
 }

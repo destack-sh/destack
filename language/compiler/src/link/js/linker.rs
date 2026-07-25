@@ -104,18 +104,11 @@ impl<'a> JsLinker<'a> {
             })
     }
 
-    /// Return the resolved profile for one linked module.
-    pub(crate) fn profile_id_for_module(&self, module_id: ModuleId) -> LinkResult<ProfileId> {
+    /// Return the profile selected by this target.
+    pub(crate) fn profile_id(&self) -> LinkResult<ProfileId> {
         self.compiler
-            .profile_id_for_target(self.revision(), module_id, self.target_id)
+            .profile_id_for_target(self.revision(), self.target_id)
             .map_err(|error| self.link_error(error))
-    }
-
-    /// Ensure one linked module resolves under the current target profile.
-    pub(crate) fn ensure_profile_for_target(&self, module_id: ModuleId) -> LinkResult<()> {
-        let _ = self.profile_id_for_module(module_id)?;
-
-        Ok(())
     }
 
     /// Return the parsed data payload for one linked module.
