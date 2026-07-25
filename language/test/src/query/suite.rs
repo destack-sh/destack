@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
 
-use destack_query::query_methods;
+use destack_query::QueryMethodId;
 
 use super::{QueryFixture, QueryWorkspace};
 use crate::core::{
@@ -192,9 +192,9 @@ fn is_blessing() -> bool {
 /// Require one fixture file for every registered query method.
 fn require_method_files(directory: &Path) -> Result<(), String> {
     // collect the canonical method files
-    let mut expected = query_methods()
+    let mut expected = QueryMethodId::ALL
         .iter()
-        .map(|method| format!("{}.md", method.name))
+        .map(|method| format!("{}.md", method.name()))
         .collect::<Vec<_>>();
     expected.sort();
 

@@ -3,11 +3,11 @@ use std::path::{Component, Path, PathBuf};
 use destack_source::FileType;
 use indexmap::IndexMap;
 
-use super::QueryPositionEdge;
+use super::FixturePositionEdge;
 
 /// One named byte position or range in a query file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct QueryAnchor {
+pub(super) struct FixtureAnchor {
     /// The inclusive start byte offset.
     pub(super) start: u32,
     /// The exclusive end byte offset.
@@ -22,7 +22,7 @@ pub(super) struct QueryFile {
     /// The exact source text without anchor declarations.
     pub(super) source: String,
     /// The named source anchors in declaration order.
-    pub(super) anchors: IndexMap<String, QueryAnchor>,
+    pub(super) anchors: IndexMap<String, FixtureAnchor>,
 }
 
 impl QueryFile {
@@ -78,7 +78,7 @@ impl QueryFile {
                             name
                         ));
                     }
-                    let range = QueryAnchor {
+                    let range = FixtureAnchor {
                         start: start.start,
                         end: anchor.range.end,
                     };
@@ -149,7 +149,7 @@ impl QueryFile {
     }
 
     /// Return one required named anchor.
-    pub(super) fn anchor(&self, name: &str) -> Result<QueryAnchor, String> {
+    pub(super) fn anchor(&self, name: &str) -> Result<FixtureAnchor, String> {
         self.anchors.get(name).copied().ok_or_else(|| {
             format!(
                 "query file '{}' does not declare anchor '{name}'",
@@ -172,10 +172,10 @@ impl QueryFile {
     }
 
     /// Return the unique anchor edge for one exact source offset.
-    pub(super) fn position_name(&self, offset: u32) -> Option<(&str, QueryPositionEdge)> {
+    pub(super) fn position_name(&self, offset: u32) -> Option<(&str, FixturePositionEdge)> {
         let mut points = self.anchors.iter().filter_map(|(name, anchor)| {
             (anchor.start == offset && anchor.end == offset)
-                .then_some((name.as_str(), QueryPositionEdge::Start))
+                .then_some((name.as_str(), FixturePositionEdge::Start))
         });
         if let Some(point) = points.next() {
             if points.next().is_none() {
@@ -187,9 +187,9 @@ impl QueryFile {
 
         let mut edges = self.anchors.iter().filter_map(|(name, anchor)| {
             if anchor.start == offset {
-                Some((name.as_str(), QueryPositionEdge::Start))
+                Some((name.as_str(), FixturePositionEdge::Start))
             } else if anchor.end == offset {
-                Some((name.as_str(), QueryPositionEdge::End))
+                Some((name.as_str(), FixturePositionEdge::End))
             } else {
                 None
             }
@@ -208,7 +208,7 @@ struct AnchorDeclaration {
     /// The declared anchor name.
     name: String,
     /// The declared source range.
-    range: QueryAnchor,
+    range: FixtureAnchor,
 }
 
 /// One preceding source line available to an anchor declaration.
@@ -296,7 +296,7 @@ fn parse_anchor_line(
 
     Ok(Some(AnchorDeclaration {
         name: name.to_string(),
-        range: QueryAnchor { start, end },
+        range: FixtureAnchor { start, end },
     }))
 }
 

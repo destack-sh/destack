@@ -1,14 +1,15 @@
 use std::path::{Path, PathBuf};
 
-use destack_query::{QueryMethod, query_method};
+use destack_query::QueryMethodId;
 use indexmap::IndexMap;
 
 use crate::core::MarkdownSuiteEntry;
 use crate::mdtest::{MdTestCase, RawCodeBlock};
 
 use super::{
-    QueryAssertion, QueryCall, QueryDecoratorScope, QueryExpectation, QueryFile, QueryPosition,
-    QueryRange, QueryRun, QueryWorkspace, ResponseRows, ResponseUpdate, validate_query_path,
+    FixturePosition, FixtureRange, QueryAssertion, QueryCall, QueryDecoratorScope,
+    QueryExpectation, QueryFile, QueryRun, QueryWorkspace, ResponseRows, ResponseUpdate,
+    validate_query_path,
 };
 
 /// One Markdown query fixture and its executable case.
@@ -80,12 +81,12 @@ impl MarkdownSuiteEntry for QueryFixture {
 }
 
 /// Return the query method named by one fixture file.
-fn fixture_method(path: &Path) -> Result<&'static QueryMethod, String> {
+fn fixture_method(path: &Path) -> Result<QueryMethodId, String> {
     let method_name = path
         .file_stem()
         .and_then(|name| name.to_str())
         .ok_or_else(|| format!("query fixture path '{}' has no UTF-8 stem", path.display()))?;
-    let method = query_method(method_name).ok_or_else(|| {
+    let method = QueryMethodId::from_name(method_name).ok_or_else(|| {
         format!(
             "query fixture '{}' has no registered method",
             path.display()
@@ -146,6 +147,11 @@ fn index_files(files: Vec<QueryFile>) -> Result<IndexMap<PathBuf, QueryFile>, St
         return Err("query fixture has no workspace files".to_string());
     }
 
+    // require one program source
+    if !indexed.values().any(QueryFile::is_code) {
+        return Err("query fixture has no source modules".to_string());
+    }
+
     Ok(indexed)
 }
 
@@ -153,7 +159,7 @@ fn index_files(files: Vec<QueryFile>) -> Result<IndexMap<PathBuf, QueryFile>, St
 fn parse_assertions(
     markdown: &MdTestCase,
     files: &IndexMap<PathBuf, QueryFile>,
-    method: &QueryMethod,
+    method: QueryMethodId,
 ) -> Result<Vec<QueryAssertion>, String> {
     if !markdown.bullet_items.is_empty() {
         return Err("query fixture has unsupported bullet expectations".to_string());
@@ -171,7 +177,7 @@ fn parse_assertions(
             ));
         }
         let (request, response) = split_request_response(&query.content);
-        let call = QueryCall::parse(&query.language, request, method.id)?;
+        let call = QueryCall::parse(&query.language, request, method)?;
         validate_call(&call, files)?;
         index += 1;
 
@@ -182,7 +188,7 @@ fn parse_assertions(
             let content_range = content_range.start + response_offset..content_range.end;
 
             QueryExpectation::Rows {
-                rows: ResponseRows::parse(response, method.name)?,
+                rows: ResponseRows::parse(response, method.name())?,
                 content_range,
                 body: response.to_string(),
             }
@@ -292,8 +298,7 @@ fn validate_call(call: &QueryCall, files: &IndexMap<PathBuf, QueryFile>) -> Resu
         QueryCall::InlayHints { range }
         | QueryCall::SemanticTokensRange { range }
         | QueryCall::ExtractVariable { range, .. }
-        | QueryCall::CodeActions { range, .. }
-        | QueryCall::ResolveCodeLens { lens: range, .. } => require_range(range, files),
+        | QueryCall::CodeActions { range, .. } => require_range(range, files),
 
         QueryCall::IncomingCalls { item: position }
         | QueryCall::OutgoingCalls { item: position }
@@ -354,14 +359,14 @@ fn require_rename_source(path: &Path, files: &IndexMap<PathBuf, QueryFile>) -> R
 
 /// Require one declared code file and named anchor.
 fn require_position(
-    position: &QueryPosition,
+    position: &FixturePosition,
     files: &IndexMap<PathBuf, QueryFile>,
 ) -> Result<(), String> {
     require_anchor(&position.file, &position.anchor, files)
 }
 
 /// Require one declared code file and named range.
-fn require_range(range: &QueryRange, files: &IndexMap<PathBuf, QueryFile>) -> Result<(), String> {
+fn require_range(range: &FixtureRange, files: &IndexMap<PathBuf, QueryFile>) -> Result<(), String> {
     require_anchor(&range.file, &range.anchor, files)
 }
 

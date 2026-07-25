@@ -1,29 +1,29 @@
 use std::fmt::{self, Display, Formatter};
 use std::path::PathBuf;
 
-use super::{QueryAnchor, display_query_path, parse_query_anchor};
+use super::{FixtureAnchor, display_query_path, parse_query_anchor};
 
 /// One file-qualified named source position in a query fixture.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct QueryPosition {
+pub(super) struct FixturePosition {
     /// The workspace-relative file path.
     pub(super) file: PathBuf,
     /// The anchor name within the file.
     pub(super) anchor: String,
     /// The selected edge of the anchor.
-    edge: QueryPositionEdge,
+    edge: FixturePositionEdge,
 }
 
-impl QueryPosition {
+impl FixturePosition {
     /// Parse one file-qualified named source position.
     pub(super) fn parse(value: &str) -> Result<Self, String> {
         let (path, anchor) = parse_query_anchor(value, "position")?;
         let (anchor, edge) = if let Some(anchor) = anchor.strip_suffix("@start") {
-            (anchor, QueryPositionEdge::Start)
+            (anchor, FixturePositionEdge::Start)
         } else if let Some(anchor) = anchor.strip_suffix("@end") {
-            (anchor, QueryPositionEdge::End)
+            (anchor, FixturePositionEdge::End)
         } else {
-            (anchor, QueryPositionEdge::Start)
+            (anchor, FixturePositionEdge::Start)
         };
         if anchor.is_empty() {
             return Err(format!("query position '{value}' has no anchor name"));
@@ -37,15 +37,15 @@ impl QueryPosition {
     }
 
     /// Return the selected byte offset in one resolved anchor.
-    pub(super) fn offset(&self, anchor: QueryAnchor) -> u32 {
+    pub(super) fn offset(&self, anchor: FixtureAnchor) -> u32 {
         match self.edge {
-            QueryPositionEdge::Start => anchor.start,
-            QueryPositionEdge::End => anchor.end,
+            FixturePositionEdge::Start => anchor.start,
+            FixturePositionEdge::End => anchor.end,
         }
     }
 }
 
-impl Display for QueryPosition {
+impl Display for FixturePosition {
     /// Format one file-qualified named source position.
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         write!(
@@ -60,14 +60,14 @@ impl Display for QueryPosition {
 
 /// One selected edge of a source anchor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum QueryPositionEdge {
+pub(super) enum FixturePositionEdge {
     /// The inclusive anchor start.
     Start,
     /// The exclusive anchor end.
     End,
 }
 
-impl QueryPositionEdge {
+impl FixturePositionEdge {
     /// Return the fixture suffix for this edge.
     pub(super) fn suffix(self) -> &'static str {
         match self {

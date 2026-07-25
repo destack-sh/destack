@@ -3,9 +3,9 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 use destack_query::{
     CallItem, CodeAction, CodeLens, CodeLensAction, Completion, DecoratorItem, FoldingRange, Hover,
-    IncomingCall, InlayHint, Link, LinkTarget, NavigationTarget, OutgoingCall, QueryResponse,
-    SelectionRange, SemanticToken, SemanticTokenModifiers, SignatureHelp, Symbol, SymbolMatch,
-    Target, TypeItem,
+    IncomingCall, InlayHint, Link, NavigationTarget, OutgoingCall, OutlineSymbol, QueryResponse,
+    SelectionRange, SemanticToken, SemanticTokenModifiers, SignatureHelp, Target, TypeItem,
+    WorkspaceSymbol,
 };
 use destack_source::{Patch, PatchSet};
 
@@ -156,6 +156,25 @@ impl QueryRow {
             self
         }
     }
+
+    /// Append one exact source target.
+    fn with_target(self, run: &QueryRun<'_>, target: &Target) -> Result<Self, String> {
+        // format the full source range
+        run.require_module(target.module, target.span.file)?;
+        let location = run.format_span(target.span)?;
+
+        // omit a duplicate primary selection
+        run.require_module(target.module, target.selection_span.file)?;
+        let selection = if target.selection_span == target.span {
+            None
+        } else {
+            Some(run.format_span(target.selection_span)?)
+        };
+
+        Ok(self
+            .field("location", location)
+            .optional("selection", selection))
+    }
 }
 
 impl Display for QueryRow {
@@ -210,9 +229,6 @@ pub(super) fn response_rows(
         QueryResponse::CodeLenses(response) => {
             code_lens_rows(run, "code_lenses", &response.lenses)?
         }
-        QueryResponse::ResolveCodeLens(response) => {
-            vec![code_lens_row(run, "resolve_code_lens", &response.lens)?]
-        }
         QueryResponse::FoldingRanges(response) => folding_rows(&response.ranges),
         QueryResponse::SemanticTokens(response) => {
             semantic_rows(run, "semantic_tokens", &response.tokens)?
@@ -229,7 +245,8 @@ pub(super) fn response_rows(
                 .iter()
                 .map(|highlight| {
                     Ok(QueryRow::new("highlight.range")
-                        .field("range", run.format_span(highlight.range)?))
+                        .field("range", run.format_span(highlight.range)?)
+                        .field("kind", enum_name(highlight.kind)))
                 })
                 .collect::<Result<Vec<_>, String>>()?;
 
@@ -252,7 +269,14 @@ pub(super) fn response_rows(
             let rows = response
                 .references
                 .iter()
-                .map(|reference| target_row(run, "find_references.reference", &reference.target))
+                .map(|reference| {
+                    let symbol =
+                        run.format_symbol(reference.symbol_id, reference.target.module.profile_id)?;
+
+                    Ok(QueryRow::new("find_references.reference")
+                        .with_target(run, &reference.target)?
+                        .field("symbol", symbol))
+                })
                 .collect::<Result<Vec<_>, String>>()?;
 
             rows_or_none(rows, "find_references")
@@ -274,17 +298,19 @@ pub(super) fn response_rows(
             type_item_rows(run, "subtypes", "subtypes.item", &response.items)?
         }
         QueryResponse::Decorators(response) => decorator_rows(run, &response.decorators)?,
-        QueryResponse::RenameTarget(response) => match &response.result {
-            Some(result) => {
-                let target = render_target(run, &result.target)?;
+        QueryResponse::RenameTarget(response) => match &response.target {
+            Some(rename_target) => {
                 vec![
                     QueryRow::new("rename_target.target")
-                        .field("placeholder", &result.placeholder)
-                        .field("range", run.format_span(result.range)?)
-                        .field("location", target.location)
-                        .optional("selection", target.selection)
-                        .optional("symbol", target.symbol)
-                        .optional("node", target.node),
+                        .field("placeholder", &rename_target.placeholder)
+                        .with_target(run, &rename_target.target)?
+                        .field(
+                            "symbol",
+                            run.format_symbol(
+                                rename_target.symbol_id,
+                                rename_target.target.module.profile_id,
+                            )?,
+                        ),
                 ]
             }
             None => none("rename_target"),
@@ -358,17 +384,11 @@ fn hover_row(run: &QueryRun<'_>, hover: &Hover) -> Result<QueryRow, String> {
         .as_deref()
         .map(|location| run.format_source_location(location))
         .transpose()?;
-    let range = hover
-        .range
-        .map(|range| run.format_span(range))
-        .transpose()?;
-
     Ok(QueryRow::new("hover.result")
         .field("signature", &hover.signature)
         .optional("documentation", hover.documentation.as_deref())
-        .optional("type", hover.type_text.as_deref())
         .optional("location", location)
-        .optional("range", range))
+        .field("range", run.format_span(hover.range)?))
 }
 
 /// Render signature and parameter rows.
@@ -468,30 +488,15 @@ fn code_lens_row(run: &QueryRun<'_>, method: &str, lens: &CodeLens) -> Result<Qu
         CodeLensAction::Implementations { count } => row
             .field("action", "implementations")
             .field("count", count.to_string()),
-        CodeLensAction::RunTest { test_name } => {
-            row.field("action", "run_test").field("test", test_name)
-        }
-        CodeLensAction::DebugTest { test_name } => {
-            row.field("action", "debug_test").field("test", test_name)
-        }
-        CodeLensAction::Custom {
-            title,
-            command,
-            arguments,
-        } => {
-            let mut row = row
-                .field("action", "custom")
-                .field("title", title)
-                .field("command", command);
-
-            // retain every argument as one exact ordered field
-            for (index, argument) in arguments.iter().enumerate() {
-                row = row.field(format!("argument_{index}"), argument);
-            }
-
-            row
-        }
+        CodeLensAction::RunTest { name } => row.field("action", "run_test").field("test", name),
+        CodeLensAction::DebugTest { name } => row.field("action", "debug_test").field("test", name),
     };
+
+    // render the exact declaration identity
+    let path = run.path(lens.range.file)?;
+    let module = run.module(path)?;
+    let symbol = run.format_symbol(lens.symbol_id, module.profile_id)?;
+    let row = row.field("symbol", symbol);
 
     Ok(row)
 }
@@ -575,7 +580,7 @@ fn semantic_modifiers(modifiers: SemanticTokenModifiers) -> Result<Vec<&'static 
 }
 
 /// Render hierarchical outline rows in preorder.
-fn outline_rows(run: &QueryRun<'_>, symbols: &[Symbol]) -> Result<Vec<QueryRow>, String> {
+fn outline_rows(run: &QueryRun<'_>, symbols: &[OutlineSymbol]) -> Result<Vec<QueryRow>, String> {
     let mut rows = Vec::new();
 
     // preserve the hierarchy and sibling order
@@ -589,7 +594,7 @@ fn outline_rows(run: &QueryRun<'_>, symbols: &[Symbol]) -> Result<Vec<QueryRow>,
 /// Append one outline subtree.
 fn push_outline_rows(
     run: &QueryRun<'_>,
-    symbol: &Symbol,
+    symbol: &OutlineSymbol,
     depth: usize,
     rows: &mut Vec<QueryRow>,
 ) -> Result<(), String> {
@@ -614,21 +619,20 @@ fn push_outline_rows(
 /// Render workspace symbol rows.
 fn search_symbols_rows(
     run: &QueryRun<'_>,
-    symbols: &[SymbolMatch],
+    symbols: &[WorkspaceSymbol],
 ) -> Result<Vec<QueryRow>, String> {
     let rows = symbols
         .iter()
         .map(|symbol| {
-            let target = render_target(run, &symbol.target)?;
-
             Ok(QueryRow::new("search_symbols.symbol")
                 .field("name", &symbol.name)
                 .field("kind", enum_name(symbol.kind))
                 .optional("container", symbol.container.as_deref())
-                .field("location", target.location)
-                .optional("selection", target.selection)
-                .optional("symbol", target.symbol)
-                .optional("node", target.node))
+                .with_target(run, &symbol.target)?
+                .field(
+                    "symbol",
+                    run.format_symbol(symbol.symbol_id, symbol.target.module.profile_id)?,
+                ))
         })
         .collect::<Result<Vec<_>, String>>()?;
 
@@ -640,20 +644,11 @@ fn link_rows(run: &QueryRun<'_>, links: &[Link]) -> Result<Vec<QueryRow>, String
     let rows = links
         .iter()
         .map(|link| {
+            let path = run.format_module_path(&link.path)?;
             let row = QueryRow::new("links.link")
                 .field("range", run.format_span(link.range)?)
+                .field("path", path)
                 .optional("tooltip", link.tooltip.as_deref());
-            let row = match &link.target {
-                LinkTarget::File { path } => row
-                    .field("target", "file")
-                    .field("path", run.format_module_path(path)?),
-                LinkTarget::Url { url } => row.field("target", "url").field("url", url),
-                LinkTarget::Position { path, line, column } => row
-                    .field("target", "position")
-                    .field("path", run.format_module_path(path)?)
-                    .field("line", line.to_string())
-                    .field("column", column.to_string()),
-            };
 
             Ok(row)
         })
@@ -717,69 +712,20 @@ fn navigation_rows(
     let rows = targets
         .iter()
         .map(|navigation| {
-            let target = render_target(run, &navigation.target)?;
+            run.require_module(navigation.origin.module, navigation.origin.span.file)?;
+            let origin = run.format_span(navigation.origin.span)?;
 
             Ok(QueryRow::new(format!("{method}.target"))
-                .field("relation", enum_name(navigation.relation))
-                .field("location", target.location)
-                .optional("selection", target.selection)
-                .optional("symbol", target.symbol)
-                .optional("node", target.node))
+                .field("origin", origin)
+                .with_target(run, &navigation.target)?
+                .field(
+                    "symbol",
+                    run.format_symbol(navigation.symbol_id, navigation.target.module.profile_id)?,
+                ))
         })
         .collect::<Result<Vec<_>, String>>()?;
 
     Ok(rows_or_none(rows, method))
-}
-
-/// Render one source target row.
-fn target_row(run: &QueryRun<'_>, noun: &str, target: &Target) -> Result<QueryRow, String> {
-    let target = render_target(run, target)?;
-
-    Ok(QueryRow::new(noun)
-        .field("location", target.location)
-        .optional("selection", target.selection)
-        .optional("symbol", target.symbol)
-        .optional("node", target.node))
-}
-
-/// Render one source target.
-fn render_target(run: &QueryRun<'_>, target: &Target) -> Result<QueryTarget, String> {
-    run.require_module(target.module, target.span.file)?;
-    let location = run.format_span(target.span)?;
-    let selection = target
-        .selection_span
-        .map(|span| {
-            run.require_module(target.module, span.file)?;
-            run.format_span(span)
-        })
-        .transpose()?;
-    let symbol = target
-        .symbol_id
-        .map(|symbol| run.format_symbol(symbol, target.module.profile_id))
-        .transpose()?;
-    let node = target
-        .node_id
-        .map(|node| run.format_node(node, target.module.profile_id))
-        .transpose()?;
-
-    Ok(QueryTarget {
-        location,
-        selection,
-        symbol,
-        node,
-    })
-}
-
-/// One rendered source target.
-struct QueryTarget {
-    /// The full target range.
-    location: String,
-    /// The primary target range.
-    selection: Option<String>,
-    /// The exact symbol identity.
-    symbol: Option<String>,
-    /// The exact node identity.
-    node: Option<String>,
 }
 
 /// Render one standalone call item and its target.
@@ -842,17 +788,16 @@ fn call_item_row(
     index: Option<usize>,
     item: &CallItem,
 ) -> Result<QueryRow, String> {
-    let target = render_target(run, &item.target)?;
-
     Ok(QueryRow::new(noun)
         .optional("index", index.map(|index| index.to_string()))
         .field("name", &item.name)
         .field("kind", enum_name(item.kind))
         .optional("detail", item.detail.as_deref())
-        .field("location", target.location)
-        .optional("selection", target.selection)
-        .optional("symbol", target.symbol)
-        .optional("node", target.node))
+        .with_target(run, &item.target)?
+        .field(
+            "symbol",
+            run.format_symbol(item.symbol_id, item.target.module.profile_id)?,
+        ))
 }
 
 /// Render type hierarchy item rows.
@@ -872,16 +817,15 @@ fn type_item_rows(
 
 /// Render one type hierarchy item.
 fn type_item_row(run: &QueryRun<'_>, noun: &str, item: &TypeItem) -> Result<QueryRow, String> {
-    let target = render_target(run, &item.target)?;
-
     Ok(QueryRow::new(noun)
         .field("name", &item.name)
         .field("kind", enum_name(item.kind))
         .optional("detail", item.detail.as_deref())
-        .field("location", target.location)
-        .optional("selection", target.selection)
-        .optional("symbol", target.symbol)
-        .optional("node", target.node))
+        .with_target(run, &item.target)?
+        .field(
+            "symbol",
+            run.format_symbol(item.symbol_id, item.target.module.profile_id)?,
+        ))
 }
 
 /// Render decorator rows.
@@ -893,26 +837,29 @@ fn decorator_rows(
 
     // preserve decorator applications and their paired owners
     for (index, decorator) in decorators.iter().enumerate() {
-        let application = render_target(run, &decorator.decorator)?;
         rows.push(
             QueryRow::new("decorators.application")
                 .field("index", index.to_string())
                 .optional("name", decorator.name.as_deref())
                 .field("role", enum_name(decorator.role))
-                .field("location", application.location)
-                .optional("selection", application.selection)
-                .optional("symbol", application.symbol)
-                .optional("node", application.node),
+                .with_target(run, &decorator.decorator)?
+                .field(
+                    "node",
+                    run.format_node(
+                        decorator.decorator_node_id,
+                        decorator.decorator.module.profile_id,
+                    )?,
+                ),
         );
 
-        let owner = render_target(run, &decorator.target)?;
         rows.push(
             QueryRow::new("decorators.owner")
                 .field("index", index.to_string())
-                .field("location", owner.location)
-                .optional("selection", owner.selection)
-                .optional("symbol", owner.symbol)
-                .optional("node", owner.node),
+                .with_target(run, &decorator.target)?
+                .field(
+                    "node",
+                    run.format_node(decorator.target_node_id, decorator.target.module.profile_id)?,
+                ),
         );
     }
 

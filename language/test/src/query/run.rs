@@ -4,25 +4,24 @@ use std::slice;
 
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, View};
 use destack_query::{
-    CallItem, CallItemRequest, CodeActionsRequest, CodeLens, CodeLensesRequest, CompletionRequest,
+    CallItem, CallItemRequest, CodeActionsRequest, CodeLensesRequest, CompletionRequest,
     DecoratorScope, DecoratorsRequest, ExtractVariableRequest, FindReferencesRequest,
     FoldingRangesRequest, GotoDeclarationRequest, GotoDefinitionRequest, GotoImplementationRequest,
     GotoTypeDefinitionRequest, HighlightRequest, HoverRequest, IncomingCallsRequest,
     InlayHintsRequest, InlineRequest, LinksRequest, Module, OutgoingCallsRequest, OutlineRequest,
-    Position, QueryRequest, QueryResponse, Range, RenameFilesRequest, RenameRequest,
-    RenameTargetRequest, ResolveCodeLensRequest, SearchSymbolsRequest, SelectionRangesRequest,
-    SemanticTokensRangeRequest, SemanticTokensRequest, SignatureHelpRequest, SubtypesRequest,
-    SupertypesRequest, TypeItem, TypeItemRequest,
+    QueryPosition, QueryRange, QueryRequest, QueryResponse, RenameFilesRequest, RenameRequest,
+    RenameTargetRequest, SearchSymbolsRequest, SelectionRangesRequest, SemanticTokensRangeRequest,
+    SemanticTokensRequest, SignatureHelpRequest, SubtypesRequest, SupertypesRequest, TypeItem,
+    TypeItemRequest,
 };
 use destack_repository::{ArtifactReader, Revision};
 use destack_source::{
-    DiffOptions, FileId, ModuleId, PatchSet, ProfileId, Span, TargetId, apply_file_patch,
-    format_diff,
+    DiffOptions, FileId, PatchSet, ProfileId, Span, TargetId, apply_file_patch, format_diff,
 };
 
 use super::{
-    CodeLensKind, QueryAssertion, QueryCall, QueryDecoratorScope, QueryExpectation, QueryFile,
-    QueryFixture, QueryPosition, QueryRange, QueryWorkspace, ResponseUpdate, display_query_path,
+    FixturePosition, FixtureRange, QueryAssertion, QueryCall, QueryDecoratorScope,
+    QueryExpectation, QueryFile, QueryFixture, QueryWorkspace, ResponseUpdate, display_query_path,
     response_rows,
 };
 
@@ -223,10 +222,6 @@ impl<'a> QueryRun<'a> {
 
                 QueryRequest::CodeLenses(CodeLensesRequest { module, file_id })
             }
-            QueryCall::ResolveCodeLens { lens, action } => {
-                let lens = self.code_lens(lens, *action)?;
-                QueryRequest::ResolveCodeLens(ResolveCodeLensRequest { lens })
-            }
             QueryCall::FoldingRanges { module } => {
                 let (module, file_id) = self.query_file(module)?;
 
@@ -249,8 +244,7 @@ impl<'a> QueryRun<'a> {
             }
             QueryCall::SearchSymbols { query, max_results } => {
                 QueryRequest::SearchSymbols(SearchSymbolsRequest {
-                    profile_id: self.profile()?,
-                    module_ids: self.module_ids()?,
+                    profile_ids: self.profiles()?,
                     query: query.clone(),
                     max_results: *max_results,
                 })
@@ -384,33 +378,8 @@ impl<'a> QueryRun<'a> {
         Ok(request)
     }
 
-    /// Resolve the exact code lens at one fixture location.
-    fn code_lens(&self, range: &QueryRange, action: CodeLensKind) -> Result<CodeLens, String> {
-        let (module, file_id) = self.query_file(&range.file)?;
-        let request = QueryRequest::CodeLenses(CodeLensesRequest { module, file_id });
-        let response = self.workspace.query(self.revision, request)?;
-        let QueryResponse::CodeLenses(response) = response else {
-            return Err("code lens query returned a mismatched response".to_string());
-        };
-        let expected = self.span(range)?;
-        let mut matching = response
-            .lenses
-            .into_iter()
-            .filter(|lens| lens.range == expected && action.matches(&lens.action));
-        let lens = matching
-            .next()
-            .ok_or_else(|| format!("no matching code lens resolved at '{range}'"))?;
-        if matching.next().is_some() {
-            return Err(format!(
-                "multiple matching code lenses resolved at '{range}'"
-            ));
-        }
-
-        Ok(lens)
-    }
-
     /// Resolve one required call hierarchy item.
-    fn call_item(&self, position: &QueryPosition) -> Result<CallItem, String> {
+    fn call_item(&self, position: &FixturePosition) -> Result<CallItem, String> {
         let request = QueryRequest::CallItem(CallItemRequest {
             position: self.position(position)?,
         });
@@ -425,7 +394,7 @@ impl<'a> QueryRun<'a> {
     }
 
     /// Resolve one required type hierarchy item.
-    fn type_item(&self, position: &QueryPosition) -> Result<TypeItem, String> {
+    fn type_item(&self, position: &FixturePosition) -> Result<TypeItem, String> {
         let request = QueryRequest::TypeItem(TypeItemRequest {
             position: self.position(position)?,
         });
@@ -440,13 +409,13 @@ impl<'a> QueryRun<'a> {
     }
 
     /// Resolve one file-qualified anchor to a protocol position.
-    fn position(&self, position: &QueryPosition) -> Result<Position, String> {
+    fn position(&self, position: &FixturePosition) -> Result<QueryPosition, String> {
         let file = self.file(&position.file)?;
         let anchor = file.anchor(&position.anchor)?;
         let file_id = self.file_id(&position.file)?;
         let module = self.module(&position.file)?;
 
-        Ok(Position {
+        Ok(QueryPosition {
             module,
             file_id,
             offset: position.offset(anchor),
@@ -454,8 +423,8 @@ impl<'a> QueryRun<'a> {
     }
 
     /// Resolve one file-qualified anchor to a protocol range.
-    fn range(&self, range: &QueryRange) -> Result<Range, String> {
-        Ok(Range {
+    fn range(&self, range: &FixtureRange) -> Result<QueryRange, String> {
+        Ok(QueryRange {
             module: self.module(&range.file)?,
             span: self.span(range)?,
         })
@@ -467,7 +436,7 @@ impl<'a> QueryRun<'a> {
     }
 
     /// Resolve one file-qualified anchor to a source span.
-    fn span(&self, range: &QueryRange) -> Result<Span, String> {
+    fn span(&self, range: &FixtureRange) -> Result<Span, String> {
         let file = self.file(&range.file)?;
         let anchor = file.anchor(&range.anchor)?;
         let file_id = self.file_id(&range.file)?;
@@ -487,34 +456,7 @@ impl<'a> QueryRun<'a> {
         })
     }
 
-    /// Return the fixture profile.
-    fn profile(&self) -> Result<ProfileId, String> {
-        let profiles = self.profiles()?;
-        let [profile_id] = profiles.as_slice() else {
-            return Err(format!(
-                "query fixture has {} profiles, expected one",
-                profiles.len()
-            ));
-        };
-
-        Ok(*profile_id)
-    }
-
-    /// Return every source module id in stable file order.
-    fn module_ids(&self) -> Result<Vec<ModuleId>, String> {
-        let mut module_ids = Vec::new();
-
-        // retain the exact module for every source file
-        for file in self.fixture.files.values() {
-            if file.is_code() {
-                module_ids.push(self.module(&file.path)?.module_id);
-            }
-        }
-
-        Ok(module_ids)
-    }
-
-    /// Return every distinct profile in stable file order.
+    /// Return every distinct program profile in stable file order.
     fn profiles(&self) -> Result<Vec<ProfileId>, String> {
         let mut seen = HashSet::new();
         let mut profiles = Vec::new();

@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
 use destack_query::{
-    CodeActionContext, CodeActionKind, CodeLensAction, CompletionTrigger, FileRenameEntry,
-    QueryMethodId, query_method,
+    CodeActionContext, CodeActionKind, CompletionTrigger, FileRenameEntry, QueryMethodId,
 };
 
-use super::{QueryPosition, QueryRange};
+use super::{FixturePosition, FixtureRange};
 
 /// One query call parsed from a fixture.
 #[derive(Debug, Clone, PartialEq)]
@@ -13,7 +12,7 @@ pub(super) enum QueryCall {
     /// Request completion items at one position.
     Completion {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
         /// The completion trigger.
         trigger: CompletionTrigger,
         /// Whether auto-import completions are included.
@@ -22,29 +21,22 @@ pub(super) enum QueryCall {
     /// Request hover information at one position.
     Hover {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Request signature help at one position.
     SignatureHelp {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Request inlay hints for one range.
     InlayHints {
         /// The queried source range.
-        range: QueryRange,
+        range: FixtureRange,
     },
     /// Request code lenses for one module.
     CodeLenses {
         /// The queried source module.
         module: PathBuf,
-    },
-    /// Resolve the code lens at one source range.
-    ResolveCodeLens {
-        /// The exact code lens range.
-        lens: QueryRange,
-        /// The code lens action to resolve.
-        action: CodeLensKind,
     },
     /// Request folding ranges for one module.
     FoldingRanges {
@@ -59,7 +51,7 @@ pub(super) enum QueryCall {
     /// Request semantic tokens for one range.
     SemanticTokensRange {
         /// The queried source range.
-        range: QueryRange,
+        range: FixtureRange,
     },
     /// Request the symbol outline for one module.
     Outline {
@@ -81,69 +73,69 @@ pub(super) enum QueryCall {
     /// Request document highlights at one position.
     Highlight {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Request selection range chains for source positions.
     SelectionRanges {
         /// The queried source positions.
-        positions: Vec<QueryPosition>,
+        positions: Vec<FixturePosition>,
     },
     /// Request definitions at one position.
     GotoDefinition {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Request declarations at one position.
     GotoDeclaration {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Request type definitions at one position.
     GotoTypeDefinition {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Request implementations at one position.
     GotoImplementation {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Request references at one position.
     FindReferences {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
         /// Whether declarations are included.
         include_declaration: bool,
     },
     /// Request one call hierarchy item.
     CallItem {
         /// The queried callable position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Request incoming calls for the item at one position.
     IncomingCalls {
         /// The queried callable position.
-        item: QueryPosition,
+        item: FixturePosition,
     },
     /// Request outgoing calls for the item at one position.
     OutgoingCalls {
         /// The queried callable position.
-        item: QueryPosition,
+        item: FixturePosition,
     },
     /// Request one type hierarchy item.
     TypeItem {
         /// The queried nominal type position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Request supertypes for the item at one position.
     Supertypes {
         /// The queried nominal type position.
-        item: QueryPosition,
+        item: FixturePosition,
     },
     /// Request subtypes for the item at one position.
     Subtypes {
         /// The queried nominal type position.
-        item: QueryPosition,
+        item: FixturePosition,
     },
     /// Request decorators from one scope.
     Decorators {
@@ -155,12 +147,12 @@ pub(super) enum QueryCall {
     /// Request the rename target at one position.
     RenameTarget {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Rename the symbol at one position.
     Rename {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
         /// The new symbol name.
         new_name: String,
     },
@@ -172,19 +164,19 @@ pub(super) enum QueryCall {
     /// Extract one source range into a variable.
     ExtractVariable {
         /// The selected expression range.
-        range: QueryRange,
+        range: FixtureRange,
         /// The new variable name.
         new_name: String,
     },
     /// Inline the symbol at one position.
     Inline {
         /// The queried source position.
-        position: QueryPosition,
+        position: FixturePosition,
     },
     /// Request code actions for one source range.
     CodeActions {
         /// The queried source range.
-        range: QueryRange,
+        range: FixtureRange,
         /// The requested code action context.
         context: CodeActionContext,
     },
@@ -199,38 +191,6 @@ pub(super) enum QueryDecoratorScope {
     Program,
 }
 
-/// One code lens action selected by a query fixture.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum CodeLensKind {
-    /// A reference count lens.
-    References,
-    /// An implementation count lens.
-    Implementations,
-    /// A test run lens.
-    RunTest,
-    /// A test debug lens.
-    DebugTest,
-    /// A custom command lens.
-    Custom,
-}
-
-impl CodeLensKind {
-    /// Return whether a code lens has this action.
-    pub(super) const fn matches(self, action: &CodeLensAction) -> bool {
-        matches!(
-            (self, action),
-            (Self::References, CodeLensAction::References { .. })
-                | (
-                    Self::Implementations,
-                    CodeLensAction::Implementations { .. }
-                )
-                | (Self::RunTest, CodeLensAction::RunTest { .. })
-                | (Self::DebugTest, CodeLensAction::DebugTest { .. })
-                | (Self::Custom, CodeLensAction::Custom { .. })
-        )
-    }
-}
-
 impl QueryCall {
     /// Parse one query fence header and body.
     pub(super) fn parse(
@@ -243,9 +203,8 @@ impl QueryCall {
             .ok_or_else(|| format!("query fence '{language}' must start with 'query '"))?;
         let mut parser = QueryCallParser::new(source)?;
         let method_name = parser.required("query method")?;
-        let method = query_method(&method_name)
-            .ok_or_else(|| format!("unknown query method '{method_name}'"))?
-            .id;
+        let method = QueryMethodId::from_name(&method_name)
+            .ok_or_else(|| format!("unknown query method '{method_name}'"))?;
         if method != expected_method {
             return Err(format!(
                 "query fixture for {expected_method:?} contains a {method:?} call"
@@ -270,10 +229,6 @@ impl QueryCall {
             },
             QueryMethodId::CodeLenses => Self::CodeLenses {
                 module: parser.module_path()?,
-            },
-            QueryMethodId::ResolveCodeLens => Self::ResolveCodeLens {
-                lens: parser.range()?,
-                action: parser.code_lens_action()?,
             },
             QueryMethodId::FoldingRanges => Self::FoldingRanges {
                 module: parser.module_path()?,
@@ -410,13 +365,13 @@ impl QueryCallParser {
     }
 
     /// Parse one required position.
-    fn position(&mut self) -> Result<QueryPosition, String> {
-        QueryPosition::parse(&self.required("position")?)
+    fn position(&mut self) -> Result<FixturePosition, String> {
+        FixturePosition::parse(&self.required("position")?)
     }
 
     /// Parse one required range.
-    fn range(&mut self) -> Result<QueryRange, String> {
-        QueryRange::parse(&self.required("range")?)
+    fn range(&mut self) -> Result<FixtureRange, String> {
+        FixtureRange::parse(&self.required("range")?)
     }
 
     /// Parse one required path.
@@ -425,7 +380,7 @@ impl QueryCallParser {
     }
 
     /// Parse all remaining positional positions.
-    fn remaining_positions(&mut self) -> Result<Vec<QueryPosition>, String> {
+    fn remaining_positions(&mut self) -> Result<Vec<FixturePosition>, String> {
         let mut positions = Vec::new();
 
         // consume every remaining positional position
@@ -523,20 +478,6 @@ impl QueryCallParser {
             Ok(QueryDecoratorScope::Program)
         } else {
             Ok(QueryDecoratorScope::Module(PathBuf::from(value)))
-        }
-    }
-
-    /// Parse one required code lens action.
-    fn code_lens_action(&mut self) -> Result<CodeLensKind, String> {
-        let value = self.required_value("action")?;
-
-        match value.as_str() {
-            "references" => Ok(CodeLensKind::References),
-            "implementations" => Ok(CodeLensKind::Implementations),
-            "run_test" => Ok(CodeLensKind::RunTest),
-            "debug_test" => Ok(CodeLensKind::DebugTest),
-            "custom" => Ok(CodeLensKind::Custom),
-            _ => Err(format!("unknown code lens action '{value}'")),
         }
     }
 
