@@ -35,12 +35,8 @@ impl Compiler {
         }
 
         // inference edges read every module's resolution and exports
-        let modules = self
-            .repository
-            .module_ids(context.revision())
-            .map_err(|error| CompilerError::Internal {
-                message: format!("failed to enumerate profile modules: {error}"),
-            })?;
+        let modules = self.repository.module_ids(context.revision())?;
+        dependencies.observe_modules(&modules);
         for module in modules {
             dependencies.require(ArtifactKey::dir_resolved(module, profile));
             dependencies.require(ArtifactKey::dir_exported(module, profile));
@@ -149,7 +145,6 @@ impl Compiler {
             }
             context.emit_counter("edges", edge_count);
 
-            validate_component_edges(&edges_by_module)?;
             let graph =
                 ComponentGraph::from_edges(profile, edges_by_module, inference_edges, inherent);
 
@@ -190,7 +185,6 @@ impl Compiler {
         let graph = base
             .graph
             .derive(changed_edges, base.delta.removed, inference_edges, inherent);
-        validate_component_graph(&graph)?;
 
         Ok(Arc::new(graph))
     }
@@ -210,7 +204,12 @@ impl Compiler {
         let mut referenced_symbols = IndexSet::new();
 
         // referenced symbols depend on inferred export forms
-        for (_, reference) in &resolved.references.entries {
+        for (source, reference) in &resolved.references.target_by_node {
+            // dependency declarations identify names without consuming their types
+            if source.local_id.ty == dir::NodeType::DependencyItem {
+                continue;
+            }
+
             match reference {
                 dir::Reference::Bound(symbols) => {
                     for symbol in symbols {
