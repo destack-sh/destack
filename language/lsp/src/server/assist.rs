@@ -42,7 +42,7 @@ pub(super) fn lens(file: &File, lens: &query::CodeLens) -> jsonrpc::Result<lsp::
             Some(lsp::Command {
                 title: format!("{count} reference{suffix}"),
                 command: "destack.showReferences".to_string(),
-                arguments: Some(vec![uri.clone(), position.clone()]),
+                arguments: Some(vec![uri, position]),
             })
         }
         query::CodeLensAction::Implementations { count } => {
@@ -51,23 +51,9 @@ pub(super) fn lens(file: &File, lens: &query::CodeLens) -> jsonrpc::Result<lsp::
             Some(lsp::Command {
                 title: format!("{count} implementation{suffix}"),
                 command: "destack.showImplementations".to_string(),
-                arguments: Some(vec![uri.clone(), position.clone()]),
+                arguments: Some(vec![uri, position]),
             })
         }
-        query::CodeLensAction::RunTest { name } => Some(lsp::Command {
-            title: format!("▶ Run {name}"),
-            command: "destack.runTest".to_string(),
-            arguments: Some(vec![
-                uri.clone(),
-                position.clone(),
-                serde_json::Value::String(name.clone()),
-            ]),
-        }),
-        query::CodeLensAction::DebugTest { name } => Some(lsp::Command {
-            title: format!("🐛 Debug {name}"),
-            command: "destack.debugTest".to_string(),
-            arguments: Some(vec![uri, position, serde_json::Value::String(name.clone())]),
-        }),
     };
     Ok(lsp::CodeLens {
         range,

@@ -7,7 +7,7 @@ use super::error::internal_error;
 use super::position;
 
 /// Semantic token types in legend order (index = type id).
-pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 22] = [
+pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 15] = [
     lsp::SemanticTokenType::NAMESPACE,
     lsp::SemanticTokenType::TYPE,
     lsp::SemanticTokenType::CLASS,
@@ -21,21 +21,13 @@ pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 22] = [
     lsp::SemanticTokenType::ENUM_MEMBER,
     lsp::SemanticTokenType::FUNCTION,
     lsp::SemanticTokenType::METHOD,
-    lsp::SemanticTokenType::MACRO,
-    lsp::SemanticTokenType::KEYWORD,
-    lsp::SemanticTokenType::MODIFIER,
     lsp::SemanticTokenType::COMMENT,
-    lsp::SemanticTokenType::STRING,
-    lsp::SemanticTokenType::NUMBER,
-    lsp::SemanticTokenType::REGEXP,
-    lsp::SemanticTokenType::OPERATOR,
     lsp::SemanticTokenType::DECORATOR,
 ];
 
 /// Semantic token modifiers in legend order (bit index = modifier id).
-pub const SEMANTIC_TOKEN_MODIFIERS: [lsp::SemanticTokenModifier; 11] = [
+pub const SEMANTIC_TOKEN_MODIFIERS: [lsp::SemanticTokenModifier; 9] = [
     lsp::SemanticTokenModifier::DECLARATION,
-    lsp::SemanticTokenModifier::DEFINITION,
     lsp::SemanticTokenModifier::READONLY,
     lsp::SemanticTokenModifier::STATIC,
     lsp::SemanticTokenModifier::DEPRECATED,
@@ -44,7 +36,6 @@ pub const SEMANTIC_TOKEN_MODIFIERS: [lsp::SemanticTokenModifier; 11] = [
     lsp::SemanticTokenModifier::MODIFICATION,
     lsp::SemanticTokenModifier::DOCUMENTATION,
     lsp::SemanticTokenModifier::DEFAULT_LIBRARY,
-    lsp::SemanticTokenModifier::new("mutable"),
 ];
 
 /// Build the legend advertised to the client.
@@ -71,15 +62,8 @@ fn type_index(token_type: query::SemanticTokenType) -> u32 {
         query::SemanticTokenType::EnumMember => 10,
         query::SemanticTokenType::Function => 11,
         query::SemanticTokenType::Method => 12,
-        query::SemanticTokenType::Macro => 13,
-        query::SemanticTokenType::Keyword => 14,
-        query::SemanticTokenType::Modifier => 15,
-        query::SemanticTokenType::Comment => 16,
-        query::SemanticTokenType::String => 17,
-        query::SemanticTokenType::Number => 18,
-        query::SemanticTokenType::Regexp => 19,
-        query::SemanticTokenType::Operator => 20,
-        query::SemanticTokenType::Decorator => 21,
+        query::SemanticTokenType::Comment => 13,
+        query::SemanticTokenType::Decorator => 14,
         // map labels to variables because LSP has no label token type
         query::SemanticTokenType::Label => 8,
     }

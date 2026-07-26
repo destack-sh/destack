@@ -119,12 +119,8 @@ fn label_matches_file(label: &DiagnosticLabel, file: &File) -> bool {
 fn code_action_kind(kind: query::CodeActionKind) -> lsp::CodeActionKind {
     match kind {
         query::CodeActionKind::QuickFix => lsp::CodeActionKind::QUICKFIX,
-        query::CodeActionKind::Refactor => lsp::CodeActionKind::REFACTOR,
         query::CodeActionKind::RefactorExtract => lsp::CodeActionKind::REFACTOR_EXTRACT,
         query::CodeActionKind::RefactorInline => lsp::CodeActionKind::REFACTOR_INLINE,
-        query::CodeActionKind::RefactorRewrite => lsp::CodeActionKind::REFACTOR_REWRITE,
-        query::CodeActionKind::Source => lsp::CodeActionKind::SOURCE,
-        query::CodeActionKind::SourceFixAll => lsp::CodeActionKind::SOURCE_FIX_ALL,
     }
 }
 
@@ -141,13 +137,6 @@ pub(super) fn code_action(
         None
     };
 
-    let disabled = action
-        .disabled_reason
-        .as_ref()
-        .map(|reason| lsp::CodeActionDisabled {
-            reason: reason.clone(),
-        });
-
     Ok(lsp::CodeActionOrCommand::CodeAction(lsp::CodeAction {
         title: action.title.clone(),
         kind: Some(code_action_kind(action.kind)),
@@ -155,7 +144,7 @@ pub(super) fn code_action(
         edit,
         command: None,
         is_preferred: Some(action.is_preferred),
-        disabled,
+        disabled: None,
         data,
     }))
 }

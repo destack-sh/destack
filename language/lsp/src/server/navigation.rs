@@ -162,14 +162,14 @@ pub(super) fn document_link(file: &File, link: &query::Link) -> jsonrpc::Result<
     let target = uri::path(&link.path).ok_or_else(|| {
         internal_error(format!(
             "document link path has no representable LSP URI: {}",
-            link.path
+            link.path.display()
         ))
     })?;
 
     Ok(lsp::DocumentLink {
         range,
         target: Some(target),
-        tooltip: link.tooltip.clone(),
+        tooltip: Some(link.tooltip.clone()),
         data: None,
     })
 }

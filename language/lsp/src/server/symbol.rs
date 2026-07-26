@@ -19,6 +19,8 @@ pub(super) fn kind(kind: query::SymbolKind) -> lsp::SymbolKind {
             lsp::SymbolKind::INTERFACE
         }
         query::SymbolKind::Method => lsp::SymbolKind::METHOD,
+        query::SymbolKind::Module => lsp::SymbolKind::MODULE,
+        query::SymbolKind::Namespace => lsp::SymbolKind::NAMESPACE,
         query::SymbolKind::Newtype => lsp::SymbolKind::STRUCT,
         query::SymbolKind::Property => lsp::SymbolKind::PROPERTY,
         query::SymbolKind::Struct => lsp::SymbolKind::STRUCT,

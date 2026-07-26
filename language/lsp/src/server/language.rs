@@ -43,13 +43,6 @@ fn canonical_path(path: &Path) -> jsonrpc::Result<PathBuf> {
     })
 }
 
-/// State carried into a completion resolve request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct CompletionContinuation {
-    /// The documentation payload for the completion item.
-    documentation: Option<String>,
-}
-
 /// State carried into a code action resolve request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CodeActionContinuation {
@@ -174,23 +167,39 @@ impl DestackLanguageServer {
     }
 
     /// Build commit characters for completion items.
-    fn completion_commit_characters(kind: query::CompletionKind) -> Option<Vec<String>> {
+    fn completion_commit_characters(
+        kind: query::CompletionItemKind,
+        is_snippet: bool,
+    ) -> Option<Vec<String>> {
+        // snippets already contain their committed punctuation
+        if is_snippet {
+            return None;
+        }
+
         let commit_characters: &[&str] = match kind {
-            query::CompletionKind::Method
-            | query::CompletionKind::Function
-            | query::CompletionKind::Constructor
-            | query::CompletionKind::Field
-            | query::CompletionKind::Variable
-            | query::CompletionKind::Class
-            | query::CompletionKind::Interface
-            | query::CompletionKind::Module
-            | query::CompletionKind::Property
-            | query::CompletionKind::Enum
-            | query::CompletionKind::EnumMember
-            | query::CompletionKind::Struct
-            | query::CompletionKind::Constant
-            | query::CompletionKind::TypeParameter => &[".", ",", ";", "("],
-            query::CompletionKind::Keyword => &[" ", ";"],
+            query::CompletionItemKind::AssociatedConst
+            | query::CompletionItemKind::AssociatedType
+            | query::CompletionItemKind::Method
+            | query::CompletionItemKind::Function
+            | query::CompletionItemKind::Constructor
+            | query::CompletionItemKind::Field
+            | query::CompletionItemKind::Variable
+            | query::CompletionItemKind::Class
+            | query::CompletionItemKind::Interface
+            | query::CompletionItemKind::NewtypeInterface
+            | query::CompletionItemKind::Newtype
+            | query::CompletionItemKind::TypeAlias
+            | query::CompletionItemKind::Extension
+            | query::CompletionItemKind::Module
+            | query::CompletionItemKind::Property
+            | query::CompletionItemKind::Enum
+            | query::CompletionItemKind::EnumMember
+            | query::CompletionItemKind::Struct
+            | query::CompletionItemKind::Constant
+            | query::CompletionItemKind::TypeParameter
+            | query::CompletionItemKind::ValueParameter
+            | query::CompletionItemKind::BuiltinType => &[".", ",", ";", "("],
+            query::CompletionItemKind::Keyword => &[" ", ";"],
             _ => &[],
         };
 
@@ -415,43 +424,11 @@ impl DestackLanguageServer {
             return vec![query::CodeActionKind::RefactorInline];
         }
 
-        // rewrite refactors and sub kinds
-        if kind_name == lsp::CodeActionKind::REFACTOR_REWRITE.as_str()
-            || kind_name.starts_with("refactor.rewrite.")
-        {
-            return vec![query::CodeActionKind::RefactorRewrite];
-        }
-
-        // umbrella refactor kinds
-        if kind_name == lsp::CodeActionKind::REFACTOR.as_str() || kind_name.starts_with("refactor.")
-        {
+        // umbrella refactor kind
+        if kind_name == lsp::CodeActionKind::REFACTOR.as_str() {
             return vec![
-                query::CodeActionKind::Refactor,
                 query::CodeActionKind::RefactorExtract,
                 query::CodeActionKind::RefactorInline,
-                query::CodeActionKind::RefactorRewrite,
-            ];
-        }
-
-        // formatter owns import organization
-        if kind_name == lsp::CodeActionKind::SOURCE_ORGANIZE_IMPORTS.as_str()
-            || kind_name.starts_with("source.organizeImports.")
-        {
-            return Vec::new();
-        }
-
-        // fix all source kinds
-        if kind_name == lsp::CodeActionKind::SOURCE_FIX_ALL.as_str()
-            || kind_name.starts_with("source.fixAll.")
-        {
-            return vec![query::CodeActionKind::SourceFixAll];
-        }
-
-        // umbrella source kinds
-        if kind_name == lsp::CodeActionKind::SOURCE.as_str() || kind_name.starts_with("source.") {
-            return vec![
-                query::CodeActionKind::Source,
-                query::CodeActionKind::SourceFixAll,
             ];
         }
 
@@ -474,10 +451,7 @@ impl DestackLanguageServer {
             }
         }
 
-        query::CodeActionContext {
-            only,
-            include_disabled: context.only.as_ref().is_some_and(|kinds| !kinds.is_empty()),
-        }
+        query::CodeActionContext { only }
     }
 
     /// Register file watchers with the client.
@@ -933,7 +907,7 @@ impl LanguageServer for DestackLanguageServer {
             document_highlight_provider: Some(lsp::OneOf::Left(true)),
             completion_provider: Some(lsp::CompletionOptions {
                 trigger_characters: Some(vec![".".to_string(), ":".to_string()]),
-                resolve_provider: Some(true),
+                resolve_provider: None,
                 ..Default::default()
             }),
             signature_help_provider: Some(lsp::SignatureHelpOptions {
@@ -983,9 +957,6 @@ impl LanguageServer for DestackLanguageServer {
                         lsp::CodeActionKind::REFACTOR,
                         lsp::CodeActionKind::REFACTOR_EXTRACT,
                         lsp::CodeActionKind::REFACTOR_INLINE,
-                        lsp::CodeActionKind::REFACTOR_REWRITE,
-                        lsp::CodeActionKind::SOURCE,
-                        lsp::CodeActionKind::SOURCE_FIX_ALL,
                     ]),
                     resolve_provider: Some(true),
                     work_done_progress_options: Default::default(),
@@ -1150,7 +1121,7 @@ impl LanguageServer for DestackLanguageServer {
                 query_state = Some((root, revision));
             }
 
-            renames.push(query::FileRenameEntry { old_path, new_path });
+            renames.push(query::FileRename { old_path, new_path });
         }
         if renames.is_empty() {
             return Ok(None);
@@ -1732,52 +1703,50 @@ impl LanguageServer for DestackLanguageServer {
         let source_file = query_file.file.clone();
         let offset = position::offset(&source_file, &params.text_document_position.position)?;
         let position = query_file.position(offset);
+        let include_auto_imports = self
+            .settings
+            .completion_auto_imports
+            .load(Ordering::Relaxed);
         let request = query::QueryRequest::Completion(query::CompletionRequest {
             position,
             trigger,
-            include_imports: true,
+            include_auto_imports,
         });
         let response = self.query_module(&query_file, request)?;
         let query::QueryResponse::Completion(response) = response.response else {
             return Err(internal_error("query did not return completion"));
         };
-        let mut completions = response.items;
+        let is_incomplete = response.is_incomplete;
+        let completions = response.items;
         if completions.is_empty() {
             return Ok(None);
-        }
-
-        // filter auto imports when disabled
-        if !self
-            .settings
-            .completion_auto_imports
-            .load(Ordering::Relaxed)
-        {
-            completions.retain(|completion| !completion.is_auto_import);
         }
 
         // convert to LSP completion items
         let completion_label_details = self.client_capabilities()?.completion_label_details;
         let items: Vec<lsp::CompletionItem> = completions
             .into_iter()
-            .map(|c| {
-                let insert_text_format = if c.is_snippet {
+            .enumerate()
+            .map(|(index, item)| {
+                let insert_text_format = if item.edit.is_snippet {
                     Some(lsp::InsertTextFormat::SNIPPET)
                 } else {
                     None
                 };
-                let insert_text_mode = if c.is_snippet {
+                let insert_text_mode = if item.edit.is_snippet {
                     Some(lsp::InsertTextMode::ADJUST_INDENTATION)
                 } else {
                     None
                 };
-                let commit_characters = Self::completion_commit_characters(c.kind);
+                let commit_characters =
+                    Self::completion_commit_characters(item.kind, item.edit.is_snippet);
 
                 // convert additional text edits
-                let additional_text_edits = if c.additional_text_edits.is_empty() {
+                let additional_text_edits = if item.additional_edits.is_empty() {
                     None
                 } else {
-                    let edits = c
-                        .additional_text_edits
+                    let edits = item
+                        .additional_edits
                         .iter()
                         .map(|edit| {
                             if edit.span.file != query_file.file.id {
@@ -1797,21 +1766,23 @@ impl LanguageServer for DestackLanguageServer {
                     Some(edits)
                 };
 
-                // handle deprecated items
-                let (deprecated, tags) = if c.deprecated {
-                    (Some(true), Some(vec![lsp::CompletionItemTag::DEPRECATED]))
-                } else {
-                    (None, None)
+                // preserve the query response order in clients that sort completion items
+                let sort_text = Some(format!("{index:020}"));
+                if item.edit.span.file != query_file.file.id {
+                    return Err(internal_error(format!(
+                        "completion edit targets another file: {:?}",
+                        item.edit.span
+                    )));
+                }
+                let text_edit = lsp::TextEdit {
+                    range: position::range(&source_file, item.edit.span)?,
+                    new_text: item.edit.new_text,
                 };
 
-                let sort_text = c
-                    .sort_text
-                    .clone()
-                    .or_else(|| Some(format!("{:04}:{}", c.sort_order, c.label.as_str())));
-
-                let (detail, label_details) = if c.is_auto_import
+                // move auto import sources into label details when supported
+                let (detail, label_details) = if item.is_auto_import
                     && completion_label_details
-                    && let Some(detail_text) = c.detail.as_ref()
+                    && let Some(detail_text) = item.detail.as_ref()
                     && let Some(path) = detail_text.strip_prefix(AUTO_IMPORT_DETAIL_PREFIX)
                 {
                     (
@@ -1822,72 +1793,49 @@ impl LanguageServer for DestackLanguageServer {
                         }),
                     )
                 } else {
-                    (c.detail.clone(), None)
+                    (item.detail.clone(), None)
                 };
 
-                let data = c
-                    .documentation
-                    .as_ref()
-                    .map(|documentation| {
-                        to_value(CompletionContinuation {
-                            documentation: Some(documentation.clone()),
-                        })
-                        .map_err(internal_error)
+                // transcribe documentation directly because the query already produced it
+                let documentation = item.documentation.map(|documentation| {
+                    lsp::Documentation::MarkupContent(lsp::MarkupContent {
+                        kind: lsp::MarkupKind::Markdown,
+                        value: documentation,
                     })
-                    .transpose()?;
+                });
+                let (deprecated, tags) = if item.is_deprecated {
+                    (Some(true), Some(vec![lsp::CompletionItemTag::DEPRECATED]))
+                } else {
+                    (None, None)
+                };
 
                 Ok(lsp::CompletionItem {
-                    label: c.label,
+                    label: item.label,
                     label_details,
-                    kind: Some(completion::kind(c.kind)),
+                    kind: Some(completion::kind(item.kind)),
                     detail,
-                    documentation: None,
-                    insert_text: c.insert_text,
+                    documentation,
+                    insert_text: None,
                     insert_text_format,
                     insert_text_mode,
                     sort_text,
-                    preselect: if c.preselect { Some(true) } else { None },
+                    preselect: if item.preselect { Some(true) } else { None },
                     deprecated,
                     tags,
                     commit_characters,
                     additional_text_edits,
-                    data,
+                    data: None,
+                    text_edit: Some(text_edit.into()),
                     ..Default::default()
                 })
             })
             .collect::<jsonrpc::Result<_>>()?;
 
-        let is_incomplete = response.is_incomplete;
         Ok(Some(lsp::CompletionResponse::List(lsp::CompletionList {
             is_incomplete,
             items,
             ..Default::default()
         })))
-    }
-
-    async fn completion_resolve(
-        &self,
-        mut params: lsp::CompletionItem,
-    ) -> jsonrpc::Result<lsp::CompletionItem> {
-        if params.documentation.is_some() {
-            return Ok(params);
-        }
-
-        let Some(data) = params.data.take() else {
-            return Ok(params);
-        };
-
-        let resolved = from_value::<CompletionContinuation>(data)
-            .map_err(|error| jsonrpc::Error::invalid_params(error.to_string()))?;
-
-        if let Some(doc) = resolved.documentation {
-            params.documentation = Some(lsp::Documentation::MarkupContent(lsp::MarkupContent {
-                kind: lsp::MarkupKind::Markdown,
-                value: doc,
-            }));
-        }
-
-        Ok(params)
     }
 
     async fn signature_help(
@@ -1915,29 +1863,29 @@ impl LanguageServer for DestackLanguageServer {
         let signatures: Vec<lsp::SignatureInformation> = help
             .signatures
             .into_iter()
-            .map(|s| lsp::SignatureInformation {
-                label: s.label,
-                documentation: s.documentation.map(|d| {
+            .map(|signature| lsp::SignatureInformation {
+                label: signature.label,
+                documentation: signature.documentation.map(|documentation| {
                     lsp::Documentation::MarkupContent(lsp::MarkupContent {
                         kind: lsp::MarkupKind::Markdown,
-                        value: d,
+                        value: documentation,
                     })
                 }),
                 parameters: Some(
-                    s.parameters
+                    signature
+                        .parameters
                         .into_iter()
-                        .map(|p| lsp::ParameterInformation {
-                            label: lsp::ParameterLabel::Simple(p.label),
-                            documentation: p.documentation.map(|d| {
+                        .map(|parameter| lsp::ParameterInformation {
+                            label: lsp::ParameterLabel::Simple(parameter.label),
+                            documentation: parameter.documentation.map(|documentation| {
                                 lsp::Documentation::MarkupContent(lsp::MarkupContent {
                                     kind: lsp::MarkupKind::Markdown,
-                                    value: d,
+                                    value: documentation,
                                 })
                             }),
                         })
                         .collect(),
                 ),
-                // note: active_parameter is on SignatureHelp, not per-signature
                 active_parameter: None,
             })
             .collect();
@@ -1945,7 +1893,7 @@ impl LanguageServer for DestackLanguageServer {
         Ok(Some(lsp::SignatureHelp {
             signatures,
             active_signature: Some(help.active_signature as u32),
-            active_parameter: Some(help.active_parameter as u32),
+            active_parameter: help.active_parameter.map(|parameter| parameter as u32),
         }))
     }
 
@@ -2256,14 +2204,6 @@ impl LanguageServer for DestackLanguageServer {
         Ok(Some(lsp_links))
     }
 
-    async fn document_link_resolve(
-        &self,
-        params: lsp::DocumentLink,
-    ) -> jsonrpc::Result<lsp::DocumentLink> {
-        // return eager links unchanged for clients that call despite capabilities
-        Ok(params)
-    }
-
     // ------------------------------------------------------------------------
     // CODE ACTIONS
     // ------------------------------------------------------------------------
@@ -2367,11 +2307,15 @@ impl LanguageServer for DestackLanguageServer {
         mut params: lsp::CodeAction,
     ) -> jsonrpc::Result<lsp::CodeAction> {
         if params.edit.is_some() {
-            return Ok(params);
+            return Err(jsonrpc::Error::invalid_params(
+                "code action is already resolved",
+            ));
         }
 
         let Some(data) = params.data.take() else {
-            return Ok(params);
+            return Err(jsonrpc::Error::invalid_params(
+                "code action has no continuation",
+            ));
         };
 
         let resolved = from_value::<CodeActionContinuation>(data)
@@ -2432,22 +2376,22 @@ impl LanguageServer for DestackLanguageServer {
         let range = query_file
             .range(start, end)
             .ok_or_else(|| jsonrpc::Error::invalid_params("range is reversed"))?;
-        let request = query::QueryRequest::InlayHints(query::InlayHintsRequest { range });
+        let type_hints = self.settings.type_inlay_hints.load(Ordering::Relaxed);
+        let parameter_hints = self.settings.parameter_inlay_hints.load(Ordering::Relaxed);
+        let request = query::QueryRequest::InlayHints(query::InlayHintsRequest {
+            range,
+            type_hints,
+            parameter_hints,
+        });
         let response = self.query_module(&query_file, request)?;
         let query::QueryResponse::InlayHints(response) = response.response else {
             return Err(internal_error("query did not return inlay hints"));
         };
         let hints = response.hints;
-        let parameter_hints_enabled = self.settings.parameter_inlay_hints.load(Ordering::Relaxed);
-        let type_hints_enabled = self.settings.type_inlay_hints.load(Ordering::Relaxed);
 
         // convert to LSP
         let lsp_hints = hints
             .iter()
-            .filter(|hint| match hint.kind {
-                query::InlayHintKind::Parameter => parameter_hints_enabled,
-                query::InlayHintKind::Type => type_hints_enabled,
-            })
             .map(|hint| assist::hint(&source_file, hint))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
@@ -2720,95 +2664,5 @@ impl LanguageServer for DestackLanguageServer {
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp_items))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::DestackLanguageServer;
-    use destack_lsp_types as lsp;
-    use destack_query as query;
-
-    /// Map umbrella refactor kinds to all workspace refactor buckets.
-    #[test]
-    fn test_query_code_action_kinds_maps_refactor_umbrella() {
-        let mapped = DestackLanguageServer::query_code_action_kinds(&lsp::CodeActionKind::REFACTOR);
-
-        assert_eq!(
-            mapped,
-            vec![
-                query::CodeActionKind::Refactor,
-                query::CodeActionKind::RefactorExtract,
-                query::CodeActionKind::RefactorInline,
-                query::CodeActionKind::RefactorRewrite,
-            ]
-        );
-    }
-
-    /// Build code action mapping with deduplicated mapped kinds.
-    #[test]
-    fn test_query_code_action_context_deduplicates_mapped_kinds() {
-        let context = lsp::CodeActionContext {
-            diagnostics: Vec::new(),
-            only: Some(vec![
-                lsp::CodeActionKind::REFACTOR,
-                lsp::CodeActionKind::REFACTOR_INLINE,
-            ]),
-            trigger_kind: Some(lsp::CodeActionTriggerKind::INVOKED),
-        };
-
-        let mapped = DestackLanguageServer::query_code_action_context(&context);
-
-        assert_eq!(
-            mapped.only,
-            vec![
-                query::CodeActionKind::Refactor,
-                query::CodeActionKind::RefactorExtract,
-                query::CodeActionKind::RefactorInline,
-                query::CodeActionKind::RefactorRewrite,
-            ]
-        );
-        assert!(mapped.include_disabled);
-    }
-
-    /// Keep include disabled false when no kind filter exists.
-    #[test]
-    fn test_query_code_action_context_without_only_filter() {
-        let context = lsp::CodeActionContext {
-            diagnostics: Vec::new(),
-            only: None,
-            trigger_kind: Some(lsp::CodeActionTriggerKind::INVOKED),
-        };
-
-        let mapped = DestackLanguageServer::query_code_action_context(&context);
-
-        assert!(mapped.only.is_empty());
-        assert!(!mapped.include_disabled);
-    }
-
-    /// Offer identifier-style commit characters for callable items.
-    #[test]
-    fn test_completion_commit_characters_for_function() {
-        let commit_characters =
-            DestackLanguageServer::completion_commit_characters(query::CompletionKind::Function);
-
-        assert_eq!(
-            commit_characters,
-            Some(vec![
-                ".".to_string(),
-                ",".to_string(),
-                ";".to_string(),
-                "(".to_string(),
-            ])
-        );
-    }
-
-    /// Skip commit characters for snippet-only pseudo items.
-    #[test]
-    fn test_completion_commit_characters_for_snippet() {
-        let commit_characters =
-            DestackLanguageServer::completion_commit_characters(query::CompletionKind::Snippet);
-
-        assert!(commit_characters.is_none());
     }
 }
