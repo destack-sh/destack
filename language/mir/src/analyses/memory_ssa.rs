@@ -1784,7 +1784,7 @@ impl<'a> MemoryAccessCollector<'a> {
             // type punning and raw reference ops
             mir::Intrinsic::Transmute
             | mir::Intrinsic::SpaceCast
-            | mir::Intrinsic::PointerOffsetFrom
+            | mir::Intrinsic::PointerByteOffsetFrom
             | mir::Intrinsic::RawEq => SmallVec::new(),
 
             // tensor operations

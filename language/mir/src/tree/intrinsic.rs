@@ -103,7 +103,7 @@ pub enum Intrinsic {
     SpaceCast,
     /// Compute byte offset between two pointers.
     /// `(ptr, ptr) => isize`
-    PointerOffsetFrom,
+    PointerByteOffsetFrom,
     /// Load through a pointer without eliding, duplicating, or reordering.
     /// `(ptr) => T`
     VolatileLoad,
@@ -236,7 +236,7 @@ impl Intrinsic {
             // type punning and pointer ops
             Intrinsic::Transmute => "memory.raw.transmute",
             Intrinsic::SpaceCast => "space.cast",
-            Intrinsic::PointerOffsetFrom => "memory.ptr.byteOffsetFrom",
+            Intrinsic::PointerByteOffsetFrom => "memory.ptr.byteOffsetFrom",
             Intrinsic::VolatileLoad => "memory.ptr.readVolatile",
             Intrinsic::VolatileStore => "memory.ptr.writeVolatile",
             Intrinsic::RawEq => "memory.raw.eq",
@@ -297,7 +297,7 @@ impl Intrinsic {
                 | Intrinsic::SatSub
                 | Intrinsic::Transmute
                 | Intrinsic::SpaceCast
-                | Intrinsic::PointerOffsetFrom
+                | Intrinsic::PointerByteOffsetFrom
                 | Intrinsic::RawEq
                 | Intrinsic::Sqrt
                 | Intrinsic::Abs
@@ -381,7 +381,7 @@ impl FromStr for Intrinsic {
             "memory.raw.prefetchWrite" => Ok(Intrinsic::PrefetchWrite),
             "memory.raw.transmute" => Ok(Intrinsic::Transmute),
             "space.cast" => Ok(Intrinsic::SpaceCast),
-            "memory.ptr.byteOffsetFrom" => Ok(Intrinsic::PointerOffsetFrom),
+            "memory.ptr.byteOffsetFrom" => Ok(Intrinsic::PointerByteOffsetFrom),
             "memory.ptr.readVolatile" => Ok(Intrinsic::VolatileLoad),
             "memory.ptr.writeVolatile" => Ok(Intrinsic::VolatileStore),
             "memory.ptr.copy" => Ok(Intrinsic::Memmove),
@@ -460,8 +460,8 @@ pub enum IntrinsicSignature {
     Comparison,
 
     /// Pointer operation: (ptr, ptr) => isize
-    /// Examples: ptrOffsetFrom
-    PointerDiff,
+    /// Example: byteOffsetFrom
+    PointerByteOffset,
 
     /// Memory operations with byte count
     /// memcpy(dst, src, len), memmove(dst, src, len), memset(dst, val, len)
@@ -525,7 +525,7 @@ impl Intrinsic {
 
             // type punning and pointer ops
             Intrinsic::Transmute | Intrinsic::SpaceCast => IntrinsicSignature::Transmute,
-            Intrinsic::PointerOffsetFrom => IntrinsicSignature::PointerDiff,
+            Intrinsic::PointerByteOffsetFrom => IntrinsicSignature::PointerByteOffset,
             Intrinsic::RawEq => IntrinsicSignature::Comparison,
 
             // float math (unary)
@@ -586,7 +586,7 @@ impl Intrinsic {
             IntrinsicSignature::OverflowingBinary => 2,
             IntrinsicSignature::Transmute => 1,
             IntrinsicSignature::Comparison => 2,
-            IntrinsicSignature::PointerDiff => 2,
+            IntrinsicSignature::PointerByteOffset => 2,
             IntrinsicSignature::Memory { args } => args,
             IntrinsicSignature::MemoryCompare => 3,
             IntrinsicSignature::Prefetch => 1,
@@ -606,7 +606,7 @@ impl Intrinsic {
             IntrinsicSignature::OverflowingBinary => true,
             IntrinsicSignature::Transmute => true,
             IntrinsicSignature::Comparison => true,
-            IntrinsicSignature::PointerDiff => true,
+            IntrinsicSignature::PointerByteOffset => true,
             IntrinsicSignature::Memory { .. } => false,
             IntrinsicSignature::MemoryCompare => true,
             IntrinsicSignature::Prefetch => false,
@@ -639,7 +639,7 @@ impl Intrinsic {
             Intrinsic::Memcmp => IntrinsicResultType::I32,
 
             // pointer diff: isize
-            Intrinsic::PointerOffsetFrom => IntrinsicResultType::Isize,
+            Intrinsic::PointerByteOffsetFrom => IntrinsicResultType::Isize,
 
             // volatile load: the pointee of the accessed pointer
             Intrinsic::VolatileLoad => IntrinsicResultType::Pointee(0),
