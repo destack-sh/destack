@@ -17,9 +17,13 @@ impl Compiler {
         state.bind_node(id.into_any());
         let pattern = arm.pattern();
 
-        // bind the selected pattern without inheriting declaration context
+        // bind immutable names selected by the arm pattern
         let pattern_node = tree.get(pattern);
-        state.push_binding_modifiers(BindingModifiers::default());
+        state.push_binding_modifiers(BindingModifiers {
+            export: None,
+            mutability: Some(dir::Mutability::Immutable),
+            space: None,
+        });
         state.visit_pattern(tree, pattern, pattern_node);
         state.pop_binding_modifiers();
 

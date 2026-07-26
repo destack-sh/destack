@@ -85,7 +85,7 @@ impl Compiler {
                 state.bind_node(id.into_any());
                 let modifiers = BindingModifiers {
                     export: *export,
-                    mutability: None,
+                    mutability: Some(dir::Mutability::Immutable),
                     space: None,
                 };
                 self.bind_declarators(state, tree, declarators, modifiers);
@@ -262,21 +262,32 @@ impl Compiler {
         let scope_id = state.insert_child_scope(dir::ScopeKind::Block);
         state.bind_node_to_scope(id.into_any(), scope_id);
 
+        // select declaration mutability from the loop binding form
+        let (pattern, mutability) = match binding {
+            dir::ForEachBinding::Pattern { pattern, keyword } => {
+                let mutability = match keyword {
+                    Some(dir::BindingKeyword::Let) => Some(dir::Mutability::Mutable),
+                    Some(dir::BindingKeyword::Const) => Some(dir::Mutability::Immutable),
+                    None => None,
+                };
+
+                (*pattern, mutability)
+            }
+            dir::ForEachBinding::Using { pattern, .. } => {
+                (*pattern, Some(dir::Mutability::Immutable))
+            }
+        };
+
         // bind loop pattern
         state.push_scope(scope_id);
         let modifiers = BindingModifiers {
             export: None,
-            mutability: None,
+            mutability,
             space: None,
         };
         state.push_binding_modifiers(modifiers);
-        match binding {
-            dir::ForEachBinding::Pattern { pattern, .. }
-            | dir::ForEachBinding::Using { pattern, .. } => {
-                let pattern_node = tree.get(*pattern);
-                state.visit_pattern(tree, *pattern, pattern_node);
-            }
-        }
+        let pattern_node = tree.get(pattern);
+        state.visit_pattern(tree, pattern, pattern_node);
         state.pop_binding_modifiers();
 
         // visit loop body

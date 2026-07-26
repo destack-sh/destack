@@ -1,6 +1,47 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_bind_foreach_declaration_mutability() {
+    let compiler = TestSession::single(
+        r#"
+declare const values: number[];
+
+for (let mutable of values) {}
+for (const immutable of values) {}
+for (using resource of values) {}
+"#,
+    );
+
+    compiler.assert_dir_bound(
+        "main.ds",
+        DirRows::binding(),
+        r#"
+declare const values: number[];
+/// @binding.symbol symbol=values role=local kind=variable scope=<module>@1 mutability=immutable
+
+for (let mutable of values) {}
+/// @binding.scope scope=scope2 kind=block parent=<module>@2
+/// @binding.symbol symbol=mutable role=local kind=variable scope=scope2@0 mutability=mutable
+/// @binding.scope scope=scope3 kind=block parent=scope2@1
+
+for (const immutable of values) {}
+/// @binding.scope scope=scope4 kind=block parent=<module>@2
+/// @binding.symbol symbol=immutable role=local kind=variable scope=scope4@0 mutability=immutable
+/// @binding.scope scope=scope5 kind=block parent=scope4@1
+
+for (using resource of values) {}
+/// @binding.scope scope=scope6 kind=block parent=<module>@2
+/// @binding.symbol symbol=resource role=local kind=variable scope=scope6@0 mutability=immutable
+/// @binding.scope scope=scope7 kind=block parent=scope6@1
+
+/// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
+/// @binding.scope scope=<module> kind=module owner=<module>
+/// @binding.scope scope=scope1 kind=global
+"#,
+    );
+}
+
+#[test]
 fn test_bind_match_arm_pattern_in_guard_and_body() {
     let compiler = TestSession::single(
         r#"
@@ -40,7 +81,7 @@ const result = match (packet) {
     /// @binding.scope scope=scope2 kind=block parent=<module>@4
     /// @binding.node node=match_arm scope=scope2@0 source="{ value } if (value > 0) => value"
     /// @binding.node node=pattern scope=scope2@0 source={ value }
-    /// @binding.symbol symbol=value#2 role=local kind=variable scope=scope2@0
+    /// @binding.symbol symbol=value#2 role=local kind=variable scope=scope2@0 mutability=immutable
     /// @binding.node node=pattern_field scope=scope2@1 source=value
     /// @binding.node node=expression scope=scope2@1 source="value > 0"
     /// @binding.node node=expression scope=scope2@1 source=value
