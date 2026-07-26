@@ -1,35 +1,105 @@
 use destack_dir as dir;
+use destack_repository::{ProviderError, ProviderResult};
 
 use crate::ModuleQueryContext;
 
 impl ModuleQueryContext<'_> {
-    /// Return the recorded symbol target for one expression.
-    pub(crate) fn expression_symbol_target(
+    /// Return every symbol target from one recorded use-site resolution.
+    pub(crate) fn recorded_symbol_targets(
         &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::GlobalSymbolId> {
-        let node_id = expression_id.into_global_any(self.module_id());
-        let symbol_id = self.resolutions().symbol_resolution(node_id)?;
-        if !self.symbol_is_visible(symbol_id) {
-            return None;
+        node_id: dir::GlobalNodeIdAny,
+    ) -> Option<Vec<dir::GlobalSymbolId>> {
+        // member resolutions distinguish declaration-backed and structural access
+        if let Some(symbols) = self.member_symbol_targets(node_id) {
+            return Some(symbols);
         }
 
-        Some(symbol_id)
+        // explicit instantiations record their selected declaration directly
+        if let Some(resolution) = self.resolutions().instantiation_resolution(node_id) {
+            return Some(vec![resolution.symbol]);
+        }
+
+        // lexical and path resolutions retain every selected declaration
+        if let Some(symbols) = self.name_symbol_targets(node_id) {
+            return Some(symbols);
+        }
+
+        // receiver expressions record the declaration introducing the receiver
+        if let Some(resolution) = self.resolutions().receiver_resolution(node_id) {
+            return Some(vec![resolution.declaration]);
+        }
+
+        if let Some(resolution) = self.resolutions().label_resolution(node_id) {
+            let symbols = match resolution {
+                dir::LabelResolution::Symbol(symbol) => vec![symbol],
+                dir::LabelResolution::Loop | dir::LabelResolution::Function => Vec::new(),
+            };
+
+            return Some(symbols);
+        }
+
+        None
     }
 
-    /// Return the recorded symbol target for one dependency item.
-    pub(crate) fn dependency_symbol_target(
+    /// Return every symbol target from one recorded name resolution.
+    fn name_symbol_targets(
+        &self,
+        node_id: dir::GlobalNodeIdAny,
+    ) -> Option<Vec<dir::GlobalSymbolId>> {
+        let resolution = self.resolutions().name_resolution(node_id)?;
+
+        let symbols = resolution.symbols().to_vec();
+
+        Some(symbols)
+    }
+
+    /// Return the recorded symbol targets for one dependency item.
+    pub(crate) fn dependency_symbol_targets(
         &self,
         item_id: dir::LocalNodeId<dir::DependencyItem>,
-    ) -> Option<dir::GlobalSymbolId> {
-        let node_id = item_id.into_global_any(self.module_id());
-        let symbol_id = self.resolutions().symbol_resolution(node_id)?;
+    ) -> ProviderResult<Vec<dir::GlobalSymbolId>> {
+        let targets = self.dependency_targets(item_id)?;
+        let symbols = targets
+            .into_iter()
+            .filter_map(|target| match target {
+                dir::ImportTarget::Symbol(symbol_id) => Some(symbol_id),
+                dir::ImportTarget::Namespace(_) => None,
+            })
+            .collect();
 
-        if !self.symbol_is_visible(symbol_id) {
-            return None;
-        }
+        Ok(symbols)
+    }
 
-        Some(symbol_id)
+    /// Return every recorded target for one dependency item.
+    pub(crate) fn dependency_targets(
+        &self,
+        item_id: dir::LocalNodeId<dir::DependencyItem>,
+    ) -> ProviderResult<Vec<dir::ImportTarget>> {
+        let source = item_id.into_global_any(self.module_id());
+        let reference = self.resolved().references.get(source).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "dependency item has no resolved reference: {source:?}"
+            ))
+        })?;
+
+        let targets = match reference {
+            dir::Reference::Bound(symbols) => symbols
+                .iter()
+                .copied()
+                .map(dir::ImportTarget::Symbol)
+                .collect(),
+            dir::Reference::Namespace(module) => vec![dir::ImportTarget::Namespace(*module)],
+            dir::Reference::Projected { .. } => {
+                return Err(ProviderError::internal(format!(
+                    "dependency item has a projected reference: {source:?}"
+                ))
+                .into());
+            }
+            dir::Reference::Ambiguous(targets) => targets.to_vec(),
+            dir::Reference::Missing => Vec::new(),
+        };
+
+        Ok(targets)
     }
 
     /// Return the local symbol introduced by one dependency item.
@@ -38,91 +108,5 @@ impl ModuleQueryContext<'_> {
         item_id: dir::LocalNodeId<dir::DependencyItem>,
     ) -> Option<dir::GlobalSymbolId> {
         self.global_node_symbol(item_id.into())
-    }
-
-    /// Return the recorded symbol target for one plain path segment.
-    pub(crate) fn path_segment_symbol_target(
-        &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        segment_index: u16,
-    ) -> Option<dir::GlobalSymbolId> {
-        if segment_index == 0 {
-            return self.expression_symbol_target(expression_id);
-        }
-
-        None
-    }
-
-    /// Check whether an expression is used in a type position.
-    pub(crate) fn expression_is_type_position(
-        &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> bool {
-        let mut source_id = self.view().get_source(expression_id);
-
-        loop {
-            // stop when the source node has no parent
-            let Some(parent_id) = self.parents().get_by_id(source_id) else {
-                return false;
-            };
-
-            // classify the parent source node
-            match self.tree().get_node_type(parent_id) {
-                dir::NodeType::TypeExpression => {
-                    return true;
-                }
-                dir::NodeType::GenericArgument => {
-                    source_id = parent_id;
-                }
-                dir::NodeType::Expression => {
-                    source_id = parent_id;
-                }
-                dir::NodeType::Declarator => {
-                    let declarator = self
-                        .tree()
-                        .get(dir::LocalNodeId::<dir::Declarator>::new(parent_id));
-
-                    return declarator.ty.is_some_and(|ty| ty.id == source_id);
-                }
-                dir::NodeType::Parameter => {
-                    let parameter = self
-                        .tree()
-                        .get(dir::LocalNodeId::<dir::Parameter>::new(parent_id));
-
-                    return match parameter {
-                        dir::Parameter::Named { declared_type, .. }
-                        | dir::Parameter::Pattern { declared_type, .. }
-                        | dir::Parameter::VariadicNamed { declared_type, .. }
-                        | dir::Parameter::VariadicPattern { declared_type, .. } => {
-                            declared_type.is_some_and(|ty| ty.id == source_id)
-                        }
-                        dir::Parameter::Error => panic!("error parameter reached expression query"),
-                    };
-                }
-                dir::NodeType::Member => {
-                    let member = self
-                        .tree()
-                        .get(dir::LocalNodeId::<dir::Member>::new(parent_id));
-
-                    return match member {
-                        dir::Member::AssociatedType { .. } => false,
-                        dir::Member::AssociatedConst { .. } => false,
-                        dir::Member::Field { .. } => false,
-                        _ => false,
-                    };
-                }
-                dir::NodeType::Declaration => {
-                    let declaration = self
-                        .tree()
-                        .get(dir::LocalNodeId::<dir::Declaration>::new(parent_id));
-
-                    return match declaration {
-                        dir::Declaration::Type(declaration) => declaration.value.id == source_id,
-                        _ => false,
-                    };
-                }
-                _ => return false,
-            }
-        }
     }
 }

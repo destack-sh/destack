@@ -1,7 +1,8 @@
 use destack_dir as dir;
+use destack_source::FileId;
 
 use super::ScopeAtOffset;
-use crate::ModuleQueryContext;
+use crate::{ModuleQueryContext, QueryError, QueryResult};
 
 /// Describes the cursor position inside one object literal.
 #[derive(Debug, Clone)]
@@ -15,10 +16,6 @@ pub(crate) enum ObjectLiteralCursorContext {
 /// Object literal key completion context.
 #[derive(Debug, Clone)]
 pub(crate) struct ObjectLiteralKeyContext {
-    /// The object expression node id.
-    pub object_node: dir::LocalNodeIdAny,
-    /// The contextual type when one is available.
-    pub contextual_type: Option<dir::GlobalTypeId>,
     /// Field names already present in the literal.
     pub existing_fields: Vec<String>,
     /// The visible scope for the object literal expression.
@@ -26,112 +23,60 @@ pub(crate) struct ObjectLiteralKeyContext {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Resolve object literal cursor information at one offset.
+    /// Resolve the object literal cursor context at one offset.
     pub(crate) fn object_literal_context_at_offset(
         &self,
+        file_id: FileId,
         offset: u32,
-    ) -> Option<ObjectLiteralCursorContext> {
+    ) -> QueryResult<Option<ObjectLiteralCursorContext>> {
         // resolve enclosing spans from innermost to outermost
-        let enclosing = self.sorted_enclosing_spans(offset, offset);
+        let enclosing = self.sorted_enclosing_spans(file_id, offset, offset);
 
         // bail out early when there are no enclosing spans
         if enclosing.is_empty() {
-            return None;
+            return Ok(None);
         }
 
-        // resolve DIR tables for object literal context
+        // resolve visible DIR for object literal context
         let view = self.view();
-        let parsed_tree = self.tree();
 
         // look for an object expression under the cursor
-        for enc in &enclosing {
-            if parsed_tree.get_node_type(enc.source_id) != dir::NodeType::Expression {
-                continue;
-            }
-
-            let parsed_expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
-            let parsed_expr = parsed_tree.get(parsed_expr_id);
-
-            let dir::Expression::ObjectExpression { properties, .. } = parsed_expr else {
+        for enclosing_span in &enclosing {
+            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-
+            if node_id.ty != dir::NodeType::Expression {
+                continue;
+            }
+            let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
+            let dir::Expression::ObjectExpression { properties, .. } = view.get(expression_id)
+            else {
+                continue;
+            };
+            let Some(scope) = self.expression_scope_at_offset(expression_id) else {
+                return Ok(None);
+            };
             let object_spans = ObjectLiteralSpans {
-                tree: parsed_tree,
+                module: self,
+                view,
                 properties,
             };
-            let is_key_position = object_spans.owns_key_cursor(offset);
 
-            let dir_node_id = view
-                .get_node_id_by_source_id(enc.source_id)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "missing checked object expression for source {}",
-                        enc.source_id
-                    )
-                });
-            if dir_node_id.ty != dir::NodeType::Expression {
-                panic!(
-                    "checked object expression source mapped to {:?}",
-                    dir_node_id.ty
-                );
+            // property values stay in the surrounding expression scope
+            if !object_spans.owns_key_cursor(offset)? {
+                return Ok(Some(ObjectLiteralCursorContext::Value(scope)));
             }
-
-            let dir_expr_id = dir_node_id
-                .try_into()
-                .unwrap_or_else(|_| panic!("checked object source is not an expression"));
-            let dir_expr: &dir::Expression = view.get(dir_expr_id);
-            let scope = self.expression_scope_at_offset(dir_expr_id, offset)?;
-
-            // property values stay in value position inside the surrounding expression scope
-            if !is_key_position {
-                return Some(ObjectLiteralCursorContext::Value(scope));
-            }
-
-            let properties = match dir_expr {
-                dir::Expression::ObjectExpression { properties, .. } => properties,
-                _ => panic!("checked object source is not an object expression"),
-            };
 
             let existing_fields = self.object_property_names(properties);
-            let contextual_type = self.node_type_id(dir_node_id);
-
-            return Some(ObjectLiteralCursorContext::Key(ObjectLiteralKeyContext {
-                object_node: dir_node_id,
-                contextual_type,
-                existing_fields,
-                scope,
-            }));
+            return Ok(Some(ObjectLiteralCursorContext::Key(
+                ObjectLiteralKeyContext {
+                    existing_fields,
+                    scope,
+                },
+            )));
         }
 
-        None
-    }
-
-    /// Check if the cursor is inside an object literal expression.
-    pub(crate) fn is_inside_object_literal_expression(&self, offset: u32) -> bool {
-        // resolve enclosing spans from innermost to outermost
-        let enclosing = self.sorted_enclosing_spans(offset, offset);
-
-        // bail out early when there are no enclosing spans
-        if enclosing.is_empty() {
-            return false;
-        }
-
-        // scan enclosing expressions for object literal nodes
-        for enc in &enclosing {
-            if self.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
-                continue;
-            }
-
-            let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
-            let expr = self.tree().get(expr_id);
-
-            if matches!(expr, dir::Expression::ObjectExpression { .. }) {
-                return true;
-            }
-        }
-
-        false
+        Ok(None)
     }
 
     /// Return object literal property names.
@@ -154,7 +99,7 @@ impl ModuleQueryContext<'_> {
                     }
                 }
                 dir::Property::Spread { .. } => {}
-                dir::Property::Error => panic!("error property reached object source query"),
+                dir::Property::Error => {}
             }
         }
 
@@ -164,92 +109,95 @@ impl ModuleQueryContext<'_> {
 
 /// Source spans owned by one object literal.
 struct ObjectLiteralSpans<'a> {
-    /// The parsed source tree.
-    tree: &'a dir::Tree,
+    /// The queried module.
+    module: &'a ModuleQueryContext<'a>,
+    /// The visible DIR.
+    view: dir::View<'a>,
     /// The property node ids.
     properties: &'a [dir::LocalNodeId<dir::Property>],
 }
 
 impl ObjectLiteralSpans<'_> {
     /// Return whether the object literal key position owns the cursor.
-    fn owns_key_cursor(&self, offset: u32) -> bool {
+    fn owns_key_cursor(&self, offset: u32) -> QueryResult<bool> {
         for property_id in self.properties {
-            if let Some(span) = self.tree.source_index.get_main(property_id.id) {
-                if span.contains(offset) {
-                    return true;
-                }
+            if let Some(span) = self
+                .module
+                .node_selection_span(self.view, (*property_id).into())
+                && span.owns_cursor(offset)
+            {
+                return Ok(true);
             }
         }
 
-        if self.owns_value_cursor(offset) {
-            return false;
+        if self.owns_value_cursor(offset)? {
+            return Ok(false);
         }
 
         for property_id in self.properties {
-            let span = self.tree.source_index.get(property_id.id);
+            let span = self.module.node_span(self.view, (*property_id).into())?;
             if span.contains(offset) {
-                return false;
+                return Ok(false);
             }
         }
 
-        true
+        Ok(true)
     }
 
     /// Return whether a property value owns the cursor.
-    fn owns_value_cursor(&self, offset: u32) -> bool {
-        let cursor = offset.saturating_sub(1);
+    fn owns_value_cursor(&self, offset: u32) -> QueryResult<bool> {
+        let Some(cursor) = offset.checked_sub(1) else {
+            return Ok(false);
+        };
 
         // scan property value spans
         for property_id in self.properties {
-            let property = self.tree.get(*property_id);
+            let property = self.view.get(*property_id);
 
             match property {
                 dir::Property::Field { value, .. } => {
-                    let span = self.tree.source_index.get(value.id);
+                    let span = self.module.node_span(self.view, (*value).into())?;
                     if span.contains(cursor) {
-                        return true;
+                        return Ok(true);
                     }
                 }
                 dir::Property::Method { body, .. } => {
                     if let Some(body_id) = body {
-                        let span = self.tree.source_index.get(body_id.id);
+                        let span = self.module.node_span(self.view, (*body_id).into())?;
                         if span.contains(cursor) {
-                            return true;
+                            return Ok(true);
                         }
                     }
                 }
                 dir::Property::Spread { value, .. } => {
-                    let span = self.tree.source_index.get(value.id);
+                    let span = self.module.node_span(self.view, (*value).into())?;
                     if span.contains(cursor) {
-                        return true;
+                        return Ok(true);
                     }
                 }
-                dir::Property::Error => panic!("error property reached object source query"),
+                dir::Property::Error => {}
             }
         }
 
         // use property spans outside keys
         for property_id in self.properties {
-            let span = self.tree.source_index.get(property_id.id);
+            let span = self.module.node_span(self.view, (*property_id).into())?;
             if !span.contains(cursor) {
                 continue;
             }
 
+            let node = property_id.into_global_any(self.module.module_id());
             let key_span = self
-                .tree
-                .source_index
-                .get_main(property_id.id)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "missing main source span for object property {}",
-                        property_id.id
-                    )
-                });
+                .module
+                .node_selection_span(self.view, (*property_id).into())
+                .ok_or(QueryError::missing(format!(
+                    "object property span: {node:?}"
+                )))?;
             if !key_span.contains(cursor) {
-                return true;
+                return Ok(true);
             }
         }
 
-        false
+        Ok(false)
     }
 }

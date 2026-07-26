@@ -1,98 +1,96 @@
 use destack_dir as dir;
 
 use super::types::format_global_type;
-use crate::{ModuleQueryContext, declaration_display_name};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
-/// Formatted declaration signature.
-#[derive(Debug, Clone)]
-pub struct FormattedSignature {
-    /// The full signature string.
-    pub text: String,
-    /// The declaration kind (function, struct, etc.).
-    pub kind: &'static str,
-}
-
-/// Formatted call signature for functions and methods.
-#[derive(Debug, Clone)]
-pub struct FormattedCallSignature {
-    /// The full signature label.
-    pub label: String,
-    /// Parameter labels in declared order.
-    pub parameters: Vec<String>,
+macro_rules! formatted {
+    ($expression:expr) => {
+        match $expression? {
+            Some(text) => text,
+            None => return Ok(None),
+        }
+    };
 }
 
 /// Formatter for declaration and call signatures in one checked module.
-struct SignatureFormatter<'module, 'repo> {
+struct SignatureFormatter<'owner, 'module, 'program> {
     /// The checked module being formatted.
-    module: &'module ModuleQueryContext<'repo>,
+    module: &'owner ModuleQueryContext<'module>,
+    /// The program used for global type reads.
+    program: &'owner ProgramQueryContext<'program>,
 }
 
-/// The signature position that owns one checked type.
-#[derive(Debug, Clone, Copy)]
-enum SignatureTypeRole {
-    /// A function return type.
-    Return,
-    /// A function parameter type.
-    Parameter,
-}
-
-impl SignatureTypeRole {
-    /// Return the diagnostic label for this type role.
-    fn label(self) -> &'static str {
-        match self {
-            Self::Return => "return",
-            Self::Parameter => "parameter",
-        }
-    }
-}
-
-impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
+impl<'owner, 'module, 'program> SignatureFormatter<'owner, 'module, 'program> {
     /// Create a signature formatter for one checked module.
-    fn new(module: &'module ModuleQueryContext<'repo>) -> Self {
-        Self { module }
+    fn new(
+        module: &'owner ModuleQueryContext<'module>,
+        program: &'owner ProgramQueryContext<'program>,
+    ) -> Self {
+        Self { module, program }
     }
 
     /// Format one declaration signature.
-    fn declaration_signature(&self, declaration: &dir::Declaration) -> Option<FormattedSignature> {
-        let kind = declaration.kind_name();
-        let name = declaration_display_name(self.module.strings(), declaration)?;
-        let text = self.declaration_text(declaration, &name);
+    fn declaration_signature(&self, declaration: &dir::Declaration) -> QueryResult<Option<String>> {
+        let Some(name) = self.module.declaration_display_name(declaration) else {
+            return Ok(None);
+        };
 
-        Some(FormattedSignature { text, kind })
+        self.declaration_text(declaration, &name)
     }
 
     /// Format one declaration signature body.
-    fn declaration_text(&self, declaration: &dir::Declaration, name: &str) -> String {
+    fn declaration_text(
+        &self,
+        declaration: &dir::Declaration,
+        name: &str,
+    ) -> QueryResult<Option<String>> {
         let declaration_prefix = format_declaration_prefix(declaration);
 
-        match declaration {
+        let text = match declaration {
             dir::Declaration::Function(declaration) => {
-                self.function_text(name, &declaration.signature, &declaration_prefix)
+                return self.function_text(name, &declaration.signature, &declaration_prefix);
             }
             dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
             dir::Declaration::Module(_) => format!("{declaration_prefix}module"),
             dir::Declaration::Struct(declaration) => {
-                let generics_text = self.generics(&declaration.generic_parameters);
+                let generics_text = formatted!(self.generics(&declaration.generic_parameters));
                 format!("{declaration_prefix}struct {name}{generics_text}")
             }
             dir::Declaration::Class(declaration) => {
-                let generics_text = self.generics(&declaration.generic_parameters);
+                let generics_text = formatted!(self.generics(&declaration.generic_parameters));
                 format!("{declaration_prefix}class {name}{generics_text}")
             }
             dir::Declaration::Interface(declaration) => {
-                let generics_text = self.generics(&declaration.generic_parameters);
-                format!("{declaration_prefix}interface {name}{generics_text}")
+                let generics_text = formatted!(self.generics(&declaration.generic_parameters));
+                let keyword = if declaration.is_nominal {
+                    "newtype interface"
+                } else {
+                    "interface"
+                };
+
+                format!("{declaration_prefix}{keyword} {name}{generics_text}")
             }
             dir::Declaration::Enum(_) => {
                 format!("{declaration_prefix}enum {name}")
             }
-            dir::Declaration::Type(_) => {
-                format!("{declaration_prefix}type {name}")
+            dir::Declaration::Type(declaration) => {
+                let generics_text = formatted!(self.generics(&declaration.generic_parameters));
+                let value_id = declaration.value.into_global_any(self.module.module_id());
+                let value = formatted!(self.type_text(value_id));
+                let keyword = if declaration.is_nominal {
+                    "newtype"
+                } else {
+                    "type"
+                };
+
+                format!("{declaration_prefix}{keyword} {name}{generics_text} = {value}")
             }
             dir::Declaration::Extension(_) => {
                 format!("{declaration_prefix}extension {name}")
             }
-        }
+        };
+
+        Ok(Some(text))
     }
 
     /// Format a function signature with parameters and return type.
@@ -101,7 +99,7 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
         name: &str,
         signature: &dir::FunctionSignature,
         declaration_prefix: &str,
-    ) -> String {
+    ) -> QueryResult<Option<String>> {
         let phase_prefix = format_function_phase_prefix(signature.phase);
 
         let async_prefix = match signature.asynchrony {
@@ -109,13 +107,14 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
             dir::Asynchrony::Sync => "",
         };
 
-        let generics_text = self.generics(&signature.generic_parameters);
-        let parameters_text = self.parameters(signature.this_parameter, &signature.parameters);
-        let return_text = self.return_type(signature.return_type);
+        let generics_text = formatted!(self.generics(&signature.generic_parameters));
+        let parameters_text =
+            formatted!(self.parameters(signature.this_parameter, &signature.parameters));
+        let return_text = formatted!(self.return_type(signature.return_type));
 
-        format!(
+        Ok(Some(format!(
             "{declaration_prefix}{phase_prefix}{async_prefix}function {name}{generics_text}({parameters_text}){return_text}"
-        )
+        )))
     }
 
     /// Format a function or method call signature without declaration keywords.
@@ -124,7 +123,7 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
         name: &str,
         signature: &dir::FunctionSignature,
         include_this: bool,
-    ) -> FormattedCallSignature {
+    ) -> QueryResult<Option<String>> {
         let phase_prefix = format_function_phase_prefix(signature.phase);
 
         let async_prefix = match signature.asynchrony {
@@ -132,7 +131,7 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
             dir::Asynchrony::Sync => "",
         };
 
-        let generics_text = self.generics(&signature.generic_parameters);
+        let generics_text = formatted!(self.generics(&signature.generic_parameters));
 
         let this_parameter = if include_this {
             signature.this_parameter
@@ -140,56 +139,70 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
             None
         };
 
-        let parameter_labels = self.parameter_labels(this_parameter, &signature.parameters);
+        let parameter_labels =
+            formatted!(self.parameter_labels(this_parameter, &signature.parameters));
         let parameters_text = parameter_labels.join(", ");
 
-        let return_text = self.return_type(signature.return_type);
+        let return_text = formatted!(self.return_type(signature.return_type));
 
-        let label = format!(
+        Ok(Some(format!(
             "{phase_prefix}{async_prefix}{name}{generics_text}({parameters_text}){return_text}"
-        );
+        )))
+    }
 
-        FormattedCallSignature {
-            label,
-            parameters: parameter_labels,
-        }
+    /// Format one function signature without a callable name.
+    fn function_detail(
+        &self,
+        signature: &dir::FunctionSignature,
+        include_this: bool,
+    ) -> QueryResult<Option<String>> {
+        self.call_signature("", signature, include_this)
     }
 
     /// Format one optional return type suffix.
-    fn return_type(&self, return_type: Option<dir::LocalNodeId<dir::TypeExpression>>) -> String {
+    fn return_type(
+        &self,
+        return_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
+    ) -> QueryResult<Option<String>> {
         let Some(return_node) = return_type else {
-            return String::new();
+            return Ok(Some(String::new()));
         };
 
         let node_id = return_node.into_global_any(self.module.module_id());
-        let type_text = self.type_text(node_id, SignatureTypeRole::Return);
+        let type_text = formatted!(self.type_text(node_id));
 
-        format!(": {type_text}")
+        Ok(Some(format!(": {type_text}")))
     }
 
     /// Format generic type parameters.
-    fn generics(&self, generics: &[dir::LocalNodeId<dir::GenericParameter>]) -> String {
+    fn generics(
+        &self,
+        generics: &[dir::LocalNodeId<dir::GenericParameter>],
+    ) -> QueryResult<Option<String>> {
         if generics.is_empty() {
-            return String::new();
+            return Ok(Some(String::new()));
         }
 
-        let formatted: Vec<_> = generics
-            .iter()
-            .map(|parameter_id| self.generic_parameter(*parameter_id))
-            .collect();
+        let mut formatted = Vec::with_capacity(generics.len());
+        for parameter_id in generics {
+            formatted.push(formatted!(self.generic_parameter(*parameter_id)));
+        }
 
-        format!("<{}>", formatted.join(", "))
+        Ok(Some(format!("<{}>", formatted.join(", "))))
     }
 
     /// Format one generic parameter.
-    fn generic_parameter(&self, parameter_id: dir::LocalNodeId<dir::GenericParameter>) -> String {
+    fn generic_parameter(
+        &self,
+        parameter_id: dir::LocalNodeId<dir::GenericParameter>,
+    ) -> QueryResult<Option<String>> {
         let parameter = self
             .module
             .view()
             .get::<dir::GenericParameter>(parameter_id);
         let strings = self.module.strings();
 
-        match parameter {
+        let text = match parameter {
             dir::GenericParameter::Type {
                 name,
                 is_const,
@@ -225,10 +238,10 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
                 format!("{prefix}{}", strings.get(*name))
             }
             dir::GenericParameter::Lifetime { name } => strings.get(*name).to_string(),
-            dir::GenericParameter::Error => {
-                panic!("error generic parameter reached signature formatting")
-            }
-        }
+            dir::GenericParameter::Error => return Ok(None),
+        };
+
+        Ok(Some(text))
     }
 
     /// Format function parameters with their types.
@@ -236,10 +249,10 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
         &self,
         this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
         parameters: &[dir::LocalNodeId<dir::Parameter>],
-    ) -> String {
-        let formatted = self.parameter_labels(this_parameter, parameters);
+    ) -> QueryResult<Option<String>> {
+        let formatted = formatted!(self.parameter_labels(this_parameter, parameters));
 
-        formatted.join(", ")
+        Ok(Some(formatted.join(", ")))
     }
 
     /// Format parameter labels in declared order.
@@ -247,68 +260,44 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
         &self,
         this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
         parameters: &[dir::LocalNodeId<dir::Parameter>],
-    ) -> Vec<String> {
+    ) -> QueryResult<Option<Vec<String>>> {
         let mut formatted: Vec<String> = Vec::new();
 
         if let Some(this_parameter) = this_parameter {
-            let this_text = self.parameter(this_parameter);
+            let this_text = formatted!(self.parameter(this_parameter));
             formatted.push(format!("this: {this_text}"));
         }
 
-        formatted.extend(
-            parameters
-                .iter()
-                .map(|parameter_id| self.parameter(*parameter_id)),
-        );
+        for parameter_id in parameters {
+            formatted.push(formatted!(self.parameter(*parameter_id)));
+        }
 
-        formatted
+        Ok(Some(formatted))
     }
 
     /// Format one parameter with its type annotation.
-    fn parameter(&self, parameter_id: dir::LocalNodeId<dir::Parameter>) -> String {
+    fn parameter(
+        &self,
+        parameter_id: dir::LocalNodeId<dir::Parameter>,
+    ) -> QueryResult<Option<String>> {
         let parameter = self.module.view().get::<dir::Parameter>(parameter_id);
-        let name = self.parameter_name(parameter);
+        let Some(name) = self.module.parameter_name(parameter)? else {
+            return Ok(None);
+        };
         let node_id = parameter_id.into_global_any(self.module.module_id());
-        let type_text = self.type_text(node_id, SignatureTypeRole::Parameter);
+        let type_text = formatted!(self.type_text(node_id));
 
-        format!("{name}: {type_text}")
-    }
-
-    /// Format one parameter label.
-    fn parameter_name(&self, parameter: &dir::Parameter) -> String {
-        let strings = self.module.strings();
-        match parameter {
-            dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
-            dir::Parameter::Pattern { .. } => "_".to_string(),
-            dir::Parameter::VariadicNamed { name, .. } => {
-                let name = strings.get(*name);
-                format!("...{name}")
-            }
-            dir::Parameter::VariadicPattern { .. } => "..._".to_string(),
-            dir::Parameter::Error => panic!("error parameter reached signature formatting"),
-        }
+        Ok(Some(format!("{name}: {type_text}")))
     }
 
     /// Format one checked node type.
-    fn type_text(&self, node_id: dir::GlobalNodeIdAny, role: SignatureTypeRole) -> String {
-        let role = role.label();
-        let type_id = self
-            .module
-            .types()
-            .get_node_type_id(node_id)
-            .unwrap_or_else(|| panic!("missing checked {role} type for node {node_id:?}"));
+    fn type_text(&self, node_id: dir::GlobalNodeIdAny) -> QueryResult<Option<String>> {
+        let Some(type_id) = self.module.types().get_node_type_id(node_id) else {
+            return Ok(None);
+        };
 
-        format_global_type(type_id, self.module)
-            .unwrap_or_else(|| panic!("unable to format checked {role} type {type_id:?}"))
+        format_global_type(type_id, self.module, self.program)
     }
-}
-
-/// Format a declaration's signature with full type information.
-pub fn format_declaration_signature(
-    declaration: &dir::Declaration,
-    module: &ModuleQueryContext<'_>,
-) -> Option<FormattedSignature> {
-    SignatureFormatter::new(module).declaration_signature(declaration)
 }
 
 /// Format the phase prefix for one function.
@@ -321,10 +310,10 @@ fn format_function_phase_prefix(phase: dir::FunctionPhase) -> &'static str {
 
 /// Format the declaration prefix keywords for a declaration.
 fn format_declaration_prefix(declaration: &dir::Declaration) -> String {
-    let export_prefix = if declaration.export().is_some() {
-        "export "
-    } else {
-        ""
+    let export_prefix = match declaration.export() {
+        Some(dir::ExportKind::Named) => "export ",
+        Some(dir::ExportKind::Default) => "export default ",
+        None => "",
     };
 
     let declare_prefix = if declaration.is_ambient() {
@@ -343,13 +332,24 @@ fn format_declaration_prefix(declaration: &dir::Declaration) -> String {
 }
 
 /// Format a function or method call signature without declaration keywords.
-pub fn format_call_signature(
+pub(crate) fn format_call_signature(
     name: &str,
     signature: &dir::FunctionSignature,
     module: &ModuleQueryContext<'_>,
+    program: &ProgramQueryContext<'_>,
     include_this: bool,
-) -> FormattedCallSignature {
-    SignatureFormatter::new(module).call_signature(name, signature, include_this)
+) -> QueryResult<Option<String>> {
+    SignatureFormatter::new(module, program).call_signature(name, signature, include_this)
+}
+
+/// Format a function signature without a callable name.
+pub(crate) fn format_function_detail(
+    signature: &dir::FunctionSignature,
+    module: &ModuleQueryContext<'_>,
+    program: &ProgramQueryContext<'_>,
+    include_this: bool,
+) -> QueryResult<Option<String>> {
+    SignatureFormatter::new(module, program).function_detail(signature, include_this)
 }
 
 /// Format the prefix for one type generic parameter.
@@ -394,27 +394,66 @@ fn format_value_generic_parameter_prefix(is_comptime: bool, is_variadic: bool) -
 }
 
 /// Format a symbol's signature for hover display.
-pub fn format_symbol_signature(
-    root_module: &ModuleQueryContext<'_>,
+pub(crate) fn format_symbol_signature(
+    program: &ProgramQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
-) -> Option<FormattedSignature> {
+) -> QueryResult<Option<String>> {
     // resolve owning module
-    let module = root_module.module_context(symbol_id.module_id);
+    let module = program.module(symbol_id.module_id)?;
     let declaration_ref = {
         let symbols = module.symbols();
         let symbol = symbols.get_symbol(symbol_id.into_local());
-        symbol.declaration?
+        let Some(declaration) = symbol.declaration else {
+            return Ok(None);
+        };
+
+        declaration
     };
 
     // read the declaration from the tree
     let view = module.view();
-    let declaration_id = declaration_ref.local_id.try_into().unwrap_or_else(|_| {
-        panic!(
-            "signature declaration has incompatible node id: {:?}",
-            declaration_ref.local_id
-        )
-    });
+    let declaration_id = declaration_ref
+        .local_id
+        .try_into_typed::<dir::Declaration>()
+        .map_err(|_| QueryError::invalid(format!("signature symbol: {symbol_id:?}")))?;
     let declaration = view.get::<dir::Declaration>(declaration_id);
 
-    SignatureFormatter::new(&module).declaration_signature(declaration)
+    SignatureFormatter::new(module, program).declaration_signature(declaration)
+}
+
+/// Format the authored generic parameters for one declaration symbol.
+pub(crate) fn format_symbol_generics(
+    program: &ProgramQueryContext<'_>,
+    symbol_id: dir::GlobalSymbolId,
+) -> QueryResult<Option<String>> {
+    let module = program.module(symbol_id.module_id)?;
+    let symbols = module.symbols();
+    let symbol = symbols.get_symbol(symbol_id.local_id);
+    let source = symbol.declaration.ok_or(QueryError::invalid(format!(
+        "type item symbol: {symbol_id:?}"
+    )))?;
+    if source.local_id.ty != dir::NodeType::Declaration {
+        return Err(QueryError::invalid(format!(
+            "type item symbol: {symbol_id:?}"
+        )));
+    }
+
+    // read generic parameters from the exact declaration node
+    let declaration_id = source
+        .local_id
+        .try_into_typed::<dir::Declaration>()
+        .map_err(|_| QueryError::invalid(format!("type item symbol: {symbol_id:?}")))?;
+    let declaration = module.view().get::<dir::Declaration>(declaration_id);
+    let parameters = declaration
+        .generic_parameters()
+        .ok_or(QueryError::invalid(format!(
+            "type item symbol: {symbol_id:?}"
+        )))?;
+    let formatted = SignatureFormatter::new(module, program)
+        .generics(parameters)?
+        .ok_or(QueryError::invalid(format!(
+            "type item formatting: {symbol_id:?}"
+        )))?;
+
+    Ok((!formatted.is_empty()).then_some(formatted))
 }

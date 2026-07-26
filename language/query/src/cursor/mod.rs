@@ -7,5 +7,4 @@ mod symbol;
 
 pub(crate) use object::*;
 pub(crate) use scope::*;
-pub(crate) use slot::*;
 pub(crate) use symbol::*;

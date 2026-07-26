@@ -1,4 +1,3 @@
-mod callee;
 mod decorator;
 mod expression;
 mod import;
@@ -14,7 +13,5 @@ mod visible;
 pub(crate) use import::*;
 pub(crate) use lexical::*;
 pub(crate) use member::*;
-pub(crate) use parameter::*;
-pub(crate) use reference::*;
-pub(crate) use symbol::*;
+pub(crate) use program::*;
 pub(crate) use visible::*;

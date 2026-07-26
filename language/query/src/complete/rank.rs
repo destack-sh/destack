@@ -1,8 +1,11 @@
 use std::cmp::Ordering;
 
-use crate::{MatchKind, MatchQuality, match_quality};
+use crate::{
+    CompletionCandidate, CompletionItemKind, CompletionOrigin, MatchKind, MatchQuality,
+    match_quality,
+};
 
-use super::{Completion, CompletionContext, CompletionKind, CompletionOrigin, CursorToken};
+use super::{CompletionContext, CursorToken};
 
 /// The semantic and lexical relevance for one completion candidate.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -11,12 +14,6 @@ struct CompletionScore {
     lexical: MatchQuality,
     /// The context-fit order bucket.
     context_order: u8,
-    /// The active-parameter name-fit order bucket.
-    parameter_order: u8,
-    /// The expected nominal type-fit order bucket.
-    type_order: u8,
-    /// The expected callable and constructable order bucket.
-    callability_order: u8,
     /// The semantic origin order bucket.
     origin_order: u8,
     /// The context-shaped semantic order bucket.
@@ -42,7 +39,7 @@ struct ScoredCompletion {
     /// The original stable candidate order.
     stable_index: usize,
     /// The completion candidate.
-    completion: Completion,
+    completion: CompletionCandidate,
     /// The derived lexical and semantic relevance.
     score: CompletionScore,
 }
@@ -70,18 +67,19 @@ impl CompletionMatchKind for MatchKind {
 
 impl CompletionScore {
     /// Build the relevance for one completion candidate in one context.
-    fn new(scorer: &CompletionScorer<'_>, completion: &Completion, lexical: MatchQuality) -> Self {
+    fn new(
+        scorer: &CompletionScorer<'_>,
+        completion: &CompletionCandidate,
+        lexical: MatchQuality,
+    ) -> Self {
         Self {
             lexical,
             context_order: scorer.context_order(completion),
-            parameter_order: scorer.parameter_order(completion),
-            type_order: scorer.type_order(completion),
-            callability_order: scorer.callability_order(completion),
             origin_order: scorer.origin_order(completion),
             semantic_order: scorer.semantic_order(completion),
-            producer_order: completion.sort_order,
+            producer_order: completion.producer_order,
             member_order: scorer.member_order(completion),
-            deprecated_order: u8::from(completion.deprecated),
+            deprecated_order: u8::from(completion.is_deprecated),
         }
     }
 }
@@ -96,7 +94,7 @@ impl CompletionScorer<'_> {
     fn score_completion(
         &self,
         stable_index: usize,
-        completion: Completion,
+        completion: CompletionCandidate,
     ) -> Option<ScoredCompletion> {
         let lexical = match_quality(&completion.label, self.prefix)?;
         let score = CompletionScore::new(self, &completion, lexical);
@@ -113,13 +111,6 @@ impl CompletionScorer<'_> {
         left.score
             .context_order
             .cmp(&right.score.context_order)
-            .then(left.score.parameter_order.cmp(&right.score.parameter_order))
-            .then(left.score.type_order.cmp(&right.score.type_order))
-            .then(
-                left.score
-                    .callability_order
-                    .cmp(&right.score.callability_order),
-            )
             .then(left.score.origin_order.cmp(&right.score.origin_order))
             .then(left.score.semantic_order.cmp(&right.score.semantic_order))
             .then(
@@ -138,7 +129,7 @@ impl CompletionScorer<'_> {
                     .deprecated_order
                     .cmp(&right.score.deprecated_order),
             )
-            .then_with(|| self.compare_sort_text(left, right))
+            .then_with(|| self.compare_ordering_text(left, right))
             .then(left.stable_index.cmp(&right.stable_index))
             .then_with(|| {
                 left.completion
@@ -162,10 +153,10 @@ impl CompletionScorer<'_> {
         Ordering::Equal
     }
 
-    /// Compare two candidates by explicit sort-text tie breaks.
-    fn compare_sort_text(&self, left: &ScoredCompletion, right: &ScoredCompletion) -> Ordering {
-        let left_uses_text = self.prefers_sort_text_tiebreak(&left.completion);
-        let right_uses_text = self.prefers_sort_text_tiebreak(&right.completion);
+    /// Compare two candidates by explicit ordering text.
+    fn compare_ordering_text(&self, left: &ScoredCompletion, right: &ScoredCompletion) -> Ordering {
+        let left_uses_text = self.uses_ordering_text(&left.completion);
+        let right_uses_text = self.uses_ordering_text(&right.completion);
 
         if !self.prefix.is_empty() || (left_uses_text && right_uses_text) {
             return left
@@ -177,8 +168,8 @@ impl CompletionScorer<'_> {
         Ordering::Equal
     }
 
-    /// Return whether this completion prefers sort-text tie breaking.
-    fn prefers_sort_text_tiebreak(&self, completion: &Completion) -> bool {
+    /// Return whether this completion uses explicit ordering text.
+    fn uses_ordering_text(&self, completion: &CompletionCandidate) -> bool {
         completion.origin == CompletionOrigin::AutoImport
             || matches!(
                 completion.origin,
@@ -190,91 +181,19 @@ impl CompletionScorer<'_> {
             )
     }
 
-    /// Return the active-parameter name-fit order for this completion.
-    fn parameter_order(&self, completion: &Completion) -> u8 {
-        let CompletionContext::CallArgument {
-            expected_parameter, ..
-        } = self.context
-        else {
-            return 1;
-        };
-        let Some(expected_parameter) = expected_parameter.as_ref() else {
-            return 1;
-        };
-        let Some(expected_name) = expected_parameter.name.as_ref() else {
-            return 1;
-        };
-
-        u8::from(!completion.label.eq_ignore_ascii_case(expected_name))
-    }
-
-    /// Return the expected-type fit order for this completion.
-    fn type_order(&self, completion: &Completion) -> u8 {
-        let CompletionContext::CallArgument {
-            expected_parameter, ..
-        } = self.context
-        else {
-            return 0;
-        };
-        let Some(expected_parameter) = expected_parameter.as_ref() else {
-            return 0;
-        };
-        if expected_parameter.related_nominals.is_empty() {
-            return 0;
-        }
-
-        let expected_nominal = expected_parameter.nominal_symbol;
-        match completion.nominal_symbol {
-            Some(nominal_symbol) if Some(nominal_symbol) == expected_nominal => 0,
-            Some(_)
-                if completion.related_nominals.iter().any(|nominal_symbol| {
-                    expected_parameter.related_nominals.contains(nominal_symbol)
-                }) =>
-            {
-                1
-            }
-            None => 2,
-            Some(_) => 3,
-        }
-    }
-
-    /// Return the expected-value-shape fit order for this completion.
-    fn callability_order(&self, completion: &Completion) -> u8 {
-        let CompletionContext::CallArgument {
-            expected_parameter, ..
-        } = self.context
-        else {
-            return 0;
-        };
-        let Some(expected_parameter) = expected_parameter.as_ref() else {
-            return 0;
-        };
-
-        if expected_parameter.prefers_constructible {
-            return u8::from(!completion.value_shape.is_constructable);
-        }
-
-        if expected_parameter.prefers_callable {
-            return u8::from(!completion.value_shape.is_callable);
-        }
-
-        0
-    }
-
     /// Return the ordering bucket for this completion origin.
-    fn origin_order(&self, completion: &Completion) -> u8 {
+    fn origin_order(&self, completion: &CompletionCandidate) -> u8 {
         match completion.origin {
             CompletionOrigin::Contextual => 0,
             CompletionOrigin::Local => 1,
             CompletionOrigin::Builtin => 2,
             CompletionOrigin::AutoImport => 3,
             CompletionOrigin::Keyword => 4,
-            CompletionOrigin::Base => 5,
         }
     }
 
     /// Return the member-source order for this completion.
-    fn member_order(&self, completion: &Completion) -> u8 {
+    fn member_order(&self, completion: &CompletionCandidate) -> u8 {
         if !matches!(self.context, CompletionContext::MemberAccess { .. }) {
             return 0;
         }
@@ -283,30 +202,34 @@ impl CompletionScorer<'_> {
     }
 
     /// Return the context-fit order for this completion.
-    fn context_order(&self, completion: &Completion) -> u8 {
+    fn context_order(&self, completion: &CompletionCandidate) -> u8 {
         match self.context {
             CompletionContext::TypePosition { .. } => u8::from(!completion.kind.is_type_like()),
             CompletionContext::NewExpression { .. } => {
                 u8::from(!completion.kind.is_constructable())
             }
-            CompletionContext::ObjectLiteral { .. } => {
-                u8::from(completion.kind != CompletionKind::Field)
+            CompletionContext::ObjectLiteralKey { .. } => {
+                u8::from(completion.kind != CompletionItemKind::Field)
             }
+            CompletionContext::CallArgument {
+                expected_type: Some(expected_type),
+                ..
+            } => u8::from(completion.type_id != Some(*expected_type)),
             CompletionContext::MemberAccess { .. } => u8::from(!completion.kind.is_member_like()),
             CompletionContext::ImportPath { .. } => u8::from(!matches!(
                 completion.kind,
-                CompletionKind::Folder | CompletionKind::Module
+                CompletionItemKind::Folder | CompletionItemKind::Module
             )),
             _ => 0,
         }
     }
 
     /// Return the context-shaped semantic order for this completion.
-    fn semantic_order(&self, completion: &Completion) -> u8 {
+    fn semantic_order(&self, completion: &CompletionCandidate) -> u8 {
         match self.context {
             CompletionContext::TypePosition { .. } => completion.kind.type_position_order(),
             CompletionContext::NewExpression { .. } => completion.kind.new_expression_order(),
-            CompletionContext::ObjectLiteral { .. } => completion.kind.object_literal_order(),
+            CompletionContext::ObjectLiteralKey { .. } => completion.kind.object_literal_order(),
             CompletionContext::ImportClause { .. } => completion.kind.import_clause_order(),
             CompletionContext::MemberAccess { .. } => completion.kind.member_access_order(),
             CompletionContext::ImportPath { .. } => completion.kind.import_path_order(),
@@ -315,17 +238,22 @@ impl CompletionScorer<'_> {
     }
 }
 
-impl CompletionKind {
+impl CompletionItemKind {
     /// Return the semantic order for type-position completions.
     fn type_position_order(self) -> u8 {
         match self {
-            CompletionKind::Class
-            | CompletionKind::Struct
-            | CompletionKind::Interface
-            | CompletionKind::Enum
-            | CompletionKind::TypeParameter => 0,
-            CompletionKind::Module | CompletionKind::Folder | CompletionKind::File => 1,
-            CompletionKind::Keyword => 3,
+            CompletionItemKind::AssociatedType
+            | CompletionItemKind::Class
+            | CompletionItemKind::Struct
+            | CompletionItemKind::Interface
+            | CompletionItemKind::NewtypeInterface
+            | CompletionItemKind::Newtype
+            | CompletionItemKind::TypeAlias
+            | CompletionItemKind::Enum
+            | CompletionItemKind::TypeParameter
+            | CompletionItemKind::BuiltinType => 0,
+            CompletionItemKind::Module | CompletionItemKind::Folder | CompletionItemKind::File => 1,
+            CompletionItemKind::Keyword => 3,
             _ => 2,
         }
     }
@@ -333,10 +261,10 @@ impl CompletionKind {
     /// Return the semantic order for new-expression completions.
     fn new_expression_order(self) -> u8 {
         match self {
-            CompletionKind::Struct => 0,
-            CompletionKind::Class => 1,
-            CompletionKind::Function | CompletionKind::Constructor => 2,
-            CompletionKind::Keyword => 4,
+            CompletionItemKind::Struct => 0,
+            CompletionItemKind::Class => 1,
+            CompletionItemKind::Function | CompletionItemKind::Constructor => 2,
+            CompletionItemKind::Keyword => 4,
             _ => 3,
         }
     }
@@ -344,12 +272,18 @@ impl CompletionKind {
     /// Return the semantic order for object-literal completions.
     fn object_literal_order(self) -> u8 {
         match self {
-            CompletionKind::Field => 0,
-            CompletionKind::Variable | CompletionKind::Constant | CompletionKind::Value => 1,
-            CompletionKind::EnumMember => 2,
-            CompletionKind::Method | CompletionKind::Function | CompletionKind::Constructor => 3,
-            CompletionKind::Class | CompletionKind::Struct | CompletionKind::Enum => 4,
-            CompletionKind::Keyword => 6,
+            CompletionItemKind::Field => 0,
+            CompletionItemKind::AssociatedConst
+            | CompletionItemKind::Variable
+            | CompletionItemKind::ValueParameter
+            | CompletionItemKind::Constant
+            | CompletionItemKind::Value => 1,
+            CompletionItemKind::EnumMember => 2,
+            CompletionItemKind::Method
+            | CompletionItemKind::Function
+            | CompletionItemKind::Constructor => 3,
+            CompletionItemKind::Class | CompletionItemKind::Struct | CompletionItemKind::Enum => 4,
+            CompletionItemKind::Keyword => 6,
             _ => 5,
         }
     }
@@ -357,10 +291,15 @@ impl CompletionKind {
     /// Return the semantic order for member completions.
     fn member_access_order(self) -> u8 {
         match self {
-            CompletionKind::Field | CompletionKind::Property => 0,
-            CompletionKind::Method | CompletionKind::Function | CompletionKind::Constructor => 1,
-            CompletionKind::EnumMember => 2,
-            CompletionKind::Keyword => 4,
+            CompletionItemKind::Field
+            | CompletionItemKind::Property
+            | CompletionItemKind::AssociatedConst
+            | CompletionItemKind::AssociatedType => 0,
+            CompletionItemKind::Method
+            | CompletionItemKind::Function
+            | CompletionItemKind::Constructor => 1,
+            CompletionItemKind::EnumMember => 2,
+            CompletionItemKind::Keyword => 4,
             _ => 3,
         }
     }
@@ -368,15 +307,26 @@ impl CompletionKind {
     /// Return the semantic order for import-clause completions.
     fn import_clause_order(self) -> u8 {
         match self {
-            CompletionKind::Class
-            | CompletionKind::Struct
-            | CompletionKind::Interface
-            | CompletionKind::Enum
-            | CompletionKind::TypeParameter => 0,
-            CompletionKind::Variable | CompletionKind::Constant | CompletionKind::Value => 1,
-            CompletionKind::Method | CompletionKind::Function | CompletionKind::Constructor => 2,
-            CompletionKind::Module | CompletionKind::Folder | CompletionKind::File => 3,
-            CompletionKind::Keyword => 5,
+            CompletionItemKind::AssociatedType
+            | CompletionItemKind::Class
+            | CompletionItemKind::Struct
+            | CompletionItemKind::Interface
+            | CompletionItemKind::NewtypeInterface
+            | CompletionItemKind::Newtype
+            | CompletionItemKind::TypeAlias
+            | CompletionItemKind::Enum
+            | CompletionItemKind::TypeParameter
+            | CompletionItemKind::BuiltinType => 0,
+            CompletionItemKind::AssociatedConst
+            | CompletionItemKind::Variable
+            | CompletionItemKind::ValueParameter
+            | CompletionItemKind::Constant
+            | CompletionItemKind::Value => 1,
+            CompletionItemKind::Method
+            | CompletionItemKind::Function
+            | CompletionItemKind::Constructor => 2,
+            CompletionItemKind::Module | CompletionItemKind::Folder | CompletionItemKind::File => 3,
+            CompletionItemKind::Keyword => 5,
             _ => 4,
         }
     }
@@ -384,8 +334,8 @@ impl CompletionKind {
     /// Return the semantic order for import-path completions.
     fn import_path_order(self) -> u8 {
         match self {
-            CompletionKind::Module => 0,
-            CompletionKind::Folder => 1,
+            CompletionItemKind::Module => 0,
+            CompletionItemKind::Folder => 1,
             _ => 2,
         }
     }
@@ -393,13 +343,27 @@ impl CompletionKind {
     /// Return the semantic order for value-position completions.
     fn value_position_order(self) -> u8 {
         match self {
-            CompletionKind::Variable | CompletionKind::Constant | CompletionKind::Value => 0,
-            CompletionKind::EnumMember => 1,
-            CompletionKind::Field | CompletionKind::Property => 2,
-            CompletionKind::Method | CompletionKind::Function | CompletionKind::Constructor => 3,
-            CompletionKind::Class | CompletionKind::Struct | CompletionKind::Enum => 4,
-            CompletionKind::Interface | CompletionKind::TypeParameter => 5,
-            CompletionKind::Keyword => 7,
+            CompletionItemKind::AssociatedConst
+            | CompletionItemKind::Variable
+            | CompletionItemKind::ValueParameter
+            | CompletionItemKind::Constant
+            | CompletionItemKind::Value => 0,
+            CompletionItemKind::EnumMember => 1,
+            CompletionItemKind::Field | CompletionItemKind::Property => 2,
+            CompletionItemKind::Method
+            | CompletionItemKind::Function
+            | CompletionItemKind::Constructor => 3,
+            CompletionItemKind::Class
+            | CompletionItemKind::Struct
+            | CompletionItemKind::Enum
+            | CompletionItemKind::Newtype => 4,
+            CompletionItemKind::AssociatedType
+            | CompletionItemKind::Interface
+            | CompletionItemKind::NewtypeInterface
+            | CompletionItemKind::TypeAlias
+            | CompletionItemKind::TypeParameter
+            | CompletionItemKind::BuiltinType => 5,
+            CompletionItemKind::Keyword => 7,
             _ => 6,
         }
     }
@@ -408,11 +372,16 @@ impl CompletionKind {
     fn is_type_like(self) -> bool {
         matches!(
             self,
-            CompletionKind::Class
-                | CompletionKind::Struct
-                | CompletionKind::Interface
-                | CompletionKind::Enum
-                | CompletionKind::TypeParameter
+            CompletionItemKind::AssociatedType
+                | CompletionItemKind::Class
+                | CompletionItemKind::Struct
+                | CompletionItemKind::Interface
+                | CompletionItemKind::NewtypeInterface
+                | CompletionItemKind::Newtype
+                | CompletionItemKind::TypeAlias
+                | CompletionItemKind::Enum
+                | CompletionItemKind::TypeParameter
+                | CompletionItemKind::BuiltinType
         )
     }
 
@@ -420,27 +389,29 @@ impl CompletionKind {
     fn is_member_like(self) -> bool {
         matches!(
             self,
-            CompletionKind::Method
-                | CompletionKind::Function
-                | CompletionKind::Constructor
-                | CompletionKind::Field
-                | CompletionKind::Property
-                | CompletionKind::EnumMember
+            CompletionItemKind::Method
+                | CompletionItemKind::Function
+                | CompletionItemKind::Constructor
+                | CompletionItemKind::Field
+                | CompletionItemKind::Property
+                | CompletionItemKind::EnumMember
+                | CompletionItemKind::AssociatedConst
+                | CompletionItemKind::AssociatedType
         )
     }
 
     /// Return whether this completion kind is constructable with `new`.
     pub(crate) fn is_constructable(self) -> bool {
-        matches!(self, CompletionKind::Class | CompletionKind::Struct)
+        matches!(self, CompletionItemKind::Class | CompletionItemKind::Struct)
     }
 }
 
 /// Filter completions using lexical and semantic relevance.
 pub(crate) fn filter_completions(
-    completions: Vec<Completion>,
+    completions: Vec<CompletionCandidate>,
     context: &CompletionContext,
     token: Option<&CursorToken>,
-) -> Vec<Completion> {
+) -> Vec<CompletionCandidate> {
     let prefix = token.map_or("", |token| token.text.as_str());
     let scorer = CompletionScorer::new(context, prefix);
     let mut scored: Vec<ScoredCompletion> = completions
@@ -451,6 +422,18 @@ pub(crate) fn filter_completions(
 
     scored.sort_by(|left, right| scorer.compare(left, right));
 
+    let has_unique_context_match = matches!(
+        context,
+        CompletionContext::CallArgument {
+            expected_type: Some(_),
+            ..
+        }
+    ) && scored
+        .first()
+        .is_some_and(|first| first.score.context_order == 0)
+        && scored
+            .get(1)
+            .is_none_or(|second| second.score.context_order != 0);
     let mut results = scored
         .into_iter()
         .map(|scored| {
@@ -466,10 +449,10 @@ pub(crate) fn filter_completions(
             .first()
             .is_some_and(|completion| completion.label == prefix);
 
-    if results.len() == 1 || has_exact_label_match {
-        if let Some(first) = results.first_mut() {
-            first.preselect = true;
-        }
+    if (results.len() == 1 || has_exact_label_match || has_unique_context_match)
+        && let Some(first) = results.first_mut()
+    {
+        first.preselect = true;
     }
 
     results

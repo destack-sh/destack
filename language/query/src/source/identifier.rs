@@ -1,7 +1,8 @@
 use destack_dir as dir;
+use destack_source::FileId;
 
 use super::lexical::is_trivia_token;
-use crate::ModuleQueryContext;
+use crate::{ModuleQueryContext, QueryResult};
 
 /// Check whether a character can start an identifier.
 pub(crate) fn is_identifier_start(ch: char) -> bool {
@@ -14,67 +15,39 @@ pub(crate) fn is_identifier_continue(ch: char) -> bool {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Extract the identifier token at one offset.
-    pub(crate) fn token_at_offset(&self, offset: u32) -> Option<String> {
-        let token_text = self.token_text_at_offset(offset)?;
-
-        // require an identifier token
-        let token = self.token_span_at_offset(offset)?;
-        if token.token.ty() != dir::TokenType::Identifier {
-            return None;
-        }
-
-        Some(token_text)
-    }
-
-    /// Extract the non-trivia token text at one offset.
-    pub(crate) fn token_text_at_offset(&self, offset: u32) -> Option<String> {
-        let token = self.token_span_at_offset(offset)?;
-
-        // read source text for the token span
-        let file = self.source_file();
-        let content = file.text();
-        let span = token.span;
-        let text = content
-            .get(span.start as usize..span.end as usize)
-            .unwrap_or_else(|| panic!("invalid token source range: {span:?}"));
-
-        Some(text.to_string())
-    }
-}
-
-impl ModuleQueryContext<'_> {
     /// Find the non-trivia token span that contains the offset.
-    pub(crate) fn token_span_at_offset(&self, offset: u32) -> Option<dir::TokenSpan> {
+    pub(crate) fn token_span_at_offset(
+        &self,
+        file_id: FileId,
+        offset: u32,
+    ) -> QueryResult<Option<dir::TokenSpan>> {
         let mut candidate = None;
 
         // walk tokens in order to find the containing span
-        for token in self.tokens() {
-            if token.span.file != self.file_id() {
-                continue;
-            }
-
+        for token in self.tokens(file_id)? {
             if is_trivia_token(token.token.ty()) {
                 continue;
             }
 
             if token.span.contains(offset) {
-                return Some(*token);
+                return Ok(Some(token));
             }
 
             if token.span.start > offset {
                 break;
             }
 
-            candidate = Some(*token);
+            candidate = Some(token);
         }
 
-        let candidate = candidate?;
+        let Some(candidate) = candidate else {
+            return Ok(None);
+        };
         if candidate.span.end == offset {
-            return Some(candidate);
+            return Ok(Some(candidate));
         }
 
-        None
+        Ok(None)
     }
 }
 
@@ -92,6 +65,6 @@ pub(crate) fn is_simple_identifier(text: &str) -> bool {
         return false;
     }
 
-    // ensure the rest are valid identifier characters
-    chars.all(is_identifier_continue)
+    // require identifier characters and exclude language keywords
+    chars.all(is_identifier_continue) && text.parse::<dir::Keyword>().is_err()
 }

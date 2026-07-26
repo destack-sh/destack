@@ -1,8 +1,8 @@
-use std::collections::HashSet;
-
+use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
+use rustc_hash::FxHashSet;
 
-use crate::{ModuleQueryContext, ProgramQueryContext};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 /// Resolved member candidate.
 #[derive(Debug, Clone)]
@@ -11,7 +11,7 @@ pub(crate) struct MemberCandidate {
     pub name: MemberName,
     /// The type of the member.
     pub type_id: Option<dir::GlobalTypeId>,
-    /// The kind of member (field, method, etc.).
+    /// The member kind.
     pub kind: MemberKind,
     /// The symbol id if this member comes from a symbol declaration.
     pub symbol_id: Option<dir::GlobalSymbolId>,
@@ -33,8 +33,10 @@ pub(crate) enum MemberName {
 /// The kind of member.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MemberKind {
-    /// A field or property.
+    /// A field.
     Field,
+    /// A property without one callable insertion form.
+    Property,
     /// A method (function typed member).
     Method,
     /// A constructor member.
@@ -56,6 +58,7 @@ impl From<dir::MemberKind> for MemberKind {
     fn from(kind: dir::MemberKind) -> Self {
         match kind {
             dir::MemberKind::Field => Self::Field,
+            dir::MemberKind::Property => Self::Property,
             dir::MemberKind::Method => Self::Method,
             dir::MemberKind::Constructor => Self::Constructor,
             dir::MemberKind::CallSignature => Self::CallSignature,
@@ -93,22 +96,22 @@ impl MemberName {
     }
 }
 
-/// Active type ids during member resolution.
+/// Type ids on the current member lookup path.
 #[derive(Debug, Default)]
-struct MemberResolutionState {
-    /// The global type ids already on the recursion stack.
-    active_type_ids: HashSet<dir::GlobalTypeId>,
+struct ActiveTypes {
+    /// The type ids on the current path.
+    ids: FxHashSet<dir::GlobalTypeId>,
 }
 
-impl MemberResolutionState {
+impl ActiveTypes {
     /// Enter one type id.
     fn enter(&mut self, type_id: dir::GlobalTypeId) -> bool {
-        self.active_type_ids.insert(type_id)
+        self.ids.insert(type_id)
     }
 
     /// Leave one type id.
     fn leave(&mut self, type_id: dir::GlobalTypeId) {
-        self.active_type_ids.remove(&type_id);
+        self.ids.remove(&type_id);
     }
 }
 
@@ -123,25 +126,19 @@ impl MemberCandidate {
             is_extension: entry.origin == dir::MemberOrigin::Extension,
         }
     }
-}
 
-impl ModuleQueryContext<'_> {
-    /// Return the member kind implied by one structural field type.
-    fn field_member_kind(&self, type_id: dir::GlobalTypeId) -> MemberKind {
-        self.read_global_type(type_id, |ty, _| {
-            let is_function = matches!(
-                ty,
-                dir::Type::FunctionSignature(_)
-                    | dir::Type::Function(_)
-                    | dir::Type::FunctionPointer(_)
-            );
-
-            if is_function {
-                MemberKind::Method
-            } else {
-                MemberKind::Field
-            }
-        })
+    /// Retain only metadata shared with another member of the same name.
+    fn merge(&mut self, other: &Self) {
+        if self.type_id != other.type_id {
+            self.type_id = None;
+        }
+        if self.kind != other.kind {
+            self.kind = MemberKind::Property;
+        }
+        if self.symbol_id != other.symbol_id {
+            self.symbol_id = None;
+        }
+        self.is_extension &= other.is_extension;
     }
 }
 
@@ -150,13 +147,22 @@ impl ModuleQueryContext<'_> {
     pub(crate) fn resolve_type_members(
         &self,
         program: &ProgramQueryContext<'_>,
+        environment: &GlobalEnvironment,
         type_id: dir::GlobalTypeId,
-    ) -> Vec<MemberCandidate> {
-        let mut state = MemberResolutionState::default();
+        is_optional: bool,
+    ) -> QueryResult<Vec<MemberCandidate>> {
+        let mut active_types = ActiveTypes::default();
 
-        self.read_global_type(type_id, |ty, type_module| {
-            type_module.resolve_type_members_inner(program, type_id, ty, &mut state)
-        })
+        self.read_global_type(program, type_id, |checked_type, type_module| {
+            type_module.resolve_type_members_inner(
+                program,
+                environment,
+                type_id,
+                checked_type,
+                &mut active_types,
+                is_optional,
+            )
+        })?
     }
 
     /// Resolve members from a reference type by looking up the symbol.
@@ -164,17 +170,20 @@ impl ModuleQueryContext<'_> {
         &self,
         program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
-    ) -> Vec<MemberCandidate> {
-        let symbol_id = self.canonical_symbol(symbol_id);
+        space: dir::MemberSpace,
+    ) -> QueryResult<Vec<MemberCandidate>> {
+        let Some(symbol_id) = program.canonical_symbol(symbol_id)? else {
+            return Ok(Vec::new());
+        };
         let mut members = program
-            .owner_members(symbol_id)
+            .owner_members(symbol_id)?
             .into_iter()
-            .filter(|entry| entry.origin != dir::MemberOrigin::Extension)
+            .filter(|entry| entry.origin != dir::MemberOrigin::Extension && entry.space == space)
             .map(MemberCandidate::from_entry)
             .collect::<Vec<_>>();
 
         // merge extension members for this symbol
-        let extension_members = self.extension_members(program, symbol_id);
+        let extension_members = self.extension_members(program, symbol_id, space)?;
 
         // avoid duplicate member names across direct and extension members
         for member in extension_members {
@@ -188,59 +197,64 @@ impl ModuleQueryContext<'_> {
             members.push(member);
         }
 
-        members
+        Ok(members)
     }
 
     /// Resolve checked type members while tracking active type ids.
     fn resolve_type_members_inner(
         &self,
         program: &ProgramQueryContext<'_>,
+        environment: &GlobalEnvironment,
         type_id: dir::GlobalTypeId,
-        ty: &dir::Type,
-        state: &mut MemberResolutionState,
-    ) -> Vec<MemberCandidate> {
-        if !state.enter(type_id) {
-            return Vec::new();
+        checked_type: &dir::Type,
+        active_types: &mut ActiveTypes,
+        is_optional: bool,
+    ) -> QueryResult<Vec<MemberCandidate>> {
+        if !active_types.enter(type_id) {
+            return Ok(Vec::new());
         }
 
         let strings = self.strings();
 
-        let members = match ty {
+        let members = match checked_type {
             // resolve declaration and extension members
-            dir::Type::Application(reference) => {
-                self.resolve_reference_members(program, reference.symbol)
+            dir::Type::Reference(reference) => {
+                self.resolve_reference_members(program, reference.symbol, dir::MemberSpace::Static)?
             }
+            dir::Type::Application(reference) => self.resolve_reference_members(
+                program,
+                reference.symbol,
+                dir::MemberSpace::Instance,
+            )?,
 
             // build structural field and signature members
             dir::Type::Shape(object) => {
                 let mut members = Vec::new();
 
                 for field in self.types().fields(object.fields) {
-                    let kind = self.field_member_kind(field.ty);
-
                     members.push(MemberCandidate {
                         name: MemberName::from_static_key(&field.key, strings),
                         type_id: Some(field.ty),
-                        kind,
+                        kind: MemberKind::Property,
                         symbol_id: None,
                         is_extension: false,
                     });
                 }
 
-                for sig_type_id in self.types().type_ids(object.call_signatures) {
+                for signature_type_id in self.types().type_ids(object.call_signatures) {
                     members.push(MemberCandidate {
                         name: MemberName::Computed,
-                        type_id: Some(*sig_type_id),
+                        type_id: Some(*signature_type_id),
                         kind: MemberKind::CallSignature,
                         symbol_id: None,
                         is_extension: false,
                     });
                 }
 
-                for sig_type_id in self.types().type_ids(object.construct_signatures) {
+                for signature_type_id in self.types().type_ids(object.construct_signatures) {
                     members.push(MemberCandidate {
                         name: MemberName::Computed,
-                        type_id: Some(*sig_type_id),
+                        type_id: Some(*signature_type_id),
                         kind: MemberKind::ConstructSignature,
                         symbol_id: None,
                         is_extension: false,
@@ -252,30 +266,58 @@ impl ModuleQueryContext<'_> {
 
             // keep members common to every union element
             dir::Type::Union(union) => {
-                let elements = self.types().type_ids(union.elements);
+                let mut elements = Vec::new();
+                for element_id in self.types().type_ids(union.elements) {
+                    if is_optional && self.type_is_nullish(program, *element_id)? {
+                        continue;
+                    }
+
+                    elements.push(*element_id);
+                }
+
                 if elements.is_empty() {
                     Vec::new()
                 } else {
                     let first_id = elements[0];
-                    let mut common_members = self.read_global_type(first_id, |ty, type_module| {
-                        type_module.resolve_type_members_inner(program, first_id, ty, state)
-                    });
+                    let mut common_members =
+                        self.read_global_type(program, first_id, |checked_type, type_module| {
+                            type_module.resolve_type_members_inner(
+                                program,
+                                environment,
+                                first_id,
+                                checked_type,
+                                active_types,
+                                is_optional,
+                            )
+                        })??;
 
                     for element_id in &elements[1..] {
-                        let element_members =
-                            self.read_global_type(*element_id, |ty, type_module| {
+                        let element_members = self.read_global_type(
+                            program,
+                            *element_id,
+                            |checked_type, type_module| {
                                 type_module.resolve_type_members_inner(
                                     program,
+                                    environment,
                                     *element_id,
-                                    ty,
-                                    state,
+                                    checked_type,
+                                    active_types,
+                                    is_optional,
                                 )
-                            });
+                            },
+                        )??;
 
-                        common_members.retain(|member| {
-                            element_members
+                        common_members.retain_mut(|member| {
+                            let Some(other) = element_members
                                 .iter()
-                                .any(|other| member.name.matches(&other.name))
+                                .find(|other| member.name.matches(&other.name))
+                            else {
+                                return false;
+                            };
+
+                            member.merge(other);
+
+                            true
                         });
                     }
 
@@ -286,39 +328,34 @@ impl ModuleQueryContext<'_> {
             // combine members from every intersection element
             dir::Type::Intersection(intersection) => {
                 let elements = self.types().type_ids(intersection.elements);
-                let is_enum_static = elements.iter().any(|element_id| {
-                    self.read_global_type(*element_id, |element, _| {
-                        let dir::Type::Form(value) = element else {
-                            return false;
-                        };
-
-                        self.read_global_type(value.value, |inner, _| {
-                            let dir::Type::Application(reference) = inner else {
-                                return false;
-                            };
-
-                            let symbol_module = self.module_context(reference.symbol.module_id);
-                            let symbols_table = symbol_module.symbols();
-                            let symbol = symbols_table.get_symbol(reference.symbol.local_id);
-                            symbol.kind == dir::SymbolKind::Enum
-                        })
-                    })
-                });
-
                 let mut all_members = Vec::new();
-                let mut seen_names: Vec<MemberName> = Vec::new();
 
                 for element_id in elements {
-                    let element_members = self.read_global_type(*element_id, |ty, type_module| {
-                        type_module.resolve_type_members_inner(program, *element_id, ty, state)
-                    });
+                    let element_members = self.read_global_type(
+                        program,
+                        *element_id,
+                        |checked_type, type_module| {
+                            type_module.resolve_type_members_inner(
+                                program,
+                                environment,
+                                *element_id,
+                                checked_type,
+                                active_types,
+                                is_optional,
+                            )
+                        },
+                    )??;
 
-                    for mut member in element_members {
-                        if !seen_names.iter().any(|name| name.matches(&member.name)) {
-                            if is_enum_static && member.kind == MemberKind::Field {
-                                member.kind = MemberKind::EnumMember;
-                            }
-                            seen_names.push(member.name.clone());
+                    for member in element_members {
+                        if let Some(existing) =
+                            all_members
+                                .iter_mut()
+                                .find(|existing: &&mut MemberCandidate| {
+                                    existing.name.matches(&member.name)
+                                })
+                        {
+                            existing.merge(&member);
+                        } else {
                             all_members.push(member);
                         }
                     }
@@ -342,29 +379,51 @@ impl ModuleQueryContext<'_> {
                 })
                 .collect(),
 
-            // use the central array type surface
-            dir::Type::Slice(_) => self.array_members(program),
+            // use the central Array language item
+            dir::Type::Slice(_) => self.array_members(program, environment)?,
 
-            dir::Type::FixedArray(_) => self.array_members(program),
+            dir::Type::FixedArray(_) => self.array_members(program, environment)?,
 
-            // use the primitive backing type surface
-            dir::Type::Primitive(primitive) => self.primitive_members(program, *primitive),
+            // use primitive language items
+            dir::Type::Primitive(primitive) => {
+                self.primitive_members(program, environment, *primitive)?
+            }
 
-            // use the literal backing type surface
-            dir::Type::Literal(literal) => self.literal_members(program, literal),
+            // use literal language items
+            dir::Type::Literal(literal) => self.literal_members(program, environment, literal)?,
 
             // follow form wrappers
-            dir::Type::Form(value) => self.read_global_type(value.value, |ty, type_module| {
-                type_module.resolve_type_members_inner(program, value.value, ty, state)
-            }),
+            dir::Type::Form(value) => {
+                self.read_global_type(program, value.value, |checked_type, type_module| {
+                    type_module.resolve_type_members_inner(
+                        program,
+                        environment,
+                        value.value,
+                        checked_type,
+                        active_types,
+                        is_optional,
+                    )
+                })??
+            }
 
             // return no members for non member bearing types
             _ => Vec::new(),
         };
 
-        state.leave(type_id);
+        active_types.leave(type_id);
 
-        members
+        Ok(members)
+    }
+
+    /// Return whether one checked type is `null` or `undefined`.
+    fn type_is_nullish(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        type_id: dir::GlobalTypeId,
+    ) -> QueryResult<bool> {
+        self.read_global_type(program, type_id, |checked_type, _| {
+            matches!(checked_type, dir::Type::Null | dir::Type::Undefined)
+        })
     }
 
     /// Resolve extension members for a target symbol across all modules.
@@ -372,20 +431,22 @@ impl ModuleQueryContext<'_> {
         &self,
         program: &ProgramQueryContext<'_>,
         target_symbol: dir::GlobalSymbolId,
-    ) -> Vec<MemberCandidate> {
+        space: dir::MemberSpace,
+    ) -> QueryResult<Vec<MemberCandidate>> {
         let mut members = Vec::new();
 
         // collect members from visible extension declarations
-        for extension in self.visible_extensions(program, target_symbol) {
-            let extension_members = program.declaring_members(extension.declaration);
+        for extension in self.visible_extensions(program, target_symbol)? {
+            let extension_members = program.declaring_members(extension.declaration)?;
             members.extend(
                 extension_members
                     .into_iter()
+                    .filter(|member| member.space == space)
                     .map(MemberCandidate::from_entry),
             );
         }
 
-        members
+        Ok(members)
     }
 
     /// Collect visible extensions for one target symbol.
@@ -393,17 +454,23 @@ impl ModuleQueryContext<'_> {
         &self,
         program: &ProgramQueryContext<'_>,
         target_symbol: dir::GlobalSymbolId,
-    ) -> Vec<dir::ExtensionEntry> {
-        let canonical_target = self.canonical_symbol(target_symbol);
+    ) -> QueryResult<Vec<dir::ExtensionEntry>> {
+        // FUGU #Incomplete: select blanket extensions through checked type relations
+        let Some(canonical_target) = program.canonical_symbol(target_symbol)? else {
+            return Ok(Vec::new());
+        };
         let mut entries = Vec::new();
 
         // collect extensions indexed for the canonical target
-        for entry in program.root_extensions(canonical_target) {
-            let extension_module = self.module_context(entry.declaration.module_id);
+        for entry in program.root_extensions(canonical_target)? {
+            let extension_module = program.module(entry.declaration.module_id)?;
             let extension = extension_module
                 .definitions()
                 .extension_definition(entry.declaration)
-                .unwrap_or_else(|| panic!("missing extension definition for {entry:?}"));
+                .ok_or(QueryError::missing(format!(
+                    "extension definition: {:?}",
+                    entry.declaration
+                )))?;
 
             if !extension.is_visible_from(self.module_id()) {
                 continue;
@@ -412,21 +479,26 @@ impl ModuleQueryContext<'_> {
             entries.push(entry);
         }
 
-        entries
+        Ok(entries)
     }
 
     /// Get members for array types by resolving the language item Array symbol.
-    fn array_members(&self, program: &ProgramQueryContext<'_>) -> Vec<MemberCandidate> {
+    fn array_members(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        environment: &GlobalEnvironment,
+    ) -> QueryResult<Vec<MemberCandidate>> {
         // resolve members from the Array language item symbol
-        self.resolve_language_item_members(program, dir::LanguageItem::Array)
+        self.resolve_language_item_members(program, environment, dir::LanguageItem::Array)
     }
 
     /// Get members for primitive types by resolving the appropriate language item symbol.
     fn primitive_members(
         &self,
         program: &ProgramQueryContext<'_>,
+        environment: &GlobalEnvironment,
         primitive: dir::PrimitiveType,
-    ) -> Vec<MemberCandidate> {
+    ) -> QueryResult<Vec<MemberCandidate>> {
         // map primitive types to their backing language item types
         let language_item = match primitive {
             dir::PrimitiveType::String => Some(dir::LanguageItem::String),
@@ -442,9 +514,9 @@ impl ModuleQueryContext<'_> {
 
         // return members for primitive types with a backing language item
         if let Some(item) = language_item {
-            self.resolve_language_item_members(program, item)
+            self.resolve_language_item_members(program, environment, item)
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     }
 
@@ -452,8 +524,9 @@ impl ModuleQueryContext<'_> {
     fn literal_members(
         &self,
         program: &ProgramQueryContext<'_>,
+        environment: &GlobalEnvironment,
         literal: &dir::ScalarLiteral,
-    ) -> Vec<MemberCandidate> {
+    ) -> QueryResult<Vec<MemberCandidate>> {
         // map scalar literals to their backing language item types
         let language_item = match literal {
             dir::ScalarLiteral::String(_) => Some(dir::LanguageItem::String),
@@ -469,24 +542,24 @@ impl ModuleQueryContext<'_> {
 
         // return members for literals with a backing language item
         if let Some(item) = language_item {
-            self.resolve_language_item_members(program, item)
+            self.resolve_language_item_members(program, environment, item)
         } else {
-            Vec::new()
+            Ok(Vec::new())
         }
     }
 
-    /// Resolve members from a language item symbol (Array, String, etc.).
+    /// Resolve members from a language intrinsic symbol.
     fn resolve_language_item_members(
         &self,
         program: &ProgramQueryContext<'_>,
+        environment: &GlobalEnvironment,
         item: dir::LanguageItem,
-    ) -> Vec<MemberCandidate> {
+    ) -> QueryResult<Vec<MemberCandidate>> {
         // resolve the exact language item symbol from the current profile
-        let environment = self.global_environment();
         let Some(symbol_id) = environment.language.symbol(item) else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
 
-        self.resolve_reference_members(program, symbol_id)
+        self.resolve_reference_members(program, symbol_id, dir::MemberSpace::Instance)
     }
 }

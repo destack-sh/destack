@@ -1,21 +1,20 @@
-use std::collections::HashSet;
-
 use destack_dir as dir;
+use rustc_hash::FxHashSet;
 
-use super::{Completion, CompletionKind, SORT_BUILTIN, SORT_KEYWORD};
+use crate::{
+    CompletionCandidate, CompletionItemKind, CompletionOrigin, SORT_BUILTIN, SORT_KEYWORD,
+};
 
 /// Primitive type completions.
-pub(super) fn primitive_type_completions() -> Vec<Completion> {
+pub(super) fn primitive_type_completions() -> Vec<CompletionCandidate> {
     let mut names = vec![
-        "any".to_string(),
         "unknown".to_string(),
         "never".to_string(),
         "void".to_string(),
         "null".to_string(),
         "undefined".to_string(),
-        "object".to_string(),
         "boolean".to_string(),
-        "character".to_string(),
+        "char".to_string(),
         "string".to_string(),
         "bigint".to_string(),
         "number".to_string(),
@@ -34,7 +33,7 @@ pub(super) fn primitive_type_completions() -> Vec<Completion> {
         names.push(float_type.as_str().to_string());
     }
 
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     let mut completions = Vec::new();
     for name in names {
         if !seen.insert(name.clone()) {
@@ -42,10 +41,13 @@ pub(super) fn primitive_type_completions() -> Vec<Completion> {
         }
 
         completions.push(
-            Completion::new(&name, CompletionKind::TypeParameter)
-                .with_sort_order(SORT_BUILTIN)
-                .with_sort_text(length_sort_text(&name))
-                .as_builtin(),
+            CompletionCandidate::new(
+                &name,
+                CompletionItemKind::BuiltinType,
+                CompletionOrigin::Builtin,
+                SORT_BUILTIN,
+            )
+            .with_ordering_text(length_ordering_text(&name)),
         );
     }
 
@@ -53,8 +55,8 @@ pub(super) fn primitive_type_completions() -> Vec<Completion> {
 }
 
 /// Keyword completions.
-pub(super) fn keyword_completions() -> Vec<Completion> {
-    let mut seen = HashSet::new();
+pub(super) fn keyword_completions() -> Vec<CompletionCandidate> {
+    let mut seen = FxHashSet::default();
     let mut completions = Vec::new();
 
     for keyword in keywords() {
@@ -63,12 +65,15 @@ pub(super) fn keyword_completions() -> Vec<Completion> {
             continue;
         }
 
-        let mut completion = Completion::new(label, CompletionKind::Keyword)
-            .with_sort_order(SORT_KEYWORD)
-            .with_sort_text(length_sort_text(label))
-            .as_keyword();
+        let mut completion = CompletionCandidate::new(
+            label,
+            CompletionItemKind::Keyword,
+            CompletionOrigin::Keyword,
+            SORT_KEYWORD,
+        )
+        .with_ordering_text(length_ordering_text(label));
         if let Some(snippet) = keyword_snippet(keyword) {
-            completion = completion.with_insert_text(snippet).as_snippet();
+            completion = completion.with_insert_text(snippet).with_snippet();
         }
 
         completions.push(completion);
@@ -80,18 +85,21 @@ pub(super) fn keyword_completions() -> Vec<Completion> {
         }
 
         completions.push(
-            Completion::new(literal, CompletionKind::Keyword)
-                .with_sort_order(SORT_KEYWORD)
-                .with_sort_text(length_sort_text(literal))
-                .as_keyword(),
+            CompletionCandidate::new(
+                literal,
+                CompletionItemKind::Keyword,
+                CompletionOrigin::Keyword,
+                SORT_KEYWORD,
+            )
+            .with_ordering_text(length_ordering_text(literal)),
         );
     }
 
     completions
 }
 
-/// Build one stable length-aware sort text.
-pub(super) fn length_sort_text(label: &str) -> String {
+/// Build stable length-aware ordering text.
+pub(super) fn length_ordering_text(label: &str) -> String {
     format!("{:02}:{}", label.chars().count(), label.to_lowercase())
 }
 
@@ -151,27 +159,11 @@ fn integer_types() -> [dir::IntegerType; 14] {
     ]
 }
 
-/// Return keywords shown in statement completion.
-fn keywords() -> [dir::Keyword; 76] {
+/// Return keywords that can begin a declaration or statement.
+fn keywords() -> [dir::Keyword; 42] {
     [
-        dir::Keyword::Public,
-        dir::Keyword::Protected,
-        dir::Keyword::Private,
-        dir::Keyword::Readonly,
-        dir::Keyword::Exclusive,
-        dir::Keyword::Local,
-        dir::Keyword::Shared,
-        dir::Keyword::Static,
-        dir::Keyword::Final,
-        dir::Keyword::Virtual,
-        dir::Keyword::Accessor,
-        dir::Keyword::Default,
-        dir::Keyword::This,
-        dir::Keyword::Super,
-        dir::Keyword::Package,
         dir::Keyword::Import,
         dir::Keyword::Export,
-        dir::Keyword::From,
         dir::Keyword::Const,
         dir::Keyword::Let,
         dir::Keyword::Type,
@@ -183,27 +175,6 @@ fn keywords() -> [dir::Keyword; 76] {
         dir::Keyword::Function,
         dir::Keyword::Extension,
         dir::Keyword::Declare,
-        dir::Keyword::New,
-        dir::Keyword::Constructor,
-        dir::Keyword::Extends,
-        dir::Keyword::Implements,
-        dir::Keyword::Satisfies,
-        dir::Keyword::Abstract,
-        dir::Keyword::Override,
-        dir::Keyword::InstanceOf,
-        dir::Keyword::Where,
-        dir::Keyword::Typeof,
-        dir::Keyword::Void,
-        dir::Keyword::Null,
-        dir::Keyword::Undefined,
-        dir::Keyword::Keyof,
-        dir::Keyword::Infer,
-        dir::Keyword::Any,
-        dir::Keyword::Never,
-        dir::Keyword::As,
-        dir::Keyword::Is,
-        dir::Keyword::In,
-        dir::Keyword::Of,
         dir::Keyword::Using,
         dir::Keyword::Comptime,
         dir::Keyword::If,
@@ -226,10 +197,13 @@ fn keywords() -> [dir::Keyword; 76] {
         dir::Keyword::Finally,
         dir::Keyword::Async,
         dir::Keyword::Await,
-        dir::Keyword::Get,
-        dir::Keyword::Set,
         dir::Keyword::Move,
         dir::Keyword::With,
+        dir::Keyword::New,
+        dir::Keyword::This,
+        dir::Keyword::Super,
+        dir::Keyword::Null,
+        dir::Keyword::Undefined,
     ]
 }
 

@@ -73,10 +73,10 @@ impl<'a> Iterator for VisibleSymbolIterator<'a> {
                 }
 
                 // filter by use if requested
-                if let Some(symbol_use) = self.use_filter {
-                    if !symbol_use.accepts_symbol_kind(symbol.kind) {
-                        continue;
-                    }
+                if let Some(symbol_use) = self.use_filter
+                    && !symbol_use.accepts_symbol_kind(symbol.kind)
+                {
+                    continue;
                 }
 
                 return Some(VisibleSymbol {

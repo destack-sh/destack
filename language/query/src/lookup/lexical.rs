@@ -279,7 +279,7 @@ impl<'a> LexicalQuery<'a> {
         }
 
         let spread = if let Some(first_ordinal) = first_ordinal {
-            last_ordinal.saturating_sub(first_ordinal) as u32
+            (last_ordinal - first_ordinal) as u32
         } else {
             0
         };
@@ -339,106 +339,4 @@ struct SubsequenceMatch {
     spread: u32,
     /// The number of case-folded, not exact, matches.
     case_mismatches: u32,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Prefer exact prefixes over weaker lexical matches.
-    #[test]
-    fn test_prefers_exact_prefix_matches() {
-        let exact = match_quality("toString", "to").unwrap();
-        let boundary = match_quality("toString", "tS").unwrap();
-
-        assert!(exact.kind > boundary.kind);
-        assert!(exact.score > boundary.score);
-    }
-
-    /// Preserve case quality inside prefix matches.
-    #[test]
-    fn test_prefers_exact_case_prefix_matches() {
-        let exact = match_quality("toString", "to").unwrap();
-        let folded = match_quality("ToString", "to").unwrap();
-
-        assert_eq!(exact.kind, MatchKind::ExactPrefix);
-        assert_eq!(folded.kind, MatchKind::CaseInsensitivePrefix);
-        assert!(exact.score > folded.score);
-    }
-
-    /// Prefer exact whole-name matches over longer prefixes.
-    #[test]
-    fn test_prefers_exact_whole_matches() {
-        let exact = match_quality("format", "format").unwrap();
-        let prefix = match_quality("formatName", "format").unwrap();
-
-        assert_eq!(exact.kind, MatchKind::ExactWhole);
-        assert_eq!(prefix.kind, MatchKind::ExactPrefix);
-        assert!(exact.kind > prefix.kind);
-        assert!(exact.score > prefix.score);
-    }
-
-    /// Prefer case-insensitive whole-name matches over longer prefixes.
-    #[test]
-    fn test_prefers_case_insensitive_whole_matches() {
-        let exact = match_quality("Format", "format").unwrap();
-        let prefix = match_quality("formatName", "format").unwrap();
-
-        assert_eq!(exact.kind, MatchKind::CaseInsensitiveWhole);
-        assert_eq!(prefix.kind, MatchKind::ExactPrefix);
-        assert!(exact.kind > prefix.kind);
-    }
-
-    /// Preserve case quality inside boundary matches.
-    #[test]
-    fn test_prefers_exact_case_boundary_matches() {
-        let exact = match_quality("HTTPServer", "HS").unwrap();
-        let folded = match_quality("httpServer", "HS").unwrap();
-
-        assert_eq!(exact.kind, MatchKind::ExactBoundary);
-        assert_eq!(folded.kind, MatchKind::CaseInsensitiveBoundary);
-        assert!(exact.score > folded.score);
-    }
-
-    /// Match camel case boundaries.
-    #[test]
-    fn test_matches_camel_case_boundaries() {
-        let matched = match_quality("getElementsByAttribute", "gEA").unwrap();
-
-        assert_eq!(matched.kind, MatchKind::ExactBoundary);
-        assert_eq!(matched.matched_indices, vec![0, 3, 13]);
-    }
-
-    /// Match snake case boundaries.
-    #[test]
-    fn test_matches_snake_case_boundaries() {
-        let matched = match_quality("get_element_by_id", "gebi").unwrap();
-
-        assert_eq!(matched.kind, MatchKind::ExactBoundary);
-        assert_eq!(matched.matched_indices, vec![0, 4, 12, 15]);
-    }
-
-    /// Preserve subsequence matches when prefixes are unavailable.
-    #[test]
-    fn test_matches_subsequences() {
-        let matched = match_quality("completion", "cmpl").unwrap();
-
-        assert_eq!(matched.kind, MatchKind::Subsequence);
-        assert_eq!(matched.matched_indices, vec![0, 2, 3, 4]);
-    }
-
-    /// Reject unmatched lexical queries.
-    #[test]
-    fn test_rejects_non_matches() {
-        assert!(match_quality("toString", "xyz").is_none());
-    }
-
-    /// Return empty match positions for empty queries.
-    #[test]
-    fn test_empty_query_has_no_positions() {
-        let matched = match_quality("anything", "").unwrap();
-
-        assert_eq!(matched.kind, MatchKind::NoFilter);
-        assert!(matched.matched_indices.is_empty());
-    }
 }

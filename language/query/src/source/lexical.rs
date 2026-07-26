@@ -1,7 +1,7 @@
 use destack_dir as dir;
-use destack_source::Span;
+use destack_source::{FileId, Span};
 
-use crate::ModuleQueryContext;
+use crate::{ModuleQueryContext, QueryError, QueryResult};
 
 /// Check whether a token type is trivia.
 pub(crate) fn is_trivia_token(token: dir::TokenType) -> bool {
@@ -18,27 +18,31 @@ pub(crate) fn is_trivia_token(token: dir::TokenType) -> bool {
 }
 
 /// Read one token slice from the source text.
-pub(crate) fn token_text(source: &str, span: Span) -> Option<&str> {
-    source.get(span.start as usize..span.end as usize)
+pub(crate) fn token_text(source: &str, span: Span) -> QueryResult<&str> {
+    let text = source
+        .get(span.start as usize..span.end as usize)
+        .ok_or(QueryError::invalid(format!("source span: {span:?}")))?;
+
+    Ok(text)
 }
 
 impl ModuleQueryContext<'_> {
     /// Find the previous significant token before or at the cursor.
-    pub(crate) fn previous_significant_token(&self, offset: u32) -> Option<dir::TokenSpan> {
+    pub(crate) fn previous_significant_token(
+        &self,
+        file_id: FileId,
+        offset: u32,
+    ) -> QueryResult<Option<dir::TokenSpan>> {
         let mut candidate = None;
 
         // scan tokens in order for the latest significant token before the offset
-        for token in self.tokens() {
-            if token.span.file != self.file_id() {
-                continue;
-            }
-
+        for token in self.tokens(file_id)? {
             if is_trivia_token(token.token.ty()) {
                 continue;
             }
 
             if token.span.end <= offset {
-                candidate = Some(*token);
+                candidate = Some(token);
                 continue;
             }
 
@@ -47,99 +51,80 @@ impl ModuleQueryContext<'_> {
             }
         }
 
-        candidate
+        Ok(candidate)
     }
 
     /// Find the next significant token after or at the cursor.
-    pub(crate) fn next_significant_token(&self, offset: u32) -> Option<dir::TokenSpan> {
+    pub(crate) fn next_significant_token(
+        &self,
+        file_id: FileId,
+        offset: u32,
+    ) -> QueryResult<Option<dir::TokenSpan>> {
         // scan tokens in order for the first significant token after the offset
-        for token in self.tokens() {
-            if token.span.file != self.file_id() {
-                continue;
-            }
-
+        for token in self.tokens(file_id)? {
             if is_trivia_token(token.token.ty()) {
                 continue;
             }
 
             if token.span.start >= offset {
-                return Some(*token);
+                return Ok(Some(token));
             }
         }
 
-        None
+        Ok(None)
     }
 
     /// Resolve the member access dot before the given offset when present.
-    pub(crate) fn member_access_dot_before_offset(&self, offset: u32) -> Option<dir::TokenSpan> {
-        let previous = self.previous_significant_token(offset)?;
+    pub(crate) fn member_access_dot_before_offset(
+        &self,
+        file_id: FileId,
+        offset: u32,
+    ) -> QueryResult<Option<dir::TokenSpan>> {
+        let Some(previous) = self.previous_significant_token(file_id, offset)? else {
+            return Ok(None);
+        };
 
         // `value.$0`
         if previous.token.ty() == dir::TokenType::Dot {
-            return Some(previous);
+            return Ok(Some(previous));
         }
 
         // only identifiers can continue one already started member name
         if previous.token.ty() != dir::TokenType::Identifier {
-            return None;
+            return Ok(None);
         }
 
-        let dot = self.previous_significant_token(previous.span.start)?;
+        let Some(dot) = self.previous_significant_token(file_id, previous.span.start)? else {
+            return Ok(None);
+        };
         if dot.token.ty() != dir::TokenType::Dot {
-            return None;
+            return Ok(None);
         }
 
-        Some(dot)
+        Ok(Some(dot))
     }
 
     /// Resolve the receiver token before one member access dot.
     pub(crate) fn receiver_token_before_member_access_dot(
         &self,
         dot: dir::TokenSpan,
-    ) -> Option<dir::TokenSpan> {
-        let mut receiver_token = self.previous_significant_token(dot.span.start)?;
+    ) -> QueryResult<Option<dir::TokenSpan>> {
+        let file_id = dot.span.file;
+        let Some(mut receiver_token) = self.previous_significant_token(file_id, dot.span.start)?
+        else {
+            return Ok(None);
+        };
 
         // optional chaining inserts `?` before `.`
         if receiver_token.token.ty() == dir::TokenType::Maybe {
-            receiver_token = self.previous_significant_token(receiver_token.span.start)?;
+            let Some(previous) =
+                self.previous_significant_token(file_id, receiver_token.span.start)?
+            else {
+                return Ok(None);
+            };
+            receiver_token = previous;
         }
 
-        Some(receiver_token)
-    }
-
-    /// Check whether one token range contains a statement boundary.
-    pub(crate) fn tokens_between_offsets_include_statement_boundary(
-        &self,
-        start: u32,
-        end: u32,
-    ) -> bool {
-        // scan non trivia tokens between the two offsets
-        for token in self.tokens() {
-            if token.span.file != self.file_id() {
-                continue;
-            }
-
-            if token.span.end <= start {
-                continue;
-            }
-
-            if token.span.start >= end {
-                break;
-            }
-
-            // newlines and semicolons both terminate keyword-owned slots
-            if matches!(
-                token.token.ty(),
-                dir::TokenType::Newline | dir::TokenType::Semicolon
-            ) {
-                return true;
-            }
-
-            if is_trivia_token(token.token.ty()) {
-                continue;
-            }
-        }
-
-        false
+        Ok(Some(receiver_token))
     }
 }
