@@ -19,6 +19,8 @@ pub struct SiteTable {
     memory: SectionSlice<MemorySite>,
     /// Function call operation sites sorted by program point.
     calls: SectionSlice<CallSite>,
+    /// Continuation resume operation sites sorted by program point.
+    resumes: SectionSlice<ResumeSite>,
     /// Control-flow edge sites sorted by source and target point.
     edges: SectionSlice<EdgeSite>,
     /// Coroutine suspension sites sorted by program point.
@@ -98,6 +100,30 @@ impl SiteTable {
     /// Return the number of call sites.
     pub fn call_count(&self, sections: SectionImage<'_>) -> usize {
         self.calls(sections).len()
+    }
+
+    /// Return the continuation resume site at one program point.
+    pub fn resume<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        point: ProgramPoint,
+    ) -> Option<(ResumeSiteId, &'a ResumeSite)> {
+        let resumes = self.resumes(sections);
+        let index = resumes
+            .binary_search_by_key(&point, |site| site.point)
+            .ok()?;
+
+        Some((ResumeSiteId(index as u32), &resumes[index]))
+    }
+
+    /// Return all continuation resume sites.
+    pub fn resumes<'a>(&self, sections: SectionImage<'a>) -> &'a [ResumeSite] {
+        sections.entries(self.resumes)
+    }
+
+    /// Return the number of continuation resume sites.
+    pub fn resume_count(&self, sections: SectionImage<'_>) -> usize {
+        self.resumes(sections).len()
     }
 
     /// Return the edge site for one observed transfer.
@@ -213,6 +239,8 @@ pub struct SiteTableBuilder {
     memory: Vec<MemorySite>,
     /// Function call operation sites.
     calls: Vec<CallSite>,
+    /// Continuation resume operation sites.
+    resumes: Vec<ResumeSite>,
     /// Control-flow edge sites.
     edges: Vec<EdgeSite>,
     /// Coroutine suspension sites.
@@ -250,6 +278,13 @@ impl SiteTableBuilder {
         self
     }
 
+    /// Set continuation resume operation sites.
+    pub fn resumes(mut self, resumes: impl IntoIterator<Item = ResumeSite>) -> Self {
+        self.resumes = resumes.into_iter().collect();
+
+        self
+    }
+
     /// Set control flow edge sites.
     pub fn edges(mut self, edges: impl IntoIterator<Item = EdgeSite>) -> Self {
         self.edges = edges.into_iter().collect();
@@ -283,6 +318,7 @@ impl SiteTableBuilder {
         self.allocations.sort_unstable_by_key(|site| site.point);
         self.memory.sort_unstable_by_key(|site| site.point);
         self.calls.sort_unstable_by_key(|site| site.point);
+        self.resumes.sort_unstable_by_key(|site| site.point);
         self.edges
             .sort_unstable_by_key(|site| (site.source, site.target));
         self.edges.dedup_by_key(|site| (site.source, site.target));
@@ -294,6 +330,7 @@ impl SiteTableBuilder {
             allocations: sections.insert(self.allocations),
             memory: sections.insert(self.memory),
             calls: sections.insert(self.calls),
+            resumes: sections.insert(self.resumes),
             edges: sections.insert(self.edges),
             suspensions: sections.insert(self.suspensions),
             counters: sections.insert(self.counters),
@@ -337,6 +374,24 @@ pub struct AllocationSiteId(pub u32);
     SectionEntry,
 )]
 pub struct CallSiteId(pub u32);
+
+/// Dense continuation resume site identifier within one program.
+#[repr(transparent)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
+)]
+pub struct ResumeSiteId(pub u32);
 
 /// Dense control-flow edge site identifier within one program.
 #[repr(transparent)]
@@ -462,6 +517,20 @@ pub struct CallSite {
     pub slot: Optional<u32>,
 }
 
+/// Continuation resume operation at one program point.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct ResumeSite {
+    /// The program point that resumes the continuation.
+    pub point: ProgramPoint,
+    /// The program point entered when the continuation yields.
+    pub yielded: ProgramPoint,
+    /// The program point entered when the continuation returns.
+    pub returned: ProgramPoint,
+    /// The program point entered during panic unwinding.
+    pub unwind: Optional<ProgramPoint>,
+}
+
 /// Control-flow edge between program points.
 #[repr(C)]
 #[derive(
@@ -482,6 +551,8 @@ pub struct SuspensionSite {
     pub point: ProgramPoint,
     /// The program point entered by normal resumption.
     pub resume: ProgramPoint,
+    /// The program point entered during cancellation when present.
+    pub cancel: Optional<ProgramPoint>,
     /// The program point entered during panic unwinding.
     pub unwind: Optional<ProgramPoint>,
     /// The canonical frame state captured at this site.
@@ -580,6 +651,13 @@ impl AllocationSiteId {
 }
 
 impl CallSiteId {
+    /// Return this site id as a dense array index.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl ResumeSiteId {
     /// Return this site id as a dense array index.
     pub const fn index(self) -> usize {
         self.0 as usize

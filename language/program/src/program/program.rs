@@ -17,11 +17,11 @@ use crate::{
     DropTable, DynamicEntry, DynamicTable, DynamicTableId, Error, FrameLayout, FrameLayoutId,
     FrameSlot, FrameState, FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global,
     GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
-    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite,
-    SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage,
-    StaticSpace, StringTable, SuspensionSite, SuspensionSiteId, TensorDimension, TensorLayout,
-    TensorViewLayout, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable,
-    VirtualTableId, Word, WordLayout, native, wasm,
+    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, ResumeSite, ResumeSiteId,
+    SampleKey, SampleSite, SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId,
+    SiteTable, StaticImage, StaticSpace, StringTable, SuspensionSite, SuspensionSiteId,
+    TensorDimension, TensorLayout, TensorViewLayout, TypeId, TypeTable, Value, VariantCaseLayout,
+    VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout, native, wasm,
 };
 
 /// Linked program.
@@ -207,6 +207,11 @@ impl Program {
     /// Return the call site at one program point.
     pub fn call(&self, point: ProgramPoint) -> Option<(CallSiteId, &CallSite)> {
         self.sites.call(self.sections(), point)
+    }
+
+    /// Return the continuation resume site at one program point.
+    pub fn resume(&self, point: ProgramPoint) -> Option<(ResumeSiteId, &ResumeSite)> {
+        self.sites.resume(self.sections(), point)
     }
 
     /// Return the coroutine suspension site at one program point.
