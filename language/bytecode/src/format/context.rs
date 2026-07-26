@@ -8,7 +8,7 @@ use destack_fir::format::{
 use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
-use crate::{CodeOffset, CodeRange, FunctionId, Label, Object, RegisterSpan, Relocation};
+use crate::{CodeOffset, CodeRange, FunctionId, Label, Object, Relocation};
 
 /// Shared state for formatting one bytecode object.
 pub struct BytecodeFormatContext<'a> {
@@ -151,15 +151,6 @@ impl<'a> BytecodeFormatContext<'a> {
             .ok_or(FormatError::SyntaxError {
                 message: "function name is absent",
             })
-    }
-
-    /// Return one canonical physical register span.
-    pub(super) fn register_text(&self, registers: RegisterSpan) -> String {
-        if registers.word_count == 1 {
-            std::format!("r{}", registers.start.0)
-        } else {
-            std::format!("r{}:r{}", registers.start.0, registers.end() - 1)
-        }
     }
 }
 

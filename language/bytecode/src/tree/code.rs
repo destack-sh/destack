@@ -2,9 +2,7 @@ use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Error, FrameMap, FrameMapId, Function, Instruction, Instructions, Parameter, RegisterSpan,
-};
+use crate::{Error, FrameMap, FrameMapId, Function, Instruction, Instructions, RegisterSpan};
 
 /// Linked executable bytecode stored in Program sections.
 #[repr(C, align(8))]
@@ -14,8 +12,6 @@ use crate::{
 pub struct Code {
     /// Physical functions in Program function order.
     functions: SectionSlice<Function>,
-    /// Flattened physical function parameters.
-    parameters: SectionSlice<Parameter>,
     /// Physical frame maps in canonical frame state order.
     frames: SectionSlice<FrameMap>,
     /// Flattened register spans referenced by frame maps.
@@ -39,11 +35,6 @@ impl Code {
         function_index: usize,
     ) -> Option<&'a Function> {
         self.functions(sections).get(function_index)
-    }
-
-    /// Return flattened physical function parameters.
-    pub fn parameters<'a>(&self, sections: SectionImage<'a>) -> &'a [Parameter] {
-        sections.entries(self.parameters)
     }
 
     /// Return physical frame maps in canonical frame state order.
@@ -173,8 +164,6 @@ impl Code {
 pub struct CodeBuilder {
     /// Physical functions in Program function order.
     functions: Vec<Function>,
-    /// Flattened physical function parameters.
-    parameters: Vec<Parameter>,
     /// Physical frame maps in canonical frame state order.
     frames: Vec<FrameMap>,
     /// Flattened register spans referenced by frame maps.
@@ -194,13 +183,6 @@ impl CodeBuilder {
     /// Set physical functions in Program function order.
     pub fn functions(mut self, functions: impl IntoIterator<Item = Function>) -> Self {
         self.functions = functions.into_iter().collect();
-
-        self
-    }
-
-    /// Set flattened physical function parameters.
-    pub fn parameters(mut self, parameters: impl IntoIterator<Item = Parameter>) -> Self {
-        self.parameters = parameters.into_iter().collect();
 
         self
     }
@@ -237,7 +219,6 @@ impl CodeBuilder {
     pub fn build(self, sections: &mut SectionBuilder) -> Code {
         Code {
             functions: sections.insert(self.functions),
-            parameters: sections.insert(self.parameters),
             frames: sections.insert(self.frames),
             registers: sections.insert(self.registers),
             operations: sections.insert(self.operations),
@@ -307,6 +288,6 @@ impl CodeOffset {
     }
 }
 
-const _: () = assert!(size_of::<Code>() == 96);
+const _: () = assert!(size_of::<Code>() == 80);
 const _: () = assert!(size_of::<CodeRange>() == 8);
 const _: () = assert!(size_of::<CodeOffset>() == 4);

@@ -10,8 +10,8 @@ use super::TestParser;
 fn test_parse_reference_operations() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0(): t0
-function f1(): t0 {    load r4, r0, 8
+function f0
+function f1 {    load r4, r0, 8
     store r0, r4, 8
     pin.local.managed r4
     unpin.local.managed r4

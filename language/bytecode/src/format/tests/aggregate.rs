@@ -4,7 +4,7 @@ use super::format_fixture;
 #[test]
 fn test_format_aggregate_operations() {
     let input = r#"
-function f0(): t0 {
+function f0 {
     aggregate r2,([r0,0,4],[r1,8,8])
 extract r4, r2,0,4
 insert r5, r2,8,8,r1
@@ -14,7 +14,7 @@ return r4
 }
 "#;
     let expected = r#"
-function f0(): t0 {
+function f0 {
     aggregate r2, ([r0, 0, 4], [r1, 8, 8])
     extract r4, r2, 0, 4
     insert r5, r2, 8, 8, r1

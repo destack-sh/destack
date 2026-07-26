@@ -7,7 +7,7 @@ use super::TestParser;
 fn test_parse_tensor_operation() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    tensor.element r2, [(r0, l0), (r1, l0)], int.add, a0
+function f0 {    tensor.element r2, [(r0, l0), (r1, l0)], int.add, a0
     return r2
 }
 "#,

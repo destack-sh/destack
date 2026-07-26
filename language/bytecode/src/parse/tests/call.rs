@@ -7,11 +7,11 @@ use super::TestParser;
 fn test_parse_direct_call() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    call r1, f1, r0
+function f0 {    call r1, f1, r0
     return r1
 }
 
-function f1(): t0
+function f1
 "#,
     )
     .parse_opcodes(FunctionId(0));
@@ -25,8 +25,8 @@ function f1(): t0
 fn test_parse_invoke_edges() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0(): t0
-function f1(): t0 {    invoke r1, f0, r0 => b0 | b1
+function f0
+function f1 {    invoke r1, f0, r0 => b0 | b1
 
 b0:
     return r1

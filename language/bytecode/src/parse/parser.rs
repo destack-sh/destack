@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt;
 
 use destack_source::{FileId, Span};
@@ -14,13 +14,11 @@ pub struct Parser<'source> {
     /// Bytecode object being built.
     pub(super) object: ObjectBuilder,
     /// Dense function ids keyed by source name.
-    pub(super) functions: HashMap<String, FunctionId>,
+    pub(super) function_ids: HashMap<String, FunctionId>,
     /// Source names in dense function order.
     pub(super) function_names: Vec<String>,
-    /// Parsed declarations in dense function order.
-    pub(super) declarations: Vec<Option<Function>>,
-    /// Functions with one parsed physical definition.
-    pub(super) definitions: HashSet<FunctionId>,
+    /// Parsed physical functions in dense identity order.
+    pub(super) functions: Vec<Option<Function>>,
 }
 
 impl fmt::Debug for Parser<'_> {
@@ -35,10 +33,9 @@ impl<'source> Parser<'source> {
         Self {
             cursor: TokenCursor::new(file_id, source),
             object: ObjectBuilder::new(),
-            functions: HashMap::new(),
+            function_ids: HashMap::new(),
             function_names: Vec::new(),
-            declarations: Vec::new(),
-            definitions: HashSet::new(),
+            functions: Vec::new(),
         }
     }
 

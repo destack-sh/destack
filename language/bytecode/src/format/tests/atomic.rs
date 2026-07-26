@@ -5,7 +5,7 @@ use super::assert_format_eq;
 fn test_format_atomic_operations() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     atomic.load.uint32 r2, r0,acquire
 atomic.store.uint32 r0,r1,release
 atomic.rmw.add.uint32 r2, r0,r1,acquireRelease
@@ -14,7 +14,7 @@ return r2
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     atomic.load.uint32 r2, r0, acquire
     atomic.store.uint32 r0, r1, release
     atomic.rmw.add.uint32 r2, r0, r1, acquireRelease

@@ -18,10 +18,6 @@ pub struct FunctionBuilder {
     relocations: Vec<Relocation>,
     /// The greatest register index plus one.
     register_count: u16,
-    /// The greatest profile counter index plus one.
-    counter_count: u32,
-    /// The greatest profile sampler index plus one.
-    sampler_count: u32,
 }
 
 /// One complete function body built for a bytecode object.
@@ -37,10 +33,6 @@ pub struct FunctionBody {
     pub relocations: Vec<Relocation>,
     /// The number of 64-bit words in the register file.
     pub register_count: u16,
-    /// The number of function-local profile counters.
-    pub counter_count: u32,
-    /// The number of function-local profile samplers.
-    pub sampler_count: u32,
 }
 
 /// One branch operand awaiting label resolution.
@@ -86,9 +78,6 @@ impl FunctionBuilder {
         for register in &instruction.registers {
             self.include(*register)?;
         }
-        self.counter_count = self.counter_count.max(instruction.counter_count);
-        self.sampler_count = self.sampler_count.max(instruction.sampler_count);
-
         // assemble results before operation operands
         let mut operands = result_bytes;
         let result_byte_len = operands.len();
@@ -146,8 +135,6 @@ impl FunctionBuilder {
             labels: self.labels,
             relocations: self.relocations,
             register_count: self.register_count,
-            counter_count: self.counter_count,
-            sampler_count: self.sampler_count,
         })
     }
 

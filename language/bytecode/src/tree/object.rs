@@ -5,7 +5,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    CodeOffset, FrameMap, Function, FunctionId, Instruction, Instructions, Parameter, RegisterSpan,
+    CodeOffset, FrameMap, Function, FunctionId, Instruction, Instructions, RegisterSpan,
     Relocation, Result,
 };
 
@@ -58,8 +58,6 @@ pub(super) struct Header {
     pub(super) byte_len: u64,
     /// Physical functions in object-local function order.
     pub(super) functions: SectionSlice<Function>,
-    /// Flattened physical function parameters.
-    pub(super) parameters: SectionSlice<Parameter>,
     /// Physical frame maps in object-local frame state order.
     pub(super) frames: SectionSlice<FrameMap>,
     /// Flattened register spans referenced by frame maps.
@@ -83,7 +81,6 @@ impl Header {
             reserved: 0,
             byte_len: 0,
             functions: SectionSlice::empty(),
-            parameters: SectionSlice::empty(),
             frames: SectionSlice::empty(),
             registers: SectionSlice::empty(),
             operations: SectionSlice::empty(),
@@ -112,7 +109,6 @@ impl Header {
 
         // require every typed section to fit the mapped image
         header.check_section(header.functions)?;
-        header.check_section(header.parameters)?;
         header.check_section(header.frames)?;
         header.check_section(header.registers)?;
         header.check_section(header.operations)?;
@@ -179,11 +175,6 @@ impl Object {
     /// Return one object-local physical function.
     pub fn function(&self, function: FunctionId) -> Option<&Function> {
         self.functions().get(function.index())
-    }
-
-    /// Return flattened physical function parameters.
-    pub fn parameters(&self) -> &[Parameter] {
-        self.sections().entries(self.header().parameters)
     }
 
     /// Return physical frame maps in object-local frame state order.
@@ -280,4 +271,4 @@ impl<'de> Deserialize<'de> for Object {
 }
 
 const _: () = assert!(align_of::<Header>() == 16);
-const _: () = assert!(size_of::<Header>() == 128);
+const _: () = assert!(size_of::<Header>() == 112);

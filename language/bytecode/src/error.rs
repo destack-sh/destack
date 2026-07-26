@@ -27,10 +27,6 @@ pub enum Error {
     InvalidOperand,
     /// One variable operand list exceeds its encoded count range.
     TooManyOperands(usize),
-    /// One profile counter cannot be represented by the encoded counter count.
-    CounterOutOfRange(u32),
-    /// One profile sampler cannot be represented by the encoded sampler count.
-    SamplerOutOfRange(u32),
     /// One function exceeds the bytecode branch displacement range.
     FunctionTooLarge(usize),
     /// One function exceeds the encoded register count range.
@@ -77,18 +73,6 @@ impl fmt::Display for Error {
                 write!(
                     formatter,
                     "bytecode operand list is too large: {count} entries"
-                )
-            }
-            Self::CounterOutOfRange(counter) => {
-                write!(
-                    formatter,
-                    "bytecode profile counter is out of range: {counter}"
-                )
-            }
-            Self::SamplerOutOfRange(sampler) => {
-                write!(
-                    formatter,
-                    "bytecode profile sampler is out of range: {sampler}"
                 )
             }
             Self::FunctionTooLarge(byte_len) => {

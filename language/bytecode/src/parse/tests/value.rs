@@ -7,7 +7,7 @@ use super::TestParser;
 fn test_parse_value_operations() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    move r4, r0
+function f0 {    move r4, r0
     move r0, r1
     select r5, r1, r4, r4
     equal r6, r4, r5
@@ -44,7 +44,7 @@ function f0(): t0 {    move r4, r0
 fn test_parse_storage_values() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    constant.zeroed r0
+function f0 {    constant.zeroed r0
     return r0
 }
 "#,

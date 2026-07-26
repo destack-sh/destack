@@ -5,7 +5,7 @@ use super::assert_format_eq;
 fn test_format_memory() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     address r6, r4
 store.int32 r6,r3
 load.int32 r7, r6
@@ -15,7 +15,7 @@ return r7
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     address r6, r4
     store.int32 r6, r3
     load.int32 r7, r6

@@ -7,7 +7,7 @@ use super::TestParser;
 fn test_parse_memory() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    address r6, r4
+function f0 {    address r6, r4
     store.int32 r6, r0
     load.int32 r7, r6
     copy.bytes r1 -> r2, r3

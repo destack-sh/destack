@@ -5,9 +5,9 @@ use super::TestParser;
 /// Parse debugger and profiling instructions with function-local counters.
 #[test]
 fn test_parse_runtime_instructions() {
-    let (object, opcodes) = TestParser::new(
+    let (_, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    breakpoint
+function f0 {    breakpoint
     profile.increment counter(4)
     profile.sample sampler(7), r0
     return
@@ -24,6 +24,4 @@ function f0(): t0 {    breakpoint
             Opcode::RETURN,
         ]
     );
-    assert_eq!(object.functions()[0].counter_count, 5);
-    assert_eq!(object.functions()[0].sampler_count, 8);
 }

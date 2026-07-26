@@ -17,43 +17,7 @@ impl Function {
         formatter: &mut BytecodeFormatter<'a, '_>,
     ) -> FormatResult<()> {
         let name = formatter.context().function_name(id)?.to_string();
-
-        // write TS-compatible coroutine modifiers
-        if self.coroutine.is_async() {
-            write!(formatter, [token("async"), space()])?;
-        }
-        write!(formatter, [token("function")])?;
-        if self.coroutine.is_generator() {
-            write!(formatter, [token("*")])?;
-        }
-        write!(formatter, [space(), copied_text(&name)])?;
-
-        // write physical entry ranges and semantic type identities
-        let parameters = self
-            .parameters(formatter.context().object.parameters())
-            .to_vec();
-        write!(formatter, [token("(")])?;
-        for (index, parameter) in parameters.into_iter().enumerate() {
-            if index > 0 {
-                write!(formatter, [token(","), space()])?;
-            }
-            let registers = formatter.context().register_text(parameter.registers);
-            let ty = formatter.context().type_text(parameter.ty);
-            write!(
-                formatter,
-                [
-                    copied_text(&registers),
-                    token(":"),
-                    space(),
-                    copied_text(&ty)
-                ]
-            )?;
-        }
-        let result = formatter.context().type_text(self.result);
-        write!(
-            formatter,
-            [token(")"), token(":"), space(), copied_text(&result)]
-        )?;
+        write!(formatter, [token("function"), space(), copied_text(&name)])?;
 
         // declarations carry no executable state
         let Some(code) = self.code() else {

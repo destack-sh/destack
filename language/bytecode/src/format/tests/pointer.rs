@@ -5,7 +5,7 @@ use super::assert_format_eq;
 fn test_format_pointer_operations() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     global.address r3, g0
 address r4, r1
 pointer.add r5, r3,16
@@ -16,7 +16,7 @@ return r8
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     global.address r3, g0
     address r4, r1
     pointer.add r5, r3, 16

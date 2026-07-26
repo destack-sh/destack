@@ -7,7 +7,7 @@ use super::TestParser;
 fn test_parse_branch_targets() {
     let object = TestParser::new(
         r#"
-function f0(): t0 {    branch r0, b0, b1
+function f0 {    branch r0, b0, b1
 
 b0:
     constant.boolean r1, true
@@ -46,7 +46,7 @@ b1:
 fn test_parse_checked_control_flow() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    check.nonzero.int32 r0 else b3
+function f0 {    check.nonzero.int32 r0 else b3
     check.type r2, t0 else b3
     branch.lt.int32 r0, r1 => b0, b2
 
@@ -85,7 +85,7 @@ b3:
 fn test_parse_panic() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    panic r0, t0
+function f0 {    panic r0, t0
 }
 "#,
     )
@@ -99,7 +99,7 @@ function f0(): t0 {    panic r0, t0
 fn test_parse_suspension() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    await r2:r3, f1, r0 => b0 | b2 | b3
+function f0 {    await r2:r3, f1, r0 => b0 | b2 | b3
 
 b0:
     yield r4:r5, r2:r3 => b1 | b3
@@ -114,7 +114,7 @@ b3:
     unwind.resume
 }
 
-function f1(): t0 {    return
+function f1 {    return
 }
 "#,
     )

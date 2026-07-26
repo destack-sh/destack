@@ -5,13 +5,13 @@ use super::assert_format_eq;
 fn test_format_tensor_operations() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     tensor.element r2,[(r0, l0),(r1, l0)],int.add,a0
 return r2
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     tensor.element r2, [(r0, l0), (r1, l0)], int.add, a0
     return r2
 }
@@ -24,7 +24,7 @@ function f0(): t0 {
 fn test_format_tensor_transforms() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     tensor.transpose r4,(r0, l0),[1,0],a0
 tensor.reshape r4,(r4, l0),[r1,r2],a1
 tensor.broadcast r4,(r4, l0),[0,1],a2
@@ -38,7 +38,7 @@ return r4
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     tensor.transpose r4, (r0, l0), [1, 0], a0
     tensor.reshape r4, (r4, l0), [r1, r2], a1
     tensor.broadcast r4, (r4, l0), [0, 1], a2
@@ -59,7 +59,7 @@ function f0(): t0 {
 fn test_format_tensor_reductions_and_memory() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     tensor.reduce r10,(r0, l0),r1,add,[0],a0
 tensor.indexReduce r2,(r0, l0),min,0,0,a1
 tensor.contract r10,[(r0, l0),(r0, l0)],axes([],[],[1],[0]),a2
@@ -75,7 +75,7 @@ return r18
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     tensor.reduce r10, (r0, l0), r1, add, [0], a0
     tensor.indexReduce r2, (r0, l0), min, 0, 0, a1
     tensor.contract r10, [(r0, l0), (r0, l0)], axes([], [], [1], [0]), a2

@@ -1,24 +1,23 @@
-use crate::{Object, ParseError, ParseResult, Parser, TokenType};
+use crate::{Function, Object, ParseError, ParseResult, Parser, TokenType};
 
 impl Parser<'_> {
     /// Parse one complete bytecode object.
     pub fn parse(&mut self) -> ParseResult<Object> {
         while !self.peek_is(TokenType::End) {
             let token = self.peek();
-            if !self.peek_name("function") && !self.peek_name("async") {
+            if !self.peek_name("function") {
                 return Err(ParseError::new("expected bytecode function", token.span));
             }
 
             self.parse_function()?;
         }
 
-        // require every referenced function name to have one declaration
-        let declarations = std::mem::take(&mut self.declarations)
+        // materialize referenced imports as empty physical rows
+        let functions = std::mem::take(&mut self.functions)
             .into_iter()
-            .collect::<Option<Vec<_>>>()
-            .ok_or_else(|| ParseError::new("function declaration is absent", self.empty_span()))?;
+            .map(|function| function.unwrap_or_else(Function::declaration));
         let object = std::mem::take(&mut self.object)
-            .functions(declarations)
+            .functions(functions)
             .build();
 
         Ok(object)

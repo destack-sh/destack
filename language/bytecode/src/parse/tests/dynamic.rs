@@ -7,7 +7,7 @@ use super::TestParser;
 fn test_parse_dynamic_operations() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    dynamic.bind r1:r2, r0, d0
+function f0 {    dynamic.bind r1:r2, r0, d0
     extract r3, r1:r2, 0, 8
     dynamic.type r4, r1:r2
     return r1:r4

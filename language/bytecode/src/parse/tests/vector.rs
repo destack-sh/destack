@@ -7,7 +7,7 @@ use super::TestParser;
 fn test_parse_vector_registers() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    vector.add.int32x4 r4:r5, r0:r1, r2:r3
+function f0 {    vector.add.int32x4 r4:r5, r0:r1, r2:r3
     return r4:r5
 }
 "#,
@@ -26,7 +26,7 @@ function f0(): t0 {    vector.add.int32x4 r4:r5, r0:r1, r2:r3
 fn test_parse_vector_memory() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    vector.load.int32x4 r1:r2, r0
+function f0 {    vector.load.int32x4 r1:r2, r0
     vector.store.int32x4 r0, r1:r2
     return
 }

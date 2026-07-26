@@ -5,14 +5,14 @@ use super::assert_format_eq;
 fn test_format_calls() {
     assert_format_eq(
         r#"
-function f0(): t0
+function f0
 
-function f1(): t0 {
+function f1 {
     int.add.int32 r3, r1,r2
 move r4, r0
 return r3
 }
-function f2(): t0 {
+function f2 {
     dynamic.bind r5:r6, r4,d0
 call r7, f0,r0:r1
 call.indirect r7, r2:r3,r0:r1
@@ -28,15 +28,15 @@ b1:unwind.resume
 }
 "#,
         r#"
-function f0(): t0
+function f0
 
-function f1(): t0 {
+function f1 {
     int.add.int32 r3, r1, r2
     move r4, r0
     return r3
 }
 
-function f2(): t0 {
+function f2 {
     dynamic.bind r5:r6, r4, d0
     call r7, f0, r0:r1
     call.indirect r7, r2:r3, r0:r1

@@ -5,9 +5,9 @@ use super::assert_format_eq;
 fn test_format_reference_operations() {
     assert_format_eq(
         r#"
-function f0(): t0
+function f0
 
-function f1(): t0 {
+function f1 {
     load r4, r0,8
 store r0,r4,8
 pin.local.managed r4
@@ -19,9 +19,9 @@ return r4
 }
 "#,
         r#"
-function f0(): t0
+function f0
 
-function f1(): t0 {
+function f1 {
     load r4, r0, 8
     store r0, r4, 8
     pin.local.managed r4

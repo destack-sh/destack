@@ -5,7 +5,7 @@ use super::assert_format_eq;
 fn test_format_value_operations() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     move r4, r0
 move r0, r1
 select r5, r1,r4,r4
@@ -18,7 +18,7 @@ return r5:r11
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     move r4, r0
     move r0, r1
     select r5, r1, r4, r4
@@ -38,13 +38,13 @@ function f0(): t0 {
 fn test_format_storage_values() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     constant.zeroed r0
 return r0
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     constant.zeroed r0
     return r0
 }

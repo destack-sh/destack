@@ -7,7 +7,7 @@ use super::TestParser;
 fn test_parse_pointer_operations() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    global.address r4, g0
+function f0 {    global.address r4, g0
     address r5, r2:r3
     reference.pointer.local.managed r6, r1
     pointer.add r7, r4, 16

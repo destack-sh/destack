@@ -8,7 +8,7 @@ fn test_parse_bytecode_trivia() {
     let (_, opcodes) = TestParser::new(
         r#"// declaration
 
-function f0(): t0 {
+function f0 {
 // stop
 breakpoint
 return

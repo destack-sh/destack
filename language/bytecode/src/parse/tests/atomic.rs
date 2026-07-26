@@ -7,7 +7,7 @@ use super::TestParser;
 fn test_parse_atomic_operations() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    atomic.load.uint32 r2, r0, acquire
+function f0 {    atomic.load.uint32 r2, r0, acquire
     atomic.store.uint32 r0, r1, release
     atomic.rmw.add.uint32 r2, r0, r1, acquireRelease
     atomic.fence sequentiallyConsistent, scope(device), storage(shared)

@@ -7,7 +7,7 @@ use super::TestParser;
 fn test_parse_slice_operations() {
     let (object, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    slice.view r3:r4, r0:r1, 8, r2, r2
+function f0 {    slice.view r3:r4, r0:r1, 8, r2, r2
     extract r5, r3:r4, 8, 8
     return r3:r5
 }

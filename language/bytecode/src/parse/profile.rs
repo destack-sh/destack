@@ -27,9 +27,7 @@ impl Parser<'_> {
             self.eat_token(TokenType::OpenParenthesis)?;
             let counter = CounterId(self.parse_u32()?);
             self.eat_token(TokenType::CloseParenthesis)?;
-            instruction
-                .counter(counter)
-                .map_err(|error| ParseError::new(error.to_string(), token.span))?;
+            instruction.counter(counter);
         }
         // sample one function-local sampler
         else {
@@ -37,9 +35,7 @@ impl Parser<'_> {
             self.eat_token(TokenType::OpenParenthesis)?;
             let sampler = SamplerId(self.parse_u32()?);
             self.eat_token(TokenType::CloseParenthesis)?;
-            instruction
-                .sampler(sampler)
-                .map_err(|error| ParseError::new(error.to_string(), token.span))?;
+            instruction.sampler(sampler);
             self.eat_token(TokenType::Comma)?;
             let value = self.parse_register()?;
             instruction.register(value);

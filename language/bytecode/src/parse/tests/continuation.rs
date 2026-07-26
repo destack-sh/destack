@@ -7,9 +7,9 @@ use super::TestParser;
 fn test_parse_continuations() {
     let (_, opcodes) = TestParser::new(
         r#"
-function* generator(): t0
+function generator
 
-function owner(): t0 {
+function owner {
     continuation.new r2, generator, r0
     resume r3:r4, r5, r6:r7, r2, r1 => b0 | b1 | b2
 

@@ -1,7 +1,6 @@
 use crate::{
-    Coroutine, Function, FunctionBuilder, FunctionId, InstructionBuilder, Label, Opcode, Parameter,
-    ParseError, ParseResult, Parser, RegisterId, RegisterSpan, RelocationTag, Token, TokenType,
-    TypeId,
+    Function, FunctionBuilder, FunctionId, InstructionBuilder, Label, Opcode, ParseError,
+    ParseResult, Parser, RegisterId, RegisterSpan, RelocationTag, Token, TokenType,
 };
 use destack_core::{EntryRange, Optional};
 use destack_source::Span;
@@ -15,17 +14,10 @@ pub(super) struct FunctionParser {
 
 impl FunctionParser {
     /// Create parser state for one function.
-    pub(super) fn new(parameters: &[Parameter], span: Span) -> ParseResult<Self> {
-        let mut builder = FunctionBuilder::new();
-
-        // reserve every entry register even when the body never reads it
-        for parameter in parameters {
-            builder
-                .reserve(parameter.registers)
-                .map_err(|error| ParseError::new(error.to_string(), span))?;
+    pub(super) fn new() -> Self {
+        Self {
+            builder: FunctionBuilder::new(),
         }
-
-        Ok(Self { builder })
     }
 
     /// Encode one complete instruction into this function.
@@ -52,20 +44,18 @@ impl FunctionParser {
 }
 
 impl Parser<'_> {
-    /// Parse one bytecode function declaration or definition.
+    /// Parse one physical bytecode function declaration or definition.
     pub(super) fn parse_function(&mut self) -> ParseResult<()> {
-        let is_async = self.eat_name_if("async");
         self.eat_name("function")?;
-        let is_generator = self.eat_token_if(TokenType::Star);
-        let coroutine = Coroutine::new(is_async, is_generator);
-        let (function_id, parameters, parameter_range, result) =
-            self.parse_function_declaration(coroutine)?;
+        let token = self.eat_token(TokenType::Identifier)?;
+        let name = self.text(token).to_string();
+        let function_id = self.function_id(name);
 
         // declarations have no physical body
         if !self.eat_token_if(TokenType::OpenBrace) {
             return Ok(());
         }
-        if !self.definitions.insert(function_id) {
+        if self.functions[function_id.index()].is_some() {
             return Err(ParseError::new(
                 "function is already defined",
                 self.previous().span,
@@ -73,7 +63,7 @@ impl Parser<'_> {
         }
 
         // parse the physical body and derive its register width
-        let mut function = FunctionParser::new(&parameters, self.previous().span)?;
+        let mut function = FunctionParser::new();
         while !self.eat_token_if(TokenType::CloseBrace) {
             if self.is_label() {
                 let token = self.bump();
@@ -95,85 +85,13 @@ impl Parser<'_> {
         let code = self.object.push_code(&body.code, body.relocations);
         let function = Function::new(
             Optional::some(code),
-            parameter_range,
             EntryRange::empty(),
             operations,
-            result,
             body.register_count,
-            coroutine,
-            body.counter_count,
-            body.sampler_count,
         );
-        self.declarations[function_id.index()] = Some(function);
+        self.functions[function_id.index()] = Some(function);
 
         Ok(())
-    }
-
-    /// Parse one physical function declaration.
-    fn parse_function_declaration(
-        &mut self,
-        coroutine: Coroutine,
-    ) -> ParseResult<(FunctionId, Vec<Parameter>, EntryRange<Parameter>, TypeId)> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        let name = self.text(token).to_string();
-        let id = self.function_id(name);
-        let parameters = self.parse_parameters()?;
-        self.eat_token(TokenType::Colon)?;
-        let result = self.parse_type_id()?;
-        let range = self.object.push_parameters(parameters.iter().copied());
-        let declaration = Function::declaration(range, result, coroutine);
-        self.declarations[id.index()] = Some(declaration);
-
-        Ok((id, parameters, range, result))
-    }
-
-    /// Parse physical entry parameters in declaration order.
-    fn parse_parameters(&mut self) -> ParseResult<Vec<Parameter>> {
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let mut parameters = Vec::new();
-
-        // parse each register range and semantic type identity
-        while !self.eat_token_if(TokenType::CloseParenthesis) {
-            if !parameters.is_empty() {
-                self.eat_token(TokenType::Comma)?;
-            }
-            parameters.push(self.parse_parameter()?);
-        }
-
-        Ok(parameters)
-    }
-
-    /// Parse one physical entry parameter.
-    fn parse_parameter(&mut self) -> ParseResult<Parameter> {
-        let start = self.parse_register()?;
-        self.eat_token(TokenType::Colon)?;
-        let token = self.eat_token(TokenType::Identifier)?;
-
-        // distinguish a range end from a one-word parameter type
-        let (registers, ty) = if let Some(end) = Self::numbered(self.text(token), 'r') {
-            let end = u16::try_from(end)
-                .ok()
-                .map(RegisterId)
-                .ok_or_else(|| ParseError::new("expected register", token.span))?;
-            if end.0 < start.0 {
-                return Err(ParseError::new(
-                    "register span ends before it starts",
-                    token.span,
-                ));
-            }
-            self.eat_token(TokenType::Colon)?;
-            let ty = self.parse_type_id()?;
-            let registers = RegisterSpan::new(start, end.0 - start.0 + 1);
-
-            (registers, ty)
-        } else {
-            let ty = TypeId::from_name(self.text(token))
-                .ok_or_else(|| ParseError::new("expected type id", token.span))?;
-
-            (RegisterSpan::new(start, 1), ty)
-        };
-
-        Ok(Parameter::new(registers, ty))
     }
 
     /// Return whether the next tokens form a branch label declaration.
@@ -229,14 +147,14 @@ impl Parser<'_> {
 
     /// Intern one object-local function name.
     fn function_id(&mut self, name: String) -> FunctionId {
-        if let Some(id) = self.functions.get(&name).copied() {
+        if let Some(id) = self.function_ids.get(&name).copied() {
             return id;
         }
 
         let id = FunctionId(self.function_names.len() as u32);
         self.function_names.push(name.clone());
-        self.declarations.push(None);
-        self.functions.insert(name, id);
+        self.functions.push(None);
+        self.function_ids.insert(name, id);
 
         id
     }

@@ -19,10 +19,6 @@ pub struct InstructionBuilder {
     pub(crate) registers: Vec<RegisterId>,
     /// Contiguous register spans read by the instruction.
     pub(crate) spans: Vec<RegisterSpan>,
-    /// Greatest profile counter index plus one.
-    pub(crate) counter_count: u32,
-    /// Greatest profile sampler index plus one.
-    pub(crate) sampler_count: u32,
 }
 
 impl InstructionBuilder {
@@ -35,8 +31,6 @@ impl InstructionBuilder {
             branches: Vec::new(),
             registers: Vec::new(),
             spans: Vec::new(),
-            counter_count: 0,
-            sampler_count: 0,
         }
     }
 
@@ -108,29 +102,13 @@ impl InstructionBuilder {
     }
 
     /// Append one function-local profile counter.
-    pub fn counter(&mut self, counter: CounterId) -> Result<()> {
-        let count = counter
-            .0
-            .checked_add(1)
-            .ok_or(Error::CounterOutOfRange(counter.0))?;
-
-        self.counter_count = self.counter_count.max(count);
+    pub fn counter(&mut self, counter: CounterId) {
         self.relocation(RelocationTag::COUNTER, counter.0);
-
-        Ok(())
     }
 
     /// Append one function-local profile sampler.
-    pub fn sampler(&mut self, sampler: SamplerId) -> Result<()> {
-        let count = sampler
-            .0
-            .checked_add(1)
-            .ok_or(Error::SamplerOutOfRange(sampler.0))?;
-
-        self.sampler_count = self.sampler_count.max(count);
+    pub fn sampler(&mut self, sampler: SamplerId) {
         self.relocation(RelocationTag::SAMPLER, sampler.0);
-
-        Ok(())
     }
 
     /// Append one signed 32-bit operand.

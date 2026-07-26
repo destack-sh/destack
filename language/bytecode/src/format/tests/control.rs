@@ -5,7 +5,7 @@ use super::assert_format_eq;
 fn test_format_control_flow() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     branch r0,b0,b1
 b0:constant.boolean r1,true
 return r1
@@ -14,7 +14,7 @@ return r1
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     branch r0, b0, b1
 
 b0:
@@ -34,7 +34,7 @@ b1:
 fn test_format_checked_control_flow() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     check.nonzero.int32 r0 else b3
 check.type r2, t0 else b3
 check.null r3 else b3
@@ -50,7 +50,7 @@ trap bounds
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     check.nonzero.int32 r0 else b3
     check.type r2, t0 else b3
     check.null r3 else b3
@@ -77,12 +77,12 @@ b3:
 fn test_format_panic() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     panic r0, t0
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     panic r0, t0
 }
 "#,
@@ -94,7 +94,7 @@ function f0(): t0 {
 fn test_format_suspension() {
     assert_format_eq(
         r#"
-function f0(): t0 {
+function f0 {
     await r2:r3,f1,r0=>b0|b2|b3
 b0:
 yield r4:r5,r2:r3=>b1|b3
@@ -105,12 +105,12 @@ return
 b3:
 unwind.resume
 }
-function f1(): t0 {
+function f1 {
     return
 }
 "#,
         r#"
-function f0(): t0 {
+function f0 {
     await r2:r3, f1, r0 => b0 | b2 | b3
 
 b0:
@@ -126,7 +126,7 @@ b3:
     unwind.resume
 }
 
-function f1(): t0 {
+function f1 {
     return
 }
 "#,

@@ -1,17 +1,13 @@
 use destack_core::{EntryRange, SectionBuilder};
 
 use crate::tree::object::Header;
-use crate::{
-    CodeOffset, CodeRange, FrameMap, Function, Object, Parameter, RegisterSpan, Relocation,
-};
+use crate::{CodeOffset, CodeRange, FrameMap, Function, Object, RegisterSpan, Relocation};
 
 /// Bytecode object under construction.
 #[derive(Debug, Default)]
 pub struct ObjectBuilder {
     /// Physical functions in object-local function order.
     functions: Vec<Function>,
-    /// Flattened physical function parameters.
-    parameters: Vec<Parameter>,
     /// Physical frame maps in object-local frame state order.
     frames: Vec<FrameMap>,
     /// Flattened register spans referenced by frame maps.
@@ -33,13 +29,6 @@ impl ObjectBuilder {
     /// Set physical functions in object-local function order.
     pub fn functions(mut self, functions: impl IntoIterator<Item = Function>) -> Self {
         self.functions = functions.into_iter().collect();
-
-        self
-    }
-
-    /// Set flattened physical function parameters.
-    pub fn parameters(mut self, parameters: impl IntoIterator<Item = Parameter>) -> Self {
-        self.parameters = parameters.into_iter().collect();
 
         self
     }
@@ -77,17 +66,6 @@ impl ObjectBuilder {
         self.code = code.into();
 
         self
-    }
-
-    /// Append physical function parameters and return their object-local range.
-    pub(crate) fn push_parameters(
-        &mut self,
-        parameters: impl IntoIterator<Item = Parameter>,
-    ) -> EntryRange<Parameter> {
-        let start = self.parameters.len();
-        self.parameters.extend(parameters);
-
-        EntryRange::new(start as u32, (self.parameters.len() - start) as u32)
     }
 
     /// Append logical operation offsets and return their object-local range.
@@ -130,7 +108,6 @@ impl ObjectBuilder {
 
         // pack physical execution tables
         header.functions = sections.insert(self.functions);
-        header.parameters = sections.insert(self.parameters);
         header.frames = sections.insert(self.frames);
         header.registers = sections.insert(self.registers);
         header.operations = sections.insert(self.operations);
