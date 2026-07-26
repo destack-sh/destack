@@ -15,5 +15,6 @@ mod slice;
 mod tensor;
 mod value;
 mod vector;
+mod waiter;
 
 pub(crate) use fixture::*;

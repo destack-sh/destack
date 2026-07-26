@@ -95,12 +95,14 @@ fn test_format_suspension() {
     assert_format_eq(
         r#"
 function f0(): t0 {
-    await r2:r3,f1,r0=>b0|b2
+    await r2:r3,f1,r0=>b0|b2|b3
 b0:
-yield r4:r5,r2:r3=>b1|b2
+yield r4:r5,r2:r3=>b1|b3
 b1:
 return r4:r5
 b2:
+return
+b3:
 unwind.resume
 }
 function f1(): t0 {
@@ -109,15 +111,18 @@ function f1(): t0 {
 "#,
         r#"
 function f0(): t0 {
-    await r2:r3, f1, r0 => b0 | b2
+    await r2:r3, f1, r0 => b0 | b2 | b3
 
 b0:
-    yield r4:r5, r2:r3 => b1 | b2
+    yield r4:r5, r2:r3 => b1 | b3
 
 b1:
     return r4:r5
 
 b2:
+    return
+
+b3:
     unwind.resume
 }
 

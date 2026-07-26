@@ -11,8 +11,16 @@ function* generator(): t0
 
 function owner(): t0 {
     continuation.new r2, generator, r0
-    continuation.resume r3:r4, r2, r1
+    resume r3:r4, r5, r6:r7, r2, r1 => b0 | b1 | b2
+
+b0:
     return r3:r4
+
+b1:
+    return r6:r7
+
+b2:
+    unwind.resume
 }
 "#,
     )
@@ -22,8 +30,10 @@ function owner(): t0 {
         opcodes,
         vec![
             Opcode::CONTINUATION_NEW,
-            Opcode::CONTINUATION_RESUME,
+            Opcode::RESUME,
             Opcode::RETURN,
+            Opcode::RETURN,
+            Opcode::UNWIND_RESUME,
         ]
     );
 }

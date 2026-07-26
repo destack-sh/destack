@@ -186,9 +186,10 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::TAIL_CALL_DYNAMIC => self.format_call(opcode),
 
             // continuations
-            Opcode::CONTINUATION_NEW | Opcode::CONTINUATION_RESUME => {
-                self.format_continuation(opcode)
-            }
+            Opcode::CONTINUATION_NEW => self.format_continuation(opcode),
+
+            // waiters
+            Opcode::WAITER_QUEUE | Opcode::WAITER_CANCEL => self.format_waiter(opcode),
 
             // control flow
             Opcode::JUMP
@@ -196,6 +197,7 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::SWITCH
             | Opcode::AWAIT
             | Opcode::YIELD
+            | Opcode::RESUME
             | Opcode::RETURN
             | Opcode::TRAP
             | Opcode::UNREACHABLE

@@ -9,7 +9,6 @@ impl InstructionFormatter<'_, '_, '_> {
     pub(super) fn format_continuation(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
             Opcode::CONTINUATION_NEW => self.format_continuation_new(),
-            Opcode::CONTINUATION_RESUME => self.format_continuation_resume(),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid continuation opcode",
             }),
@@ -34,21 +33,6 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_text(&target)?;
         self.write_comma()?;
         self.write_span(captures)
-    }
-
-    /// Format one synchronous continuation resume.
-    fn format_continuation_resume(&mut self) -> FormatResult<()> {
-        let results = self.register_span()?;
-        let continuation = self.register_id()?;
-        let command = self.register_span()?;
-
-        // write the continuation and resume command
-        self.write_opcode("continuation.resume")?;
-        self.write_span(results)?;
-        self.write_comma()?;
-        self.write_register(continuation)?;
-        self.write_comma()?;
-        self.write_span(command)
     }
 
     /// Read one physical value span.

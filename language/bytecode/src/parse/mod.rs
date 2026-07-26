@@ -21,6 +21,7 @@ mod tensor;
 mod r#type;
 mod value;
 mod vector;
+mod waiter;
 
 #[cfg(test)]
 mod tests;

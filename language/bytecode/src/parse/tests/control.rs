@@ -99,15 +99,18 @@ function f0(): t0 {    panic r0, t0
 fn test_parse_suspension() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0(): t0 {    await r2:r3, f1, r0 => b0 | b2
+function f0(): t0 {    await r2:r3, f1, r0 => b0 | b2 | b3
 
 b0:
-    yield r4:r5, r2:r3 => b1 | b2
+    yield r4:r5, r2:r3 => b1 | b3
 
 b1:
     return r4:r5
 
 b2:
+    return
+
+b3:
     unwind.resume
 }
 
@@ -122,6 +125,7 @@ function f1(): t0 {    return
         vec![
             Opcode::AWAIT,
             Opcode::YIELD,
+            Opcode::RETURN,
             Opcode::RETURN,
             Opcode::UNWIND_RESUME,
         ]

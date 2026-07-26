@@ -401,11 +401,17 @@ opcodes! {
         signature: "(function: FunctionId, captures: value[]) => continuation",
         operands: [Result, Function, RegisterSpan],
     }
-    CONTINUATION_RESUME = 0x00ad {
-        text: "continuation.resume",
-        signature: "(continuation: continuation, command: value) => value",
-        operands: [ResultRange, Register, RegisterSpan],
+    WAITER_QUEUE = 0x00ad {
+        text: "waiter.queue",
+        signature: "(waiter: waiter, value: T, type: TypeId) => void",
+        operands: [Register, Type, RegisterSpan],
     }
+    WAITER_CANCEL = 0x00ae {
+        text: "waiter.cancel",
+        signature: "(waiter: waiter) => void",
+        operands: [Register],
+    }
+
     // control flow
     JUMP = 0x00b0 {
         text: "jump",
@@ -424,30 +430,35 @@ opcodes! {
     }
     AWAIT = 0x00b3 {
         text: "await",
-        signature: "(park: function, awaitable: value, resume: label, unwind: label) => value",
-        operands: [ResultRange, Function, RegisterSpan, Branch, Branch],
+        signature: "(park: function, awaitable: value, resume: label, cancel: label, unwind: label) => value",
+        operands: [ResultRange, Function, RegisterSpan, Branch, Branch, Branch],
     }
     YIELD = 0x00b4 {
         text: "yield",
         signature: "(value: value, resume: label, unwind: label) => value",
         operands: [ResultRange, RegisterSpan, Branch, Branch],
     }
-    RETURN = 0x00b5 {
+    RESUME = 0x00b5 {
+        text: "resume",
+        signature: "(continuation: continuation, command: value, yielded: label, returned: label, unwind: label) => (yield: value, continuation: continuation) | (return: value)",
+        operands: [ResultRange, Result, ResultRange, Register, RegisterSpan, Branch, Branch, Branch],
+    }
+    RETURN = 0x00b6 {
         text: "return",
         signature: "(results: value[]) => never",
         operands: [RegisterSpan],
     }
-    TRAP = 0x00b6 {
+    TRAP = 0x00b7 {
         text: "trap",
         signature: "(kind: TrapKind) => never",
         operands: [Unsigned16],
     }
-    UNREACHABLE = 0x00b7 {
+    UNREACHABLE = 0x00b8 {
         text: "unreachable",
         signature: "() => never",
         operands: [],
     }
-    BREAKPOINT = 0x00b8 {
+    BREAKPOINT = 0x00b9 {
         text: "breakpoint",
         signature: "() => void",
         operands: [],
@@ -1112,6 +1123,7 @@ impl Opcode {
                 | Self::SWITCH
                 | Self::AWAIT
                 | Self::YIELD
+                | Self::RESUME
                 | Self::INVOKE
                 | Self::INVOKE_INDIRECT
                 | Self::INVOKE_VIRTUAL
@@ -1129,19 +1141,28 @@ impl Opcode {
             .is_some_and(|operation| operation.is_fallible)
     }
 
-    /// Return the explicit branch that receives this operation's results.
-    pub fn result_branch(self) -> Option<usize> {
-        if matches!(
-            self,
-            Self::AWAIT
-                | Self::YIELD
-                | Self::INVOKE
-                | Self::INVOKE_INDIRECT
-                | Self::INVOKE_VIRTUAL
-                | Self::INVOKE_DYNAMIC
-        ) || self
-            .new_operation()
-            .is_some_and(|operation| operation.is_fallible)
+    /// Return the branch that receives one result operand.
+    pub fn result_branch(self, result: usize) -> Option<usize> {
+        if self == Self::RESUME {
+            return match result {
+                0 | 1 => Some(0),
+                2 => Some(1),
+                _ => None,
+            };
+        }
+
+        if result == 0
+            && (matches!(
+                self,
+                Self::AWAIT
+                    | Self::YIELD
+                    | Self::INVOKE
+                    | Self::INVOKE_INDIRECT
+                    | Self::INVOKE_VIRTUAL
+                    | Self::INVOKE_DYNAMIC
+            ) || self
+                .new_operation()
+                .is_some_and(|operation| operation.is_fallible))
         {
             Some(0)
         } else {

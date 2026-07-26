@@ -221,6 +221,7 @@ impl InstructionFormatter<'_, '_, '_> {
             Opcode::SWITCH => self.format_switch(),
             Opcode::AWAIT => self.format_await(),
             Opcode::YIELD => self.format_yield(),
+            Opcode::RESUME => self.format_resume(),
             Opcode::RETURN => self.format_return(),
             Opcode::TRAP => self.format_trap(),
             Opcode::UNREACHABLE => {
@@ -281,6 +282,7 @@ impl InstructionFormatter<'_, '_, '_> {
         let (awaitable, awaitable_count) = self.register_span_id()?;
         let awaitable = RegisterSpan::new(awaitable, awaitable_count);
         let resume = self.branch()?;
+        let cancel = self.branch()?;
         let unwind = self.branch()?;
         if relocation.tag != RelocationTag::FUNCTION {
             return Err(FormatError::SyntaxError {
@@ -297,7 +299,7 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_comma()?;
         self.write_span(awaitable)?;
 
-        self.write_suspension_targets(resume, unwind)
+        self.write_await_targets(resume, cancel, unwind)
     }
 
     /// Format one generator suspension.
@@ -309,6 +311,57 @@ impl InstructionFormatter<'_, '_, '_> {
         let (start, word_count) = self.register_span_id()?;
         self.write_span(RegisterSpan::new(start, word_count))?;
         self.format_suspension_targets()
+    }
+
+    /// Format one continuation resume until it yields or returns.
+    fn format_resume(&mut self) -> FormatResult<()> {
+        // decode results, inputs, and branch destinations
+        let (yielded, yielded_count) = self.register_span_id()?;
+        let yielded = RegisterSpan::new(yielded, yielded_count);
+        let replacement = self.register_id()?;
+        let (returned, returned_count) = self.register_span_id()?;
+        let returned = RegisterSpan::new(returned, returned_count);
+        let continuation = self.register_id()?;
+        let (command, command_count) = self.register_span_id()?;
+        let command = RegisterSpan::new(command, command_count);
+        let yielded_target = self.branch()?;
+        let returned_target = self.branch()?;
+        let unwind = self.branch()?;
+
+        // write destinations followed by consumed values
+        self.write_opcode("resume")?;
+        self.write_span(yielded)?;
+        self.write_comma()?;
+        self.write_result(replacement)?;
+        self.write_comma()?;
+        self.write_span(returned)?;
+        self.write_comma()?;
+        self.write_register(continuation)?;
+        self.write_comma()?;
+        self.write_span(command)?;
+        write!(self.formatter, [space(), token("=>"), space()])?;
+        self.write_label(yielded_target)?;
+        write!(self.formatter, [space(), token("|"), space()])?;
+        self.write_label(returned_target)?;
+        write!(self.formatter, [space(), token("|"), space()])?;
+        self.write_label(unwind)?;
+
+        Ok(())
+    }
+
+    /// Write resume, cancellation, and unwind destinations for one await.
+    fn write_await_targets(
+        &mut self,
+        resume: Label,
+        cancel: Label,
+        unwind: Label,
+    ) -> FormatResult<()> {
+        write!(self.formatter, [space(), token("=>"), space()])?;
+        self.write_label(resume)?;
+        write!(self.formatter, [space(), token("|"), space()])?;
+        self.write_label(cancel)?;
+        write!(self.formatter, [space(), token("|"), space()])?;
+        self.write_label(unwind)
     }
 
     /// Format resume and unwind destinations for one suspension.

@@ -15,7 +15,6 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         let opcode = match name {
             "continuation.new" => Opcode::CONTINUATION_NEW,
-            "continuation.resume" => Opcode::CONTINUATION_RESUME,
             _ => {
                 return Err(ParseError::new(
                     "invalid continuation operation",
@@ -27,7 +26,6 @@ impl Parser<'_> {
 
         match opcode {
             Opcode::CONTINUATION_NEW => self.parse_continuation_new(&results, function),
-            Opcode::CONTINUATION_RESUME => self.parse_continuation_resume(&results, function),
             _ => unreachable!("continuation opcode selected above"),
         }
     }
@@ -46,24 +44,6 @@ impl Parser<'_> {
         let mut instruction = InstructionBuilder::new(Opcode::CONTINUATION_NEW);
         instruction.relocation(RelocationTag::FUNCTION, target.0);
         instruction.span(captures);
-
-        function.emit(instruction, results, self.empty_span())
-    }
-
-    /// Parse one synchronous continuation resume.
-    fn parse_continuation_resume(
-        &mut self,
-        results: &[RegisterSpan],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let continuation = self.parse_register()?;
-        self.eat_token(TokenType::Comma)?;
-        let command = self.parse_continuation_value()?;
-
-        // encode the consumed continuation and resume command
-        let mut instruction = InstructionBuilder::new(Opcode::CONTINUATION_RESUME);
-        instruction.register(continuation);
-        instruction.span(command);
 
         function.emit(instruction, results, self.empty_span())
     }

@@ -71,9 +71,12 @@ impl Parser<'_> {
             // continuations
             "continuation" => self.parse_continuation_operation(name, token, function),
 
+            // waiters
+            "waiter" => self.parse_waiter_operation(name, token, function),
+
             // control flow
             "branch" if name != "branch" => self.parse_branch(name, token, function),
-            "jump" | "branch" | "switch" | "await" | "yield" | "return" | "trap"
+            "jump" | "branch" | "switch" | "await" | "yield" | "resume" | "return" | "trap"
             | "unreachable" | "breakpoint" => self.parse_control_operation(name, token, function),
 
             // panic and unwind
