@@ -5,7 +5,7 @@ use destack_artifact::{
     ArtifactTable, ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound,
     DirCheckedComponent, DirCheckedModule, DirExpanded, DirExported, DirImported, DirMaterialized,
     DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirElaborated, MirLowered,
-    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageIndex, Product,
+    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageGraph, Product,
     ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use destack_program::Program;
@@ -118,11 +118,11 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
-    /// Read one dependency index artifact.
-    pub fn package_index(&self, profile: ProfileId) -> Result<Arc<PackageIndex>, ProviderError> {
+    /// Read one active package graph artifact.
+    pub fn package_graph(&self, profile: ProfileId) -> Result<Arc<PackageGraph>, ProviderError> {
         self.read(
-            ArtifactKey::package_index(profile),
-            ArtifactTable::package_index,
+            ArtifactKey::package_graph(profile),
+            ArtifactTable::package_graph,
         )
     }
 
