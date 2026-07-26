@@ -2,82 +2,92 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::QueryMethodId;
-use crate::{assist, completion, navigation, refactor};
+use crate::{
+    CallItemRequest, CallItemResponse, CodeActionsRequest, CodeActionsResponse, CodeLensesRequest,
+    CodeLensesResponse, CompletionRequest, CompletionResponse, DecoratorsRequest,
+    DecoratorsResponse, ExtractVariableRequest, ExtractVariableResponse, FindReferencesRequest,
+    FindReferencesResponse, FoldingRangesRequest, FoldingRangesResponse, GotoDeclarationRequest,
+    GotoDeclarationResponse, GotoDefinitionRequest, GotoDefinitionResponse,
+    GotoImplementationRequest, GotoImplementationResponse, GotoTypeDefinitionRequest,
+    GotoTypeDefinitionResponse, HighlightRequest, HighlightResponse, HoverRequest, HoverResponse,
+    IncomingCallsRequest, IncomingCallsResponse, InlayHintsRequest, InlayHintsResponse,
+    InlineRequest, InlineResponse, LinksRequest, LinksResponse, OutgoingCallsRequest,
+    OutgoingCallsResponse, OutlineRequest, OutlineResponse, RenameFilesRequest,
+    RenameFilesResponse, RenameRequest, RenameResponse, RenameTargetRequest, RenameTargetResponse,
+    SearchSymbolsRequest, SearchSymbolsResponse, SelectionRangesRequest, SelectionRangesResponse,
+    SemanticTokensRangeRequest, SemanticTokensRangeResponse, SemanticTokensRequest,
+    SemanticTokensResponse, SignatureHelpRequest, SignatureHelpResponse, SubtypesRequest,
+    SubtypesResponse, SupertypesRequest, SupertypesResponse, TypeItemRequest, TypeItemResponse,
+};
 
 /// Query request envelope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 #[serde(tag = "kind", content = "params", rename_all = "snake_case")]
 pub enum QueryRequest {
     /// Completion request payload.
-    Completion(completion::CompletionRequest),
+    Completion(CompletionRequest),
     /// Hover request payload.
-    Hover(assist::HoverRequest),
+    Hover(HoverRequest),
     /// Signature help request payload.
-    SignatureHelp(assist::SignatureHelpRequest),
+    SignatureHelp(SignatureHelpRequest),
     /// Inlay hints request payload.
-    InlayHints(assist::InlayHintsRequest),
+    InlayHints(InlayHintsRequest),
     /// Code lenses request payload.
-    CodeLenses(assist::CodeLensesRequest),
-    /// Code lens resolve request payload.
-    ResolveCodeLens(assist::ResolveCodeLensRequest),
+    CodeLenses(CodeLensesRequest),
     /// Folding ranges request payload.
-    FoldingRanges(assist::FoldingRangesRequest),
+    FoldingRanges(FoldingRangesRequest),
     /// Full-document semantic tokens request payload.
-    SemanticTokens(assist::SemanticTokensRequest),
+    SemanticTokens(SemanticTokensRequest),
     /// Range semantic tokens request payload.
-    SemanticTokensRange(assist::SemanticTokensRangeRequest),
+    SemanticTokensRange(SemanticTokensRangeRequest),
 
     /// Symbols request payload.
-    Outline(navigation::OutlineRequest),
+    Outline(OutlineRequest),
     /// Symbol search request payload.
-    SymbolSearch(navigation::SymbolSearchRequest),
+    SearchSymbols(SearchSymbolsRequest),
     /// Links request payload.
-    Links(navigation::LinksRequest),
+    Links(LinksRequest),
     /// Highlight request payload.
-    Highlight(navigation::HighlightRequest),
+    Highlight(HighlightRequest),
     /// Selection ranges request payload.
-    SelectionRanges(navigation::SelectionRangesRequest),
+    SelectionRanges(SelectionRangesRequest),
     /// Goto definition request payload.
-    GotoDefinition(navigation::GotoDefinitionRequest),
+    GotoDefinition(GotoDefinitionRequest),
     /// Goto declaration request payload.
-    GotoDeclaration(navigation::GotoDeclarationRequest),
+    GotoDeclaration(GotoDeclarationRequest),
     /// Goto type definition request payload.
-    GotoTypeDefinition(navigation::GotoTypeDefinitionRequest),
+    GotoTypeDefinition(GotoTypeDefinitionRequest),
     /// Goto implementation request payload.
-    GotoImplementation(navigation::GotoImplementationRequest),
+    GotoImplementation(GotoImplementationRequest),
     /// Find references request payload.
-    FindReferences(navigation::FindReferencesRequest),
+    FindReferences(FindReferencesRequest),
     /// Call item request payload.
-    CallItem(navigation::CallItemRequest),
+    CallItem(CallItemRequest),
     /// Incoming calls request payload.
-    IncomingCalls(navigation::IncomingCallsRequest),
+    IncomingCalls(IncomingCallsRequest),
     /// Outgoing calls request payload.
-    OutgoingCalls(navigation::OutgoingCallsRequest),
+    OutgoingCalls(OutgoingCallsRequest),
     /// Type hierarchy item request payload.
-    TypeItem(navigation::TypeItemRequest),
+    TypeItem(TypeItemRequest),
     /// Type hierarchy supertypes request payload.
-    Supertypes(navigation::SupertypesRequest),
+    Supertypes(SupertypesRequest),
     /// Type hierarchy subtypes request payload.
-    Subtypes(navigation::SubtypesRequest),
+    Subtypes(SubtypesRequest),
     /// Decorator request payload.
-    Decorators(navigation::DecoratorsRequest),
+    Decorators(DecoratorsRequest),
 
     /// Rename target request payload.
-    RenameTarget(refactor::RenameTargetRequest),
+    RenameTarget(RenameTargetRequest),
     /// Rename request payload.
-    Rename(refactor::RenameRequest),
+    Rename(RenameRequest),
     /// Rename files request payload.
-    RenameFiles(refactor::RenameFilesRequest),
-    /// Extract function request payload.
-    ExtractFunction(refactor::ExtractFunctionRequest),
+    RenameFiles(RenameFilesRequest),
     /// Extract variable request payload.
-    ExtractVariable(refactor::ExtractVariableRequest),
+    ExtractVariable(ExtractVariableRequest),
     /// Inline request payload.
-    Inline(refactor::InlineRequest),
-    /// Change signature request payload.
-    ChangeSignature(refactor::ChangeSignatureRequest),
+    Inline(InlineRequest),
     /// Code actions request payload.
-    CodeActions(refactor::CodeActionsRequest),
+    CodeActions(CodeActionsRequest),
 }
 
 impl QueryRequest {
@@ -90,12 +100,11 @@ impl QueryRequest {
             Self::SignatureHelp(_) => QueryMethodId::SignatureHelp,
             Self::InlayHints(_) => QueryMethodId::InlayHints,
             Self::CodeLenses(_) => QueryMethodId::CodeLenses,
-            Self::ResolveCodeLens(_) => QueryMethodId::ResolveCodeLens,
             Self::FoldingRanges(_) => QueryMethodId::FoldingRanges,
             Self::SemanticTokens(_) => QueryMethodId::SemanticTokens,
             Self::SemanticTokensRange(_) => QueryMethodId::SemanticTokensRange,
             Self::Outline(_) => QueryMethodId::Outline,
-            Self::SymbolSearch(_) => QueryMethodId::SymbolSearch,
+            Self::SearchSymbols(_) => QueryMethodId::SearchSymbols,
             Self::Links(_) => QueryMethodId::Links,
             Self::Highlight(_) => QueryMethodId::Highlight,
             Self::SelectionRanges(_) => QueryMethodId::SelectionRanges,
@@ -114,10 +123,8 @@ impl QueryRequest {
             Self::RenameTarget(_) => QueryMethodId::RenameTarget,
             Self::Rename(_) => QueryMethodId::Rename,
             Self::RenameFiles(_) => QueryMethodId::RenameFiles,
-            Self::ExtractFunction(_) => QueryMethodId::ExtractFunction,
             Self::ExtractVariable(_) => QueryMethodId::ExtractVariable,
             Self::Inline(_) => QueryMethodId::Inline,
-            Self::ChangeSignature(_) => QueryMethodId::ChangeSignature,
             Self::CodeActions(_) => QueryMethodId::CodeActions,
         }
     }
@@ -128,75 +135,69 @@ impl QueryRequest {
 #[serde(tag = "kind", content = "result", rename_all = "snake_case")]
 pub enum QueryResponse {
     /// Completion response payload.
-    Completion(completion::CompletionResponse),
+    Completion(CompletionResponse),
     /// Hover response payload.
-    Hover(assist::HoverResponse),
+    Hover(HoverResponse),
     /// Signature help response payload.
-    SignatureHelp(assist::SignatureHelpResponse),
+    SignatureHelp(SignatureHelpResponse),
     /// Inlay hints response payload.
-    InlayHints(assist::InlayHintsResponse),
+    InlayHints(InlayHintsResponse),
     /// Code lenses response payload.
-    CodeLenses(assist::CodeLensesResponse),
-    /// Code lens resolve response payload.
-    ResolveCodeLens(assist::ResolveCodeLensResponse),
+    CodeLenses(CodeLensesResponse),
     /// Folding ranges response payload.
-    FoldingRanges(assist::FoldingRangesResponse),
+    FoldingRanges(FoldingRangesResponse),
     /// Full-document semantic tokens response payload.
-    SemanticTokens(assist::SemanticTokensResponse),
+    SemanticTokens(SemanticTokensResponse),
     /// Range semantic tokens response payload.
-    SemanticTokensRange(assist::SemanticTokensResponse),
+    SemanticTokensRange(SemanticTokensRangeResponse),
 
     /// Symbols response payload.
-    Outline(navigation::OutlineResponse),
+    Outline(OutlineResponse),
     /// Symbol search response payload.
-    SymbolSearch(navigation::SymbolSearchResponse),
+    SearchSymbols(SearchSymbolsResponse),
     /// Links response payload.
-    Links(navigation::LinksResponse),
+    Links(LinksResponse),
     /// Highlight response payload.
-    Highlight(navigation::HighlightResponse),
+    Highlight(HighlightResponse),
     /// Selection ranges response payload.
-    SelectionRanges(navigation::SelectionRangesResponse),
+    SelectionRanges(SelectionRangesResponse),
     /// Goto definition response payload.
-    GotoDefinition(navigation::GotoDefinitionResponse),
+    GotoDefinition(GotoDefinitionResponse),
     /// Goto declaration response payload.
-    GotoDeclaration(navigation::GotoDeclarationResponse),
+    GotoDeclaration(GotoDeclarationResponse),
     /// Goto type definition response payload.
-    GotoTypeDefinition(navigation::GotoTypeDefinitionResponse),
+    GotoTypeDefinition(GotoTypeDefinitionResponse),
     /// Goto implementation response payload.
-    GotoImplementation(navigation::GotoImplementationResponse),
+    GotoImplementation(GotoImplementationResponse),
     /// Find references response payload.
-    FindReferences(navigation::FindReferencesResponse),
+    FindReferences(FindReferencesResponse),
     /// Call item response payload.
-    CallItem(navigation::CallItemResponse),
+    CallItem(CallItemResponse),
     /// Incoming calls response payload.
-    IncomingCalls(navigation::IncomingCallsResponse),
+    IncomingCalls(IncomingCallsResponse),
     /// Outgoing calls response payload.
-    OutgoingCalls(navigation::OutgoingCallsResponse),
+    OutgoingCalls(OutgoingCallsResponse),
     /// Type hierarchy item response payload.
-    TypeItem(navigation::TypeItemResponse),
+    TypeItem(TypeItemResponse),
     /// Type hierarchy supertypes response payload.
-    Supertypes(navigation::SupertypesResponse),
+    Supertypes(SupertypesResponse),
     /// Type hierarchy subtypes response payload.
-    Subtypes(navigation::SubtypesResponse),
+    Subtypes(SubtypesResponse),
     /// Decorator response payload.
-    Decorators(navigation::DecoratorsResponse),
+    Decorators(DecoratorsResponse),
 
     /// Rename target response payload.
-    RenameTarget(refactor::RenameTargetResponse),
+    RenameTarget(RenameTargetResponse),
     /// Rename response payload.
-    Rename(refactor::RenameResponse),
+    Rename(RenameResponse),
     /// Rename files response payload.
-    RenameFiles(refactor::RenameFilesResponse),
-    /// Extract function response payload.
-    ExtractFunction(refactor::ExtractFunctionResponse),
+    RenameFiles(RenameFilesResponse),
     /// Extract variable response payload.
-    ExtractVariable(refactor::ExtractVariableResponse),
+    ExtractVariable(ExtractVariableResponse),
     /// Inline response payload.
-    Inline(refactor::InlineResponse),
-    /// Change signature response payload.
-    ChangeSignature(refactor::ChangeSignatureResponse),
+    Inline(InlineResponse),
     /// Code actions response payload.
-    CodeActions(refactor::CodeActionsResponse),
+    CodeActions(CodeActionsResponse),
 }
 
 impl QueryResponse {
@@ -209,12 +210,11 @@ impl QueryResponse {
             Self::SignatureHelp(_) => QueryMethodId::SignatureHelp,
             Self::InlayHints(_) => QueryMethodId::InlayHints,
             Self::CodeLenses(_) => QueryMethodId::CodeLenses,
-            Self::ResolveCodeLens(_) => QueryMethodId::ResolveCodeLens,
             Self::FoldingRanges(_) => QueryMethodId::FoldingRanges,
             Self::SemanticTokens(_) => QueryMethodId::SemanticTokens,
             Self::SemanticTokensRange(_) => QueryMethodId::SemanticTokensRange,
             Self::Outline(_) => QueryMethodId::Outline,
-            Self::SymbolSearch(_) => QueryMethodId::SymbolSearch,
+            Self::SearchSymbols(_) => QueryMethodId::SearchSymbols,
             Self::Links(_) => QueryMethodId::Links,
             Self::Highlight(_) => QueryMethodId::Highlight,
             Self::SelectionRanges(_) => QueryMethodId::SelectionRanges,
@@ -233,10 +233,8 @@ impl QueryResponse {
             Self::RenameTarget(_) => QueryMethodId::RenameTarget,
             Self::Rename(_) => QueryMethodId::Rename,
             Self::RenameFiles(_) => QueryMethodId::RenameFiles,
-            Self::ExtractFunction(_) => QueryMethodId::ExtractFunction,
             Self::ExtractVariable(_) => QueryMethodId::ExtractVariable,
             Self::Inline(_) => QueryMethodId::Inline,
-            Self::ChangeSignature(_) => QueryMethodId::ChangeSignature,
             Self::CodeActions(_) => QueryMethodId::CodeActions,
         }
     }
