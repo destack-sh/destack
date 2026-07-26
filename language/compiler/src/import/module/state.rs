@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticAnchor, DirImported, PackageIndex, ProfileKey};
+use destack_artifact::{DiagnosticAnchor, DirImported, PackageGraph, ProfileKey};
 use destack_core::{StringPool, closest_string};
 use destack_dir as dir;
 use destack_repository::{Environment, Module, Package, Revision};
 use destack_source::Loader;
 
-use crate::import::stats::ImportStats;
 use crate::{ImportError, ImportResult, diagnostic_suggestion_distance};
+
+use super::stats::ImportStats;
 
 const IMPORT_ATTRIBUTE_TYPES: &[&str] =
     &["json", "toml", "yaml", "text", "binary", "file", "base64"];
@@ -22,8 +23,8 @@ pub(crate) struct ImportState<'a> {
     pub(in crate::import) package: &'a Package,
     /// The ambient environment captured by the current revision.
     pub(in crate::import) environment: &'a Environment,
-    /// The active package dependency index.
-    pub(in crate::import) index: &'a PackageIndex,
+    /// The active package graph.
+    pub(in crate::import) package_graph: &'a PackageGraph,
     /// The active profile key.
     pub(in crate::import) profile: &'a ProfileKey,
     /// The shared string pool.
@@ -45,7 +46,7 @@ impl<'a> ImportState<'a> {
         module: &'a Module,
         package: &'a Package,
         environment: &'a Environment,
-        index: &'a PackageIndex,
+        package_graph: &'a PackageGraph,
         profile: &'a ProfileKey,
         strings: &'a StringPool,
         view: dir::View<'a>,
@@ -55,7 +56,7 @@ impl<'a> ImportState<'a> {
             module,
             package,
             environment,
-            index,
+            package_graph,
             profile,
             strings,
             view,

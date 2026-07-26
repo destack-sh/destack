@@ -1,17 +1,17 @@
 use std::path::{Component, Path, PathBuf};
 
+use destack_artifact::PackageDependency;
 use destack_core::closest_string;
 use destack_dir as dir;
-use destack_source::{
-    CODE_FILE_TYPES, FileType, Loader, ModuleId, ModuleSpecifier, PackageId, Uri,
-};
+use destack_source::{Loader, ModuleId, ModuleSpecifier, PackageId, Uri};
 
-use crate::import::state::ImportState;
+use crate::import::ModulePathResolution;
 use crate::{
     Compiler, CompilerResult, DiagnosticAnchor, ImportError, diagnostic_suggestion_distance,
 };
 
 use super::specifier::{ImportSpecifier, PackageSpecifier};
+use super::state::ImportState;
 
 impl Compiler {
     /// Import one module edge.
@@ -178,11 +178,11 @@ impl Compiler {
         state.stats.package_exports += 1;
 
         // require explicit dependency declarations
-        let Some(current_package) = state.index.package(state.module.package_id) else {
+        let Some(current_package) = state.package_graph.package(state.module.package_id) else {
             return Err(ImportError::Internal {
                 anchor: anchor.clone(),
                 message: format!(
-                    "package {:?} is missing from dependency index",
+                    "package {:?} is missing from package graph",
                     state.module.package_id
                 ),
             }
@@ -198,18 +198,24 @@ impl Compiler {
         };
 
         // require loaded dependency package
-        let Some(package_id) = dependency else {
-            state.report_diagnostic(ImportError::UnloadedPackageDependency {
-                anchor: anchor.clone(),
-                package: specifier.package.clone(),
-            });
+        let package_id = match dependency {
+            // reject unavailable declared dependencies
+            PackageDependency::Unavailable => {
+                state.report_diagnostic(ImportError::UnloadedPackageDependency {
+                    anchor: anchor.clone(),
+                    package: specifier.package.clone(),
+                });
 
-            return Ok(None);
+                return Ok(None);
+            }
+
+            // continue through the exact dependency package
+            PackageDependency::Resolved(package_id) => package_id,
         };
-        let Some(package) = state.index.package(package_id) else {
+        let Some(package) = state.package_graph.package(package_id) else {
             return Err(ImportError::Internal {
                 anchor: anchor.clone(),
-                message: format!("package {package_id:?} is missing from dependency index"),
+                message: format!("package {package_id:?} is missing from package graph"),
             }
             .into());
         };
@@ -295,28 +301,23 @@ impl Compiler {
         specifier: &str,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
-        let Some(candidates) =
-            self.build_export_candidate_paths(path, specifier, anchor, state, loader)?
-        else {
-            return Ok(None);
-        };
-        state.stats.candidates += candidates.len();
+        let resolution = self.resolve_module_path(state.revision, path, loader)?;
+        state.stats.candidates += resolution.candidates();
+        state.stats.probes += resolution.candidates();
 
-        let mut matches = Vec::new();
+        match resolution {
+            // unsupported logical path
+            ModulePathResolution::Unsupported => {
+                state.report_diagnostic(ImportError::UnsupportedModuleSpecifier {
+                    anchor: anchor.clone(),
+                    target: specifier.to_string(),
+                });
 
-        // collect modules for existing candidate paths
-        for path in candidates {
-            state.stats.probes += 1;
-
-            let module_id = self.module_id_for_path(state.revision, &path)?;
-            if let Some(module_id) = module_id {
-                matches.push((path, module_id));
+                Ok(None)
             }
-        }
 
-        match matches.as_slice() {
             // no module matched
-            [] => {
+            ModulePathResolution::Missing { .. } => {
                 state.report_diagnostic(ImportError::UnresolvedModule {
                     anchor: anchor.clone(),
                     target: specifier.to_string(),
@@ -327,12 +328,11 @@ impl Compiler {
             }
 
             // exactly one module matched
-            [(path, module_id)] => self.resolve_export_package_match(
-                state, anchor, package_id, path, *module_id, specifier,
-            ),
+            ModulePathResolution::Resolved { path, module, .. } => self
+                .resolve_export_package_match(state, anchor, package_id, &path, module, specifier),
 
             // multiple modules matched
-            _ => {
+            ModulePathResolution::Ambiguous { matches, .. } => {
                 let candidates = matches
                     .iter()
                     .map(|(path, _)| path.display().to_string())
@@ -428,13 +428,24 @@ impl Compiler {
         specifier: &str,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
-        let Some(matches) = self.find_package_modules(state, anchor, path, loader)? else {
-            return Ok(None);
-        };
+        let path = self.relative_module_path(state, anchor, path)?;
+        let resolution = self.resolve_module_path(state.revision, &path, loader)?;
+        state.stats.candidates += resolution.candidates();
+        state.stats.probes += resolution.candidates();
 
-        match matches.as_slice() {
+        match resolution {
+            // reject paths outside the logical workspace
+            ModulePathResolution::Unsupported => {
+                state.report_diagnostic(ImportError::UnsupportedModuleSpecifier {
+                    anchor: anchor.clone(),
+                    target: specifier.to_string(),
+                });
+
+                Ok(None)
+            }
+
             // no module matched
-            [] => {
+            ModulePathResolution::Missing { .. } => {
                 let suggestion = self.closest_relative_module_specifier(state, specifier)?;
                 state.report_diagnostic(ImportError::UnresolvedModule {
                     anchor: anchor.clone(),
@@ -446,12 +457,12 @@ impl Compiler {
             }
 
             // exactly one module matched
-            [(path, module_id)] => {
-                self.resolve_package_match(state, anchor, path, *module_id, specifier)
+            ModulePathResolution::Resolved { path, module, .. } => {
+                self.resolve_package_match(state, anchor, &path, module, specifier)
             }
 
             // multiple modules matched
-            _ => {
+            ModulePathResolution::Ambiguous { matches, .. } => {
                 let candidates = matches
                     .iter()
                     .map(|(path, _)| path.display().to_string())
@@ -514,45 +525,14 @@ impl Compiler {
         }
     }
 
-    /// Find package modules matching one relative module specifier.
-    fn find_package_modules(
+    /// Build one module path relative to the importing module.
+    fn relative_module_path(
         &self,
-        state: &mut ImportState<'_>,
+        state: &ImportState<'_>,
         anchor: &DiagnosticAnchor,
-        specifier: &str,
-        loader: Option<Loader>,
-    ) -> CompilerResult<Option<Vec<(PathBuf, ModuleId)>>> {
-        let Some(candidates) =
-            self.build_package_candidate_paths(state, anchor, specifier, loader)?
-        else {
-            return Ok(None);
-        };
-        state.stats.candidates += candidates.len();
-
-        let mut matches = Vec::new();
-
-        // collect modules for existing candidate paths
-        for path in candidates {
-            state.stats.probes += 1;
-
-            let module_id = self.module_id_for_path(state.revision, &path)?;
-            if let Some(module_id) = module_id {
-                matches.push((path, module_id));
-            }
-        }
-
-        Ok(Some(matches))
-    }
-
-    /// Build candidate package module paths for one relative specifier.
-    fn build_package_candidate_paths(
-        &self,
-        state: &mut ImportState<'_>,
-        anchor: &DiagnosticAnchor,
-        specifier: &str,
-        loader: Option<Loader>,
-    ) -> CompilerResult<Option<Vec<PathBuf>>> {
-        let specifier_path = Path::new(specifier);
+        path: &str,
+    ) -> CompilerResult<PathBuf> {
+        let specifier_path = Path::new(path);
         let current_path = state
             .module
             .path
@@ -573,57 +553,8 @@ impl Compiler {
 
             parent.join(specifier_path)
         };
-        let Some(path) = self.normalize_workspace_path(path) else {
-            state.report_diagnostic(ImportError::UnsupportedModuleSpecifier {
-                anchor: anchor.clone(),
-                target: specifier.to_string(),
-            });
 
-            return Ok(None);
-        };
-
-        Ok(Some(self.candidate_paths(path, loader)))
-    }
-
-    /// Build candidate module paths for one package export path.
-    fn build_export_candidate_paths(
-        &self,
-        path: &Path,
-        specifier: &str,
-        anchor: &DiagnosticAnchor,
-        state: &mut ImportState<'_>,
-        loader: Option<Loader>,
-    ) -> CompilerResult<Option<Vec<PathBuf>>> {
-        let Some(path) = self.normalize_workspace_path(path.to_path_buf()) else {
-            state.report_diagnostic(ImportError::UnsupportedModuleSpecifier {
-                anchor: anchor.clone(),
-                target: specifier.to_string(),
-            });
-
-            return Ok(None);
-        };
-
-        Ok(Some(self.candidate_paths(path, loader)))
-    }
-
-    /// Return candidate module paths in deterministic order.
-    fn candidate_paths(&self, path: PathBuf, loader: Option<Loader>) -> Vec<PathBuf> {
-        // explicit extension
-        if path.extension().is_some() {
-            vec![path]
-        }
-        // loader extension
-        else if let Some(extension) = loader.and_then(Loader::extension) {
-            vec![path.with_extension(extension)]
-        }
-        // source extensions
-        else {
-            CODE_FILE_TYPES
-                .iter()
-                .filter_map(FileType::extension)
-                .map(|extension| path.with_extension(extension))
-                .collect()
-        }
+        Ok(path)
     }
 
     /// Return the closest same-package module specifier visible from this import.
@@ -707,9 +638,7 @@ fn relative_module_specifier(source_directory: &Path, target: &Path) -> Option<S
         path.push(segment);
     }
 
-    let mut specifier = path
-        .to_string_lossy()
-        .replace(std::path::MAIN_SEPARATOR, "/");
+    let mut specifier = path.to_str()?.replace(std::path::MAIN_SEPARATOR, "/");
     if specifier.is_empty() {
         return None;
     }

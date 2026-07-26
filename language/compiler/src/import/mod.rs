@@ -1,14 +1,12 @@
 mod error;
 mod global;
-mod import;
 mod language;
+mod module;
 mod package;
 mod provide;
-mod state;
-mod r#static;
-mod stats;
 
 pub use error::*;
+pub(in crate::import) use module::*;
 
 #[cfg(test)]
 mod tests;

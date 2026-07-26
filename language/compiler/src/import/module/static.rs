@@ -1,8 +1,9 @@
 use destack_dir as dir;
 
-use crate::import::state::ImportState;
 use crate::r#static::{StaticError, StaticEvaluator, StaticGuard, StaticGuardError};
 use crate::{CompilerResult, ImportError};
+
+use super::state::ImportState;
 
 impl ImportState<'_> {
     /// Return whether static import decorators attached to one node allow it.
