@@ -186,7 +186,7 @@ impl CheckState<'_> {
         if input
             .resolved
             .imports
-            .symbol_target(symbol.local_id)
+            .symbol_resolution(symbol.local_id)
             .is_some()
         {
             let failure = ObligationFailure::CannotAssignImportedBinding { source, symbol };

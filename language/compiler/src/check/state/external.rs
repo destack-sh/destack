@@ -90,20 +90,29 @@ impl CheckState<'_> {
                 });
             }
 
-            let target = if self.is_component_module(current.module_id) {
+            let resolution = if self.is_component_module(current.module_id) {
                 self.module(current.module_id)
                     .resolved
                     .imports
-                    .symbol_target(current.local_id)
+                    .symbol_resolution(current.local_id)
             } else {
                 self.import_external_module(current.module_id)?
                     .resolved
                     .imports
-                    .symbol_target(current.local_id)
+                    .symbol_resolution(current.local_id)
             };
-            match target {
-                Some(dir::ImportTarget::Symbol(target)) => current = target,
-                _ => return Ok(current),
+            match resolution {
+                Some(dir::ImportResolution::Resolved(dir::ImportTarget::Symbol(target))) => {
+                    current = *target;
+                }
+                Some(resolution) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "symbol alias {current:?} has no exact symbol target: {resolution:?}"
+                        ),
+                    });
+                }
+                None => return Ok(current),
             }
         }
     }

@@ -601,7 +601,7 @@ impl BodyState<'_, '_> {
         match reference {
             Some(dir::Reference::Bound(symbols)) => {
                 let [symbol] = symbols.as_slice() else {
-                    self.report_ambiguous_reference(source.module_id, source.local_id, &path);
+                    self.report_ambiguous_reference(source.module_id, source.local_id, &path)?;
 
                     return Ok(Answer::Ready(None));
                 };
@@ -620,7 +620,7 @@ impl BodyState<'_, '_> {
                 Ok(Answer::Ready(None))
             }
             Some(dir::Reference::Ambiguous(_)) => {
-                self.report_ambiguous_reference(source.module_id, source.local_id, &path);
+                self.report_ambiguous_reference(source.module_id, source.local_id, &path)?;
                 self.commit_error_node(source)?;
 
                 Ok(Answer::Ready(None))

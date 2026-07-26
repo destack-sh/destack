@@ -107,7 +107,7 @@ impl BodyState<'_, '_> {
             (Some(DecisionKind::Name), Some(resolution)) => match resolution.symbols() {
                 [symbol] => *symbol,
                 _ => {
-                    self.report_ambiguous_reference(module, ty.into_any(), &path);
+                    self.report_ambiguous_reference(module, ty.into_any(), &path)?;
                     let error = self.intern_type(module, dir::Type::Error)?;
 
                     return Ok(Answer::Ready(error));

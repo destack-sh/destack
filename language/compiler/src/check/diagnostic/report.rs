@@ -273,7 +273,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         path: &dir::Path,
-    ) {
+    ) -> CompilerResult<()> {
         let anchor = self.diagnostic_anchor(module, source);
         let error = CheckError::AmbiguousReference {
             anchor,
@@ -288,16 +288,23 @@ impl CheckState<'_> {
             .get(&module)
             .and_then(|state| state.resolved.references.get(source.into_global(module)))
         {
-            for symbol in candidates.clone().iter().take(4) {
-                let Ok(declaration) = self.symbol_source(*symbol) else {
-                    continue;
+            for target in candidates.iter().take(4) {
+                let candidate = match target {
+                    dir::ImportTarget::Symbol(symbol) => {
+                        let declaration = self.symbol_source(*symbol)?;
+                        let (_, candidate) = self.source_anchor(declaration);
+
+                        candidate
+                    }
+                    dir::ImportTarget::Namespace(module) => DiagnosticAnchor::Module(*module),
                 };
-                let (_, candidate) = self.source_anchor(declaration);
                 diagnostic = diagnostic.label(candidate, "one candidate is declared here");
             }
         }
 
         self.report(module, diagnostic);
+
+        Ok(())
     }
 
     /// Report a local binding read before assignment.

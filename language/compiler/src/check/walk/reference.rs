@@ -58,7 +58,7 @@ impl WalkState<'_, '_> {
                     segments: smallvec![name],
                 };
                 self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), &path);
+                    .report_ambiguous_reference(self.module, id.into_any(), &path)?;
                 let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;
             }
@@ -136,7 +136,7 @@ impl WalkState<'_, '_> {
             Some(dir::Reference::Ambiguous(_)) => {
                 if let Some(path) = self.tree.tree().reference_path(id) {
                     self.check
-                        .report_ambiguous_reference(self.module, id.into_any(), &path);
+                        .report_ambiguous_reference(self.module, id.into_any(), &path)?;
                 }
                 let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;

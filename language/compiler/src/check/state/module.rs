@@ -344,7 +344,7 @@ impl CheckModuleState {
 
     /// Return whether one local symbol is an imported alias.
     pub(in crate::check) fn is_import_alias(&self, symbol: dir::LocalSymbolId) -> bool {
-        self.resolved.imports.symbol_target(symbol).is_some()
+        self.resolved.imports.symbol_resolution(symbol).is_some()
     }
 }
 

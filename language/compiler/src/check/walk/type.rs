@@ -554,7 +554,7 @@ impl WalkState<'_, '_> {
             // conflicting paths fail at the type query site
             Some(dir::Reference::Ambiguous(_)) => {
                 self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), &path);
+                    .report_ambiguous_reference(self.module, id.into_any(), &path)?;
 
                 Ok(true)
             }
@@ -642,7 +642,7 @@ impl WalkState<'_, '_> {
                     }
                     _ => {
                         self.check
-                            .report_ambiguous_reference(self.module, id.into_any(), path);
+                            .report_ambiguous_reference(self.module, id.into_any(), path)?;
                     }
                 }
             }
@@ -651,7 +651,7 @@ impl WalkState<'_, '_> {
             }
             Some(dir::Reference::Ambiguous(_)) => {
                 self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), path);
+                    .report_ambiguous_reference(self.module, id.into_any(), path)?;
             }
             Some(dir::Reference::Namespace(_)) | Some(dir::Reference::Missing) => {
                 self.check
@@ -697,7 +697,7 @@ impl WalkState<'_, '_> {
             // reject resolve conflicts in type position
             Some(dir::Reference::Ambiguous(_)) => {
                 self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), path);
+                    .report_ambiguous_reference(self.module, id.into_any(), path)?;
 
                 self.intern_type(dir::Type::Error)
             }
@@ -769,7 +769,7 @@ impl WalkState<'_, '_> {
             // reject annotations that name more than one declaration
             _ => {
                 self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), path);
+                    .report_ambiguous_reference(self.module, id.into_any(), path)?;
 
                 self.intern_type(dir::Type::Error)
             }
