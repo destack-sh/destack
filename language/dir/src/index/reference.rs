@@ -115,8 +115,8 @@ pub struct ReferenceEntry {
     pub symbol: GlobalSymbolId,
     /// The source range.
     pub span: Span,
-    /// Whether the authored name names the semantic target directly.
-    pub is_target_name: bool,
+    /// Whether the occurrence names an explicit local import alias.
+    pub is_import_alias: bool,
 }
 
 impl ReferenceEntry {
@@ -127,14 +127,14 @@ impl ReferenceEntry {
             self.span.file,
             self.span.start,
             self.span.end,
-            self.is_target_name,
+            self.is_import_alias,
         );
         let right = (
             other.symbol,
             other.span.file,
             other.span.start,
             other.span.end,
-            other.is_target_name,
+            other.is_import_alias,
         );
 
         left.cmp(&right)

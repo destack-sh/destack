@@ -1,4 +1,4 @@
-use crate::{GlobalNodeIdAny, GlobalSymbolId, Postings};
+use crate::{Expression, GlobalNodeId, GlobalSymbolId, Postings};
 use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
@@ -111,7 +111,7 @@ impl CallPostings {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CallEntry {
     /// The call-like expression node.
-    pub source: GlobalNodeIdAny,
+    pub source: GlobalNodeId<Expression>,
     /// The kind of call-like operation.
     pub kind: CallKind,
     /// The containing function symbol when known.
@@ -128,22 +128,22 @@ impl CallEntry {
         let left = (
             self.callee,
             self.source.module_id,
-            self.source.local_id.id,
-            self.kind,
-            self.caller,
             self.span.file,
             self.span.start,
             self.span.end,
+            self.source.local_id.id,
+            self.caller,
+            self.kind,
         );
         let right = (
             other.callee,
             other.source.module_id,
-            other.source.local_id.id,
-            other.kind,
-            other.caller,
             other.span.file,
             other.span.start,
             other.span.end,
+            other.source.local_id.id,
+            other.caller,
+            other.kind,
         );
 
         left.cmp(&right)
@@ -153,23 +153,23 @@ impl CallEntry {
     fn compare_by_caller(&self, other: &Self) -> std::cmp::Ordering {
         let left = (
             self.caller,
-            self.callee,
             self.source.module_id,
-            self.source.local_id.id,
-            self.kind,
             self.span.file,
             self.span.start,
             self.span.end,
+            self.source.local_id.id,
+            self.callee,
+            self.kind,
         );
         let right = (
             other.caller,
-            other.callee,
             other.source.module_id,
-            other.source.local_id.id,
-            other.kind,
             other.span.file,
             other.span.start,
             other.span.end,
+            other.source.local_id.id,
+            other.callee,
+            other.kind,
         );
 
         left.cmp(&right)

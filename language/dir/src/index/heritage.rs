@@ -1,5 +1,6 @@
-use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Postings};
+use crate::{GlobalSymbolId, Postings};
 use destack_serde::Reflect;
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 /// Indexed nominal heritage edges.
@@ -105,16 +106,16 @@ impl HeritagePostings {
 }
 
 /// One nominal heritage edge.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct HeritageEntry {
     /// The derived nominal symbol.
     pub derived: GlobalSymbolId,
+    /// The declaration that authored the heritage edge.
+    pub declaration: GlobalSymbolId,
     /// The inherited or implemented nominal symbol.
     pub base: GlobalSymbolId,
-    /// The source heritage node.
-    pub source: GlobalNodeIdAny,
-    /// The generic arguments used at the heritage site.
-    pub arguments: Vec<GlobalTypeId>,
+    /// The authored heritage range.
+    pub span: Span,
     /// The heritage kind.
     pub kind: HeritageKind,
 }
@@ -124,17 +125,21 @@ impl HeritageEntry {
     fn compare_by_base(&self, other: &Self) -> std::cmp::Ordering {
         let left = (
             self.base,
+            self.span.file,
+            self.span.start,
+            self.span.end,
             self.kind,
             self.derived,
-            self.source.module_id,
-            self.source.local_id.id,
+            self.declaration,
         );
         let right = (
             other.base,
+            other.span.file,
+            other.span.start,
+            other.span.end,
             other.kind,
             other.derived,
-            other.source.module_id,
-            other.source.local_id.id,
+            other.declaration,
         );
 
         left.cmp(&right)
@@ -144,17 +149,21 @@ impl HeritageEntry {
     fn compare_by_derived(&self, other: &Self) -> std::cmp::Ordering {
         let left = (
             self.derived,
+            self.span.file,
+            self.span.start,
+            self.span.end,
             self.kind,
             self.base,
-            self.source.module_id,
-            self.source.local_id.id,
+            self.declaration,
         );
         let right = (
             other.derived,
+            other.span.file,
+            other.span.start,
+            other.span.end,
             other.kind,
             other.base,
-            other.source.module_id,
-            other.source.local_id.id,
+            other.declaration,
         );
 
         left.cmp(&right)
