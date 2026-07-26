@@ -120,9 +120,7 @@ impl<'a> ResolveState<'a> {
 
     /// Collect one source path reference for later target lookup.
     pub(in crate::resolve) fn collect_path_reference(&mut self, reference: PathReference) {
-        let Some(root) = reference.path.segments.first().copied() else {
-            return;
-        };
+        let root = reference.path.segments.first().copied();
 
         // expression member chains already visit their root identifier
         if reference.source.local_id.ty != dir::NodeType::TypeExpression
@@ -133,16 +131,18 @@ impl<'a> ResolveState<'a> {
             return;
         }
 
-        // collect global keys only when no local root wins
-        self.stats.local_binding_lookups += 1;
-        let key = dir::StaticKey::Name(root);
-        let local_symbols = self.visible_symbols(
-            reference.source.local_id,
-            key,
-            dir::SymbolSpace::Declaration,
-        );
-        if local_symbols.is_empty() && self.global_keys.insert(key) {
-            self.stats.required_globals += 1;
+        // collect global keys only for valid roots with no local winner
+        if let Some(root) = root {
+            self.stats.local_binding_lookups += 1;
+            let key = dir::StaticKey::Name(root);
+            let local_symbols = self.visible_symbols(
+                reference.source.local_id,
+                key,
+                dir::SymbolSpace::Declaration,
+            );
+            if local_symbols.is_empty() && self.global_keys.insert(key) {
+                self.stats.required_globals += 1;
+            }
         }
 
         self.path_references.push(reference);
@@ -197,63 +197,6 @@ impl<'a> ResolveState<'a> {
     /// Return the current function context.
     pub(in crate::resolve) fn current_function(&self) -> Option<FunctionContext> {
         self.function_stack.last().copied()
-    }
-
-    /// Return a reference from one visible symbol set.
-    pub(in crate::resolve) fn reference_from_symbols(
-        &self,
-        symbols: SmallVec<[dir::GlobalSymbolId; 2]>,
-    ) -> dir::Reference {
-        // resolve local import aliases to their exported targets
-        let targets = symbols.into_iter().map(|symbol| {
-            if symbol.module_id == self.module
-                && let Some(target) = self.imports.symbol_target(symbol.local_id)
-            {
-                target
-            } else {
-                dir::ImportTarget::Symbol(symbol)
-            }
-        });
-
-        self.reference_from_targets(targets)
-    }
-
-    /// Return a reference from visible import targets.
-    pub(in crate::resolve) fn reference_from_targets(
-        &self,
-        targets: impl IntoIterator<Item = dir::ImportTarget>,
-    ) -> dir::Reference {
-        let mut symbols: SmallVec<[dir::GlobalSymbolId; 2]> = SmallVec::new();
-        let mut namespace = None;
-        let mut is_conflicting_namespace = false;
-
-        // collect symbols and a possible namespace target
-        for target in targets {
-            match target {
-                dir::ImportTarget::Symbol(symbol) if !symbols.contains(&symbol) => {
-                    symbols.push(symbol);
-                }
-                dir::ImportTarget::Symbol(_) => {}
-                dir::ImportTarget::Namespace(module) => {
-                    is_conflicting_namespace |= namespace.replace(module).is_some();
-                }
-            }
-        }
-
-        // prefer concrete symbols over namespace objects
-        if !symbols.is_empty() {
-            dir::Reference::Bound(symbols)
-        }
-        // keep a single namespace reference
-        else if let Some(module) = namespace
-            && !is_conflicting_namespace
-        {
-            dir::Reference::Namespace(module)
-        }
-        // no visible target remains
-        else {
-            dir::Reference::Missing
-        }
     }
 
     /// Drain recoverable diagnostics.

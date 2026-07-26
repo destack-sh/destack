@@ -164,13 +164,6 @@ impl ResolveState<'_> {
                     self.use_language_item(item);
                 }
             }
-            dir::TypeExpression::Reference { path, .. } if path.segments.len() == 1 => {
-                self.collect_path_reference(PathReference {
-                    source: id.into_global_any(self.module),
-                    path: path.clone(),
-                });
-                dir::walk_type_expression(self, tree, id, ty);
-            }
             dir::TypeExpression::Reference { path, .. } => {
                 self.collect_path_reference(PathReference {
                     source: id.into_global_any(self.module),

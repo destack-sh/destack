@@ -176,6 +176,6 @@ impl Compiler {
         // module clauses are syntactic, so no reference walk is needed
         state.collect_module_clauses(&expanded.roots);
 
-        Ok(state.module_clause_targets().collect())
+        state.module_clause_targets()
     }
 }
