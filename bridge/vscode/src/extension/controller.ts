@@ -82,11 +82,13 @@ export class DestackExtensionController {
         // register core disposables
         context.subscriptions.push(clientLog, serverLog, statusBarItem);
 
-        // start lsp and then register runtime commands/watchers
+        // register commands before advertising them during LSP initialization
+        this.registerCommands(context, statusBarItem, serverLog, clientLog);
+
+        // start lsp and then register runtime watchers
         await languageClient.start();
         clientLog.info("Destack client started.");
 
-        this.registerCommands(context, statusBarItem, serverLog, clientLog);
         this.registerConfigurationWatcher(context, statusBarItem, serverLog);
         this.registerShutdownGuard(context, serverLog);
     }
@@ -180,6 +182,9 @@ export class DestackExtensionController {
             ],
             outputChannel: clientLog,
             traceOutputChannel: clientLog,
+            initializationOptions: {
+                codeLensCommands: ["references", "implementations"],
+            },
         };
     }
 
@@ -265,23 +270,13 @@ export class DestackExtensionController {
         serverLog: vscode.LogOutputChannel,
         clientLog: vscode.LogOutputChannel,
     ): void {
-        // register commands and treat duplicate registrations as benign
+        // register commands with the extension lifetime
         const registerCommand = (
             command: string,
             callback: (...args: unknown[]) => unknown,
         ): void => {
-            try {
-                const disposable = vscode.commands.registerCommand(command, callback);
-                context.subscriptions.push(disposable);
-            } catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                if (message.includes("already exists")) {
-                    clientLog.warn(`skipping duplicate command registration: ${command}`);
-                    return;
-                }
-
-                throw error;
-            }
+            const disposable = vscode.commands.registerCommand(command, callback);
+            context.subscriptions.push(disposable);
         };
 
         // register restart command
@@ -313,6 +308,31 @@ export class DestackExtensionController {
                 "Destack reindex failed",
             );
         });
+
+        // register code lens navigation commands
+        registerCommand(
+            "destack.showReferences",
+            async (uri: unknown, position: unknown) => {
+                await this.showLocations(
+                    uri,
+                    position,
+                    "vscode.executeReferenceProvider",
+                    "No references found.",
+                );
+            },
+        );
+        registerCommand(
+            "destack.showImplementations",
+            async (uri: unknown, position: unknown) => {
+                await this.showLocations(
+                    uri,
+                    position,
+                    "vscode.executeImplementationProvider",
+                    "No implementations found.",
+                );
+            },
+        );
+
         // register log reveal commands
         registerCommand("destack.showClientLogs", () => {
             clientLog.show(true);
@@ -320,6 +340,60 @@ export class DestackExtensionController {
         registerCommand("destack.showServerLogs", () => {
             serverLog.show(true);
         });
+    }
+
+    /**
+     * Show locations returned by one VSCode language provider.
+     */
+    private async showLocations(
+        uriValue: unknown,
+        positionValue: unknown,
+        providerCommand:
+            | "vscode.executeReferenceProvider"
+            | "vscode.executeImplementationProvider",
+        emptyMessage: string,
+    ): Promise<void> {
+        if (typeof uriValue !== "string") {
+            throw new TypeError("code lens URI must be a string");
+        }
+        if (
+            typeof positionValue !== "object" ||
+            positionValue === null ||
+            !("line" in positionValue) ||
+            !("character" in positionValue) ||
+            typeof positionValue.line !== "number" ||
+            typeof positionValue.character !== "number"
+        ) {
+            throw new TypeError("code lens position must contain numeric line and character values");
+        }
+
+        // query the selected language provider
+        const uri = vscode.Uri.parse(uriValue);
+        const sourcePosition = new vscode.Position(positionValue.line, positionValue.character);
+        const results = await vscode.commands.executeCommand<
+            Array<vscode.Location | vscode.LocationLink>
+        >(providerCommand, uri, sourcePosition);
+
+        // transcribe location links into the locations accepted by VSCode navigation
+        const locations = results.map((result) => {
+            if ("targetUri" in result) {
+                return new vscode.Location(
+                    result.targetUri,
+                    result.targetSelectionRange ?? result.targetRange,
+                );
+            }
+
+            return result;
+        });
+
+        await vscode.commands.executeCommand(
+            "editor.action.goToLocations",
+            uri,
+            sourcePosition,
+            locations,
+            "peek",
+            emptyMessage,
+        );
     }
 
     /**
