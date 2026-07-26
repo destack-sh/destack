@@ -122,10 +122,10 @@ export declare function prefetchWrite(address: *void): void;
 @intrinsic("memory.raw.transmute")
 export declare function transmute<T, U>(value: T): U;
 
-/// Return the byte offset from `start` to `end`.
+/// Return the byte offset from `origin` to `pointer`.
 @unsafe
 @intrinsic("memory.ptr.byteOffsetFrom")
-export declare function ptrOffsetFrom(start: *void, end: *void): int;
+export declare function byteOffsetFrom(pointer: *void, origin: *void): int;
 
 /// Return whether two values have identical raw bytes.
 @unsafe

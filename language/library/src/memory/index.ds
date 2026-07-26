@@ -90,7 +90,7 @@ export {
     offsetFrom,
     prefetchRead,
     prefetchWrite,
-    ptrOffsetFrom,
+    byteOffsetFrom,
     Raw,
     rawEq,
     read,
