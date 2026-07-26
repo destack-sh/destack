@@ -567,11 +567,13 @@ fn remap_terminator_blocks(
             park,
             value,
             resume,
+            cancel,
             unwind,
         } => mir::Terminator::Await {
             park: *park,
             value: *value,
             resume: clone_target(resume),
+            cancel: clone_target(cancel),
             unwind: unwind.as_ref().map(clone_target),
         },
         mir::Terminator::Yield {
@@ -581,6 +583,19 @@ fn remap_terminator_blocks(
         } => mir::Terminator::Yield {
             value: *value,
             resume: clone_target(resume),
+            unwind: unwind.as_ref().map(clone_target),
+        },
+        mir::Terminator::Resume {
+            continuation,
+            command,
+            yielded,
+            returned,
+            unwind,
+        } => mir::Terminator::Resume {
+            continuation: *continuation,
+            command: *command,
+            yielded: clone_target(yielded),
+            returned: clone_target(returned),
             unwind: unwind.as_ref().map(clone_target),
         },
         // return, unreachable, tailcall don't reference blocks that need remapping

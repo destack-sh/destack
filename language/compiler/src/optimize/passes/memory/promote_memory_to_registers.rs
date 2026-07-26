@@ -845,11 +845,13 @@ fn update_terminator_arguments(
             park,
             value,
             resume,
+            cancel,
             unwind,
         } => mir::Terminator::Await {
             park: *park,
             value: remap_value_reference(*value, substitutions),
             resume: extend_target(tree, resume, block_params, value_stacks, substitutions),
+            cancel: extend_target(tree, cancel, block_params, value_stacks, substitutions),
             unwind: unwind.as_ref().map(|unwind| {
                 extend_target(tree, unwind, block_params, value_stacks, substitutions)
             }),
@@ -861,6 +863,21 @@ fn update_terminator_arguments(
         } => mir::Terminator::Yield {
             value: remap_value_reference(*value, substitutions),
             resume: extend_target(tree, resume, block_params, value_stacks, substitutions),
+            unwind: unwind.as_ref().map(|unwind| {
+                extend_target(tree, unwind, block_params, value_stacks, substitutions)
+            }),
+        },
+        mir::Terminator::Resume {
+            continuation,
+            command,
+            yielded,
+            returned,
+            unwind,
+        } => mir::Terminator::Resume {
+            continuation: remap_value_reference(*continuation, substitutions),
+            command: remap_value_reference(*command, substitutions),
+            yielded: extend_target(tree, yielded, block_params, value_stacks, substitutions),
+            returned: extend_target(tree, returned, block_params, value_stacks, substitutions),
             unwind: unwind.as_ref().map(|unwind| {
                 extend_target(tree, unwind, block_params, value_stacks, substitutions)
             }),
