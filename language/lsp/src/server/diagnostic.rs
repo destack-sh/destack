@@ -4,7 +4,9 @@ use destack_core::StableHasher;
 use destack_lsp_server::jsonrpc;
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_source::{Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticTag, File, Span};
+use destack_source::{
+    Diagnostic, DiagnosticLabel, DiagnosticReference, DiagnosticSeverity, DiagnosticTag, File, Span,
+};
 use serde_json::Value;
 
 use super::error::{internal_error, workspace_error};
@@ -98,7 +100,9 @@ pub(super) fn item(
         message: diagnostic.message.clone(),
         related_information,
         tags,
-        data: None,
+        data: Some(
+            serde_json::to_value(DiagnosticReference::from(diagnostic)).map_err(internal_error)?,
+        ),
     })
 }
 
@@ -127,6 +131,7 @@ fn code_action_kind(kind: query::CodeActionKind) -> lsp::CodeActionKind {
 /// Convert a code action to an LSP code action.
 pub(super) fn code_action(
     action: &query::CodeAction,
+    diagnostics: Option<Vec<lsp::Diagnostic>>,
     include_edit: bool,
     data: Option<Value>,
     files: &SourceFiles,
@@ -140,7 +145,7 @@ pub(super) fn code_action(
     Ok(lsp::CodeActionOrCommand::CodeAction(lsp::CodeAction {
         title: action.title.clone(),
         kind: Some(code_action_kind(action.kind)),
-        diagnostics: None,
+        diagnostics,
         edit,
         command: None,
         is_preferred: Some(action.is_preferred),

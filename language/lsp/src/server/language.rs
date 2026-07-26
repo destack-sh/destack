@@ -14,7 +14,8 @@ use destack_repository::{
     DestackLayoutOverride, Environment, Revision, Settings, open_repository_from_fs,
 };
 use destack_source::{
-    FileId, FileSystem, OverlayFileSystem, PatchSet, PhysicalFileSystem, TextRange, Uri,
+    DiagnosticReference, FileId, FileSystem, OverlayFileSystem, PatchSet, PhysicalFileSystem,
+    TextRange, Uri,
 };
 use destack_workspace::{
     DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, LocalWorkspace, QueryFile,
@@ -436,7 +437,9 @@ impl DestackLanguageServer {
     }
 
     /// Build query code action context from LSP code action context.
-    fn query_code_action_context(context: &lsp::CodeActionContext) -> query::CodeActionContext {
+    fn query_code_action_context(
+        context: &lsp::CodeActionContext,
+    ) -> jsonrpc::Result<query::CodeActionContext> {
         let mut only = Vec::new();
         let mut seen = HashSet::new();
 
@@ -451,7 +454,69 @@ impl DestackLanguageServer {
             }
         }
 
-        query::CodeActionContext { only }
+        // retain every exact diagnostic supplied by the client
+        let mut diagnostics = Vec::new();
+        for diagnostic in &context.diagnostics {
+            let Some(diagnostic) = Self::query_diagnostic_reference(diagnostic)? else {
+                continue;
+            };
+            diagnostics.push(diagnostic);
+        }
+
+        Ok(query::CodeActionContext {
+            only,
+            diagnostics: Some(diagnostics),
+        })
+    }
+
+    /// Convert one LSP diagnostic into an exact source diagnostic reference.
+    fn query_diagnostic_reference(
+        diagnostic: &lsp::Diagnostic,
+    ) -> jsonrpc::Result<Option<DiagnosticReference>> {
+        if diagnostic.source.as_deref() != Some("destack") {
+            return Ok(None);
+        }
+
+        // require the opaque identity emitted with every Destack diagnostic
+        let data = diagnostic.data.clone().ok_or_else(|| {
+            jsonrpc::Error::invalid_params("Destack diagnostic is missing its source reference")
+        })?;
+        let reference = from_value(data).map_err(|error| {
+            jsonrpc::Error::invalid_params(format!(
+                "Destack diagnostic has an invalid source reference: {error}"
+            ))
+        })?;
+
+        Ok(Some(reference))
+    }
+
+    /// Return the LSP diagnostics addressed by one query code action.
+    fn code_action_diagnostics(
+        action: &query::CodeAction,
+        context: &lsp::CodeActionContext,
+    ) -> jsonrpc::Result<Option<Vec<lsp::Diagnostic>>> {
+        let mut diagnostics = Vec::with_capacity(action.diagnostics.len());
+
+        // match each exact query diagnostic to its client counterpart
+        for reference in &action.diagnostics {
+            let mut matched = None;
+            for diagnostic in &context.diagnostics {
+                let candidate = Self::query_diagnostic_reference(diagnostic)?;
+                if candidate.as_ref() == Some(reference) {
+                    matched = Some(diagnostic.clone());
+                    break;
+                }
+            }
+
+            let Some(matched) = matched else {
+                return Err(internal_error(format!(
+                    "code action diagnostic is absent from the request: {reference:?}"
+                )));
+            };
+            diagnostics.push(matched);
+        }
+
+        Ok((!diagnostics.is_empty()).then_some(diagnostics))
     }
 
     /// Register file watchers with the client.
@@ -1639,6 +1704,7 @@ impl LanguageServer for DestackLanguageServer {
         let position = query_file.position(offset);
         let request = query::QueryRequest::Hover(query::HoverRequest { position });
         let response = self.query_module(&query_file, request)?;
+        let revision = response.revision;
         let query::QueryResponse::Hover(response) = response.response else {
             return Err(internal_error("query did not return hover"));
         };
@@ -1646,12 +1712,16 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
+        // project every declaration target from the response revision
+        let file_ids = hover_info.items.iter().map(|item| item.target.span.file);
+        let files = self.source_files(&query_file.path, revision, file_ids)?;
+        let markdown = assist::hover(&hover_info.items, &files)?;
         let range = position::range(&source_file, hover_info.range)?;
 
         Ok(Some(lsp::Hover {
             contents: lsp::HoverContents::Markup(lsp::MarkupContent {
                 kind: lsp::MarkupKind::Markdown,
-                value: hover_info.to_markdown(),
+                value: markdown,
             }),
             range: Some(range),
         }))
@@ -2217,17 +2287,18 @@ impl LanguageServer for DestackLanguageServer {
             .only
             .as_ref()
             .is_some_and(|kinds| !kinds.is_empty());
-        let context = Self::query_code_action_context(&params.context);
-
-        // skip when lsp only filters were provided but none map to workspace kinds
-        if has_only_filter && context.only.is_empty() {
-            return Ok(None);
-        }
 
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
         let source_file = query_file.file.clone();
+        let context = Self::query_code_action_context(&params.context)?;
+
+        // skip when lsp only filters were provided but none map to query kinds
+        if has_only_filter && context.only.is_empty() {
+            return Ok(None);
+        }
+
         let start = position::offset(&source_file, &params.range.start)?;
         let end = position::offset(&source_file, &params.range.end)?;
         let range = query_file
@@ -2240,27 +2311,7 @@ impl LanguageServer for DestackLanguageServer {
         let query::QueryResponse::CodeActions(response) = response.response else {
             return Err(internal_error("query did not return code actions"));
         };
-        let mut actions = response.actions;
-
-        // filter diagnostic linked quick fixes by requested diagnostic ids
-        let diagnostic_ids: HashSet<String> = params
-            .context
-            .diagnostics
-            .iter()
-            .filter_map(|diagnostic| match diagnostic.code.as_ref() {
-                Some(lsp::NumberOrString::String(value)) => Some(value.clone()),
-                Some(lsp::NumberOrString::Number(value)) => Some(value.to_string()),
-                _ => None,
-            })
-            .collect();
-        if !diagnostic_ids.is_empty() {
-            actions.retain(|action| {
-                action
-                    .diagnostic_id
-                    .as_ref()
-                    .is_none_or(|id| diagnostic_ids.contains(id))
-            });
-        }
+        let actions = response.actions;
 
         if actions.is_empty() {
             return Ok(None);
@@ -2295,7 +2346,9 @@ impl LanguageServer for DestackLanguageServer {
                 None
             };
             let include_edit = !prefer_lazy_code_action_edits;
-            let lsp_action = diagnostic::code_action(action, include_edit, data, &files)?;
+            let diagnostics = Self::code_action_diagnostics(action, &params.context)?;
+            let lsp_action =
+                diagnostic::code_action(action, diagnostics, include_edit, data, &files)?;
             lsp_actions.push(lsp_action);
         }
 

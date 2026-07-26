@@ -169,7 +169,7 @@ pub(super) fn document_link(file: &File, link: &query::Link) -> jsonrpc::Result<
     Ok(lsp::DocumentLink {
         range,
         target: Some(target),
-        tooltip: Some(link.tooltip.clone()),
+        tooltip: None,
         data: None,
     })
 }
