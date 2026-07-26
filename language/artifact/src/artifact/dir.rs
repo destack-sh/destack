@@ -224,7 +224,7 @@ impl DirDeclaredComponent {
     }
 }
 
-/// Declared DIR prefix for one profile-scoped module.
+/// Declared DIR prefix for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirDeclaredModule {
     /// The declared module id.
@@ -308,7 +308,7 @@ impl DirCheckedComponent {
     }
 }
 
-/// Complete checked DIR for one profile-scoped module.
+/// Complete checked DIR for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirCheckedModule {
     /// The checked module id.

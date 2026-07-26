@@ -9,7 +9,7 @@ use crate::{
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirDeclaredComponent,
     DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
     GlobalEnvironment, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
-    ModuleIndex, ModuleLinted, Object, PackageIndex, Product, ProgramAnalysis, ProgramIndex,
+    ModuleIndex, ModuleLinted, Object, PackageGraph, Product, ProgramAnalysis, ProgramIndex,
     ProgramLinted, Script,
 };
 use serde::{Deserialize, Serialize};
@@ -296,6 +296,9 @@ impl ArtifactPayload {
     ) -> Option<ArtifactProjectionFingerprint> {
         match (self, projection) {
             (Self::ComponentGraph(payload), ArtifactProjectionKey::ComponentGraph(projection)) => {
+                Some(payload.projection_fingerprint(projection))
+            }
+            (Self::PackageGraph(payload), ArtifactProjectionKey::PackageGraph(projection)) => {
                 Some(payload.projection_fingerprint(projection))
             }
             (

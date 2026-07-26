@@ -7,7 +7,7 @@ use crate::{
     DirChecked, DirCheckedComponent, DirDeclaredComponent, DirExpanded, DirExported, DirImported,
     DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
     LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized,
-    MirVerified, ModuleEdges, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageIndex,
+    MirVerified, ModuleEdges, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageGraph,
     Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime,
     Script, ScriptBody, ScriptLanguage, SourceMap,
 };

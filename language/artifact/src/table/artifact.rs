@@ -15,7 +15,7 @@ use crate::{
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirDeclaredComponent,
     DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
     GlobalEnvironment, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
-    ModuleIndex, ModuleLinted, Object, PackageIndex, Product, ProgramAnalysis, ProgramIndex,
+    ModuleIndex, ModuleLinted, Object, PackageGraph, Product, ProgramAnalysis, ProgramIndex,
     ProgramLinted, Script,
 };
 

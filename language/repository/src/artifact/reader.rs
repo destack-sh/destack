@@ -6,7 +6,7 @@ use destack_artifact::{
     DirCheckedComponent, DirCheckedModule, DirDeclaredComponent, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
     MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
-    PackageIndex, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    PackageGraph, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use destack_program::Program;
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};

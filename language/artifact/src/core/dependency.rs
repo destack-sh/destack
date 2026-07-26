@@ -151,6 +151,8 @@ pub enum ArtifactProjectionKey {
     ComponentGraph(ComponentGraphProjection),
     /// A declared DIR module inside a declared component.
     DirDeclaredModule(ModuleId),
+    /// A package graph projection.
+    PackageGraph(PackageGraphProjection),
     /// A checked DIR module inside a checked component.
     DirCheckedModule(ModuleId),
     /// A module index projection.
