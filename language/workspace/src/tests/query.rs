@@ -1,8 +1,7 @@
 use destack_repository::Revision;
-use destack_source::FileId;
 
 use crate::tests::harness::TestWorkspace;
-use crate::{Error, RevisionPolicy, RunQueryRequest, Workspace};
+use crate::{Error, RevisionPolicy, RunQueryRequest};
 
 /// Requires an explicit semantic target when resolving a query file.
 #[test]
@@ -110,22 +109,6 @@ fn test_run_query_requires_matching_revision() {
         .expect("expected query with matching revision");
 }
 
-/// Rejects source file ids missing from an exact revision.
-#[test]
-fn test_read_files_rejects_missing_file() {
-    let test = TestWorkspace::new("query-read-missing-file");
-    let root = &test.roots[0];
-    let revision = test.workspace.revision(root).expect("root revision");
-    let missing = FileId::from_logical_str("missing.ds");
-
-    let error = test
-        .workspace
-        .read_files(root, revision, vec![missing])
-        .expect_err("missing file should fail");
-
-    assert!(matches!(error, Error::Session(_)));
-}
-
 /// Builds one empty file-rename query for revision selection exercises.
 fn empty_rename_files() -> destack_query::QueryRequest {
     destack_query::QueryRequest::RenameFiles(destack_query::RenameFilesRequest {
@@ -133,7 +116,7 @@ fn empty_rename_files() -> destack_query::QueryRequest {
     })
 }
 
-/// Returns one query configuration with an explicit semantic target.
+/// Return one query configuration with an explicit semantic target.
 fn query_config() -> &'static str {
     r#"{
   "targets": {

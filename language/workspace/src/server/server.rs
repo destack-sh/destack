@@ -396,6 +396,7 @@ impl Server {
             Error::StaleRevision { .. } => ProtocolErrorCode::Conflict,
             Error::Repository(_)
             | Error::Session(_)
+            | Error::Query(_)
             | Error::Io { .. }
             | Error::Internal { .. } => ProtocolErrorCode::Internal,
         };

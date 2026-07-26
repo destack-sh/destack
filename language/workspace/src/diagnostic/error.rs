@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use destack_query::QueryError;
 use destack_repository::{RepositoryError, Revision};
 use destack_session::SessionError;
 use destack_source::PackageId;
@@ -54,6 +55,8 @@ pub enum Error {
     Repository(RepositoryError),
     /// Session work failed inside the workspace.
     Session(Box<SessionError>),
+    /// Semantic query execution failed.
+    Query(Box<QueryError>),
     /// Filesystem work failed inside the workspace.
     Io {
         /// The path that failed.
@@ -116,6 +119,9 @@ impl std::fmt::Display for Error {
             Error::Session(error) => {
                 write!(formatter, "session error: {error}")
             }
+            Error::Query(error) => {
+                write!(formatter, "query error: {error}")
+            }
             Error::Io { path, source } => {
                 write!(
                     formatter,
@@ -135,6 +141,7 @@ impl std::error::Error for Error {
         match self {
             Error::Repository(error) => Some(error),
             Error::Session(error) => Some(error),
+            Error::Query(error) => Some(error),
             Error::Io { source, .. } => Some(source),
             _ => None,
         }
@@ -150,5 +157,11 @@ impl From<RepositoryError> for Error {
 impl From<SessionError> for Error {
     fn from(error: SessionError) -> Self {
         Error::Session(Box::new(error))
+    }
+}
+
+impl From<QueryError> for Error {
+    fn from(error: QueryError) -> Self {
+        Error::Query(Box::new(error))
     }
 }
