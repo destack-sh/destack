@@ -11,6 +11,8 @@ pub enum Outcome<T> {
         /// The completed execution value.
         value: T,
     },
+    /// Execution completed through cancellation cleanup.
+    Cancelled,
     /// Execution awaited one asynchronous value.
     Awaited {
         /// The concrete park implementation selected by the awaitable type.

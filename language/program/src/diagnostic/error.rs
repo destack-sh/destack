@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AllocationSiteId, FrameLayoutId, FrameStateId, FunctionId, GlobalId, LayoutId, Signature,
-    SignatureId, TypeId, ValueMismatch,
+    SignatureId, TypeId, ValueMismatch, Waiter,
 };
 
 /// Result of one Program operation.
@@ -120,6 +120,11 @@ pub enum Error {
     },
     /// A suspended continuation contains no frames.
     EmptyContinuation,
+    /// A waiter does not name a live suspended continuation.
+    UndefinedWaiter {
+        /// The undefined waiter.
+        waiter: Waiter,
+    },
     /// A captured frame byte width differs from its frame layout.
     FrameByteLengthMismatch {
         /// The mismatched frame state.
@@ -277,6 +282,9 @@ impl fmt::Display for Error {
                 write!(formatter, "undefined frame layout {frame_layout:?}")
             }
             Self::EmptyContinuation => formatter.write_str("continuation contains no frames"),
+            Self::UndefinedWaiter { waiter } => {
+                write!(formatter, "undefined waiter {waiter:?}")
+            }
             Self::FrameByteLengthMismatch {
                 frame_state,
                 expected,
