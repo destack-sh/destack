@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use destack_artifact::{
     AllocationSite, CallMode, CallSite, CounterSite, EdgeSite, MemorySite, MirOptimized, Point,
-    SampleSite, Suspension, SuspensionSite,
+    ResumeSite, SampleSite, Suspension, SuspensionSite,
 };
 use destack_mir as mir;
 use destack_source::ModuleId;
@@ -23,6 +23,8 @@ pub(super) struct Sites {
     pub(super) memory: Vec<MemorySite>,
     /// Function call sites.
     pub(super) calls: Vec<CallSite>,
+    /// Continuation resume sites.
+    pub(super) resumes: Vec<ResumeSite>,
     /// Control flow edges.
     pub(super) edges: Vec<EdgeSite>,
     /// Coroutine suspension sites.
@@ -242,11 +244,28 @@ impl Sites {
             _ => {}
         }
 
+        // record continuation resume metadata
+        if let mir::Terminator::Resume {
+            yielded,
+            returned,
+            unwind,
+            ..
+        } = terminator
+        {
+            self.resumes.push(ResumeSite {
+                point,
+                yielded: points.block(yielded.block),
+                returned: points.block(returned.block),
+                unwind: unwind.as_ref().map(|target| points.block(target.block)),
+            });
+        }
+
         // record coroutine suspension metadata
         match terminator {
             mir::Terminator::Await {
                 value,
                 resume,
+                cancel,
                 unwind,
                 ..
             } => self.suspensions.push(Self::suspension(
@@ -258,6 +277,7 @@ impl Sites {
                 Suspension::Await,
                 *value,
                 resume,
+                Some(cancel),
                 unwind.as_ref(),
             )?),
             mir::Terminator::Yield {
@@ -273,6 +293,7 @@ impl Sites {
                 Suspension::Yield,
                 *value,
                 resume,
+                None,
                 unwind.as_ref(),
             )?),
             _ => {}
@@ -302,6 +323,7 @@ impl Sites {
         operation: Suspension,
         value: mir::Value,
         resume: &mir::BlockTarget,
+        cancel: Option<&mir::BlockTarget>,
         unwind: Option<&mir::BlockTarget>,
     ) -> Result<SuspensionSite, EmitError> {
         let value_type = function
@@ -312,6 +334,7 @@ impl Sites {
         Ok(SuspensionSite {
             point,
             resume: points.block(resume.block),
+            cancel: cancel.map(|target| points.block(target.block)),
             unwind: unwind.map(|target| points.block(target.block)),
             operation,
             value_type,

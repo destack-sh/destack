@@ -111,6 +111,7 @@ impl ObjectEmitter {
             .allocations(sites.allocations)
             .memory(sites.memory)
             .calls(sites.calls)
+            .resumes(sites.resumes)
             .edges(sites.edges)
             .suspensions(sites.suspensions)
             .counters(sites.counters)
