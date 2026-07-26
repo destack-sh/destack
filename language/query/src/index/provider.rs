@@ -6,15 +6,13 @@ use destack_artifact::{
     ArtifactProjection, ArtifactProjectionFingerprint, ArtifactVersion, ModuleIndex,
     ModuleIndexProjection,
 };
-use destack_repository::{
-    ArtifactReader, ProviderContext, ProviderError, ProviderResult, Repository, Revision,
-};
+use destack_repository::{ProviderContext, ProviderError, ProviderResult, Repository, Revision};
 use destack_source::{ModuleId, ProfileId};
 
-use crate::provide_module_query_context;
+use crate::ModuleQueryContext;
 
 use super::module::ModuleIndexer;
-use super::program::{ProgramChanges, ProgramIndexer, ProgramModule};
+use super::program::{ProgramIndexChanges, ProgramIndexer, ProgramModule};
 
 /// Provider that builds query index artifacts for one repository.
 #[derive(Debug, Clone)]
@@ -78,13 +76,9 @@ impl Indexer {
             .into());
         }
 
-        dependencies.require(ArtifactKey::global_environment(profile_id));
-        dependencies.require(ArtifactKey::dir_parsed(module_id));
-        dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_imported(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_exported(module_id, profile_id));
-        dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
+        for artifact in ModuleQueryContext::artifact_keys(module_id, profile_id) {
+            dependencies.require(artifact);
+        }
 
         Ok(dependencies)
     }
@@ -96,19 +90,18 @@ impl Indexer {
         profile_id: ProfileId,
     ) -> ProviderResult<ArtifactDependencySet> {
         let revision = context.revision();
-        let module_ids = self.repository().module_ids(revision).map_err(|error| {
-            ProviderError::internal(format!("failed to read repository modules: {error}"))
-        })?;
+        let module_ids = self
+            .repository()
+            .profile_module_ids(revision, profile_id)
+            .map_err(|error| {
+                ProviderError::internal(format!("failed to read profile modules: {error}"))
+            })?;
 
         let mut dependencies = ArtifactDependencySet::default();
         let mut modules = Vec::new();
 
         // depend on each observable section from each module index in this profile
         for module_id in module_ids {
-            if !self.module_has_profile(revision, module_id, profile_id)? {
-                continue;
-            }
-
             modules.push(module_id);
 
             let key = ArtifactKey::module_index(module_id, profile_id);
@@ -116,15 +109,22 @@ impl Indexer {
                 dependencies.project(key, projection);
             }
         }
+        dependencies.observe_profile_modules(profile_id, &modules);
 
         // derive from the previous payload only when module ordinals still match
         if let Some(base) = context.artifact_base() {
             let previous = self
                 .repository()
                 .artifact_table()
-                .program_index(&base.version);
+                .program_index(&base.version)
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "reusable program index has no payload: {:?}",
+                        base.version
+                    ))
+                })?;
 
-            if previous.is_some_and(|previous| previous.modules == modules) {
+            if previous.modules == modules {
                 dependencies.derive_from(base.version);
             }
         }
@@ -154,20 +154,12 @@ impl Indexer {
         profile_id: ProfileId,
     ) -> ProviderResult<ArtifactPayload> {
         let revision = context.revision();
-        let artifacts = ArtifactReader::new(self.repository(), revision);
-
         // build a module query context from the requested artifacts
-        let module = provide_module_query_context(
-            self.repository(),
-            revision,
-            module_id,
-            profile_id,
-            &artifacts,
-        )?;
+        let module = ModuleQueryContext::new(self.repository(), revision, module_id, profile_id)?;
 
         // build the checked DIR module index
         let indexer = ModuleIndexer { module: &module };
-        let payload = indexer.build();
+        let payload = indexer.build()?;
 
         Ok(ArtifactPayload::ModuleIndex(Arc::new(payload)))
     }
@@ -180,18 +172,15 @@ impl Indexer {
     ) -> ProviderResult<ArtifactPayload> {
         let repository = self.repository();
         let revision = context.revision();
-        let module_ids = repository.module_ids(revision).map_err(|error| {
-            ProviderError::internal(format!("failed to read repository modules: {error}"))
-        })?;
-
+        let module_ids = repository
+            .profile_module_ids(revision, profile_id)
+            .map_err(|error| {
+                ProviderError::internal(format!("failed to read profile modules: {error}"))
+            })?;
         let mut modules = Vec::new();
 
         // load every ready module index in this profile
         for module_id in module_ids {
-            if !self.module_has_profile(revision, module_id, profile_id)? {
-                continue;
-            }
-
             let key = ArtifactKey::module_index(module_id, profile_id);
             let version = self.ready_artifact_version(revision, key)?;
             let index = repository
@@ -211,7 +200,18 @@ impl Indexer {
         // reuse the previous program index only when module order is stable
         let previous = context
             .artifact_base()
-            .and_then(|base| repository.artifact_table().program_index(&base.version));
+            .map(|base| {
+                repository
+                    .artifact_table()
+                    .program_index(&base.version)
+                    .ok_or_else(|| {
+                        ProviderError::internal(format!(
+                            "reusable program index has no payload: {:?}",
+                            base.version
+                        ))
+                    })
+            })
+            .transpose()?;
         let current_modules = modules
             .iter()
             .map(|artifact| artifact.module_id)
@@ -222,7 +222,7 @@ impl Indexer {
         let changes = if previous.is_some() {
             self.program_index_changes(context, profile_id, &modules)?
         } else {
-            ProgramChanges::all()
+            ProgramIndexChanges::all()
         };
 
         // expose current module indexes to the program indexer
@@ -240,7 +240,7 @@ impl Indexer {
             modules,
             changes,
         };
-        let payload = indexer.build();
+        let payload = indexer.build()?;
 
         Ok(ArtifactPayload::ProgramIndex(Arc::new(payload)))
     }
@@ -251,7 +251,7 @@ impl Indexer {
         revision: Revision,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> Result<bool, Box<ProviderError>> {
+    ) -> ProviderResult<bool> {
         let profile = self
             .repository()
             .module_profile_by_id(revision, module_id, profile_id)
@@ -295,7 +295,7 @@ impl Indexer {
         context: &dyn ProviderContext,
         profile_id: ProfileId,
         modules: &[ModuleIndexArtifact],
-    ) -> ProviderResult<ProgramChanges> {
+    ) -> ProviderResult<ProgramIndexChanges> {
         let base = context
             .artifact_base()
             .ok_or_else(|| ProviderError::internal("missing reusable program index base"))?;
@@ -311,7 +311,7 @@ impl Indexer {
             })?;
 
         let previous_fingerprints = Self::projection_fingerprints(&dependencies);
-        let mut changes = ProgramChanges::default();
+        let mut changes = ProgramIndexChanges::default();
         for artifact in modules {
             for projection in ModuleIndexProjection::ALL {
                 let is_changed = self.projection_changed(
@@ -322,7 +322,7 @@ impl Indexer {
                     projection,
                 )?;
 
-                changes.mark(projection, is_changed);
+                changes.mark_projection(projection, is_changed);
             }
         }
 
@@ -364,8 +364,12 @@ impl Indexer {
                     "module index projection does not match payload: {projection:?}"
                 ))
             })?;
-        let previous = previous_fingerprints.get(&projection);
+        let previous = previous_fingerprints.get(&projection).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "reusable program index has no projection dependency: {projection:?}"
+            ))
+        })?;
 
-        Ok(previous != Some(&current))
+        Ok(previous != &current)
     }
 }

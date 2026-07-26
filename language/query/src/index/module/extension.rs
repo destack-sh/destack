@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_repository::{ProviderError, ProviderResult};
 
 use crate::ModuleQueryContext;
 
@@ -12,20 +13,22 @@ pub(super) struct ExtensionIndexer<'context, 'query> {
 
 impl<'context, 'query> ExtensionIndexer<'context, 'query> {
     /// Build the extension index.
-    pub(super) fn build(module: &'context ModuleQueryContext<'query>) -> dir::ExtensionIndex {
+    pub(super) fn build(
+        module: &'context ModuleQueryContext<'query>,
+    ) -> ProviderResult<dir::ExtensionIndex> {
         let mut indexer = Self {
             module,
             entries: Vec::new(),
         };
 
         // collect checked extension declarations
-        indexer.collect_extensions();
+        indexer.collect_extensions()?;
 
-        dir::ExtensionIndex::new(indexer.entries)
+        Ok(dir::ExtensionIndex::new(indexer.entries))
     }
 
     /// Collect extension index entries.
-    fn collect_extensions(&mut self) {
+    fn collect_extensions(&mut self) -> ProviderResult<()> {
         // collect checked extension declarations
         for (extension_symbol, extension) in self.module.definitions().iter_extensions() {
             // resolve extension definition source
@@ -33,7 +36,11 @@ impl<'context, 'query> ExtensionIndexer<'context, 'query> {
                 .module
                 .definitions()
                 .definition_source(extension_symbol)
-                .unwrap_or_else(|| panic!("missing extension source for {extension_symbol:?}"));
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "extension has no definition source: {extension_symbol:?}"
+                    ))
+                })?;
 
             // keep only declarations owned by this module
             if source.module_id != self.module.module_id() {
@@ -41,7 +48,9 @@ impl<'context, 'query> ExtensionIndexer<'context, 'query> {
             }
 
             // resolve source span and checked target
-            let span = self.module.get_span(self.module.view(), source.local_id);
+            let Some(span) = self.module.view().get_span_by_id(source.local_id.id) else {
+                continue;
+            };
             let root = extension.target.root();
 
             // emit extension declaration row
@@ -55,5 +64,7 @@ impl<'context, 'query> ExtensionIndexer<'context, 'query> {
                 form: extension.form,
             });
         }
+
+        Ok(())
     }
 }

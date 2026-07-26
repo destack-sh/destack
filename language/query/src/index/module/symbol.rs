@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_repository::{ProviderError, ProviderResult};
 
 use crate::ModuleQueryContext;
 
@@ -12,20 +13,22 @@ pub(super) struct SymbolIndexer<'context, 'query> {
 
 impl<'context, 'query> SymbolIndexer<'context, 'query> {
     /// Build the symbol index.
-    pub(super) fn build(module: &'context ModuleQueryContext<'query>) -> dir::SymbolIndex {
+    pub(super) fn build(
+        module: &'context ModuleQueryContext<'query>,
+    ) -> ProviderResult<dir::SymbolIndex> {
         let mut indexer = Self {
             module,
             entries: Vec::new(),
         };
 
         // collect checked declaration symbols
-        indexer.collect_symbols();
+        indexer.collect_symbols()?;
 
-        dir::SymbolIndex::new(indexer.entries)
+        Ok(dir::SymbolIndex::new(indexer.entries))
     }
 
     /// Collect symbol index entries.
-    fn collect_symbols(&mut self) {
+    fn collect_symbols(&mut self) -> ProviderResult<()> {
         let module_id = self.module.module_id();
 
         // collect bound declaration symbols
@@ -35,9 +38,26 @@ impl<'context, 'query> SymbolIndexer<'context, 'query> {
                 continue;
             }
 
-            // skip labels because they are not query symbols
+            // index definition members through the dedicated member index
+            if matches!(
+                source.local_id.ty,
+                dir::NodeType::Member | dir::NodeType::TypeMember | dir::NodeType::EnumField
+            ) {
+                continue;
+            }
+
+            // exclude labels and dependency bindings from program declarations
             let symbol = self.module.symbols().get_symbol(symbol_id);
-            if symbol.kind == dir::SymbolKind::Label {
+            if matches!(
+                symbol.kind,
+                dir::SymbolKind::Label | dir::SymbolKind::Import
+            ) {
+                continue;
+            }
+            if symbol.role == dir::SymbolRole::Local
+                && symbol.scope.id != self.module.namespace_scope()
+                && !symbol.origin.is_global()
+            {
                 continue;
             }
 
@@ -47,9 +67,12 @@ impl<'context, 'query> SymbolIndexer<'context, 'query> {
             };
 
             // emit symbol declaration row
-            let entry = self.symbol_entry(source, symbol_id, name_id);
-            self.entries.push(entry);
+            if let Some(entry) = self.symbol_entry(source, symbol_id, name_id)? {
+                self.entries.push(entry);
+            }
         }
+
+        Ok(())
     }
 
     /// Build one symbol index entry.
@@ -58,32 +81,38 @@ impl<'context, 'query> SymbolIndexer<'context, 'query> {
         source: dir::GlobalNodeIdAny,
         symbol_id: dir::LocalSymbolId,
         name_id: dir::StringId,
-    ) -> dir::SymbolEntry {
+    ) -> ProviderResult<Option<dir::SymbolEntry>> {
         let view = self.module.view();
         let module_id = self.module.module_id();
         let symbol = self.module.symbols().get_symbol(symbol_id);
 
         // resolve source metadata
-        let span = self.module.get_span(view, source.local_id);
+        let Some(span) = view.get_span_by_id(source.local_id.id) else {
+            return Ok(None);
+        };
+        let selection = self
+            .module
+            .node_selection_span(view, source.local_id)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "indexed symbol has no declaration name span: {source:?}"
+                ))
+            })?;
         let name = self.module.strings().get(name_id).to_string();
-        let container = self.module.node_container_name(source.local_id);
-
-        // resolve checked type metadata
+        let container = self.module.local_symbol_container_name(symbol_id);
         let global_symbol = symbol_id.into_global(module_id);
-        let ty = self.module.types().get_symbol_type_id(global_symbol);
 
-        dir::SymbolEntry {
+        Ok(Some(dir::SymbolEntry {
             name,
             kind: symbol.kind,
             role: symbol.role,
             symbol: global_symbol,
             source,
-            file: self.module.file_id(),
+            file: span.file,
             span,
-            ty,
+            selection,
             container,
             mutability: symbol.binding_mutability,
-            is_exported: symbol.export_kind.is_some(),
-        }
+        }))
     }
 }

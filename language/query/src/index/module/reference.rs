@@ -1,381 +1,601 @@
+use std::mem;
+
 use destack_dir as dir;
-use destack_source::Span;
+use destack_repository::{ProviderError, ProviderResult};
+use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::ModuleQueryContext;
 
-/// Builder for one reference index from checked DIR.
+/// Builder for one reference index from recorded resolutions.
 pub(super) struct ReferenceIndexer<'context, 'query> {
     /// The indexed module context.
     module: &'context ModuleQueryContext<'query>,
-    /// The collected index entries.
-    entries: Vec<dir::ReferenceEntry>,
+    /// References keyed by their final semantic target.
+    target_entries: Vec<dir::ReferenceEntry>,
+    /// References keyed by their lexical declaration.
+    declaration_entries: Vec<dir::ReferenceEntry>,
+    /// The final selected targets keyed by their authored source node.
+    selected_targets: FxHashMap<dir::GlobalNodeIdAny, Vec<dir::GlobalSymbolId>>,
+    /// The resolution nodes represented by one selected authored occurrence.
+    selected_sources: FxHashSet<dir::GlobalNodeIdAny>,
 }
 
 impl<'context, 'query> ReferenceIndexer<'context, 'query> {
     /// Build the reference index.
-    pub(super) fn build(module: &'context ModuleQueryContext<'query>) -> dir::ReferenceIndex {
+    pub(super) fn build(
+        module: &'context ModuleQueryContext<'query>,
+    ) -> ProviderResult<dir::ReferenceIndex> {
         let mut indexer = Self {
             module,
-            entries: Vec::new(),
+            target_entries: Vec::new(),
+            declaration_entries: Vec::new(),
+            selected_targets: FxHashMap::default(),
+            selected_sources: FxHashSet::default(),
         };
 
-        // collect checked reference families
-        indexer.collect_resolution_references();
-        indexer.collect_expression_references();
-        indexer.collect_dependency_references();
+        // select the final targets before transcribing ordinary resolutions
+        indexer.collect_selected_targets()?;
+        indexer.collect_resolutions()?;
+        indexer.collect_declaration_references()?;
+        indexer.collect_dependencies()?;
 
-        dir::ReferenceIndex::new(indexer.entries)
+        Ok(dir::ReferenceIndex::new(
+            indexer.target_entries,
+            indexer.declaration_entries,
+        ))
     }
 
-    /// Collect references from checked resolution tables.
-    fn collect_resolution_references(&mut self) {
-        // collect name resolution targets
+    /// Collect targets selected after name and member lookup.
+    fn collect_selected_targets(&mut self) -> ProviderResult<()> {
+        // record explicit generic selections
+        for (source, resolution) in self.module.resolutions().instantiation_entries() {
+            let sources = self.instantiation_sources(source)?;
+            self.select(sources, vec![resolution.symbol])?;
+        }
+
+        // record symbol-backed call selections
+        for (source, resolution) in self.module.resolutions().call_entries() {
+            let targets = match &resolution.target {
+                dir::CallTarget::Expression { .. } => continue,
+                dir::CallTarget::Symbol(candidate) => vec![candidate.symbol],
+                dir::CallTarget::Universal(candidates) => candidates
+                    .iter()
+                    .map(|candidate| candidate.symbol)
+                    .collect(),
+            };
+            let sources = self.call_sources(source)?;
+            self.select(sources, targets)?;
+        }
+
+        // record nominal construction selections
+        for (source, resolution) in self.module.resolutions().construct_entries() {
+            let sources = self.construct_sources(source)?;
+            self.select(sources, vec![resolution.target.symbol()])?;
+        }
+
+        Ok(())
+    }
+
+    /// Collect reference occurrences recorded by the checker.
+    fn collect_resolutions(&mut self) -> ProviderResult<()> {
+        // collect resolved names
         for (source, resolution) in self.module.resolutions().name_entries() {
+            if self.selected_sources.contains(&source) {
+                continue;
+            }
+
             for symbol in resolution.symbols() {
-                self.push_reference(*symbol, source, dir::ReferenceKind::Name);
+                self.push(*symbol, source)?;
             }
         }
 
-        // collect type instantiation targets
-        for (source, resolution) in self.module.resolutions().instantiation_entries() {
-            self.push_reference(resolution.symbol, source, dir::ReferenceKind::Type);
-        }
-
-        // collect label targets that resolve to symbols
+        // collect resolved symbol labels
         for (source, resolution) in self.module.resolutions().label_entries() {
             if let dir::LabelResolution::Symbol(symbol) = resolution {
-                self.push_reference(*symbol, source, dir::ReferenceKind::Name);
+                self.push(*symbol, source)?;
             }
         }
 
-        // collect receiver type declarations
+        // collect resolved receiver declarations
         for (source, resolution) in self.module.resolutions().receiver_entries() {
-            self.push_reference(resolution.declaration, source, dir::ReferenceKind::Type);
+            self.push(resolution.declaration, source)?;
         }
 
-        // collect member resolution targets
+        // collect resolved members
         for (source, resolution) in self.module.resolutions().member_entries() {
-            self.push_member_resolution(source, resolution);
-        }
-
-        // collect call resolution targets
-        for (source, resolution) in self.module.resolutions().call_entries() {
-            self.push_call_resolution(source, resolution);
-        }
-
-        // collect writable storage targets
-        for (source, resolution) in self.module.resolutions().place_entries() {
-            self.push_storage(source, &resolution.storage);
-        }
-
-        // collect type guard targets
-        for (source, resolution) in self.module.resolutions().guard_entries() {
-            if let dir::GuardResolution::InstanceOf(guard) = resolution {
-                self.push_reference(guard.target, source, dir::ReferenceKind::Type);
+            if !self.selected_sources.contains(&source) {
+                self.push_member(source, resolution)?;
             }
         }
 
-        // collect construct resolution targets
-        for (source, resolution) in self.module.resolutions().construct_entries() {
-            self.push_construct_resolution(source, resolution);
-        }
-    }
-
-    /// Collect references from expression nodes.
-    fn collect_expression_references(&mut self) {
-        let view = self.module.view();
-        let module_id = self.module.module_id();
-
-        // collect reference targets and path segments from each expression
-        for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
-            let source = expression_id.into_global_any(module_id);
-
-            self.collect_expression_target(expression_id, expression, source);
-            self.collect_path_segments(expression_id, source);
-        }
-    }
-
-    /// Collect references from one expression target.
-    fn collect_expression_target(
-        &mut self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
-        source: dir::GlobalNodeIdAny,
-    ) {
-        // collect direct expression target
-        if let Some(target_symbol) = self.module.expression_reference_target(expression_id) {
-            self.push_reference(target_symbol, source, dir::ReferenceKind::Name);
+        // collect symbol backed writable places
+        for resolution in self.module.writable_places() {
+            self.push_place(resolution)?;
         }
 
-        // collect namespace receiver target on the left side
-        if let dir::Expression::Member { left, .. } = expression {
-            if let Some(receiver_symbol) = self.module.expression_symbol_target(*left) {
-                let source = left.into_global_any(self.module.module_id());
-
-                self.push_reference(receiver_symbol, source, dir::ReferenceKind::Name);
+        // emit the final selections once per authored occurrence
+        for (source, targets) in mem::take(&mut self.selected_targets) {
+            for target in targets {
+                self.push(target, source)?;
             }
         }
 
-        // collect checked direct member access target
-        if let dir::Expression::Member { .. } = expression {
-            if let Some(member_symbol) = self.module.member_access_symbol_target(expression_id) {
-                self.push_reference(member_symbol, source, dir::ReferenceKind::Member);
+        Ok(())
+    }
+
+    /// Collect lexical declaration occurrences recorded during resolution.
+    fn collect_declaration_references(&mut self) -> ProviderResult<()> {
+        for (source, declarations) in &self.module.resolved().references.declarations_by_node {
+            let span = self.declaration_span(*source)?;
+
+            // index every exact lexical declaration at the authored occurrence
+            for declaration in declarations {
+                self.declaration_entries.push(dir::ReferenceEntry {
+                    symbol: *declaration,
+                    span,
+                    is_import_alias: false,
+                });
             }
         }
 
-        // collect member candidate targets attached to this expression
-        if let Some(resolution) = self.module.resolutions().member_resolution(source) {
-            self.push_member_candidates(source, resolution);
-        }
-
-        // collect call target attached to this expression
-        if let Some(resolution) = self.module.resolutions().call_resolution(source) {
-            self.push_call_resolution(source, resolution);
-        }
-
-        // collect construct target attached to this expression
-        if let Some(resolution) = self.module.resolutions().construct_resolution(source) {
-            self.push_construct_resolution(source, resolution);
-        }
+        Ok(())
     }
 
-    /// Collect references from reference path segments.
-    fn collect_path_segments(
-        &mut self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        source: dir::GlobalNodeIdAny,
-    ) {
-        // skip expressions without a reference path
-        let Some(path) = self.module.tree().reference_path(expression_id) else {
-            return;
-        };
+    /// Push the symbol targets recorded by one writable place.
+    fn push_place(&mut self, resolution: &dir::PlaceResolution) -> ProviderResult<()> {
+        match &resolution.storage {
+            dir::Storage::Binding { symbol } => self.push(*symbol, resolution.source)?,
+            dir::Storage::Field { field, .. } => {
+                if let dir::ProjectionField::Member(symbol) = field {
+                    self.push(*symbol, resolution.source)?;
+                }
+            }
+            dir::Storage::Property { write, .. } => {
+                self.push_member(resolution.source, write)?;
+            }
+            dir::Storage::Subscript { .. } | dir::Storage::Dereference { .. } => {}
+        }
 
-        // collect each path segment target
-        for segment_index in 0..path.segments.len() {
-            // stop if the path exceeds the DIR segment index width
-            let Ok(segment_index) = u16::try_from(segment_index) else {
-                break;
-            };
+        Ok(())
+    }
 
-            // skip unresolved path segments
-            let Some(segment_symbol) = self
-                .module
-                .path_segment_symbol_target(expression_id, segment_index)
-            else {
+    /// Collect explicit imported-name occurrences from dependency references.
+    fn collect_dependencies(&mut self) -> ProviderResult<()> {
+        let imported_name = NodeSpanType::Region(NodeSpanRegion::Type);
+
+        // transcribe each concrete dependency target with an authored remote name
+        for (source, reference) in &self.module.resolved().references.target_by_node {
+            if source.local_id.ty != dir::NodeType::DependencyItem {
+                continue;
+            }
+            let dir::Reference::Bound(targets) = reference else {
                 continue;
             };
+            if targets.is_empty() {
+                return Err(ProviderError::internal(format!(
+                    "dependency reference {source:?} has no bound target"
+                ))
+                .into());
+            }
+            let view = self.module.view();
+            let item_id = source
+                .local_id
+                .try_into_typed::<dir::DependencyItem>()
+                .map_err(|_| {
+                    ProviderError::internal(format!(
+                        "dependency reference has incompatible node id: {source:?}"
+                    ))
+                })?;
+            let item = view.get(item_id);
+            let dir::DependencyItem::Binding {
+                binding,
+                name,
+                alias,
+                ..
+            } = item
+            else {
+                return Err(ProviderError::internal(format!(
+                    "dependency reference has malformed declaration: {source:?}"
+                ))
+                .into());
+            };
 
-            // read the checked source span for the resolved segment
-            let span = self
-                .module
-                .path_segment_span(expression_id, segment_index)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "missing source span for resolved path segment {expression_id:?}/{segment_index}"
-                    )
-                });
+            let source_id = view.get_source_any(source.local_id);
+            let span = match (name, binding, alias) {
+                // named dependencies retain their remote name separately
+                (Some(_), _, _) => self
+                    .module
+                    .source_index()
+                    .get_side(source_id, imported_name)
+                    .ok_or_else(|| {
+                        ProviderError::internal(format!(
+                            "dependency reference {source:?} has no imported-name span"
+                        ))
+                    })?,
 
-            self.push_reference_at_span(segment_symbol, source, span, dir::ReferenceKind::Name);
+                // a renamed default re-export exposes its only authored identifier
+                (
+                    None,
+                    dir::DependencyBinding::Default | dir::DependencyBinding::Namespace,
+                    Some(_),
+                ) => {
+                    let Some(parent) = view.get_parent_for(item_id) else {
+                        return Err(ProviderError::internal(format!(
+                            "dependency reference {source:?} has no parent"
+                        ))
+                        .into());
+                    };
+                    if parent.ty != dir::NodeType::Expression {
+                        return Err(ProviderError::internal(format!(
+                            "dependency reference {source:?} has incompatible parent {parent:?}"
+                        ))
+                        .into());
+                    }
+                    let parent = dir::LocalNodeId::<dir::Expression>::new(parent.id);
+                    if !matches!(view.get(parent), dir::Expression::Export { .. }) {
+                        continue;
+                    }
+
+                    self.module
+                        .source_index()
+                        .get_main(source_id)
+                        .ok_or_else(|| {
+                            ProviderError::internal(format!(
+                                "default re-export reference {source:?} has no alias span"
+                            ))
+                        })?
+                }
+
+                // bare default and namespace tokens have no symbol name occurrence
+                (
+                    None,
+                    dir::DependencyBinding::Default
+                    | dir::DependencyBinding::Namespace
+                    | dir::DependencyBinding::Named,
+                    None,
+                ) => continue,
+                (None, dir::DependencyBinding::Named, Some(_)) => {
+                    return Err(ProviderError::internal(format!(
+                        "named dependency reference {source:?} has no imported name"
+                    ))
+                    .into());
+                }
+            };
+
+            // emit the authored remote name for every exact bound declaration
+            for target in targets {
+                self.push_entry(*target, *target, span);
+            }
         }
+
+        Ok(())
     }
 
-    /// Collect references from dependency item nodes.
-    fn collect_dependency_references(&mut self) {
-        let view = self.module.view();
-        let module_id = self.module.module_id();
-
-        // collect dependency local and resolved symbol targets
-        for (item_id, _item) in view.iter_nodes_of_type::<dir::DependencyItem>() {
-            let source = item_id.into_global_any(module_id);
-
-            if let Some(symbol_id) = self.module.dependency_local_symbol(item_id) {
-                self.push_reference(symbol_id, source, dir::ReferenceKind::Dependency);
-            }
-
-            if let Some(target_symbol) = self.module.dependency_symbol_target(item_id) {
-                self.push_reference(target_symbol, source, dir::ReferenceKind::Dependency);
-            }
-        }
-    }
-
-    /// Push reference row for a symbol.
-    fn push_reference(
+    /// Push one authored reference occurrence.
+    fn push(
         &mut self,
-        symbol_id: dir::GlobalSymbolId,
+        target: dir::GlobalSymbolId,
         source: dir::GlobalNodeIdAny,
-        kind: dir::ReferenceKind,
-    ) {
-        // use the source node main span
+    ) -> ProviderResult<()> {
+        let view = self.module.view();
+        let source_id = view.get_source_any(source.local_id);
+
+        // generated nodes do not represent source reference occurrences
+        if self.module.source_index().try_get(source_id).is_none() {
+            return Ok(());
+        }
+
+        let Some(span) = self.reference_span(source, source_id, target)? else {
+            return Ok(());
+        };
+
+        // record explicit local aliases without interpreting dependency chains
+        let declarations = self.module.resolved().references.declarations(source);
+        let is_import_alias = declarations.is_some_and(|declarations| {
+            declarations
+                .iter()
+                .any(|declaration| self.module.is_local_import_alias(*declaration))
+        });
+        self.target_entries.push(dir::ReferenceEntry {
+            symbol: target,
+            span,
+            is_import_alias,
+        });
+
+        Ok(())
+    }
+
+    /// Return the authored span carrying one lexical declaration identity.
+    fn declaration_span(&self, source: dir::GlobalNodeIdAny) -> ProviderResult<Span> {
+        let view = self.module.view();
+        let source_id = view.get_source_any(source.local_id);
+
+        // qualified type paths retain their declaration identity on the root
+        if source.local_id.ty == dir::NodeType::TypeExpression
+            && let Some(span) = self.qualified_type_root_span(view, source, source_id)?
+        {
+            return Ok(span);
+        }
+
+        self.module
+            .source_index()
+            .get_main(source_id)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "declaration reference {source:?} has no authored span"
+                ))
+                .into()
+            })
+    }
+
+    /// Return the authored span carrying one checked reference target.
+    fn reference_span(
+        &self,
+        source: dir::GlobalNodeIdAny,
+        source_id: u32,
+        target: dir::GlobalSymbolId,
+    ) -> ProviderResult<Option<Span>> {
+        // projected type paths bind the final namespace prefix, not the final source segment
+        if source.local_id.ty == dir::NodeType::TypeExpression
+            && let Some(dir::Reference::Projected { base, from }) =
+                self.module.resolved().references.get(source)
+        {
+            if *base != target {
+                return Err(ProviderError::internal(format!(
+                    "projected type reference {source:?} selected {target:?} instead of {base:?}"
+                ))
+                .into());
+            }
+
+            let segment = from.checked_sub(1).ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "projected type reference {source:?} starts after no prefix"
+                ))
+            })?;
+            let segment = u16::try_from(segment).map_err(|_| {
+                ProviderError::internal(format!(
+                    "projected type reference {source:?} segment exceeds source index limits"
+                ))
+            })?;
+            let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, segment);
+            let span = self.module.source_index().get_side(source_id, span_type);
+            let span = span.ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "projected type reference {source:?} has no bound-prefix span"
+                ))
+            })?;
+
+            return Ok(Some(span));
+        }
+
+        let span = self.module.source_index().get_main(source_id);
+        if span.is_none() {
+            return Err(ProviderError::internal(format!(
+                "authored reference {source:?} to {target:?} has no main span at source node \
+                 {source_id}"
+            ))
+            .into());
+        }
+
+        Ok(span)
+    }
+
+    /// Return the lexical root span of one qualified type path.
+    fn qualified_type_root_span(
+        &self,
+        view: dir::View<'_>,
+        source: dir::GlobalNodeIdAny,
+        source_id: u32,
+    ) -> ProviderResult<Option<Span>> {
+        let type_id = source
+            .local_id
+            .try_into_typed::<dir::TypeExpression>()
+            .map_err(|_| {
+                ProviderError::internal(format!(
+                    "type reference has incompatible node id: {source:?}"
+                ))
+            })?;
+        let dir::TypeExpression::Reference { path, .. } = view.get(type_id) else {
+            return Ok(None);
+        };
+        if path.segments.len() <= 1 {
+            return Ok(None);
+        }
+
         let span = self
             .module
-            .get_main_span(self.module.view(), source.local_id);
+            .source_index()
+            .get_side(source_id, NodeSpanType::Head)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "qualified type reference {source:?} has no root span"
+                ))
+            })?;
 
-        self.push_reference_at_span(symbol_id, source, span, kind);
+        Ok(Some(span))
     }
 
-    /// Push reference row for a symbol using an explicit span.
-    fn push_reference_at_span(
+    /// Push one target and declaration reference row.
+    fn push_entry(
         &mut self,
-        symbol_id: dir::GlobalSymbolId,
-        source: dir::GlobalNodeIdAny,
+        target: dir::GlobalSymbolId,
+        declaration: dir::GlobalSymbolId,
         span: Span,
-        kind: dir::ReferenceKind,
     ) {
-        self.entries.push(dir::ReferenceEntry {
-            target: symbol_id,
-            source,
+        self.target_entries.push(dir::ReferenceEntry {
+            symbol: target,
             span,
-            kind,
+            is_import_alias: false,
+        });
+        self.declaration_entries.push(dir::ReferenceEntry {
+            symbol: declaration,
+            span,
+            is_import_alias: false,
         });
     }
 
-    /// Push reference rows from one member resolution.
-    fn push_member_resolution(
+    /// Push the symbol targets recorded by one member resolution.
+    fn push_member(
         &mut self,
         source: dir::GlobalNodeIdAny,
         resolution: &dir::MemberResolution,
-    ) {
+    ) -> ProviderResult<()> {
         match &resolution.target {
             dir::MemberTarget::Symbol(candidate) => {
-                // collect owner type plus concrete member
-                self.push_reference(candidate.owner, source, dir::ReferenceKind::Type);
-                self.push_reference(candidate.symbol, source, dir::ReferenceKind::Member);
+                self.push(candidate.symbol, source)?;
             }
             dir::MemberTarget::Existential(candidates)
             | dir::MemberTarget::Universal(candidates) => {
-                // collect each overload candidate owner and member
                 for candidate in candidates {
-                    self.push_reference(candidate.owner, source, dir::ReferenceKind::Type);
-                    self.push_reference(candidate.symbol, source, dir::ReferenceKind::Member);
+                    self.push(candidate.symbol, source)?;
                 }
             }
-            dir::MemberTarget::Field(_)
-            | dir::MemberTarget::Element(_)
-            | dir::MemberTarget::Index(_) => {}
+            // FUGU #Incomplete: retain exact authored identities for structural field declarations
+            dir::MemberTarget::Field(_) => {}
+            dir::MemberTarget::Element(_) | dir::MemberTarget::Index(_) => {}
         }
+
+        Ok(())
     }
 
-    /// Push reference rows from expression member candidates.
-    fn push_member_candidates(
+    /// Record one selected occurrence and every resolution node it replaces.
+    fn select(
         &mut self,
-        source: dir::GlobalNodeIdAny,
-        resolution: &dir::MemberResolution,
-    ) {
-        match &resolution.target {
-            dir::MemberTarget::Symbol(candidate) => {
-                // collect concrete member target only
-                self.push_reference(candidate.symbol, source, dir::ReferenceKind::Member);
-            }
-            dir::MemberTarget::Existential(candidates)
-            | dir::MemberTarget::Universal(candidates) => {
-                // collect each candidate member target
-                for candidate in candidates {
-                    self.push_reference(candidate.symbol, source, dir::ReferenceKind::Member);
-                }
-            }
-            dir::MemberTarget::Field(_)
-            | dir::MemberTarget::Element(_)
-            | dir::MemberTarget::Index(_) => {}
-        }
-    }
-
-    /// Push reference rows from one call resolution.
-    fn push_call_resolution(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        resolution: &dir::CallResolution,
-    ) {
-        match &resolution.target {
-            dir::CallTarget::Symbol(candidate) => {
-                // collect concrete callee
-                self.push_reference(candidate.symbol, source, dir::ReferenceKind::Call);
-            }
-            dir::CallTarget::Universal(candidates) => {
-                // collect each overload candidate callee
-                for candidate in candidates {
-                    self.push_reference(candidate.symbol, source, dir::ReferenceKind::Call);
-                }
-            }
-            dir::CallTarget::Expression { .. } => {}
-        }
-    }
-
-    /// Push reference rows from one construct resolution.
-    fn push_construct_resolution(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        resolution: &dir::ConstructResolution,
-    ) {
-        let symbol = match &resolution.target {
-            dir::ConstructTarget::Class(candidate) => candidate.symbol,
-            dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
-            dir::ConstructTarget::Variant(candidate) => candidate.case.member,
+        sources: Vec<dir::GlobalNodeIdAny>,
+        mut targets: Vec<dir::GlobalSymbolId>,
+    ) -> ProviderResult<()> {
+        let Some(source) = sources.last().copied() else {
+            return Err(ProviderError::internal("selected reference has no source node").into());
         };
-
-        self.push_reference(symbol, source, dir::ReferenceKind::Construct);
-    }
-
-    /// Push reference rows from one writable storage selection.
-    fn push_storage(&mut self, source: dir::GlobalNodeIdAny, storage: &dir::Storage) {
-        match storage {
-            dir::Storage::Binding { symbol } => {
-                // collect local binding storage
-                self.push_reference(*symbol, source, dir::ReferenceKind::Storage);
-            }
-            dir::Storage::Property { read, write } => {
-                // collect optional read and required write property targets
-                if let Some(read) = read {
-                    self.push_member_resolution(source, read);
-                }
-
-                self.push_member_resolution(source, write);
-            }
-            dir::Storage::Subscript { read, write, .. } => {
-                // collect optional read and required write subscript targets
-                if let Some(read) = read {
-                    self.push_subscript(source, read);
-                }
-
-                self.push_subscript(source, write);
-            }
-            dir::Storage::Dereference { read, write } => {
-                // collect optional read and required write dereference targets
-                if let Some(read) = read {
-                    self.push_dereference(source, read);
-                }
-
-                self.push_dereference(source, write);
-            }
-            dir::Storage::Field { .. } => {}
+        targets.sort();
+        targets.dedup();
+        if targets.is_empty() {
+            return Err(ProviderError::internal(format!(
+                "selected reference {source:?} has no symbol target"
+            ))
+            .into());
         }
-    }
 
-    /// Push reference rows from one subscript operation.
-    fn push_subscript(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        operation: &dir::SubscriptOperation,
-    ) {
-        match operation {
-            dir::SubscriptOperation::Member(resolution) => {
-                self.push_member_resolution(source, resolution);
-            }
-            dir::SubscriptOperation::Call(resolution) => {
-                self.push_call_resolution(source, resolution);
-            }
+        // reject conflicting final selections for one authored occurrence
+        if let Some(previous) = self.selected_targets.get(&source)
+            && previous != &targets
+        {
+            return Err(ProviderError::internal(format!(
+                "reference {source:?} has conflicting selected targets: {previous:?} and \
+                 {targets:?}"
+            ))
+            .into());
         }
+
+        self.selected_targets.insert(source, targets);
+        self.selected_sources.extend(sources);
+
+        Ok(())
     }
 
-    /// Push reference rows from one dereference operation.
-    fn push_dereference(
-        &mut self,
+    /// Return the authored source chain for one generic instantiation.
+    fn instantiation_sources(
+        &self,
         source: dir::GlobalNodeIdAny,
-        operation: &dir::DereferenceOperation,
-    ) {
-        match operation {
-            dir::DereferenceOperation::Direct => {}
-            dir::DereferenceOperation::Call(resolution) => {
-                self.push_call_resolution(source, resolution);
+    ) -> ProviderResult<Vec<dir::GlobalNodeIdAny>> {
+        if source.local_id.ty != dir::NodeType::Expression {
+            return Err(ProviderError::internal(format!(
+                "instantiation resolution source is not an expression: {source:?}"
+            ))
+            .into());
+        }
+
+        self.expression_sources(source)
+    }
+
+    /// Return the authored callee source chain for one call resolution.
+    fn call_sources(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> ProviderResult<Vec<dir::GlobalNodeIdAny>> {
+        let expression_id = source
+            .local_id
+            .try_into_typed::<dir::Expression>()
+            .map_err(|_| {
+                ProviderError::internal(format!(
+                    "call resolution source is not an expression: {source:?}"
+                ))
+            })?;
+        let dir::Expression::Call { left, .. } = self.module.view().get(expression_id) else {
+            return Err(ProviderError::internal(format!(
+                "call resolution source is not a call expression: {source:?}"
+            ))
+            .into());
+        };
+        let source = left.into_global_any(self.module.module_id());
+
+        self.expression_sources(source)
+    }
+
+    /// Return one expression and the generic wrappers leading to its authored name.
+    fn expression_sources(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> ProviderResult<Vec<dir::GlobalNodeIdAny>> {
+        let mut sources = vec![source];
+        let mut expression_id = source
+            .local_id
+            .try_into_typed::<dir::Expression>()
+            .map_err(|_| {
+                ProviderError::internal(format!(
+                    "expression reference source has incompatible node id: {source:?}"
+                ))
+            })?;
+
+        // cross explicit generic application wrappers
+        while let dir::Expression::Instantiation { left, .. } =
+            self.module.view().get(expression_id)
+        {
+            expression_id = *left;
+            sources.push(expression_id.into_global_any(self.module.module_id()));
+        }
+
+        Ok(sources)
+    }
+
+    /// Return the authored target source chain for one construction resolution.
+    fn construct_sources(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> ProviderResult<Vec<dir::GlobalNodeIdAny>> {
+        let expression_id = source
+            .local_id
+            .try_into_typed::<dir::Expression>()
+            .map_err(|_| {
+                ProviderError::internal(format!(
+                    "construct resolution source is not an expression: {source:?}"
+                ))
+            })?;
+        match self.module.view().get(expression_id) {
+            dir::Expression::New {
+                ty: type_expression,
+                ..
+            }
+            | dir::Expression::NewMaybe {
+                ty: type_expression,
+                ..
+            } => Ok(vec![
+                type_expression.into_global_any(self.module.module_id()),
+            ]),
+            dir::Expression::Call { left, .. } => {
+                let source = left.into_global_any(self.module.module_id());
+
+                self.expression_sources(source)
+            }
+            _ => {
+                let expression = self.module.view().get(expression_id);
+
+                Err(ProviderError::internal(format!(
+                    "construct resolution source is not a construct expression: {source:?}: \
+                     {expression:?}"
+                ))
+                .into())
             }
         }
     }

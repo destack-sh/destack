@@ -37,31 +37,31 @@ impl<'context, 'query> HeritageIndexer<'context, 'query> {
         // collect relation fields by declaration kind
         match definition {
             dir::Definition::Struct(definition) => {
-                self.collect_implements(symbol, &definition.implements);
+                self.collect_implements(symbol, symbol, &definition.implements);
             }
             dir::Definition::Class(definition) => {
                 if let Some(extends) = &definition.extends {
-                    self.collect_extends(symbol, extends);
+                    self.collect_extends(symbol, symbol, extends);
                 }
 
-                self.collect_implements(symbol, &definition.implements);
+                self.collect_implements(symbol, symbol, &definition.implements);
             }
             dir::Definition::Interface(definition) => {
                 for extends in &definition.extends {
-                    self.collect_extends(symbol, extends);
+                    self.collect_extends(symbol, symbol, extends);
                 }
             }
             dir::Definition::Enum(definition) => {
-                self.collect_implements(symbol, &definition.implements);
+                self.collect_implements(symbol, symbol, &definition.implements);
             }
             dir::Definition::Extension(extension) => {
-                // skip unresolved extension targets
+                // blanket extensions have no single derived nominal
                 let Some(root) = extension.target.root() else {
                     return;
                 };
 
                 // collect implemented interfaces for the extended nominal
-                self.collect_implements(root, &extension.implements);
+                self.collect_implements(root, symbol, &extension.implements);
             }
             dir::Definition::TypeAlias(_) | dir::Definition::Newtype(_) => {}
         }
@@ -71,20 +71,32 @@ impl<'context, 'query> HeritageIndexer<'context, 'query> {
     fn collect_extends(
         &mut self,
         derived_symbol: dir::GlobalSymbolId,
+        declaration_symbol: dir::GlobalSymbolId,
         heritage: &dir::NominalHeritage,
     ) {
-        self.push_heritage(derived_symbol, heritage, dir::HeritageKind::Extends);
+        self.push_heritage(
+            derived_symbol,
+            declaration_symbol,
+            heritage,
+            dir::HeritageKind::Extends,
+        );
     }
 
     /// Collect implements relations.
     fn collect_implements(
         &mut self,
         derived_symbol: dir::GlobalSymbolId,
+        declaration_symbol: dir::GlobalSymbolId,
         implements: &[dir::NominalHeritage],
     ) {
         // emit each implemented interface edge
         for heritage in implements {
-            self.push_heritage(derived_symbol, heritage, dir::HeritageKind::Implements);
+            self.push_heritage(
+                derived_symbol,
+                declaration_symbol,
+                heritage,
+                dir::HeritageKind::Implements,
+            );
         }
     }
 
@@ -92,15 +104,25 @@ impl<'context, 'query> HeritageIndexer<'context, 'query> {
     fn push_heritage(
         &mut self,
         derived_symbol: dir::GlobalSymbolId,
+        declaration_symbol: dir::GlobalSymbolId,
         heritage: &dir::NominalHeritage,
         kind: dir::HeritageKind,
     ) {
+        // omit generated relations without an editor source
+        let Some(span) = self
+            .module
+            .view()
+            .get_span_by_id(heritage.source.local_id.id)
+        else {
+            return;
+        };
+
         // emit heritage edge row
         self.entries.push(dir::HeritageEntry {
             derived: derived_symbol,
+            declaration: declaration_symbol,
             base: heritage.symbol,
-            source: heritage.source,
-            arguments: heritage.arguments.clone(),
+            span,
             kind,
         });
     }

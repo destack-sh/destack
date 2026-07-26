@@ -107,11 +107,14 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
         }
 
         // resolve member metadata
-        let span = self.module.get_span(self.module.view(), source.local_id);
+        let span = self.module.view().get_span_by_id(source.local_id.id)?;
+        let selection = self
+            .module
+            .node_selection_span(self.module.view(), source.local_id);
         let name = self.member_name(member)?;
         let kind = Self::member_kind(member);
         let symbol = member.symbol();
-        let ty = self.member_type(member, symbol);
+        let type_id = self.member_type(member, symbol);
 
         // emit member declaration row
         Some(dir::MemberEntry {
@@ -123,14 +126,11 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
             source,
             file: span.file,
             span,
+            selection,
             container: owner_name.map(str::to_string),
-            ty,
+            ty: type_id,
             origin,
             space: member.space(),
-            is_abstract: Self::is_abstract(member),
-            is_override: Self::is_override(member),
-            is_default: member.is_default(),
-            is_static: member.space() == dir::MemberSpace::Static,
         })
     }
 
@@ -172,15 +172,15 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
         symbol: Option<dir::GlobalSymbolId>,
     ) -> Option<dir::GlobalTypeId> {
         // prefer the checked type attached to the member symbol
-        if let Some(symbol) = symbol {
-            if let Some(ty) = self.module.types().get_symbol_type_id(symbol) {
-                return Some(ty);
-            }
+        if let Some(symbol) = symbol
+            && let Some(type_id) = self.module.types().get_symbol_type_id(symbol)
+        {
+            return Some(type_id);
         }
 
         // read structural signature types without a symbol payload
         match member {
-            dir::DefinitionMember::AssociatedType(member) => member.value.or(member.constraint),
+            dir::DefinitionMember::AssociatedType(member) => member.value,
             dir::DefinitionMember::CallSignature(member)
             | dir::DefinitionMember::ConstructSignature(member) => Some(member.ty),
             dir::DefinitionMember::IndexSignature(member) => Some(member.value_type),
@@ -196,11 +196,22 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
     fn member_kind(member: &dir::DefinitionMember) -> dir::MemberKind {
         match member {
             dir::DefinitionMember::Field(_) => dir::MemberKind::Field,
-            dir::DefinitionMember::Method(method) => match method.slot {
-                dir::MemberSlot::Constructor | dir::MemberSlot::New => dir::MemberKind::Constructor,
-                dir::MemberSlot::Call => dir::MemberKind::CallSignature,
-                dir::MemberSlot::Key(_) => dir::MemberKind::Method,
-            },
+            dir::DefinitionMember::Method(method) => {
+                if matches!(
+                    method.role,
+                    Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
+                ) {
+                    dir::MemberKind::Property
+                } else {
+                    match method.slot {
+                        dir::MemberSlot::Constructor | dir::MemberSlot::New => {
+                            dir::MemberKind::Constructor
+                        }
+                        dir::MemberSlot::Call => dir::MemberKind::CallSignature,
+                        dir::MemberSlot::Key(_) => dir::MemberKind::Method,
+                    }
+                }
+            }
             dir::DefinitionMember::AssociatedType(_) => dir::MemberKind::AssociatedType,
             dir::DefinitionMember::AssociatedConst(_) => dir::MemberKind::AssociatedConst,
             dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
@@ -209,36 +220,6 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
             dir::DefinitionMember::CallSignature(_) => dir::MemberKind::CallSignature,
             dir::DefinitionMember::ConstructSignature(_) => dir::MemberKind::ConstructSignature,
             dir::DefinitionMember::IndexSignature(_) => dir::MemberKind::IndexSignature,
-        }
-    }
-
-    /// Return whether one checked member is abstract.
-    fn is_abstract(member: &dir::DefinitionMember) -> bool {
-        match member {
-            dir::DefinitionMember::Field(field) => field.is_abstract,
-            dir::DefinitionMember::Method(method) => method.abstraction.is_abstract(),
-            dir::DefinitionMember::AssociatedType(_)
-            | dir::DefinitionMember::AssociatedConst(_)
-            | dir::DefinitionMember::EnumVariant(_)
-            | dir::DefinitionMember::TaggedVariant(_)
-            | dir::DefinitionMember::CallSignature(_)
-            | dir::DefinitionMember::ConstructSignature(_)
-            | dir::DefinitionMember::IndexSignature(_) => false,
-        }
-    }
-
-    /// Return whether one checked member overrides an inherited member.
-    fn is_override(member: &dir::DefinitionMember) -> bool {
-        match member {
-            dir::DefinitionMember::Field(field) => field.is_override,
-            dir::DefinitionMember::Method(method) => method.is_override,
-            dir::DefinitionMember::AssociatedType(_)
-            | dir::DefinitionMember::AssociatedConst(_)
-            | dir::DefinitionMember::EnumVariant(_)
-            | dir::DefinitionMember::TaggedVariant(_)
-            | dir::DefinitionMember::CallSignature(_)
-            | dir::DefinitionMember::ConstructSignature(_)
-            | dir::DefinitionMember::IndexSignature(_) => false,
         }
     }
 }

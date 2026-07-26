@@ -28,7 +28,7 @@ impl<'context, 'query> DecoratorIndexer<'context, 'query> {
     fn collect_decorators(&mut self) {
         for (application_id, application) in self.module.decorators().iter_applications() {
             // resolve decorator display name
-            let name = self.module.decorator_name(application.source);
+            let name = self.module.decorator_name(application.source.local_id);
 
             // emit decorator application row
             self.entries.push(dir::DecoratorEntry {
