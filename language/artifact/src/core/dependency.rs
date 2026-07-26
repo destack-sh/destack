@@ -3,20 +3,84 @@ use siphasher::sip128::Hasher128;
 use std::hash::Hash;
 
 use destack_core::StableHasher;
-use destack_source::{ComponentId, ContentId, FileId, ModuleId};
+use destack_source::{ComponentId, ContentId, FileId, ModuleId, PackageId, ProfileId};
 use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactKey, ArtifactVersion, ModuleIndexProjection};
 
-/// One exact source file content observed while building an artifact.
+/// Stable fingerprint of one repository module set.
+#[repr(transparent)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
-pub struct SourceDependency {
-    /// The source file id.
-    pub file: FileId,
-    /// The exact source content id.
-    pub content: ContentId,
+pub struct ModuleSetFingerprint(u128);
+
+impl ModuleSetFingerprint {
+    /// Build one fingerprint from module identities in stable order.
+    pub fn new(modules: &[ModuleId]) -> Self {
+        let mut modules = modules.to_vec();
+        modules.sort_unstable();
+        modules.dedup();
+
+        let mut hasher = StableHasher::new();
+        hasher.update_len_prefixed(b"destack.artifact.modules.v1");
+        modules.hash(&mut hasher);
+
+        Self(hasher.finish_u128())
+    }
+}
+
+/// Stable fingerprint of one repository package set.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct PackageSetFingerprint(u128);
+
+impl PackageSetFingerprint {
+    /// Build one fingerprint from package identities in stable order.
+    pub fn new(packages: &[PackageId]) -> Self {
+        let mut packages = packages.to_vec();
+        packages.sort_unstable();
+        packages.dedup();
+
+        let mut hasher = StableHasher::new();
+        hasher.update_len_prefixed(b"destack.artifact.packages.v1");
+        packages.hash(&mut hasher);
+
+        Self(hasher.finish_u128())
+    }
+}
+
+/// One exact repository source observation used by an artifact.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub enum SourceDependency {
+    /// One exact source file content.
+    FileContent {
+        /// The source file id.
+        file: FileId,
+        /// The exact source content id.
+        content: ContentId,
+    },
+    /// The complete repository package identity set.
+    Packages {
+        /// The observed package set fingerprint.
+        fingerprint: PackageSetFingerprint,
+    },
+    /// The complete repository module identity set.
+    Modules {
+        /// The observed module set fingerprint.
+        fingerprint: ModuleSetFingerprint,
+    },
+    /// The repository modules belonging to one semantic profile.
+    ProfileModules {
+        /// The selected profile.
+        profile: ProfileId,
+        /// The observed profile module set fingerprint.
+        fingerprint: ModuleSetFingerprint,
+    },
 }
 
 /// Stable fingerprint of one observed artifact projection.
@@ -70,6 +134,15 @@ pub enum ComponentGraphProjection {
     Dependencies(ComponentId),
 }
 
+/// One observable projection of a package graph artifact.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub enum PackageGraphProjection {
+    /// The active package nodes containing dependency and export routes.
+    Nodes,
+}
+
 /// One observable projection of an artifact payload.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
@@ -77,6 +150,8 @@ pub enum ComponentGraphProjection {
 pub enum ArtifactProjectionKey {
     /// A component graph projection.
     ComponentGraph(ComponentGraphProjection),
+    /// A package graph projection.
+    PackageGraph(PackageGraphProjection),
     /// A checked DIR module inside a checked component.
     DirChecked(ModuleId),
     /// A module index projection.
@@ -86,6 +161,12 @@ pub enum ArtifactProjectionKey {
 impl From<ComponentGraphProjection> for ArtifactProjectionKey {
     fn from(projection: ComponentGraphProjection) -> Self {
         Self::ComponentGraph(projection)
+    }
+}
+
+impl From<PackageGraphProjection> for ArtifactProjectionKey {
+    fn from(projection: PackageGraphProjection) -> Self {
+        Self::PackageGraph(projection)
     }
 }
 
@@ -176,7 +257,29 @@ impl ArtifactRequirement {
 impl SourceDependency {
     /// Build one file content dependency.
     pub fn file_content(file: FileId, content: ContentId) -> Self {
-        Self { file, content }
+        Self::FileContent { file, content }
+    }
+
+    /// Build one complete package set dependency.
+    pub fn packages(packages: &[PackageId]) -> Self {
+        Self::Packages {
+            fingerprint: PackageSetFingerprint::new(packages),
+        }
+    }
+
+    /// Build one complete module set dependency.
+    pub fn modules(modules: &[ModuleId]) -> Self {
+        Self::Modules {
+            fingerprint: ModuleSetFingerprint::new(modules),
+        }
+    }
+
+    /// Build one profile module set dependency.
+    pub fn profile_modules(profile: ProfileId, modules: &[ModuleId]) -> Self {
+        Self::ProfileModules {
+            profile,
+            fingerprint: ModuleSetFingerprint::new(modules),
+        }
     }
 }
 
@@ -220,6 +323,21 @@ impl ArtifactDependencySet {
     /// Declare one observed regular source file.
     pub fn observe_file(&mut self, file: FileId, content: ContentId) {
         self.observe(SourceDependency::file_content(file, content));
+    }
+
+    /// Declare the complete repository package identity set.
+    pub fn observe_packages(&mut self, packages: &[PackageId]) {
+        self.observe(SourceDependency::packages(packages));
+    }
+
+    /// Declare the complete repository module identity set.
+    pub fn observe_modules(&mut self, modules: &[ModuleId]) {
+        self.observe(SourceDependency::modules(modules));
+    }
+
+    /// Declare the repository modules belonging to one semantic profile.
+    pub fn observe_profile_modules(&mut self, profile: ProfileId, modules: &[ModuleId]) {
+        self.observe(SourceDependency::profile_modules(profile, modules));
     }
 
     /// Mark the closure incomplete so the engine runs the collect pass again.

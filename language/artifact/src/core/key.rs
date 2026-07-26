@@ -33,8 +33,8 @@ pub enum ArtifactKey {
 
     /// Explicit global environment for one profile.
     GlobalEnvironment { profile: ProfileId },
-    /// Active dependency index for one profile.
-    PackageIndex { profile: ProfileId },
+    /// Active package graph for one profile.
+    PackageGraph { profile: ProfileId },
     /// Strongly connected component partition for one profile.
     ComponentGraph { profile: ProfileId },
     /// Whole-program analysis for one profile and target.
@@ -230,7 +230,7 @@ impl ArtifactKey {
         match self {
             Self::DirParsed { .. } | Self::Data { .. } => ArtifactProvider::Loader,
             Self::GlobalEnvironment { .. }
-            | Self::PackageIndex { .. }
+            | Self::PackageGraph { .. }
             | Self::ComponentGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::DirBound { .. }
@@ -276,9 +276,9 @@ impl ArtifactKey {
         Self::GlobalEnvironment { profile }
     }
 
-    /// Build one dependency index artifact key.
-    pub fn package_index(profile: ProfileId) -> Self {
-        Self::PackageIndex { profile }
+    /// Build one active package graph artifact key.
+    pub fn package_graph(profile: ProfileId) -> Self {
+        Self::PackageGraph { profile }
     }
 
     /// Build one component graph artifact key.
@@ -477,7 +477,7 @@ impl ArtifactKey {
             }
             Self::ModuleLinted { .. } | Self::ProgramLinted { .. } => ArtifactStage::Lint,
             Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactStage::Index,
-            Self::GlobalEnvironment { .. } | Self::PackageIndex { .. } => ArtifactStage::Init,
+            Self::GlobalEnvironment { .. } | Self::PackageGraph { .. } => ArtifactStage::Init,
         }
     }
 
@@ -485,7 +485,7 @@ impl ArtifactKey {
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment { .. } => "environment",
-            Self::PackageIndex { .. } => "package.index",
+            Self::PackageGraph { .. } => "package.graph",
             Self::DirParsed { .. } => "dir.parse",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir.bind",
@@ -521,7 +521,7 @@ impl ArtifactKey {
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment { .. } => "global_environment",
-            Self::PackageIndex { .. } => "package_index",
+            Self::PackageGraph { .. } => "package_graph",
             Self::DirParsed { .. } => "dir_parsed",
             Self::Data { .. } => "data",
             Self::DirBound { .. } => "dir_bound",
@@ -577,7 +577,7 @@ impl ArtifactKey {
             | Self::Asset { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
             Self::GlobalEnvironment { .. }
-            | Self::PackageIndex { .. }
+            | Self::PackageGraph { .. }
             | Self::ComponentGraph { .. }
             | Self::ProgramAnalysis { .. }
             | Self::ProgramIndex { .. }
@@ -623,7 +623,7 @@ impl ArtifactKey {
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
             Self::GlobalEnvironment { profile }
-            | Self::PackageIndex { profile }
+            | Self::PackageGraph { profile }
             | Self::ComponentGraph { profile }
             | Self::ProgramAnalysis { profile, .. }
             | Self::DirBound { profile, .. }

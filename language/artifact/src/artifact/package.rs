@@ -1,59 +1,169 @@
 use std::borrow::Cow;
-use std::path::PathBuf;
+use std::hash::Hash;
+use std::path::{Path, PathBuf};
 
+use destack_core::StableHasher;
 use destack_serde::Reflect;
-use destack_source::{PackageId, ProfileId};
+use destack_source::{ModuleId, PackageId, ProfileId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-/// Active package dependency and export index for one profile.
+use crate::{ArtifactProjectionFingerprint, PackageGraphProjection};
+
+/// Active package routes and import specifiers for one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct PackageIndex {
-    /// The profile this index belongs to.
+pub struct PackageGraph {
+    /// The profile this graph belongs to.
     pub profile: ProfileId,
-    /// Indexed packages keyed by package id.
-    pub packages: IndexMap<PackageId, PackageImportIndex>,
+    /// Active package nodes keyed by package id.
+    nodes: IndexMap<PackageId, PackageNode>,
+    /// Canonical same-package import paths ordered by module.
+    module_paths: Vec<ModuleImportPath>,
+    /// Public import specifiers ordered by source package, target module, and text.
+    package_specifiers: Vec<PackageImportSpecifier>,
 }
 
-impl PackageIndex {
-    /// Return one indexed package.
-    pub fn package(&self, package: PackageId) -> Option<&PackageImportIndex> {
-        self.packages.get(&package)
+impl PackageGraph {
+    /// Build a package graph from active packages and exact import specifiers.
+    pub fn new(
+        profile: ProfileId,
+        nodes: IndexMap<PackageId, PackageNode>,
+        module_paths: impl IntoIterator<Item = (ModuleId, PathBuf)>,
+        package_specifiers: impl IntoIterator<Item = (PackageId, ModuleId, String)>,
+    ) -> Self {
+        let mut module_paths = module_paths
+            .into_iter()
+            .map(|(module, path)| ModuleImportPath { module, path })
+            .collect::<Vec<_>>();
+        module_paths.sort();
+        module_paths.dedup();
+
+        let mut package_specifiers = package_specifiers
+            .into_iter()
+            .map(|(source, target, specifier)| PackageImportSpecifier {
+                source,
+                target,
+                specifier,
+            })
+            .collect::<Vec<_>>();
+        package_specifiers.sort();
+        package_specifiers.dedup();
+
+        Self {
+            profile,
+            nodes,
+            module_paths,
+            package_specifiers,
+        }
+    }
+
+    /// Return one active package.
+    pub fn package(&self, package: PackageId) -> Option<&PackageNode> {
+        self.nodes.get(&package)
+    }
+
+    /// Return the canonical same-package import path for one module.
+    pub fn module_path(&self, module: ModuleId) -> Option<&Path> {
+        let index = self
+            .module_paths
+            .binary_search_by_key(&module, |entry| entry.module)
+            .ok()?;
+
+        Some(self.module_paths[index].path.as_path())
+    }
+
+    /// Iterate public specifiers from one source package to one target module.
+    pub fn package_specifiers(
+        &self,
+        source: PackageId,
+        target: ModuleId,
+    ) -> impl Iterator<Item = &str> {
+        let key = (source, target);
+        let start = self
+            .package_specifiers
+            .partition_point(|entry| (entry.source, entry.target) < key);
+        let end = start
+            + self.package_specifiers[start..]
+                .partition_point(|entry| (entry.source, entry.target) == key);
+
+        self.package_specifiers[start..end]
+            .iter()
+            .map(|entry| entry.specifier.as_str())
+    }
+
+    /// Return the stable fingerprint of one package graph projection.
+    pub fn projection_fingerprint(
+        &self,
+        projection: PackageGraphProjection,
+    ) -> ArtifactProjectionFingerprint {
+        match projection {
+            PackageGraphProjection::Nodes => {
+                let mut hasher = StableHasher::new();
+                hasher.update_len_prefixed(b"destack.artifact.package_graph.nodes.v1");
+                self.nodes.len().hash(&mut hasher);
+
+                // hash package nodes in canonical package order
+                let mut nodes = self.nodes.iter().collect::<Vec<_>>();
+                nodes.sort_unstable_by_key(|(package, _)| **package);
+                for (package, node) in nodes {
+                    package.hash(&mut hasher);
+                    node.root.hash(&mut hasher);
+
+                    // hash dependency routes in canonical specifier order
+                    let mut dependencies = node.dependencies.iter().collect::<Vec<_>>();
+                    dependencies.sort_unstable_by(|left, right| left.0.cmp(right.0));
+                    dependencies.hash(&mut hasher);
+
+                    // hash exact exports canonically and retain pattern precedence
+                    let mut exact = node.exports.exact.iter().collect::<Vec<_>>();
+                    exact.sort_unstable_by(|left, right| left.0.cmp(right.0));
+                    exact.hash(&mut hasher);
+                    node.exports.patterns.hash(&mut hasher);
+                }
+
+                ArtifactProjectionFingerprint(hasher.finish_u128())
+            }
+        }
     }
 }
 
-/// Active import index for one package.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct PackageImportIndex {
-    /// The package this index belongs to.
-    pub package: PackageId,
+/// One package in an active package graph.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct PackageNode {
     /// Package root path when filesystem backed.
     pub root: Option<PathBuf>,
     /// Active direct dependencies keyed by package specifier.
-    pub dependencies: IndexMap<String, Option<PackageId>>,
+    pub dependencies: IndexMap<String, PackageDependency>,
     /// Active public exports.
-    pub exports: ExportIndex,
+    pub exports: PackageExports,
 }
 
-impl PackageImportIndex {
+impl PackageNode {
     /// Return one active direct dependency by package specifier.
-    pub fn dependency(&self, package: &str) -> Option<Option<PackageId>> {
+    pub fn dependency(&self, package: &str) -> Option<PackageDependency> {
         self.dependencies.get(package).copied()
     }
 }
 
+/// Resolution of one declared package dependency.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum PackageDependency {
+    /// The declared dependency package is unavailable.
+    Unavailable,
+    /// The declared dependency resolved to an active package.
+    Resolved(PackageId),
+}
+
 /// Active package exports indexed for module import resolution.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct ExportIndex {
-    /// The package this export index belongs to.
-    pub package: PackageId,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct PackageExports {
     /// Exact exports keyed by export specifier.
     pub exact: IndexMap<String, ExportTarget>,
     /// Pattern exports sorted from most specific to least specific.
     pub patterns: Vec<ExportPattern>,
 }
 
-impl ExportIndex {
+impl PackageExports {
     /// Return the active export matching one export key.
     pub fn get<'a>(&'a self, key: &'a str) -> Option<ResolvedExport<'a>> {
         // prefer exact exports
@@ -79,6 +189,26 @@ impl ExportIndex {
 
         None
     }
+}
+
+/// One canonical same-package import path.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
+struct ModuleImportPath {
+    /// The module selected by this path.
+    module: ModuleId,
+    /// The shortest exact path accepted by module resolution.
+    path: PathBuf,
+}
+
+/// One public package import specifier.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
+struct PackageImportSpecifier {
+    /// The package containing the importing module.
+    source: PackageId,
+    /// The module selected by the specifier.
+    target: ModuleId,
+    /// The authored module specifier.
+    specifier: String,
 }
 
 /// Active package export target.

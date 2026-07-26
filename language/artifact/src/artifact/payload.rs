@@ -9,7 +9,7 @@ use crate::{
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
     MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
-    PackageIndex, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    PackageGraph, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 use serde::{Deserialize, Serialize};
 
@@ -22,8 +22,8 @@ pub enum ArtifactPayload {
     Data(Arc<Data>),
     /// Explicit global environment for one profile.
     GlobalEnvironment(Arc<GlobalEnvironment>),
-    /// Active dependency index for one profile.
-    PackageIndex(Arc<PackageIndex>),
+    /// Active package graph for one profile.
+    PackageGraph(Arc<PackageGraph>),
     /// Component partition for one profile.
     ComponentGraph(Arc<ComponentGraph>),
     /// Whole-program analysis for one profile and target.
@@ -87,8 +87,8 @@ pub enum ArtifactPayloadRef<'a> {
     Data(&'a Data),
     /// Explicit global environment for one profile.
     GlobalEnvironment(&'a GlobalEnvironment),
-    /// Active dependency index for one profile.
-    PackageIndex(&'a PackageIndex),
+    /// Active package graph for one profile.
+    PackageGraph(&'a PackageGraph),
     /// Component partition for one profile.
     ComponentGraph(&'a ComponentGraph),
     /// Whole-program analysis for one profile and target.
@@ -152,8 +152,8 @@ impl ArtifactPayload {
                 ArtifactKey::GlobalEnvironment { .. },
                 ArtifactPayload::GlobalEnvironment(_)
             ) | (
-                ArtifactKey::PackageIndex { .. },
-                ArtifactPayload::PackageIndex(_)
+                ArtifactKey::PackageGraph { .. },
+                ArtifactPayload::PackageGraph(_)
             ) | (
                 ArtifactKey::ComponentGraph { .. },
                 ArtifactPayload::ComponentGraph(_)
@@ -245,7 +245,7 @@ impl ArtifactPayload {
             Self::GlobalEnvironment(payload) => {
                 ArtifactPayloadRef::GlobalEnvironment(payload.as_ref())
             }
-            Self::PackageIndex(payload) => ArtifactPayloadRef::PackageIndex(payload.as_ref()),
+            Self::PackageGraph(payload) => ArtifactPayloadRef::PackageGraph(payload.as_ref()),
             Self::ComponentGraph(payload) => ArtifactPayloadRef::ComponentGraph(payload.as_ref()),
             Self::ProgramAnalysis(payload) => ArtifactPayloadRef::ProgramAnalysis(payload.as_ref()),
             Self::DirBound(payload) => ArtifactPayloadRef::DirBound(payload.as_ref()),
@@ -286,6 +286,9 @@ impl ArtifactPayload {
             (Self::ComponentGraph(payload), ArtifactProjectionKey::ComponentGraph(projection)) => {
                 Some(payload.projection_fingerprint(projection))
             }
+            (Self::PackageGraph(payload), ArtifactProjectionKey::PackageGraph(projection)) => {
+                Some(payload.projection_fingerprint(projection))
+            }
             (Self::DirCheckedComponent(payload), ArtifactProjectionKey::DirChecked(module)) => {
                 payload.module(module).map(|entry| entry.fingerprint)
             }
@@ -300,7 +303,7 @@ impl ArtifactPayload {
     pub fn name(&self) -> &'static str {
         match self {
             Self::GlobalEnvironment(_) => "global_environment",
-            Self::PackageIndex(_) => "package_index",
+            Self::PackageGraph(_) => "package_graph",
             Self::ComponentGraph(_) => "component_graph",
             Self::ProgramAnalysis(_) => "program_analysis",
             Self::DirParsed(_) => "dir_parsed",
@@ -367,10 +370,10 @@ impl From<GlobalEnvironment> for ArtifactPayload {
     }
 }
 
-impl From<PackageIndex> for ArtifactPayload {
+impl From<PackageGraph> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: PackageIndex) -> Self {
-        Self::PackageIndex(Arc::new(payload))
+    fn from(payload: PackageGraph) -> Self {
+        Self::PackageGraph(Arc::new(payload))
     }
 }
 

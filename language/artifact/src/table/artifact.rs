@@ -15,7 +15,7 @@ use crate::{
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
     MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
-    PackageIndex, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    PackageGraph, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 
 macro_rules! artifact_getter {
@@ -297,7 +297,7 @@ impl ArtifactTable {
     }
 
     artifact_getter!(global_environment, GlobalEnvironment, GlobalEnvironment);
-    artifact_getter!(package_index, PackageIndex, PackageIndex);
+    artifact_getter!(package_graph, PackageGraph, PackageGraph);
     artifact_getter!(component_graph, ComponentGraph, ComponentGraph);
     artifact_getter!(program_analysis, ProgramAnalysis, ProgramAnalysis);
     artifact_getter!(dir_parsed, DirParsed, DirParsed);
