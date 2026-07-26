@@ -29,7 +29,7 @@ impl Compiler {
             ArtifactKey::GlobalEnvironment { profile } => {
                 self.collect_global_environment(profile, context)
             }
-            ArtifactKey::PackageIndex { profile } => self.collect_package_index(profile, context),
+            ArtifactKey::PackageGraph { .. } => self.collect_package_graph(context),
             ArtifactKey::ComponentGraph { profile } => {
                 self.collect_component_graph(profile, context)
             }
@@ -40,7 +40,7 @@ impl Compiler {
                 self.collect_dir_bound(module, profile, context)
             }
             ArtifactKey::DirImported { module, profile } => {
-                self.collect_dir_imported(module, profile, context)
+                self.collect_dir_imported(module, profile)
             }
             ArtifactKey::DirExpanded { module, profile } => {
                 self.collect_dir_expanded(module, profile, context)
@@ -144,7 +144,7 @@ impl Compiler {
             ArtifactKey::GlobalEnvironment { profile } => {
                 self.provide_global_environment(profile, context)
             }
-            ArtifactKey::PackageIndex { profile } => self.provide_package_index(profile, context),
+            ArtifactKey::PackageGraph { profile } => self.provide_package_graph(profile, context),
             ArtifactKey::ComponentGraph { profile } => {
                 self.provide_component_graph(profile, context)
             }

@@ -1,53 +1,60 @@
 use destack_artifact::{
-    ConditionSet, ExportIndex, ExportPattern, ExportTarget, PackageImportIndex, PackageIndex,
+    ConditionSet, ExportPattern, ExportTarget, PackageDependency, PackageExports, PackageGraph,
+    PackageNode,
 };
 use destack_repository::{ExportKind, Package, Revision};
-use destack_source::{PackageId, ProfileId};
+use destack_source::ProfileId;
 
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
-    /// Build the active dependency index for one profile.
-    pub(in crate::import) fn build_package_index(
+    /// Build the active package graph for one profile.
+    pub(in crate::import) fn build_package_graph(
         &self,
         revision: Revision,
         profile: ProfileId,
         conditions: &ConditionSet,
-    ) -> CompilerResult<PackageIndex> {
+    ) -> CompilerResult<PackageGraph> {
         let package_ids =
             self.repository
                 .package_ids(revision)
                 .map_err(|error| CompilerError::Internal {
                     message: format!("failed to load package ids: {error}"),
                 })?;
-        let mut index = PackageIndex {
-            profile,
-            packages: indexmap::IndexMap::new(),
-        };
+        let mut packages = indexmap::IndexMap::new();
 
-        // index every package visible in this revision
+        // build every active package node
         for package_id in package_ids {
             let package = self.package(revision, package_id)?;
-            let indexed = self.index_package_imports(revision, package.as_ref(), conditions)?;
+            let node = self.build_package_node(revision, package.as_ref(), conditions)?;
 
-            index.packages.insert(package_id, indexed);
+            packages.insert(package_id, node);
         }
 
-        Ok(index)
+        // build exact import specifiers over the program module set
+        let modules = self.repository.module_ids(revision)?;
+        let module_paths = self.index_module_paths(revision, &modules)?;
+        let package_specifiers = self.index_package_specifiers(revision, &packages, &modules)?;
+
+        Ok(PackageGraph::new(
+            profile,
+            packages,
+            module_paths,
+            package_specifiers,
+        ))
     }
 
-    /// Build the active import index for one package.
-    fn index_package_imports(
+    /// Build one active package graph node.
+    fn build_package_node(
         &self,
         revision: Revision,
         package: &Package,
         conditions: &ConditionSet,
-    ) -> CompilerResult<PackageImportIndex> {
+    ) -> CompilerResult<PackageNode> {
         let dependencies = self.index_dependencies(revision, package, conditions)?;
         let exports = self.index_package_exports(package, conditions);
 
-        Ok(PackageImportIndex {
-            package: package.id,
+        Ok(PackageNode {
             root: package.path.clone(),
             dependencies,
             exports,
@@ -60,7 +67,7 @@ impl Compiler {
         revision: Revision,
         package: &Package,
         conditions: &ConditionSet,
-    ) -> CompilerResult<indexmap::IndexMap<String, Option<PackageId>>> {
+    ) -> CompilerResult<indexmap::IndexMap<String, PackageDependency>> {
         let mut indexed = indexmap::IndexMap::new();
         let dependencies = package.dependencies_for_conditions(conditions);
 
@@ -73,14 +80,22 @@ impl Compiler {
                     message: format!("failed to resolve dependency package '{name}': {error}"),
                 })?;
 
-            indexed.insert(name, target.map(|package| package.id));
+            let dependency = match target {
+                Some(package) => PackageDependency::Resolved(package.id),
+                None => PackageDependency::Unavailable,
+            };
+            indexed.insert(name, dependency);
         }
 
         Ok(indexed)
     }
 
     /// Build active package exports for one package.
-    fn index_package_exports(&self, package: &Package, conditions: &ConditionSet) -> ExportIndex {
+    fn index_package_exports(
+        &self,
+        package: &Package,
+        conditions: &ConditionSet,
+    ) -> PackageExports {
         let mut exact = indexmap::IndexMap::new();
         let mut patterns = Vec::new();
 
@@ -117,18 +132,8 @@ impl Compiler {
                 .len()
                 .cmp(&left.prefix.len())
                 .then_with(|| right.suffix.len().cmp(&left.suffix.len()))
-                .then_with(|| {
-                    let right_len = right.prefix.len() + right.suffix.len();
-                    let left_len = left.prefix.len() + left.suffix.len();
-
-                    right_len.cmp(&left_len)
-                })
         });
 
-        ExportIndex {
-            package: package.id,
-            exact,
-            patterns,
-        }
+        PackageExports { exact, patterns }
     }
 }
