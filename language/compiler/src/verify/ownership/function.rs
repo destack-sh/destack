@@ -157,16 +157,17 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             flow.bind(argument, parameter.value);
         }
 
-        // bind the implicit invoke result when the continuation receives one
-        if terminator.has_successor_result(successor) {
-            let bindings = self.invoke_result_sources(predecessor_id, terminator, &flow);
+        // bind borrowed sources carried by one invoke result
+        if let Some(bindings) =
+            self.invoke_result_sources(predecessor_id, successor, terminator, &flow)
+        {
             let parameter = self
                 .tree
                 .get(successor)
                 .parameters
                 .first()
                 .map(|parameter| parameter.value);
-            if let (Some(bindings), Some(parameter)) = (bindings, parameter) {
+            if let Some(parameter) = parameter {
                 flow.borrows.insert_bindings(parameter, bindings);
             }
         }
@@ -881,12 +882,17 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     fn invoke_result_sources(
         &self,
         block_id: mir::LocalNodeId<mir::Block>,
+        successor: mir::LocalNodeId<mir::Block>,
         terminator: &mir::Terminator,
         flow: &FlowState,
     ) -> Option<Vec<(mir::Path, BorrowSources)>> {
-        let mir::Terminator::Invoke { call, .. } = terminator else {
+        let mir::Terminator::Invoke { call, target, .. } = terminator else {
             return None;
         };
+        if target.block != successor {
+            return None;
+        }
+
         let function = self.resolved_terminator_target(block_id, terminator);
         let arguments = self.tree.get_values(call.arguments);
 
