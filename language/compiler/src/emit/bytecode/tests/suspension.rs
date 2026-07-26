@@ -63,9 +63,9 @@ entry(v0: waiter<int32>):
 
     program.assert_bytecode(
         r#"
-function park(r0: t1, r1: t2): t0
+function park
 
-async function wait(r0: t1): t1 {
+function wait {
     await r0, park, r0 => b0 | b1 | b2
 
 b0:
@@ -78,7 +78,7 @@ b2:
     unwind.resume
 }
 
-function* generate(r0: t1): t1 {
+function generate {
     yield r0, r0 => b0 | b1
 
 b0:
@@ -88,7 +88,7 @@ b1:
     unwind.resume
 }
 
-function owner(r0: t1, r1: t1): t1 {
+function owner {
     continuation.new r2, generate, r0
     resume r0, r1, r0, r2, r1 => b0 | b1 | b2
 
@@ -102,12 +102,12 @@ b2:
     unwind.resume
 }
 
-function settle(r0: t2, r1: t1): t0 {
+function settle {
     waiter.queue r0, r1, t1
     return
 }
 
-function cancel(r0: t2): t0 {
+function cancel {
     waiter.cancel r0
     return
 }

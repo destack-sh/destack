@@ -36,7 +36,6 @@ impl<'a> BytecodeEmitter<'a> {
     pub fn emit(&self) -> Result<(bytecode::Object, Vec<FrameState>), EmitError> {
         let functions = self.ordered_functions()?;
         let mut logical_frames = Vec::new();
-        let mut parameters = Vec::new();
         let mut frames = Vec::new();
         let mut registers = Vec::new();
         let mut operations = Vec::new();
@@ -47,7 +46,7 @@ impl<'a> BytecodeEmitter<'a> {
         // emit functions in their common object order
         for (function_id, function) in functions {
             if function.body.is_none() {
-                rows.push(self.declaration(function, &mut parameters)?);
+                rows.push(bytecode::Function::declaration());
 
                 continue;
             }
@@ -64,7 +63,6 @@ impl<'a> BytecodeEmitter<'a> {
             rows.push(Self::append(
                 emitted,
                 &mut logical_frames,
-                &mut parameters,
                 &mut frames,
                 &mut registers,
                 &mut operations,
@@ -75,7 +73,6 @@ impl<'a> BytecodeEmitter<'a> {
 
         let object = bytecode::ObjectBuilder::new()
             .functions(rows)
-            .parameters(parameters)
             .frames(frames)
             .registers(registers)
             .operations(operations)
@@ -106,49 +103,11 @@ impl<'a> BytecodeEmitter<'a> {
             .collect())
     }
 
-    /// Build one imported physical function declaration.
-    fn declaration(
-        &self,
-        function: &mir::Function,
-        parameters: &mut Vec<bytecode::Parameter>,
-    ) -> Result<bytecode::Function, EmitError> {
-        let mut register = u16::from(function.environment.is_some());
-        let parameter_start = parameters.len() as u32;
-
-        // lay imported parameters out in their physical entry order
-        for parameter in &function.parameters {
-            let ty = self.types.register_type(parameter.ty)?;
-            let registers =
-                bytecode::RegisterSpan::new(bytecode::RegisterId(register), ty.word_count());
-            parameters.push(bytecode::Parameter::new(
-                registers,
-                self.types.type_id(parameter.ty)?,
-            ));
-            register += ty.word_count();
-        }
-
-        let parameter_count = parameters.len() as u32 - parameter_start;
-        let result = self.types.type_id(function.return_type)?;
-
-        Ok(bytecode::Function::new(
-            Optional::none(),
-            EntryRange::new(parameter_start, parameter_count),
-            EntryRange::empty(),
-            EntryRange::empty(),
-            result,
-            0,
-            Self::coroutine(function.coroutine),
-            0,
-            0,
-        ))
-    }
-
     /// Append one emitted function and return its physical object row.
     #[allow(clippy::too_many_arguments)]
     fn append(
         emitted: EmittedFunction,
         logical_frames: &mut Vec<FrameState>,
-        parameters: &mut Vec<bytecode::Parameter>,
         frames: &mut Vec<bytecode::FrameMap>,
         registers: &mut Vec<bytecode::RegisterSpan>,
         operations: &mut Vec<bytecode::CodeOffset>,
@@ -157,17 +116,9 @@ impl<'a> BytecodeEmitter<'a> {
     ) -> bytecode::Function {
         let EmittedFunction {
             function,
-            coroutine,
-            parameters: emitted_parameters,
-            result,
             body,
             frames: emitted_frames,
         } = emitted;
-
-        // append physical entry parameters
-        let parameter_start = parameters.len() as u32;
-        let parameter_count = emitted_parameters.len() as u32;
-        parameters.extend(emitted_parameters);
 
         // append matching logical and physical frame maps
         let frame_start = frames.len() as u32;
@@ -206,24 +157,9 @@ impl<'a> BytecodeEmitter<'a> {
                 byte_offset: code_start,
                 byte_len: code_len,
             }),
-            EntryRange::new(parameter_start, parameter_count),
             EntryRange::new(frame_start, frame_count),
             EntryRange::new(operation_start, operation_count),
-            result,
             body.register_count,
-            Self::coroutine(coroutine),
-            body.counter_count,
-            body.sampler_count,
         )
-    }
-
-    /// Map one MIR coroutine form into the stable bytecode representation.
-    fn coroutine(coroutine: Option<mir::Coroutine>) -> bytecode::Coroutine {
-        match coroutine {
-            None => bytecode::Coroutine::NONE,
-            Some(mir::Coroutine::Async) => bytecode::Coroutine::ASYNC,
-            Some(mir::Coroutine::Generator) => bytecode::Coroutine::GENERATOR,
-            Some(mir::Coroutine::AsyncGenerator) => bytecode::Coroutine::ASYNC_GENERATOR,
-        }
     }
 }

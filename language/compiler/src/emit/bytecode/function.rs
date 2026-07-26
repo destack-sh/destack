@@ -14,12 +14,6 @@ use super::{RegisterAllocation, RegisterAllocator, TypeEmitter};
 pub(crate) struct EmittedFunction {
     /// The object-local function identity.
     pub(crate) function: mir::FunctionId,
-    /// The function's coroutine execution form.
-    pub(crate) coroutine: Option<mir::Coroutine>,
-    /// Physical entry parameters in declaration order.
-    pub(crate) parameters: Vec<bytecode::Parameter>,
-    /// Object-local result type.
-    pub(crate) result: bytecode::TypeId,
     /// The encoded function body and object-relative references.
     pub(crate) body: bytecode::FunctionBody,
     /// Physical frame maps in operation order.
@@ -214,19 +208,6 @@ impl<'a> FunctionEmitter<'a> {
             }
         }
 
-        // retain the physical entry ABI before consuming the function builder
-        let parameters = self
-            .function
-            .parameters
-            .iter()
-            .map(|parameter| {
-                Ok(bytecode::Parameter::new(
-                    self.register(parameter.value)?,
-                    self.types.type_id(parameter.ty)?,
-                ))
-            })
-            .collect::<Result<Vec<_>, EmitError>>()?;
-        let result = self.types.type_id(self.function.return_type)?;
         let module = self.module;
         let body = self
             .builder
@@ -235,9 +216,6 @@ impl<'a> FunctionEmitter<'a> {
 
         Ok(EmittedFunction {
             function: self.function_id,
-            coroutine: self.function.coroutine,
-            parameters,
-            result,
             body,
             frames: self.frames,
         })
