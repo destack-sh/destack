@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
@@ -5,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ArtifactProjectionFingerprint;
 
-/// Indexed checked DIR facts for one module profile.
+/// Query indexes for one checked module profile.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ModuleIndex {
     /// Indexed declared symbols.
@@ -14,7 +16,7 @@ pub struct ModuleIndex {
     pub exports: dir::ExportIndex,
     /// Indexed checked members.
     pub members: dir::MemberIndex,
-    /// Indexed reference memberships.
+    /// Indexed reference occurrences.
     pub references: dir::ReferenceIndex,
     /// Indexed call edges.
     pub calls: dir::CallIndex,
@@ -85,21 +87,21 @@ pub struct ProgramIndex {
     /// The indexed modules in stable ordinal order.
     pub modules: Vec<ModuleId>,
     /// Symbol postings.
-    pub symbols: dir::SymbolPostings,
+    pub symbols: Arc<dir::SymbolPostings>,
     /// Export postings.
-    pub exports: dir::ExportPostings,
+    pub exports: Arc<dir::ExportPostings>,
     /// Member postings.
-    pub members: dir::MemberPostings,
+    pub members: Arc<dir::MemberPostings>,
     /// Reference postings.
-    pub references: dir::ReferencePostings,
+    pub references: Arc<dir::ReferencePostings>,
     /// Call postings.
-    pub calls: dir::CallPostings,
+    pub calls: Arc<dir::CallPostings>,
     /// Heritage postings.
-    pub heritage: dir::HeritagePostings,
+    pub heritage: Arc<dir::HeritagePostings>,
     /// Extension postings.
-    pub extensions: dir::ExtensionPostings,
+    pub extensions: Arc<dir::ExtensionPostings>,
     /// Decorator postings.
-    pub decorators: dir::DecoratorPostings,
+    pub decorators: Arc<dir::DecoratorPostings>,
 }
 
 /// One observable projection of a module index artifact.
