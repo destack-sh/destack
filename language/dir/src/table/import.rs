@@ -1,17 +1,20 @@
+use std::slice;
+
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
-use crate::{ExportTarget, GlobalSymbolId, LanguageItem, LocalSymbolId, StaticKey};
+use crate::{ExportTarget, GlobalSymbolId, LanguageItem, LocalSymbolId, Reference, StaticKey};
 
 /// Resolved import targets for one module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct ImportTable {
     /// The module id of the import table.
     pub module_id: ModuleId,
-    /// Imported local symbols keyed to their resolved target.
-    pub target_by_symbol: IndexMap<LocalSymbolId, ImportTarget>,
+    /// Imported local symbols keyed to their resolution.
+    pub resolution_by_symbol: IndexMap<LocalSymbolId, ImportResolution>,
     /// Global targets made visible by the active profile.
     pub global_target_by_key: IndexMap<StaticKey, Vec<ImportTarget>>,
     /// Resolved symbols for language items used by this module.
@@ -21,9 +24,9 @@ pub struct ImportTable {
 impl ImportTable {
     /// Iterate every resolved import target.
     pub fn targets(&self) -> impl Iterator<Item = ImportTarget> + '_ {
-        self.target_by_symbol
+        self.resolution_by_symbol
             .values()
-            .copied()
+            .flat_map(ImportResolution::targets)
             .chain(self.global_target_by_key.values().flatten().copied())
     }
 
@@ -31,15 +34,15 @@ impl ImportTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            target_by_symbol: IndexMap::new(),
+            resolution_by_symbol: IndexMap::new(),
             global_target_by_key: IndexMap::new(),
             language_symbol_by_item: IndexMap::new(),
         }
     }
 
-    /// Insert one resolved local import symbol target.
-    pub fn insert_symbol(&mut self, symbol: LocalSymbolId, target: ImportTarget) {
-        self.target_by_symbol.insert(symbol, target);
+    /// Insert one local import symbol resolution.
+    pub fn insert_symbol(&mut self, symbol: LocalSymbolId, resolution: ImportResolution) {
+        self.resolution_by_symbol.insert(symbol, resolution);
     }
 
     /// Add one imported global target.
@@ -55,20 +58,22 @@ impl ImportTable {
         self.language_symbol_by_item.insert(item, symbol);
     }
 
-    /// Return one resolved local import symbol target.
-    pub fn symbol_target(&self, symbol: LocalSymbolId) -> Option<ImportTarget> {
-        self.target_by_symbol.get(&symbol).copied()
+    /// Return one local import symbol resolution.
+    pub fn symbol_resolution(&self, symbol: LocalSymbolId) -> Option<&ImportResolution> {
+        self.resolution_by_symbol.get(&symbol)
     }
 
     /// Return imported local symbols that resolve to concrete exported symbols.
     pub fn symbol_targets(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalSymbolId)> + '_ {
-        self.target_by_symbol
+        self.resolution_by_symbol
             .iter()
-            .filter_map(|(symbol, target)| match target {
-                ImportTarget::Symbol(target) => {
+            .filter_map(|(symbol, resolution)| match resolution {
+                ImportResolution::Resolved(ImportTarget::Symbol(target)) => {
                     Some(((*symbol).into_global(self.module_id), *target))
                 }
-                ImportTarget::Namespace(_) => None,
+                ImportResolution::Resolved(ImportTarget::Namespace(_))
+                | ImportResolution::Ambiguous(_)
+                | ImportResolution::Missing => None,
             })
     }
 
@@ -89,7 +94,11 @@ impl ImportTable {
 
     /// Return modules that own resolved import targets.
     pub fn target_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
-        let symbols = self.target_by_symbol.values().map(|target| target.module());
+        let symbols = self
+            .resolution_by_symbol
+            .values()
+            .flat_map(ImportResolution::targets)
+            .map(ImportTarget::module);
         let globals = self
             .global_target_by_key
             .values()
@@ -101,6 +110,51 @@ impl ImportTable {
             .map(|symbol| symbol.module_id);
 
         symbols.chain(globals).chain(language)
+    }
+}
+
+/// Resolution of one local import binding.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum ImportResolution {
+    /// One exact imported target.
+    Resolved(ImportTarget),
+    /// Multiple conflicting imported targets.
+    Ambiguous(SmallVec<[ImportTarget; 2]>),
+    /// No imported target.
+    Missing,
+}
+
+impl ImportResolution {
+    /// Iterate the retained targets.
+    pub fn targets(&self) -> impl Iterator<Item = ImportTarget> + '_ {
+        let targets = match self {
+            Self::Resolved(target) => slice::from_ref(target),
+            Self::Ambiguous(targets) => targets.as_slice(),
+            Self::Missing => &[],
+        };
+
+        targets.iter().copied()
+    }
+}
+
+impl From<ImportTarget> for ImportResolution {
+    /// Convert one exact imported target into a resolution.
+    fn from(target: ImportTarget) -> Self {
+        Self::Resolved(target)
+    }
+}
+
+impl From<&ImportResolution> for Reference {
+    /// Convert one import binding resolution into a source reference.
+    fn from(resolution: &ImportResolution) -> Self {
+        match resolution {
+            ImportResolution::Resolved(ImportTarget::Symbol(symbol)) => {
+                Self::from_symbols([*symbol])
+            }
+            ImportResolution::Resolved(ImportTarget::Namespace(module)) => Self::Namespace(*module),
+            ImportResolution::Ambiguous(targets) => Self::Ambiguous(targets.clone()),
+            ImportResolution::Missing => Self::Missing,
+        }
     }
 }
 
