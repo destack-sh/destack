@@ -230,16 +230,33 @@ impl<'a> FunctionBuilder<'a> {
         value: Value,
         resume_block: LocalNodeId<Block>,
         resume_arguments: Vec<Value>,
+        complete_block: LocalNodeId<Block>,
+        complete_arguments: Vec<Value>,
         unwind: Option<(LocalNodeId<Block>, Vec<Value>)>,
     ) {
         let block = self.current_block();
-        let (resume, unwind) =
-            self.suspension_targets(block, resume_block, resume_arguments, unwind);
+        self.add_predecessor(block, resume_block);
+        self.add_predecessor(block, complete_block);
+        let resume_arguments = self.tree.add_values(&resume_arguments);
+        let complete_arguments = self.tree.add_values(&complete_arguments);
+        let resume = BlockTarget::new(resume_block, resume_arguments);
+        let complete = BlockTarget::new(complete_block, complete_arguments);
+
+        // build the optional panic unwind target
+        let unwind = if let Some((unwind_block, unwind_arguments)) = unwind {
+            self.add_predecessor(block, unwind_block);
+            let unwind_arguments = self.tree.add_values(&unwind_arguments);
+
+            Some(BlockTarget::new(unwind_block, unwind_arguments))
+        } else {
+            None
+        };
 
         let terminator_id = self.tree.get(block).terminator;
         *self.tree.get_mut(terminator_id) = Terminator::Yield {
             value,
             resume,
+            complete,
             unwind,
         };
     }
@@ -281,30 +298,5 @@ impl<'a> FunctionBuilder<'a> {
         *self.tree.get_mut(terminator_id) = Terminator::TailCall {
             call: Call::new(callee, arguments, signature),
         };
-    }
-
-    /// Build the resume and panic unwind targets for one suspension point.
-    fn suspension_targets(
-        &mut self,
-        block: LocalNodeId<Block>,
-        resume_block: LocalNodeId<Block>,
-        resume_arguments: Vec<Value>,
-        unwind: Option<(LocalNodeId<Block>, Vec<Value>)>,
-    ) -> (BlockTarget, Option<BlockTarget>) {
-        self.add_predecessor(block, resume_block);
-        let resume_arguments = self.tree.add_values(&resume_arguments);
-        let resume = BlockTarget::new(resume_block, resume_arguments);
-
-        // build the optional panic unwind target
-        let unwind = if let Some((unwind_block, unwind_arguments)) = unwind {
-            self.add_predecessor(block, unwind_block);
-            let unwind_arguments = self.tree.add_values(&unwind_arguments);
-
-            Some(BlockTarget::new(unwind_block, unwind_arguments))
-        } else {
-            None
-        };
-
-        (resume, unwind)
     }
 }

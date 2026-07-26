@@ -105,8 +105,6 @@ impl Parser {
                     | "breakpoint"
                     | "profile.increment"
                     | "profile.sample"
-                    | "waiter.queue"
-                    | "waiter.cancel"
             )
         {
             return Err(ParseError::invalid(
@@ -160,16 +158,51 @@ impl Parser {
                 Instruction::TensorCopy { target, source }
             }
 
+            // continuation operations
+            "continuation.destroy" => {
+                let continuation = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::ContinuationDestroy { continuation }
+            }
+
             // waiter operations
             "waiter.queue" => {
+                let destination = destination.ok_or_else(|| {
+                    ParseError::invalid("instruction 'waiter.queue'", opcode_start)
+                })?;
                 let waiter = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::WaiterQueue { waiter, value }
+                Instruction::WaiterQueue {
+                    destination,
+                    waiter,
+                    value,
+                }
             }
             "waiter.cancel" => {
+                let destination = destination.ok_or_else(|| {
+                    ParseError::invalid("instruction 'waiter.cancel'", opcode_start)
+                })?;
                 let waiter = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::WaiterCancel { waiter }
+                Instruction::WaiterCancel {
+                    destination,
+                    waiter,
+                }
+            }
+
+            // task operations
+            "task.park" => {
+                let task = self.parse_value_segment(&mut segment_spans)?;
+                self.eat_token(TokenType::Comma)?;
+                let waiter = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::TaskPark { task, waiter }
+            }
+            "task.cancel" => {
+                let task = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::TaskCancel { task }
+            }
+            "task.detach" => {
+                let task = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::TaskDetach { task }
             }
 
             // calls and intrinsics
@@ -435,6 +468,17 @@ impl Parser {
                             destination,
                             function,
                             arguments,
+                        }
+                    }
+                    "task.resolve" => {
+                        let value = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::TaskResolve { destination, value }
+                    }
+                    "task.start" => {
+                        let continuation = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::TaskStart {
+                            destination,
+                            continuation,
                         }
                     }
                     // memory operations

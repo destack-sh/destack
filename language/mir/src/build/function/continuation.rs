@@ -22,11 +22,16 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Destroy one continuation and its suspended frame.
+    pub fn continuation_destroy(&mut self, continuation: Value) {
+        self.insert_instruction(Instruction::ContinuationDestroy { continuation });
+    }
+
     /// Resume one continuation until it yields or returns.
-    pub fn resume(
+    pub fn continuation_resume(
         &mut self,
         continuation: Value,
-        command: Value,
+        value: Value,
         yielded_block: LocalNodeId<Block>,
         yielded_arguments: Vec<Value>,
         returned_block: LocalNodeId<Block>,
@@ -47,9 +52,43 @@ impl<'a> FunctionBuilder<'a> {
         let unwind = unwind
             .map(|(block, arguments)| BlockTarget::new(block, self.tree.add_values(&arguments)));
         let terminator = self.tree.get(block).terminator;
-        *self.tree.get_mut(terminator) = Terminator::Resume {
+        *self.tree.get_mut(terminator) = Terminator::ContinuationResume {
             continuation,
-            command,
+            value,
+            yielded,
+            returned,
+            unwind,
+        };
+    }
+
+    /// Resume one continuation through completion until it yields or returns.
+    pub fn continuation_complete(
+        &mut self,
+        continuation: Value,
+        value: Value,
+        yielded_block: LocalNodeId<Block>,
+        yielded_arguments: Vec<Value>,
+        returned_block: LocalNodeId<Block>,
+        returned_arguments: Vec<Value>,
+        unwind: Option<(LocalNodeId<Block>, Vec<Value>)>,
+    ) {
+        let block = self.current_block();
+        self.add_predecessor(block, yielded_block);
+        self.add_predecessor(block, returned_block);
+        if let Some((unwind, _)) = &unwind {
+            self.add_predecessor(block, *unwind);
+        }
+
+        let yielded_arguments = self.tree.add_values(&yielded_arguments);
+        let returned_arguments = self.tree.add_values(&returned_arguments);
+        let yielded = BlockTarget::new(yielded_block, yielded_arguments);
+        let returned = BlockTarget::new(returned_block, returned_arguments);
+        let unwind = unwind
+            .map(|(block, arguments)| BlockTarget::new(block, self.tree.add_values(&arguments)));
+        let terminator = self.tree.get(block).terminator;
+        *self.tree.get_mut(terminator) = Terminator::ContinuationComplete {
+            continuation,
+            value,
             yielded,
             returned,
             unwind,

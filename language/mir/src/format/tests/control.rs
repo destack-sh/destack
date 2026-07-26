@@ -48,7 +48,7 @@ b3:
 
 function* generate(v0: int32): int32 {
 entry(v0: int32):
-    yield v0 => b1 | b2
+    yield v0 => b1 | b1 | b2
 
 b1(v1: int32):
     return v1
@@ -62,7 +62,7 @@ entry(v0: int32):
     await park(v0) => b1 | b3 | b4
 
 b1(v1: int32):
-    yield v1 => b2 | b4
+    yield v1 => b2 | b2 | b4
 
 b2(v2: int32):
     return v2
@@ -77,14 +77,18 @@ b4:
     );
 }
 
-/// Formats continuation construction and execution canonically.
+/// Formats continuation, waiter, and task operations canonically.
 #[test]
-fn test_format_continuations() {
+fn test_format_suspension_operations() {
     assert_format(
         r#"
+type Task {
+    uint64;
+}
+
 function* generate(v0: int32): int32 {
 entry(v0: int32):
-    yield v0 => b1 | b2
+    yield v0 => b1 | b1 | b2
 
 b1(v1: int32):
     return v1
@@ -96,9 +100,26 @@ b2:
 function owner(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: continuation<int32, int32, int32> = continuation.new generate(v0)
-    resume v2(v1) => b1 | b2 | b3
+    continuation.resume v2(v1) => b1 | b2 | b3
 
 b1(v3: int32, v4: continuation<int32, int32, int32>):
+    continuation.destroy v4
+    return v3
+
+b2(v5: int32):
+    return v5
+
+b3:
+    unwind.resume
+}
+
+function complete(v0: int32, v1: int32): int32 {
+entry(v0: int32, v1: int32):
+    v2: continuation<int32, int32, int32> = continuation.new generate(v0)
+    continuation.complete v2(v1) => b1 | b2 | b3
+
+b1(v3: int32, v4: continuation<int32, int32, int32>):
+    continuation.destroy v4
     return v3
 
 b2(v5: int32):
@@ -110,13 +131,28 @@ b3:
 
 function settle(v0: waiter<int32>, v1: int32): void {
 entry(v0: waiter<int32>, v1: int32):
-    waiter.queue v0, v1
+    v2: boolean = waiter.queue v0, v1
     return
 }
 
 function cancel(v0: waiter<int32>): void {
 entry(v0: waiter<int32>):
-    waiter.cancel v0
+    v1: boolean = waiter.cancel v0
+    return
+}
+
+function resolveTask(v0: int32, v1: waiter<int32>): void {
+entry(v0: int32, v1: waiter<int32>):
+    v2: Task = task.resolve v0
+    task.cancel v2
+    task.park v2, v1
+    return
+}
+
+function startTask(v0: continuation<void, never, int32>): void {
+entry(v0: continuation<void, never, int32>):
+    v1: Task = task.start v0
+    task.detach v1
     return
 }
 "#,

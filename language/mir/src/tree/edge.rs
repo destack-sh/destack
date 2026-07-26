@@ -31,14 +31,22 @@ pub enum Successor {
     AwaitUnwind,
     /// The resume target of a yield terminator.
     YieldResume,
+    /// The completion target of a yield terminator.
+    YieldComplete,
     /// The unwind target of a yield terminator.
     YieldUnwind,
-    /// The yielded target of a resume terminator.
-    ResumeYield,
-    /// The returned target of a resume terminator.
-    ResumeReturn,
-    /// The unwind target of a resume terminator.
-    ResumeUnwind,
+    /// The yielded target of a continuation resume terminator.
+    ContinuationResumeYielded,
+    /// The returned target of a continuation resume terminator.
+    ContinuationResumeReturned,
+    /// The unwind target of a continuation resume terminator.
+    ContinuationResumeUnwind,
+    /// The yielded target of a continuation complete terminator.
+    ContinuationCompleteYielded,
+    /// The returned target of a continuation complete terminator.
+    ContinuationCompleteReturned,
+    /// The unwind target of a continuation complete terminator.
+    ContinuationCompleteUnwind,
     /// The normal continuation of an invoke.
     InvokeNormal,
     /// The unwind continuation of an invoke.

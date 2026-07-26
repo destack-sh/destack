@@ -77,12 +77,28 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(function, from, to);
                 }
                 Instruction::FunctionEnvironmentCurrent { .. } => {}
-                Instruction::WaiterQueue { waiter, value } => {
+                Instruction::ContinuationDestroy { continuation } => {
+                    Self::replace_value_in_slot(continuation, from, to);
+                }
+                Instruction::WaiterQueue { waiter, value, .. } => {
                     Self::replace_value_in_slot(waiter, from, to);
                     Self::replace_value_in_slot(value, from, to);
                 }
-                Instruction::WaiterCancel { waiter } => {
+                Instruction::WaiterCancel { waiter, .. } => {
                     Self::replace_value_in_slot(waiter, from, to);
+                }
+                Instruction::TaskResolve { value, .. } => {
+                    Self::replace_value_in_slot(value, from, to);
+                }
+                Instruction::TaskStart { continuation, .. } => {
+                    Self::replace_value_in_slot(continuation, from, to);
+                }
+                Instruction::TaskPark { task, waiter } => {
+                    Self::replace_value_in_slot(task, from, to);
+                    Self::replace_value_in_slot(waiter, from, to);
+                }
+                Instruction::TaskCancel { task } | Instruction::TaskDetach { task } => {
+                    Self::replace_value_in_slot(task, from, to);
                 }
                 Instruction::Breakpoint => {}
                 Instruction::Binary { left, right, .. } => {

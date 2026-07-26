@@ -292,12 +292,12 @@ impl TypeHasher {
             Type::Character => self.hasher.write_u8(27),
             Type::Never => self.hasher.write_u8(28),
             Type::Continuation {
-                command_type,
+                resume_type,
                 yield_type,
                 return_type,
             } => {
                 self.hasher.write_u8(29);
-                self.write_type(*command_type, tree);
+                self.write_type(*resume_type, tree);
                 self.write_type(*yield_type, tree);
                 self.write_type(*return_type, tree);
             }

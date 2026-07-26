@@ -277,10 +277,21 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 let arguments = f.context().tree.get_values(*arguments);
                 format_value_list(arguments, f)
             }
-            Instruction::WaiterQueue { waiter, value } => {
+            Instruction::ContinuationDestroy { continuation } => {
+                write!(f, [token("continuation.destroy"), space(), continuation])
+            }
+            Instruction::WaiterQueue {
+                destination,
+                waiter,
+                value,
+            } => {
+                format_typed_destination(*destination, f)?;
                 write!(
                     f,
                     [
+                        space(),
+                        token("="),
+                        space(),
                         token("waiter.queue"),
                         space(),
                         waiter,
@@ -290,8 +301,72 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     ]
                 )
             }
-            Instruction::WaiterCancel { waiter } => {
-                write!(f, [token("waiter.cancel"), space(), waiter])
+            Instruction::WaiterCancel {
+                destination,
+                waiter,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("waiter.cancel"),
+                        space(),
+                        waiter
+                    ]
+                )
+            }
+            Instruction::TaskResolve { destination, value } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("task.resolve"),
+                        space(),
+                        value
+                    ]
+                )
+            }
+            Instruction::TaskStart {
+                destination,
+                continuation,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("task.start"),
+                        space(),
+                        continuation
+                    ]
+                )
+            }
+            Instruction::TaskPark { task, waiter } => {
+                write!(
+                    f,
+                    [
+                        token("task.park"),
+                        space(),
+                        task,
+                        token(","),
+                        space(),
+                        waiter
+                    ]
+                )
+            }
+            Instruction::TaskCancel { task } => {
+                write!(f, [token("task.cancel"), space(), task])
+            }
+            Instruction::TaskDetach { task } => {
+                write!(f, [token("task.detach"), space(), task])
             }
             Instruction::Load {
                 destination,

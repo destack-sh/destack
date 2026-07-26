@@ -541,7 +541,7 @@ fn format_type_inner<'a>(
             )
         }
         Type::Continuation {
-            command_type,
+            resume_type,
             yield_type,
             return_type,
         } => write!(
@@ -549,7 +549,7 @@ fn format_type_inner<'a>(
             [
                 token("continuation"),
                 token("<"),
-                FormatTypeId(*command_type),
+                FormatTypeId(*resume_type),
                 token(","),
                 space(),
                 FormatTypeId(*yield_type),

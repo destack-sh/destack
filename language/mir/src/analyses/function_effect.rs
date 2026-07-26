@@ -233,6 +233,28 @@ impl<'a> FunctionEffectBuilder<'a> {
                 memory: mir::MemoryEffect::unknown(),
                 behavior: mir::FunctionBehavior::none().with_frees(),
             },
+            mir::Instruction::ContinuationNew { .. }
+            | mir::Instruction::TaskResolve { .. }
+            | mir::Instruction::TaskStart { .. } => mir::FunctionEffect {
+                memory: mir::MemoryEffect::none(),
+                behavior: mir::FunctionBehavior::none()
+                    .with_no_duplicate()
+                    .with_allocates(),
+            },
+            mir::Instruction::ContinuationDestroy { .. } => mir::FunctionEffect {
+                memory: mir::MemoryEffect::none(),
+                behavior: mir::FunctionBehavior::none()
+                    .with_no_duplicate()
+                    .with_frees(),
+            },
+            mir::Instruction::WaiterQueue { .. }
+            | mir::Instruction::WaiterCancel { .. }
+            | mir::Instruction::TaskPark { .. }
+            | mir::Instruction::TaskCancel { .. }
+            | mir::Instruction::TaskDetach { .. } => mir::FunctionEffect {
+                memory: mir::MemoryEffect::none(),
+                behavior: mir::FunctionBehavior::none().with_no_duplicate(),
+            },
             mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => {
                 mir::FunctionEffect::unknown()
             }
@@ -268,6 +290,8 @@ impl<'a> FunctionEffectBuilder<'a> {
 
                 effect
             }
+            mir::Terminator::ContinuationResume { .. }
+            | mir::Terminator::ContinuationComplete { .. } => mir::FunctionEffect::unknown(),
             mir::Terminator::Panic { .. } | mir::Terminator::UnwindResume => mir::FunctionEffect {
                 memory: mir::MemoryEffect::none(),
                 behavior: mir::FunctionBehavior::none().with_panic().with_noreturn(),
@@ -533,6 +557,38 @@ entry:
 
         assert!(effect.behavior.allocates);
         assert!(effect.behavior.frees);
+    }
+
+    /// Task operations retain their deterministic allocation and ownership effects.
+    #[test]
+    fn test_function_effects_mark_task_operations() {
+        let program = TestProgram::new(
+            r#"
+type Task {
+    uint64;
+}
+
+function test(v0: int32): void {
+entry(v0: int32):
+    v1: Task = task.resolve v0
+    task.cancel v1
+    task.detach v1
+    return
+}
+"#,
+        );
+
+        let analyses = program.tree_analysis_cache();
+        let effects = analyses.get::<FunctionEffectAnalysis>(&program.tree);
+        let function = program.function_id_by_name("test");
+        let effect = effects.function(function).expect("missing function effect");
+
+        assert_eq!(effect.memory, mir::MemoryEffect::none());
+        assert_eq!(effect.behavior.determinism, mir::Determinism::Deterministic);
+        assert_eq!(effect.behavior.panic, mir::PanicBehavior::CannotPanic);
+        assert!(effect.behavior.must_not_duplicate);
+        assert!(effect.behavior.allocates);
+        assert!(!effect.behavior.frees);
     }
 
     /// Direct calls propagate callee effects to callers.

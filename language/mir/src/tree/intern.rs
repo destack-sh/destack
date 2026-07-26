@@ -335,11 +335,11 @@ impl Tree {
                 signature: self.intern_representation(signature),
             },
             Type::Continuation {
-                command_type,
+                resume_type,
                 yield_type,
                 return_type,
             } => Type::Continuation {
-                command_type: self.intern_representation(command_type),
+                resume_type: self.intern_representation(resume_type),
                 yield_type: self.intern_representation(yield_type),
                 return_type: self.intern_representation(return_type),
             },
@@ -562,11 +562,11 @@ impl Tree {
                 signature: self.instantiate_type_lifetimes(signature, arguments),
             },
             Type::Continuation {
-                command_type,
+                resume_type,
                 yield_type,
                 return_type,
             } => Type::Continuation {
-                command_type: self.instantiate_type_lifetimes(command_type, arguments),
+                resume_type: self.instantiate_type_lifetimes(resume_type, arguments),
                 yield_type: self.instantiate_type_lifetimes(yield_type, arguments),
                 return_type: self.instantiate_type_lifetimes(return_type, arguments),
             },

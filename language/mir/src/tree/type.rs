@@ -517,10 +517,10 @@ pub enum Type {
         signature: TypeId,
     },
 
-    /// Move-only handle for one suspended coroutine execution.
+    /// Move-only handle for one coroutine execution.
     Continuation {
-        /// The command accepted when resuming after a yield.
-        command_type: TypeId,
+        /// The value accepted when resuming after a yield.
+        resume_type: TypeId,
         /// The value produced by each yield.
         yield_type: TypeId,
         /// The value produced by final return.

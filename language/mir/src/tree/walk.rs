@@ -177,8 +177,14 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::FunctionEnvironment { .. }
         | Instruction::FunctionEnvironmentCurrent { .. }
         | Instruction::ContinuationNew { .. }
+        | Instruction::ContinuationDestroy { .. }
         | Instruction::WaiterQueue { .. }
         | Instruction::WaiterCancel { .. }
+        | Instruction::TaskResolve { .. }
+        | Instruction::TaskStart { .. }
+        | Instruction::TaskPark { .. }
+        | Instruction::TaskCancel { .. }
+        | Instruction::TaskDetach { .. }
         | Instruction::Store { .. }
         | Instruction::Aggregate { .. }
         | Instruction::FieldGet { .. }
@@ -275,7 +281,8 @@ pub fn walk_terminator<V: NodeVisitor + ?Sized>(
         | Terminator::VariantSwitch { .. }
         | Terminator::Await { .. }
         | Terminator::Yield { .. }
-        | Terminator::Resume { .. }
+        | Terminator::ContinuationResume { .. }
+        | Terminator::ContinuationComplete { .. }
         | Terminator::Panic { .. }
         | Terminator::UnwindResume
         | Terminator::Abort { .. }
@@ -383,11 +390,11 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             walk_type_id(visitor, tree, environment);
         }
         Type::Continuation {
-            command_type,
+            resume_type,
             yield_type,
             return_type,
         } => {
-            walk_type_id(visitor, tree, command_type);
+            walk_type_id(visitor, tree, resume_type);
             walk_type_id(visitor, tree, yield_type);
             walk_type_id(visitor, tree, return_type);
         }

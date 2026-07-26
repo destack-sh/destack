@@ -7,6 +7,7 @@ mod header;
 mod memory;
 mod rewrite;
 mod ssa;
+mod task;
 mod value;
 mod waiter;
 

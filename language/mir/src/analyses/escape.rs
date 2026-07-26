@@ -293,6 +293,11 @@ impl<'a, 'b> EscapeMarker<'a, 'b> {
     fn mark_instruction(&mut self, instruction: &mir::Instruction) {
         match instruction {
             mir::Instruction::Store { value, .. } => self.mark_value(*value),
+            mir::Instruction::ContinuationNew { arguments, .. } => {
+                self.mark_values(self.tree.get_values(*arguments));
+            }
+            mir::Instruction::WaiterQueue { value, .. }
+            | mir::Instruction::TaskResolve { value, .. } => self.mark_value(*value),
             mir::Instruction::Call { call, .. } => {
                 self.mark_values(&call.callee.uses());
                 self.mark_values(self.tree.get_values(call.arguments));
@@ -310,6 +315,8 @@ impl<'a, 'b> EscapeMarker<'a, 'b> {
             mir::Terminator::Return { value: Some(value) }
             | mir::Terminator::Await { value, .. }
             | mir::Terminator::Yield { value, .. } => self.mark_value(*value),
+            mir::Terminator::ContinuationResume { value, .. }
+            | mir::Terminator::ContinuationComplete { value, .. } => self.mark_value(*value),
             mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
                 self.mark_values(&call.callee.uses());
                 self.mark_values(self.tree.get_values(call.arguments));
@@ -380,6 +387,33 @@ cancelled:
 
 failed:
     unwind.resume
+}
+"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analysis_cache();
+        let escape = analyses.get::<EscapeAnalysis>(function, &program.tree);
+
+        assert!(escape.escapes(mir::Value::new(0)));
+    }
+
+    /// Task results escape into runtime task storage.
+    #[test]
+    fn test_escape_marks_task_result() {
+        let program = TestProgram::new(
+            r#"
+type Task {
+    uint64;
+}
+
+function test(): void {
+entry:
+    v0: ref<int32, unique, mutable> = new.zeroed int32
+    v1: Task = task.resolve v0
+    task.detach v1
+    return
 }
 "#,
         );

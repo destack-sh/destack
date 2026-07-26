@@ -300,17 +300,32 @@ pub enum Terminator {
     Yield {
         /// The value to yield.
         value: Value,
-        /// The block entered with the next resume command.
+        /// The block entered with the next resume value.
         resume: BlockTarget,
+        /// The block entered with an explicit completion value.
+        complete: BlockTarget,
         /// The cleanup block entered during panic unwinding.
         unwind: Option<BlockTarget>,
     },
     /// Resume one continuation until it yields or returns.
-    Resume {
+    ContinuationResume {
         /// The continuation to consume.
         continuation: Value,
-        /// The command delivered to the suspended coroutine.
-        command: Value,
+        /// The value delivered to the suspended coroutine.
+        value: Value,
+        /// The block entered with the yielded value and replacement continuation.
+        yielded: BlockTarget,
+        /// The block entered with the final return value.
+        returned: BlockTarget,
+        /// The cleanup block entered during panic unwinding.
+        unwind: Option<BlockTarget>,
+    },
+    /// Resume one continuation through completion until it yields or returns.
+    ContinuationComplete {
+        /// The continuation to consume.
+        continuation: Value,
+        /// The value delivered to the suspended completion path.
+        value: Value,
         /// The block entered with the yielded value and replacement continuation.
         yielded: BlockTarget,
         /// The block entered with the final return value.
@@ -488,9 +503,15 @@ impl Terminator {
 
                 edges
             }
-            Terminator::Yield { resume, unwind, .. } => {
-                let mut edges = Vec::with_capacity(2);
+            Terminator::Yield {
+                resume,
+                complete,
+                unwind,
+                ..
+            } => {
+                let mut edges = Vec::with_capacity(3);
                 edges.push(resume.edge(source, Successor::YieldResume));
+                edges.push(complete.edge(source, Successor::YieldComplete));
 
                 if let Some(unwind) = unwind {
                     edges.push(unwind.edge(source, Successor::YieldUnwind));
@@ -498,18 +519,34 @@ impl Terminator {
 
                 edges
             }
-            Terminator::Resume {
+            Terminator::ContinuationResume {
                 yielded,
                 returned,
                 unwind,
                 ..
             } => {
                 let mut edges = Vec::with_capacity(3);
-                edges.push(yielded.edge(source, Successor::ResumeYield));
-                edges.push(returned.edge(source, Successor::ResumeReturn));
+                edges.push(yielded.edge(source, Successor::ContinuationResumeYielded));
+                edges.push(returned.edge(source, Successor::ContinuationResumeReturned));
 
                 if let Some(unwind) = unwind {
-                    edges.push(unwind.edge(source, Successor::ResumeUnwind));
+                    edges.push(unwind.edge(source, Successor::ContinuationResumeUnwind));
+                }
+
+                edges
+            }
+            Terminator::ContinuationComplete {
+                yielded,
+                returned,
+                unwind,
+                ..
+            } => {
+                let mut edges = Vec::with_capacity(3);
+                edges.push(yielded.edge(source, Successor::ContinuationCompleteYielded));
+                edges.push(returned.edge(source, Successor::ContinuationCompleteReturned));
+
+                if let Some(unwind) = unwind {
+                    edges.push(unwind.edge(source, Successor::ContinuationCompleteUnwind));
                 }
 
                 edges
@@ -600,17 +637,29 @@ impl Terminator {
 
                 resume_changed || cancel_changed || unwind_changed
             }
-            Self::Yield { resume, unwind, .. } => {
+            Self::Yield {
+                resume,
+                complete,
+                unwind,
+                ..
+            } => {
                 let resume_changed = resume.rewrite(successor, &mut rewrite, tree);
+                let complete_changed = complete.rewrite(successor, &mut rewrite, tree);
                 let unwind_changed = if let Some(unwind) = unwind {
                     unwind.rewrite(successor, &mut rewrite, tree)
                 } else {
                     false
                 };
 
-                resume_changed || unwind_changed
+                resume_changed || complete_changed || unwind_changed
             }
-            Self::Resume {
+            Self::ContinuationResume {
+                yielded,
+                returned,
+                unwind,
+                ..
+            }
+            | Self::ContinuationComplete {
                 yielded,
                 returned,
                 unwind,
@@ -693,15 +742,27 @@ impl Terminator {
 
                 successors
             }
-            Terminator::Yield { resume, unwind, .. } => {
+            Terminator::Yield {
+                resume,
+                complete,
+                unwind,
+                ..
+            } => {
                 let mut successors = smallvec![resume.block];
+                successors.push(complete.block);
                 if let Some(unwind) = unwind {
                     successors.push(unwind.block);
                 }
 
                 successors
             }
-            Terminator::Resume {
+            Terminator::ContinuationResume {
+                yielded,
+                returned,
+                unwind,
+                ..
+            }
+            | Terminator::ContinuationComplete {
                 yielded,
                 returned,
                 unwind,
@@ -819,10 +880,12 @@ impl Terminator {
             Terminator::Yield {
                 value,
                 resume,
+                complete,
                 unwind,
             } => {
                 let mut uses = smallvec![*value];
                 uses.extend(resume.arguments(tree).iter().copied());
+                uses.extend(complete.arguments(tree).iter().copied());
 
                 if let Some(unwind) = unwind {
                     uses.extend(unwind.arguments(tree).iter().copied());
@@ -830,14 +893,21 @@ impl Terminator {
 
                 uses
             }
-            Terminator::Resume {
+            Terminator::ContinuationResume {
                 continuation,
-                command,
+                value,
+                yielded,
+                returned,
+                unwind,
+            }
+            | Terminator::ContinuationComplete {
+                continuation,
+                value,
                 yielded,
                 returned,
                 unwind,
             } => {
-                let mut uses = smallvec![*continuation, *command];
+                let mut uses = smallvec![*continuation, *value];
                 uses.extend(yielded.arguments(tree).iter().copied());
                 uses.extend(returned.arguments(tree).iter().copied());
 
@@ -904,11 +974,16 @@ impl Terminator {
             | Terminator::Yield { value, .. } => {
                 smallvec![*value]
             }
-            Terminator::Resume {
+            Terminator::ContinuationResume {
                 continuation,
-                command,
+                value,
                 ..
-            } => smallvec![*continuation, *command],
+            }
+            | Terminator::ContinuationComplete {
+                continuation,
+                value,
+                ..
+            } => smallvec![*continuation, *value],
             Terminator::Invoke { call, .. } | Terminator::TailCall { call } => call.uses(tree),
             _ => smallvec![],
         }
@@ -1015,9 +1090,16 @@ impl Terminator {
                     &[]
                 }
             }
-            Terminator::Yield { resume, unwind, .. } => {
+            Terminator::Yield {
+                resume,
+                complete,
+                unwind,
+                ..
+            } => {
                 if resume.block == successor {
                     resume.arguments(tree)
+                } else if complete.block == successor {
+                    complete.arguments(tree)
                 } else if let Some(unwind) = unwind
                     && unwind.block == successor
                 {
@@ -1026,7 +1108,13 @@ impl Terminator {
                     &[]
                 }
             }
-            Terminator::Resume {
+            Terminator::ContinuationResume {
+                yielded,
+                returned,
+                unwind,
+                ..
+            }
+            | Terminator::ContinuationComplete {
                 yielded,
                 returned,
                 unwind,
@@ -1126,13 +1214,25 @@ impl Terminator {
                     arguments.merge_target(unwind, successor, tree);
                 }
             }
-            Terminator::Yield { resume, unwind, .. } => {
+            Terminator::Yield {
+                resume,
+                complete,
+                unwind,
+                ..
+            } => {
                 arguments.merge_target(resume, successor, tree);
+                arguments.merge_target(complete, successor, tree);
                 if let Some(unwind) = unwind {
                     arguments.merge_target(unwind, successor, tree);
                 }
             }
-            Terminator::Resume {
+            Terminator::ContinuationResume {
+                yielded,
+                returned,
+                unwind,
+                ..
+            }
+            | Terminator::ContinuationComplete {
                 yielded,
                 returned,
                 unwind,
@@ -1176,13 +1276,22 @@ impl Terminator {
     /// Return the number of values produced directly for one successor.
     pub fn successor_result_count(&self, successor: LocalNodeId<Block>) -> usize {
         match self {
-            Terminator::Await { resume, .. } | Terminator::Yield { resume, .. } => {
-                usize::from(resume.block == successor)
+            Terminator::Await { resume, .. } => usize::from(resume.block == successor),
+            Terminator::Yield {
+                resume, complete, ..
+            } => usize::from(resume.block == successor || complete.block == successor),
+            Terminator::ContinuationResume {
+                yielded, returned, ..
             }
-            Terminator::Resume {
+            | Terminator::ContinuationComplete {
                 yielded, returned, ..
             } if yielded.block == successor => 2,
-            Terminator::Resume { returned, .. } if returned.block == successor => 1,
+            Terminator::ContinuationResume { returned, .. }
+            | Terminator::ContinuationComplete { returned, .. }
+                if returned.block == successor =>
+            {
+                1
+            }
             Terminator::Invoke { target, .. } => usize::from(target.block == successor),
             Terminator::NewZeroedTry { success, .. }
             | Terminator::NewUninitTry { success, .. }

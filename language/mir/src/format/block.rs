@@ -221,15 +221,16 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         Terminator::Yield {
             value,
             resume,
+            complete,
             unwind,
         } => {
             write!(f, [token("yield"), space(), value])?;
-            format_suspension_targets(resume, unwind.as_ref(), f)
+            format_yield_targets(resume, complete, unwind.as_ref(), f)
         }
 
-        Terminator::Resume {
+        Terminator::ContinuationResume {
             continuation,
-            command,
+            value,
             yielded,
             returned,
             unwind,
@@ -237,15 +238,36 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(
                 f,
                 [
-                    token("resume"),
+                    token("continuation.resume"),
                     space(),
                     continuation,
                     token("("),
-                    command,
+                    value,
                     token(")")
                 ]
             )?;
-            format_resume_targets(yielded, returned, unwind.as_ref(), f)
+            format_continuation_targets(yielded, returned, unwind.as_ref(), f)
+        }
+
+        Terminator::ContinuationComplete {
+            continuation,
+            value,
+            yielded,
+            returned,
+            unwind,
+        } => {
+            write!(
+                f,
+                [
+                    token("continuation.complete"),
+                    space(),
+                    continuation,
+                    token("("),
+                    value,
+                    token(")")
+                ]
+            )?;
+            format_continuation_targets(yielded, returned, unwind.as_ref(), f)
         }
 
         Terminator::Invoke {
@@ -380,14 +402,17 @@ fn format_await_targets<'a>(
     Ok(())
 }
 
-/// Format normal and optional unwind targets for one suspension point.
-fn format_suspension_targets<'a>(
+/// Format resume, completion, and optional unwind targets for one yield.
+fn format_yield_targets<'a>(
     resume: &BlockTarget,
+    complete: &BlockTarget,
     unwind: Option<&BlockTarget>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("=>"), space()])?;
     format_block_target(resume, f)?;
+    write!(f, [space(), token("|"), space()])?;
+    format_block_target(complete, f)?;
 
     if let Some(unwind) = unwind {
         write!(f, [space(), token("|"), space()])?;
@@ -397,8 +422,8 @@ fn format_suspension_targets<'a>(
     Ok(())
 }
 
-/// Format yielded, returned, and optional unwind targets for one continuation resume.
-fn format_resume_targets<'a>(
+/// Format yielded, returned, and optional unwind targets for one continuation execution.
+fn format_continuation_targets<'a>(
     yielded: &BlockTarget,
     returned: &BlockTarget,
     unwind: Option<&BlockTarget>,

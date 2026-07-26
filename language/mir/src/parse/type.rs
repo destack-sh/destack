@@ -490,7 +490,7 @@ impl Parser {
     fn parse_continuation_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (command_type, _) = self.parse_type_use_part()?;
+        let (resume_type, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
         let (yield_type, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
@@ -498,7 +498,7 @@ impl Parser {
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Continuation {
-            command_type,
+            resume_type,
             yield_type,
             return_type,
         })
