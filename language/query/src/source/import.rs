@@ -388,7 +388,7 @@ impl ProgramQueryContext<'_> {
         let relative = relative_path(source_directory, target_path).ok_or(QueryError::invalid(
             format!("relative module path: {source_module_id:?} -> {target_module_id:?}"),
         ))?;
-        let mut specifier = path_text(&relative);
+        let mut specifier = path_text(&relative)?;
         if !specifier.starts_with("./") && !specifier.starts_with("../") {
             specifier = format!("./{specifier}");
         }

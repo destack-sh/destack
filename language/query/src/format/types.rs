@@ -866,9 +866,11 @@ fn module_path_without_extension(
     let relative = module_path
         .strip_prefix(package_path)
         .map_err(|_| QueryError::invalid(format!("module path: {:?}", module.id)))?;
-    let relative = relative.to_string_lossy();
+    let relative = relative
+        .to_str()
+        .ok_or_else(|| QueryError::invalid(format!("non-Unicode module path: {relative:?}")))?;
 
-    let module_path = normalize_path_separators(&relative);
+    let module_path = normalize_path_separators(relative);
 
     Ok(Some(strip_module_extension(&module_path)))
 }

@@ -189,17 +189,19 @@ pub(crate) fn rename_specifier(
     source_path: Option<&Path>,
     target_path: &Path,
     specifier: &str,
-) -> Option<String> {
+) -> QueryResult<Option<String>> {
     // relative specifiers follow the source and target paths
     if specifier.starts_with("./") || specifier.starts_with("../") {
-        let source_path = source_path?;
+        let Some(source_path) = source_path else {
+            return Ok(None);
+        };
         let strip_extension = strip_module_extension(specifier) == specifier;
 
         relative_specifier(source_path, target_path, strip_extension)
     }
     // package specifiers retain their declared export path
     else {
-        Some(specifier.to_string())
+        Ok(Some(specifier.to_string()))
     }
 }
 
@@ -208,23 +210,27 @@ fn relative_specifier(
     source_path: &Path,
     target_path: &Path,
     strip_extension: bool,
-) -> Option<String> {
-    let source_directory = source_path.parent()?;
-    let relative = relative_path(source_directory, target_path)?;
-    let mut display = display_path(&relative, strip_extension);
+) -> QueryResult<Option<String>> {
+    let Some(source_directory) = source_path.parent() else {
+        return Ok(None);
+    };
+    let Some(relative) = relative_path(source_directory, target_path) else {
+        return Ok(None);
+    };
+    let mut display = display_path(&relative, strip_extension)?;
 
     if !display.starts_with("./") && !display.starts_with("../") {
         display = format!("./{display}");
     }
 
-    Some(display)
+    Ok(Some(display))
 }
 
 /// Return one normalized display path with optional module extension removal.
-fn display_path(path: &Path, strip_extension: bool) -> String {
-    let display = path_text(path);
+fn display_path(path: &Path, strip_extension: bool) -> QueryResult<String> {
+    let display = path_text(path)?;
 
-    maybe_strip_extension(display, strip_extension)
+    Ok(maybe_strip_extension(display, strip_extension))
 }
 
 /// Remove one authored module extension when requested.

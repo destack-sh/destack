@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
 
 use destack_source::PathExt;
@@ -72,8 +73,12 @@ pub(crate) fn path_depth(path: &Path) -> QueryResult<u32> {
 }
 
 /// Return one path with portable source specifier separators.
-pub(crate) fn path_text(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/")
+pub(crate) fn path_text(path: &Path) -> QueryResult<String> {
+    let path = path
+        .to_str()
+        .ok_or_else(|| QueryError::invalid(format!("non-Unicode source path: {path:?}")))?;
+
+    Ok(path.replace('\\', "/"))
 }
 
 /// Remove one supported code module extension.
@@ -88,13 +93,13 @@ pub(crate) fn strip_module_extension(path: &str) -> String {
 }
 
 /// Collect normalized path components for stable comparison.
-fn path_components(path: &Path) -> Vec<String> {
+fn path_components(path: &Path) -> Vec<OsString> {
     path.components()
         .filter_map(|component| match component {
-            Component::Prefix(prefix) => Some(prefix.as_os_str().to_string_lossy().to_string()),
-            Component::RootDir => Some("/".to_string()),
-            Component::Normal(part) => Some(part.to_string_lossy().to_string()),
-            Component::ParentDir => Some("..".to_string()),
+            Component::Prefix(prefix) => Some(prefix.as_os_str().to_os_string()),
+            Component::RootDir => Some(OsString::from("/")),
+            Component::Normal(part) => Some(part.to_os_string()),
+            Component::ParentDir => Some(OsString::from("..")),
             Component::CurDir => None,
         })
         .collect()

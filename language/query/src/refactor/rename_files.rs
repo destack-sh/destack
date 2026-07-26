@@ -137,7 +137,7 @@ pub fn rename_files(
             };
 
             // rewrite the literal from the exact upstream resolution
-            let updated_specifier = rename_specifier(source_path, target_path, &entry.text)
+            let updated_specifier = rename_specifier(source_path, target_path, &entry.text)?
                 .ok_or_else(|| {
                     QueryError::invalid(format!(
                         "specifier {:?} at {:?} cannot represent its resolved target rename",

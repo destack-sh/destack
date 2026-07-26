@@ -490,7 +490,7 @@ impl CompletionBuilder<'_, '_, '_> {
         Ok(results)
     }
 
-    /// Complete package names from the active dependency index.
+    /// Complete package names from the active package graph.
     fn complete_package_names(&self, prefix: &str) -> QueryResult<Vec<CompletionCandidate>> {
         let mut results = Vec::new();
 
@@ -606,7 +606,10 @@ impl ModuleQueryContext<'_> {
             let file_name = entry.file_name().ok_or_else(|| {
                 QueryError::missing(format!("path file name: {:?}", entry.to_path_buf()))
             })?;
-            let name = file_name.to_string_lossy().to_string();
+            let name = file_name
+                .to_str()
+                .ok_or_else(|| QueryError::invalid(format!("non-Unicode path: {file_name:?}")))?
+                .to_string();
             if name.starts_with('.') {
                 continue;
             }
