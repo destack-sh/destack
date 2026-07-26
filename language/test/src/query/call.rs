@@ -499,7 +499,10 @@ impl QueryCallParser {
             })
             .transpose()?
             .unwrap_or_default();
-        Ok(CodeActionContext { only })
+        Ok(CodeActionContext {
+            only,
+            diagnostics: None,
+        })
     }
 
     /// Require every header word to be consumed.

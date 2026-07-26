@@ -17,7 +17,7 @@ const message = greet("Destack");
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="function greet(name: string): string" location=main.ds:1:10 range=main.ds#reference
+@hover.item index=0 signature="function greet(name: string): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
 ```
 
 ### Return the same declaration signature at its definition
@@ -32,7 +32,7 @@ function greet(name: string): string {
 ```
 
 ```query hover main.ds#definition
-@hover.item index=0 signature="function greet(name: string): string" location=main.ds:1:10 range=main.ds#definition
+@hover.item index=0 signature="function greet(name: string): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#definition
 ```
 
 ### Return the selected overload
@@ -53,7 +53,7 @@ const value = parse("one");
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="function parse(value: string): string" location=main.ds:5:10 range=main.ds#reference
+@hover.item index=0 signature="function parse(value: string): string" location=main.ds:5:1-7:2 selection=main.ds:5:10-5:15 range=main.ds#reference
 ```
 
 ### [ignored] Return an overload family
@@ -74,8 +74,8 @@ const parser = parse;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="function parse(value: int32): int32" location=main.ds:1:10 range=main.ds#reference
-@hover.item index=1 signature="function parse(value: string): string" location=main.ds:5:10 range=main.ds#reference
+@hover.item index=0 signature="function parse(value: int32): int32" location=main.ds:1:1-3:2 selection=main.ds:1:10-1:15 range=main.ds#reference
+@hover.item index=1 signature="function parse(value: string): string" location=main.ds:5:1-7:2 selection=main.ds:5:10-5:15 range=main.ds#reference
 ```
 
 ### Include a selected generic instantiation
@@ -94,11 +94,11 @@ const result = identity(name);
 ```
 
 ```query hover main.ds#definition
-@hover.item index=0 signature="function identity<Value>(value: Value): Value" location=main.ds:1:10 range=main.ds#definition
+@hover.item index=0 signature="function identity<Value>(value: Value): Value" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#definition
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="function identity<Value>(value: Value): Value" type="(arg: string) => string" location=main.ds:1:10 range=main.ds#reference
+@hover.item index=0 signature="function identity<Value>(value: Value): Value" type="(arg: string) => string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
 ```
 
 ## Documentation
@@ -119,7 +119,7 @@ const name = identity("Destack");
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="function identity(name: string): string" documentation="Return the supplied name." location=main.ds:2:10 range=main.ds#reference
+@hover.item index=0 signature="function identity(name: string): string" documentation="Return the supplied name." location=main.ds:2:1-4:2 selection=main.ds#definition range=main.ds#reference
 ```
 
 ### Return no symbol hover inside documentation
@@ -152,7 +152,7 @@ declare const user: UserId;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="type UserId = int32" type=UserId location=main.ds:1:6 range=main.ds#reference
+@hover.item index=0 signature="type UserId = int32" type=UserId location=main.ds:1:1-1:20 selection=main.ds:1:6-1:12 range=main.ds#reference
 ```
 
 ### Hover over a class
@@ -167,7 +167,7 @@ declare const service: Service;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="class Service" location=main.ds:1:7 range=main.ds#reference
+@hover.item index=0 signature="class Service" location=main.ds:1:1-1:17 selection=main.ds:1:7-1:14 range=main.ds#reference
 ```
 
 ### Hover over an interface
@@ -184,7 +184,7 @@ declare const drawable: Drawable;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="interface Drawable" location=main.ds:1:11 range=main.ds#reference
+@hover.item index=0 signature="interface Drawable" location=main.ds:1:1-3:2 selection=main.ds:1:11-1:19 range=main.ds#reference
 ```
 
 ### Hover over a newtype
@@ -199,7 +199,7 @@ declare const user: UserId;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="newtype UserId = int64" location=main.ds:1:9 range=main.ds#reference
+@hover.item index=0 signature="newtype UserId = int64" location=main.ds:1:1-1:23 selection=main.ds:1:9-1:15 range=main.ds#reference
 ```
 
 ### Hover over every remaining nominal declaration kind
@@ -218,15 +218,15 @@ newtype interface Display {}
 ```
 
 ```query hover main.ds#packet
-@hover.item index=0 signature="struct Packet" location=main.ds:1:8 range=main.ds#packet
+@hover.item index=0 signature="struct Packet" location=main.ds:1:1-1:17 selection=main.ds#packet range=main.ds#packet
 ```
 
 ```query hover main.ds#status
-@hover.item index=0 signature="enum Status" location=main.ds:3:6 range=main.ds#status
+@hover.item index=0 signature="enum Status" location=main.ds:3:1-3:22 selection=main.ds#status range=main.ds#status
 ```
 
 ```query hover main.ds#display
-@hover.item index=0 signature="newtype interface Display" location=main.ds:5:19 range=main.ds#display
+@hover.item index=0 signature="newtype interface Display" location=main.ds:5:1-5:29 selection=main.ds#display range=main.ds#display
 ```
 
 ### Include generic parameters in type declarations
@@ -241,7 +241,7 @@ declare const box: Box<int32>;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="class Box<Value>" type="Box<int32>" location=main.ds:1:7 range=main.ds#reference
+@hover.item index=0 signature="class Box<Value>" type="Box<int32>" location=main.ds:1:1-1:20 selection=main.ds:1:7-1:10 range=main.ds#reference
 ```
 
 ## Members
@@ -263,11 +263,11 @@ function read(point: Point): int32 {
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="(property) Point.x: int32" location=main.ds:2:5 range=main.ds#reference
+@hover.item index=0 signature="(property) Point.x: int32" location=main.ds:2:5-2:13 selection=main.ds#definition range=main.ds#reference
 ```
 
 ```query hover main.ds#definition
-@hover.item index=0 signature="(property) Point.x: int32" location=main.ds:2:5 range=main.ds#definition
+@hover.item index=0 signature="(property) Point.x: int32" location=main.ds:2:5-2:13 selection=main.ds#definition range=main.ds#definition
 ```
 
 ### Hover over a method
@@ -287,11 +287,11 @@ function start(service: Service): void {
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="(method) Service.run(value: int32): void" location=main.ds:2:5 range=main.ds#reference
+@hover.item index=0 signature="(method) Service.run(value: int32): void" location=main.ds:2:5-2:31 selection=main.ds#definition range=main.ds#reference
 ```
 
 ```query hover main.ds#definition
-@hover.item index=0 signature="(method) Service.run(value: int32): void" location=main.ds:2:5 range=main.ds#definition
+@hover.item index=0 signature="(method) Service.run(value: int32): void" location=main.ds:2:5-2:31 selection=main.ds#definition range=main.ds#definition
 ```
 
 ### Hover over an extension method
@@ -314,7 +314,7 @@ function total(calculator: Calculator): int32 {
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="(method) Calculator.add(left: int32, right: int32): int32" location=main.ds:4:5 range=main.ds#reference
+@hover.item index=0 signature="(method) Calculator.add(left: int32, right: int32): int32" location=main.ds:4:5-6:6 selection=main.ds:4:5-4:8 range=main.ds#reference
 ```
 
 ### Hover over an associated constant
@@ -331,7 +331,7 @@ const width = Buffer.Width;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="(comptime const) Buffer.Width: uint64" location=main.ds:2:20 range=main.ds#reference
+@hover.item index=0 signature="(comptime const) Buffer.Width: uint64" location=main.ds:2:5-2:35 selection=main.ds:2:20-2:25 range=main.ds#reference
 ```
 
 ### [ignored] Include method documentation
@@ -351,7 +351,7 @@ function start(service: Service): void {
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="(method) Service.run(value: int32): void" documentation="Start one task." location=main.ds:3:5 range=main.ds#reference
+@hover.item index=0 signature="(method) Service.run(value: int32): void" documentation="Start one task." location=main.ds:3:5-3:31 selection=main.ds:3:5-3:8 range=main.ds#reference
 ```
 
 ### Hover over an enum member
@@ -368,7 +368,7 @@ const color = Color.Red;
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="(enum member) Color.Red: Color.Red" location=main.ds:2:5 range=main.ds#reference
+@hover.item index=0 signature="(enum member) Color.Red: Color.Red" location=main.ds:2:5-2:8 range=main.ds#reference
 ```
 
 ### [ignored] Hover over a tagged variant constructor
@@ -384,7 +384,7 @@ const status = Status.Ok({ value: "ready" });
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="(constructor) Status.Ok({ value: string }): Status" location=main.ds:2:18 range=main.ds#reference
+@hover.item index=0 signature="(constructor) Status.Ok({ value: string }): Status" location=main.ds:2:18-2:28 selection=main.ds:2:18-2:20 range=main.ds#reference
 ```
 
 ## Parameters
@@ -401,7 +401,7 @@ function identity(value: string): string {
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="(parameter) value: string" location=main.ds:1:19 range=main.ds#reference
+@hover.item index=0 signature="(parameter) value: string" location=main.ds:1:19-1:32 selection=main.ds:1:19-1:24 range=main.ds#reference
 ```
 
 ## Locals
@@ -413,13 +413,14 @@ A local binding reports its inferred type.
 ```ds main.ds
 function read(): int32 {
     const count = 1;
-          ^^^^^ reference
+          ^^^^^ definition
     return count;
+           ^^^^^ reference
 }
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="const count: 1" location=main.ds:2:11 range=main.ds#reference
+@hover.item index=0 signature="const count: 1" location=main.ds#definition range=main.ds#reference
 ```
 
 ## Imports
@@ -440,7 +441,7 @@ greet();
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="export function greet(): void" location=library.ds:1:17 range=main.ds#reference
+@hover.item index=0 signature="export function greet(): void" location=library.ds:1:1-1:33 selection=library.ds:1:17-1:22 range=main.ds#reference
 ```
 
 ### Hover through a re-export
@@ -465,7 +466,7 @@ const result = scale(2, 3);
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="export default function scale(value: int32, factor: int32): int32" location=library.ds:1:25 range=main.ds#reference
+@hover.item index=0 signature="export default function scale(value: int32, factor: int32): int32" location=library.ds:1:1-3:2 selection=library.ds:1:25-1:30 range=main.ds#reference
 ```
 
 ### [ignored] Include documentation through a re-export
@@ -491,7 +492,7 @@ const result = scale(2, 3);
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="export default function scale(value: int32, factor: int32): int32" documentation="Scale one value." location=library.ds:2:25 range=main.ds#reference
+@hover.item index=0 signature="export default function scale(value: int32, factor: int32): int32" documentation="Scale one value." location=library.ds:2:1-4:2 selection=library.ds:2:25-2:30 range=main.ds#reference
 ```
 
 ### Hover over a default import
@@ -512,7 +513,7 @@ const message = welcome("Destack");
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="export default function greet(name: string): string" location=library.ds:1:25 range=main.ds#reference
+@hover.item index=0 signature="export default function greet(name: string): string" location=library.ds:1:1-3:2 selection=library.ds:1:25-1:30 range=main.ds#reference
 ```
 
 ### Hover over a namespace member
@@ -533,7 +534,7 @@ const message = library.greet("Destack");
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="export function greet(name: string): string" location=library.ds:1:17 range=main.ds#reference
+@hover.item index=0 signature="export function greet(name: string): string" location=library.ds:1:1-3:2 selection=library.ds:1:17-1:22 range=main.ds#reference
 ```
 
 ## Empty Results

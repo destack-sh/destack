@@ -22,8 +22,8 @@ export const bar = 2;
 ```
 
 ```query links main.ds
-@links.link range=main.ds#foo_specifier path=foo.ds tooltip="Go to ./foo.ds"
-@links.link range=main.ds#bar_specifier path=bar.ds tooltip="Go to ./bar.ds"
+@links.link range=main.ds#foo_specifier path=foo.ds
+@links.link range=main.ds#bar_specifier path=bar.ds
 ```
 
 ## Re-Exports
@@ -42,7 +42,7 @@ export const foo = 1;
 ```
 
 ```query links main.ds
-@links.link range=main.ds#foo_specifier path=foo.ds tooltip="Go to ./foo.ds"
+@links.link range=main.ds#foo_specifier path=foo.ds
 ```
 
 ## Side Effects
@@ -61,7 +61,7 @@ export const ready = true;
 ```
 
 ```query links main.ds
-@links.link range=main.ds#setup_specifier path=setup.ds tooltip="Go to ./setup.ds"
+@links.link range=main.ds#setup_specifier path=setup.ds
 ```
 
 ## Ordinary Strings
@@ -109,5 +109,5 @@ export const value = 1;
 ```
 
 ```query links main.ds
-@links.link range=main.ds#library_specifier path=library.ds tooltip="Go to ./library.ds"
+@links.link range=main.ds#library_specifier path=library.ds
 ```

@@ -8,9 +8,9 @@ use destack_query::{
     OutlineSymbol, QueryResponse, SearchSymbol, SelectionRange, SemanticToken,
     SemanticTokenModifiers, SignatureHelp, Target, TypeItem,
 };
-use destack_source::{Patch, PatchSet};
+use destack_source::{DiagnosticTarget, Patch, PatchSet};
 
-use super::{QueryCall, QueryRun, parse_words};
+use super::{QueryCall, QueryRun, display_query_path, parse_words};
 
 /// One query response rendered as exact ordered rows.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -165,7 +165,6 @@ impl QueryRow {
         let location = run.format_span(target.span)?;
 
         // omit a duplicate primary selection
-        run.require_module(target.module, target.selection_span.file)?;
         let selection = if target.selection_span == target.span {
             None
         } else {
@@ -417,18 +416,13 @@ fn hover_rows(run: &QueryRun<'_>, hover: &Hover) -> Result<Vec<QueryRow>, String
     let mut rows = Vec::with_capacity(hover.items.len());
 
     for (index, item) in hover.items.iter().enumerate() {
-        let location = item
-            .location
-            .as_deref()
-            .map(|location| run.format_source_location(location))
-            .transpose()?;
         rows.push(
             QueryRow::new("hover.item")
                 .field("index", index.to_string())
                 .field("signature", &item.signature)
                 .optional("type", item.type_text.as_deref())
                 .optional("documentation", item.documentation.as_deref())
-                .optional("location", location)
+                .with_target(run, &item.target)?
                 .field("range", run.format_span(hover.range)?),
         );
     }
@@ -682,8 +676,7 @@ fn link_rows(run: &QueryRun<'_>, links: &[Link]) -> Result<Vec<QueryRow>, String
             let path = run.format_module_path(&link.path)?;
             let row = QueryRow::new("links.link")
                 .field("range", run.format_span(link.range)?)
-                .field("path", path)
-                .field("tooltip", &link.tooltip);
+                .field("path", path);
 
             Ok(row)
         })
@@ -917,9 +910,24 @@ fn code_action_rows(run: &QueryRun<'_>, actions: &[CodeAction]) -> Result<Vec<Qu
                 .field("index", action_index.to_string())
                 .field("title", &action.title)
                 .field("kind", enum_name(action.kind))
-                .flag("preferred", action.is_preferred)
-                .optional("diagnostic", action.diagnostic_id.as_deref()),
+                .optional("applicability", action.applicability.map(enum_name))
+                .flag("preferred", action.is_preferred),
         );
+
+        // retain every exact diagnostic addressed by this action
+        for diagnostic in &action.diagnostics {
+            let location = match diagnostic.primary.target {
+                DiagnosticTarget::Span(span) => run.format_span(span)?,
+                DiagnosticTarget::File(file) => display_query_path(run.path(file)?),
+            };
+            rows.push(
+                QueryRow::new("code_actions.diagnostic")
+                    .field("action", action_index.to_string())
+                    .field("id", &diagnostic.id)
+                    .field("location", location)
+                    .optional("message", diagnostic.primary.message.as_deref()),
+            );
+        }
         rows.extend(patch_set_rows(
             run,
             "code_actions.patch",

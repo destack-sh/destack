@@ -35,12 +35,14 @@ function main(): void {
 ```
 
 ```query code_actions main.ds#range
-@code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix preferred=true diagnostic=unresolved-reference
+@code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix applicability=automatic preferred=true
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
 ```query code_actions main.ds#range only=quick_fix
-@code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix preferred=true diagnostic=unresolved-reference
+@code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix applicability=automatic preferred=true
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
@@ -62,7 +64,8 @@ declare const options: Options;
 ```
 
 ```query code_actions main.ds#range only=quick_fix
-@code_actions.action index=0 title="Import Options from \"./library\"" kind=quick_fix preferred=true diagnostic=unresolved-reference
+@code_actions.action index=0 title="Import Options from \"./library\"" kind=quick_fix applicability=automatic preferred=true
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import { Options } from \"./library\";\n"
 ```
 
@@ -86,9 +89,11 @@ greet();
 ```
 
 ```query code_actions main.ds#range only=quick_fix
-@code_actions.action index=0 title="Import greet from \"./beta\"" kind=quick_fix preferred=true diagnostic=unresolved-reference
+@code_actions.action index=0 title="Import greet from \"./beta\"" kind=quick_fix applicability=automatic preferred=true
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./beta\";\n"
-@code_actions.action index=1 title="Import greet from \"./alpha\"" kind=quick_fix diagnostic=unresolved-reference
+@code_actions.action index=1 title="Import greet from \"./alpha\"" kind=quick_fix applicability=automatic
+@code_actions.diagnostic action=1 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=1 range=main.ds#insertion text="import { greet } from \"./alpha\";\n"
 ```
 
@@ -111,7 +116,8 @@ beta();
 ```
 
 ```query code_actions main.ds#range only=quick_fix
-@code_actions.action index=0 title="Import beta from \"./library\"" kind=quick_fix preferred=true diagnostic=unresolved-reference
+@code_actions.action index=0 title="Import beta from \"./library\"" kind=quick_fix applicability=automatic preferred=true
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text=", beta"
 ```
 
@@ -131,7 +137,8 @@ greet();
 ```
 
 ```query code_actions main.ds#range only=quick_fix
-@code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix preferred=true diagnostic=unresolved-reference
+@code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix applicability=automatic preferred=true
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import greet from \"./library\";\n"
 ```
 
@@ -148,13 +155,14 @@ const copy = Value;
 ```
 
 ```query code_actions main.ds#range only=quick_fix
-@code_actions.action index=0 title="rename to 'value'" kind=quick_fix preferred=true diagnostic=unresolved-reference
+@code_actions.action index=0 title="rename to 'value'" kind=quick_fix applicability=automatic preferred=true
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#range text=value
 ```
 
-### Omit a correction that requires review
+### Offer a correction that requires review
 
-A transposed name is not offered as an automatic edit.
+A transposed name remains available without becoming the preferred action.
 
 ```ds main.ds
 const value = 1;
@@ -163,7 +171,9 @@ const copy = valeu;
 ```
 
 ```query code_actions main.ds#range only=quick_fix
-@code_actions.none
+@code_actions.action index=0 title="rename to 'value'" kind=quick_fix applicability=dangerous
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
+@code_actions.patch action=0 range=main.ds#range text=value
 ```
 
 ## Extraction

@@ -610,7 +610,7 @@ impl<'a> QueryRun<'a> {
             return self.format_position(path, span.start);
         }
 
-        // fall back to explicit source coordinates
+        // render explicit source coordinates
         let start = line_column(&file.source, span.start)?;
         let end = line_column(&file.source, span.end)?;
 
@@ -657,23 +657,6 @@ impl<'a> QueryRun<'a> {
                     value.display()
                 )
             })
-    }
-
-    /// Format one rooted source location relative to the fixture root.
-    pub(super) fn format_source_location(&self, value: &str) -> Result<String, String> {
-        self.fixture
-            .files
-            .keys()
-            .find_map(|path| {
-                let absolute = display_query_path(&self.workspace.root().join(path));
-                let suffix = value.strip_prefix(&absolute)?;
-                if !suffix.is_empty() && !suffix.starts_with(':') {
-                    return None;
-                }
-
-                Some(format!("{}{suffix}", display_query_path(path)))
-            })
-            .ok_or_else(|| format!("query response names undeclared source location '{value}'"))
     }
 
     /// Apply and compare every complete edited file.
