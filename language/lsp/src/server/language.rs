@@ -90,6 +90,24 @@ impl Default for InlayHintSettings {
     }
 }
 
+/// Destack-specific client initialization options.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+struct InitializationOptions {
+    /// Code lens commands implemented by the client bridge.
+    code_lens_commands: Vec<CodeLensCommand>,
+}
+
+/// One code lens command implemented by a client bridge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CodeLensCommand {
+    /// Show references at one declaration.
+    References,
+    /// Show implementations at one declaration.
+    Implementations,
+}
+
 /// LSP configuration settings.
 #[derive(Debug)]
 struct LspSettings {
@@ -121,6 +139,20 @@ struct ClientCapabilities {
     code_action_data: bool,
     /// Whether code action edits can be resolved lazily.
     code_action_edit_resolve: bool,
+    /// Code lens commands implemented by the client bridge.
+    code_lens_commands: Vec<CodeLensCommand>,
+}
+
+impl ClientCapabilities {
+    /// Return whether one code lens action is executable by the client.
+    fn supports_code_lens(&self, action: &query::CodeLensAction) -> bool {
+        let command = match action {
+            query::CodeLensAction::References { .. } => CodeLensCommand::References,
+            query::CodeLensAction::Implementations { .. } => CodeLensCommand::Implementations,
+        };
+
+        self.code_lens_commands.contains(&command)
+    }
 }
 
 /// The Destack language server.
@@ -904,6 +936,21 @@ impl LanguageServer for DestackLanguageServer {
             .set(workspace)
             .map_err(|_| internal_error("language server workspace changed concurrently"))?;
 
+        // read Destack-specific client capabilities
+        let initialization_options = params
+            .initialization_options
+            .clone()
+            .map(from_value::<InitializationOptions>)
+            .transpose()
+            .map_err(|error| {
+                jsonrpc::Error::invalid_params(format!(
+                    "invalid Destack initialization options: {error}"
+                ))
+            })?
+            .unwrap_or_default();
+        let code_lens_commands = initialization_options.code_lens_commands;
+        let has_code_lenses = !code_lens_commands.is_empty();
+
         // record capabilities used by query projections
         let completion_label_details = params
             .capabilities
@@ -928,6 +975,7 @@ impl LanguageServer for DestackLanguageServer {
             completion_label_details,
             code_action_data,
             code_action_edit_resolve,
+            code_lens_commands,
         };
         self.client_capabilities
             .set(client_capabilities)
@@ -1027,7 +1075,7 @@ impl LanguageServer for DestackLanguageServer {
                     work_done_progress_options: Default::default(),
                 },
             )),
-            code_lens_provider: Some(lsp::CodeLensOptions {
+            code_lens_provider: has_code_lenses.then_some(lsp::CodeLensOptions {
                 resolve_provider: None,
             }),
             inlay_hint_provider: Some(lsp::OneOf::Left(true)),
@@ -2403,11 +2451,14 @@ impl LanguageServer for DestackLanguageServer {
         };
         let lenses = response.lenses;
 
-        // convert to LSP
-        let lsp_lenses = lenses
-            .iter()
-            .map(|lens| assist::lens(&source_file, lens))
-            .collect::<jsonrpc::Result<Vec<_>>>()?;
+        // convert only actions implemented by the connected client bridge
+        let capabilities = self.client_capabilities()?;
+        let mut lsp_lenses = Vec::new();
+        for lens in &lenses {
+            if capabilities.supports_code_lens(&lens.action) {
+                lsp_lenses.push(assist::lens(&source_file, lens)?);
+            }
+        }
 
         Ok(Some(lsp_lenses))
     }
