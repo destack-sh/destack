@@ -5,6 +5,7 @@ use dashmap::DashMap;
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactFlush, ArtifactKey, ArtifactPayload,
     ArtifactProjectionDependency, ArtifactSidecar, ArtifactStore, ArtifactTable, ArtifactVersion,
+    ModuleSetFingerprint, PackageSetFingerprint, SourceDependency,
 };
 use destack_source::{DiagnosticCollection, FileId};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -464,7 +465,7 @@ impl Repository {
 
             // reuse only candidates unaffected by changed source files
             for (artifact_key, version) in candidates {
-                if self.artifact_is_fresh(revision, ancestor, version, source_delta.files())? {
+                if self.artifact_is_fresh(revision, version, source_delta.files())? {
                     fresh.insert(artifact_key, version);
                 }
             }
@@ -486,20 +487,9 @@ impl Repository {
     fn artifact_is_fresh(
         &self,
         revision: Revision,
-        ancestor: Revision,
         version: ArtifactVersion,
         changed_files: &[FileId],
     ) -> Result<bool, RepositoryError> {
-        // reject exact graph reuse when module identity changed
-        if matches!(version.key, ArtifactKey::ComponentGraph { .. }) {
-            let Some(delta) = self.module_delta_between(revision, ancestor)? else {
-                return Ok(false);
-            };
-            if delta.is_module_set_changed() {
-                return Ok(false);
-            }
-        }
-
         let sources = self
             .artifact_table()
             .sources(&version)
@@ -515,17 +505,61 @@ impl Repository {
             .dependencies(&version)
             .ok_or(RepositoryError::MissingArtifact { version })?;
 
-        // reject artifacts whose projected dependencies changed
+        // require every exact dependency observation to remain current
         for dependency in dependencies.iter() {
-            let ArtifactDependency::Projection(dependency) = dependency else {
-                continue;
+            let is_fresh = match dependency {
+                ArtifactDependency::Artifact(version) => {
+                    self.artifact_version(revision, &version.key)? == Some(*version)
+                }
+                ArtifactDependency::Projection(dependency) => {
+                    self.projection_dependency_is_fresh(revision, dependency)?
+                }
+                ArtifactDependency::Source(dependency) => {
+                    self.source_dependency_is_fresh(revision, dependency)?
+                }
             };
-            if !self.projection_dependency_is_fresh(revision, dependency)? {
+            if !is_fresh {
                 return Ok(false);
             }
         }
 
         Ok(true)
+    }
+
+    /// Return whether one primitive source observation still matches the revision.
+    fn source_dependency_is_fresh(
+        &self,
+        revision: Revision,
+        dependency: &SourceDependency,
+    ) -> Result<bool, RepositoryError> {
+        match dependency {
+            SourceDependency::FileContent { file, content } => {
+                let current = self.file_content_id(revision, *file)?;
+
+                Ok(current == Some(*content))
+            }
+            SourceDependency::Packages { fingerprint } => {
+                let packages = self.package_ids(revision)?;
+                let current = PackageSetFingerprint::new(&packages);
+
+                Ok(&current == fingerprint)
+            }
+            SourceDependency::Modules { fingerprint } => {
+                let modules = self.module_ids(revision)?;
+                let current = ModuleSetFingerprint::new(&modules);
+
+                Ok(&current == fingerprint)
+            }
+            SourceDependency::ProfileModules {
+                profile,
+                fingerprint,
+            } => {
+                let modules = self.profile_module_ids(revision, *profile)?;
+                let current = ModuleSetFingerprint::new(&modules);
+
+                Ok(&current == fingerprint)
+            }
+        }
     }
 
     /// Return whether one projection dependency still matches in the revision.
@@ -580,9 +614,14 @@ impl Repository {
                         });
                     }
                 }
-                ArtifactDependency::Source(dependency) => {
-                    sources.push(dependency.file);
+                ArtifactDependency::Source(SourceDependency::FileContent { file, .. }) => {
+                    sources.push(*file);
                 }
+                ArtifactDependency::Source(
+                    SourceDependency::Packages { .. }
+                    | SourceDependency::Modules { .. }
+                    | SourceDependency::ProfileModules { .. },
+                ) => {}
             }
         }
 

@@ -2,7 +2,7 @@ use std::collections::hash_map::Entry;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
+use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, ProfileId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -432,6 +432,34 @@ impl Repository {
         let modules = self.module_index(revision)?;
 
         Ok(modules.package_module_ids(package_id).to_vec())
+    }
+
+    /// Return the module ids belonging to one semantic profile.
+    pub fn profile_module_ids(
+        &self,
+        revision: Revision,
+        profile_id: ProfileId,
+    ) -> Result<Vec<ModuleId>, RepositoryError> {
+        let mut profile_modules = Vec::new();
+
+        // resolve profile membership once per package
+        for package_id in self.package_ids(revision)? {
+            let module_ids = self.package_module_ids(revision, package_id)?;
+            let Some(module_id) = module_ids.first().copied() else {
+                continue;
+            };
+            if self
+                .module_profile_by_id(revision, module_id, profile_id)?
+                .is_some()
+            {
+                profile_modules.extend(module_ids);
+            }
+        }
+
+        profile_modules.sort_unstable();
+        profile_modules.dedup();
+
+        Ok(profile_modules)
     }
 
     /// Return the module id for one file in one revision when present.
