@@ -86,8 +86,9 @@ impl Parser {
             self.range_since(start),
         );
 
-        // set the main source range to the name identifier
-        if let Some(range) = name_range {
+        // select the declared name or the anonymous extension target
+        let selection_range = name_range.or_else(|| self.tree.get_main_range(target_type));
+        if let Some(range) = selection_range {
             self.tree.set_main_range(extension_id, range);
         }
         if let Some(range) = generic_parameter_container_range {

@@ -242,9 +242,9 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<Expression>> {
         let name_text = self.strings.get(name);
 
-        // parse module Name { body }
+        // parse module { body }
         if name_text == "module" {
-            let declaration = self.parse_module(start, context.function)?;
+            let declaration = self.parse_module(start, name_range, context.function)?;
 
             return Ok(self.insert_declaration_expression(start, declaration));
         }
@@ -255,7 +255,7 @@ impl Parser {
                 is_ambient: self.is_ambient,
                 ..DeclarationHeader::default()
             };
-            let declaration = self.parse_global(start, header, context.function)?;
+            let declaration = self.parse_global(start, name_range, header, context.function)?;
 
             return Ok(self.insert_declaration_expression(start, declaration));
         }

@@ -161,8 +161,9 @@ impl Parser {
         // parse contextual global after declaration modifiers
         if self.peek_identifier_is("global") && self.peek_next_token_type() == TokenType::OpenBrace
         {
+            let main_range = self.peek_token().range();
             self.bump();
-            let declaration = self.parse_global(start, header, context.function)?;
+            let declaration = self.parse_global(start, main_range, header, context.function)?;
 
             return Ok(self.insert_declaration_expression(start, declaration));
         }

@@ -61,13 +61,19 @@ fn test_parse_extension_target_type_span() {
         .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
 
-    // target type span
+    // retain the target as the anonymous declaration selection
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { target_type, .. }) => {
         let span = parser
             .tree
             .get_side_span(*target_type, NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("expected target type span");
         assert_eq!(parser.span_str(span), "Foo.Bar");
+
+        let selection = parser
+            .tree
+            .get_main_span(extension_id)
+            .expect("expected extension selection");
+        assert_eq!(parser.span_str(selection), "Bar");
     });
 }
 

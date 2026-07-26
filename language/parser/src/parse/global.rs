@@ -5,11 +5,12 @@ use crate::{ParseStart, Parser, ParserResult};
 use destack_dir::{
     BlockContext, BlockForm, Declaration, GlobalDeclaration, LocalNodeId, NodeType, TokenType,
 };
+use destack_source::ByteRange;
 
 use super::DeclarationHeader;
 
 impl Parser {
-    /// Parse a global augmentation declaration after its `global` head.
+    /// Parse a global declaration after its `global` head.
     ///
     /// Examples:
     /// ```ds
@@ -18,6 +19,7 @@ impl Parser {
     pub(crate) fn parse_global(
         &mut self,
         start: &ParseStart,
+        main_range: ByteRange,
         header: DeclarationHeader,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
@@ -32,6 +34,7 @@ impl Parser {
             expressions,
         });
         let global_id = self.insert_node(global, self.range_since(start));
+        self.tree.set_main_range(global_id, main_range);
 
         Ok(global_id)
     }

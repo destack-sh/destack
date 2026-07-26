@@ -1,7 +1,7 @@
 use destack_dir::{
     Expression, GenericArgument, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenType,
 };
-use destack_source::ByteRange;
+use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::context::{ExpressionContext, TypeContext, TypeMode};
 use crate::{Parser, ParserResult};
@@ -112,9 +112,12 @@ impl Parser {
         };
 
         // constructor arguments are optional
-        let arguments = self
-            .parse_arguments_if_present(context.nested())?
-            .unwrap_or_default();
+        let arguments_start = self.mark_parse_start();
+        let arguments = self.parse_arguments_if_present(context.nested())?;
+        let arguments_range = arguments
+            .as_ref()
+            .map(|_| self.range_since(&arguments_start));
+        let arguments = arguments.unwrap_or_default();
 
         // call
         let expression = if is_maybe {
@@ -123,6 +126,12 @@ impl Parser {
             Expression::New { ty, arguments }
         };
         let call_id = self.insert_node(expression, self.range_since(&start));
+        if let Some(arguments_range) = arguments_range {
+            let span_type = NodeSpanType::Region(NodeSpanRegion::Arguments);
+            self.tree
+                .set_side_range(call_id, span_type, arguments_range);
+        }
+
         Ok(call_id)
     }
 
@@ -149,6 +158,7 @@ impl Parser {
 
         // dynamic arguments (may be empty)
         let arguments = self.parse_argument_list(context.nested())?;
+        let arguments_range = self.range_since(&start);
 
         // call
         let call_id = self.insert_node(
@@ -167,6 +177,10 @@ impl Parser {
                 }
             },
         );
+        let span_type = NodeSpanType::Region(NodeSpanRegion::Arguments);
+        self.tree
+            .set_side_range(call_id, span_type, arguments_range);
+
         Ok(call_id)
     }
 }

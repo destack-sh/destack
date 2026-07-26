@@ -62,6 +62,8 @@ pub enum NodeSpanRegion {
     GenericParameters,
     /// The parameter container span of a function-like node.
     Parameters,
+    /// The argument container span of a call or construction.
+    Arguments,
     /// The body container span of a function-like node.
     Body,
     /// An `else` clause span.
