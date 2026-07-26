@@ -34,11 +34,9 @@ impl<'a> ProgramQueryContext<'a> {
         revision: Revision,
         profile_id: ProfileId,
     ) -> Result<Vec<ArtifactKey>, ProviderError> {
-        let module_ids = repository
-            .profile_module_ids(revision, profile_id)
-            .map_err(|error| {
-                ProviderError::internal(format!("failed to read profile modules: {error}"))
-            })?;
+        let module_ids = repository.module_ids(revision).map_err(|error| {
+            ProviderError::internal(format!("failed to read program modules: {error}"))
+        })?;
         let mut artifacts = vec![ArtifactKey::package_graph(profile_id)];
 
         // request every module context and module index consumed by the program index

@@ -48,7 +48,7 @@ impl Indexer {
     pub fn collect(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactDependencySet> {
         match context.artifact_key() {
             ArtifactKey::ModuleIndex { module, profile } => {
-                self.collect_module_index(context, module, profile)
+                self.collect_module_index(module, profile)
             }
             ArtifactKey::ProgramIndex { profile } => self.collect_program_index(context, profile),
             artifact_key => Err(ProviderError::internal(format!(
@@ -61,21 +61,12 @@ impl Indexer {
     /// Collect dependencies for one module index artifact.
     fn collect_module_index(
         &self,
-        context: &dyn ProviderContext,
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ProviderResult<ArtifactDependencySet> {
-        let revision = context.revision();
         let mut dependencies = ArtifactDependencySet::default();
 
         // index one module from its own checked DIR artifacts
-        if !self.module_has_profile(revision, module_id, profile_id)? {
-            return Err(ProviderError::internal(format!(
-                "module profile not found for module {module_id:?} and profile {profile_id:?}"
-            ))
-            .into());
-        }
-
         for artifact in ModuleQueryContext::artifact_keys(module_id, profile_id) {
             dependencies.require(artifact);
         }
@@ -90,12 +81,9 @@ impl Indexer {
         profile_id: ProfileId,
     ) -> ProviderResult<ArtifactDependencySet> {
         let revision = context.revision();
-        let module_ids = self
-            .repository()
-            .profile_module_ids(revision, profile_id)
-            .map_err(|error| {
-                ProviderError::internal(format!("failed to read profile modules: {error}"))
-            })?;
+        let module_ids = self.repository().module_ids(revision).map_err(|error| {
+            ProviderError::internal(format!("failed to read program modules: {error}"))
+        })?;
 
         let mut dependencies = ArtifactDependencySet::default();
         let mut modules = Vec::new();
@@ -109,7 +97,7 @@ impl Indexer {
                 dependencies.project(key, projection);
             }
         }
-        dependencies.observe_profile_modules(profile_id, &modules);
+        dependencies.observe_modules(&modules);
 
         // derive from the previous payload only when module ordinals still match
         if let Some(base) = context.artifact_base() {
@@ -172,11 +160,9 @@ impl Indexer {
     ) -> ProviderResult<ArtifactPayload> {
         let repository = self.repository();
         let revision = context.revision();
-        let module_ids = repository
-            .profile_module_ids(revision, profile_id)
-            .map_err(|error| {
-                ProviderError::internal(format!("failed to read profile modules: {error}"))
-            })?;
+        let module_ids = repository.module_ids(revision).map_err(|error| {
+            ProviderError::internal(format!("failed to read program modules: {error}"))
+        })?;
         let mut modules = Vec::new();
 
         // load every ready module index in this profile
@@ -243,25 +229,6 @@ impl Indexer {
         let payload = indexer.build()?;
 
         Ok(ArtifactPayload::ProgramIndex(Arc::new(payload)))
-    }
-
-    /// Return whether one module has the requested profile in this revision.
-    fn module_has_profile(
-        &self,
-        revision: Revision,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> ProviderResult<bool> {
-        let profile = self
-            .repository()
-            .module_profile_by_id(revision, module_id, profile_id)
-            .map_err(|error| {
-                ProviderError::internal(format!(
-                    "failed to read module profile {module_id:?}/{profile_id:?}: {error}"
-                ))
-            })?;
-
-        Ok(profile.is_some())
     }
 
     /// Return the ready artifact version for one key.
