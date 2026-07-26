@@ -22,12 +22,12 @@ entry(v0: slice<int32, managed, mutable>):
 
     program.assert_bytecode(
         r#"
-function add {
+function add(r0: t1, r1: t1): t1 {
     int.add.int32 r2, r0, r1
     return r2
 }
 
-function identity {
+function identity(r0:r1: t2): t2 {
     return r0:r1
 }
 "#,
@@ -52,9 +52,9 @@ entry(v0: int32, v1: boolean, v2: int32):
 
     let bytecode = program.assert_bytecode(
         r#"
-function consume
+function consume(r0: t1, r1: t2, r2: t1): t1
 
-function caller {
+function caller(r0: t1, r1: t2, r2: t1): t1 {
     int.add.int32 r3, r0, r2
     move r4, r3
     move r5, r1

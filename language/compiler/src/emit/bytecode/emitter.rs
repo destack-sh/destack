@@ -118,7 +118,8 @@ impl<'a> BytecodeEmitter<'a> {
         // lay imported parameters out in their physical entry order
         for parameter in &function.parameters {
             let ty = self.types.register_type(parameter.ty)?;
-            let registers = bytecode::RegisterSpan::new(bytecode::RegisterId(register), ty.word_count());
+            let registers =
+                bytecode::RegisterSpan::new(bytecode::RegisterId(register), ty.word_count());
             parameters.push(bytecode::Parameter::new(
                 registers,
                 self.types.type_id(parameter.ty)?,

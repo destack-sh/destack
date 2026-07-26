@@ -25,7 +25,7 @@ entry(v0: int32, v1: int32):
     );
     program.assert_bytecode(
         r#"
-function transform {
+function transform(r0: t2, r1: t2): t2 {
     aggregate r2, ([r0, 0, 4], [r1, 4, 4])
     insert r1, r2, 4, 4, r0
     move r3, r1

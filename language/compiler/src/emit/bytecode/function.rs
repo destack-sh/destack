@@ -427,11 +427,10 @@ impl<'a> FunctionEmitter<'a> {
                 function,
                 arguments,
             } => self.emit_continuation_new(*destination, *function, *arguments),
-            mir::Instruction::ContinuationResume {
-                destination,
-                continuation,
-                command,
-            } => self.emit_continuation_resume(*destination, *continuation, *command),
+            mir::Instruction::WaiterQueue { waiter, value } => {
+                self.emit_waiter_queue(*waiter, *value)
+            }
+            mir::Instruction::WaiterCancel { waiter } => self.emit_waiter_cancel(*waiter),
             mir::Instruction::Drop { value } => self.emit_drop(*value),
             mir::Instruction::NewZeroed {
                 destination,
@@ -593,13 +592,28 @@ impl<'a> FunctionEmitter<'a> {
                 park,
                 value,
                 resume,
+                cancel,
                 unwind,
-            } => self.emit_await(terminator, *park, *value, resume, unwind.as_ref()),
+            } => self.emit_await(terminator, *park, *value, resume, cancel, unwind.as_ref()),
             mir::Terminator::Yield {
                 value,
                 resume,
                 unwind,
             } => self.emit_yield(terminator, *value, resume, unwind.as_ref()),
+            mir::Terminator::Resume {
+                continuation,
+                command,
+                yielded,
+                returned,
+                unwind,
+            } => self.emit_resume(
+                terminator,
+                *continuation,
+                *command,
+                yielded,
+                returned,
+                unwind.as_ref(),
+            ),
             mir::Terminator::Panic { payload } => {
                 let opcode = if payload.is_some() {
                     bytecode::Opcode::PANIC_VALUE
@@ -647,11 +661,13 @@ impl<'a> FunctionEmitter<'a> {
         park: mir::FunctionId,
         value: mir::Value,
         resume: &mir::BlockTarget,
+        cancel: &mir::BlockTarget,
         unwind: Option<&mir::BlockTarget>,
     ) -> Result<(), EmitError> {
-        let definition = self.resume_definition(resume)?;
+        let definitions = self.successor_definitions(terminator, resume)?;
         let park = self.types.function_id(park)?;
         let resume = self.edge_label(terminator, resume)?;
+        let cancel = self.edge_label(terminator, cancel)?;
         let unwind = self.unwind_label(terminator, unwind)?;
 
         // encode the selected park implementation and consumed awaitable
@@ -659,9 +675,10 @@ impl<'a> FunctionEmitter<'a> {
         instruction.relocation(bytecode::RelocationTag::FUNCTION, park.0);
         instruction.span(self.register(value)?);
         instruction.branch(resume);
+        instruction.branch(cancel);
         instruction.branch(unwind);
 
-        self.encode(instruction, &[definition])
+        self.encode(instruction, &definitions)
     }
 
     /// Emit one generator suspension.
@@ -672,7 +689,7 @@ impl<'a> FunctionEmitter<'a> {
         resume: &mir::BlockTarget,
         unwind: Option<&mir::BlockTarget>,
     ) -> Result<(), EmitError> {
-        let definition = self.resume_definition(resume)?;
+        let definitions = self.successor_definitions(terminator, resume)?;
         let resume = self.edge_label(terminator, resume)?;
         let unwind = self.unwind_label(terminator, unwind)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::YIELD);
@@ -680,7 +697,7 @@ impl<'a> FunctionEmitter<'a> {
         instruction.branch(resume);
         instruction.branch(unwind);
 
-        self.encode(instruction, &[definition])
+        self.encode(instruction, &definitions)
     }
 
     /// Emit one scalar MIR binary operation.
@@ -1256,8 +1273,7 @@ impl<'a> FunctionEmitter<'a> {
         let function = self.types.function_id(function)?;
         let arguments = self.optimized.tree.get_values(arguments);
         let arguments = self.emit_arguments(arguments)?;
-        let mut instruction =
-            bytecode::InstructionBuilder::new(bytecode::Opcode::CONTINUATION_NEW);
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::CONTINUATION_NEW);
         instruction.relocation(bytecode::RelocationTag::FUNCTION, function.0);
         instruction.span(arguments);
         let definition = self.definition(destination)?;
@@ -1265,20 +1281,55 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[definition])
     }
 
-    /// Emit one continuation resume call.
-    fn emit_continuation_resume(
+    /// Emit one asynchronous waiter settlement.
+    fn emit_waiter_queue(
         &mut self,
-        destination: mir::Value,
+        waiter: mir::Value,
+        value: mir::Value,
+    ) -> Result<(), EmitError> {
+        let ty = self.value_type(value)?;
+        let ty = self.types.type_id(ty)?;
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::WAITER_QUEUE);
+        instruction.register(self.word(waiter)?);
+        instruction.relocation(bytecode::RelocationTag::TYPE, ty.0);
+        instruction.span(self.register(value)?);
+
+        self.encode(instruction, &[])
+    }
+
+    /// Emit one asynchronous waiter cancellation.
+    fn emit_waiter_cancel(&mut self, waiter: mir::Value) -> Result<(), EmitError> {
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::WAITER_CANCEL);
+        instruction.register(self.word(waiter)?);
+
+        self.encode(instruction, &[])
+    }
+
+    /// Emit one continuation resume control transfer.
+    fn emit_resume(
+        &mut self,
+        terminator: &mir::Terminator,
         continuation: mir::Value,
         command: mir::Value,
+        yielded: &mir::BlockTarget,
+        returned: &mir::BlockTarget,
+        unwind: Option<&mir::BlockTarget>,
     ) -> Result<(), EmitError> {
-        let mut instruction =
-            bytecode::InstructionBuilder::new(bytecode::Opcode::CONTINUATION_RESUME);
+        let mut definitions = self.successor_definitions(terminator, yielded)?;
+        definitions.extend(self.successor_definitions(terminator, returned)?);
+        let yielded = self.edge_label(terminator, yielded)?;
+        let returned = self.edge_label(terminator, returned)?;
+        let unwind = self.unwind_label(terminator, unwind)?;
+
+        // encode both completion paths and their direct destinations
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::RESUME);
         instruction.register(self.word(continuation)?);
         instruction.span(self.register(command)?);
-        let definition = self.definition(destination)?;
+        instruction.branch(yielded);
+        instruction.branch(returned);
+        instruction.branch(unwind);
 
-        self.encode(instruction, &[definition])
+        self.encode(instruction, &definitions)
     }
 
     /// Move scattered values into one reusable contiguous call register partition.
@@ -1479,18 +1530,22 @@ impl<'a> FunctionEmitter<'a> {
         Ok(label)
     }
 
-    /// Return the physical destination receiving one resumed value.
-    fn resume_definition(
+    /// Return direct result destinations at one successor.
+    fn successor_definitions(
         &self,
-        resume: &mir::BlockTarget,
-    ) -> Result<(bytecode::RegisterSpan, bytecode::ValueType), EmitError> {
-        let block = self.optimized.tree.get(resume.block);
-        let parameter = block
-            .parameters
-            .first()
-            .ok_or_else(|| self.invalid_input("resume block has no result parameter"))?;
+        terminator: &mir::Terminator,
+        target: &mir::BlockTarget,
+    ) -> Result<Vec<(bytecode::RegisterSpan, bytecode::ValueType)>, EmitError> {
+        let block = self.optimized.tree.get(target.block);
+        let count = terminator.successor_result_count(target.block);
+        if block.parameters.len() < count {
+            return Err(self.invalid_input("missing successor result parameter"));
+        }
 
-        self.definition(parameter.value)
+        block.parameters[..count]
+            .iter()
+            .map(|parameter| self.definition(parameter.value))
+            .collect()
     }
 
     /// Return an explicit unwind edge or one shared propagation block.

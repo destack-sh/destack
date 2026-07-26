@@ -150,9 +150,10 @@ impl<'a> TypeEmitter<'a> {
             mir::Type::Character => bytecode::ValueType::scalar(bytecode::Scalar::Uint32),
             mir::Type::Int { width, is_signed } => self.integer(*width, *is_signed)?,
             mir::Type::Isize => bytecode::ValueType::scalar(bytecode::Scalar::Int64),
-            mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::Continuation { .. } => {
-                bytecode::ValueType::scalar(bytecode::Scalar::Uint64)
-            }
+            mir::Type::Usize
+            | mir::Type::TypeDescriptor
+            | mir::Type::Continuation { .. }
+            | mir::Type::Waiter { .. } => bytecode::ValueType::scalar(bytecode::Scalar::Uint64),
             mir::Type::Float(format) => bytecode::ValueType::scalar(self.float(*format)),
             mir::Type::TypeId => bytecode::ValueType::type_id(),
             mir::Type::Reference { kind, space, .. } => {
