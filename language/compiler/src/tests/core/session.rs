@@ -559,6 +559,23 @@ impl TestSession {
         assert_snapshot(diagnostics, expected_diagnostics);
     }
 
+    /// Assert resolved DIR rows and diagnostics for one module.
+    #[track_caller]
+    pub(crate) fn assert_dir_resolved_and_diagnostics(
+        &self,
+        path: &str,
+        rows: DirRows,
+        expected_dir: &str,
+        expected_diagnostics: &str,
+    ) {
+        let dir = self.render_dir_snapshots(&[path], rows, false);
+        let diagnostics = self.diagnostic_snapshot(self.dir_resolved_key(path));
+        self.print_trace_if_requested(path);
+
+        assert_snapshot(dir, expected_dir);
+        assert_snapshot(diagnostics, expected_diagnostics);
+    }
+
     /// Assert imported DIR diagnostics for one module.
     #[track_caller]
     pub(crate) fn assert_dir_imported_diagnostics(&self, path: &str, expected: &str) {

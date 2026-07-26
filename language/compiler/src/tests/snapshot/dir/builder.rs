@@ -398,19 +398,47 @@ impl<'a> DirSnapshotBuilder<'a> {
             }
             dir::NodeType::TypeExpression => {
                 let node_id = node.local_id.into_typed();
-                let dir::TypeExpression::Reference { path, .. } = self.tree.get(node_id) else {
-                    panic!("reference table type source is not a reference");
+                match self.tree.get(node_id) {
+                    dir::TypeExpression::Reference { path, .. } => {
+                        path.segments.iter().copied().collect()
+                    }
+                    dir::TypeExpression::Lifetime { name } => vec![*name],
+                    _ => panic!("reference table type source has no name"),
+                }
+            }
+            dir::NodeType::DependencyItem => {
+                let node_id: dir::LocalNodeId<dir::DependencyItem> = node.local_id.into_typed();
+                let item = self.tree.get(node_id);
+                let Some(selector) = item.export_selector() else {
+                    panic!("reference table dependency source has no export selector");
                 };
 
-                path.segments.iter().copied().collect()
+                return self.export_selector_label(selector);
             }
-            _ => panic!("reference table source is not a path-bearing node"),
+            _ => panic!("reference table source has an unsupported node type"),
         };
 
         path.iter()
             .map(|segment| self.strings.get(*segment))
             .collect::<Vec<_>>()
             .join(".")
+    }
+
+    /// Render the first source name for one reference node.
+    pub(crate) fn reference_root_label(&self, node: dir::GlobalNodeIdAny) -> String {
+        if node.local_id.ty != dir::NodeType::TypeExpression {
+            return self.reference_source_label(node);
+        }
+
+        let node_id: dir::LocalNodeId<dir::TypeExpression> = node.local_id.into_typed();
+        let dir::TypeExpression::Reference { path, .. } = self.tree.get(node_id) else {
+            return self.reference_source_label(node);
+        };
+        let Some(root) = path.segments.first() else {
+            panic!("reference table type path has no root");
+        };
+
+        self.strings.get(*root).to_string()
     }
 
     /// Return source path segments for one path-bearing expression.

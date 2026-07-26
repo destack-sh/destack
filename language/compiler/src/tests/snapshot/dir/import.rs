@@ -5,17 +5,31 @@ use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::ImportTable {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
-        for (symbol_id, target) in &self.target_by_symbol {
+        for (symbol_id, resolution) in &self.resolution_by_symbol {
             let anchor = builder.anchor_symbol(symbol_id.into_global(self.module_id));
-            let row = match target {
-                dir::ImportTarget::Symbol(target) => SnapshotRow::new(anchor, "import", "symbol")
-                    .field("symbol", builder.local_symbol_label(*symbol_id))
-                    .field("target", builder.symbol_path_label(*target)),
-                dir::ImportTarget::Namespace(module_id) => {
+            let row = match resolution {
+                dir::ImportResolution::Resolved(dir::ImportTarget::Symbol(target)) => {
+                    SnapshotRow::new(anchor, "import", "symbol")
+                        .field("symbol", builder.local_symbol_label(*symbol_id))
+                        .field("target", builder.symbol_path_label(*target))
+                }
+                dir::ImportResolution::Resolved(dir::ImportTarget::Namespace(module_id)) => {
                     SnapshotRow::new(anchor, "import", "namespace")
                         .field("symbol", builder.local_symbol_label(*symbol_id))
                         .field("module", builder.module_path(*module_id))
                 }
+                dir::ImportResolution::Ambiguous(targets) => {
+                    let targets = targets.iter().map(|target| match target {
+                        dir::ImportTarget::Symbol(symbol) => builder.symbol_path_label(*symbol),
+                        dir::ImportTarget::Namespace(module) => builder.module_path(*module),
+                    });
+
+                    SnapshotRow::new(anchor, "import", "ambiguous")
+                        .field("symbol", builder.local_symbol_label(*symbol_id))
+                        .list_field("targets", targets)
+                }
+                dir::ImportResolution::Missing => SnapshotRow::new(anchor, "import", "missing")
+                    .field("symbol", builder.local_symbol_label(*symbol_id)),
             };
             builder.push(row);
         }
@@ -39,7 +53,7 @@ impl SnapshotTable for dir::ImportTable {
         }
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "import", "summary")
-            .count_field("symbols", self.target_by_symbol.len())
+            .count_field("symbols", self.resolution_by_symbol.len())
             .count_field("globals", self.global_target_by_key.len())
             .count_field("language", self.language_symbol_by_item.len());
         builder.push(row);
