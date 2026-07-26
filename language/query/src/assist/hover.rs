@@ -1,237 +1,176 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::Span;
+use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::format::{format_global_type, format_hover_markdown, format_simple_signature};
-use crate::{ModuleQueryContext, Position, SymbolHit, format_symbol_signature};
+use crate::format::format_global_type;
+use crate::{
+    ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult, Target,
+    format_symbol_signature,
+};
+
+/// Hover content for one declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct HoverItem {
+    /// The type or signature in code format.
+    pub signature: String,
+    /// The distinct checked type selected at the hovered occurrence.
+    pub type_text: Option<String>,
+    /// The checked documentation when available.
+    pub documentation: Option<String>,
+    /// The exact declaration target.
+    pub target: Target,
+}
 
 /// Hover payload for a source position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Hover {
-    /// The type/signature in code format.
-    pub signature: String,
-    /// Documentation (markdown).
-    pub documentation: Option<String>,
-    /// Resolved type information when available.
-    pub type_text: Option<String>,
-    /// Source location text when available.
-    pub location: Option<String>,
-    /// The range of the hovered element.
-    pub range: Option<Span>,
+    /// The declarations named by the hovered occurrence.
+    pub items: Vec<HoverItem>,
+    /// The range of the hovered occurrence.
+    pub range: Span,
 }
 
-impl Hover {
-    /// Create hover payload with a signature.
-    pub fn new(signature: impl Into<String>) -> Self {
-        Self {
-            signature: signature.into(),
-            documentation: None,
-            type_text: None,
-            location: None,
-            range: None,
-        }
-    }
-
-    /// Insert documentation when it exists.
-    fn insert_documentation(&mut self, documentation: Option<String>) {
-        self.documentation = Self::text(documentation);
-    }
-
-    /// Insert resolved type text when it exists.
-    fn insert_type_text(&mut self, type_text: Option<String>) {
-        self.type_text = Self::text(type_text);
-    }
-
-    /// Insert location text when it exists.
-    fn insert_location(&mut self, location: Option<String>) {
-        self.location = Self::text(location);
-    }
-
-    /// Insert the hovered range.
-    fn insert_range(&mut self, range: Span) {
-        self.range = Some(range);
-    }
-
-    /// Format as markdown for display.
-    pub fn to_markdown(&self) -> String {
-        format_hover_markdown(
-            &self.signature,
-            self.type_text.as_deref(),
-            self.documentation.as_deref(),
-            self.location.as_deref(),
-        )
-    }
-
-    /// Return non-empty text.
-    fn text(text: Option<String>) -> Option<String> {
-        text.filter(|text| !text.trim().is_empty())
-    }
-}
-
-/// Request hover information at a cursor position.
+/// Request hover content at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HoverRequest {
     /// The queried position.
-    pub position: Position,
+    pub position: QueryPosition,
 }
 
 /// Response payload for hover queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HoverResponse {
-    /// Hover information, if available.
+    /// Hover content, if available.
     pub hover: Option<Hover>,
 }
 
 impl ModuleQueryContext<'_> {
-    /// Return hover information for the symbol at the given position.
-    pub fn hover(&self, offset: u32) -> Option<Hover> {
-        let symbol_at = self.hover_symbol_at_offset(offset)?;
-        let canonical_id = self.canonical_symbol(symbol_at.symbol_id);
+    /// Return hover content for the symbol at the given position.
+    pub fn hover(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        file_id: FileId,
+        offset: u32,
+    ) -> QueryResult<Option<Hover>> {
+        // resolve every exact declaration named by this occurrence
+        let Some(occurrence) = self.symbol_at_offset(file_id, offset)? else {
+            return Ok(None);
+        };
+        let selected_call = self.call_item(program, file_id, offset)?;
+        let mut symbols = Vec::new();
+        for symbol in &occurrence.symbols {
+            symbols.extend(program.canonical_symbols(*symbol)?);
+        }
+        symbols.sort();
+        symbols.dedup();
+        let type_text = self.hover_occurrence_type(program, occurrence.type_id, &symbols)?;
 
-        // get documentation for this symbol
-        let documentation = self.symbol_doc_text(canonical_id);
+        // format only recorded declaration shapes
+        let mut items = Vec::new();
+        for symbol in symbols {
+            let module = program.module(symbol.module_id)?;
+            let member = program
+                .module_index(symbol.module_id)?
+                .members
+                .symbol_entry(symbol);
+            let call_detail = selected_call
+                .as_ref()
+                .filter(|item| item.symbol_id == symbol)
+                .and_then(|item| item.detail.as_deref());
+            let signature = module
+                .hover_symbol_signature(program, symbol, member, call_detail)?
+                .ok_or(QueryError::missing(format!("hover signature: {symbol:?}")))?;
+            let documentation = program.symbol_doc_text(symbol)?;
+            let target = module.symbol_target(symbol)?;
 
-        // try rich signature formatting first (for top level declarations)
-        if let Some(formatted) = format_symbol_signature(self, canonical_id) {
-            let mut hover = Hover::new(formatted.text);
-            hover.insert_documentation(documentation);
-            hover.insert_location(self.hover_location(symbol_at.span));
-            hover.insert_range(symbol_at.span);
-
-            return Some(hover);
+            items.push(HoverItem {
+                signature,
+                type_text: type_text.clone(),
+                documentation,
+                target,
+            });
+        }
+        if items.is_empty() {
+            return Ok(None);
         }
 
-        // resolve symbol metadata
+        Ok(Some(Hover {
+            items,
+            range: occurrence.span,
+        }))
+    }
+
+    /// Format a checked occurrence type when it differs from every declaration type.
+    fn hover_occurrence_type(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        type_id: Option<dir::GlobalTypeId>,
+        symbols: &[dir::GlobalSymbolId],
+    ) -> QueryResult<Option<String>> {
+        let Some(type_id) = type_id else {
+            return Ok(None);
+        };
+        let text = format_global_type(type_id, self, program)?.ok_or(QueryError::invalid(
+            format!("hover type formatting: {type_id:?}"),
+        ))?;
+
+        // omit a checked type already represented by a declaration type
+        for symbol_id in symbols {
+            let module = program.module(symbol_id.module_id)?;
+            let Some(declared_type_id) = module.types().get_symbol_type_id(*symbol_id) else {
+                continue;
+            };
+            let declared_text = format_global_type(declared_type_id, module, program)?.ok_or(
+                QueryError::invalid(format!("hover type formatting: {declared_type_id:?}")),
+            )?;
+            if declared_text == text {
+                return Ok(None);
+            }
+        }
+
+        Ok(Some(text))
+    }
+
+    /// Format one symbol from its recorded declaration.
+    fn hover_symbol_signature(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        symbol_id: dir::GlobalSymbolId,
+        member: Option<&dir::MemberEntry>,
+        call_detail: Option<&str>,
+    ) -> QueryResult<Option<String>> {
+        if let Some(member) = member {
+            return self.member_hover(program, member, call_detail);
+        }
+
         let symbols = self.symbols();
-        let symbol = symbols.get_symbol(symbol_at.symbol_id.local_id);
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        let name = symbol
+            .name()
+            .map(|name| self.strings().get(name).to_string());
+        let Some(declaration) = symbol.declaration else {
+            return Ok(None);
+        };
 
-        // format symbol hover metadata
-        let hover_node_id = self.hover_node_id(&symbol_at, symbol);
-        let signature = self.hover_signature(hover_node_id, symbol_at.symbol_id, symbol);
-        let type_text = self.hover_type_text(hover_node_id, symbol_at.symbol_id);
-        let location = self.hover_location(symbol_at.span);
-        let range = self.hover_range(symbol_at.node_id, symbol_at.span);
-
-        let mut hover = Hover::new(signature);
-        hover.insert_documentation(documentation);
-        hover.insert_type_text(type_text);
-        hover.insert_location(location);
-        hover.insert_range(range);
-
-        Some(hover)
-    }
-
-    /// Format a source location string for a hover span.
-    fn hover_location(&self, span: Span) -> Option<String> {
-        let file = self.read_file(span.file);
-        let path = file.path.as_ref()?;
-        let (line, col) = file.get_position(span.start)?;
-
-        Some(format!(
-            "{}:{}:{}",
-            path.to_string_lossy(),
-            line + 1,
-            col + 1
-        ))
-    }
-
-    /// Return the DIR node used for hover display.
-    fn hover_node_id(&self, symbol_at: &SymbolHit, symbol: &dir::Symbol) -> dir::LocalNodeIdAny {
-        if !matches!(symbol_at.node_id.ty, dir::NodeType::Expression) {
-            return symbol_at.node_id;
-        }
-
-        if let Some(declaration) = symbol.declaration {
-            declaration.local_id
-        } else {
-            symbol_at.node_id
-        }
-    }
-
-    /// Return the signature text for a hover target.
-    fn hover_signature(
-        &self,
-        hover_node_id: dir::LocalNodeIdAny,
-        symbol_id: dir::GlobalSymbolId,
-        symbol: &dir::Symbol,
-    ) -> String {
-        let name = symbol.name().map(|id| self.strings().get(id).to_string());
-        let container_name = self.symbol_container_name(symbol_id);
-
-        match hover_node_id.ty {
-            dir::NodeType::Member => {
-                let member_id = hover_node_id.try_into().unwrap_or_else(|_| {
-                    panic!(
-                        "hover node has member type but invalid id {}",
-                        hover_node_id.id
-                    )
-                });
-
-                self.member_hover(member_id, container_name.as_deref())
-            }
-            dir::NodeType::EnumField => {
-                let field_id = hover_node_id.try_into().unwrap_or_else(|_| {
-                    panic!(
-                        "hover node has enum field type but invalid id {}",
-                        hover_node_id.id
-                    )
-                });
-
-                self.enum_field_hover(field_id, container_name.as_deref())
-            }
+        match declaration.local_id.ty {
+            dir::NodeType::Declaration => format_symbol_signature(program, symbol_id),
             dir::NodeType::Parameter => {
-                let parameter_id = hover_node_id.try_into().unwrap_or_else(|_| {
-                    panic!(
-                        "hover node has parameter type but invalid id {}",
-                        hover_node_id.id
-                    )
-                });
+                let parameter_id = dir::LocalNodeId::<dir::Parameter>::new(declaration.local_id.id);
 
-                self.parameter_hover(parameter_id)
+                self.parameter_hover(program, parameter_id)
             }
-            dir::NodeType::Pattern => self.local_variable_hover(name.as_deref(), symbol_id),
-            _ => format_simple_signature(symbol.kind, name.as_deref()),
-        }
-    }
+            dir::NodeType::Pattern => {
+                let Some(name) = name.as_deref() else {
+                    return Ok(None);
+                };
 
-    /// Return type text for a hover target when available.
-    fn hover_type_text(
-        &self,
-        hover_node_id: dir::LocalNodeIdAny,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> Option<String> {
-        // resolve the type table
-        let types = self.types();
-
-        // map the hover node to a type id
-        let type_id = match hover_node_id.ty {
-            dir::NodeType::Pattern => Some(
-                types
-                    .get_symbol_type_id(symbol_id)
-                    .unwrap_or_else(|| panic!("missing checked hover type for {symbol_id:?}")),
+                self.local_variable_hover(program, name, symbol_id)
+            }
+            dir::NodeType::Member | dir::NodeType::TypeMember | dir::NodeType::EnumField => Err(
+                QueryError::missing(format!("hover signature: {symbol_id:?}")),
             ),
-            dir::NodeType::Member | dir::NodeType::EnumField | dir::NodeType::Parameter => Some(
-                self.node_type_id(hover_node_id)
-                    .unwrap_or_else(|| panic!("missing checked hover type for {hover_node_id:?}")),
-            ),
-            _ => None,
-        }?;
-
-        // format the checked type for display
-        Some(
-            format_global_type(type_id, self)
-                .unwrap_or_else(|| panic!("unable to format checked hover type {type_id:?}")),
-        )
-    }
-
-    /// Resolve the visible hover range for a symbol.
-    fn hover_range(&self, node_id: dir::LocalNodeIdAny, default_span: Span) -> Span {
-        // preserve full declaration ranges for member declarations
-        if node_id.ty == dir::NodeType::Member {
-            return self.get_span(self.view(), node_id);
+            _ => Ok(None),
         }
-
-        default_span
     }
 }

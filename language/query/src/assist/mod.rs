@@ -1,13 +1,13 @@
-mod folding;
+mod code_actions;
+mod code_lenses;
+mod completion;
 mod hover;
-mod inlay;
-mod lens;
-mod semantic;
-mod signature;
+mod inlay_hints;
+mod signature_help;
 
-pub use folding::*;
+pub use code_actions::*;
+pub use code_lenses::*;
+pub use completion::*;
 pub use hover::*;
-pub use inlay::*;
-pub use lens::*;
-pub use semantic::*;
-pub use signature::*;
+pub use inlay_hints::*;
+pub use signature_help::*;
