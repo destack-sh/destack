@@ -7,7 +7,7 @@ use crate::{
     DirChecked, DirCheckedComponent, DirDeclaredComponent, DirExpanded, DirExported, DirImported,
     DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
     LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized,
-    MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageIndex,
+    MirVerified, ModuleEdges, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageIndex,
     Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime,
     Script, ScriptBody, ScriptLanguage, SourceMap,
 };
@@ -30,7 +30,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<Platform>();
 
     registry.register::<Data>();
-    registry.register::<ModuleGraph>();
+    registry.register::<ModuleEdges>();
     registry.register::<ComponentGraph>();
     registry.register::<LanguageEnvironment>();
     registry.register::<GlobalEnvironment>();
