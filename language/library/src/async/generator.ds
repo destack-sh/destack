@@ -5,6 +5,7 @@ import { Copy } from "destack:memory";
 import { Continuation, ContinuationResult } from "./continuation.ds";
 import { AsyncIterator } from "./iterator.ds";
 import { Promise, PromiseResolvers } from "./promise.ds";
+import { Task } from "./task.ds";
 
 /// The union of generator yield and return results.
 @languageItem("async.GeneratorResult")
@@ -111,6 +112,9 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
     /// The async generator state.
     private state: AsyncGeneratorState<Y, R, N>;
 
+    /// Latest request advancement.
+    private execution: Task<void> | undefined;
+
     /// First pending consumer request.
     private head: AsyncGeneratorRequest<Y, R, N> | undefined;
 
@@ -123,6 +127,7 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
             kind: "suspended",
             continuation,
         };
+        this.execution = undefined;
         this.head = undefined;
         this.tail = undefined;
     }
@@ -150,7 +155,9 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
         // enqueue the next request
         let resolvers = Promise.withResolvers<GeneratorResult<Y, R>>();
         this.enqueue(new AsyncGeneratorNext(value, resolvers));
-        this.advance();
+        if (this.state.kind == "suspended") {
+            this.execution = this.advance();
+        }
 
         return resolvers.promise;
     }
@@ -165,7 +172,9 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
         // enqueue the return request
         let resolvers = Promise.withResolvers<GeneratorResult<Y, R>>();
         this.enqueue(new AsyncGeneratorReturn(value, resolvers));
-        this.advance();
+        if (this.state.kind == "suspended") {
+            this.execution = this.advance();
+        }
 
         return resolvers.promise;
     }
@@ -204,7 +213,7 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
     }
 
     /// Advance queued requests while the body remains suspended.
-    private advance(): void {
+    private async advance(): Task<void> {
         // drain queued requests until completion
         while (this.state.kind == "suspended") {
             let request = this.dequeue();

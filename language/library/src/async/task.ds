@@ -2,13 +2,14 @@ import { todo } from "destack:error";
 import { AsyncDispose, Drop } from "destack:memory";
 
 import { Awaitable } from "./awaitable.ds";
-import { Waiter } from "./continuation.ds";
+import { Continuation, Waiter } from "./continuation.ds";
 import { Promise } from "./promise.ds";
 
 /// Single-consumer asynchronous result.
 ///
 /// Awaiting consumes the task and transfers its result.
-/// Dropping the task detaches the result while its scope retains the execution.
+/// Dropping the task detaches its result without cancelling its execution.
+/// Cancellation enters its continuation's cancellation path at the next suspension.
 @languageItem("async.Task")
 export local struct Task<T> implements Awaitable<T>, Drop {
     /// Opaque task identity.
@@ -19,53 +20,74 @@ export local struct Task<T> implements Awaitable<T>, Drop {
         return resolveTask(value);
     }
 
+    /// Start one coroutine as a task.
+    @languageItem("async.Task.create")
+    private static create<T>(continuation: Continuation<void, never, T>): Task<T> {
+        return startTask(continuation);
+    }
+
     /// Park one waiter until a task completes.
     static park<T>(task: Task<T>, waiter: Waiter<T>): void {
         parkTask(task, waiter);
     }
 
-    /// Request cooperative cancellation.
+    /// Request cancellation at the next suspension.
     cancel(&readonly this): void {
         cancelTask(&readonly this);
     }
 
     /// Detach this task result.
     drop(): void {
-        dropTask(this);
+        detachTask(this);
     }
 }
 
 /// Structured owner of spawned tasks.
 ///
-/// A scope waits for every child before it exits.
+/// Asynchronous disposal waits for every child before it completes.
 /// Cancellation requests are delivered cooperatively at cancellable asynchronous operations.
-export local struct TaskScope implements AsyncDispose {
+export local struct TaskScope implements Awaitable<void>, AsyncDispose, Drop {
     /// Opaque task scope identity.
     private handle: uint64;
 
     /// Open a new task scope.
     static open(): TaskScope {
-        todo("TaskScope.open")
+        return openScope();
     }
 
     /// Spawn one task owned by this scope.
     spawn<T>(&exclusive this, body: () => Task<T>): Task<T> {
-        todo("TaskScope.spawn")
+        let task = body();
+        attachTask(&readonly this, &readonly task);
+
+        return task;
     }
 
     /// Request cancellation of every pending child.
     cancel(&readonly this): void {
-        todo("TaskScope.cancel");
+        cancelScope(&readonly this);
     }
 
-    /// Wait for every child to complete.
-    join(&readonly this): Promise<void> {
-        todo("TaskScope.join")
+    /// Park one waiter until every child completes.
+    static park(scope: TaskScope, waiter: Waiter<void>): void {
+        parkScope(scope, waiter);
+    }
+
+    /// Consume this scope after every child completes.
+    async join(this): Promise<void> {
+        await this;
     }
 
     /// Cancel pending children and wait for their cleanup.
-    asyncDispose(): Promise<void> {
-        todo("TaskScope.asyncDispose")
+    async asyncDispose(): Promise<void> {
+        this.cancel();
+        await this;
+    }
+
+    /// Cancel pending children and detach their cleanup.
+    drop(): void {
+        this.cancel();
+        detachScope(this);
     }
 }
 
@@ -73,7 +95,11 @@ export local struct TaskScope implements AsyncDispose {
 @intrinsic("async.task.resolve")
 export declare function resolveTask<T>(value: T): Task<T>;
 
-/// Request cooperative task cancellation.
+/// Start one coroutine as a task.
+@intrinsic("async.task.start")
+export declare function startTask<T>(continuation: Continuation<void, never, T>): Task<T>;
+
+/// Request task cancellation at the next suspension.
 @intrinsic("async.task.cancel")
 export declare function cancelTask<T>(task: &readonly Task<T>): void;
 
@@ -82,11 +108,53 @@ export declare function cancelTask<T>(task: &readonly Task<T>): void;
 export declare function parkTask<T>(task: Task<T>, waiter: Waiter<T>): void;
 
 /// Detach one task result.
-@intrinsic("async.task.drop")
-export declare function dropTask<T>(task: Task<T>): void;
+@intrinsic("async.task.detach")
+export declare function detachTask<T>(task: Task<T>): void;
 
-/// Cancellation marker returned by cancellable operations.
-export local struct Cancelled {}
+/// Open one structured task scope.
+@binding("destack.async.taskScope.open", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+})
+export declare function openScope(): TaskScope;
+
+/// Attach one task execution to one scope.
+@binding("destack.async.taskScope.attach", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+})
+export declare function attachTask<T>(scope: &readonly TaskScope, task: &readonly Task<T>): void;
+
+/// Request cancellation of every pending task in one scope.
+@binding("destack.async.taskScope.cancel", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+})
+export declare function cancelScope(scope: &readonly TaskScope): void;
+
+/// Park one waiter until every task in one scope completes.
+@binding("destack.async.taskScope.park", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+})
+export declare function parkScope(scope: TaskScope, waiter: Waiter<void>): void;
+
+/// Detach one scope while retaining pending task cleanup.
+@binding("destack.async.taskScope.detach", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+    affinity: "worker",
+})
+export declare function detachScope(scope: TaskScope): void;
 
 /// Yield back to the current Worker scheduler.
 export function yieldNow(): Promise<void> {
