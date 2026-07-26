@@ -1,8 +1,9 @@
 import { Drop } from "destack:memory";
 
-/// Owned value for one suspended generator continuation.
+/// Owned value for one suspended coroutine execution.
 ///
-/// Resuming a continuation consumes it, and dropping it cancels it.
+/// Resuming or completing a continuation consumes it.
+/// Dropping it destroys the retained execution without re-entering its body.
 @languageItem("async.Continuation")
 export local struct Continuation<TResume = void, TYield = never, TReturn = void> implements Drop {
     /// Opaque continuation identity.
@@ -20,23 +21,29 @@ export local struct Continuation<TResume = void, TYield = never, TReturn = void>
         return completeContinuation<TResume, TYield, TReturn>(this, value);
     }
 
-    /// Cancel this continuation without producing another user value.
+    /// Destroy this continuation without re-entering its body.
     drop(): void {
-        dropContinuation<TResume, TYield, TReturn>(this);
+        destroyContinuation<TResume, TYield, TReturn>(this);
     }
 }
 
 /// Owned value for one parked asynchronous execution.
 ///
-/// Queueing a waiter consumes it, and dropping it cancels its suspended execution.
+/// Queueing or cancelling a waiter consumes it.
+/// Dropping it cancels its suspended execution.
 @languageItem("async.Waiter")
 export local struct Waiter<T> implements Drop {
     /// Opaque waiter identity.
     private handle: uint64;
 
-    /// Queue this waiter on the current Worker's microtask queue.
-    queue(this, value: T): void {
-        queueWaiter(this, value);
+    /// Queue this waiter and return whether this operation settled it.
+    queue(this, value: T): boolean {
+        return queueWaiter(this, value);
+    }
+
+    /// Cancel this waiter and return whether this operation settled it.
+    cancel(this): boolean {
+        return cancelWaiter(this);
     }
 
     /// Cancel this waiter without producing another user value.
@@ -52,10 +59,6 @@ export declare function resumeContinuation<TResume, TYield = never, TReturn = vo
     value: TResume,
 ): ContinuationResult<TResume, TYield, TReturn>;
 
-/// Queue one waiter on the current Worker's microtask queue.
-@intrinsic("async.waiter.queue")
-export declare function queueWaiter<T>(waiter: Waiter<T>, value: T): void;
-
 /// Resume one continuation through its completion path.
 @intrinsic("async.continuation.complete")
 export declare function completeContinuation<TResume, TYield = never, TReturn = void>(
@@ -63,50 +66,19 @@ export declare function completeContinuation<TResume, TYield = never, TReturn = 
     value: TReturn,
 ): ContinuationResult<TResume, TYield, TReturn>;
 
-/// Cancel one continuation without producing another user value.
-@intrinsic("async.continuation.drop")
-export declare function dropContinuation<TResume, TYield = never, TReturn = void>(
+/// Destroy one continuation without re-entering its body.
+@intrinsic("async.continuation.destroy")
+export declare function destroyContinuation<TResume, TYield = never, TReturn = void>(
     continuation: Continuation<TResume, TYield, TReturn>,
 ): void;
 
-/// Cancel one waiter without producing another user value.
+/// Queue one waiter and return whether this operation settled it.
+@intrinsic("async.waiter.queue")
+export declare function queueWaiter<T>(waiter: Waiter<T>, value: T): boolean;
+
+/// Cancel one waiter and return whether this operation settled it.
 @intrinsic("async.waiter.cancel")
-export declare function cancelWaiter<T>(waiter: Waiter<T>): void;
-
-/// Resume command delivered into a yielded continuation.
-@languageItem("async.Resume")
-@derive(Tagged)
-export local newtype Resume<TResume, TReturn> =
-    | ResumeNext<TResume>
-    | ResumeReturn<TReturn>
-    | ResumeCancel;
-
-/// Continue a yielded continuation with a normal resume value.
-@languageItem("async.ResumeNext")
-export local struct ResumeNext<T> {
-    /// The command tag.
-    kind: "next" = "next";
-
-    /// The value observed by the suspended expression.
-    value: T;
-}
-
-/// Continue a yielded continuation through its completion path.
-@languageItem("async.ResumeReturn")
-export local struct ResumeReturn<T> {
-    /// The command tag.
-    kind: "return" = "return";
-
-    /// The value delivered to the completion path.
-    value: T;
-}
-
-/// Continue a yielded continuation through its cancellation path.
-@languageItem("async.ResumeCancel")
-export local struct ResumeCancel {
-    /// The command tag.
-    kind: "cancel" = "cancel";
-}
+export declare function cancelWaiter<T>(waiter: Waiter<T>): boolean;
 
 /// Suspended continuation produced by a generator `yield`.
 @languageItem("async.ContinuationYield")
