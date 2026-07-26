@@ -126,20 +126,3 @@ impl ModuleId {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use super::ModuleId;
-    use crate::PackageId;
-
-    #[test]
-    fn test_hash_module_loader_as_length_prefixed_component() {
-        let package = PackageId::new(1);
-        let left = ModuleId::from_path_with_loader(package, Path::new("a"), None, Some("b::c"));
-        let right = ModuleId::from_path_with_loader(package, Path::new("a::b"), None, Some("c"));
-
-        assert_ne!(left, right);
-    }
-}

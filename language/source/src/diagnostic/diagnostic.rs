@@ -29,6 +29,15 @@ pub struct Diagnostic {
     pub tags: Vec<DiagnosticTag>,
 }
 
+/// One diagnostic occurrence in exact source content.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct DiagnosticReference {
+    /// The canonical diagnostic id.
+    pub id: String,
+    /// The primary diagnostic label.
+    pub primary: DiagnosticLabel,
+}
+
 impl Diagnostic {
     /// Create one diagnostic.
     pub fn new(
@@ -116,5 +125,15 @@ impl Diagnostic {
     /// Return help messages.
     pub fn helps(&self) -> impl Iterator<Item = &DiagnosticHelp> {
         self.helps.iter()
+    }
+}
+
+impl From<&Diagnostic> for DiagnosticReference {
+    /// Build a reference to one exact emitted diagnostic.
+    fn from(diagnostic: &Diagnostic) -> Self {
+        Self {
+            id: diagnostic.id.clone(),
+            primary: diagnostic.primary.clone(),
+        }
     }
 }

@@ -2,9 +2,9 @@ use destack_serde::SchemaRegistry;
 
 use crate::{
     Applicability, ByteRange, ComponentId, Content, ContentId, Diagnostic, DiagnosticHelp,
-    DiagnosticLabel, DiagnosticNote, DiagnosticSeverity, DiagnosticSuggestion, DiagnosticTag, Edit,
-    FileId, FilePatch, FileType, ModuleId, PackageId, Patch, PatchSet, ProductId, ProfileId, Span,
-    TargetId, TextChange, TextPatch, TextPosition, TextRange,
+    DiagnosticLabel, DiagnosticNote, DiagnosticReference, DiagnosticSeverity, DiagnosticSuggestion,
+    DiagnosticTag, Edit, FileId, FilePatch, FileType, ModuleId, PackageId, Patch, PatchSet,
+    ProductId, ProfileId, Span, TargetId, TextChange, TextPatch, TextPosition, TextRange,
 };
 
 /// Include public source schema roots.
@@ -29,6 +29,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<DiagnosticHelp>();
     registry.register::<DiagnosticSuggestion>();
     registry.register::<Diagnostic>();
+    registry.register::<DiagnosticReference>();
     registry.register::<Patch>();
     registry.register::<FilePatch>();
     registry.register::<PatchSet>();
