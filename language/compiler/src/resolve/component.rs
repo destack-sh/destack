@@ -34,12 +34,8 @@ impl Compiler {
         }
 
         // coupling edges read every module's resolution and exports
-        let modules = self
-            .repository
-            .module_ids(context.revision())
-            .map_err(|error| CompilerError::Internal {
-                message: format!("failed to enumerate profile modules: {error}"),
-            })?;
+        let modules = self.repository.module_ids(context.revision())?;
+        dependencies.observe_modules(&modules);
         for module in modules {
             dependencies.require(ArtifactKey::dir_resolved(module, profile));
             dependencies.require(ArtifactKey::dir_exported(module, profile));
@@ -90,12 +86,7 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context.revision());
         let started = self.repository.host().clock().now();
-        let modules = self
-            .repository
-            .module_ids(context.revision())
-            .map_err(|error| CompilerError::Internal {
-                message: format!("failed to enumerate profile modules: {error}"),
-            })?;
+        let modules = self.repository.module_ids(context.revision())?;
         if let Some(started) = started {
             context.emit_span("modules", started);
         }
@@ -146,7 +137,6 @@ impl Compiler {
             }
             context.emit_counter("edges", edge_count);
 
-            validate_component_edges(&edges_by_module)?;
             let graph = ComponentGraph::from_edges(profile, edges_by_module, coupling_by_module);
 
             return Ok(Arc::new(graph));
@@ -185,7 +175,6 @@ impl Compiler {
         let graph = base
             .graph
             .derive(changed_edges, base.delta.removed, coupling_by_module);
-        validate_component_graph(&graph)?;
 
         Ok(Arc::new(graph))
     }
@@ -203,16 +192,21 @@ impl Compiler {
         let mut edges = IndexSet::new();
 
         // imported symbols couple through inferred export forms
-        for (_, target) in &resolved.imports.target_by_symbol {
+        for target in resolved
+            .imports
+            .resolution_by_symbol
+            .values()
+            .flat_map(dir::ImportResolution::targets)
+        {
             match target {
                 dir::ImportTarget::Symbol(symbol) if symbol.module_id != module => {
-                    if self.export_couples(artifacts, profile, *symbol)? {
+                    if self.export_couples(artifacts, profile, symbol)? {
                         edges.insert(symbol.module_id);
                     }
                 }
-                dir::ImportTarget::Namespace(namespace) if *namespace != module => {
-                    if self.namespace_couples(artifacts, profile, *namespace)? {
-                        edges.insert(*namespace);
+                dir::ImportTarget::Namespace(namespace) if namespace != module => {
+                    if self.namespace_couples(artifacts, profile, namespace)? {
+                        edges.insert(namespace);
                     }
                 }
                 _ => {}
@@ -220,7 +214,12 @@ impl Compiler {
         }
 
         // referenced symbols couple the same way
-        for (_, reference) in &resolved.references.entries {
+        for (source, reference) in &resolved.references.target_by_node {
+            // dependency declarations identify names without consuming their types
+            if source.local_id.ty == dir::NodeType::DependencyItem {
+                continue;
+            }
+
             match reference {
                 dir::Reference::Bound(symbols) => {
                     for symbol in symbols {
@@ -262,12 +261,14 @@ impl Compiler {
         let exported = artifacts
             .dir_exported(symbol.module_id, profile)
             .map_err(CompilerError::from)?;
-
-        // absent exports classify conservatively as coupled
-        Ok(exported
+        let form = exported
             .exports
             .local_form(symbol.local_id)
-            .is_none_or(|form| form.couples()))
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("exported symbol {symbol:?} has no declared export form"),
+            })?;
+
+        Ok(form.couples())
     }
 
     /// Return whether one namespace object carries any inference.
@@ -311,44 +312,4 @@ impl Compiler {
 
         Ok(Arc::from(edges))
     }
-}
-
-/// Validate that component graph edges stay inside the graph module set.
-fn validate_component_edges(edges: &IndexMap<ModuleId, Arc<[ModuleId]>>) -> CompilerResult<()> {
-    for (module, targets) in edges {
-        // reject edges outside the declared module universe
-        for target in targets.iter() {
-            if edges.contains_key(target) {
-                continue;
-            }
-
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "component graph edge from {module:?} points outside the graph to {target:?}"
-                ),
-            });
-        }
-    }
-
-    Ok(())
-}
-
-/// Validate that component graph edges stay inside the graph module set.
-fn validate_component_graph(graph: &ComponentGraph) -> CompilerResult<()> {
-    for (module, targets) in graph.iter_edges() {
-        // reject edges outside the declared module universe
-        for target in targets.iter().copied() {
-            if graph.contains_module(target) {
-                continue;
-            }
-
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "component graph edge from {module:?} points outside the graph to {target:?}"
-                ),
-            });
-        }
-    }
-
-    Ok(())
 }
