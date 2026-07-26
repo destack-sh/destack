@@ -111,7 +111,7 @@ impl DirBound {
     }
 }
 
-/// Source import resolution for one profile-scoped module.
+/// Source import resolution for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirImported {
     /// Resolved module imports.
@@ -125,7 +125,7 @@ impl DirImported {
     }
 }
 
-/// Fixed-point macro expansion segment for one profile-scoped module.
+/// Fixed-point macro expansion segment for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirExpanded {
     /// Tree changes.
@@ -166,7 +166,7 @@ impl DirExpanded {
     }
 }
 
-/// Export table over the expanded view for one profile-scoped module.
+/// Export table over the expanded view for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirExported {
     /// Resolved exports.
@@ -186,7 +186,7 @@ impl DirExported {
     }
 }
 
-/// Resolved import targets for one profile-scoped module.
+/// Resolved import targets for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirResolved {
     /// Resolved imports.
@@ -231,7 +231,7 @@ pub struct DirCheckedComponentEntry {
     pub checked: DirCheckedModule,
 }
 
-/// Type-checking segment for one profile-scoped module.
+/// Type-checking segment for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirCheckedModule {
     /// Checked binding segment.
@@ -339,7 +339,7 @@ impl DirCheckedModule {
     }
 }
 
-/// Comptime materialization segment for one profile-scoped module.
+/// Comptime materialization segment for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirMaterialized {
     /// Tree changes.

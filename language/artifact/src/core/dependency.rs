@@ -3,7 +3,7 @@ use siphasher::sip128::Hasher128;
 use std::hash::Hash;
 
 use destack_core::StableHasher;
-use destack_source::{ComponentId, ContentId, FileId, ModuleId, PackageId, ProfileId};
+use destack_source::{ComponentId, ContentId, FileId, ModuleId, PackageId};
 use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactKey, ArtifactVersion, ModuleIndexProjection};
@@ -72,13 +72,6 @@ pub enum SourceDependency {
     /// The complete repository module identity set.
     Modules {
         /// The observed module set fingerprint.
-        fingerprint: ModuleSetFingerprint,
-    },
-    /// The repository modules belonging to one semantic profile.
-    ProfileModules {
-        /// The selected profile.
-        profile: ProfileId,
-        /// The observed profile module set fingerprint.
         fingerprint: ModuleSetFingerprint,
     },
 }
@@ -273,14 +266,6 @@ impl SourceDependency {
             fingerprint: ModuleSetFingerprint::new(modules),
         }
     }
-
-    /// Build one profile module set dependency.
-    pub fn profile_modules(profile: ProfileId, modules: &[ModuleId]) -> Self {
-        Self::ProfileModules {
-            profile,
-            fingerprint: ModuleSetFingerprint::new(modules),
-        }
-    }
 }
 
 /// Every dependency one artifact declares before it is built.
@@ -333,11 +318,6 @@ impl ArtifactDependencySet {
     /// Declare the complete repository module identity set.
     pub fn observe_modules(&mut self, modules: &[ModuleId]) {
         self.observe(SourceDependency::modules(modules));
-    }
-
-    /// Declare the repository modules belonging to one semantic profile.
-    pub fn observe_profile_modules(&mut self, profile: ProfileId, modules: &[ModuleId]) {
-        self.observe(SourceDependency::profile_modules(profile, modules));
     }
 
     /// Mark the closure incomplete so the engine runs the collect pass again.
