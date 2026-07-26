@@ -26,7 +26,7 @@ pub struct ComponentGraph {
     /// The dense module graph being partitioned.
     module_graph: ModuleGraph,
     /// Module edges that couple checking through inference.
-    coupling_graph: ModuleGraph,
+    coupling_edges: Arc<[Arc<[u32]>]>,
     /// Per-module owning component.
     component_of: Arc<[ComponentId]>,
     /// Components sorted by stable id.
@@ -54,36 +54,22 @@ pub struct ComponentGraph {
 }
 
 impl ModuleGraph {
-    /// Build one module graph from complete in-profile module edges.
-    pub fn from_edges(profile: ProfileId, edges: IndexMap<ModuleId, Arc<[ModuleId]>>) -> Self {
-        // build dense module ids
+    /// Build one module graph from complete program module edges.
+    fn from_edges(profile: ProfileId, edges: IndexMap<ModuleId, Arc<[ModuleId]>>) -> Self {
+        // build the shared dense module universe
         let mut modules = edges.keys().copied().collect::<Vec<_>>();
         modules.sort_unstable();
-        let module_index = module_index_map(&modules);
-
-        let mut graph_edges = Vec::with_capacity(modules.len());
-
-        // write each module's outgoing edges as dense target indexes
-        for module in &modules {
-            let edges = edges.get(module).map(Arc::as_ref).unwrap_or_default();
-            let mut targets = Vec::with_capacity(edges.len());
-            for target in edges {
-                if let Some(target) = module_index.get(target).copied() {
-                    targets.push(target);
-                }
-            }
-            graph_edges.push(Arc::from(targets));
-        }
+        let graph_edges = dense_module_edges(&modules, &edges);
 
         Self {
             profile,
             modules: Arc::from(modules),
-            edges: Arc::from(graph_edges),
+            edges: graph_edges,
         }
     }
 
     /// Derive a module graph after changing outgoing edges and removing modules.
-    pub fn derive(
+    fn derive(
         &self,
         updated_edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
         removed_modules: Vec<ModuleId>,
@@ -107,22 +93,9 @@ impl ModuleGraph {
         self.derive_edges(updated_edges, &removed_modules)
     }
 
-    /// Return the strongly connected components of this graph.
-    fn strongly_connected_components(&self) -> SccPartition {
-        let mut edge_offsets = Vec::with_capacity(self.modules.len() + 1);
-        let edge_count = self.edges.iter().map(|edges| edges.len()).sum();
-        let mut edge_targets = Vec::with_capacity(edge_count);
-
-        // materialize transient CSR storage for Tarjan
-        edge_offsets.push(0);
-        for edges in self.edges.iter() {
-            edge_targets.extend(edges.iter().copied());
-            edge_offsets.push(edge_targets.len() as u32);
-        }
-
-        let graph = DenseGraph::new(&edge_offsets, &edge_targets);
-
-        graph.strongly_connected_components()
+    /// Index complete module edges over this graph's module universe.
+    fn index_edges(&self, edges: &IndexMap<ModuleId, Arc<[ModuleId]>>) -> Arc<[Arc<[u32]>]> {
+        dense_module_edges(&self.modules, edges)
     }
 
     /// Patch outgoing edges without changing the module universe.
@@ -165,9 +138,9 @@ impl ModuleGraph {
 
     /// Return whether one module's outgoing edges equal an external edge list.
     pub fn edges_equal(&self, module: ModuleId, edges: &[ModuleId]) -> bool {
-        // compare missing modules as empty edge lists
+        // a module outside the graph cannot match
         let Some(index) = self.module_index(module) else {
-            return edges.is_empty();
+            return false;
         };
 
         if self.edges[index].len() != edges.len() {
@@ -231,9 +204,7 @@ impl ModuleGraph {
             let mut targets = Vec::new();
             if let Some(edges) = updated_edges.get(module) {
                 for target in edges.iter() {
-                    if let Some(target) = module_index.get(target).copied() {
-                        targets.push(target);
-                    }
+                    targets.push(module_index[target]);
                 }
             } else if let Some(source) = self.module_index(*module) {
                 for target in self.edges[source].iter().copied() {
@@ -273,9 +244,9 @@ impl ComponentGraph {
         coupling_edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
     ) -> Self {
         let module_graph = ModuleGraph::from_edges(profile, edges);
-        let coupling_graph = ModuleGraph::from_edges(profile, coupling_edges);
+        let coupling_edges = module_graph.index_edges(&coupling_edges);
 
-        Self::build(module_graph, coupling_graph)
+        Self::build(module_graph, coupling_edges)
     }
 
     /// Derive a component graph after changing edges and removing modules.
@@ -285,24 +256,25 @@ impl ComponentGraph {
         removed_modules: Vec<ModuleId>,
         coupling_edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
     ) -> Self {
-        let coupling_graph = ModuleGraph::from_edges(self.module_graph.profile, coupling_edges);
-
         // keep unchanged reference graphs by identity
         if updated_edges.is_empty() && removed_modules.is_empty() {
-            return self.with_coupling_graph(coupling_graph);
+            let coupling_edges = self.module_graph.index_edges(&coupling_edges);
+
+            return self.with_coupling_edges(coupling_edges);
         }
 
         let changed_components =
             self.changed_dependency_components(&updated_edges, &removed_modules);
         let module_graph = self.module_graph.derive(updated_edges, removed_modules);
+        let coupling_edges = module_graph.index_edges(&coupling_edges);
 
         if let Some(changed_components) = changed_components {
             return self
                 .with_module_graph(module_graph, &changed_components)
-                .with_coupling_graph(coupling_graph);
+                .with_coupling_edges(coupling_edges);
         }
 
-        Self::build(module_graph, coupling_graph)
+        Self::build(module_graph, coupling_edges)
     }
 
     /// Return outgoing module edges for one module.
@@ -343,12 +315,24 @@ impl ComponentGraph {
 
     /// Return whether one module's coupling edges equal an external edge list.
     pub fn coupling_edges_equal(&self, module: ModuleId, edges: &[ModuleId]) -> bool {
-        self.coupling_graph.edges_equal(module, edges)
+        // a module outside the graph cannot match
+        let Some(index) = self.module_graph.module_index(module) else {
+            return false;
+        };
+
+        if self.coupling_edges[index].len() != edges.len() {
+            return false;
+        }
+
+        self.coupling_edges[index]
+            .iter()
+            .zip(edges)
+            .all(|(target, edge)| self.module_graph.modules[*target as usize] == *edge)
     }
 
     /// Return the inference component containing one module.
     pub fn inference_component(&self, module: ModuleId) -> Option<ComponentId> {
-        let index = self.coupling_graph.module_index(module)?;
+        let index = self.module_graph.module_index(module)?;
 
         Some(self.inference_of[index])
     }
@@ -446,8 +430,8 @@ impl ComponentGraph {
     }
 
     /// Build one component graph from a dense module graph.
-    fn build(module_graph: ModuleGraph, coupling_graph: ModuleGraph) -> Self {
-        let partition = module_graph.strongly_connected_components();
+    fn build(module_graph: ModuleGraph, coupling_edges: Arc<[Arc<[u32]>]>) -> Self {
+        let partition = strongly_connected_components(&module_graph.edges);
         let membership =
             ComponentMembership::from_partition(&partition, module_graph.modules.len());
         let components = ComponentIndex::from_membership(
@@ -457,11 +441,11 @@ impl ComponentGraph {
         );
 
         let dependencies = components.dependencies(&module_graph);
-        let settle = inference_index(&coupling_graph);
+        let settle = inference_index(module_graph.profile, &module_graph.modules, &coupling_edges);
 
         Self {
             module_graph,
-            coupling_graph,
+            coupling_edges,
             component_of: Arc::from(components.component_of),
             components: Arc::from(components.ids),
             member_offsets: Arc::from(components.member_offsets),
@@ -478,10 +462,14 @@ impl ComponentGraph {
     }
 
     /// Rebuild the inference partition over one new coupling graph.
-    fn with_coupling_graph(&self, coupling_graph: ModuleGraph) -> Self {
-        let settle = inference_index(&coupling_graph);
+    fn with_coupling_edges(&self, coupling_edges: Arc<[Arc<[u32]>]>) -> Self {
+        let settle = inference_index(
+            self.module_graph.profile,
+            &self.module_graph.modules,
+            &coupling_edges,
+        );
         let mut graph = self.clone();
-        graph.coupling_graph = coupling_graph;
+        graph.coupling_edges = coupling_edges;
         graph.inference_of = Arc::from(settle.component_of);
         graph.inference_ids = Arc::from(settle.ids);
         graph.inference_member_offsets = Arc::from(settle.member_offsets);
@@ -502,7 +490,7 @@ impl ComponentGraph {
 
         Self {
             module_graph,
-            coupling_graph: self.coupling_graph.clone(),
+            coupling_edges: self.coupling_edges.clone(),
             component_of: self.component_of.clone(),
             components: self.components.clone(),
             member_offsets: self.member_offsets.clone(),
@@ -691,12 +679,34 @@ impl ComponentMembership {
     }
 }
 
-/// Partition the coupling graph into inference components.
-fn inference_index(coupling_graph: &ModuleGraph) -> ComponentIndex {
-    let partition = coupling_graph.strongly_connected_components();
-    let membership = ComponentMembership::from_partition(&partition, coupling_graph.modules.len());
+/// Return the strongly connected components of one dense edge column.
+fn strongly_connected_components(edges: &[Arc<[u32]>]) -> SccPartition {
+    let mut edge_offsets = Vec::with_capacity(edges.len() + 1);
+    let edge_count = edges.iter().map(|edges| edges.len()).sum();
+    let mut edge_targets = Vec::with_capacity(edge_count);
 
-    ComponentIndex::from_membership(coupling_graph.profile, &coupling_graph.modules, &membership)
+    // materialize transient CSR storage for Tarjan
+    edge_offsets.push(0);
+    for edges in edges {
+        edge_targets.extend(edges.iter().copied());
+        edge_offsets.push(edge_targets.len() as u32);
+    }
+
+    let graph = DenseGraph::new(&edge_offsets, &edge_targets);
+
+    graph.strongly_connected_components()
+}
+
+/// Partition dense coupling edges into inference components.
+fn inference_index(
+    profile: ProfileId,
+    modules: &[ModuleId],
+    coupling_edges: &[Arc<[u32]>],
+) -> ComponentIndex {
+    let partition = strongly_connected_components(coupling_edges);
+    let membership = ComponentMembership::from_partition(&partition, modules.len());
+
+    ComponentIndex::from_membership(profile, modules, &membership)
 }
 
 /// Stable component index ordered by component id.
@@ -811,6 +821,26 @@ struct ComponentDependencies {
     targets: Vec<Arc<[ComponentId]>>,
     /// Per-component topological rank.
     ranks: Vec<u32>,
+}
+
+/// Write complete module edges as dense target indexes.
+fn dense_module_edges(
+    modules: &[ModuleId],
+    edges: &IndexMap<ModuleId, Arc<[ModuleId]>>,
+) -> Arc<[Arc<[u32]>]> {
+    let module_index = module_index_map(modules);
+    let mut dense_edges = Vec::with_capacity(modules.len());
+
+    // transcribe every source and target directly
+    for module in modules {
+        let targets = edges[module]
+            .iter()
+            .map(|target| module_index[target])
+            .collect::<Vec<_>>();
+        dense_edges.push(Arc::from(targets));
+    }
+
+    Arc::from(dense_edges)
 }
 
 /// Return dense indexes keyed by module id.
@@ -1012,8 +1042,9 @@ mod tests {
         let third = module(3);
         let edges = graph_edges(&[(first, &[second, third]), (second, &[]), (third, &[])]);
         let graph = ComponentGraph::from_edges(profile(), edges.clone(), no_coupling(&edges));
+        let coupling = graph_edges(&[(first, &[]), (third, &[])]);
 
-        let derived = graph.derive(IndexMap::new(), vec![second], no_coupling(&edges));
+        let derived = graph.derive(IndexMap::new(), vec![second], coupling);
 
         assert_eq!(derived.edges(first).as_ref(), &[third]);
         assert!(derived.edges(second).is_empty());
