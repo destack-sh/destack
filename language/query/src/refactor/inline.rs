@@ -1,19 +1,16 @@
-use std::collections::{HashMap, HashSet};
-
-use destack_core::StringPool;
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::{FileId, FilePatch, ModuleId, Patch, PatchSet, Span};
+use destack_source::{FileId, FilePatch, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::source::{is_simple_identifier, offset_line_start};
-use crate::{MemberKeyName, ModuleQueryContext, Position, ProgramQueryContext};
+use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult};
 
 /// Request payload for inline refactor queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct InlineRequest {
     /// The queried position.
-    pub position: Position,
+    pub position: QueryPosition,
 }
 
 /// Response payload for inline refactor queries.
@@ -23,1160 +20,984 @@ pub struct InlineResponse {
     pub edit: Option<PatchSet>,
 }
 
-/// Replacement strategy for an inline reference.
-enum ReferenceReplacement {
-    /// Inline the value expression directly.
-    Inline,
-    /// Expand an object shorthand property with an explicit value.
-    ObjectShorthand {
-        /// The property name to emit.
-        name: String,
-    },
+/// One binding declaration selected for inlining.
+struct InlineTarget {
+    /// The declarator that owns the binding.
+    declarator: dir::LocalNodeId<dir::Declarator>,
+    /// The let expression that owns the declarator.
+    statement: dir::LocalNodeId<dir::Expression>,
+    /// The initializer expression.
+    value: dir::LocalNodeId<dir::Expression>,
+    /// The selected object pattern field, when destructuring.
+    field: Option<dir::LocalNodeId<dir::PatternField>>,
+    /// The object pattern that owns the selected field.
+    object: Option<dir::LocalNodeId<dir::Pattern>>,
 }
 
-/// One reference replacement for inline edits.
+/// Source text and evaluation properties of one inline value.
+struct InlineValue {
+    /// The emitted source text.
+    text: String,
+    /// The expression precedence after any checked projection.
+    precedence: dir::OperatorPrecedence,
+    /// Whether postfix use requires explicit grouping.
+    needs_postfix_group: bool,
+    /// Whether the value can be evaluated repeatedly.
+    is_repeatable: bool,
+}
+
+/// One exact indexed reference selected for replacement.
 struct InlineReference {
-    /// The expression id for the reference.
-    expr_id: dir::LocalNodeId<dir::Expression>,
-    /// The span to replace.
+    /// The reference expression node.
+    expression: dir::LocalNodeId<dir::Expression>,
+    /// The exact indexed occurrence span.
     span: Span,
-    /// The replacement strategy.
-    replacement: ReferenceReplacement,
+    /// The shorthand property name retained by expansion.
+    shorthand: Option<String>,
 }
 
-/// Captured symbol metadata for shadowing checks.
-struct CapturedSymbol {
-    /// The symbol name key for fast comparisons.
-    name_key: dir::StaticKey,
-    /// The canonical symbol id.
-    canonical_id: dir::GlobalSymbolId,
-}
-
-/// Access path segment for destructured bindings.
-#[derive(Debug, Clone)]
-enum AccessSegment {
-    /// Property access by name.
-    Property(String),
-    /// Index access by position.
-    Index(usize),
-}
-
-/// Scope-chain symbol lookup over a binding table.
-trait ScopeSymbolLookup {
-    /// Resolve a symbol within one scope chain.
-    fn resolve_symbol_in_scope(
-        &self,
-        scope_id: dir::LocalScopeId,
-        scope_mark: dir::LocalScopeMark,
-        key: dir::StaticKey,
-    ) -> Option<dir::LocalSymbolId>;
-}
-
-impl ScopeSymbolLookup for dir::BindingTable<'_> {
-    fn resolve_symbol_in_scope(
-        &self,
-        mut scope_id: dir::LocalScopeId,
-        mut scope_mark: dir::LocalScopeMark,
-        key: dir::StaticKey,
-    ) -> Option<dir::LocalSymbolId> {
-        loop {
-            let scope = self.get_scope_by_id(scope_id);
-            if let Some(symbol_id) = scope.find_symbol_up_to(key, scope_mark) {
-                return Some(symbol_id);
-            }
-
-            let parent = scope.parent?;
-            scope_id = parent.id;
-            scope_mark = parent.mark;
-        }
-    }
-}
-
-/// The declarator and owning statement for an inline target.
-struct InlineDeclarator {
-    /// The declarator id.
-    declarator_id: dir::LocalNodeId<dir::Declarator>,
-    /// The owning let statement id.
-    statement_id: dir::LocalNodeId<dir::Expression>,
-}
-
-impl InlineDeclarator {
-    /// Find the inline declarator and owning statement for a declaration.
-    fn find(view: dir::View<'_>, declaration_id: dir::LocalNodeIdAny) -> Option<Self> {
-        let mut current = declaration_id;
-        let mut declarator_id = None;
-        let mut statement_id = None;
-
-        while let Some(parent) = view.get_parent_any(current) {
-            if parent.ty == dir::NodeType::Declarator {
-                let Ok(typed) = parent.try_into() else {
-                    return None;
-                };
-                declarator_id = Some(typed);
-            }
-
-            if parent.ty == dir::NodeType::Expression {
-                let Ok(typed) = parent.try_into() else {
-                    return None;
-                };
-                let expr = view.get::<dir::Expression>(typed);
-                if matches!(expr, dir::Expression::Let { .. }) {
-                    statement_id = Some(typed);
-                }
-            }
-
-            if declarator_id.is_some() && statement_id.is_some() {
-                break;
-            }
-
-            current = parent;
-        }
-
-        Some(Self {
-            declarator_id: declarator_id?,
-            statement_id: statement_id?,
-        })
-    }
-
-    /// Resolve the initializer expression for this declarator.
-    fn value(&self, view: dir::View<'_>) -> Option<dir::LocalNodeId<dir::Expression>> {
-        let statement = view.get::<dir::Expression>(self.statement_id);
-        let declarators = match statement {
-            dir::Expression::Let { declarators, .. } => declarators,
-            _ => return None,
-        };
-        if !declarators.contains(&self.declarator_id) {
-            return None;
-        }
-
-        let declarator = view.get::<dir::Declarator>(self.declarator_id);
-
-        declarator.value
-    }
-}
-
-/// Removal span computation for an inlined declarator.
-struct DeclaratorRemoval;
-
-impl DeclaratorRemoval {
-    /// Resolve the removal span for one declarator.
-    fn span(
-        source: &str,
-        statement_span: Span,
-        declarator_spans: &[(dir::LocalNodeId<dir::Declarator>, Span)],
-        target_id: dir::LocalNodeId<dir::Declarator>,
-    ) -> Option<Span> {
-        let mut spans = declarator_spans.to_vec();
-        spans.sort_by_key(|(_, span)| (span.start, span.end));
-        let target_index = spans.iter().position(|(id, _)| *id == target_id)?;
-
-        if spans.len() == 1 {
-            return Some(Self::expanded_statement(source, statement_span));
-        }
-
-        if target_index + 1 < spans.len() {
-            let start = spans[target_index].1.start;
-            let end = spans[target_index + 1].1.start;
-            return Some(Span::new(statement_span.file, start, end));
-        }
-
-        if target_index > 0 {
-            let start = spans[target_index - 1].1.end;
-            let end = spans[target_index].1.end;
-            return Some(Span::new(statement_span.file, start, end));
-        }
-
-        None
-    }
-
-    /// Expand a statement span to include trailing whitespace and blank lines.
-    fn expanded_statement(source: &str, statement_span: Span) -> Span {
-        let start = offset_line_start(source, statement_span.start as usize);
-        let mut end = statement_span.end as usize;
-
-        if let Some(rest) = source.get(end..) {
-            if let Some(line_end) = rest.find('\n') {
-                end += line_end + 1;
-            }
-        }
-
-        if let Some(rest) = source.get(end..) {
-            if let Some(line_end) = rest.find('\n') {
-                let line = &rest[..line_end];
-                if line.trim().is_empty() {
-                    end += line_end + 1;
-                }
-            } else if rest.trim().is_empty() {
-                end = source.len();
-            }
-        }
-
-        Span::new(statement_span.file, start as u32, end as u32)
-    }
-}
-
-/// Source text for an inline expression replacement.
-struct InlineExpressionText<'a> {
-    /// The source value text.
-    value: &'a str,
-    /// The expression node for the value text.
-    expression: &'a dir::Expression,
-}
-
-impl<'a> InlineExpressionText<'a> {
-    /// Create inline expression text from source and DIR.
-    fn new(value: &'a str, expression: &'a dir::Expression) -> Self {
-        Self { value, expression }
-    }
-
-    /// Return formatted inline expression text.
-    fn text(&self) -> String {
-        let trimmed = self.value.trim().trim_end_matches(';').trim();
-        if trimmed.is_empty() {
-            return String::new();
-        }
-
-        if self.should_parenthesize(trimmed) {
-            format!("({trimmed})")
-        } else {
-            trimmed.to_string()
-        }
-    }
-
-    /// Return whether this expression text should be parenthesized.
-    fn should_parenthesize(&self, value: &str) -> bool {
-        if value.starts_with('(') && value.ends_with(')') {
-            return false;
-        }
-
-        if Self::is_simple_expression(self.expression) {
-            return false;
-        }
-
-        !value
-            .chars()
-            .all(|ch| ch.is_alphanumeric() || ch == '_' || ch == '.' || ch == '$')
-    }
-
-    /// Return whether an expression is simple enough to inline without parentheses.
-    fn is_simple_expression(expression: &dir::Expression) -> bool {
-        matches!(
-            expression,
-            dir::Expression::Member { .. }
-                | dir::Expression::Index { .. }
-                | dir::Expression::Call { .. }
-                | dir::Expression::New { .. }
-                | dir::Expression::ScalarLiteral { .. }
-                | dir::Expression::ImportMeta
-                | dir::Expression::This
-        )
-    }
-}
-
-impl ModuleQueryContext<'_> {
-    /// Detect whether a symbol is assigned within a scope.
-    fn symbol_is_assigned(&self, symbol_id: dir::GlobalSymbolId) -> bool {
-        let view = self.view();
-
-        // scan for assignments to this symbol
-        for (_expr_id, expr) in view.iter_nodes_of_type::<dir::Expression>() {
-            let target_symbol = match expr {
-                dir::Expression::Assign { left, .. } => self.assign_pattern_target_symbol(*left),
-                _ => None,
-            };
-
-            if target_symbol == Some(symbol_id) {
-                return true;
-            }
-        }
-
-        false
-    }
-}
-
-/// Visitor that collects symbols captured by an inline value.
-struct CapturedSymbolVisitor<'a> {
-    /// The module for symbol lookups.
-    module: &'a ModuleQueryContext<'a>,
-    /// The checked resolution table.
-    resolutions: &'a dir::ResolutionTable<'a>,
-    /// The symbol table for the current module.
-    symbols: &'a dir::BindingTable<'a>,
-    /// The module that owns visited nodes.
-    module_id: destack_source::ModuleId,
-    /// The symbol being inlined.
-    inline_symbol: dir::GlobalSymbolId,
-    /// Collected captured symbols keyed by name.
-    captured: &'a mut HashMap<dir::StaticKey, dir::GlobalSymbolId>,
-    /// Whether an unresolved capture was encountered.
-    has_unresolved_capture: &'a mut bool,
-    /// The visitor options for traversal.
-    options: dir::NodeVisitorOptions,
-}
-
-impl<'a> CapturedSymbolVisitor<'a> {
-    /// Create a visitor for captured symbols.
-    fn new(
-        module: &'a ModuleQueryContext<'a>,
-        resolutions: &'a dir::ResolutionTable<'a>,
-        symbols: &'a dir::BindingTable<'a>,
-        module_id: ModuleId,
-        inline_symbol: dir::GlobalSymbolId,
-        captured: &'a mut HashMap<dir::StaticKey, dir::GlobalSymbolId>,
-        has_unresolved_capture: &'a mut bool,
-    ) -> Self {
-        Self {
-            module,
-            resolutions,
-            symbols,
-            module_id,
-            inline_symbol,
-            captured,
-            has_unresolved_capture,
-            options: dir::NodeVisitorOptions::default(),
-        }
-    }
-}
-
-impl dir::NodeVisitor for CapturedSymbolVisitor<'_> {
-    /// Return visitor options.
-    fn options(&self) -> &dir::NodeVisitorOptions {
-        &self.options
-    }
-
-    /// Visit expressions and collect captured symbols.
-    fn visit_expression(
-        &mut self,
-        tree: &dir::Tree,
-        id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
-    ) {
-        if *self.has_unresolved_capture {
-            return;
-        }
-
-        let node_id = id.into_global_any(self.module_id);
-        let target_symbol = self.resolutions.symbol_resolution(node_id);
-
-        if let Some(target_symbol) = target_symbol {
-            let canonical = self.module.canonical_symbol(target_symbol);
-            if canonical != self.inline_symbol {
-                if target_symbol.module_id != self.module_id {
-                    *self.has_unresolved_capture = true;
-                    return;
-                }
-
-                let symbol = self.symbols.get_symbol(target_symbol.local_id);
-                let Some(key) = symbol.key else {
-                    *self.has_unresolved_capture = true;
-                    return;
-                };
-
-                if let Some(existing) = self.captured.get(&key) {
-                    if *existing != canonical {
-                        *self.has_unresolved_capture = true;
-                        return;
-                    }
-                } else {
-                    self.captured.insert(key, canonical);
-                }
-            }
-        }
-
-        dir::walk_expression(self, tree, id, expression);
-    }
-}
-
-/// Visitor that detects side effects in expressions.
-struct SideEffectVisitor {
-    /// Whether any side effect was found.
-    has_side_effects: bool,
-    /// The visitor options for traversal.
-    options: dir::NodeVisitorOptions,
-}
-
-impl SideEffectVisitor {
-    /// Create a new side effect visitor.
-    fn new() -> Self {
-        Self {
-            has_side_effects: false,
-            options: dir::NodeVisitorOptions::default(),
-        }
-    }
-
-    /// Detect whether an expression produces side effects.
-    fn detect(view: dir::View<'_>, expr_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let raw_tree = view.tree();
-        let expr = raw_tree.get::<dir::Expression>(expr_id);
-        let mut visitor = Self::new();
-        dir::NodeVisitor::visit_expression(&mut visitor, raw_tree, expr_id, expr);
-
-        visitor.has_side_effects
-    }
-}
-
-impl dir::NodeVisitor for SideEffectVisitor {
-    /// Return visitor options.
-    fn options(&self) -> &dir::NodeVisitorOptions {
-        &self.options
-    }
-
-    /// Visit expressions and detect side effects.
-    fn visit_expression(
-        &mut self,
-        tree: &dir::Tree,
-        id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
-    ) {
-        if self.has_side_effects {
-            return;
-        }
-
-        if matches!(
-            expression,
-            dir::Expression::Call { .. }
-                | dir::Expression::New { .. }
-                | dir::Expression::Assign { .. }
-                | dir::Expression::Throw { .. }
-                | dir::Expression::Await { .. }
-                | dir::Expression::AwaitMaybe { .. }
-                | dir::Expression::Yield { .. }
-                | dir::Expression::Return { .. }
-                | dir::Expression::Break { .. }
-                | dir::Expression::Continue { .. }
-                | dir::Expression::Loop { .. }
-                | dir::Expression::ForEach { .. }
-                | dir::Expression::For { .. }
-        ) {
-            self.has_side_effects = true;
-            return;
-        }
-
-        dir::walk_expression(self, tree, id, expression);
-    }
-}
+/// Removal span computation for one inlined binding.
+struct InlineRemoval;
 
 impl ModuleQueryContext<'_> {
     /// Inline the symbol at the given position.
-    pub fn inline_symbol(
+    pub fn inline(
         &self,
         program: &ProgramQueryContext<'_>,
+        file: FileId,
         offset: u32,
-    ) -> Option<PatchSet> {
-        let repository = self.repository();
-        let revision = self.revision();
-        let file = self.file_id();
-
-        // find the symbol at the cursor
-        let symbol_at = self.find_symbol_at_offset(offset)?;
-        let canonical_id = self.canonical_symbol(symbol_at.symbol_id);
-
-        // only inline symbols defined in this file
-        let definition_span = self.symbol_definition_span(canonical_id)?;
-        if definition_span.file != file {
-            return None;
-        }
-
-        // read the symbol metadata
-        let declaration = {
-            let symbols = self.symbols();
-            let symbol = symbols.get_symbol(canonical_id.local_id);
-            let declaration = symbol.declaration?;
-
-            // avoid inlining symbols that are exported from the module
-            if symbol.export_kind.is_some() {
-                return None;
-            }
-
-            declaration
+    ) -> QueryResult<Option<PatchSet>> {
+        // resolve one exact local symbol
+        let Some(occurrence) = self.symbol_at_offset(file, offset)? else {
+            return Ok(None);
         };
-
-        // find the declarator that owns the symbol
-        let view = self.view();
-        let declaration_id = declaration.local_id;
-        let inline_declarator = InlineDeclarator::find(view, declaration_id)?;
-
-        // resolve the initializer expression
-        let value_id = inline_declarator.value(view)?;
-        let declarator = view.get::<dir::Declarator>(inline_declarator.declarator_id);
-        let statement_span = self.get_span(view, inline_declarator.statement_id.into());
-
-        // resolve the initializer text
-        let source_file = repository
-            .file(revision, file)
-            .unwrap_or_else(|error| panic!("failed to read inline source file {file:?}: {error}"))
-            .unwrap_or_else(|| panic!("missing inline source file {file:?}"));
-        let value_span = self.get_span(view, value_id.into());
-        let value_expression = view.get::<dir::Expression>(value_id);
-        let value_text = source_file.span_str(value_span);
-        let inline_base = InlineExpressionText::new(value_text, value_expression).text();
-        if inline_base.is_empty() {
-            return None;
+        let Some(symbol) = occurrence.symbol() else {
+            return Ok(None);
+        };
+        let Some(symbol) = program.canonical_symbol(symbol)? else {
+            return Ok(None);
+        };
+        if symbol.module_id != self.module_id() {
+            return Ok(None);
         }
 
-        // resolve destructuring paths for inline expressions
-        let binding_count = self.count_pattern_bindings(view, declarator.pattern);
-        if binding_count != 1 {
-            return None;
+        // require one unexported authored declaration in this file
+        let symbols = self.symbols();
+        let symbol_record = symbols.get_symbol(symbol.local_id);
+        let Some(declaration) = symbol_record.declaration else {
+            return Ok(None);
+        };
+        if symbol_record.export_kind.is_some() {
+            return Ok(None);
+        }
+        let Some(definition_span) = program.symbol_definition_span(symbol)? else {
+            return Ok(None);
+        };
+        if definition_span.file != file {
+            return Ok(None);
         }
 
-        let access_path = self.pattern_access_path(
-            self.strings(),
-            view,
-            declarator.pattern,
-            canonical_id.local_id,
-        )?;
-        let inline_text = Self::apply_access_path(&inline_base, &access_path);
-        if inline_text.is_empty() {
-            return None;
+        // resolve the exact binding and its initializer
+        let Some(target) = InlineTarget::resolve(declaration, self)? else {
+            return Ok(None);
+        };
+        if self.symbol_is_assigned(symbol) {
+            return Ok(None);
         }
 
-        let mut edits_by_file: HashMap<FileId, Vec<Patch>> = HashMap::new();
-        let reference_name = self.symbol_name(canonical_id);
-        let reference_entries =
-            self.collect_inline_reference_entries(canonical_id, file, reference_name);
-        if reference_entries.is_empty() {
-            return None;
+        // read the one source file used by this local refactor
+        let source_file = self
+            .repository()
+            .file(self.revision(), file)?
+            .ok_or(QueryError::missing(format!("source file: {file:?}")))?;
+        let source = source_file.text();
+
+        // resolve exact persisted references
+        let indexed = program.symbol_reference_entries(symbol)?;
+        if indexed.is_empty() || indexed.iter().any(|entry| entry.span.file != file) {
+            return Ok(None);
+        }
+        let references = self.inline_references(program, symbol, &indexed)?;
+
+        // build the checked replacement value
+        let Some(value) = target.value(source_file.as_ref(), program, self)? else {
+            return Ok(None);
+        };
+        if !self.inline_captures_are_preserved(program, target.value, &references)? {
+            return Ok(None);
         }
 
-        // refuse to inline when there are references outside the defining file
-        for entry in program.symbol_reference_entries(canonical_id) {
-            if entry.span.file != file {
-                return None;
-            }
-        }
-
-        // avoid duplicating side effects when inlining into multiple references
-        let has_side_effects = SideEffectVisitor::detect(view, value_id);
-        if has_side_effects && reference_entries.len() > 1 {
-            return None;
-        }
-
-        // ensure the symbol is not reassigned
-        if self.symbol_is_assigned(canonical_id) {
-            return None;
-        }
-
-        // avoid shadowing captured symbols in new contexts
-        let captured_symbols = self.collect_captured_symbols(view, value_id, canonical_id)?;
-        if !captured_symbols.is_empty()
-            && !self.inline_shadow_safe(view, &reference_entries, &captured_symbols)
+        // preserve evaluation count and order
+        if !value.is_repeatable
+            && (references.len() != 1
+                || !target.single_use_preserves_evaluation(
+                    references[0].expression,
+                    source,
+                    self,
+                )?)
         {
-            return None;
+            return Ok(None);
         }
 
-        for entry in reference_entries {
-            let replacement_text = match &entry.replacement {
-                ReferenceReplacement::Inline => inline_text.clone(),
-                ReferenceReplacement::ObjectShorthand { name } => format!("{name}: {inline_text}"),
-            };
-            edits_by_file
-                .entry(entry.span.file)
-                .or_default()
-                .push(Patch::replace(entry.span, replacement_text));
+        // emit every replacement and remove the selected binding
+        let mut file_edit = FilePatch::new(file);
+        for reference in references {
+            let replacement = reference.replacement(&value, self);
+            file_edit.push(Patch::replace(reference.span, replacement));
         }
+        let removal = target.removal_span(source, self)?;
+        file_edit.push(Patch::replace(removal, String::new()));
+        file_edit.sort();
 
-        // remove the declaration statement or declarator
-        let declarator_spans =
-            self.statement_declarator_spans(view, inline_declarator.statement_id)?;
-        let removal_span = DeclaratorRemoval::span(
-            source_file.text(),
-            statement_span,
-            &declarator_spans,
-            inline_declarator.declarator_id,
-        )?;
-        edits_by_file
-            .entry(file)
-            .or_default()
-            .push(Patch::replace(removal_span, String::new()));
+        let mut edit = PatchSet::new();
+        edit.push(file_edit);
 
-        // build batch edits
-        let mut batch_edit = PatchSet::new();
-        for (file_id, edits) in edits_by_file {
-            let mut file_edit = FilePatch::with_patches(file_id, edits);
-            file_edit.sort();
-            batch_edit.push(file_edit);
-        }
-
-        Some(batch_edit)
+        Ok(Some(edit))
     }
 
-    /// Collect reference entries for the inline target symbol.
-    fn collect_inline_reference_entries(
+    /// Return whether checked assignment targets write one symbol.
+    fn symbol_is_assigned(&self, symbol: dir::GlobalSymbolId) -> bool {
+        self.writable_places().any(|place| {
+            matches!(
+                &place.storage,
+                dir::Storage::Binding { symbol: written } if *written == symbol
+            )
+        })
+    }
+
+    /// Resolve exact indexed references to their authored expression nodes.
+    fn inline_references(
         &self,
-        canonical_id: dir::GlobalSymbolId,
-        file: FileId,
-        reference_name: Option<String>,
-    ) -> Vec<InlineReference> {
-        // collect reference expressions for the inline target
-        let view = self.view();
-        let mut entries = Vec::new();
+        program: &ProgramQueryContext<'_>,
+        symbol: dir::GlobalSymbolId,
+        entries: &[dir::ReferenceEntry],
+    ) -> QueryResult<Vec<InlineReference>> {
+        let mut references = Vec::with_capacity(entries.len());
 
-        for (expr_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
-            if matches!(expression, dir::Expression::Member { .. }) {
-                continue;
-            }
-
-            let Some(target_symbol) = self.expression_symbol_target(expr_id) else {
-                continue;
-            };
-            let target_canonical = self.canonical_symbol(target_symbol);
-            if target_canonical != canonical_id {
-                continue;
-            }
-
-            let span = self.expression_reference_span(view, expr_id);
-            if span.file != file {
-                continue;
-            }
-
-            entries.push(InlineReference {
-                expr_id,
-                span,
-                replacement: ReferenceReplacement::Inline,
+        // retain one replacement per exact occurrence
+        for entry in entries {
+            let expression = self.inline_reference_expression(program, symbol, entry.span)?;
+            let shorthand = self.inline_shorthand_name(expression)?;
+            references.push(InlineReference {
+                expression,
+                span: entry.span,
+                shorthand,
             });
         }
+        references.sort_by_key(|reference| (reference.span.start, reference.span.end));
+        references.dedup_by_key(|reference| reference.span);
 
-        // collect object literal shorthand references
-        let Some(reference_name) = reference_name.as_deref() else {
-            entries.sort_by_key(|entry| (entry.span.start, entry.span.end));
-            entries.dedup_by(|left, right| {
-                left.span.start == right.span.start && left.span.end == right.span.end
-            });
-            return entries;
-        };
+        Ok(references)
+    }
 
-        let symbols = self.symbols();
-        for (property_id, property) in view.iter_nodes_of_type::<dir::Property>() {
-            let dir::Property::Field { key, value, .. } = property else {
+    /// Resolve one persisted reference span to its exact checked expression.
+    fn inline_reference_expression(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        symbol: dir::GlobalSymbolId,
+        span: Span,
+    ) -> QueryResult<dir::LocalNodeId<dir::Expression>> {
+        let view = self.view();
+        let offsets = [span.start, span.end.saturating_sub(1)];
+        let enclosing = self.enclosing_spans_at_offsets(span.file, offsets);
+
+        // match the indexed name span and checked target together
+        for enclosing_span in enclosing {
+            let Some(node) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-
-            let Some(key_name) = key.member_name(self.strings()) else {
-                continue;
-            };
-            if key_name != reference_name {
+            if node.ty != dir::NodeType::Expression {
                 continue;
             }
-            let Some(target_symbol) = self.expression_symbol_target(*value) else {
-                continue;
-            };
-            let target_symbol = self.canonical_symbol(target_symbol);
-            if target_symbol != canonical_id {
+            let expression = dir::LocalNodeId::<dir::Expression>::new(node.id);
+            if self.node_selection_span(view, node) != Some(span) {
                 continue;
             }
-
-            let Some(expr_id) = Self::property_parent_expression(view, property_id) else {
-                continue;
-            };
-            let Some(scope) = self.node_scope(expr_id.into()) else {
-                continue;
-            };
-            let Some(static_key) = key.direct_static_key() else {
-                continue;
-            };
-            let Some(resolved_local) =
-                symbols.resolve_symbol_in_scope(scope.id, scope.mark, static_key)
+            let Some(targets) = self.recorded_symbol_targets(node.into_global(self.module_id()))
             else {
                 continue;
             };
-            let resolved_global = dir::GlobalSymbolId::new(self.module_id(), resolved_local);
-            let resolved_canonical = self.canonical_symbol(resolved_global);
-            if resolved_canonical != canonical_id {
+            let targets = canonical_symbols(program, targets)?;
+            let is_target = targets.contains(&symbol);
+            if is_target {
+                return Ok(expression);
+            }
+        }
+
+        Err(QueryError::missing(format!(
+            "inline reference: {symbol:?}, {span:?}"
+        )))
+    }
+
+    /// Return the retained key for one exact object shorthand reference.
+    fn inline_shorthand_name(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> QueryResult<Option<String>> {
+        let view = self.view();
+        let Some(parent) = view.get_parent_for(expression) else {
+            return Ok(None);
+        };
+        if parent.ty != dir::NodeType::Property {
+            return Ok(None);
+        }
+
+        let property_id = dir::LocalNodeId::<dir::Property>::new(parent.id);
+        let dir::Property::Field {
+            key: dir::Key::Name(name),
+            value,
+            is_shorthand: true,
+        } = view.get(property_id)
+        else {
+            return Ok(None);
+        };
+        if *value != expression {
+            return Err(QueryError::invalid(format!(
+                "inline node: {:?}",
+                parent.into_global(self.module_id())
+            )));
+        }
+        let Some(name) = name.static_key().name() else {
+            return Err(QueryError::invalid(format!(
+                "inline node: {:?}",
+                parent.into_global(self.module_id())
+            )));
+        };
+
+        Ok(Some(self.strings().get(name).to_string()))
+    }
+
+    /// Return whether every captured name resolves identically at every replacement.
+    fn inline_captures_are_preserved(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        value: dir::LocalNodeId<dir::Expression>,
+        references: &[InlineReference],
+    ) -> QueryResult<bool> {
+        let view = self.view();
+        let mut captures = Vec::new();
+
+        // collect exact name resolutions inside the initializer
+        for (expression, node) in view.iter_nodes_of_type::<dir::Expression>() {
+            let dir::Expression::Identifier { name } = node else {
+                continue;
+            };
+            if !node_is_within(expression.into(), value.into(), view) {
                 continue;
             }
+            let source = expression.into_global_any(self.module_id());
+            let Some(targets) = self.recorded_symbol_targets(source) else {
+                return Err(QueryError::missing(format!("inline capture: {source:?}")));
+            };
+            let targets = canonical_symbols(program, targets)?;
+            if targets.is_empty() {
+                return Err(QueryError::missing(format!("inline capture: {source:?}")));
+            }
+            captures.push((*name, targets));
+        }
 
-            let span = self.get_main_span(view, property_id.into());
-            if span.file != file {
-                continue;
+        // compare lexical selection at every replacement position
+        for reference in references {
+            for (name, expected) in &captures {
+                let lookup = self.symbols().lookup_symbol_at(
+                    &view,
+                    reference.expression.into(),
+                    dir::StaticKey::Name(*name),
+                    dir::SymbolSpace::Declaration,
+                );
+                let actual = lookup_symbols(program, self.module_id(), lookup)?;
+                if &actual != expected {
+                    return Ok(false);
+                }
+            }
+        }
+
+        Ok(true)
+    }
+}
+
+impl InlineTarget {
+    /// Resolve one selected binding declaration and its owning let expression.
+    fn resolve(
+        declaration: dir::GlobalNodeIdAny,
+        module: &ModuleQueryContext<'_>,
+    ) -> QueryResult<Option<Self>> {
+        if declaration.module_id != module.module_id() {
+            return Ok(None);
+        }
+        let view = module.view();
+
+        // distinguish direct and object-pattern bindings
+        let (field, object, declarator_node) =
+            if declaration.local_id.ty == dir::NodeType::PatternField {
+                let field = dir::LocalNodeId::<dir::PatternField>::new(declaration.local_id.id);
+                let Some(object_node) = view.get_parent_for(field) else {
+                    return Err(QueryError::invalid(format!("inline node: {declaration:?}")));
+                };
+                if object_node.ty != dir::NodeType::Pattern {
+                    return Ok(None);
+                }
+                let object = dir::LocalNodeId::<dir::Pattern>::new(object_node.id);
+                if !matches!(view.get(object), dir::Pattern::Object { .. }) {
+                    return Ok(None);
+                }
+                let Some(declarator_node) = view.get_parent_for(object) else {
+                    return Err(QueryError::invalid(format!(
+                        "inline node: {:?}",
+                        object_node.into_global(module.module_id())
+                    )));
+                };
+
+                (Some(field), Some(object), declarator_node)
+            } else if declaration.local_id.ty == dir::NodeType::Pattern {
+                let binding = dir::LocalNodeId::<dir::Pattern>::new(declaration.local_id.id);
+                if !matches!(view.get(binding), dir::Pattern::Binding { .. }) {
+                    return Ok(None);
+                }
+                let Some(parent) = view.get_parent_for(binding) else {
+                    return Ok(None);
+                };
+                if parent.ty == dir::NodeType::Declarator {
+                    (None, None, parent)
+                } else if parent.ty == dir::NodeType::PatternField {
+                    let field = dir::LocalNodeId::<dir::PatternField>::new(parent.id);
+                    let Some(object_node) = view.get_parent_for(field) else {
+                        return Err(QueryError::invalid(format!("inline node: {declaration:?}")));
+                    };
+                    if object_node.ty != dir::NodeType::Pattern {
+                        return Ok(None);
+                    }
+                    let object = dir::LocalNodeId::<dir::Pattern>::new(object_node.id);
+                    if !matches!(view.get(object), dir::Pattern::Object { .. }) {
+                        return Ok(None);
+                    }
+                    let Some(declarator_node) = view.get_parent_for(object) else {
+                        return Err(QueryError::invalid(format!(
+                            "inline node: {:?}",
+                            object_node.into_global(module.module_id())
+                        )));
+                    };
+
+                    (Some(field), Some(object), declarator_node)
+                } else {
+                    return Ok(None);
+                }
+            } else {
+                return Ok(None);
+            };
+        if declarator_node.ty != dir::NodeType::Declarator {
+            return Ok(None);
+        }
+
+        // require one initialized let declarator
+        let declarator = dir::LocalNodeId::<dir::Declarator>::new(declarator_node.id);
+        let Some(value) = view.get(declarator).value else {
+            return Ok(None);
+        };
+        let Some(statement_node) = view.get_parent_for(declarator) else {
+            return Err(QueryError::invalid(format!(
+                "inline node: {:?}",
+                declarator_node.into_global(module.module_id())
+            )));
+        };
+        if statement_node.ty != dir::NodeType::Expression {
+            return Ok(None);
+        }
+        let statement = dir::LocalNodeId::<dir::Expression>::new(statement_node.id);
+        if !matches!(view.get(statement), dir::Expression::Let { .. }) {
+            return Ok(None);
+        }
+
+        Ok(Some(Self {
+            declarator,
+            statement,
+            value,
+            field,
+            object,
+        }))
+    }
+
+    /// Build the exact source value inserted at every reference.
+    fn value(
+        &self,
+        source: &destack_source::File,
+        program: &ProgramQueryContext<'_>,
+        module: &ModuleQueryContext<'_>,
+    ) -> QueryResult<Option<InlineValue>> {
+        let view = module.view();
+        let span = module.node_span(view, self.value.into())?;
+        let text = source
+            .get_span_str(span)
+            .ok_or(QueryError::invalid(format!("source span: {span:?}")))?;
+        let text = text.trim().trim_end_matches(';').trim();
+        if text.is_empty() {
+            return Ok(None);
+        }
+
+        // classify the authored initializer
+        let Some(mut value) = InlineValue::from_expression(text.to_string(), self.value, module)?
+        else {
+            return Ok(None);
+        };
+
+        // append the exact checked destructuring projection
+        if let (Some(field), Some(object)) = (self.field, self.object) {
+            let Some(access) = self.projection_access(field, object, program, module)? else {
+                return Ok(None);
+            };
+            if value.precedence < dir::OperatorPrecedence::Postfix || value.needs_postfix_group {
+                value.text = format!("({}){access}", value.text);
+            } else {
+                value.text.push_str(&access);
+            }
+            value.precedence = dir::OperatorPrecedence::Postfix;
+            value.needs_postfix_group = false;
+        }
+
+        Ok(Some(value))
+    }
+
+    /// Return source access for the checked projection of one object field.
+    fn projection_access(
+        &self,
+        field: dir::LocalNodeId<dir::PatternField>,
+        object: dir::LocalNodeId<dir::Pattern>,
+        program: &ProgramQueryContext<'_>,
+        module: &ModuleQueryContext<'_>,
+    ) -> QueryResult<Option<String>> {
+        let source = object.into_global_any(module.module_id());
+        let Some(dir::PatternResolution::Destructure(resolution)) =
+            module.resolutions().pattern_resolution(source)
+        else {
+            return Err(QueryError::missing(format!("inline pattern: {source:?}")));
+        };
+        let dir::PatternDestructureResolution::Object(resolution) = resolution.as_ref() else {
+            return Err(QueryError::invalid(format!("inline node: {source:?}")));
+        };
+        let field_source = field.into_global_any(module.module_id());
+        let Some(field_resolution) = resolution
+            .fields
+            .iter()
+            .find(|resolution| resolution.source == field_source)
+        else {
+            return Err(QueryError::missing(format!(
+                "inline pattern: {field_source:?}"
+            )));
+        };
+        let dir::Projection::FieldGet { field, .. } = field_resolution.projection else {
+            return Ok(None);
+        };
+
+        let access = match field {
+            dir::ProjectionField::Key(dir::StaticKey::Name(name)) => {
+                let name = module.strings().get(name);
+                if !is_simple_identifier(name) {
+                    return Ok(None);
+                }
+
+                format!(".{name}")
+            }
+            dir::ProjectionField::Key(dir::StaticKey::Index(index)) => format!("[{index}]"),
+            dir::ProjectionField::Key(dir::StaticKey::Symbol(_)) => return Ok(None),
+            dir::ProjectionField::Member(symbol) => {
+                let Some(name) = program.symbol_name(symbol)? else {
+                    return Err(QueryError::missing(format!(
+                        "inline projection: {field_source:?}"
+                    )));
+                };
+                if !is_simple_identifier(&name) {
+                    return Ok(None);
+                }
+
+                format!(".{name}")
+            }
+        };
+
+        Ok(Some(access))
+    }
+
+    /// Return whether moving one single-use initializer preserves its evaluation point.
+    fn single_use_preserves_evaluation(
+        &self,
+        reference: dir::LocalNodeId<dir::Expression>,
+        source: &str,
+        module: &ModuleQueryContext<'_>,
+    ) -> QueryResult<bool> {
+        let view = module.view();
+        let Some(reference_statement) = initial_value_statement(reference, view) else {
+            return Ok(false);
+        };
+        let declaration_span = module.node_span(view, self.statement.into())?;
+        let reference_span = module.node_span(view, reference_statement.into())?;
+        if declaration_span.file != reference_span.file
+            || declaration_span.end > reference_span.start
+        {
+            return Ok(false);
+        }
+        let Some(between) =
+            source.get(declaration_span.end as usize..reference_span.start as usize)
+        else {
+            return Err(QueryError::invalid(format!(
+                "source span: {:?}",
+                Span::new(
+                    declaration_span.file,
+                    declaration_span.end,
+                    reference_span.start,
+                )
+            )));
+        };
+
+        Ok(matches!(between.trim(), "" | ";"))
+    }
+
+    /// Resolve the exact declaration or pattern-field removal span.
+    fn removal_span(&self, source: &str, module: &ModuleQueryContext<'_>) -> QueryResult<Span> {
+        let view = module.view();
+
+        // remove only one field from a shared object pattern
+        if let (Some(field), Some(object)) = (self.field, self.object) {
+            let dir::Pattern::Object { fields } = view.get(object) else {
+                return Err(QueryError::invalid(format!(
+                    "inline node: {:?}",
+                    object.into_global_any(module.module_id())
+                )));
+            };
+            if fields.len() > 1 {
+                let spans = fields
+                    .iter()
+                    .map(|field| {
+                        let span = module.node_span(view, (*field).into())?;
+
+                        Ok((*field, span))
+                    })
+                    .collect::<QueryResult<Vec<_>>>()?;
+
+                return InlineRemoval::list_item(&spans, field).ok_or(QueryError::missing(
+                    format!(
+                        "inline pattern: {:?}",
+                        field.into_global_any(module.module_id())
+                    ),
+                ));
+            }
+        }
+
+        // remove one declarator or its complete statement
+        let statement_span = module.node_span(view, self.statement.into())?;
+        let dir::Expression::Let { declarators, .. } = view.get(self.statement) else {
+            return Err(QueryError::invalid(format!(
+                "inline node: {:?}",
+                self.statement.into_global_any(module.module_id())
+            )));
+        };
+        let spans = declarators
+            .iter()
+            .map(|declarator| {
+                let span = module.node_span(view, (*declarator).into())?;
+
+                Ok((*declarator, span))
+            })
+            .collect::<QueryResult<Vec<_>>>()?;
+        if spans.len() == 1 {
+            InlineRemoval::statement(source, statement_span)
+        } else {
+            InlineRemoval::list_item(&spans, self.declarator).ok_or(QueryError::invalid(format!(
+                "inline node: {:?}",
+                self.declarator.into_global_any(module.module_id())
+            )))
+        }
+    }
+}
+
+impl InlineValue {
+    /// Classify one checked initializer for safe movement and duplication.
+    fn from_expression(
+        text: String,
+        expression: dir::LocalNodeId<dir::Expression>,
+        module: &ModuleQueryContext<'_>,
+    ) -> QueryResult<Option<Self>> {
+        let Some(is_repeatable) = expression_repeatability(expression, module)? else {
+            return Ok(None);
+        };
+        let node = module.view().get(expression);
+
+        Ok(Some(Self {
+            text,
+            precedence: expression_precedence(node),
+            needs_postfix_group: matches!(node, dir::Expression::ObjectExpression { .. }),
+            is_repeatable,
+        }))
+    }
+}
+
+impl InlineReference {
+    /// Emit this replacement with the grouping required by its exact parent.
+    fn replacement(&self, value: &InlineValue, module: &ModuleQueryContext<'_>) -> String {
+        let needs_parentheses = expression_needs_parentheses(
+            value.precedence,
+            value.needs_postfix_group,
+            self.expression,
+            module.view(),
+        );
+        let text = if needs_parentheses {
+            format!("({})", value.text)
+        } else {
+            value.text.clone()
+        };
+
+        match &self.shorthand {
+            Some(name) => format!("{name}: {text}"),
+            None => text,
+        }
+    }
+}
+
+impl InlineRemoval {
+    /// Return the separator-aware removal span for one list item.
+    fn list_item<T: Copy + PartialEq>(items: &[(T, Span)], target: T) -> Option<Span> {
+        let index = items.iter().position(|(item, _)| *item == target)?;
+        let target_span = items[index].1;
+
+        if let Some((_, next)) = items.get(index + 1) {
+            Some(Span::new(target_span.file, target_span.start, next.start))
+        } else if index > 0 {
+            let previous = items[index - 1].1;
+
+            Some(Span::new(target_span.file, previous.end, target_span.end))
+        } else {
+            None
+        }
+    }
+
+    /// Expand a statement removal over its owned line and leading file gap.
+    fn statement(source: &str, statement: Span) -> QueryResult<Span> {
+        let start = statement.start as usize;
+        let end = statement.end as usize;
+        let Some(after_statement) = source.get(end..) else {
+            return Err(QueryError::invalid(format!("source span: {statement:?}")));
+        };
+        let line_start = offset_line_start(source, start)?;
+        let line_end = after_statement
+            .find('\n')
+            .map_or(source.len(), |offset| end + offset);
+        let Some(before) = source.get(line_start..start) else {
+            return Err(QueryError::invalid(format!("source span: {statement:?}")));
+        };
+        let Some(after) = source.get(end..line_end) else {
+            return Err(QueryError::invalid(format!("source span: {statement:?}")));
+        };
+
+        // remove a complete source line when the statement owns it
+        if before.trim().is_empty() && matches!(after.trim(), "" | ";") {
+            let mut removal_end = line_end + usize::from(line_end < source.len());
+
+            // avoid leaving a leading blank line after the first declaration
+            if line_start == 0 {
+                let remaining = source
+                    .get(removal_end..)
+                    .ok_or(QueryError::invalid(format!("source span: {statement:?}")))?;
+                if let Some(next_end) = remaining.find('\n')
+                    && remaining[..next_end].trim().is_empty()
+                {
+                    removal_end += next_end + 1;
+                }
             }
 
-            entries.push(InlineReference {
-                expr_id,
-                span,
-                replacement: ReferenceReplacement::ObjectShorthand { name: key_name },
+            return Ok(Span::new(
+                statement.file,
+                line_start as u32,
+                removal_end as u32,
+            ));
+        }
+
+        // otherwise remove only the statement and terminator
+        let removal_end = if after_statement.starts_with(';') {
+            end + 1
+        } else {
+            end
+        };
+
+        Ok(Span::new(
+            statement.file,
+            statement.start,
+            removal_end as u32,
+        ))
+    }
+}
+
+/// Return whether one expression can be moved and whether it can be repeated.
+fn expression_repeatability(
+    expression: dir::LocalNodeId<dir::Expression>,
+    module: &ModuleQueryContext<'_>,
+) -> QueryResult<Option<bool>> {
+    let view = module.view();
+    let node = view.get(expression);
+
+    let repeatability = match node {
+        // scalar values have no evaluation identity
+        dir::Expression::ScalarLiteral(_) | dir::Expression::This => Some(true),
+
+        // stable bindings can be read repeatedly
+        dir::Expression::Identifier { .. } => {
+            let source = expression.into_global_any(module.module_id());
+            let Some(targets) = module.recorded_symbol_targets(source) else {
+                return Err(QueryError::missing(format!("inline capture: {source:?}")));
+            };
+            let is_repeatable = targets.into_iter().all(|target| {
+                target.module_id != module.module_id() || !module.symbol_is_assigned(target)
             });
+
+            Some(is_repeatable)
         }
 
-        entries.sort_by_key(|entry| (entry.span.start, entry.span.end));
-        entries.dedup_by(|left, right| {
-            left.span.start == right.span.start && left.span.end == right.span.end
-        });
-        entries
-    }
-
-    /// Count the number of bindings in a pattern.
-    fn count_pattern_bindings(
-        &self,
-        view: dir::View<'_>,
-        pattern_id: dir::LocalNodeId<dir::Pattern>,
-    ) -> usize {
-        let mut bindings = HashSet::new();
-        self.collect_pattern_bindings(view, pattern_id, &mut bindings);
-        bindings.len()
-    }
-
-    /// Collect binding symbols from a pattern.
-    fn collect_pattern_bindings(
-        &self,
-        view: dir::View<'_>,
-        pattern_id: dir::LocalNodeId<dir::Pattern>,
-        bindings: &mut HashSet<dir::LocalSymbolId>,
-    ) {
-        // walk patterns and collect binding symbols
-        let pattern = view.get::<dir::Pattern>(pattern_id);
-        match pattern {
-            dir::Pattern::Default { pattern, .. } => {
-                self.collect_pattern_bindings(view, *pattern, bindings);
-            }
-            dir::Pattern::Binding { pattern, .. } => {
-                if let Some(symbol) = self.node_symbol(pattern_id.into()) {
-                    bindings.insert(symbol);
-                }
-                if let Some(inner) = pattern {
-                    self.collect_pattern_bindings(view, *inner, bindings);
-                }
-            }
-            dir::Pattern::Must(inner)
-            | dir::Pattern::BorrowOf { right: inner, .. }
-            | dir::Pattern::MoveOf { right: inner, .. }
-            | dir::Pattern::DereferenceOf { right: inner } => {
-                self.collect_pattern_bindings(view, *inner, bindings);
-            }
-            dir::Pattern::Tuple { fields }
-            | dir::Pattern::NominalTuple { fields, .. }
-            | dir::Pattern::Sequence { fields }
-            | dir::Pattern::Object { fields }
-            | dir::Pattern::NominalObject { fields, .. } => {
-                for field_id in fields {
-                    self.collect_pattern_bindings_field(view, *field_id, bindings);
-                }
-            }
-            dir::Pattern::Union { patterns } => {
-                for pattern_id in patterns {
-                    self.collect_pattern_bindings(view, *pattern_id, bindings);
-                }
-            }
-            dir::Pattern::Wildcard
-            | dir::Pattern::Expression { .. }
-            | dir::Pattern::Range { .. } => {}
-        }
-    }
-
-    /// Collect binding symbols from a pattern field.
-    fn collect_pattern_bindings_field(
-        &self,
-        view: dir::View<'_>,
-        field_id: dir::LocalNodeId<dir::PatternField>,
-        bindings: &mut HashSet<dir::LocalSymbolId>,
-    ) {
-        // walk pattern fields and collect binding symbols
-        let field = view.get::<dir::PatternField>(field_id);
-        match field {
-            dir::PatternField::Named { pattern, .. } => {
-                if let Some(symbol) = self.node_symbol(field_id.into()) {
-                    bindings.insert(symbol);
-                }
-                if let Some(pattern) = pattern {
-                    self.collect_pattern_bindings(view, *pattern, bindings);
-                }
-            }
-            dir::PatternField::Positional { pattern, .. } => {
-                self.collect_pattern_bindings(view, *pattern, bindings);
-            }
-            dir::PatternField::Computed { pattern, .. } => {
-                self.collect_pattern_bindings(view, *pattern, bindings);
-            }
-            dir::PatternField::Rest { pattern, .. } => {
-                if let Some(pattern) = pattern {
-                    self.collect_pattern_bindings(view, *pattern, bindings);
-                }
-            }
-            dir::PatternField::Elision => {}
-        }
-    }
-
-    /// Resolve the access path for a destructured binding.
-    fn pattern_access_path(
-        &self,
-        strings: &StringPool,
-        view: dir::View<'_>,
-        pattern_id: dir::LocalNodeId<dir::Pattern>,
-        target_symbol: dir::LocalSymbolId,
-    ) -> Option<Vec<AccessSegment>> {
-        let pattern = view.get::<dir::Pattern>(pattern_id);
-        match pattern {
-            dir::Pattern::Default { pattern, .. } => {
-                self.pattern_access_path(strings, view, *pattern, target_symbol)
-            }
-            dir::Pattern::Binding { pattern, .. } => {
-                if self.node_symbol(pattern_id.into()) == Some(target_symbol) {
-                    return Some(Vec::new());
-                }
-                if let Some(inner) = pattern {
-                    return self.pattern_access_path(strings, view, *inner, target_symbol);
-                }
-                None
-            }
-            dir::Pattern::Must(inner)
-            | dir::Pattern::BorrowOf { right: inner, .. }
-            | dir::Pattern::MoveOf { right: inner, .. }
-            | dir::Pattern::DereferenceOf { right: inner } => {
-                self.pattern_access_path(strings, view, *inner, target_symbol)
-            }
-            dir::Pattern::Object { fields } | dir::Pattern::NominalObject { fields, .. } => {
-                self.pattern_access_path_object_fields(strings, view, fields, target_symbol)
-            }
-            dir::Pattern::Tuple { fields }
-            | dir::Pattern::NominalTuple { fields, .. }
-            | dir::Pattern::Sequence { fields } => {
-                self.pattern_access_path_indexed(strings, view, fields, target_symbol)
-            }
-            dir::Pattern::Union { patterns } => {
-                let mut resolved: Option<Vec<AccessSegment>> = None;
-                for pattern_id in patterns {
-                    if let Some(path) =
-                        self.pattern_access_path(strings, view, *pattern_id, target_symbol)
-                    {
-                        if resolved.is_some() {
-                            return None;
-                        }
-                        resolved = Some(path);
-                    }
-                }
-                resolved
-            }
-            dir::Pattern::Wildcard
-            | dir::Pattern::Expression { .. }
-            | dir::Pattern::Range { .. } => None,
-        }
-    }
-
-    /// Resolve access paths for object fields.
-    fn pattern_access_path_object_fields(
-        &self,
-        strings: &StringPool,
-        view: dir::View<'_>,
-        fields: &[dir::LocalNodeId<dir::PatternField>],
-        target_symbol: dir::LocalSymbolId,
-    ) -> Option<Vec<AccessSegment>> {
-        // resolve object field access paths
-        for field_id in fields {
-            let field = view.get::<dir::PatternField>(*field_id);
-            match field {
-                dir::PatternField::Named { name, pattern, .. } => {
-                    if self.node_symbol((*field_id).into()) == Some(target_symbol) {
-                        let name = strings.get(name.string()).to_string();
-                        return Some(vec![AccessSegment::Property(name)]);
-                    }
-
-                    let name = strings.get(name.string()).to_string();
-                    if let Some(pattern) = pattern {
-                        if let Some(path) =
-                            self.pattern_access_path(strings, view, *pattern, target_symbol)
-                        {
-                            let mut path = path;
-                            path.insert(0, AccessSegment::Property(name));
-                            return Some(path);
-                        }
-                    }
-                }
-                dir::PatternField::Positional { pattern, .. } => {
-                    if let Some(path) =
-                        self.pattern_access_path(strings, view, *pattern, target_symbol)
-                    {
-                        return Some(path);
-                    }
-                }
-                dir::PatternField::Computed { .. }
-                | dir::PatternField::Rest { .. }
-                | dir::PatternField::Elision => {}
+        // builtin operators preserve operand evaluation behavior
+        dir::Expression::Binary { left, right, .. } => {
+            let source = expression.into_global_any(module.module_id());
+            let Some(resolution) = module.resolutions().operator_resolution(source) else {
+                return Err(QueryError::missing(format!("inline operator: {source:?}")));
+            };
+            let left = expression_repeatability(*left, module)?;
+            let right = expression_repeatability(*right, module)?;
+            match (resolution, left, right) {
+                (dir::OperatorResolution::Builtin, Some(true), Some(true)) => Some(true),
+                (dir::OperatorResolution::Builtin, Some(_), Some(_)) => Some(false),
+                (dir::OperatorResolution::Call(_), Some(_), Some(_)) => Some(false),
+                (_, None, _) | (_, _, None) => None,
             }
         }
 
-        None
-    }
+        // unary builtin operators preserve operand evaluation behavior
+        dir::Expression::Unary { right, .. } => {
+            let source = expression.into_global_any(module.module_id());
+            let Some(resolution) = module.resolutions().operator_resolution(source) else {
+                return Err(QueryError::missing(format!("inline operator: {source:?}")));
+            };
+            let right = expression_repeatability(*right, module)?;
+            match (resolution, right) {
+                (dir::OperatorResolution::Builtin, Some(is_repeatable)) => Some(is_repeatable),
+                (dir::OperatorResolution::Call(_), Some(_)) => Some(false),
+                (_, None) => None,
+            }
+        }
 
-    /// Resolve access paths for tuple and array fields.
-    fn pattern_access_path_indexed(
-        &self,
-        strings: &StringPool,
-        view: dir::View<'_>,
-        fields: &[dir::LocalNodeId<dir::PatternField>],
-        target_symbol: dir::LocalSymbolId,
-    ) -> Option<Vec<AccessSegment>> {
-        // resolve array or tuple access paths
-        let mut index = 0usize;
-        for field_id in fields {
-            let field = view.get::<dir::PatternField>(*field_id);
-            match field {
-                dir::PatternField::Elision => {
-                    index += 1;
-                }
-                dir::PatternField::Rest { .. } => {
+        // calls are movable once when their subexpressions are understood
+        dir::Expression::Call {
+            left, arguments, ..
+        } => {
+            let source = expression.into_global_any(module.module_id());
+            if module.resolutions().call_resolution(source).is_none() {
+                return Err(QueryError::missing(format!("inline call: {source:?}")));
+            }
+            let mut is_supported = expression_repeatability(*left, module)?.is_some();
+            for argument in arguments {
+                let argument = view.get(*argument);
+                let Some(value) = argument.value() else {
+                    is_supported = false;
+                    continue;
+                };
+                is_supported &= expression_repeatability(value, module)?.is_some();
+            }
+
+            is_supported.then_some(false)
+        }
+
+        // object allocation is movable once when every field value is understood
+        dir::Expression::ObjectExpression { properties } => {
+            let mut is_supported = true;
+            for property in properties {
+                let dir::Property::Field { value, .. } = view.get(*property) else {
+                    is_supported = false;
+                    continue;
+                };
+                is_supported &= expression_repeatability(*value, module)?.is_some();
+            }
+
+            is_supported.then_some(false)
+        }
+
+        _ => None,
+    };
+
+    Ok(repeatability)
+}
+
+/// Return one expression's source precedence.
+fn expression_precedence(expression: &dir::Expression) -> dir::OperatorPrecedence {
+    match expression {
+        dir::Expression::Call { .. }
+        | dir::Expression::Member { .. }
+        | dir::Expression::Index { .. }
+        | dir::Expression::Instantiation { .. }
+        | dir::Expression::Maybe { .. }
+        | dir::Expression::Must { .. } => dir::OperatorPrecedence::Postfix,
+        dir::Expression::Unary { operator, .. } => operator.precedence(),
+        dir::Expression::Await { .. }
+        | dir::Expression::AwaitMaybe { .. }
+        | dir::Expression::AwaitMust { .. }
+        | dir::Expression::Comptime { .. }
+        | dir::Expression::Yield { .. }
+        | dir::Expression::BorrowOf { .. }
+        | dir::Expression::Throw { .. }
+        | dir::Expression::Return { .. } => dir::OperatorPrecedence::Prefix,
+        dir::Expression::Binary { operator, .. } => operator.precedence(),
+        dir::Expression::As { .. }
+        | dir::Expression::Satisfies { .. }
+        | dir::Expression::Is { .. }
+        | dir::Expression::InstanceOf { .. } => dir::OperatorPrecedence::Comparison,
+        dir::Expression::Assign { operator, .. } => operator.precedence(),
+        dir::Expression::If {
+            form: dir::IfForm::Ternary,
+            ..
+        } => dir::OperatorPrecedence::Conditional,
+        _ => dir::OperatorPrecedence::Primary,
+    }
+}
+
+/// Return whether one replacement needs grouping in its exact expression parent.
+fn expression_needs_parentheses(
+    precedence: dir::OperatorPrecedence,
+    needs_postfix_group: bool,
+    expression: dir::LocalNodeId<dir::Expression>,
+    view: dir::View<'_>,
+) -> bool {
+    let Some(parent) = view.get_parent_for(expression) else {
+        return false;
+    };
+    if parent.ty != dir::NodeType::Expression {
+        return false;
+    }
+    let parent = dir::LocalNodeId::<dir::Expression>::new(parent.id);
+
+    match view.get(parent) {
+        dir::Expression::Binary {
+            operator, right, ..
+        } => {
+            let parent_precedence = operator.precedence();
+
+            parent_precedence > precedence
+                || (parent_precedence == precedence && *right == expression)
+        }
+        dir::Expression::Unary { operator, right } if *right == expression => {
+            operator.precedence() > precedence
+        }
+        dir::Expression::Member { left, .. }
+        | dir::Expression::Index { left, .. }
+        | dir::Expression::Instantiation { left, .. }
+        | dir::Expression::Call { left, .. }
+        | dir::Expression::Maybe { left, .. }
+        | dir::Expression::Must { left, .. }
+            if *left == expression =>
+        {
+            needs_postfix_group || precedence < dir::OperatorPrecedence::Postfix
+        }
+        dir::Expression::As {
+            expression: child, ..
+        }
+        | dir::Expression::Satisfies {
+            expression: child, ..
+        } if *child == expression => precedence < dir::OperatorPrecedence::Comparison,
+        _ => false,
+    }
+}
+
+/// Return the statement whose first evaluated value is one reference.
+fn initial_value_statement(
+    expression: dir::LocalNodeId<dir::Expression>,
+    view: dir::View<'_>,
+) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let mut current = expression.into();
+
+    loop {
+        let parent = view.get_parent_any(current)?;
+        match parent.ty {
+            // cross only first-evaluated expression parents
+            dir::NodeType::Expression => {
+                let parent_id = dir::LocalNodeId::<dir::Expression>::new(parent.id);
+                let is_first = match view.get(parent_id) {
+                    dir::Expression::Member { left, .. }
+                    | dir::Expression::Index { left, .. }
+                    | dir::Expression::Instantiation { left, .. }
+                    | dir::Expression::Maybe { left, .. }
+                    | dir::Expression::Must { left, .. } => left.id == current.id,
+                    dir::Expression::Unary { right, .. } => right.id == current.id,
+                    dir::Expression::Binary { left, .. } => left.id == current.id,
+                    dir::Expression::As { expression, .. }
+                    | dir::Expression::Satisfies { expression, .. } => expression.id == current.id,
+                    _ => false,
+                };
+                if !is_first {
                     return None;
                 }
-                dir::PatternField::Positional { pattern, .. } => {
-                    if let Some(path) =
-                        self.pattern_access_path(strings, view, *pattern, target_symbol)
-                    {
-                        let mut path = path;
-                        path.insert(0, AccessSegment::Index(index));
-                        return Some(path);
-                    }
-                    index += 1;
-                }
-                dir::PatternField::Named { pattern, .. } => {
-                    if self.node_symbol((*field_id).into()) == Some(target_symbol) {
-                        return Some(vec![AccessSegment::Index(index)]);
-                    }
-                    if let Some(pattern) = pattern {
-                        if let Some(path) =
-                            self.pattern_access_path(strings, view, *pattern, target_symbol)
-                        {
-                            let mut path = path;
-                            path.insert(0, AccessSegment::Index(index));
-                            return Some(path);
-                        }
-                    }
-                    index += 1;
-                }
-                dir::PatternField::Computed { pattern, .. } => {
-                    if let Some(path) =
-                        self.pattern_access_path(strings, view, *pattern, target_symbol)
-                    {
-                        let mut path = path;
-                        path.insert(0, AccessSegment::Index(index));
-                        return Some(path);
-                    }
-                    index += 1;
-                }
+                current = parent;
             }
-        }
 
-        None
-    }
-
-    /// Apply an access path to a base expression.
-    fn apply_access_path(base: &str, path: &[AccessSegment]) -> String {
-        if path.is_empty() {
-            return base.to_string();
-        }
-
-        let mut expr = base.to_string();
-        for segment in path {
-            match segment {
-                AccessSegment::Property(name) => {
-                    if is_simple_identifier(name) {
-                        expr.push('.');
-                        expr.push_str(name);
-                    } else {
-                        let escaped = Self::escape_string_literal(name);
-                        expr.push_str("[\"");
-                        expr.push_str(&escaped);
-                        expr.push_str("\"]");
-                    }
+            // require the first declarator initializer
+            dir::NodeType::Declarator => {
+                let declarator = dir::LocalNodeId::<dir::Declarator>::new(parent.id);
+                if view.get(declarator).value.map(|value| value.id) != Some(current.id) {
+                    return None;
                 }
-                AccessSegment::Index(index) => {
-                    expr.push('[');
-                    expr.push_str(&index.to_string());
-                    expr.push(']');
+                let statement = view.get_parent_for(declarator)?;
+                if statement.ty != dir::NodeType::Expression {
+                    return None;
                 }
-            }
-        }
-
-        expr
-    }
-
-    /// Escape a string literal for bracket property access.
-    fn escape_string_literal(value: &str) -> String {
-        // escape quotes and backslashes for bracket access
-        let mut escaped = String::new();
-        for character in value.chars() {
-            match character {
-                '\\' => escaped.push_str("\\\\"),
-                '"' => escaped.push_str("\\\""),
-                _ => escaped.push(character),
-            }
-        }
-        escaped
-    }
-
-    /// Resolve the nearest expression that owns a property shorthand.
-    fn property_parent_expression(
-        view: dir::View<'_>,
-        property_id: dir::LocalNodeId<dir::Property>,
-    ) -> Option<dir::LocalNodeId<dir::Expression>> {
-        // walk upward to find the containing expression for a property
-        let mut current = dir::LocalNodeIdAny::from(property_id);
-        while let Some(parent) = view.get_parent_any(current) {
-            if parent.ty == dir::NodeType::Expression {
-                return Some(parent.try_into().unwrap_or_else(|_| {
-                    panic!("property parent is not an expression: {parent:?}")
-                }));
-            }
-            current = parent;
-        }
-
-        None
-    }
-
-    /// Resolve the precise span for a reference expression.
-    fn expression_reference_span(
-        &self,
-        view: dir::View<'_>,
-        expr_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Span {
-        let span = self.get_main_span(view, expr_id.into());
-
-        let Some(parent) = view.get_parent_for(expr_id) else {
-            return span;
-        };
-        if parent.ty != dir::NodeType::Expression {
-            return span;
-        }
-
-        let Ok(parent_expr_id) = parent.try_into() else {
-            return span;
-        };
-        let parent_expr = view.get::<dir::Expression>(parent_expr_id);
-        let dir::Expression::Member { left, .. } = parent_expr else {
-            return span;
-        };
-        if *left != expr_id {
-            return span;
-        }
-
-        let Some(name_span) = self.member_access_name_span(parent_expr_id) else {
-            return span;
-        };
-        let receiver_end = name_span.start.saturating_sub(1);
-
-        // clamp spans that include `.member` to only the receiver expression
-        if span.file == name_span.file && span.start < receiver_end && span.end >= receiver_end {
-            return Span::new(span.file, span.start, receiver_end);
-        }
-
-        // derive receiver spans when direct mapping points at member names
-        let member_span = self.get_span(view, parent);
-        if member_span.file == name_span.file && member_span.start < receiver_end {
-            return Span::new(member_span.file, member_span.start, receiver_end);
-        }
-
-        span
-    }
-
-    /// Collect captured symbols referenced inside the inline value.
-    fn collect_captured_symbols(
-        &self,
-        view: dir::View<'_>,
-        value_id: dir::LocalNodeId<dir::Expression>,
-        inline_symbol: dir::GlobalSymbolId,
-    ) -> Option<Vec<CapturedSymbol>> {
-        // collect symbols referenced inside the initializer expression
-        let symbols = self.symbols();
-        let mut captured: HashMap<dir::StaticKey, dir::GlobalSymbolId> = HashMap::new();
-        let mut has_unresolved_capture = false;
-
-        let raw_tree = view.tree();
-        let expression = raw_tree.get::<dir::Expression>(value_id);
-        let mut visitor = CapturedSymbolVisitor::new(
-            self,
-            self.resolutions(),
-            symbols,
-            self.module_id(),
-            inline_symbol,
-            &mut captured,
-            &mut has_unresolved_capture,
-        );
-        dir::NodeVisitor::visit_expression(&mut visitor, raw_tree, value_id, expression);
-
-        if has_unresolved_capture {
-            return None;
-        }
-
-        Some(
-            captured
-                .into_iter()
-                .map(|(name_key, canonical_id)| CapturedSymbol {
-                    name_key,
-                    canonical_id,
-                })
-                .collect(),
-        )
-    }
-
-    /// Check whether inlining would introduce shadowing.
-    fn inline_shadow_safe(
-        &self,
-        _view: dir::View<'_>,
-        reference_entries: &[InlineReference],
-        captured_symbols: &[CapturedSymbol],
-    ) -> bool {
-        // verify captured symbols resolve identically at each reference site
-        let symbols = self.symbols();
-
-        for entry in reference_entries {
-            let Some(scope) = self.node_scope(entry.expr_id.into()) else {
-                return false;
-            };
-            for captured in captured_symbols {
-                let Some(resolved_local) =
-                    symbols.resolve_symbol_in_scope(scope.id, scope.mark, captured.name_key)
-                else {
-                    return false;
+                let statement_id = dir::LocalNodeId::<dir::Expression>::new(statement.id);
+                let dir::Expression::Let { declarators, .. } = view.get(statement_id) else {
+                    return None;
                 };
-                let resolved_global = dir::GlobalSymbolId::new(self.module_id(), resolved_local);
-                let resolved_canonical = self.canonical_symbol(resolved_global);
-                if resolved_canonical != captured.canonical_id {
-                    return false;
-                }
+
+                return (declarators.first() == Some(&declarator)).then_some(statement_id);
             }
-        }
-
-        true
-    }
-
-    /// Resolve declarator spans for a let statement.
-    fn statement_declarator_spans(
-        &self,
-        view: dir::View<'_>,
-        statement_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<Vec<(dir::LocalNodeId<dir::Declarator>, Span)>> {
-        // resolve declarator spans from the let statement
-        let statement = view.get::<dir::Expression>(statement_id);
-        let declarators = match statement {
-            dir::Expression::Let { declarators, .. } => declarators,
             _ => return None,
-        };
-
-        let mut spans = Vec::with_capacity(declarators.len());
-        for declarator_id in declarators {
-            let span = self.get_span(view, (*declarator_id).into());
-            spans.push((*declarator_id, span));
-        }
-
-        Some(spans)
-    }
-
-    /// Return the target symbol for one assign pattern when it is a simple reference.
-    fn assign_pattern_target_symbol(
-        &self,
-        assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
-    ) -> Option<dir::GlobalSymbolId> {
-        let view = self.view();
-        let assign_pattern = view.get(assign_pattern_id);
-
-        match assign_pattern {
-            dir::AssignPattern::Place { expression: value } => {
-                self.expression_symbol_target(*value)
-            }
-            dir::AssignPattern::Default { pattern, .. } => {
-                self.assign_pattern_target_symbol(*pattern)
-            }
-            dir::AssignPattern::Sequence { .. }
-            | dir::AssignPattern::Tuple { .. }
-            | dir::AssignPattern::Object { .. } => None,
         }
     }
+}
+
+/// Return whether one node belongs to an expression subtree.
+fn node_is_within(
+    node: dir::LocalNodeIdAny,
+    root: dir::LocalNodeIdAny,
+    view: dir::View<'_>,
+) -> bool {
+    let mut current = Some(node);
+    while let Some(node) = current {
+        if node == root {
+            return true;
+        }
+        current = view.get_parent_any(node);
+    }
+
+    false
+}
+
+/// Canonicalize and order one checked symbol selection.
+fn canonical_symbols(
+    program: &ProgramQueryContext<'_>,
+    symbols: Vec<dir::GlobalSymbolId>,
+) -> QueryResult<Vec<dir::GlobalSymbolId>> {
+    let mut canonical = Vec::new();
+    for symbol in symbols {
+        canonical.extend(program.canonical_symbols(symbol)?);
+    }
+    canonical.sort();
+    canonical.dedup();
+
+    Ok(canonical)
+}
+
+/// Canonicalize one exact lexical lookup selection.
+fn lookup_symbols(
+    program: &ProgramQueryContext<'_>,
+    module: destack_source::ModuleId,
+    lookup: dir::SymbolLookup,
+) -> QueryResult<Vec<dir::GlobalSymbolId>> {
+    let symbols = match lookup {
+        dir::SymbolLookup::Missing => Vec::new(),
+        dir::SymbolLookup::Found(symbol) => vec![symbol.into_global(module)],
+        dir::SymbolLookup::Ambiguous(symbols) => symbols
+            .into_iter()
+            .map(|symbol| symbol.into_global(module))
+            .collect(),
+    };
+
+    canonical_symbols(program, symbols)
 }

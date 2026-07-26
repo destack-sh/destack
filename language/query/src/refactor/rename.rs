@@ -1,48 +1,22 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, btree_map};
 
-use destack_core::StringPool;
 use destack_dir as dir;
-use destack_dir::HeritageKind;
 use destack_serde::Reflect;
-use destack_source::{FileId, FilePatch, ModuleId, Patch, PatchSet, Span};
+use destack_source::{FileId, FilePatch, Patch, PatchSet, Span};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::source::{is_simple_identifier, sort_and_dedup_spans};
+use crate::source::is_simple_identifier;
 use crate::{
-    MemberKeyName, ModuleQueryContext, Position, ProgramQueryContext, ReferenceFilter, SymbolHit,
-    Target, declaration_display_name,
+    Module, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
+    SymbolOccurrence,
 };
-
-/// Target of a rename query.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct RenameTarget {
-    /// The semantic rename target.
-    pub target: Target,
-    /// The range of the symbol to rename.
-    pub range: Span,
-    /// The current name (placeholder for rename dialog).
-    pub placeholder: String,
-}
-
-/// Request the rename target at a cursor position.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct RenameTargetRequest {
-    /// The queried position.
-    pub position: Position,
-}
-
-/// Response payload for rename target queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct RenameTargetResponse {
-    /// Rename target, if available.
-    pub result: Option<RenameTarget>,
-}
 
 /// Request rename edits at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct RenameRequest {
     /// The queried position.
-    pub position: Position,
+    pub position: QueryPosition,
     /// The new name for the symbol.
     pub new_name: String,
 }
@@ -55,610 +29,507 @@ pub struct RenameResponse {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Return the rename target at the given position.
-    pub fn rename_target(&self, offset: u32) -> Option<RenameTarget> {
-        // resolve the rename target at the cursor
-        let (symbol_at, _, name) = self.resolve_rename_target(offset)?;
-
-        // return the range and current name
-        let target = Target::new(self.module(), symbol_at.span).with_symbol_id(symbol_at.symbol_id);
-
-        Some(RenameTarget {
-            target,
-            range: symbol_at.span,
-            placeholder: name,
-        })
-    }
-}
-
-/// Rename span collection grouped by file.
-struct RenameSpans {
-    /// The collected spans by file.
-    by_file: HashMap<FileId, Vec<Span>>,
-}
-
-impl RenameSpans {
-    /// Create an empty rename span collection.
-    fn new() -> Self {
-        Self {
-            by_file: HashMap::new(),
-        }
-    }
-
-    /// Add spans to the collection.
-    fn add(&mut self, spans: Vec<Span>) {
-        for span in spans {
-            self.by_file.entry(span.file).or_default().push(span);
-        }
-    }
-
-    /// Normalize span ordering and overlap handling.
-    fn normalize(&mut self) {
-        for spans in self.by_file.values_mut() {
-            sort_and_dedup_spans(spans);
-            Self::prune_overlaps(spans);
-        }
-    }
-
-    /// Convert this span collection into a patch set.
-    fn into_patch_set(self, new_name: &str) -> PatchSet {
-        let mut batch_edit = PatchSet::new();
-        for (file_id, spans) in self.by_file {
-            let edits = spans
-                .into_iter()
-                .map(|span| Patch::replace(span, new_name.to_string()))
-                .collect();
-            batch_edit.push(FilePatch::with_patches(file_id, edits));
-        }
-
-        batch_edit
-    }
-
-    /// Remove overlapping spans by keeping the most specific span at each overlap.
-    fn prune_overlaps(spans: &mut Vec<Span>) {
-        if spans.len() < 2 {
-            return;
-        }
-
-        let mut filtered = Vec::with_capacity(spans.len());
-        for span in spans.iter().copied() {
-            let Some(last_span) = filtered.last_mut() else {
-                filtered.push(span);
-                continue;
-            };
-
-            if !last_span.intersects(span) {
-                filtered.push(span);
-                continue;
-            }
-
-            if span.len() < last_span.len()
-                || (span.len() == last_span.len() && span.start >= last_span.start)
-            {
-                *last_span = span;
-            }
-        }
-
-        *spans = filtered;
-    }
-}
-
-/// Interface member kind used for implementation matching.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum InterfaceMemberKind {
-    /// A callable member declaration.
-    Method,
-    /// A field-like member declaration.
-    Field,
-}
-
-/// Interface member information used for implementation propagation.
-#[derive(Debug, Clone)]
-struct InterfaceMemberTarget {
-    /// The canonical interface symbol.
-    interface_symbol: dir::GlobalSymbolId,
-    /// The member name to propagate.
-    member_name: String,
-    /// The member shape to match.
-    member_kind: InterfaceMemberKind,
-}
-
-/// Interface member declaration shape used for rename propagation.
-struct InterfaceMember<'a> {
-    /// The member kind.
-    kind: InterfaceMemberKind,
-    /// The member name key.
-    key: &'a dir::Key,
-}
-
-impl<'a> InterfaceMember<'a> {
-    /// Read one interface-member declaration shape.
-    fn from_member(member: &'a dir::Member) -> Option<Self> {
-        match member {
-            dir::Member::Method { key, .. } => Some(Self {
-                kind: InterfaceMemberKind::Method,
-                key: key.as_ref()?,
-            }),
-            dir::Member::Field { key, .. } => Some(Self {
-                kind: InterfaceMemberKind::Field,
-                key,
-            }),
-            _ => None,
-        }
-    }
-}
-
-/// Rename behavior for keywords.
-trait RenameKeyword {
-    /// Return whether this modifier keyword can target the declaration for rename.
-    fn is_rename_target_modifier(self) -> bool;
-}
-
-impl RenameKeyword for dir::Keyword {
-    fn is_rename_target_modifier(self) -> bool {
-        matches!(
-            self,
-            dir::Keyword::Export
-                | dir::Keyword::Declare
-                | dir::Keyword::Abstract
-                | dir::Keyword::Async
-                | dir::Keyword::Static
-                | dir::Keyword::Public
-                | dir::Keyword::Protected
-                | dir::Keyword::Private
-                | dir::Keyword::Readonly
-                | dir::Keyword::Final
-                | dir::Keyword::Accessor
-                | dir::Keyword::Default
-                | dir::Keyword::Override
-        )
-    }
-}
-
-impl ModuleQueryContext<'_> {
-    /// Rename the symbol at the given position.
-    ///
-    /// Returns edits for all files that need to be modified.
+    /// Rename the symbol at one position.
     pub fn rename(
         &self,
         program: &ProgramQueryContext<'_>,
+        file_id: FileId,
         offset: u32,
         new_name: &str,
-    ) -> Option<PatchSet> {
-        // validate new_name is a valid identifier
+    ) -> QueryResult<Option<PatchSet>> {
         if !is_simple_identifier(new_name) {
-            return None;
+            return Ok(None);
         }
 
-        // resolve the rename target at the cursor
-        let (_, canonical_id, old_name) = self.resolve_rename_target(offset)?;
-        let interface_member_target = self.resolve_interface_member_target(canonical_id);
-        let preserve_local_definition = self.local_import_alias_name(canonical_id).is_some();
+        // resolve the exact rename target
+        let Some(selection) = self.resolve_rename_target(program, file_id, offset)? else {
+            return Ok(None);
+        };
 
-        // collect primary symbol spans and group by file
-        let mut rename_spans = RenameSpans::new();
-        let primary_spans = self.collect_symbol_rename_spans(
+        // reject no-op and incomplete target groups
+        if selection.placeholder == new_name {
+            return Ok(None);
+        }
+        if !selection.can_rename_exactly(program)? {
+            return Ok(None);
+        }
+
+        // collect the complete indexed occurrence set
+        let Some(occurrences) = self.collect_symbol_rename_occurrences(
             program,
-            canonical_id,
-            &old_name,
-            preserve_local_definition,
-        );
-        rename_spans.add(primary_spans);
+            &selection.symbols,
+            selection.is_local_declaration,
+        )?
+        else {
+            return Ok(None);
+        };
+        let role = RenameRole::resolve(program, &selection.symbols)?;
 
-        // include default import aliases that bind this export in other modules
-        let default_import_alias_symbols = self.default_import_alias_symbols(program, canonical_id);
-        for alias_symbol in default_import_alias_symbols {
-            let Some(alias_name) = self.local_import_alias_name(alias_symbol) else {
-                continue;
+        let edits = selection.edits(program, &occurrences, new_name, role)?;
+
+        Ok(Some(edits))
+    }
+}
+
+/// One exact rename selection.
+pub(crate) struct RenameSelection {
+    /// The authored rename occurrence.
+    pub(crate) occurrence: SymbolOccurrence,
+    /// The declaration identities renamed together.
+    pub(crate) symbols: Vec<dir::GlobalSymbolId>,
+    /// The current authored name.
+    pub(crate) placeholder: String,
+    /// Whether the selection names one local import binding.
+    is_local_declaration: bool,
+}
+
+impl RenameSelection {
+    /// Return whether every related member declaration is represented exactly.
+    fn can_rename_exactly(&self, program: &ProgramQueryContext<'_>) -> QueryResult<bool> {
+        // FUGU #Incomplete: expand member groups through checked implementation relations
+        for symbol_id in &self.symbols {
+            let module = program.module(symbol_id.module_id)?;
+            let symbol = module.symbols().get_symbol(symbol_id.local_id);
+            let Some(declaration) = symbol.declaration else {
+                return Err(QueryError::missing(format!(
+                    "rename declaration: {:?}",
+                    *symbol_id
+                )));
             };
 
-            let alias_spans =
-                self.collect_symbol_rename_spans(program, alias_symbol, &alias_name, true);
-            rename_spans.add(alias_spans);
-        }
+            // ignore declarations that do not participate in member heritage
+            if !matches!(
+                declaration.local_id.ty,
+                dir::NodeType::Member | dir::NodeType::TypeMember
+            ) {
+                continue;
+            }
 
-        // include implementation member spans when renaming interface members
-        if let Some(interface_member_target) = interface_member_target {
-            let implementation_members = self.collect_interface_member_implementations(
-                program,
-                &interface_member_target,
-                &old_name,
-            );
-
-            for member_symbol in implementation_members {
-                if member_symbol == canonical_id {
-                    continue;
-                }
-
-                let spans =
-                    self.collect_symbol_rename_spans(program, member_symbol, &old_name, false);
-                rename_spans.add(spans);
+            // reject members whose nominal owner participates in heritage
+            let Some(owner) = module.view().get_parent_any(declaration.local_id) else {
+                return Err(QueryError::missing(format!(
+                    "rename owner: {:?}",
+                    *symbol_id
+                )));
+            };
+            if owner.ty != dir::NodeType::Declaration {
+                continue;
+            }
+            let Some(owner) = module.global_node_symbol(owner) else {
+                return Err(QueryError::missing(format!(
+                    "rename owner: {:?}",
+                    *symbol_id
+                )));
+            };
+            let Some(owner) = program.canonical_symbol(owner)? else {
+                return Err(QueryError::missing(format!(
+                    "rename owner: {:?}",
+                    *symbol_id
+                )));
+            };
+            if !program.base_heritage(owner)?.is_empty()
+                || !program.derived_heritage(owner)?.is_empty()
+            {
+                return Ok(false);
             }
         }
 
-        // normalize span ordering and remove duplicates per file
-        rename_spans.normalize();
-
-        Some(rename_spans.into_patch_set(new_name))
+        Ok(true)
     }
 
-    /// Resolve the symbol targeted by rename at a file offset.
-    fn resolve_rename_target(
+    /// Build exact file edits from indexed occurrences.
+    fn edits(
         &self,
-        offset: u32,
-    ) -> Option<(SymbolHit, dir::GlobalSymbolId, String)> {
-        // find the symbol at offset
-        let symbol_at = self.find_symbol_at_offset(offset)?;
+        program: &ProgramQueryContext<'_>,
+        occurrences: &[RenameOccurrence],
+        new_name: &str,
+        role: RenameRole,
+    ) -> QueryResult<PatchSet> {
+        let mut shorthands_by_module = BTreeMap::new();
+        let mut replacements = BTreeMap::new();
 
-        // reject non modifier keywords at the cursor
-        let token = self.token_at_offset(offset);
-        if token.is_some_and(|token| match token.parse::<dir::Keyword>() {
-            Ok(keyword) => !keyword.is_rename_target_modifier(),
-            Err(_) => false,
-        }) {
-            return None;
+        // retain occurrences whose authored name follows the declaration
+        for occurrence in occurrences {
+            let module = program.module(occurrence.module.module_id)?;
+            let authored_name = module.source_text(occurrence.span)?;
+            if authored_name != self.placeholder {
+                continue;
+            }
+
+            // derive the exact edit form from authored shorthand structure
+            let shorthands = match shorthands_by_module.entry(occurrence.module.module_id) {
+                btree_map::Entry::Occupied(entry) => entry.into_mut(),
+                btree_map::Entry::Vacant(entry) => {
+                    let shorthands = RenameShorthands::build(module)?;
+
+                    entry.insert(shorthands)
+                }
+            };
+            let replacement =
+                shorthands.replacement(occurrence.span, &self.placeholder, new_name, role)?;
+            let key = (
+                occurrence.span.file,
+                occurrence.span.start,
+                occurrence.span.end,
+            );
+            if let Some(previous) = replacements.insert(key, replacement.clone())
+                && previous != replacement
+            {
+                return Err(QueryError::conflict(format!(
+                    "rename edit: {:?}",
+                    occurrence.span
+                )));
+            }
         }
 
-        let symbol_id = symbol_at.symbol_id;
+        // group exact replacements by source file
+        let mut edits_by_file: BTreeMap<FileId, Vec<Patch>> = BTreeMap::new();
+        for ((file_id, start, end), replacement) in replacements {
+            let span = Span::new(file_id, start, end);
+            edits_by_file
+                .entry(file_id)
+                .or_default()
+                .push(Patch::replace(span, replacement));
+        }
+
+        let mut edits = PatchSet::new();
+        for (file_id, patches) in edits_by_file {
+            edits.push(FilePatch::with_patches(file_id, patches));
+        }
+
+        Ok(edits)
+    }
+}
+
+/// The authored role of a renamed symbol.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RenameRole {
+    /// A lexical binding used as an object or pattern value.
+    Binding,
+    /// A member used as an object or pattern key.
+    Member,
+}
+
+impl RenameRole {
+    /// Resolve the one authored role shared by a rename group.
+    fn resolve(
+        program: &ProgramQueryContext<'_>,
+        symbols: &[dir::GlobalSymbolId],
+    ) -> QueryResult<Self> {
+        let Some(first) = symbols.first().copied() else {
+            return Err(QueryError::missing("rename group"));
+        };
+        let selected = Self::symbol_role(program, first)?;
+
+        // classify each exact declaration by its authored node role
+        for symbol in &symbols[1..] {
+            let role = Self::symbol_role(program, *symbol)?;
+            if selected != role {
+                return Err(QueryError::conflict(format!(
+                    "rename roles: {:?}, {:?}",
+                    first, *symbol
+                )));
+            }
+        }
+
+        Ok(selected)
+    }
+
+    /// Resolve the authored role of one rename symbol.
+    fn symbol_role(
+        program: &ProgramQueryContext<'_>,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> QueryResult<Self> {
+        let module = program.module(symbol_id.module_id)?;
+        let symbol = module.symbols().get_symbol(symbol_id.local_id);
+        let declaration = symbol.declaration.ok_or(QueryError::missing(format!(
+            "rename declaration: {symbol_id:?}"
+        )))?;
+        let role = match declaration.local_id.ty {
+            dir::NodeType::Member | dir::NodeType::TypeMember | dir::NodeType::EnumField => {
+                Self::Member
+            }
+            _ => Self::Binding,
+        };
+
+        Ok(role)
+    }
+}
+
+/// One exact indexed rename occurrence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RenameOccurrence {
+    /// The module that owns the occurrence.
+    module: Module,
+    /// The exact authored name span.
+    span: Span,
+}
+
+/// Authored shorthand names requiring structured rename edits.
+struct RenameShorthands {
+    /// Shorthand object and pattern names keyed by their authored span.
+    shorthand_names: FxHashMap<Span, String>,
+}
+
+impl RenameShorthands {
+    /// Index authored shorthand names in one module.
+    fn build(module: &ModuleQueryContext<'_>) -> QueryResult<Self> {
+        let view = module.view();
+        let mut shorthand_names = FxHashMap::default();
+
+        // index object literal shorthand names
+        for (property_id, property) in view.iter_nodes_of_type::<dir::Property>() {
+            let dir::Property::Field {
+                key: dir::Key::Name(name),
+                is_shorthand: true,
+                ..
+            } = property
+            else {
+                continue;
+            };
+            let node = property_id.into_global_any(module.module_id());
+            let span = module
+                .node_selection_span(view, property_id.into())
+                .ok_or(QueryError::missing(format!("rename shorthand: {node:?}")))?;
+            let name = module.strings().get(name.string()).to_string();
+            shorthand_names.insert(span, name);
+        }
+
+        // index destructuring shorthand names
+        for (field_id, field) in view.iter_nodes_of_type::<dir::PatternField>() {
+            let dir::PatternField::Named {
+                name,
+                is_shorthand: true,
+                ..
+            } = field
+            else {
+                continue;
+            };
+            let node = field_id.into_global_any(module.module_id());
+            let span = module
+                .node_selection_span(view, field_id.into())
+                .ok_or(QueryError::missing(format!("rename shorthand: {node:?}")))?;
+            let name = module.strings().get(name.string()).to_string();
+            shorthand_names.insert(span, name);
+        }
+
+        Ok(Self { shorthand_names })
+    }
+
+    /// Return replacement text for one exact rename occurrence.
+    fn replacement(
+        &self,
+        span: Span,
+        old_name: &str,
+        new_name: &str,
+        role: RenameRole,
+    ) -> QueryResult<String> {
+        let Some(shorthand_name) = self.shorthand_names.get(&span) else {
+            return Ok(new_name.to_string());
+        };
+        if shorthand_name != old_name {
+            return Err(QueryError::conflict(format!("rename shorthand: {span:?}")));
+        }
+
+        let replacement = match role {
+            RenameRole::Binding => format!("{old_name}: {new_name}"),
+            RenameRole::Member => format!("{new_name}: {old_name}"),
+        };
+
+        Ok(replacement)
+    }
+}
+
+impl ModuleQueryContext<'_> {
+    /// Resolve the symbol targeted by rename at a file offset.
+    pub(crate) fn resolve_rename_target(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        file_id: FileId,
+        offset: u32,
+    ) -> QueryResult<Option<RenameSelection>> {
+        let Some(occurrence) = self.reference_at_offset(file_id, offset)? else {
+            return Ok(None);
+        };
 
         // keep explicit local import aliases as local rename targets
-        if let Some(local_alias_name) = self.local_import_alias_name(symbol_id) {
-            return Some((symbol_at, symbol_id, local_alias_name));
+        if let Some(symbol) = occurrence.symbol()
+            && let Some(placeholder) = self.local_import_alias_name(symbol)
+        {
+            return Ok(Some(RenameSelection {
+                occurrence,
+                symbols: vec![symbol],
+                placeholder,
+                is_local_declaration: true,
+            }));
         }
 
-        // resolve canonical symbol and stable rename name
-        let canonical_id = self.canonical_symbol(symbol_id);
-        let name = self.resolve_rename_name(canonical_id)?;
+        // resolve every canonical declaration in the selected overload set
+        let mut symbols = Vec::new();
+        for symbol in &occurrence.symbols {
+            symbols.extend(program.canonical_symbols(*symbol)?);
+        }
+        symbols.sort();
+        symbols.dedup();
+        let Some(first) = symbols.first().copied() else {
+            return Ok(None);
+        };
+        if !Self::is_rename_group(program, &symbols)? {
+            return Ok(None);
+        }
+        let Some(placeholder) = program.symbol_name(first)? else {
+            return Ok(None);
+        };
 
-        Some((symbol_at, canonical_id, name))
+        // require one stable authored name across the rename group
+        for symbol in &symbols[1..] {
+            let Some(name) = program.symbol_name(*symbol)? else {
+                return Ok(None);
+            };
+            if name != placeholder {
+                return Err(QueryError::conflict(format!(
+                    "rename names: {:?}, {:?}",
+                    first, *symbol
+                )));
+            }
+        }
+
+        Ok(Some(RenameSelection {
+            occurrence,
+            symbols,
+            placeholder,
+            is_local_declaration: false,
+        }))
     }
 
-    /// Collect all rename spans for one canonical symbol.
-    fn collect_symbol_rename_spans(
+    /// Return whether symbols form one lexical declaration group.
+    fn is_rename_group(
+        program: &ProgramQueryContext<'_>,
+        symbols: &[dir::GlobalSymbolId],
+    ) -> QueryResult<bool> {
+        let [first, rest @ ..] = symbols else {
+            return Ok(false);
+        };
+        if rest.is_empty() {
+            return Ok(true);
+        }
+
+        // multiple declarations must be one function overload binding
+        let module = program.module(first.module_id)?;
+        let first_symbol = module.symbols().get_symbol(first.local_id);
+        if first_symbol.kind != dir::SymbolKind::Function {
+            return Ok(false);
+        }
+
+        let is_group = rest.iter().all(|symbol| {
+            if symbol.module_id != first.module_id {
+                return false;
+            }
+            let symbol = module.symbols().get_symbol(symbol.local_id);
+
+            symbol.kind == dir::SymbolKind::Function
+                && symbol.key == first_symbol.key
+                && symbol.scope.id == first_symbol.scope.id
+        });
+
+        Ok(is_group)
+    }
+
+    /// Collect all indexed occurrences for one declaration group.
+    fn collect_symbol_rename_occurrences(
         &self,
         program: &ProgramQueryContext<'_>,
-        canonical_id: dir::GlobalSymbolId,
-        target_name: &str,
-        preserve_local_definition: bool,
-    ) -> Vec<Span> {
-        // seed spans with the declaration site
-        let mut spans = Vec::new();
-        let definition_span = if preserve_local_definition {
-            let module = self.module_context(canonical_id.module_id);
+        symbols: &[dir::GlobalSymbolId],
+        is_local_declaration: bool,
+    ) -> QueryResult<Option<Vec<RenameOccurrence>>> {
+        let mut occurrences = Vec::new();
 
-            module.symbol_local_definition_span(canonical_id)
-        } else {
-            self.symbol_definition_span(canonical_id)
-        };
-        if let Some(definition_span) = definition_span {
-            spans.push(definition_span);
-        }
-
-        // collect references across indexed program modules
-        let reference_search = ReferenceFilter::rename(target_name);
-        let reference_spans =
-            self.collect_symbol_reference_spans(program, canonical_id, reference_search);
-        spans.extend(reference_spans);
-
-        // normalize for deterministic edits
-        sort_and_dedup_spans(&mut spans);
-        spans
-    }
-
-    /// Collect symbol reference spans across indexed program modules.
-    fn collect_symbol_reference_spans(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        canonical_id: dir::GlobalSymbolId,
-        options: ReferenceFilter<'_>,
-    ) -> Vec<Span> {
-        let mut spans = Vec::new();
-
-        let references = self.program_symbol_references(program, canonical_id, options);
-        spans.extend(references.into_iter().map(|(_, span)| span));
-
-        spans
-    }
-
-    /// Resolve the stable rename source name for a symbol.
-    fn resolve_rename_name(&self, canonical_id: dir::GlobalSymbolId) -> Option<String> {
-        // prefer the canonical symbol metadata name when present
-        if let Some(name) = self.symbol_name(canonical_id) {
-            return Some(name);
-        }
-
-        // use declaration based name extraction
-        self.resolve_name_from_declaration(canonical_id)
-    }
-
-    /// Resolve a symbol name from its declaration when symbol metadata has no name.
-    fn resolve_name_from_declaration(&self, canonical_id: dir::GlobalSymbolId) -> Option<String> {
-        // resolve query context for the symbol module
-        let module = self.module_context(canonical_id.module_id);
-
-        // resolve the declaration node id
-        let declaration = {
-            let symbols = module.symbols();
-            let symbol = symbols.get_symbol(canonical_id.local_id);
-            symbol.declaration?
-        };
-
-        let view = module.view();
-        match declaration.local_id.ty {
-            dir::NodeType::Member => {
-                let member_id = declaration.local_id.try_into().unwrap_or_else(|_| {
-                    panic!(
-                        "member declaration has incompatible node id: {:?}",
-                        declaration.local_id
-                    )
-                });
-                let member = view.get::<dir::Member>(member_id);
-                let key = member.key()?;
-                key.member_name(module.strings())
+        // require every authored declaration targeted by this rename
+        for symbol in symbols {
+            let module = program.module(symbol.module_id)?;
+            let definition_span = if is_local_declaration {
+                module.symbol_local_definition_span(*symbol)?
+            } else {
+                program.symbol_definition_span(*symbol)?
             }
-            dir::NodeType::EnumField => {
-                let field_id = declaration.local_id.try_into().unwrap_or_else(|_| {
-                    panic!(
-                        "enum field declaration has incompatible node id: {:?}",
-                        declaration.local_id
-                    )
-                });
-                let field = view.get::<dir::EnumField>(field_id);
-                Some(module.strings().get(field.name.string()).to_string())
-            }
-            dir::NodeType::Declaration => {
-                let declaration_id = declaration.local_id.try_into().unwrap_or_else(|_| {
-                    panic!(
-                        "declaration symbol has incompatible node id: {:?}",
-                        declaration.local_id
-                    )
-                });
-                let declaration = view.get::<dir::Declaration>(declaration_id);
-                declaration_display_name(module.strings(), declaration)
-            }
-            dir::NodeType::Parameter => {
-                let parameter_id = declaration.local_id.try_into().unwrap_or_else(|_| {
-                    panic!(
-                        "parameter declaration has incompatible node id: {:?}",
-                        declaration.local_id
-                    )
-                });
-                let parameter = view.get::<dir::Parameter>(parameter_id);
-                match parameter {
-                    dir::Parameter::Named { name, .. } => {
-                        Some(module.strings().get(*name).to_string())
+            .ok_or(QueryError::missing(format!(
+                "rename definition: {:?}",
+                *symbol
+            )))?;
+            occurrences.push(RenameOccurrence {
+                module: module.module(),
+                span: definition_span,
+            });
+
+            // collect references across indexed program modules
+            if is_local_declaration {
+                occurrences.extend(
+                    program
+                        .declaration_references(*symbol, None)?
+                        .into_iter()
+                        .map(|(module, span)| RenameOccurrence { module, span }),
+                );
+            } else {
+                for reference in program.symbol_program_references(*symbol)? {
+                    let entry = reference.entry;
+                    if entry.is_import_alias {
+                        continue;
                     }
-                    dir::Parameter::VariadicNamed { name, .. } => {
-                        Some(module.strings().get(*name).to_string())
-                    }
-                    dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
-                    dir::Parameter::Error => panic!("error parameter reached rename refactor"),
+
+                    occurrences.push(RenameOccurrence {
+                        module: reference.module,
+                        span: entry.span,
+                    });
                 }
-            }
-            dir::NodeType::Pattern => {
-                let pattern_id = declaration.local_id.try_into().unwrap_or_else(|_| {
-                    panic!(
-                        "pattern declaration has incompatible node id: {:?}",
-                        declaration.local_id
-                    )
-                });
-                let pattern = view.get::<dir::Pattern>(pattern_id);
-                match pattern {
-                    dir::Pattern::Binding { name, .. } => {
-                        Some(module.strings().get(*name).to_string())
-                    }
-                    _ => None,
-                }
-            }
-            dir::NodeType::PatternField => {
-                let field_id = declaration.local_id.try_into().unwrap_or_else(|_| {
-                    panic!(
-                        "pattern field declaration has incompatible node id: {:?}",
-                        declaration.local_id
-                    )
-                });
-                let field = view.get::<dir::PatternField>(field_id);
-                match field {
-                    dir::PatternField::Named { name, pattern, .. } => {
-                        let symbol = module.node_symbol(field_id.into())?;
-                        if let Some(pattern) = pattern {
-                            return module.rename_pattern_binding_name(
-                                module.strings(),
-                                view,
-                                *pattern,
-                                symbol,
-                            );
-                        }
-
-                        Some(module.strings().get(name.string()).to_string())
-                    }
-                    _ => None,
-                }
-            }
-            _ => None,
-        }
-    }
-}
-
-impl ModuleQueryContext<'_> {
-    /// Return the binding name for one pattern subtree.
-    fn rename_pattern_binding_name(
-        &self,
-        strings: &StringPool,
-        view: dir::View<'_>,
-        pattern_id: dir::LocalNodeId<dir::Pattern>,
-        target_symbol: dir::LocalSymbolId,
-    ) -> Option<String> {
-        match view.get::<dir::Pattern>(pattern_id) {
-            dir::Pattern::Binding { name, pattern, .. } => {
-                if self.node_symbol(pattern_id.into()) == Some(target_symbol) {
-                    return Some(strings.get(*name).to_string());
-                }
-
-                pattern.and_then(|pattern| {
-                    self.rename_pattern_binding_name(strings, view, pattern, target_symbol)
-                })
-            }
-            dir::Pattern::Default { pattern, .. }
-            | dir::Pattern::Must(pattern)
-            | dir::Pattern::BorrowOf { right: pattern, .. }
-            | dir::Pattern::MoveOf { right: pattern, .. }
-            | dir::Pattern::DereferenceOf { right: pattern } => {
-                self.rename_pattern_binding_name(strings, view, *pattern, target_symbol)
-            }
-            dir::Pattern::Tuple { .. }
-            | dir::Pattern::NominalTuple { .. }
-            | dir::Pattern::Sequence { .. }
-            | dir::Pattern::Object { .. }
-            | dir::Pattern::NominalObject { .. }
-            | dir::Pattern::Union { .. }
-            | dir::Pattern::Wildcard
-            | dir::Pattern::Expression { .. }
-            | dir::Pattern::Range { .. } => None,
-        }
-    }
-}
-
-impl ModuleQueryContext<'_> {
-    /// Resolve the interface member target for an interface member symbol.
-    fn resolve_interface_member_target(
-        &self,
-        canonical_id: dir::GlobalSymbolId,
-    ) -> Option<InterfaceMemberTarget> {
-        // resolve query context for the symbol module
-        let module = self.module_context(canonical_id.module_id);
-
-        // resolve the member declaration node
-        let declaration = {
-            let symbols = module.symbols();
-            let symbol = symbols.get_symbol(canonical_id.local_id);
-            symbol.declaration?
-        };
-
-        if declaration.local_id.ty != dir::NodeType::Member {
-            return None;
-        }
-
-        let view = module.view();
-        let Ok(member_id) = declaration.local_id.try_into() else {
-            return None;
-        };
-        let member = view.get::<dir::Member>(member_id);
-        let member = InterfaceMember::from_member(member)?;
-        let member_name = member.key.member_name(module.strings())?;
-
-        // resolve the parent declaration and ensure it is an interface
-        let parent = view.get_parent_for(member_id)?;
-        if parent.ty != dir::NodeType::Declaration {
-            return None;
-        }
-        let Ok(declaration_id) = parent.try_into() else {
-            return None;
-        };
-        let declaration = view.get::<dir::Declaration>(declaration_id);
-        let dir::Declaration::Interface(_) = declaration else {
-            return None;
-        };
-        let interface_symbol = module.node_symbol(declaration_id.into())?;
-        let interface_symbol = module.canonical_symbol(dir::GlobalSymbolId::new(
-            module.module_id(),
-            interface_symbol,
-        ));
-
-        Some(InterfaceMemberTarget {
-            interface_symbol,
-            member_name,
-            member_kind: member.kind,
-        })
-    }
-
-    /// Collect implementation member symbols for a resolved interface member target.
-    fn collect_interface_member_implementations(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        target: &InterfaceMemberTarget,
-        expected_name: &str,
-    ) -> Vec<dir::GlobalSymbolId> {
-        let mut members = Vec::new();
-        let interface_module = self.module_context(target.interface_symbol.module_id);
-        let interface_symbol = interface_module.canonical_symbol(target.interface_symbol);
-        let implementing_symbols: Vec<dir::GlobalSymbolId> = program
-            .base_heritage(interface_symbol)
-            .into_iter()
-            .filter(|entry| entry.kind == HeritageKind::Implements)
-            .map(|entry| entry.derived)
-            .collect();
-
-        if implementing_symbols.is_empty() {
-            return members;
-        }
-
-        let implementing_module_ids: HashMap<ModuleId, Vec<dir::LocalSymbolId>> =
-            implementing_symbols
-                .into_iter()
-                .fold(HashMap::new(), |mut modules, symbol_id| {
-                    modules
-                        .entry(symbol_id.module_id)
-                        .or_default()
-                        .push(symbol_id.local_id);
-                    modules
-                });
-
-        for (module_id, implementing_symbols) in implementing_module_ids {
-            let module = self.module_context(module_id);
-
-            let view = module.view();
-            for (member_id, member) in view.iter_nodes_of_type::<dir::Member>() {
-                let Some(parent) = view.get_parent_for(member_id) else {
-                    continue;
-                };
-                if parent.ty != dir::NodeType::Declaration {
-                    continue;
-                }
-                let Ok(declaration_id) = parent.try_into() else {
-                    continue;
-                };
-                let declaration = view.get::<dir::Declaration>(declaration_id);
-                let owner_symbol = match declaration {
-                    dir::Declaration::Class(_)
-                    | dir::Declaration::Struct(_)
-                    | dir::Declaration::Interface(_) => {
-                        let Some(symbol) = module.node_symbol(declaration_id.into()) else {
-                            continue;
-                        };
-                        symbol
-                    }
-                    _ => continue,
-                };
-                if !implementing_symbols.contains(&owner_symbol) {
-                    continue;
-                }
-
-                let Some(member) = InterfaceMember::from_member(member) else {
-                    continue;
-                };
-                if member.kind != target.member_kind {
-                    continue;
-                }
-
-                let Some(member_name) = member.key.member_name(module.strings()) else {
-                    continue;
-                };
-                if member_name != expected_name && member_name != target.member_name {
-                    continue;
-                }
-
-                let Some(member_symbol) = module.node_symbol(member_id.into()) else {
-                    continue;
-                };
-                let symbol_id = dir::GlobalSymbolId::new(module.module_id(), member_symbol);
-                let symbol_id = module.canonical_symbol(symbol_id);
-                members.push(symbol_id);
             }
         }
 
-        members.sort();
-        members.dedup();
-        members
+        // remove exact duplicate rows from overload and profile indexes
+        occurrences.sort_by_key(|occurrence| {
+            (
+                occurrence.module.profile_id,
+                occurrence.module.module_id,
+                occurrence.span.file,
+                occurrence.span.start,
+                occurrence.span.end,
+            )
+        });
+        occurrences.dedup();
+
+        // require every rewritten occurrence to select only this rename group
+        for occurrence in &occurrences {
+            let module = program.module(occurrence.module.module_id)?;
+            let selected = if is_local_declaration {
+                module.declaration_at_offset(occurrence.span.file, occurrence.span.start)
+            } else {
+                module.reference_at_offset(occurrence.span.file, occurrence.span.start)
+            }?
+            .ok_or(QueryError::missing(format!(
+                "rename occurrence: {:?}",
+                occurrence.span
+            )))?;
+            if selected.span != occurrence.span {
+                return Err(QueryError::conflict(format!(
+                    "rename occurrence: {:?}, {:?}",
+                    occurrence.span, selected.span
+                )));
+            }
+
+            let selected = if is_local_declaration {
+                selected.symbols
+            } else {
+                let mut symbols = Vec::new();
+                for symbol in selected.symbols {
+                    symbols.extend(program.canonical_symbols(symbol)?);
+                }
+
+                symbols
+            };
+            if selected.iter().any(|selected| !symbols.contains(selected)) {
+                return Ok(None);
+            }
+        }
+
+        Ok(Some(occurrences))
     }
 }
