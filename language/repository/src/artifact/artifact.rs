@@ -550,15 +550,6 @@ impl Repository {
 
                 Ok(&current == fingerprint)
             }
-            SourceDependency::ProfileModules {
-                profile,
-                fingerprint,
-            } => {
-                let modules = self.profile_module_ids(revision, *profile)?;
-                let current = ModuleSetFingerprint::new(&modules);
-
-                Ok(&current == fingerprint)
-            }
         }
     }
 
@@ -618,9 +609,7 @@ impl Repository {
                     sources.push(*file);
                 }
                 ArtifactDependency::Source(
-                    SourceDependency::Packages { .. }
-                    | SourceDependency::Modules { .. }
-                    | SourceDependency::ProfileModules { .. },
+                    SourceDependency::Packages { .. } | SourceDependency::Modules { .. },
                 ) => {}
             }
         }

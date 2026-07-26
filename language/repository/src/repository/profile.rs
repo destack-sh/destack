@@ -150,29 +150,6 @@ impl Repository {
         Ok(profiles.keys().copied().collect())
     }
 
-    /// Return the exact revision-scoped profile for one module and profile id when present.
-    pub fn module_profile_by_id(
-        &self,
-        revision: Revision,
-        module_id: ModuleId,
-        profile_id: ProfileId,
-    ) -> Result<Option<Arc<Profile>>, RepositoryError> {
-        let Some(module) = self.module(revision, module_id)? else {
-            return Err(RepositoryError::MissingModule { module: module_id });
-        };
-        let target_ids = self.profile_target_ids(revision, module.package_id)?;
-
-        for target_id in target_ids {
-            let profile = self.profile_for_target(revision, target_id)?;
-
-            if profile.id() == profile_id {
-                return Ok(Some(profile));
-            }
-        }
-
-        Ok(None)
-    }
-
     /// Return target ids with addressable profile keys for one package.
     fn profile_target_ids(
         &self,
