@@ -470,7 +470,7 @@ class Box {
 "#,
         r#"
 /// @diagnostic.error id=missing-declaration-body message="declaration 'constructor' requires a body"
-/// @diagnostic.label line=3 column=5 span="constructor(value: string)" line_source="constructor(value: string);"
+/// @diagnostic.label line=3 column=5 span="constructor" line_source="constructor(value: string);"
 "#,
     );
 }

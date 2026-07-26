@@ -92,8 +92,8 @@ extension of User implements Show {
 "#,
         r#"
 /// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Show' for type 'User'"
-/// @diagnostic.label line=14 column=1 span="extension of User implements Show {\n    show(): string {\n        return \"debug\";\n    }\n}" line_source="extension of User implements Show {"
-/// @diagnostic.related line=8 column=1 span="extension of User implements Show {\n    show(): string {\n        return \"user\";\n    }\n}" line_source="extension of User implements Show {" message="conflicting implementation"
+/// @diagnostic.label line=14 column=14 span="User" line_source="extension of User implements Show {"
+/// @diagnostic.related line=8 column=14 span="User" line_source="extension of User implements Show {" message="conflicting implementation"
 "#,
     );
 }
