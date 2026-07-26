@@ -1027,22 +1027,40 @@ impl<'a> ProgramLinker<'a> {
         let mut counter_start = 0u32;
         let mut sampler_start = 0u32;
 
-        // index function-local profile counts once by compiler identity
+        // initialize every object-local function profile range
         for (module, object) in objects {
-            let declarations = object.functions();
-            let definitions = object.bytecode().functions();
-            if declarations.len() != definitions.len() {
-                return Err(Self::invalid_input_for(
-                    package,
-                    "function and bytecode tables differ in length",
-                ));
+            for function in object.functions() {
+                counts.insert((*module, function.id), (0, 0));
             }
 
-            for (declaration, definition) in declarations.iter().zip(definitions) {
-                counts.insert(
-                    (*module, declaration.id),
-                    (definition.counter_count, definition.sampler_count),
-                );
+            // derive local counter widths from their semantic sites
+            for site in object.counters() {
+                let count = counts
+                    .get_mut(&(*module, site.point.function))
+                    .ok_or_else(|| {
+                        Self::invalid_input_for(package, "counter function is absent")
+                    })?;
+                let end = site
+                    .counter
+                    .0
+                    .checked_add(1)
+                    .ok_or_else(|| Self::invalid_input_for(package, "counter id overflow"))?;
+                count.0 = count.0.max(end);
+            }
+
+            // derive local sampler widths from their semantic sites
+            for site in object.samples() {
+                let count = counts
+                    .get_mut(&(*module, site.point.function))
+                    .ok_or_else(|| {
+                        Self::invalid_input_for(package, "sampler function is absent")
+                    })?;
+                let end = site
+                    .sampler
+                    .0
+                    .checked_add(1)
+                    .ok_or_else(|| Self::invalid_input_for(package, "sampler id overflow"))?;
+                count.1 = count.1.max(end);
             }
         }
 

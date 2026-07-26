@@ -1,8 +1,10 @@
+use std::collections::HashSet;
+
 use destack_artifact::Object;
 use destack_bytecode as bytecode;
 use destack_core::{EntryRange, Optional};
 use destack_mir as mir;
-use destack_program::TypeId;
+use destack_program::{CounterId, SamplerId, TypeId, Word};
 use destack_source::ModuleId;
 
 use crate::LinkResult;
@@ -18,6 +20,7 @@ pub(crate) struct BytecodeLinker<'a, 'b> {
     frames: &'a FrameLinker<'b>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'a, 'b> BytecodeLinker<'a, 'b> {
     /// Create one bytecode linker.
     pub(crate) fn new(program: &'a ProgramLinker<'b>, frames: &'a FrameLinker<'b>) -> Self {
@@ -46,6 +49,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
             let source = self.function(object, function)?;
             let row = self.link_function(
                 module,
+                function,
                 object,
                 source,
                 &object_code[object_index],
@@ -69,6 +73,16 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
     fn link_code(&self, module: ModuleId, object: &Object) -> LinkResult<Vec<u8>> {
         let bytecode = object.bytecode();
         let mut code = bytecode.code().to_vec();
+        let counters = object
+            .counters()
+            .iter()
+            .map(|site| (site.point.function, site.counter))
+            .collect::<HashSet<_>>();
+        let samplers = object
+            .samples()
+            .iter()
+            .map(|site| (site.point.function, site.sampler))
+            .collect::<HashSet<_>>();
 
         // patch every object-local identity at its exact encoded operand
         for relocation in bytecode.relocations() {
@@ -88,6 +102,8 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
                 relocation.byte_offset,
                 relocation.tag,
                 encoded,
+                &counters,
+                &samplers,
             )?;
             let bytes = code.get_mut(start..end).ok_or_else(|| {
                 self.program
@@ -100,10 +116,10 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
     }
 
     /// Link one physical function and append its owned sections.
-    #[allow(clippy::too_many_arguments)]
     fn link_function(
         &self,
         module: ModuleId,
+        function: mir::FunctionId,
         object: &Object,
         source: &bytecode::Function,
         object_code: &[u8],
@@ -163,15 +179,47 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
             }
         });
 
+        let register_count = self.register_count(object, function, source.register_count)?;
+
         Ok(bytecode::Function::new(
             Optional::from(code_range),
             EntryRange::new(frame_start, frame_count),
             EntryRange::new(operation_start, operation_count),
-            source.register_count,
-            source.coroutine,
-            source.counter_count,
-            source.sampler_count,
+            register_count,
         ))
+    }
+
+    /// Return the register width required by emitted code and the callable ABI.
+    fn register_count(
+        &self,
+        object: &Object,
+        function: mir::FunctionId,
+        emitted_register_count: u16,
+    ) -> LinkResult<u16> {
+        let function = object
+            .function(function)
+            .ok_or_else(|| self.program.invalid_input("object function is absent"))?;
+        let types = function
+            .environment
+            .iter()
+            .chain(function.parameters.iter().map(|parameter| &parameter.ty));
+        let mut entry_register_count = 0;
+
+        // size the contiguous entry window from canonical object layouts
+        for ty in types {
+            let layout = object.layouts().type_layout(*ty).ok_or_else(|| {
+                self.program
+                    .invalid_input("function parameter layout is absent")
+            })?;
+            entry_register_count += layout.byte_len().div_ceil(Word::BYTE_LEN);
+        }
+
+        let entry_register_count = u16::try_from(entry_register_count).map_err(|_| {
+            self.program
+                .invalid_input("function register count is out of range")
+        })?;
+
+        Ok(emitted_register_count.max(entry_register_count))
     }
 
     /// Return one physical declaration by common object function identity.
@@ -200,6 +248,8 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         byte_offset: u32,
         tag: bytecode::RelocationTag,
         index: u32,
+        counters: &HashSet<(mir::FunctionId, mir::CounterId)>,
+        samplers: &HashSet<(mir::FunctionId, mir::SamplerId)>,
     ) -> LinkResult<u32> {
         if tag == bytecode::RelocationTag::TYPE {
             self.type_id(module, object, index).map(|id| id.0)
@@ -246,17 +296,13 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         } else if tag == bytecode::RelocationTag::COUNTER {
             let function = self.relocation_function(object, byte_offset)?;
 
-            Ok(self
-                .program
-                .counter_id(module, function, mir::CounterId(index))
-                .0)
+            self.counter_id(module, counters, function, mir::CounterId(index))
+                .map(|counter| counter.0)
         } else if tag == bytecode::RelocationTag::SAMPLER {
             let function = self.relocation_function(object, byte_offset)?;
 
-            Ok(self
-                .program
-                .sampler_id(module, function, mir::SamplerId(index))
-                .0)
+            self.sampler_id(module, samplers, function, mir::SamplerId(index))
+                .map(|sampler| sampler.0)
         } else {
             Err(self
                 .program
@@ -284,6 +330,40 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         Err(self
             .program
             .invalid_input("bytecode relocation has no owning function"))
+    }
+
+    /// Resolve one function-local counter declared by an artifact site.
+    fn counter_id(
+        &self,
+        module: ModuleId,
+        counters: &HashSet<(mir::FunctionId, mir::CounterId)>,
+        function: mir::FunctionId,
+        counter: mir::CounterId,
+    ) -> LinkResult<CounterId> {
+        if !counters.contains(&(function, counter)) {
+            return Err(self
+                .program
+                .invalid_input("bytecode counter site is absent"));
+        }
+
+        Ok(self.program.counter_id(module, function, counter))
+    }
+
+    /// Resolve one function-local sampler declared by an artifact site.
+    fn sampler_id(
+        &self,
+        module: ModuleId,
+        samplers: &HashSet<(mir::FunctionId, mir::SamplerId)>,
+        function: mir::FunctionId,
+        sampler: mir::SamplerId,
+    ) -> LinkResult<SamplerId> {
+        if !samplers.contains(&(function, sampler)) {
+            return Err(self
+                .program
+                .invalid_input("bytecode sampler site is absent"));
+        }
+
+        Ok(self.program.sampler_id(module, function, sampler))
     }
 
     /// Return one object-local MIR type identity.
