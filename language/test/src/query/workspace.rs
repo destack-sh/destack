@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_query::{QueryRequest, QueryResponse};
 use destack_repository::{Edit, Ref, Repository, Revision};
 use destack_source::Content;
-use destack_workspace::{LocalWorkspace, RevisionPolicy};
+use destack_workspace::{LocalWorkspace, RevisionPolicy, RunQueryRequest};
 
 use crate::core::SharedMemoryWorkspace;
 
@@ -12,7 +12,12 @@ use super::QueryFixture;
 
 /// Package declaration used when a fixture does not provide one.
 const QUERY_MANIFEST: &str = r#"{
-  "include": ["**/*.ds"]
+  "targets": {
+    "default": {
+      "include": ["**/*.ds"]
+    }
+  },
+  "defaultTarget": "default"
 }
 "#;
 
@@ -103,7 +108,13 @@ impl QueryWorkspace {
         request: QueryRequest,
     ) -> Result<QueryResponse, String> {
         self.local_workspace
-            .query_root(&self.root, request, RevisionPolicy::Exact(revision))
+            .run_query(
+                &self.root,
+                RunQueryRequest {
+                    revision: RevisionPolicy::Exact(revision),
+                    request,
+                },
+            )
             .map(|result| result.response)
             .map_err(|error| format!("query execution failed: {error}"))
     }

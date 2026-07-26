@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 use std::fmt::{self, Debug, Display, Formatter};
 
+use destack_dir::DecoratorTarget;
 use destack_query::{
-    CallItem, CodeAction, CodeLens, CodeLensAction, Completion, DecoratorItem, FoldingRange, Hover,
-    IncomingCall, InlayHint, Link, NavigationTarget, OutgoingCall, OutlineSymbol, QueryResponse,
-    SelectionRange, SemanticToken, SemanticTokenModifiers, SignatureHelp, Target, TypeItem,
-    WorkspaceSymbol,
+    CallItem, CodeAction, CodeLens, CodeLensAction, CompletionResponse, DecoratorItem,
+    FoldingRange, Hover, IncomingCall, InlayHint, Link, NavigationTarget, OutgoingCall,
+    OutlineSymbol, QueryResponse, SearchSymbol, SelectionRange, SemanticToken,
+    SemanticTokenModifiers, SignatureHelp, Target, TypeItem,
 };
 use destack_source::{Patch, PatchSet};
 
@@ -214,11 +215,9 @@ pub(super) fn response_rows(
     response: &QueryResponse,
 ) -> Result<ResponseRows, String> {
     let rows = match response {
-        QueryResponse::Completion(response) => {
-            completion_rows(run, &response.items, response.is_incomplete)?
-        }
+        QueryResponse::Completion(response) => completion_rows(run, response)?,
         QueryResponse::Hover(response) => match &response.hover {
-            Some(hover) => vec![hover_row(run, hover)?],
+            Some(hover) => hover_rows(run, hover)?,
             None => none("hover"),
         },
         QueryResponse::SignatureHelp(response) => match &response.help {
@@ -270,12 +269,28 @@ pub(super) fn response_rows(
                 .references
                 .iter()
                 .map(|reference| {
-                    let symbol =
-                        run.format_symbol(reference.symbol_id, reference.target.module.profile_id)?;
+                    // require at least one exact identity for every occurrence
+                    if reference.symbols.is_empty() {
+                        return Err("query reference occurrence has no symbols".to_string());
+                    }
+                    let symbols = reference
+                        .symbols
+                        .iter()
+                        .map(|symbol| {
+                            run.format_symbol(*symbol, reference.target.module.profile_id)
+                        })
+                        .collect::<Result<Vec<_>, _>>()?
+                        .join(",");
+
+                    let symbol_field = if reference.symbols.len() == 1 {
+                        "symbol"
+                    } else {
+                        "symbols"
+                    };
 
                     Ok(QueryRow::new("find_references.reference")
                         .with_target(run, &reference.target)?
-                        .field("symbol", symbol))
+                        .field(symbol_field, symbols))
                 })
                 .collect::<Result<Vec<_>, String>>()?;
 
@@ -300,17 +315,29 @@ pub(super) fn response_rows(
         QueryResponse::Decorators(response) => decorator_rows(run, &response.decorators)?,
         QueryResponse::RenameTarget(response) => match &response.target {
             Some(rename_target) => {
+                // require at least one exact identity for the rename occurrence
+                if rename_target.symbols.is_empty() {
+                    return Err("query rename target has no symbols".to_string());
+                }
+                let symbols = rename_target
+                    .symbols
+                    .iter()
+                    .map(|symbol| {
+                        run.format_symbol(*symbol, rename_target.target.module.profile_id)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?
+                    .join(",");
+                let symbol_field = if rename_target.symbols.len() == 1 {
+                    "symbol"
+                } else {
+                    "symbols"
+                };
+
                 vec![
                     QueryRow::new("rename_target.target")
                         .field("placeholder", &rename_target.placeholder)
                         .with_target(run, &rename_target.target)?
-                        .field(
-                            "symbol",
-                            run.format_symbol(
-                                rename_target.symbol_id,
-                                rename_target.target.module.profile_id,
-                            )?,
-                        ),
+                        .field(symbol_field, symbols),
                 ]
             }
             None => none("rename_target"),
@@ -326,22 +353,28 @@ pub(super) fn response_rows(
         QueryResponse::Inline(response) => edit_rows(run, "inline", response.edit.as_ref())?,
     };
 
+    // require one explicit row even for an empty result
+    if rows.is_empty() {
+        return Err("query response produced no rows".to_string());
+    }
+
     Ok(ResponseRows::new(rows))
 }
 
 /// Render completion rows and their additional edits.
 fn completion_rows(
     run: &QueryRun<'_>,
-    items: &[Completion],
-    is_incomplete: bool,
+    response: &CompletionResponse,
 ) -> Result<Vec<QueryRow>, String> {
     let mut rows = Vec::new();
-    if is_incomplete {
-        rows.push(QueryRow::new("completion.result").flag("incomplete", true));
+
+    // record truncated result lists before their items
+    if response.is_incomplete {
+        rows.push(QueryRow::new("completion.list").field("incomplete", "true"));
     }
 
     // transcribe items and edits in response order
-    for (item_index, item) in items.iter().enumerate() {
+    for (item_index, item) in response.items.iter().enumerate() {
         let matches = item
             .match_positions
             .iter()
@@ -352,22 +385,24 @@ fn completion_rows(
             QueryRow::new("completion.item")
                 .field("label", &item.label)
                 .field("kind", enum_name(item.kind))
+                .field("replace", run.format_span(item.edit.span)?)
                 .optional("detail", item.detail.as_deref())
                 .optional("documentation", item.documentation.as_deref())
-                .optional("insert", item.insert_text.as_deref())
-                .field("sort", item.sort_order.to_string())
-                .optional("sort_text", item.sort_text.as_deref())
-                .flag("snippet", item.is_snippet)
+                .optional(
+                    "insert",
+                    (item.edit.new_text != item.label).then_some(item.edit.new_text.as_str()),
+                )
+                .flag("snippet", item.edit.is_snippet)
                 .flag("preselect", item.preselect)
-                .flag("deprecated", item.deprecated)
+                .flag("deprecated", item.is_deprecated)
                 .flag("auto_import", item.is_auto_import)
                 .optional("matches", (!matches.is_empty()).then_some(matches)),
         );
 
-        for patch in &item.additional_text_edits {
+        for patch in &item.additional_edits {
             rows.push(patch_row(
                 run,
-                "completion.edit",
+                "completion.additional_edit",
                 Some(("item", item_index)),
                 patch,
             )?);
@@ -377,18 +412,28 @@ fn completion_rows(
     Ok(rows_or_none(rows, "completion"))
 }
 
-/// Render one hover row.
-fn hover_row(run: &QueryRun<'_>, hover: &Hover) -> Result<QueryRow, String> {
-    let location = hover
-        .location
-        .as_deref()
-        .map(|location| run.format_source_location(location))
-        .transpose()?;
-    Ok(QueryRow::new("hover.result")
-        .field("signature", &hover.signature)
-        .optional("documentation", hover.documentation.as_deref())
-        .optional("location", location)
-        .field("range", run.format_span(hover.range)?))
+/// Render every declaration in one hover result.
+fn hover_rows(run: &QueryRun<'_>, hover: &Hover) -> Result<Vec<QueryRow>, String> {
+    let mut rows = Vec::with_capacity(hover.items.len());
+
+    for (index, item) in hover.items.iter().enumerate() {
+        let location = item
+            .location
+            .as_deref()
+            .map(|location| run.format_source_location(location))
+            .transpose()?;
+        rows.push(
+            QueryRow::new("hover.item")
+                .field("index", index.to_string())
+                .field("signature", &item.signature)
+                .optional("type", item.type_text.as_deref())
+                .optional("documentation", item.documentation.as_deref())
+                .optional("location", location)
+                .field("range", run.format_span(hover.range)?),
+        );
+    }
+
+    Ok(rows)
 }
 
 /// Render signature and parameter rows.
@@ -400,12 +445,12 @@ fn signature_rows(help: &SignatureHelp) -> Result<Vec<QueryRow>, String> {
             help.signatures.len()
         )
     })?;
-    if !active_signature.parameters.is_empty()
-        && help.active_parameter >= active_signature.parameters.len()
+    if let Some(active_parameter) = help.active_parameter
+        && active_parameter >= active_signature.parameters.len()
     {
         return Err(format!(
             "query signature help selects parameter {}, but active signature has {} parameters",
-            help.active_parameter,
+            active_parameter,
             active_signature.parameters.len()
         ));
     }
@@ -431,7 +476,7 @@ fn signature_rows(help: &SignatureHelp) -> Result<Vec<QueryRow>, String> {
                     .flag(
                         "active",
                         signature_index == help.active_signature
-                            && parameter_index == help.active_parameter,
+                            && Some(parameter_index) == help.active_parameter,
                     ),
             );
         }
@@ -446,7 +491,7 @@ fn inlay_rows(
     call: &QueryCall,
     hints: &[InlayHint],
 ) -> Result<Vec<QueryRow>, String> {
-    let QueryCall::InlayHints { range } = call else {
+    let QueryCall::InlayHints { range, .. } = call else {
         return Err("inlay hint response has a mismatched query call".to_string());
     };
     let rows = hints
@@ -488,15 +533,7 @@ fn code_lens_row(run: &QueryRun<'_>, method: &str, lens: &CodeLens) -> Result<Qu
         CodeLensAction::Implementations { count } => row
             .field("action", "implementations")
             .field("count", count.to_string()),
-        CodeLensAction::RunTest { name } => row.field("action", "run_test").field("test", name),
-        CodeLensAction::DebugTest { name } => row.field("action", "debug_test").field("test", name),
     };
-
-    // render the exact declaration identity
-    let path = run.path(lens.range.file)?;
-    let module = run.module(path)?;
-    let symbol = run.format_symbol(lens.symbol_id, module.profile_id)?;
-    let row = row.field("symbol", symbol);
 
     Ok(row)
 }
@@ -549,7 +586,6 @@ fn semantic_rows(
 fn semantic_modifiers(modifiers: SemanticTokenModifiers) -> Result<Vec<&'static str>, String> {
     let entries = [
         (SemanticTokenModifiers::DECLARATION, "declaration"),
-        (SemanticTokenModifiers::DEFINITION, "definition"),
         (SemanticTokenModifiers::READONLY, "readonly"),
         (SemanticTokenModifiers::STATIC, "static"),
         (SemanticTokenModifiers::DEPRECATED, "deprecated"),
@@ -558,7 +594,6 @@ fn semantic_modifiers(modifiers: SemanticTokenModifiers) -> Result<Vec<&'static 
         (SemanticTokenModifiers::MODIFICATION, "modification"),
         (SemanticTokenModifiers::DOCUMENTATION, "documentation"),
         (SemanticTokenModifiers::DEFAULT_LIBRARY, "default_library"),
-        (SemanticTokenModifiers::MUTABLE, "mutable"),
     ];
 
     let known_bits = entries
@@ -619,7 +654,7 @@ fn push_outline_rows(
 /// Render workspace symbol rows.
 fn search_symbols_rows(
     run: &QueryRun<'_>,
-    symbols: &[WorkspaceSymbol],
+    symbols: &[SearchSymbol],
 ) -> Result<Vec<QueryRow>, String> {
     let rows = symbols
         .iter()
@@ -648,7 +683,7 @@ fn link_rows(run: &QueryRun<'_>, links: &[Link]) -> Result<Vec<QueryRow>, String
             let row = QueryRow::new("links.link")
                 .field("range", run.format_span(link.range)?)
                 .field("path", path)
-                .optional("tooltip", link.tooltip.as_deref());
+                .field("tooltip", &link.tooltip);
 
             Ok(row)
         })
@@ -837,28 +872,33 @@ fn decorator_rows(
 
     // preserve decorator applications and their paired owners
     for (index, decorator) in decorators.iter().enumerate() {
-        rows.push(
-            QueryRow::new("decorators.application")
-                .field("index", index.to_string())
-                .optional("name", decorator.name.as_deref())
-                .field("role", enum_name(decorator.role))
-                .with_target(run, &decorator.decorator)?
-                .field(
-                    "node",
-                    run.format_node(
-                        decorator.decorator_node_id,
-                        decorator.decorator.module.profile_id,
-                    )?,
-                ),
-        );
+        let row = QueryRow::new("decorators.application")
+            .field("index", index.to_string())
+            .optional("name", decorator.name.as_deref());
+        let row = match decorator.declaration {
+            DecoratorTarget::LanguageItem { item, .. } => row
+                .field("role", "language_item")
+                .field("language_item", enum_name(item)),
+            DecoratorTarget::Symbol { symbol } => row.field("role", "symbol").field(
+                "symbol",
+                run.format_symbol(symbol, decorator.application.module.profile_id)?,
+            ),
+        };
+        rows.push(row.with_target(run, &decorator.application)?.field(
+            "node",
+            run.format_node(
+                decorator.application_node.into_any(),
+                decorator.application.module.profile_id,
+            )?,
+        ));
 
         rows.push(
             QueryRow::new("decorators.owner")
                 .field("index", index.to_string())
-                .with_target(run, &decorator.target)?
+                .with_target(run, &decorator.owner)?
                 .field(
                     "node",
-                    run.format_node(decorator.target_node_id, decorator.target.module.profile_id)?,
+                    run.format_node(decorator.owner_node, decorator.owner.module.profile_id)?,
                 ),
         );
     }
@@ -878,7 +918,6 @@ fn code_action_rows(run: &QueryRun<'_>, actions: &[CodeAction]) -> Result<Vec<Qu
                 .field("title", &action.title)
                 .field("kind", enum_name(action.kind))
                 .flag("preferred", action.is_preferred)
-                .optional("disabled", action.disabled_reason.as_deref())
                 .optional("diagnostic", action.diagnostic_id.as_deref()),
         );
         rows.extend(patch_set_rows(
@@ -899,6 +938,10 @@ fn patch_set_rows(
     owner: Option<(&str, usize)>,
     patches: &PatchSet,
 ) -> Result<Vec<QueryRow>, String> {
+    // reject present edits that do not change source
+    if patches.is_empty() {
+        return Err("query response contains an empty patch set".to_string());
+    }
     let mut rows = Vec::new();
     let mut files = HashSet::new();
 
@@ -941,11 +984,8 @@ fn edit_rows(
         return Ok(none(method));
     };
     let rows = patch_set_rows(run, &format!("{method}.patch"), None, edit)?;
-    if rows.is_empty() {
-        Ok(vec![QueryRow::new(format!("{method}.edit"))])
-    } else {
-        Ok(rows)
-    }
+
+    Ok(rows)
 }
 
 /// Render one exact source patch.

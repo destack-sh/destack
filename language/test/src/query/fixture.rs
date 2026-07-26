@@ -295,7 +295,7 @@ fn validate_call(call: &QueryCall, files: &IndexMap<PathBuf, QueryFile>) -> Resu
         | QueryCall::Rename { position, .. }
         | QueryCall::Inline { position } => require_position(position, files),
 
-        QueryCall::InlayHints { range }
+        QueryCall::InlayHints { range, .. }
         | QueryCall::SemanticTokensRange { range }
         | QueryCall::ExtractVariable { range, .. }
         | QueryCall::CodeActions { range, .. } => require_range(range, files),

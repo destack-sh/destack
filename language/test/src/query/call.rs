@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_query::{
-    CodeActionContext, CodeActionKind, CompletionTrigger, FileRenameEntry, QueryMethodId,
+    CodeActionContext, CodeActionKind, CompletionTrigger, FileRename, QueryMethodId,
 };
 
 use super::{FixturePosition, FixtureRange};
@@ -16,7 +16,7 @@ pub(super) enum QueryCall {
         /// The completion trigger.
         trigger: CompletionTrigger,
         /// Whether auto-import completions are included.
-        include_imports: bool,
+        include_auto_imports: bool,
     },
     /// Request hover information at one position.
     Hover {
@@ -32,6 +32,10 @@ pub(super) enum QueryCall {
     InlayHints {
         /// The queried source range.
         range: FixtureRange,
+        /// Whether inferred type hints are requested.
+        type_hints: bool,
+        /// Whether parameter name hints are requested.
+        parameter_hints: bool,
     },
     /// Request code lenses for one module.
     CodeLenses {
@@ -159,7 +163,7 @@ pub(super) enum QueryCall {
     /// Rewrite module specifiers after file renames.
     RenameFiles {
         /// The renamed file paths.
-        renames: Vec<FileRenameEntry>,
+        renames: Vec<FileRename>,
     },
     /// Extract one source range into a variable.
     ExtractVariable {
@@ -216,7 +220,7 @@ impl QueryCall {
             QueryMethodId::Completion => Self::Completion {
                 position: parser.position()?,
                 trigger: parser.completion_trigger()?,
-                include_imports: parser.boolean("include_imports")?,
+                include_auto_imports: parser.boolean("include_auto_imports", false)?,
             },
             QueryMethodId::Hover => Self::Hover {
                 position: parser.position()?,
@@ -226,6 +230,8 @@ impl QueryCall {
             },
             QueryMethodId::InlayHints => Self::InlayHints {
                 range: parser.range()?,
+                type_hints: parser.boolean("type_hints", true)?,
+                parameter_hints: parser.boolean("parameter_hints", true)?,
             },
             QueryMethodId::CodeLenses => Self::CodeLenses {
                 module: parser.module_path()?,
@@ -269,7 +275,7 @@ impl QueryCall {
             },
             QueryMethodId::FindReferences => Self::FindReferences {
                 position: parser.position()?,
-                include_declaration: parser.boolean("include_declaration")?,
+                include_declaration: parser.boolean("include_declaration", false)?,
             },
             QueryMethodId::CallItem => Self::CallItem {
                 position: parser.position()?,
@@ -432,9 +438,9 @@ impl QueryCallParser {
     }
 
     /// Parse one optional boolean option.
-    fn boolean(&mut self, name: &str) -> Result<bool, String> {
+    fn boolean(&mut self, name: &str, default: bool) -> Result<bool, String> {
         let Some(value) = self.optional_value(name)? else {
-            return Ok(false);
+            return Ok(default);
         };
 
         match value.as_str() {
@@ -493,12 +499,7 @@ impl QueryCallParser {
             })
             .transpose()?
             .unwrap_or_default();
-        let include_disabled = self.boolean("include_disabled")?;
-
-        Ok(CodeActionContext {
-            only,
-            include_disabled,
-        })
+        Ok(CodeActionContext { only })
     }
 
     /// Require every header word to be consumed.
@@ -515,18 +516,14 @@ impl QueryCallParser {
 fn parse_code_action_kind(value: &str) -> Result<CodeActionKind, String> {
     match value {
         "quick_fix" => Ok(CodeActionKind::QuickFix),
-        "refactor" => Ok(CodeActionKind::Refactor),
         "refactor_extract" => Ok(CodeActionKind::RefactorExtract),
         "refactor_inline" => Ok(CodeActionKind::RefactorInline),
-        "refactor_rewrite" => Ok(CodeActionKind::RefactorRewrite),
-        "source" => Ok(CodeActionKind::Source),
-        "source_fix_all" => Ok(CodeActionKind::SourceFixAll),
         _ => Err(format!("unknown code action kind '{value}'")),
     }
 }
 
 /// Parse exact file rename lines.
-fn parse_file_renames(source: &str) -> Result<Vec<FileRenameEntry>, String> {
+fn parse_file_renames(source: &str) -> Result<Vec<FileRename>, String> {
     let mut renames = Vec::new();
 
     // parse every non-empty old-to-new path pair
@@ -536,7 +533,7 @@ fn parse_file_renames(source: &str) -> Result<Vec<FileRenameEntry>, String> {
                 "file rename '{line}' must be '<old path> -> <new path>'"
             ));
         };
-        renames.push(FileRenameEntry {
+        renames.push(FileRename {
             old_path: PathBuf::from(old_path),
             new_path: PathBuf::from(new_path),
         });

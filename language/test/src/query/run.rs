@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::slice;
 
@@ -16,7 +16,7 @@ use destack_query::{
 };
 use destack_repository::{ArtifactReader, Revision};
 use destack_source::{
-    DiffOptions, FileId, PatchSet, ProfileId, Span, TargetId, apply_file_patch, format_diff,
+    DiffOptions, FileId, PatchSet, ProfileId, Span, apply_file_patch, format_diff,
 };
 
 use super::{
@@ -24,9 +24,6 @@ use super::{
     QueryExpectation, QueryFile, QueryFixture, QueryWorkspace, ResponseUpdate, display_query_path,
     response_rows,
 };
-
-/// The editor target used by query fixtures.
-const QUERY_TARGET: &str = "default";
 
 /// One exact workspace execution of a query fixture.
 pub(super) struct QueryRun<'a> {
@@ -79,14 +76,26 @@ impl<'a> QueryRun<'a> {
                         )
                     })?
                     .ok_or_else(|| format!("query module '{}' is missing", file.path.display()))?;
-                let target_id = TargetId::new(repository_module.package_id, QUERY_TARGET);
+                let selected_target = repository
+                    .package_default_target(revision, repository_module.package_id)
+                    .map_err(|error| {
+                        format!(
+                            "failed to select query target for '{}': {error}",
+                            file.path.display()
+                        )
+                    })?;
+                let Some((target_id, _)) = selected_target else {
+                    return Err(format!(
+                        "query target is ambiguous for '{}'",
+                        file.path.display()
+                    ));
+                };
                 let profile = repository
                     .profile_for_module_target(revision, module_id, target_id)
                     .map_err(|error| {
                         format!(
-                            "failed to resolve target '{}' for '{}': {error}",
-                            QUERY_TARGET,
-                            file.path.display()
+                            "failed to resolve query target for '{}': {error}",
+                            file.path.display(),
                         )
                     })?;
 
@@ -200,11 +209,11 @@ impl<'a> QueryRun<'a> {
             QueryCall::Completion {
                 position,
                 trigger,
-                include_imports,
+                include_auto_imports,
             } => QueryRequest::Completion(CompletionRequest {
                 position: self.position(position)?,
                 trigger: *trigger,
-                include_imports: *include_imports,
+                include_auto_imports: *include_auto_imports,
             }),
             QueryCall::Hover { position } => QueryRequest::Hover(HoverRequest {
                 position: self.position(position)?,
@@ -214,8 +223,14 @@ impl<'a> QueryRun<'a> {
                     position: self.position(position)?,
                 })
             }
-            QueryCall::InlayHints { range } => QueryRequest::InlayHints(InlayHintsRequest {
+            QueryCall::InlayHints {
+                range,
+                type_hints,
+                parameter_hints,
+            } => QueryRequest::InlayHints(InlayHintsRequest {
                 range: self.range(range)?,
+                type_hints: *type_hints,
+                parameter_hints: *parameter_hints,
             }),
             QueryCall::CodeLenses { module } => {
                 let (module, file_id) = self.query_file(module)?;
@@ -244,7 +259,6 @@ impl<'a> QueryRun<'a> {
             }
             QueryCall::SearchSymbols { query, max_results } => {
                 QueryRequest::SearchSymbols(SearchSymbolsRequest {
-                    profile_ids: self.profiles()?,
                     query: query.clone(),
                     max_results: *max_results,
                 })
@@ -335,9 +349,7 @@ impl<'a> QueryRun<'a> {
                     QueryDecoratorScope::Module(module) => {
                         DecoratorScope::Module(self.module(module)?)
                     }
-                    QueryDecoratorScope::Program => DecoratorScope::Program {
-                        profile_ids: self.profiles()?,
-                    },
+                    QueryDecoratorScope::Program => DecoratorScope::Program,
                 };
 
                 QueryRequest::Decorators(DecoratorsRequest {
@@ -355,7 +367,6 @@ impl<'a> QueryRun<'a> {
                 new_name: new_name.clone(),
             }),
             QueryCall::RenameFiles { renames } => QueryRequest::RenameFiles(RenameFilesRequest {
-                profile_ids: self.profiles()?,
                 renames: renames.clone(),
             }),
             QueryCall::ExtractVariable { range, new_name } => {
@@ -454,25 +465,6 @@ impl<'a> QueryRun<'a> {
                 display_query_path(path)
             )
         })
-    }
-
-    /// Return every distinct program profile in stable file order.
-    fn profiles(&self) -> Result<Vec<ProfileId>, String> {
-        let mut seen = HashSet::new();
-        let mut profiles = Vec::new();
-
-        // retain the first occurrence of every exact profile
-        for file in self.fixture.files.values() {
-            if !file.is_code() {
-                continue;
-            }
-            let module = self.module(&file.path)?;
-            if seen.insert(module.profile_id) {
-                profiles.push(module.profile_id);
-            }
-        }
-
-        Ok(profiles)
     }
 
     /// Return one required query file.
@@ -653,13 +645,18 @@ impl<'a> QueryRun<'a> {
     }
 
     /// Require one declared workspace-relative module path.
-    pub(super) fn format_module_path(&self, value: &str) -> Result<String, String> {
+    pub(super) fn format_module_path(&self, value: &Path) -> Result<String, String> {
         self.fixture
             .files
             .keys()
-            .find(|path| display_query_path(path) == value)
+            .find(|path| path.as_path() == value)
             .map(|path| display_query_path(path))
-            .ok_or_else(|| format!("query response names undeclared module path '{value}'"))
+            .ok_or_else(|| {
+                format!(
+                    "query response names undeclared module path '{}'",
+                    value.display()
+                )
+            })
     }
 
     /// Format one rooted source location relative to the fixture root.
@@ -681,13 +678,6 @@ impl<'a> QueryRun<'a> {
 
     /// Apply and compare every complete edited file.
     fn require_files(&self, patches: &PatchSet, expected: &[QueryFile]) -> Result<(), String> {
-        if patches.files.len() != expected.len() {
-            return Err(format!(
-                "query edited {} files, expected {}",
-                patches.files.len(),
-                expected.len()
-            ));
-        }
         let mut expected_by_path = HashMap::with_capacity(expected.len());
 
         // index exact expected outputs
