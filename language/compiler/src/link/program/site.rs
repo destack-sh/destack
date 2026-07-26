@@ -3,7 +3,7 @@ use destack_core::Optional;
 use destack_mir as mir;
 use destack_program::{
     AllocationSite, CallDispatch, CallMode, CallSite, CounterSite, EdgeSite, MemoryAccess,
-    MemorySite, ProgramPoint, SampleSite, SiteTableBuilder, Suspension, SuspensionSite,
+    MemorySite, ProgramPoint, ResumeSite, SampleSite, SiteTableBuilder, Suspension, SuspensionSite,
 };
 use destack_source::ModuleId;
 
@@ -30,6 +30,7 @@ impl<'a> SiteLinker<'a> {
         let mut allocations = Vec::new();
         let mut memory = Vec::new();
         let mut calls = Vec::new();
+        let mut resumes = Vec::new();
         let mut edges = Vec::new();
         let mut suspensions = Vec::new();
         let mut counter_sites = Vec::new();
@@ -57,6 +58,12 @@ impl<'a> SiteLinker<'a> {
                     .map(|site| self.call(*module, site))
                     .collect::<LinkResult<Vec<_>>>()?,
             );
+            resumes.extend(
+                object
+                    .resumes()
+                    .iter()
+                    .map(|site| self.resume(*module, site)),
+            );
             edges.extend(object.edges().iter().map(|site| self.edge(*module, site)));
             suspensions.extend(
                 object
@@ -83,6 +90,7 @@ impl<'a> SiteLinker<'a> {
             .allocations(allocations)
             .memory(memory)
             .calls(calls)
+            .resumes(resumes)
             .edges(edges)
             .suspensions(suspensions)
             .counters(counter_sites)
@@ -165,6 +173,16 @@ impl<'a> SiteLinker<'a> {
         })
     }
 
+    /// Link one continuation resume site.
+    fn resume(&self, module: ModuleId, site: &artifact::ResumeSite) -> ResumeSite {
+        ResumeSite {
+            point: self.point(module, site.point),
+            yielded: self.point(module, site.yielded),
+            returned: self.point(module, site.returned),
+            unwind: Optional::from(site.unwind.map(|point| self.point(module, point))),
+        }
+    }
+
     /// Link one control-flow edge.
     fn edge(&self, module: ModuleId, site: &artifact::EdgeSite) -> EdgeSite {
         EdgeSite {
@@ -187,6 +205,7 @@ impl<'a> SiteLinker<'a> {
         Ok(SuspensionSite {
             point: self.point(module, site.point),
             resume: self.point(module, site.resume),
+            cancel: Optional::from(site.cancel.map(|point| self.point(module, point))),
             unwind: Optional::from(site.unwind.map(|point| self.point(module, point))),
             frame_state,
             operation: match site.operation {
