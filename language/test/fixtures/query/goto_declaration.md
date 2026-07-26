@@ -54,14 +54,16 @@ export function greet(name: string): string {
 
 ```ds alias_main.ds
 import { greet as localGreet } from "./alias_library.ds";
+         ^ target:import_local_greet:start
                   ^^^^^^^^^^ declaration:import_local_greet
+                           ^ target:import_local_greet:end
 
 const message = localGreet("World");
                 ^^^^^^^^^^ reference:local_greet
 ```
 
 ```query goto_declaration alias_main.ds#reference:local_greet
-@goto_declaration.target origin=alias_main.ds#reference:local_greet location=alias_main.ds:1:10-1:29 selection=alias_main.ds#declaration:import_local_greet symbol=alias_main.ds#localGreet@1
+@goto_declaration.target origin=alias_main.ds#reference:local_greet location=alias_main.ds#target:import_local_greet selection=alias_main.ds#declaration:import_local_greet symbol=alias_main.ds#localGreet@1
 ```
 
 ### Keep the imported and local sides of an alias distinct
@@ -70,24 +72,28 @@ The imported name resolves to the exported declaration while the local name reso
 
 ```ds library.ds
 export function greet(): void {}
+^ target:exported_greet:start
                 ^^^^^ declaration:exported_greet
+                               ^ target:exported_greet:end
 ```
 
 ```ds main.ds
 import { greet as welcome } from "./library.ds";
+         ^ target:local_welcome:start
          ^^^^^ imported_name
                   ^^^^^^^ declaration:local_welcome
+                        ^ target:local_welcome:end
 
 welcome();
 ^^^^^^^ reference:local_welcome
 ```
 
 ```query goto_declaration main.ds#imported_name
-@goto_declaration.target origin=main.ds#imported_name location=library.ds:1:1-1:33 selection=library.ds#declaration:exported_greet symbol=library.ds#greet@1
+@goto_declaration.target origin=main.ds#imported_name location=library.ds#target:exported_greet selection=library.ds#declaration:exported_greet symbol=library.ds#greet@1
 ```
 
 ```query goto_declaration main.ds#reference:local_welcome
-@goto_declaration.target origin=main.ds#reference:local_welcome location=main.ds:1:10-1:26 selection=main.ds#declaration:local_welcome symbol=main.ds#welcome@1
+@goto_declaration.target origin=main.ds#reference:local_welcome location=main.ds#target:local_welcome selection=main.ds#declaration:local_welcome symbol=main.ds#welcome@1
 ```
 
 ### Resolve a re-exported alias declaration
@@ -148,14 +154,16 @@ export function ping(): void {}
 
 ```ds main.ds
 import * as utilities from "./utilities.ds";
+       ^ target:import_utilities:start
             ^^^^^^^^^ declaration:import_utilities
+                    ^ target:import_utilities:end
 
 utilities.ping();
 ^^^^^^^^^ reference:utilities
 ```
 
 ```query goto_declaration main.ds#reference:utilities
-@goto_declaration.target origin=main.ds#reference:utilities location=main.ds:1:8-1:22 selection=main.ds#declaration:import_utilities symbol=main.ds#utilities@1
+@goto_declaration.target origin=main.ds#reference:utilities location=main.ds#target:import_utilities selection=main.ds#declaration:import_utilities symbol=main.ds#utilities@1
 ```
 
 ### Resolve each segment of a namespace type path
@@ -164,14 +172,18 @@ The namespace root resolves to its local import, while the selected type resolve
 
 ```ds model.ds
 export struct Settings {
+^ target:settings:start
               ^^^^^^^^ declaration:settings
     enabled: boolean;
 }
+^ target:settings:end
 ```
 
 ```ds main.ds
 import * as models from "./model.ds";
+       ^ target:models:start
             ^^^^^^ declaration:models
+                 ^ target:models:end
 
 type Selected = models.Settings;
                 ^^^^^^ reference:models
@@ -179,11 +191,11 @@ type Selected = models.Settings;
 ```
 
 ```query goto_declaration main.ds#reference:models
-@goto_declaration.target origin=main.ds#reference:models location=main.ds:1:8-1:19 selection=main.ds#declaration:models symbol=main.ds#models@1
+@goto_declaration.target origin=main.ds#reference:models location=main.ds#target:models selection=main.ds#declaration:models symbol=main.ds#models@1
 ```
 
 ```query goto_declaration main.ds#reference:settings
-@goto_declaration.target origin=main.ds#reference:settings location=model.ds:1:1-3:2 selection=model.ds#declaration:settings symbol=model.ds#Settings@1
+@goto_declaration.target origin=main.ds#reference:settings location=model.ds#target:settings selection=model.ds#declaration:settings symbol=model.ds#Settings@1
 ```
 
 ### Resolve a re-exported import declaration
@@ -260,14 +272,16 @@ export type Settings = {
 
 ```ds main_alias.ds
 import { Settings as ApplicationSettings } from "./types_alias.ds";
+         ^ target:import_application_settings:start
                      ^^^^^^^^^^^^^^^^^^^ declaration:import_application_settings
+                                       ^ target:import_application_settings:end
 
 const typed: ApplicationSettings = { enabled: true };
              ^^^^^^^^^^^^^^^^^^^ reference:application_settings
 ```
 
 ```query goto_declaration main_alias.ds#reference:application_settings
-@goto_declaration.target origin=main_alias.ds#reference:application_settings location=main_alias.ds:1:10-1:41 selection=main_alias.ds#declaration:import_application_settings symbol=main_alias.ds#ApplicationSettings@1
+@goto_declaration.target origin=main_alias.ds#reference:application_settings location=main_alias.ds#target:import_application_settings selection=main_alias.ds#declaration:import_application_settings symbol=main_alias.ds#ApplicationSettings@1
 ```
 
 ### Resolve a re-exported type alias declaration
@@ -391,6 +405,7 @@ A selected field access resolves to the member declaration.
 struct Point {
     x: int32;
     ^ declaration:field
+    ^^^^^^^^ target:field
 }
 
 function read(point: Point): int32 {
@@ -400,7 +415,7 @@ function read(point: Point): int32 {
 ```
 
 ```query goto_declaration main.ds#reference:field
-@goto_declaration.target origin=main.ds#reference:field location=main.ds:2:5-2:13 selection=main.ds#declaration:field symbol=main.ds#x@2
+@goto_declaration.target origin=main.ds#reference:field location=main.ds#target:field selection=main.ds#declaration:field symbol=main.ds#x@2
 ```
 
 ### Resolve every exact member declaration selected through a union
@@ -411,11 +426,13 @@ A union receiver returns the finite member declaration set selected by checking.
 class Alpha {
     run(): void {}
     ^^^ declaration:alpha_run
+    ^^^^^^^^^^^^^^ target:alpha_run
 }
 
 class Beta {
     run(): void {}
     ^^^ declaration:beta_run
+    ^^^^^^^^^^^^^^ target:beta_run
 }
 
 function start(service: Alpha | Beta): void {
@@ -425,8 +442,8 @@ function start(service: Alpha | Beta): void {
 ```
 
 ```query goto_declaration main.ds#reference
-@goto_declaration.target origin=main.ds#reference location=main.ds:2:5-2:19 selection=main.ds#declaration:alpha_run symbol=main.ds#run@2
-@goto_declaration.target origin=main.ds#reference location=main.ds:6:5-6:19 selection=main.ds#declaration:beta_run symbol=main.ds#run@5
+@goto_declaration.target origin=main.ds#reference location=main.ds#target:alpha_run selection=main.ds#declaration:alpha_run symbol=main.ds#run@2
+@goto_declaration.target origin=main.ds#reference location=main.ds#target:beta_run selection=main.ds#declaration:beta_run symbol=main.ds#run@5
 ```
 
 ## Labels

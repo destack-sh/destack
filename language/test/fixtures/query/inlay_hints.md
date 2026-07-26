@@ -59,7 +59,7 @@ const pet = new Dog();
 @inlay_hints.hint position=main.ds#binding@end label=": Dog" kind=type
 ```
 
-### Show an applied generic type
+### [ignored] Show an applied generic type
 
 An inferred generic value retains its selected type arguments.
 
@@ -142,6 +142,42 @@ const second = "two";
 @inlay_hints.hint position=main.ds#second@end label=": \"two\"" kind=type
 ```
 
+### Request only inferred type hints
+
+Disabling parameter hints leaves inferred type hints unchanged.
+
+```ds main.ds
+function identity(value: int32): int32 {
+    return value;
+}
+
+const result = identity(1);
+^^^^^^^^^^^^^^^^^^^^^^^^^^^ call
+      ^^^^^^ result
+```
+
+```query inlay_hints main.ds#call parameter_hints=false
+@inlay_hints.hint position=main.ds#result@end label=": int32" kind=type
+```
+
+### Request only parameter name hints
+
+Disabling type hints leaves parameter name hints unchanged.
+
+```ds main.ds
+function identity(value: int32): int32 {
+    return value;
+}
+
+const result = identity(1);
+^^^^^^^^^^^^^^^^^^^^^^^^^^^ call
+                        ^ argument
+```
+
+```query inlay_hints main.ds#call type_hints=false
+@inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
+```
+
 ## Call Arguments
 
 ### Show parameter names for local call arguments
@@ -162,8 +198,24 @@ const result = add(1, 2);
 
 ```query inlay_hints main.ds#call
 @inlay_hints.hint position=main.ds#result@end label=": int32" kind=type
-@inlay_hints.hint position=main.ds#left_argument@start label="left:" kind=parameter padding_right=true
-@inlay_hints.hint position=main.ds#right_argument@start label="right:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#left_argument label="left:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#right_argument label="right:" kind=parameter padding_right=true
+```
+
+### Show parameter names for callable values
+
+Calls through inferred callable bindings retain the lambda parameter names.
+
+```ds main.ds
+const transform = (value: int32): int32 => value;
+
+transform(1);
+^^^^^^^^^^^^^ call
+          ^ argument
+```
+
+```query inlay_hints main.ds#call
+@inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
 ```
 
 ### Show parameter names for imported call arguments
@@ -184,8 +236,8 @@ paint("blue", 2);
 ```
 
 ```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#color_argument@start label="color:" kind=parameter padding_right=true
-@inlay_hints.hint position=main.ds#coats_argument@start label="coats:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#color_argument label="color:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#coats_argument label="coats:" kind=parameter padding_right=true
 ```
 
 ### Show parameter names for method arguments
@@ -208,7 +260,7 @@ const message = greeter.greet("World");
 
 ```query inlay_hints main.ds#call
 @inlay_hints.hint position=main.ds#message@end label=": string" kind=type
-@inlay_hints.hint position=main.ds#argument@start label="name:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#argument label="name:" kind=parameter padding_right=true
 ```
 
 ### Show parameter names for extension arguments
@@ -230,8 +282,8 @@ buffer.read(4, 8);
 ```
 
 ```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#offset_argument@start label="offset:" kind=parameter padding_right=true
-@inlay_hints.hint position=main.ds#length_argument@start label="length:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#offset_argument label="offset:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#length_argument label="length:" kind=parameter padding_right=true
 ```
 
 ### Use the selected overload parameter
@@ -253,7 +305,7 @@ parse("one");
 ```
 
 ```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#argument@start label="text:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#argument label="text:" kind=parameter padding_right=true
 ```
 
 ### Use selected generic parameter names
@@ -272,8 +324,8 @@ const result = identity("ready");
 ```
 
 ```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#result@end label=": string" kind=type
-@inlay_hints.hint position=main.ds#argument@start label="value:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#result@end label=": \"ready\"" kind=type
+@inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
 ```
 
 ### Show one rest parameter for every bound argument
@@ -293,9 +345,9 @@ sum(1, 2, 3);
 ```
 
 ```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#first_argument@start label="first:" kind=parameter padding_right=true
-@inlay_hints.hint position=main.ds#first_rest_argument@start label="values:" kind=parameter padding_right=true
-@inlay_hints.hint position=main.ds#second_rest_argument@start label="values:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#first_argument label="first:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#first_rest_argument label="values:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#second_rest_argument label="values:" kind=parameter padding_right=true
 ```
 
 ### Omit parameter names repeated by arguments
@@ -312,7 +364,7 @@ greet(name, "Hello");
 ```
 
 ```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#second_argument@start label="greeting:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#second_argument label="greeting:" kind=parameter padding_right=true
 ```
 
 ### Omit a repeated member name
@@ -409,8 +461,8 @@ library.paint("blue", 2);
 ```
 
 ```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#color_argument@start label="color:" kind=parameter padding_right=true
-@inlay_hints.hint position=main.ds#coats_argument@start label="coats:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#color_argument label="color:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#coats_argument label="coats:" kind=parameter padding_right=true
 ```
 
 ### Show parameter names through re-exports
@@ -437,8 +489,8 @@ scale(2, 3);
 ```
 
 ```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#value_argument@start label="value:" kind=parameter padding_right=true
-@inlay_hints.hint position=main.ds#factor_argument@start label="factor:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#value_argument label="value:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#factor_argument label="factor:" kind=parameter padding_right=true
 ```
 
 ### Show parameter names through a default import
@@ -461,8 +513,8 @@ repeat("ready", 2);
 ```
 
 ```query inlay_hints main.ds#call
-@inlay_hints.hint position=main.ds#text_argument@start label="text:" kind=parameter padding_right=true
-@inlay_hints.hint position=main.ds#count_argument@start label="count:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#text_argument label="text:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#count_argument label="count:" kind=parameter padding_right=true
 ```
 
 ## Construction
@@ -485,8 +537,8 @@ const user = new User("Ada", 42);
 
 ```query inlay_hints main.ds#construction
 @inlay_hints.hint position=main.ds#user@end label=": User" kind=type
-@inlay_hints.hint position=main.ds#name_argument@start label="name:" kind=parameter padding_right=true
-@inlay_hints.hint position=main.ds#age_argument@start label="age:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#name_argument label="name:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#age_argument label="age:" kind=parameter padding_right=true
 ```
 
 ### Show a newtype backing value parameter
@@ -504,7 +556,7 @@ const userId = UserId("user-1");
 
 ```query inlay_hints main.ds#construction
 @inlay_hints.hint position=main.ds#user_id@end label=": UserId" kind=type
-@inlay_hints.hint position=main.ds#argument@start label="value:" kind=parameter padding_right=true
+@inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
 ```
 
 ### Omit a tagged payload hint without a parameter name

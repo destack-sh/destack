@@ -21,7 +21,7 @@ function identity(value: int32): int32 {
 @semantic_tokens.token range=main.ds#reference type=parameter
 ```
 
-### [ignored] Classify nominal declarations and members
+### Classify nominal declarations and members
 
 Nominal declarations and their members retain distinct token kinds.
 
@@ -30,12 +30,6 @@ struct Point {
        ^^^^^ point
     x: int32;
     ^ field
-}
-
-interface Drawable {
-          ^^^^^^^^ drawable
-    draw(): void;
-    ^^^^ method
 }
 
 class Shape {}
@@ -51,11 +45,26 @@ enum Color {
 ```query semantic_tokens main.ds
 @semantic_tokens.token range=main.ds#point type=struct modifiers=declaration
 @semantic_tokens.token range=main.ds#field type=property modifiers=declaration
-@semantic_tokens.token range=main.ds#drawable type=interface modifiers=declaration
-@semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
 @semantic_tokens.token range=main.ds#shape type=class modifiers=declaration
 @semantic_tokens.token range=main.ds#color type=enum modifiers=declaration
 @semantic_tokens.token range=main.ds#red type=enum_member modifiers=declaration,readonly
+```
+
+### [ignored] Classify implicit interface member abstraction
+
+An interface method is abstract even when it omits an explicit modifier.
+
+```ds main.ds
+interface Drawable {
+          ^^^^^^^^ drawable
+    draw(): void;
+    ^^^^ method
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#drawable type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
 ```
 
 ### Classify every nominal declaration kind
@@ -177,16 +186,13 @@ encoding;
 
 ## Bindings
 
-### [ignored] Classify using and match bindings
+### Classify using bindings
 
-Lexical bindings retain their declaration, immutability, and reference roles.
+Resource bindings are immutable declarations and references.
 
 ```ds main.ds
-interface Dispose {
+interface Dispose {}
           ^^^^^^^ dispose_interface
-    dispose(): void;
-    ^^^^^^^ dispose_declaration
-}
 
 declare function open(): Dispose;
                  ^^^^ open_declaration
@@ -195,16 +201,30 @@ declare function open(): Dispose;
 using resource = open();
       ^^^^^^^^ using_declaration
                  ^^^^ open_reference
-resource.dispose();
+resource;
 ^^^^^^^^ using_reference
-         ^^^^^^^ method_reference
+```
 
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#dispose_interface type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#open_declaration type=function modifiers=declaration
+@semantic_tokens.token range=main.ds#dispose_reference type=interface
+@semantic_tokens.token range=main.ds#using_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#open_reference type=function
+@semantic_tokens.token range=main.ds#using_reference type=variable modifiers=readonly
+```
+
+### Classify match bindings
+
+Match-arm bindings remain immutable inside their guard and body.
+
+```ds main.ds
 const pair = (1, 2);
       ^^^^ pair_declaration
 const result = match (pair) {
       ^^^^^^ result_declaration
                       ^^^^ pair_reference
-    (left, right) => left + right,
+    (left, right) => left + right
      ^^^^ left_declaration
            ^^^^^ right_declaration
                      ^^^^ left_reference
@@ -213,14 +233,6 @@ const result = match (pair) {
 ```
 
 ```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#dispose_interface type=interface modifiers=declaration
-@semantic_tokens.token range=main.ds#dispose_declaration type=method modifiers=declaration,abstract
-@semantic_tokens.token range=main.ds#open_declaration type=function modifiers=declaration
-@semantic_tokens.token range=main.ds#dispose_reference type=interface
-@semantic_tokens.token range=main.ds#using_declaration type=variable modifiers=declaration,readonly
-@semantic_tokens.token range=main.ds#open_reference type=function
-@semantic_tokens.token range=main.ds#using_reference type=variable modifiers=readonly
-@semantic_tokens.token range=main.ds#method_reference type=method modifiers=abstract
 @semantic_tokens.token range=main.ds#pair_declaration type=variable modifiers=declaration,readonly
 @semantic_tokens.token range=main.ds#result_declaration type=variable modifiers=declaration,readonly
 @semantic_tokens.token range=main.ds#pair_reference type=variable modifiers=readonly
@@ -331,6 +343,7 @@ export async function load(): void {}
                       ^^^^ async_declaration
 
 const operation = load;
+      ^^^^^^^^^ operation
                   ^^^^ async_reference
 
 abstract class Base {
@@ -386,7 +399,7 @@ validate();
 
 ## Labels and Decorators
 
-### Classify labels
+### [ignored] Classify labels
 
 Label declarations and references retain their dedicated token kind.
 

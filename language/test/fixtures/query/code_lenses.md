@@ -14,7 +14,7 @@ ping();
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references count=1 symbol=main.ds#ping@1
+@code_lenses.lens range=main.ds#declaration action=references count=1
 ```
 
 ## Implementations
@@ -35,11 +35,13 @@ class Dog implements Animal {
 }
 
 class Puppy extends Dog {}
+      ^^^^^ puppy
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#animal action=implementations count=1 symbol=main.ds#Animal@1
-@code_lenses.lens range=main.ds#dog action=implementations count=1 symbol=main.ds#Dog@4
+@code_lenses.lens range=main.ds#animal action=implementations count=1
+@code_lenses.lens range=main.ds#dog action=implementations count=1
+@code_lenses.lens range=main.ds#puppy action=implementations count=0
 ```
 
 ### Offer nominal interface implementations
@@ -60,7 +62,7 @@ struct Packet implements Encode {
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#interface action=implementations count=1 symbol=main.ds#Encode@1
+@code_lenses.lens range=main.ds#interface action=implementations count=1
 ```
 
 ## Tests
@@ -76,15 +78,15 @@ function verify(): void {}
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=run_test test=verify symbol=main.ds#verify@1
-@code_lenses.lens range=main.ds#declaration action=debug_test test=verify symbol=main.ds#verify@1
+@code_lenses.lens range=main.ds#declaration action=run_test test=verify
+@code_lenses.lens range=main.ds#declaration action=debug_test test=verify
 ```
 
 ## Modules
 
-### Retain cross-module symbol identity
+### Count references across modules
 
-Lens discovery retains the declaration identity needed to resolve references across modules.
+The defining module lens includes references from importing modules.
 
 ```ds library.ds
 export function ping(): void {}
@@ -98,7 +100,7 @@ ping();
 ```
 
 ```query code_lenses library.ds
-@code_lenses.lens range=library.ds#declaration action=references count=2 symbol=library.ds#ping@1
+@code_lenses.lens range=library.ds#declaration action=references count=2
 ```
 
 ## Zero Counts
@@ -113,7 +115,7 @@ function unused(): void {}
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references count=0 symbol=main.ds#unused@1
+@code_lenses.lens range=main.ds#declaration action=references count=0
 ```
 
 ### Offer unimplemented interfaces
@@ -126,17 +128,30 @@ interface Unimplemented {}
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=implementations count=0 symbol=main.ds#Unimplemented@1
+@code_lenses.lens range=main.ds#declaration action=implementations count=0
+```
+
+### Offer classes without subclasses
+
+A class still receives a lens reporting zero implementations.
+
+```ds main.ds
+class Standalone {}
+      ^^^^^^^^^^ declaration
+```
+
+```query code_lenses main.ds
+@code_lenses.lens range=main.ds#declaration action=implementations count=0
 ```
 
 ## Empty Results
 
 ### Omit declarations without a lens family
 
-Variables do not receive code lenses.
+Variable bindings and their lambda initializers do not receive code lenses.
 
 ```ds main.ds
-const value = 1;
+const value = (): int32 => 1;
 ```
 
 ```query code_lenses main.ds

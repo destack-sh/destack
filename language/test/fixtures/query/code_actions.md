@@ -86,10 +86,10 @@ greet();
 ```
 
 ```query code_actions main.ds#range only=quick_fix
-@code_actions.action index=0 title="Import greet from \"./alpha\"" kind=quick_fix preferred=true diagnostic=unresolved-reference
-@code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./alpha\";\n"
-@code_actions.action index=1 title="Import greet from \"./beta\"" kind=quick_fix diagnostic=unresolved-reference
-@code_actions.patch action=1 range=main.ds#insertion text="import { greet } from \"./beta\";\n"
+@code_actions.action index=0 title="Import greet from \"./beta\"" kind=quick_fix preferred=true diagnostic=unresolved-reference
+@code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./beta\";\n"
+@code_actions.action index=1 title="Import greet from \"./alpha\"" kind=quick_fix diagnostic=unresolved-reference
+@code_actions.patch action=1 range=main.ds#insertion text="import { greet } from \"./alpha\";\n"
 ```
 
 ### Extend an existing import
@@ -135,6 +135,37 @@ greet();
 @code_actions.patch action=0 range=main.ds#insertion text="import greet from \"./library\";\n"
 ```
 
+## Diagnostic Suggestions
+
+### Apply an automatic name correction
+
+An unambiguous case correction is safe to apply directly.
+
+```ds main.ds
+const value = 1;
+const copy = Value;
+             ^^^^^ range
+```
+
+```query code_actions main.ds#range only=quick_fix
+@code_actions.action index=0 title="rename to 'value'" kind=quick_fix preferred=true diagnostic=unresolved-reference
+@code_actions.patch action=0 range=main.ds#range text=value
+```
+
+### Omit a correction that requires review
+
+A transposed name is not offered as an automatic edit.
+
+```ds main.ds
+const value = 1;
+const copy = valeu;
+             ^^^^^ range
+```
+
+```query code_actions main.ds#range only=quick_fix
+@code_actions.none
+```
+
 ## Extraction
 
 ### Extract a selected expression
@@ -175,9 +206,9 @@ const total = offset + 1;
 
 ## Filtering
 
-### Include every refactor subkind
+### Select several refactor kinds
 
-The broad refactor kind retains every applicable specialized refactor in stable kind order.
+Several requested kinds retain every matching action in stable kind order.
 
 ```ds main.ds
 const offset = 10;
@@ -185,7 +216,7 @@ const total = offset + 1;
               ^^^^^^ target
 ```
 
-```query code_actions main.ds#target only=refactor
+```query code_actions main.ds#target only=refactor_extract,refactor_inline
 @code_actions.action index=0 title="Extract constant" kind=refactor_extract
 @code_actions.patch action=0 range=main.ds:2:1 text="const extracted = offset;\n"
 @code_actions.patch action=0 range=main.ds#target text=extracted

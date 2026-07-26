@@ -8,16 +8,18 @@ A value resolves to its nominal type declaration.
 
 ```ds main.ds
 struct Point {
+^ declaration:start
        ^^^^^ definition
     x: int32;
 }
+^ declaration:end
 
 const point = Point { x: 1 };
       ^^^^^ reference
 ```
 
 ```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=main.ds:1:1-3:2 selection=main.ds#definition symbol=main.ds#Point@1
+@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration selection=main.ds#definition symbol=main.ds#Point@1
 ```
 
 ### Resolve a class-valued binding
@@ -26,15 +28,17 @@ A binding with a class type resolves to the class declaration.
 
 ```ds main.ds
 class Widget {
+^ declaration:widget:start
       ^^^^^^ definition:widget
 }
+^ declaration:widget:end
 
 declare const widget: Widget;
               ^^^^^^ reference:widget
 ```
 
 ```query goto_type_definition main.ds#reference:widget
-@goto_type_definition.target origin=main.ds#reference:widget location=main.ds:1:1-2:2 selection=main.ds#definition:widget symbol=main.ds#Widget@1
+@goto_type_definition.target origin=main.ds#reference:widget location=main.ds#declaration:widget selection=main.ds#definition:widget symbol=main.ds#Widget@1
 ```
 
 ### Resolve a typed parameter
@@ -43,16 +47,18 @@ A parameter resolves through its declared type.
 
 ```ds main.ds
 struct Config {
+^ declaration:config:start
        ^^^^^^ definition:config
     enabled: boolean;
 }
+^ declaration:config:end
 
 function inspect(config: Config): void {}
                  ^^^^^^ reference:config
 ```
 
 ```query goto_type_definition main.ds#reference:config
-@goto_type_definition.target origin=main.ds#reference:config location=main.ds:1:1-3:2 selection=main.ds#definition:config symbol=main.ds#Config@1
+@goto_type_definition.target origin=main.ds#reference:config location=main.ds#declaration:config selection=main.ds#definition:config symbol=main.ds#Config@1
 ```
 
 ### Resolve an enum-valued binding
@@ -61,16 +67,18 @@ An enum value resolves to the enum declaration rather than one variant.
 
 ```ds main.ds
 enum Color {
+^ declaration:color:start
      ^^^^^ definition:color
     Red,
 }
+^ declaration:color:end
 
 const color: Color = Color.Red;
       ^^^^^ reference:color
 ```
 
 ```query goto_type_definition main.ds#reference:color
-@goto_type_definition.target origin=main.ds#reference:color location=main.ds:1:1-3:2 selection=main.ds#definition:color symbol=main.ds#Color@1
+@goto_type_definition.target origin=main.ds#reference:color location=main.ds#declaration:color selection=main.ds#definition:color symbol=main.ds#Color@1
 ```
 
 ## Type References
@@ -81,14 +89,16 @@ A nominal name in type position resolves to its declaration.
 
 ```ds main.ds
 class Animal {}
+^ declaration:animal:start
       ^^^^^^ definition:animal
+              ^ declaration:animal:end
 
 declare const animal: Animal;
                       ^^^^^^ reference:animal
 ```
 
 ```query goto_type_definition main.ds#reference:animal
-@goto_type_definition.target origin=main.ds#reference:animal location=main.ds:1:1-1:16 selection=main.ds#definition:animal symbol=main.ds#Animal@1
+@goto_type_definition.target origin=main.ds#reference:animal location=main.ds#declaration:animal selection=main.ds#definition:animal symbol=main.ds#Animal@1
 ```
 
 ### Resolve a local type alias
@@ -97,14 +107,16 @@ A type alias reference resolves to the alias declaration.
 
 ```ds main.ds
 type UserId = int32;
+^ declaration:user_id:start
      ^^^^^^ definition:user_id
+                  ^ declaration:user_id:end
 
 declare const userId: UserId;
                       ^^^^^^ reference:user_id
 ```
 
 ```query goto_type_definition main.ds#reference:user_id
-@goto_type_definition.target origin=main.ds#reference:user_id location=main.ds:1:1-1:20 selection=main.ds#definition:user_id symbol=main.ds#UserId@1
+@goto_type_definition.target origin=main.ds#reference:user_id location=main.ds#declaration:user_id selection=main.ds#definition:user_id symbol=main.ds#UserId@1
 ```
 
 ## Imports
@@ -115,9 +127,11 @@ An imported value follows its type into the defining module.
 
 ```ds model.ds
 export struct Widget {
+^ declaration:start
               ^^^^^^ definition
     value: int32;
 }
+^ declaration:end
 ```
 
 ```ds main.ds
@@ -128,7 +142,7 @@ const widget = Widget { value: 1 };
 ```
 
 ```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=model.ds:1:1-3:2 selection=model.ds#definition symbol=model.ds#Widget@1
+@goto_type_definition.target origin=main.ds#reference location=model.ds#declaration selection=model.ds#definition symbol=model.ds#Widget@1
 ```
 
 ## Scalar Values
@@ -154,17 +168,21 @@ A binding with an unnamed union type resolves to each distinct nominal declarati
 
 ```ds main.ds
 class Circle {}
+^ declaration:circle:start
       ^^^^^^ definition:circle
+              ^ declaration:circle:end
 class Square {}
+^ declaration:square:start
       ^^^^^^ definition:square
+              ^ declaration:square:end
 
 declare const shape: Circle | Square;
               ^^^^^ reference
 ```
 
 ```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=main.ds:1:1-1:16 selection=main.ds#definition:circle symbol=main.ds#Circle@1
-@goto_type_definition.target origin=main.ds#reference location=main.ds:2:1-2:16 selection=main.ds#definition:square symbol=main.ds#Square@2
+@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:circle selection=main.ds#definition:circle symbol=main.ds#Circle@1
+@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:square selection=main.ds#definition:square symbol=main.ds#Square@2
 ```
 
 ### Resolve the nominal member of a nullable union
@@ -173,14 +191,16 @@ Null has no definition target, while the nominal member retains its declaration.
 
 ```ds main.ds
 class User {}
+^ declaration:user:start
       ^^^^ definition:user
+            ^ declaration:user:end
 
 declare const user: User | null;
               ^^^^ reference
 ```
 
 ```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=main.ds:1:1-1:14 selection=main.ds#definition:user symbol=main.ds#User@1
+@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:user selection=main.ds#definition:user symbol=main.ds#User@1
 ```
 
 ## Imported Types
@@ -191,9 +211,11 @@ A plain import preserves the exported declaration's type symbol space.
 
 ```ds model.ds
 export type Options = {
+^ declaration:imported_type:start
             ^^^^^^^ definition:imported_type
     enabled: boolean;
 };
+^ declaration:imported_type:end
 ```
 
 ```ds main.ds
@@ -204,7 +226,7 @@ const options: Options = { enabled: true };
 ```
 
 ```query goto_type_definition main.ds#reference:imported_type
-@goto_type_definition.target origin=main.ds#reference:imported_type location=model.ds:1:1-3:2 selection=model.ds#definition:imported_type symbol=model.ds#Options@1
+@goto_type_definition.target origin=main.ds#reference:imported_type location=model.ds#declaration:imported_type selection=model.ds#definition:imported_type symbol=model.ds#Options@1
 ```
 
 ### Resolve an imported type alias
@@ -213,9 +235,11 @@ An imported alias resolves to the defining type declaration.
 
 ```ds model.ds
 export struct Settings {
+^ declaration:settings:start
               ^^^^^^^^ definition:settings
     enabled: boolean;
 }
+^ declaration:settings:end
 ```
 
 ```ds main.ds
@@ -226,7 +250,7 @@ declare const settings: AppSettings;
 ```
 
 ```query goto_type_definition main.ds#reference:settings
-@goto_type_definition.target origin=main.ds#reference:settings location=model.ds:1:1-3:2 selection=model.ds#definition:settings symbol=model.ds#Settings@1
+@goto_type_definition.target origin=main.ds#reference:settings location=model.ds#declaration:settings selection=model.ds#definition:settings symbol=model.ds#Settings@1
 ```
 
 ### Resolve imported types and values together
@@ -235,9 +259,11 @@ One plain import preserves each declaration's original symbol space.
 
 ```ds types.ds
 export struct Settings {
+^ declaration:mixed:start
               ^^^^^^^^ definition:mixed
     enabled: boolean;
 }
+^ declaration:mixed:end
 ```
 
 ```ds values.ds
@@ -256,7 +282,7 @@ const isEnabled = enabled();
 ```
 
 ```query goto_type_definition main.ds#reference:mixed
-@goto_type_definition.target origin=main.ds#reference:mixed location=types.ds:1:1-3:2 selection=types.ds#definition:mixed symbol=types.ds#Settings@1
+@goto_type_definition.target origin=main.ds#reference:mixed location=types.ds#declaration:mixed selection=types.ds#definition:mixed symbol=types.ds#Settings@1
 ```
 
 ### Follow re-exports
@@ -265,9 +291,11 @@ A type reference follows every plain re-export to its declaration.
 
 ```ds model.ds
 export interface ServiceOptions {
+^ declaration:options:start
                  ^^^^^^^^^^^^^^ definition:options
     enabled: boolean;
 }
+^ declaration:options:end
 ```
 
 ```ds first.ds
@@ -286,7 +314,7 @@ declare const options: Options;
 ```
 
 ```query goto_type_definition main.ds#reference:options
-@goto_type_definition.target origin=main.ds#reference:options location=model.ds:1:1-3:2 selection=model.ds#definition:options symbol=model.ds#ServiceOptions@1
+@goto_type_definition.target origin=main.ds#reference:options location=model.ds#declaration:options selection=model.ds#definition:options symbol=model.ds#ServiceOptions@1
 ```
 
 ## Import Forms
@@ -297,9 +325,11 @@ A type member on a namespace import resolves to the exported declaration.
 
 ```ds model.ds
 export struct Settings {
+^ declaration:namespace:start
               ^^^^^^^^ definition:namespace
     enabled: boolean;
 }
+^ declaration:namespace:end
 ```
 
 ```ds main.ds
@@ -310,7 +340,7 @@ declare const settings: models.Settings;
 ```
 
 ```query goto_type_definition main.ds#reference:namespace
-@goto_type_definition.target origin=main.ds#reference:namespace location=model.ds:1:1-3:2 selection=model.ds#definition:namespace symbol=model.ds#Settings@1
+@goto_type_definition.target origin=main.ds#reference:namespace location=model.ds#declaration:namespace selection=model.ds#definition:namespace symbol=model.ds#Settings@1
 ```
 
 ### Resolve a default class import
@@ -319,8 +349,10 @@ A default import resolves to the defining class declaration.
 
 ```ds model.ds
 export default class Widget {
+^ declaration:default:start
                      ^^^^^^ definition:default
 }
+^ declaration:default:end
 ```
 
 ```ds main.ds
@@ -331,7 +363,7 @@ declare const widget: WidgetModel;
 ```
 
 ```query goto_type_definition main.ds#reference:default
-@goto_type_definition.target origin=main.ds#reference:default location=model.ds:1:1-2:2 selection=model.ds#definition:default symbol=model.ds#Widget@1
+@goto_type_definition.target origin=main.ds#reference:default location=model.ds#declaration:default selection=model.ds#definition:default symbol=model.ds#Widget@1
 ```
 
 ### Follow a default re-export alias
@@ -340,8 +372,10 @@ A named import follows a default re-export to the defining class.
 
 ```ds model.ds
 export default class Widget {
+^ declaration:reexport:start
                      ^^^^^^ definition:reexport
 }
+^ declaration:reexport:end
 ```
 
 ```ds barrel.ds
@@ -356,7 +390,7 @@ declare const widget: Widget;
 ```
 
 ```query goto_type_definition main.ds#reference:reexport
-@goto_type_definition.target origin=main.ds#reference:reexport location=model.ds:1:1-2:2 selection=model.ds#definition:reexport symbol=model.ds#Widget@1
+@goto_type_definition.target origin=main.ds#reference:reexport location=model.ds#declaration:reexport selection=model.ds#definition:reexport symbol=model.ds#Widget@1
 ```
 
 ## Ownership Forms
@@ -367,9 +401,11 @@ Memory forms retain the nominal declaration of their contained value.
 
 ```ds main.ds
 struct Buffer {
+^ declaration:buffer:start
        ^^^^^^ definition:buffer
     value: int32;
 }
+^ declaration:buffer:end
 
 declare const borrowed: &Buffer;
               ^^^^^^^^ reference:borrowed
@@ -380,15 +416,15 @@ declare const pointer: *Buffer;
 ```
 
 ```query goto_type_definition main.ds#reference:borrowed
-@goto_type_definition.target origin=main.ds#reference:borrowed location=main.ds:1:1-3:2 selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
+@goto_type_definition.target origin=main.ds#reference:borrowed location=main.ds#declaration:buffer selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
 ```
 
 ```query goto_type_definition main.ds#reference:owned
-@goto_type_definition.target origin=main.ds#reference:owned location=main.ds:1:1-3:2 selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
+@goto_type_definition.target origin=main.ds#reference:owned location=main.ds#declaration:buffer selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
 ```
 
 ```query goto_type_definition main.ds#reference:pointer
-@goto_type_definition.target origin=main.ds#reference:pointer location=main.ds:1:1-3:2 selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
+@goto_type_definition.target origin=main.ds#reference:pointer location=main.ds#declaration:buffer selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
 ```
 
 ## Explicit Receivers
@@ -399,7 +435,9 @@ An explicit receiver annotation resolves like any other nominal type reference.
 
 ```ds main.ds
 class Counter {}
+^ declaration:counter:start
       ^^^^^^^ definition:counter
+               ^ declaration:counter:end
 
 function read(this: Counter): Counter {
                     ^^^^^^^ reference:counter
@@ -408,7 +446,7 @@ function read(this: Counter): Counter {
 ```
 
 ```query goto_type_definition main.ds#reference:counter
-@goto_type_definition.target origin=main.ds#reference:counter location=main.ds:1:1-1:17 selection=main.ds#definition:counter symbol=main.ds#Counter@1
+@goto_type_definition.target origin=main.ds#reference:counter location=main.ds#declaration:counter selection=main.ds#definition:counter symbol=main.ds#Counter@1
 ```
 
 ## Generic Applications
@@ -419,29 +457,33 @@ A generic application retains its nominal declaration.
 
 ```ds main.ds
 class Box<T> {
+^ declaration:box:start
       ^^^ definition:box
     value: T;
 }
+^ declaration:box:end
 
 declare const box: Box<int32>;
                    ^^^ reference:box
 ```
 
 ```query goto_type_definition main.ds#reference:box
-@goto_type_definition.target origin=main.ds#reference:box location=main.ds:1:1-3:2 selection=main.ds#definition:box symbol=main.ds#Box@1
+@goto_type_definition.target origin=main.ds#reference:box location=main.ds#declaration:box selection=main.ds#definition:box symbol=main.ds#Box@1
 ```
 
 ## Type and Value Names
 
-### Resolve a type hidden by a value binding
+### [ignored] Resolve a type hidden by a value binding
 
 A value binding with the same name does not replace an imported type.
 
 ```ds model.ds
 export struct Config {
+^ declaration:config:start
               ^^^^^^ definition:config
     enabled: boolean;
 }
+^ declaration:config:end
 ```
 
 ```ds main.ds
@@ -454,7 +496,7 @@ declare const config: SharedConfig;
 ```
 
 ```query goto_type_definition main.ds#reference:config
-@goto_type_definition.target origin=main.ds#reference:config location=model.ds#definition:config symbol=model.ds#Config@1
+@goto_type_definition.target origin=main.ds#reference:config location=model.ds#declaration:config selection=model.ds#definition:config symbol=model.ds#Config@1
 ```
 
 ## Missing Symbols

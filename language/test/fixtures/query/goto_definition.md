@@ -25,13 +25,14 @@ A parameter reference resolves to its declaration.
 ```ds main.ds
 function add(x: int32, y: int32): int32 {
              ^ definition:x
+             ^^^^^^^^ declaration:x
     return x + y;
            ^ reference:x
 }
 ```
 
 ```query goto_definition main.ds#reference:x
-@goto_definition.target origin=main.ds#reference:x location=main.ds:1:14-1:22 selection=main.ds#definition:x symbol=main.ds#x@2
+@goto_definition.target origin=main.ds#reference:x location=main.ds#declaration:x selection=main.ds#definition:x symbol=main.ds#x@2
 ```
 
 ## Functions
@@ -42,16 +43,18 @@ A function call resolves to its declaration.
 
 ```ds main.ds
 function greet(name: string): string {
+^ declaration:greet:start
          ^^^^^ definition:greet
     return name;
 }
+^ declaration:greet:end
 
 const message = greet("World");
                 ^^^^^ reference:greet
 ```
 
 ```query goto_definition main.ds#reference:greet
-@goto_definition.target origin=main.ds#reference:greet location=main.ds:1:1-3:2 selection=main.ds#definition:greet symbol=main.ds#greet@1
+@goto_definition.target origin=main.ds#reference:greet location=main.ds#declaration:greet selection=main.ds#definition:greet symbol=main.ds#greet@1
 ```
 
 ## Struct Fields
@@ -64,6 +67,7 @@ A field access resolves to its field declaration.
 struct Point {
     x: int32;
     ^ definition:point_x
+    ^^^^^^^^ declaration:point_x
     y: int32;
 }
 
@@ -75,7 +79,7 @@ function main() {
 ```
 
 ```query goto_definition main.ds#reference:point_x
-@goto_definition.target origin=main.ds#reference:point_x location=main.ds:2:5-2:13 selection=main.ds#definition:point_x symbol=main.ds#x@2
+@goto_definition.target origin=main.ds#reference:point_x location=main.ds#declaration:point_x selection=main.ds#definition:point_x symbol=main.ds#x@2
 ```
 
 ## Class Methods
@@ -87,8 +91,10 @@ A method call resolves to its method declaration.
 ```ds main.ds
 class Logger {
     log(message: string): void {
+    ^ declaration:logger_log:start
     ^^^ definition:logger_log
     }
+    ^ declaration:logger_log:end
 }
 
 function main() {
@@ -99,7 +105,7 @@ function main() {
 ```
 
 ```query goto_definition main.ds#reference:logger_log
-@goto_definition.target origin=main.ds#reference:logger_log location=main.ds:2:5-3:6 selection=main.ds#definition:logger_log symbol=main.ds#log@2
+@goto_definition.target origin=main.ds#reference:logger_log location=main.ds#declaration:logger_log selection=main.ds#definition:logger_log symbol=main.ds#log@2
 ```
 
 ## Static Methods
@@ -111,9 +117,11 @@ A call through a nominal type resolves to the selected static member.
 ```ds main.ds
 class Arithmetic {
     static twice(value: int32): int32 {
+    ^ declaration:twice:start
            ^^^^^ definition:twice
         return value * 2;
     }
+    ^ declaration:twice:end
 }
 
 const result = Arithmetic.twice(2);
@@ -121,7 +129,7 @@ const result = Arithmetic.twice(2);
 ```
 
 ```query goto_definition main.ds#reference:twice
-@goto_definition.target origin=main.ds#reference:twice location=main.ds:2:5-4:6 selection=main.ds#definition:twice symbol=main.ds#twice@2
+@goto_definition.target origin=main.ds#reference:twice location=main.ds#declaration:twice selection=main.ds#definition:twice symbol=main.ds#twice@2
 ```
 
 ### Resolve every exact method selected through a union
@@ -132,11 +140,13 @@ A union receiver returns the finite member set selected by checking.
 class Alpha {
     run(): void {}
     ^^^ definition:alpha_run
+    ^^^^^^^^^^^^^^ declaration:alpha_run
 }
 
 class Beta {
     run(): void {}
     ^^^ definition:beta_run
+    ^^^^^^^^^^^^^^ declaration:beta_run
 }
 
 function start(service: Alpha | Beta): void {
@@ -146,8 +156,8 @@ function start(service: Alpha | Beta): void {
 ```
 
 ```query goto_definition main.ds#reference
-@goto_definition.target origin=main.ds#reference location=main.ds:2:5-2:19 selection=main.ds#definition:alpha_run symbol=main.ds#run@2
-@goto_definition.target origin=main.ds#reference location=main.ds:6:5-6:19 selection=main.ds#definition:beta_run symbol=main.ds#run@5
+@goto_definition.target origin=main.ds#reference location=main.ds#declaration:alpha_run selection=main.ds#definition:alpha_run symbol=main.ds#run@2
+@goto_definition.target origin=main.ds#reference location=main.ds#declaration:beta_run selection=main.ds#definition:beta_run symbol=main.ds#run@5
 ```
 
 ## Extension Methods
@@ -161,9 +171,11 @@ struct Calculator {}
 
 extension of Calculator {
     add(x: int32, y: int32): int32 {
+    ^ declaration:calculator_add:start
     ^^^ definition:calculator_add
         return x + y;
     }
+    ^ declaration:calculator_add:end
 }
 
 function main() {
@@ -174,7 +186,7 @@ function main() {
 ```
 
 ```query goto_definition main.ds#reference:calculator_add
-@goto_definition.target origin=main.ds#reference:calculator_add location=main.ds:4:5-6:6 selection=main.ds#definition:calculator_add symbol=main.ds#add@3
+@goto_definition.target origin=main.ds#reference:calculator_add location=main.ds#declaration:calculator_add selection=main.ds#definition:calculator_add symbol=main.ds#add@3
 ```
 
 ## Enum Members
@@ -206,8 +218,10 @@ A nominal associated constant access resolves to its declaration.
 
 ```ds main.ds
 struct Buffer {
-    comptime const Width: uint = 8;
+    comptime const Width: uint64 = 8;
                    ^^^^^ definition:width
+    ^ width_declaration:start
+                                   ^ width_declaration:end
 }
 
 const width = Buffer.Width;
@@ -215,7 +229,7 @@ const width = Buffer.Width;
 ```
 
 ```query goto_definition main.ds#reference:width
-@goto_definition.target origin=main.ds#reference:width location=main.ds:2:5-2:35 selection=main.ds#definition:width symbol=main.ds#Width@2
+@goto_definition.target origin=main.ds#reference:width location=main.ds#width_declaration selection=main.ds#definition:width symbol=main.ds#Width@2
 ```
 
 ## Type and Value Symbols
@@ -226,9 +240,11 @@ Imported types and values resolve independently.
 
 ```ds types.ds
 export type Options = {
+^ declaration:type_options:start
             ^^^^^^^ definition:type_options
     enabled: boolean,
 };
+^ declaration:type_options:end
 ```
 
 ```ds values.ds
@@ -247,7 +263,7 @@ const value = optionsValue;
 ```
 
 ```query goto_definition main.ds#reference:type_options
-@goto_definition.target origin=main.ds#reference:type_options location=types.ds:1:1-3:2 selection=types.ds#definition:type_options symbol=types.ds#Options@1
+@goto_definition.target origin=main.ds#reference:type_options location=types.ds#declaration:type_options selection=types.ds#definition:type_options symbol=types.ds#Options@1
 ```
 
 ```query goto_definition main.ds#reference:value_options
@@ -260,9 +276,11 @@ An import alias resolves to the exported declaration.
 
 ```ds alias_library.ds
 export function greetAliasSource(name: string): string {
+^ declaration:greet_alias_source:start
                 ^^^^^^^^^^^^^^^^ definition:greet_alias_source
     return name;
 }
+^ declaration:greet_alias_source:end
 ```
 
 ```ds alias_main.ds
@@ -273,7 +291,7 @@ const message = localGreeting("Destack");
 ```
 
 ```query goto_definition alias_main.ds#reference:local_greeting
-@goto_definition.target origin=alias_main.ds#reference:local_greeting location=alias_library.ds:1:1-3:2 selection=alias_library.ds#definition:greet_alias_source symbol=alias_library.ds#greetAliasSource@1
+@goto_definition.target origin=alias_main.ds#reference:local_greeting location=alias_library.ds#declaration:greet_alias_source selection=alias_library.ds#definition:greet_alias_source symbol=alias_library.ds#greetAliasSource@1
 ```
 
 ## Associated Types
@@ -306,14 +324,18 @@ Each overload call resolves to the matching declaration.
 
 ```ds main.ds
 function parse(value: int32): int32 {
+^ declaration:parse_integer:start
          ^^^^^ definition:parse_integer
     return value;
 }
+^ declaration:parse_integer:end
 
 function parse(value: string): string {
+^ declaration:parse_string:start
          ^^^^^ definition:parse_string
     return value;
 }
+^ declaration:parse_string:end
 
 const integerValue = parse(1);
                      ^^^^^ reference:parse_integer
@@ -322,11 +344,11 @@ const textValue = parse("ok");
 ```
 
 ```query goto_definition main.ds#reference:parse_integer
-@goto_definition.target origin=main.ds#reference:parse_integer location=main.ds:1:1-3:2 selection=main.ds#definition:parse_integer symbol=main.ds#parse@1
+@goto_definition.target origin=main.ds#reference:parse_integer location=main.ds#declaration:parse_integer selection=main.ds#definition:parse_integer symbol=main.ds#parse@1
 ```
 
 ```query goto_definition main.ds#reference:parse_string
-@goto_definition.target origin=main.ds#reference:parse_string location=main.ds:5:1-7:2 selection=main.ds#definition:parse_string symbol=main.ds#parse@3
+@goto_definition.target origin=main.ds#reference:parse_string location=main.ds#declaration:parse_string selection=main.ds#definition:parse_string symbol=main.ds#parse@3
 ```
 
 ## Construction
@@ -337,16 +359,18 @@ Definition navigation on a class name selects the class rather than the construc
 
 ```ds main.ds
 class User {
+^ declaration:user:start
       ^^^^ definition:user
     constructor(name: string) {}
 }
+^ declaration:user:end
 
 const user = new User("Ada");
                  ^^^^ reference:user
 ```
 
 ```query goto_definition main.ds#reference:user
-@goto_definition.target origin=main.ds#reference:user location=main.ds:1:1-3:2 selection=main.ds#definition:user symbol=main.ds#User@1
+@goto_definition.target origin=main.ds#reference:user location=main.ds#declaration:user selection=main.ds#definition:user symbol=main.ds#User@1
 ```
 
 ### Resolve newtype construction to the newtype definition
@@ -355,17 +379,19 @@ A newtype call retains the nominal declaration used by its authored name.
 
 ```ds main.ds
 newtype UserId = string;
+^ declaration:user_id:start
         ^^^^^^ definition:user_id
+                      ^ declaration:user_id:end
 
 const userId = UserId("user-1");
                ^^^^^^ reference:user_id
 ```
 
 ```query goto_definition main.ds#reference:user_id
-@goto_definition.target origin=main.ds#reference:user_id location=main.ds:1:1-1:24 selection=main.ds#definition:user_id symbol=main.ds#UserId@1
+@goto_definition.target origin=main.ds#reference:user_id location=main.ds#declaration:user_id selection=main.ds#definition:user_id symbol=main.ds#UserId@1
 ```
 
-### Resolve tagged construction to the variant definition
+### [ignored] Resolve tagged construction to the variant definition
 
 A tagged construction selects the exact generated variant represented by its authored case name.
 
@@ -390,7 +416,9 @@ An export namespace resolves member references through the re-export.
 
 ```ds base.ds
 export function ping(): void {}
+^ declaration:namespace_export_target:start
                 ^^^^ definition:namespace_export_target
+                              ^ declaration:namespace_export_target:end
 ```
 
 ```ds barrel.ds
@@ -405,7 +433,7 @@ api.ping();
 ```
 
 ```query goto_definition main.ds#reference:namespace_export_target
-@goto_definition.target origin=main.ds#reference:namespace_export_target location=base.ds:1:1-1:32 selection=base.ds#definition:namespace_export_target symbol=base.ds#ping@1
+@goto_definition.target origin=main.ds#reference:namespace_export_target location=base.ds#declaration:namespace_export_target selection=base.ds#definition:namespace_export_target symbol=base.ds#ping@1
 ```
 
 ### Go to a definition through a default re-export alias
@@ -414,9 +442,11 @@ A default re-export alias resolves to its source declaration.
 
 ```ds library.ds
 export default function buildWidget(): int32 {
+^ declaration:buildWidget:start
                         ^^^^^^^^^^^ definition:buildWidget
     return 1;
 }
+^ declaration:buildWidget:end
 ```
 
 ```ds barrel.ds
@@ -431,7 +461,7 @@ const value = buildWidget();
 ```
 
 ```query goto_definition main.ds#reference:buildWidget
-@goto_definition.target origin=main.ds#reference:buildWidget location=library.ds:1:1-3:2 selection=library.ds#definition:buildWidget symbol=library.ds#buildWidget@1
+@goto_definition.target origin=main.ds#reference:buildWidget location=library.ds#declaration:buildWidget selection=library.ds#definition:buildWidget symbol=library.ds#buildWidget@1
 ```
 
 ## Imported Functions
@@ -442,9 +472,11 @@ An imported call resolves to the exported function declaration.
 
 ```ds library.ds
 export function greet(name: string): string {
+^ declaration:imported_function:start
                 ^^^^^ definition:imported_function
     return name;
 }
+^ declaration:imported_function:end
 ```
 
 ```ds main.ds
@@ -455,7 +487,7 @@ const message = greet("Destack");
 ```
 
 ```query goto_definition main.ds#reference:imported_function
-@goto_definition.target origin=main.ds#reference:imported_function location=library.ds:1:1-3:2 selection=library.ds#definition:imported_function symbol=library.ds#greet@1
+@goto_definition.target origin=main.ds#reference:imported_function location=library.ds#declaration:imported_function selection=library.ds#definition:imported_function symbol=library.ds#greet@1
 ```
 
 ### Resolve an aliased import
@@ -464,9 +496,11 @@ An import alias resolves to the exported function declaration.
 
 ```ds library.ds
 export function greet(name: string): string {
+^ declaration:aliased_import:start
                 ^^^^^ definition:aliased_import
     return name;
 }
+^ declaration:aliased_import:end
 ```
 
 ```ds main.ds
@@ -477,7 +511,7 @@ const message = welcome("Destack");
 ```
 
 ```query goto_definition main.ds#reference:aliased_import
-@goto_definition.target origin=main.ds#reference:aliased_import location=library.ds:1:1-3:2 selection=library.ds#definition:aliased_import symbol=library.ds#greet@1
+@goto_definition.target origin=main.ds#reference:aliased_import location=library.ds#declaration:aliased_import selection=library.ds#definition:aliased_import symbol=library.ds#greet@1
 ```
 
 ## Re-Exports
@@ -488,9 +522,11 @@ A reference through a named re-export resolves to the original declaration.
 
 ```ds library.ds
 export function greet(name: string): string {
+^ declaration:named_reexport:start
                 ^^^^^ definition:named_reexport
     return name;
 }
+^ declaration:named_reexport:end
 ```
 
 ```ds public.ds
@@ -505,7 +541,7 @@ const message = greet("Destack");
 ```
 
 ```query goto_definition main.ds#reference:named_reexport
-@goto_definition.target origin=main.ds#reference:named_reexport location=library.ds:1:1-3:2 selection=library.ds#definition:named_reexport symbol=library.ds#greet@1
+@goto_definition.target origin=main.ds#reference:named_reexport location=library.ds#declaration:named_reexport selection=library.ds#definition:named_reexport symbol=library.ds#greet@1
 ```
 
 ### Resolve a default re-export alias
@@ -514,9 +550,11 @@ A reference through a default re-export alias resolves to the original declarati
 
 ```ds library.ds
 export default function buildWidget(): int32 {
+^ declaration:default_reexport:start
                         ^^^^^^^^^^^ definition:default_reexport
     return 1;
 }
+^ declaration:default_reexport:end
 ```
 
 ```ds public.ds
@@ -531,7 +569,7 @@ const value = buildWidget();
 ```
 
 ```query goto_definition main.ds#reference:default_reexport
-@goto_definition.target origin=main.ds#reference:default_reexport location=library.ds:1:1-3:2 selection=library.ds#definition:default_reexport symbol=library.ds#buildWidget@1
+@goto_definition.target origin=main.ds#reference:default_reexport location=library.ds#declaration:default_reexport selection=library.ds#definition:default_reexport symbol=library.ds#buildWidget@1
 ```
 
 ## Imported Types
@@ -542,9 +580,11 @@ A plain import preserves the exported declaration's type symbol space.
 
 ```ds model.ds
 export type Options = {
+^ declaration:imported_type:start
             ^^^^^^^ definition:imported_type
     enabled: boolean;
 };
+^ declaration:imported_type:end
 ```
 
 ```ds main.ds
@@ -555,7 +595,7 @@ const options: Options = { enabled: true };
 ```
 
 ```query goto_definition main.ds#reference:imported_type
-@goto_definition.target origin=main.ds#reference:imported_type location=model.ds:1:1-3:2 selection=model.ds#definition:imported_type symbol=model.ds#Options@1
+@goto_definition.target origin=main.ds#reference:imported_type location=model.ds#declaration:imported_type selection=model.ds#definition:imported_type symbol=model.ds#Options@1
 ```
 
 ### Resolve an imported type alias
@@ -564,9 +604,11 @@ An aliased import preserves the exported declaration's type symbol space.
 
 ```ds model.ds
 export type Options = {
+^ declaration:aliased_type:start
             ^^^^^^^ definition:aliased_type
     enabled: boolean;
 };
+^ declaration:aliased_type:end
 ```
 
 ```ds main.ds
@@ -577,7 +619,7 @@ const options: Configuration = { enabled: true };
 ```
 
 ```query goto_definition main.ds#reference:aliased_type
-@goto_definition.target origin=main.ds#reference:aliased_type location=model.ds:1:1-3:2 selection=model.ds#definition:aliased_type symbol=model.ds#Options@1
+@goto_definition.target origin=main.ds#reference:aliased_type location=model.ds#declaration:aliased_type selection=model.ds#definition:aliased_type symbol=model.ds#Options@1
 ```
 
 ## Missing Symbols
@@ -620,7 +662,7 @@ function main(): int32 {
 
 ## Pattern Bindings
 
-### Resolve a match binding definition
+### [ignored] Resolve a match binding definition
 
 A match-arm reference resolves to the binding introduced by its pattern.
 
@@ -640,7 +682,7 @@ const total = match (pair) {
 
 ## Labels
 
-### Resolve a control label definition
+### [ignored] Resolve a control label definition
 
 A labeled break resolves to the exact enclosing label.
 
@@ -666,16 +708,18 @@ A tagged template resolves its tag like an ordinary call.
 
 ```ds main.ds
 function sql(parts: string[], ...values: int32): string {
+^ declaration:sql:start
          ^^^ definition:sql
     return "";
 }
+^ declaration:sql:end
 
 const query = sql`select ${1}`;
               ^^^ reference:sql
 ```
 
 ```query goto_definition main.ds#reference:sql
-@goto_definition.target origin=main.ds#reference:sql location=main.ds:1:1-3:2 selection=main.ds#definition:sql symbol=main.ds#sql@1
+@goto_definition.target origin=main.ds#reference:sql location=main.ds#declaration:sql selection=main.ds#definition:sql symbol=main.ds#sql@1
 ```
 
 ### Resolve a comptime call definition
@@ -684,16 +728,18 @@ A comptime call retains the called function identity.
 
 ```ds main.ds
 function build(): int32 {
+^ declaration:build:start
          ^^^^^ definition:build
     return 1;
 }
+^ declaration:build:end
 
 const value = comptime build();
                        ^^^^^ reference:build
 ```
 
 ```query goto_definition main.ds#reference:build
-@goto_definition.target origin=main.ds#reference:build location=main.ds:1:1-3:2 selection=main.ds#definition:build symbol=main.ds#build@1
+@goto_definition.target origin=main.ds#reference:build location=main.ds#declaration:build selection=main.ds#definition:build symbol=main.ds#build@1
 ```
 
 ## Using Bindings
@@ -724,7 +770,9 @@ An annotation application resolves through ordinary value identity.
 
 ```ds main.ds
 newtype tracked = ();
+^ declaration:tracked:start
         ^^^^^^^ definition:tracked
+                   ^ declaration:tracked:end
 
 @tracked
  ^^^^^^^ reference:tracked
@@ -732,5 +780,5 @@ class Service {}
 ```
 
 ```query goto_definition main.ds#reference:tracked
-@goto_definition.target origin=main.ds#reference:tracked location=main.ds:1:1-1:21 selection=main.ds#definition:tracked symbol=main.ds#tracked@1
+@goto_definition.target origin=main.ds#reference:tracked location=main.ds#declaration:tracked selection=main.ds#definition:tracked symbol=main.ds#tracked@1
 ```

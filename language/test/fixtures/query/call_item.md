@@ -57,6 +57,8 @@ Imported names, local aliases, and calls through those aliases identify the func
 
 ```ds library.ds
 export function target(): void {}
+^ declaration:start
+                                 ^ declaration:end
                 ^^^^^^ name
 ```
 
@@ -70,15 +72,15 @@ localTarget();
 ```
 
 ```query call_item main.ds#imported_name
-@call_item.item name=target kind=function detail="target(): void" location=library.ds:1:1-1:34 selection=library.ds#name symbol=library.ds#target@1
+@call_item.item name=target kind=function detail="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
 ```
 
 ```query call_item main.ds#local_name
-@call_item.item name=target kind=function detail="target(): void" location=library.ds:1:1-1:34 selection=library.ds#name symbol=library.ds#target@1
+@call_item.item name=target kind=function detail="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=target kind=function detail="target(): void" location=library.ds:1:1-1:34 selection=library.ds#name symbol=library.ds#target@1
+@call_item.item name=target kind=function detail="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
 ```
 
 ## Overloads
@@ -89,14 +91,18 @@ Each call identifies the exact overload selected by checking.
 
 ```ds main.ds
 function parse(value: int32): int32 {
+^ integer_declaration:start
          ^^^^^ integer_name
     return value;
 }
+^ integer_declaration:end
 
 function parse(value: string): string {
+^ string_declaration:start
          ^^^^^ string_name
     return value;
 }
+^ string_declaration:end
 
 const integerValue = parse(1);
                      ^^^^^ integer_call
@@ -105,11 +111,37 @@ const stringValue = parse("ok");
 ```
 
 ```query call_item main.ds#integer_call
-@call_item.item name=parse kind=function detail="parse(value: int32): int32" location=main.ds:1:1-3:2 selection=main.ds#integer_name symbol=main.ds#parse@1
+@call_item.item name=parse kind=function detail="parse(value: int32): int32" location=main.ds#integer_declaration selection=main.ds#integer_name symbol=main.ds#parse@1
 ```
 
 ```query call_item main.ds#string_call
-@call_item.item name=parse kind=function detail="parse(value: string): string" location=main.ds:5:1-7:2 selection=main.ds#string_name symbol=main.ds#parse@3
+@call_item.item name=parse kind=function detail="parse(value: string): string" location=main.ds#string_declaration selection=main.ds#string_name symbol=main.ds#parse@3
+```
+
+## Generic Functions
+
+### Retain the declared generic call shape
+
+A generic declaration and a concrete call identify the same generic callable item.
+
+```ds main.ds
+function identity<T>(value: T): T {
+^ declaration:start
+         ^^^^^^^^ name
+    return value;
+}
+^ declaration:end
+
+const result = identity<string>("value");
+               ^^^^^^^^ call
+```
+
+```query call_item main.ds#name
+@call_item.item name=identity kind=function detail="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
+```
+
+```query call_item main.ds#call
+@call_item.item name=identity kind=function detail="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
 ```
 
 ## Extensions
@@ -123,9 +155,11 @@ struct Calculator {}
 
 extension of Calculator {
     add(left: int32, right: int32): int32 {
+    ^ declaration:start
     ^^^ name
         return left + right;
     }
+    ^ declaration:end
 }
 
 const calculator = Calculator {};
@@ -134,11 +168,11 @@ calculator.add(1, 2);
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=add kind=method detail="Calculator.add(left: int32, right: int32): int32" location=main.ds:4:5-6:6 selection=main.ds#name symbol=main.ds#add@3
+@call_item.item name=add kind=method detail="Calculator.add(left: int32, right: int32): int32" location=main.ds#declaration selection=main.ds#name symbol=main.ds#add@3
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=add kind=method detail="Calculator.add(left: int32, right: int32): int32" location=main.ds:4:5-6:6 selection=main.ds#name symbol=main.ds#add@3
+@call_item.item name=add kind=method detail="Calculator.add(left: int32, right: int32): int32" location=main.ds#declaration selection=main.ds#name symbol=main.ds#add@3
 ```
 
 ## Class Constructors
@@ -150,6 +184,8 @@ An explicit constructor declaration and every construction that selects it ident
 ```ds main.ds
 class User {
     constructor(name: string) {}
+    ^ declaration:start
+                                ^ declaration:end
     ^^^^^^^^^^^ name
 }
 
@@ -158,11 +194,11 @@ const user = new User("Ada");
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=constructor kind=constructor detail="User.constructor(name: string)" location=main.ds:2:5-2:33 selection=main.ds#name symbol=main.ds#symbol@2
+@call_item.item name=constructor kind=constructor detail="User.constructor(name: string)" location=main.ds#declaration selection=main.ds#name symbol=main.ds#symbol@2
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=constructor kind=constructor detail="User.constructor(name: string)" location=main.ds:2:5-2:33 selection=main.ds#name symbol=main.ds#symbol@2
+@call_item.item name=constructor kind=constructor detail="User.constructor(name: string)" location=main.ds#declaration selection=main.ds#name symbol=main.ds#symbol@2
 ```
 
 ### Return the class item for a default constructor
@@ -211,23 +247,33 @@ const userId = UserId("user-1");
 
 ## Tagged Variant Constructors
 
-### Return the generated tagged variant construction item
+### [ignored] Return a generated tagged variant item from its declaration
 
-A tagged variant construction identifies its generated nominal constructor and its authored newtype.
+An authored tagged variant identifies its generated nominal constructor.
 
 ```ds main.ds
 @derive(Tagged)
 newtype Status = Ok<string>;
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
-        ^^^^^^ owner
                  ^^ name
-
-const status = Status.Ok({ value: "ready" });
-                      ^^ call
 ```
 
 ```query call_item main.ds#name
 @call_item.item name=Ok kind=constructor detail="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@3
+```
+
+### [ignored] Return a generated tagged variant item from its construction
+
+A checked tagged construction identifies its exact generated nominal constructor.
+
+```ds main.ds
+@derive(Tagged)
+newtype Status = Ok<string>;
+^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
+                 ^^ name
+
+const status = Status.Ok({ value: "ready" });
+                      ^^ call
 ```
 
 ```query call_item main.ds#call

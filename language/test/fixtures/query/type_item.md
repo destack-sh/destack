@@ -121,6 +121,23 @@ struct Box<Value> {}
 @type_item.item name=Box kind=struct detail="<Value>" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Box@1
 ```
 
+### Return the generic declaration from a concrete type use
+
+A concrete type argument does not replace the nominal hierarchy item.
+
+```ds main.ds
+struct Box<Value> {}
+^^^^^^^^^^^^^^^^^^^^ declaration
+       ^^^ name
+
+declare const value: Box<string>;
+                     ^^^ type_use
+```
+
+```query type_item main.ds#type_use
+@type_item.item name=Box kind=struct detail="<Value>" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Box@1
+```
+
 ## Imports
 
 ### Return an imported type item

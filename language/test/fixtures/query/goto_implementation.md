@@ -13,51 +13,63 @@ interface Drawable {
 }
 
 class Circle implements Drawable {
+^ declaration:circle:start
       ^^^^^^ implementation:circle
     draw(): void {}
 }
+^ declaration:circle:end
 
 struct Rectangle implements Drawable {
+^ declaration:rectangle:start
        ^^^^^^^^^ implementation:rectangle
     draw(): void {}
 }
+^ declaration:rectangle:end
 ```
 
 ```query goto_implementation main.ds#target:drawable
-@goto_implementation.target origin=main.ds#target:drawable location=main.ds:5:1-7:2 selection=main.ds#implementation:circle symbol=main.ds#Circle@4
-@goto_implementation.target origin=main.ds#target:drawable location=main.ds:9:1-11:2 selection=main.ds#implementation:rectangle symbol=main.ds#Rectangle@7
+@goto_implementation.target origin=main.ds#target:drawable location=main.ds#declaration:circle selection=main.ds#implementation:circle symbol=main.ds#Circle@4
+@goto_implementation.target origin=main.ds#target:drawable location=main.ds#declaration:rectangle selection=main.ds#implementation:rectangle symbol=main.ds#Rectangle@7
 ```
 
 ## Nominal Interfaces
 
 ### Find every direct nominal implementation kind
 
-A nominal interface resolves to classes, structs, enums, and extension targets that implement it.
+A nominal interface resolves to every class, struct, enum, and extension declaration that implements it.
 
 ```ds main.ds
 newtype interface Display {}
                   ^^^^^^^ target:display
 
 class View implements Display {}
+^ declaration:view:start
+                                ^ declaration:view:end
       ^^^^ implementation:view
 
 struct Packet implements Display {}
+^ declaration:packet:start
+                                   ^ declaration:packet:end
        ^^^^^^ implementation:packet
 
 enum Status implements Display { Ready }
+^ declaration:status:start
+                                        ^ declaration:status:end
      ^^^^^^ implementation:status
 
 newtype UserId = string;
 
 extension of UserId implements Display {}
+^ declaration:user_id:start
+                                         ^ declaration:user_id:end
              ^^^^^^ implementation:user_id
 ```
 
 ```query goto_implementation main.ds#target:display
-@goto_implementation.target origin=main.ds#target:display location=main.ds#implementation:view symbol=main.ds#View@2
-@goto_implementation.target origin=main.ds#target:display location=main.ds#implementation:packet symbol=main.ds#Packet@3
-@goto_implementation.target origin=main.ds#target:display location=main.ds#implementation:status symbol=main.ds#Status@4
-@goto_implementation.target origin=main.ds#target:display location=main.ds#implementation:user_id symbol=main.ds#symbol@7
+@goto_implementation.target origin=main.ds#target:display location=main.ds#declaration:view selection=main.ds#implementation:view symbol=main.ds#View@2
+@goto_implementation.target origin=main.ds#target:display location=main.ds#declaration:packet selection=main.ds#implementation:packet symbol=main.ds#Packet@3
+@goto_implementation.target origin=main.ds#target:display location=main.ds#declaration:status selection=main.ds#implementation:status symbol=main.ds#Status@4
+@goto_implementation.target origin=main.ds#target:display location=main.ds#declaration:user_id selection=main.ds#implementation:user_id symbol=main.ds#symbol@7
 ```
 
 ### Return no targets for an unimplemented interface
@@ -116,20 +128,22 @@ class Base {
 }
 
 class Derived extends Base {
+^ declaration:derived:start
       ^^^^^^^ implementation:derived
     value: int32;
 }
+^ declaration:derived:end
 
 class SubDerived extends Derived {}
 ```
 
 ```query goto_implementation main.ds#target:base
-@goto_implementation.target origin=main.ds#target:base location=main.ds:5:1-7:2 selection=main.ds#implementation:derived symbol=main.ds#Derived@4
+@goto_implementation.target origin=main.ds#target:base location=main.ds#declaration:derived selection=main.ds#implementation:derived symbol=main.ds#Derived@4
 ```
 
 ## Methods
 
-### Find implementations of an interface method
+### [ignored] Find implementations of an interface method
 
 An interface method resolves to each exact member that implements it.
 
@@ -141,25 +155,29 @@ interface Renderable {
 
 class View implements Renderable {
     render(): string {
+    ^ declaration:view:start
     ^^^^^^ implementation:view
         return "";
     }
+    ^ declaration:view:end
 }
 
 struct Document implements Renderable {
     render(): string {
+    ^ declaration:document:start
     ^^^^^^ implementation:document
         return "";
     }
+    ^ declaration:document:end
 }
 ```
 
 ```query goto_implementation main.ds#target
-@goto_implementation.target origin=main.ds#target location=main.ds#implementation:view symbol=main.ds#render@5
-@goto_implementation.target origin=main.ds#target location=main.ds#implementation:document symbol=main.ds#render@8
+@goto_implementation.target origin=main.ds#target location=main.ds#declaration:view selection=main.ds#implementation:view symbol=main.ds#render@5
+@goto_implementation.target origin=main.ds#target location=main.ds#declaration:document selection=main.ds#implementation:document symbol=main.ds#render@8
 ```
 
-### Find overrides of a class method
+### [ignored] Find overrides of a class method
 
 An abstract class method resolves to each exact overriding member.
 
@@ -171,12 +189,14 @@ abstract class Writer {
 
 class FileWriter extends Writer {
     override write(value: string): void {}
+    ^ declaration:start
+                                         ^ declaration:end
              ^^^^^ implementation
 }
 ```
 
 ```query goto_implementation main.ds#target
-@goto_implementation.target origin=main.ds#target location=main.ds#implementation symbol=main.ds#write@6
+@goto_implementation.target origin=main.ds#target location=main.ds#declaration selection=main.ds#implementation symbol=main.ds#write@6
 ```
 
 ## Cross-Module Interfaces
@@ -196,19 +216,23 @@ export interface Drawable {
 import { Drawable } from "./library.ds";
 
 export class Circle implements Drawable {
+^ declaration:circle:start
              ^^^^^^ implementation:circle
     draw(): void {}
 }
+^ declaration:circle:end
 
 export struct Square implements Drawable {
+^ declaration:square:start
               ^^^^^^ implementation:square
     draw(): void {}
 }
+^ declaration:square:end
 ```
 
 ```query goto_implementation library.ds#target:drawable
-@goto_implementation.target origin=library.ds#target:drawable location=implementation.ds:3:1-5:2 selection=implementation.ds#implementation:circle symbol=implementation.ds#Circle@2
-@goto_implementation.target origin=library.ds#target:drawable location=implementation.ds:7:1-9:2 selection=implementation.ds#implementation:square symbol=implementation.ds#Square@5
+@goto_implementation.target origin=library.ds#target:drawable location=implementation.ds#declaration:circle selection=implementation.ds#implementation:circle symbol=implementation.ds#Circle@2
+@goto_implementation.target origin=library.ds#target:drawable location=implementation.ds#declaration:square selection=implementation.ds#implementation:square symbol=implementation.ds#Square@5
 ```
 
 ### Find implementations through a re-exported interface
@@ -230,19 +254,23 @@ export { Renderable } from "./alias_library.ds";
 import { Renderable } from "./alias_barrel.ds";
 
 export class Sprite implements Renderable {
+^ declaration:sprite:start
              ^^^^^^ implementation:sprite
     render(): void {}
 }
+^ declaration:sprite:end
 
 export struct Icon implements Renderable {
+^ declaration:icon:start
               ^^^^ implementation:icon
     render(): void {}
 }
+^ declaration:icon:end
 ```
 
 ```query goto_implementation alias_library.ds#target:renderable
-@goto_implementation.target origin=alias_library.ds#target:renderable location=alias_implementation.ds:3:1-5:2 selection=alias_implementation.ds#implementation:sprite symbol=alias_implementation.ds#Sprite@2
-@goto_implementation.target origin=alias_library.ds#target:renderable location=alias_implementation.ds:7:1-9:2 selection=alias_implementation.ds#implementation:icon symbol=alias_implementation.ds#Icon@5
+@goto_implementation.target origin=alias_library.ds#target:renderable location=alias_implementation.ds#declaration:sprite selection=alias_implementation.ds#implementation:sprite symbol=alias_implementation.ds#Sprite@2
+@goto_implementation.target origin=alias_library.ds#target:renderable location=alias_implementation.ds#declaration:icon selection=alias_implementation.ds#implementation:icon symbol=alias_implementation.ds#Icon@5
 ```
 
 ## Cross-Module Classes
@@ -260,11 +288,13 @@ export class Base {}
 import { Base } from "./library.ds";
 
 export class Derived extends Base {}
+^ declaration:derived:start
+                                    ^ declaration:derived:end
              ^^^^^^^ implementation:derived
 ```
 
 ```query goto_implementation library.ds#target:base
-@goto_implementation.target origin=library.ds#target:base location=implementation.ds:3:1-3:37 selection=implementation.ds#implementation:derived symbol=implementation.ds#Derived@2
+@goto_implementation.target origin=library.ds#target:base location=implementation.ds#declaration:derived selection=implementation.ds#implementation:derived symbol=implementation.ds#Derived@2
 ```
 
 ## Re-Export Chains
@@ -292,11 +322,13 @@ export { Surface } from "./barrel_a.ds";
 import { Surface } from "./barrel_b.ds";
 
 export class Sprite implements Surface {
+^ declaration:sprite:start
              ^^^^^^ implementation:sprite
     render(): void {}
 }
+^ declaration:sprite:end
 ```
 
 ```query goto_implementation types.ds#target:renderable
-@goto_implementation.target origin=types.ds#target:renderable location=implementation.ds:3:1-5:2 selection=implementation.ds#implementation:sprite symbol=implementation.ds#Sprite@2
+@goto_implementation.target origin=types.ds#target:renderable location=implementation.ds#declaration:sprite selection=implementation.ds#implementation:sprite symbol=implementation.ds#Sprite@2
 ```

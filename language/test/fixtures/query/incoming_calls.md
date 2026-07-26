@@ -200,12 +200,12 @@ function caller(): void {
 }
 ```
 
-```query incoming_calls main.ds#integer_name
+```query incoming_calls main.ds#integer_call
 @incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:9:1-12:2 selection=main.ds#caller symbol=main.ds#caller@5
 @incoming_calls.site call=0 range=main.ds#integer_call
 ```
 
-```query incoming_calls main.ds#string_name
+```query incoming_calls main.ds#string_call
 @incoming_calls.call index=0 name=caller kind=function detail="caller(): void" location=main.ds:9:1-12:2 selection=main.ds#caller symbol=main.ds#caller@5
 @incoming_calls.site call=0 range=main.ds#string_call
 ```
@@ -315,11 +315,12 @@ function create(): Status {
          ^^^^^^ caller
     return Status.Ok({ value: "ready" });
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ call
+                  ^^ variant_call
 }
 ```
 
-```query incoming_calls main.ds#name
-@incoming_calls.call index=0 name=create kind=function detail="create(): Status" location=main.ds:4:1-6:2 selection=main.ds#caller symbol=main.ds#create@4
+```query incoming_calls main.ds#variant_call
+@incoming_calls.call index=0 name=create kind=function detail="create(): Status" location=main.ds:4:1-6:2 selection=main.ds#caller symbol=main.ds#create@2
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
@@ -386,6 +387,42 @@ function caller(): void {
 ```
 
 ```query incoming_calls main.ds#callee
+@incoming_calls.none
+```
+
+## Anonymous Callers
+
+### Do not attribute calls inside a lambda to its enclosing function
+
+A lambda is the nearest callable boundary but has no named hierarchy item.
+
+```ds main.ds
+function target(): void {}
+         ^^^^^^ target
+
+function outer(): void {
+    const callback = (): void => {
+        target();
+    };
+}
+```
+
+```query incoming_calls main.ds#target
+@incoming_calls.none
+```
+
+### Do not return a module-level call as a named caller
+
+A call outside a callable item has no incoming hierarchy item.
+
+```ds main.ds
+function target(): void {}
+         ^^^^^^ target
+
+target();
+```
+
+```query incoming_calls main.ds#target
 @incoming_calls.none
 ```
 

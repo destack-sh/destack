@@ -51,6 +51,27 @@ class Box {
 @folding_ranges.range lines=0..2
 ```
 
+## Declaration Blocks
+
+### Fold module and global declaration blocks
+
+Module and global bodies retain their authored declaration ranges.
+
+```ds main.ds
+module {
+    const local = 1;
+}
+
+global {
+    declare const ambient: int32;
+}
+```
+
+```query folding_ranges main.ds
+@folding_ranges.range lines=0..2
+@folding_ranges.range lines=4..6
+```
+
 ## Type Declarations
 
 ### Fold type declaration bodies

@@ -26,7 +26,7 @@ import { value } from "./source/result";
 const result = value;
 ```
 
-## Explicit Extension
+## Extensions
 
 ### Preserve an explicit extension
 
@@ -48,6 +48,30 @@ source/value.ds -> source/result.ds
 
 ```ds main.ds after
 import { value } from "./source/result.ds";
+
+const result = value;
+```
+
+### [ignored] Preserve a dotted extensionless path
+
+A dotted basename remains extensionless when the module extension was omitted.
+
+```ds source/value.test.ds
+export const value = 1;
+```
+
+```ds main.ds
+import { value } from "./source/value.test";
+
+const result = value;
+```
+
+```query rename_files
+source/value.test.ds -> source/result.test.ds
+```
+
+```ds main.ds after
+import { value } from "./source/result.test";
 
 const result = value;
 ```
@@ -190,6 +214,27 @@ const result = value;
 ```query rename_files
 source -> library
 @rename_files.none
+```
+
+### Prefer the most specific renamed path
+
+An explicit file rename takes precedence over a renamed parent directory.
+
+```ds source/value.ds
+export const value = 1;
+```
+
+```ds main.ds
+import { value } from "./source/value";
+```
+
+```query rename_files
+source -> library
+source/value.ds -> special/value.ds
+```
+
+```ds main.ds after
+import { value } from "./special/value";
 ```
 
 ## Symbol Spaces

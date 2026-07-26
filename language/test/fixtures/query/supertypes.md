@@ -18,17 +18,17 @@ class Derived extends Base {}
 @supertypes.item name=Base kind=class location=main.ds:1:1-1:14 selection=main.ds#base symbol=main.ds#Base@1
 ```
 
-### Return class and interface parents in declaration order
+### Return class and interface parents in heritage order
 
-The extended class precedes every implemented interface.
+The extended class precedes interfaces in the order written on the derived declaration.
 
 ```ds main.ds
 class Base {}
       ^^^^ base
-interface Readable {}
-          ^^^^^^^^ readable
 interface Writable {}
           ^^^^^^^^ writable
+interface Readable {}
+          ^^^^^^^^ readable
 
 class Document extends Base implements Readable, Writable {}
       ^^^^^^^^ document
@@ -36,8 +36,8 @@ class Document extends Base implements Readable, Writable {}
 
 ```query supertypes main.ds#document
 @supertypes.item name=Base kind=class location=main.ds:1:1-1:14 selection=main.ds#base symbol=main.ds#Base@1
-@supertypes.item name=Readable kind=interface location=main.ds:2:1-2:22 selection=main.ds#readable symbol=main.ds#Readable@2
-@supertypes.item name=Writable kind=interface location=main.ds:3:1-3:22 selection=main.ds#writable symbol=main.ds#Writable@3
+@supertypes.item name=Readable kind=interface location=main.ds:3:1-3:22 selection=main.ds#readable symbol=main.ds#Readable@3
+@supertypes.item name=Writable kind=interface location=main.ds:2:1-2:22 selection=main.ds#writable symbol=main.ds#Writable@2
 ```
 
 ### Return only direct parents

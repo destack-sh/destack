@@ -55,6 +55,28 @@ class Service {}
 @decorators.owner index=0 location=main.ds#target node=main.ds#declaration@5
 ```
 
+### Preserve application source order
+
+Unfiltered results retain the order written on a shared owner.
+
+```ds main.ds
+newtype tracked = ();
+
+@tracked
+ ^^^^^^^ first
+@deprecated("use ServiceV2")
+ ^^^^^^^^^^^^^^^^^^^^^^^^^^^ second
+class Service {}
+      ^^^^^^^ target
+```
+
+```query decorators scope=main.ds
+@decorators.application index=0 name=tracked role=symbol symbol=main.ds#tracked@1 location=main.ds#first node=main.ds#decorator@4
+@decorators.owner index=0 location=main.ds#target node=main.ds#declaration@10
+@decorators.application index=1 name=deprecated role=language_item language_item=deprecated location=main.ds#second node=main.ds#decorator@9
+@decorators.owner index=1 location=main.ds#target node=main.ds#declaration@10
+```
+
 ## Program
 
 ### Return decorators across modules

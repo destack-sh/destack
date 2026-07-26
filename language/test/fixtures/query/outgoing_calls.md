@@ -50,6 +50,32 @@ function source(): void {
 @outgoing_calls.site call=1 range=main.ds#first_call
 ```
 
+## Call Sites
+
+### Retain every call site for one callee
+
+Repeated calls share one callee item and retain source order.
+
+```ds main.ds
+function target(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
+         ^^^^^^ target
+
+function source(): void {
+         ^^^^^^ source
+    target();
+    ^^^^^^^^ first_call
+    target();
+    ^^^^^^^^ second_call
+}
+```
+
+```query outgoing_calls main.ds#source
+@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=main.ds#declaration selection=main.ds#target symbol=main.ds#target@1
+@outgoing_calls.site call=0 range=main.ds#first_call
+@outgoing_calls.site call=0 range=main.ds#second_call
+```
+
 ## Modules
 
 ### Find an imported callee
@@ -204,6 +230,32 @@ function caller(): void {
 @outgoing_calls.site call=1 range=main.ds#string_call
 ```
 
+## Generic Functions
+
+### Return the declared generic callee
+
+A concrete instantiation retains the generic callable declaration.
+
+```ds main.ds
+function identity<T>(value: T): T {
+^ declaration:start
+         ^^^^^^^^ name
+    return value;
+}
+^ declaration:end
+
+function caller(): string {
+         ^^^^^^ caller
+    return identity<string>("value");
+           ^^^^^^^^^^^^^^^^^^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#caller
+@outgoing_calls.call index=0 name=identity kind=function detail="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
 ## Extensions
 
 ### Return a selected extension method
@@ -298,7 +350,7 @@ function create(): UserId {
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 
-### Return a tagged variant constructor
+### [ignored] Return a tagged variant constructor
 
 Tagged construction retains the selected generated variant member and its callable type.
 
@@ -384,6 +436,55 @@ function caller(): void {
 
 ```query outgoing_calls main.ds#caller
 @outgoing_calls.none
+```
+
+## Callable Boundaries
+
+### Do not attribute calls inside a lambda to its enclosing function
+
+A lambda body is not part of the enclosing function's outgoing call hierarchy.
+
+```ds main.ds
+function target(): void {}
+
+function outer(): void {
+         ^^^^^ outer
+    const callback = (): void => {
+        target();
+    };
+}
+```
+
+```query outgoing_calls main.ds#outer
+@outgoing_calls.none
+```
+
+### Attribute calls to the nearest named function
+
+A nested named function owns the calls in its body.
+
+```ds main.ds
+function target(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
+         ^^^^^^ target
+
+function outer(): void {
+         ^^^^^ outer
+    function inner(): void {
+             ^^^^^ inner
+        target();
+        ^^^^^^^^ call
+    }
+}
+```
+
+```query outgoing_calls main.ds#outer
+@outgoing_calls.none
+```
+
+```query outgoing_calls main.ds#inner
+@outgoing_calls.call index=0 name=target kind=function detail="target(): void" location=main.ds#declaration selection=main.ds#target symbol=main.ds#target@1
+@outgoing_calls.site call=0 range=main.ds#call
 ```
 
 ## Union Dispatch

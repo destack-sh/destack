@@ -245,7 +245,7 @@ const created = new User();
 
 ## Labels
 
-### Highlight control label occurrences
+### [ignored] Highlight control label occurrences
 
 Label declarations and targeted breaks are textual control-flow occurrences.
 

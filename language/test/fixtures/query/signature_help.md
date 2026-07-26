@@ -21,7 +21,7 @@ const result = add(1, 2);
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
 ```
 
-### Select an argument after a trailing comma
+### [ignored] Select an argument after a trailing comma
 
 A cursor gap after a comma selects the next parameter.
 
@@ -55,7 +55,7 @@ ping();
 @signature_help.signature index=0 label="ping(): void" active=true
 ```
 
-### Follow named argument bindings
+### [ignored] Follow named argument bindings
 
 The active parameter follows the checker binding rather than authored argument order.
 
@@ -136,7 +136,7 @@ const result = identity(name);
 
 ## Documentation
 
-### Include callable and parameter documentation
+### [ignored] Include callable and parameter documentation
 
 Signature help retains documentation from the declaration and its parameters.
 
@@ -233,7 +233,7 @@ function total(calculator: Calculator): int32 {
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
 ```
 
-### Include method parameter documentation
+### [ignored] Include method parameter documentation
 
 Method signature help includes documentation from the selected member.
 

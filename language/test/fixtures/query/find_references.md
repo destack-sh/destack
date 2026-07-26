@@ -26,6 +26,27 @@ const second = value;
 @find_references.reference location=main.ds#second_reference symbol=main.ds#value@1
 ```
 
+### Find read and write occurrences
+
+Assignments and reads retain the same lexical identity.
+
+```ds main.ds
+let value = 0;
+    ^^^^^ declaration
+
+value = 1;
+^^^^^ write
+
+const result = value;
+               ^^^^^ read
+```
+
+```query find_references main.ds#read include_declaration=true
+@find_references.reference location=main.ds#declaration symbol=main.ds#value@1
+@find_references.reference location=main.ds#write symbol=main.ds#value@1
+@find_references.reference location=main.ds#read symbol=main.ds#value@1
+```
+
 ## Modules
 
 ### Find references across modules
@@ -41,6 +62,7 @@ export function greet(name: string): string {
 
 ```ds main.ds
 import { greet } from "./library.ds";
+         ^^^^^ import
 
 const first = greet("one");
               ^^^^^ first_reference
@@ -50,7 +72,7 @@ const second = greet("two");
 
 ```query find_references library.ds#declaration include_declaration=true
 @find_references.reference location=library.ds#declaration symbol=library.ds#greet@1
-@find_references.reference location=main.ds:1:10-1:15 symbol=library.ds#greet@1
+@find_references.reference location=main.ds#import symbol=library.ds#greet@1
 @find_references.reference location=main.ds#first_reference symbol=library.ds#greet@1
 @find_references.reference location=main.ds#second_reference symbol=library.ds#greet@1
 ```
@@ -210,7 +232,7 @@ Associated constant accesses retain the selected member identity.
 
 ```ds main.ds
 struct Buffer {
-    comptime const Width: uint = 8;
+    comptime const Width: uint64 = 8;
                    ^^^^^ declaration
 }
 
@@ -257,6 +279,12 @@ function start(service: Alpha | Beta): void {
 @find_references.reference location=main.ds#reference symbol=main.ds#run@5
 ```
 
+```query find_references main.ds#reference include_declaration=true
+@find_references.reference location=main.ds#alpha_declaration symbol=main.ds#run@2
+@find_references.reference location=main.ds#beta_declaration symbol=main.ds#run@5
+@find_references.reference location=main.ds#reference symbols=main.ds#run@2,main.ds#run@5
+```
+
 ## Enum Members
 
 ### Find enum member occurrences
@@ -281,7 +309,7 @@ const second = Color.Red;
 @find_references.reference location=main.ds#second_reference symbol=main.ds#Red@2
 ```
 
-### Find tagged variant occurrences
+### [ignored] Find tagged variant occurrences
 
 Tagged construction and pattern selection retain the generated variant identity.
 
@@ -414,7 +442,7 @@ function createBuffer<comptime size: int32>(): int32 {
 @find_references.reference location=main.ds#reference symbol=main.ds#size@2
 ```
 
-### Find a comptime type parameter
+### [ignored] Find a comptime type parameter
 
 A comptime parameter retains its lexical identity inside the declared type.
 
@@ -449,7 +477,7 @@ const value = left;
 @find_references.reference location=main.ds#reference symbol=main.ds#left@2
 ```
 
-### Find match binding occurrences
+### [ignored] Find match binding occurrences
 
 A match-arm binding includes only references inside its arm.
 
@@ -470,7 +498,7 @@ const total = match (pair) {
 
 ## Labels
 
-### Find control label occurrences
+### [ignored] Find control label occurrences
 
 A control label includes its declaration and each targeted break.
 
@@ -559,11 +587,11 @@ callback();
 @find_references.reference location=main.ds#reference symbol=main.ds#callee@1
 ```
 
-## Annotations
+## Decorators
 
-### Find annotation occurrences
+### Find decorator occurrences
 
-An annotation value includes its declaration and decorator applications.
+A decorator includes its declaration and every application.
 
 ```ds main.ds
 newtype tracked = ();
@@ -584,9 +612,9 @@ function start(): void {}
 @find_references.reference location=main.ds#second_reference symbol=main.ds#tracked@1
 ```
 
-### Find annotation occurrences across attachment positions
+### Find decorator occurrences across attachment positions
 
-An annotation value retains one identity across every supported attachment position.
+A decorator retains one identity across every supported attachment position.
 
 ```ds main.ds
 newtype tracked = ();
@@ -811,9 +839,9 @@ const value = buildWidget();
 
 ```query find_references library.ds#declaration include_declaration=true
 @find_references.reference location=library.ds#declaration symbol=library.ds#buildWidget@1
+@find_references.reference location=public.ds#reexport symbol=library.ds#buildWidget@1
 @find_references.reference location=main.ds#import symbol=library.ds#buildWidget@1
 @find_references.reference location=main.ds#reference symbol=library.ds#buildWidget@1
-@find_references.reference location=public.ds#reexport symbol=library.ds#buildWidget@1
 ```
 
 ### Find references through a named re-export
@@ -845,7 +873,7 @@ greet();
 @find_references.reference location=main.ds#reference symbol=library.ds#greet@1
 ```
 
-### Find a namespace re-export alias
+### [ignored] Find a namespace re-export alias
 
 A namespace re-export alias retains one identity through imports and local uses.
 

@@ -37,6 +37,20 @@ const result = identity(1);
 @semantic_tokens_range.token range=main.ds#function type=function
 ```
 
+### Exclude tokens crossing the requested boundary
+
+A token is returned only when the requested range contains the complete token.
+
+```ds main.ds
+const value = 1;
+      ^^^^^ token
+       ^^^ interior
+```
+
+```query semantic_tokens_range main.ds#interior
+@semantic_tokens_range.none
+```
+
 ## Empty Results
 
 ### Return no tokens for lexical source

@@ -53,6 +53,7 @@ function get_element_by_id(): void {}
 
 ```query search_symbols query=gebi max_results=10
 @search_symbols.symbol name=get_element_by_id kind=function location=main.ds:2:1-2:38 selection=main.ds#get_name symbol=main.ds#get_element_by_id@2
+@search_symbols.symbol name=getElementsByAttribute kind=function location=main.ds:1:1-1:43 selection=main.ds#camel_name symbol=main.ds#getElementsByAttribute@1
 ```
 
 ### Match ordered subsequences
@@ -108,8 +109,8 @@ export struct WidgetBox {}
 ```
 
 ```query search_symbols query=Widget max_results=10
-@search_symbols.symbol name=Widget kind=class location=alpha.ds:1:1-1:23 selection=alpha.ds#widget symbol=alpha.ds#Widget@1
 @search_symbols.symbol name=Widget kind=struct location=beta.ds:1:1-1:24 selection=beta.ds#widget symbol=beta.ds#Widget@1
+@search_symbols.symbol name=Widget kind=class location=alpha.ds:1:1-1:23 selection=alpha.ds#widget symbol=alpha.ds#Widget@1
 @search_symbols.symbol name=WidgetBox kind=struct location=beta.ds:2:1-2:27 selection=beta.ds#widget_box symbol=beta.ds#WidgetBox@2
 @search_symbols.symbol name=WidgetFactory kind=function location=alpha.ds:2:1-2:41 selection=alpha.ds#widget_factory symbol=alpha.ds#WidgetFactory@2
 ```
@@ -190,8 +191,8 @@ export function render(): void {}
 ```
 
 ```query search_symbols query=render max_results=10
-@search_symbols.symbol name=render kind=function location=alpha.ds:1:1-1:34 selection=alpha.ds#render symbol=alpha.ds#render@1
 @search_symbols.symbol name=render kind=function location=beta.ds:1:1-1:34 selection=beta.ds#render symbol=beta.ds#render@1
+@search_symbols.symbol name=render kind=function location=alpha.ds:1:1-1:34 selection=alpha.ds#render symbol=alpha.ds#render@1
 ```
 
 ### Order equal members by container
@@ -246,7 +247,7 @@ enum Color {
 ```
 
 ```query search_symbols query=Red max_results=10
-@search_symbols.symbol name=Red kind=enum_member container=Color location=main.ds:2:5-2:8 selection=main.ds#red symbol=main.ds#Red@2
+@search_symbols.symbol name=Red kind=enum_member container=Color location=main.ds#red symbol=main.ds#Red@2
 ```
 
 ### Distinguish fields and properties
@@ -270,7 +271,7 @@ class Meter {
 ```
 
 ```query search_symbols query=current max_results=10
-@search_symbols.symbol name=current kind=property container=Meter location=main.ds:4:5-6:6 selection=main.ds#current symbol=main.ds#current@3
+@search_symbols.symbol name=current kind=property container=Meter location=main.ds:4:5-6:6 selection=main.ds#current symbol=main.ds#current@4
 ```
 
 ## Scope
@@ -418,6 +419,6 @@ export let mutableSearchValue = 2;
 ```
 
 ```query search_symbols query=searchValue max_results=10
-@search_symbols.symbol name=searchValue kind=constant location=main.ds:1:1-1:30 selection=main.ds#name symbol=main.ds#searchValue@1
-@search_symbols.symbol name=mutableSearchValue kind=variable location=main.ds:3:1-3:35 selection=main.ds#mutable_name symbol=main.ds#mutableSearchValue@2
+@search_symbols.symbol name=searchValue kind=constant location=main.ds#name symbol=main.ds#searchValue@1
+@search_symbols.symbol name=mutableSearchValue kind=variable location=main.ds#mutable_name symbol=main.ds#mutableSearchValue@2
 ```
