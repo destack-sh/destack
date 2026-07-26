@@ -1,6 +1,37 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_resolve_records_namespace_reexport_reference() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+export * as api from "./dep.ds";
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export let value = 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries().with_resolve_stats(),
+        r#"
+export * as api from "./dep.ds";
+/// @reference.namespace source=<namespace> module=dep.ds
+
+/// @import.summary
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:0,reexport:1
+/// @reference.summary references=1
+"#,
+    );
+}
+
+#[test]
 fn test_resolve_follows_indirect_reexport_target() {
     let compiler = TestSession::builder()
         .module(
@@ -29,9 +60,11 @@ export let value = 1;
         r#"
 import { renamed } from "./mid.ds";
 /// @import.symbol symbol=renamed target=dep.value
+/// @reference.bound source=renamed targets=[dep.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
+/// @reference.summary references=1
 "#,
     );
 }
@@ -66,9 +99,11 @@ export { value as default };
         r#"
 import { renamed } from "./mid.ds";
 /// @import.symbol symbol=renamed target=dep.value
+/// @reference.bound source=renamed targets=[dep.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
+/// @reference.summary references=1
 "#,
     );
 }
@@ -102,9 +137,11 @@ export let value = 1;
         r#"
 import { value } from "./mid.ds";
 /// @import.symbol symbol=value target=dep.value
+/// @reference.bound source=value targets=[dep.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
+/// @reference.summary references=1
 "#,
     );
 }
@@ -145,9 +182,11 @@ export let value = 2;
         r#"
 import { value } from "./mid.ds";
 /// @import.symbol symbol=value target=explicit.value
+/// @reference.bound source=value targets=[explicit.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
+/// @reference.summary references=1
 "#,
     );
 }
@@ -188,9 +227,11 @@ export let value = 1;
         r#"
 import { value } from "./a.ds";
 /// @import.symbol symbol=value target=c.value
+/// @reference.bound source=value targets=[c.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:3,hit:1,cycle:1
+/// @reference.summary references=1
 "#,
     );
 }
@@ -242,8 +283,16 @@ export let value = 1;
 "#,
         )
         .build();
-    compiler.assert_dir_resolved_diagnostics(
+    compiler.assert_dir_resolved_and_diagnostics(
         "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+export { missing } from "./dep.ds";
+/// @reference.missing source=missing
+
+/// @import.summary
+/// @reference.summary references=1
+"#,
         r#"
 /// @diagnostic.error id=missing-export message="missing export 'missing' from './dep.ds'"
 /// @diagnostic.label line=2 column=10 span="missing" line_source="export { missing } from \"./dep.ds\";"

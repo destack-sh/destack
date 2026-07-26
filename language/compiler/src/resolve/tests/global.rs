@@ -87,7 +87,7 @@ const value = answer;
 }
 
 #[test]
-fn test_resolve_records_profile_global_reexports() {
+fn test_resolve_records_profile_global_references() {
     let compiler = TestSession::builder()
         .data(
             "destack.json",
@@ -102,7 +102,8 @@ fn test_resolve_records_profile_global_reexports() {
         .module(
             "main.ds",
             r#"
-let local = Function;
+let value = Function;
+let projected: Function.Member;
 "#,
         )
         .module(
@@ -126,14 +127,17 @@ export type Option = string;
         "main.ds",
         DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
-let local = Function;
+let value = Function;
 /// @reference.bound source=Function targets=[types.function.Function, types.Function]
+
+let projected: Function.Member;
+/// @reference.ambiguous source=Function.Member targets=[types.function.Function, types.Function]
 
 /// @import.global key=Function targets=[types.function.Function, types.Function]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1
-/// @reference.summary references=1
+/// @resolve.stats roots=2 expressions=3 types=1 globals=required:1
+/// @reference.summary references=2
 "#,
     );
 }
@@ -653,9 +657,11 @@ global {
         r#"
 import { value } from "./dep.ds";
 /// @import.symbol symbol=value target=dep.value
+/// @reference.bound source=value targets=[dep.value]
 
 /// @import.summary symbols=1
 /// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
+/// @reference.summary references=1
 "#,
     );
 }
