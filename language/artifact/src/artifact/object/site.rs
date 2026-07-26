@@ -53,6 +53,19 @@ pub struct CallSite {
     pub signature: mir::TypeId,
 }
 
+/// One continuation resume operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ResumeSite {
+    /// The operation resuming the continuation.
+    pub point: Point,
+    /// The operation entered when the continuation yields.
+    pub yielded: Point,
+    /// The operation entered when the continuation returns.
+    pub returned: Point,
+    /// The operation entered during panic unwinding when present.
+    pub unwind: Option<Point>,
+}
+
 /// One control flow edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct EdgeSite {
@@ -69,6 +82,8 @@ pub struct SuspensionSite {
     pub point: Point,
     /// The operation entered by normal resumption.
     pub resume: Point,
+    /// The operation entered during cancellation when present.
+    pub cancel: Option<Point>,
     /// The operation entered during panic unwinding when present.
     pub unwind: Option<Point>,
     /// The suspension operation.

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     AllocationSite, CallSite, CounterSite, EdgeSite, FrameState, Function, Global, MemorySite,
-    SampleSite, SuspensionSite, Type,
+    ResumeSite, SampleSite, SuspensionSite, Type,
 };
 
 /// One relocatable module linked into a Program.
@@ -40,6 +40,8 @@ pub struct Object {
     pub(super) memory: Vec<MemorySite>,
     /// Function call sites.
     pub(super) calls: Vec<CallSite>,
+    /// Continuation resume sites.
+    pub(super) resumes: Vec<ResumeSite>,
     /// Control flow edges.
     pub(super) edges: Vec<EdgeSite>,
     /// Coroutine suspension sites.
@@ -158,6 +160,11 @@ impl Object {
     /// Return function call sites.
     pub fn calls(&self) -> &[CallSite] {
         &self.calls
+    }
+
+    /// Return continuation resume sites.
+    pub fn resumes(&self) -> &[ResumeSite] {
+        &self.resumes
     }
 
     /// Return control flow edges.

@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 
 use super::{
     AllocationSite, CallSite, CounterSite, EdgeSite, FrameState, Function, Global, MemorySite,
-    Object, SampleSite, SuspensionSite, Type,
+    Object, ResumeSite, SampleSite, SuspensionSite, Type,
 };
 
 /// One emitted object under construction.
@@ -38,6 +38,8 @@ pub struct ObjectBuilder {
     memory: Vec<MemorySite>,
     /// Function call sites.
     calls: Vec<CallSite>,
+    /// Continuation resume sites.
+    resumes: Vec<ResumeSite>,
     /// Control flow edges.
     edges: Vec<EdgeSite>,
     /// Coroutine suspension sites.
@@ -69,6 +71,7 @@ impl ObjectBuilder {
             allocations: Vec::new(),
             memory: Vec::new(),
             calls: Vec::new(),
+            resumes: Vec::new(),
             edges: Vec::new(),
             suspensions: Vec::new(),
             counters: Vec::new(),
@@ -157,6 +160,13 @@ impl ObjectBuilder {
         self
     }
 
+    /// Set continuation resume sites.
+    pub fn resumes(mut self, sites: impl IntoIterator<Item = ResumeSite>) -> Self {
+        self.resumes = sites.into_iter().collect();
+
+        self
+    }
+
     /// Set control flow edge sites.
     pub fn edges(mut self, sites: impl IntoIterator<Item = EdgeSite>) -> Self {
         self.edges = sites.into_iter().collect();
@@ -214,6 +224,7 @@ impl ObjectBuilder {
             allocations: self.allocations,
             memory: self.memory,
             calls: self.calls,
+            resumes: self.resumes,
             edges: self.edges,
             suspensions: self.suspensions,
             counters: self.counters,
