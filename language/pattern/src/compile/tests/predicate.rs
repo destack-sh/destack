@@ -149,3 +149,38 @@ for more information about an error, run `destack explain unsupported-predicate-
 "#,
         );
 }
+
+/// Require one complete predicate expression.
+#[test]
+fn test_reject_multiple_predicate_roots() {
+    TestPattern::new("$VALUE")
+        .predicate("$VALUE\n$VALUE")
+        .compile()
+        .assert_diagnostics(
+            r#"
+error[expected-predicate-root]: expected one predicate expression, found 2
+  ──▶ <predicate>
+for more information about an error, run `destack explain expected-predicate-root`
+"#,
+        );
+}
+
+/// Reject name metavariables used outside expression position.
+#[test]
+fn test_reject_name_predicate_metavariable() {
+    TestPattern::new("$OBJECT.$MEMBER")
+        .predicate("$OBJECT.$MEMBER == null")
+        .compile()
+        .assert_diagnostics(
+            r#"
+error[invalid-predicate-metavariable]: predicate metavariable must occupy an expression
+ ──▶ destack:predicate:1:9
+  │
+1 │ $OBJECT.$MEMBER == null
+  │         ^^^^^^^
+  │
+
+for more information about an error, run `destack explain invalid-predicate-metavariable`
+"#,
+        );
+}

@@ -81,3 +81,34 @@ class Example { $$$MEMBERS }
 "#,
         );
 }
+
+/// Resolve repeated markers across the directly authored list domains.
+#[test]
+fn test_compile_sequence_domains() {
+    TestPattern::new("fetch<$$$VALUES>()").compile().assert(
+        r#"
+fetch<$$$VALUES>()
+/// @pattern.root node=Expression source="fetch<$$$VALUES>()"
+/// @pattern.metavariable name=VALUES kind=nodes node=GenericArgument
+/// @pattern.use name=VALUES kind=nodes node=GenericArgument
+"#,
+    );
+    TestPattern::new("match (value) { Point { $$$VALUES } => body }")
+        .compile()
+        .assert(
+            r#"
+match (value) { Point { $$$VALUES } => body }
+/// @pattern.root node=Expression source="match (value) { Point { $$$VALUES } => body }"
+/// @pattern.metavariable name=VALUES kind=nodes node=PatternField
+/// @pattern.use name=VALUES kind=nodes node=PatternField
+"#,
+        );
+    TestPattern::new("[$$$VALUES] = source").compile().assert(
+        r#"
+[$$$VALUES] = source
+/// @pattern.root node=Expression source="[$$$VALUES] = source"
+/// @pattern.metavariable name=VALUES kind=nodes node=AssignPatternField
+/// @pattern.use name=VALUES kind=nodes node=AssignPatternField
+"#,
+    );
+}

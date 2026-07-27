@@ -10,68 +10,109 @@ use crate::{
     RelationStop,
 };
 
-/// One additional relation required of a test pattern.
-enum TestRelation {
+/// One additional operation required of a test pattern.
+enum TestOperation {
+    /// Require one of the node types.
+    Any(Vec<dir::NodeType>),
+    /// Reject the node type.
+    Not(dir::NodeType),
     /// Search ancestors for the node type.
-    Inside(dir::NodeType),
+    Inside(dir::NodeType, TestRelationStop),
     /// Search descendants for the node type.
-    Has(dir::NodeType),
+    Has(dir::NodeType, TestRelationStop),
     /// Search following siblings for the node type.
-    Precedes(dir::NodeType),
+    Precedes(dir::NodeType, TestRelationStop),
     /// Search preceding siblings for the node type.
-    Follows(dir::NodeType),
-    /// Select one exact sibling position.
-    NthChild(i32),
+    Follows(dir::NodeType, TestRelationStop),
+    /// Select sibling positions.
+    NthChild {
+        /// The `a` coefficient.
+        step: i32,
+        /// The `b` offset.
+        offset: i32,
+        /// The optional counted node type.
+        filter: Option<dir::NodeType>,
+    },
 }
 
-impl TestRelation {
-    /// Add this relation to a compiled pattern.
+/// One relation traversal limit in a test pattern.
+enum TestRelationStop {
+    /// Visit the nearest related node.
+    Neighbor,
+    /// Visit every related node.
+    End,
+    /// Stop before the first node of this type.
+    NodeType(dir::NodeType),
+}
+
+impl TestOperation {
+    /// Add this operation to a compiled pattern.
     fn add_to(self, pattern: &mut Pattern) {
         let fragment = pattern.tree.root;
-        let relation = match self {
-            Self::Inside(node_type) => {
+        let operation = match self {
+            Self::Any(node_types) => {
+                let start = pattern.tree.node_ids.len() as u32;
+                for node_type in node_types {
+                    let node_type = Self::add_node_type(pattern, node_type);
+                    pattern.tree.node_ids.push(node_type);
+                }
+                let length = pattern.tree.node_ids.len() as u32 - start;
+
+                Node::Any(NodeList { start, length })
+            }
+            Self::Not(node_type) => {
                 let node_type = Self::add_node_type(pattern, node_type);
 
-                Node::Inside(Relation {
-                    pattern: node_type,
-                    stop: RelationStop::End,
-                })
+                Node::Not(node_type)
             }
-            Self::Has(node_type) => {
-                let node_type = Self::add_node_type(pattern, node_type);
+            Self::Inside(node_type, stop) => Node::Inside(Self::relation(pattern, node_type, stop)),
+            Self::Has(node_type, stop) => Node::Has(Self::relation(pattern, node_type, stop)),
+            Self::Precedes(node_type, stop) => {
+                Node::Precedes(Self::relation(pattern, node_type, stop))
+            }
+            Self::Follows(node_type, stop) => {
+                Node::Follows(Self::relation(pattern, node_type, stop))
+            }
+            Self::NthChild {
+                step,
+                offset,
+                filter,
+            } => {
+                let pattern = filter.map(|node_type| Self::add_node_type(pattern, node_type));
 
-                Node::Has(Relation {
-                    pattern: node_type,
-                    stop: RelationStop::End,
+                Node::NthChild(NthChild {
+                    step,
+                    offset,
+                    pattern,
                 })
             }
-            Self::Precedes(node_type) => {
-                let node_type = Self::add_node_type(pattern, node_type);
-
-                Node::Precedes(Relation {
-                    pattern: node_type,
-                    stop: RelationStop::End,
-                })
-            }
-            Self::Follows(node_type) => {
-                let node_type = Self::add_node_type(pattern, node_type);
-
-                Node::Follows(Relation {
-                    pattern: node_type,
-                    stop: RelationStop::End,
-                })
-            }
-            Self::NthChild(position) => Node::NthChild(NthChild {
-                step: 0,
-                offset: position,
-                pattern: None,
-            }),
         };
-        let relation = NodeId(pattern.tree.nodes.allocate(relation));
+        let operation = NodeId(pattern.tree.nodes.allocate(operation));
         let start = pattern.tree.node_ids.len() as u32;
-        pattern.tree.node_ids.extend([fragment, relation]);
+        pattern.tree.node_ids.extend([fragment, operation]);
         let all = Node::All(NodeList { start, length: 2 });
         pattern.tree.root = NodeId(pattern.tree.nodes.allocate(all));
+    }
+
+    /// Build one relation operation.
+    fn relation(
+        pattern: &mut Pattern,
+        node_type: dir::NodeType,
+        stop: TestRelationStop,
+    ) -> Relation {
+        let node_type = Self::add_node_type(pattern, node_type);
+        let stop = match stop {
+            TestRelationStop::Neighbor => RelationStop::Neighbor,
+            TestRelationStop::End => RelationStop::End,
+            TestRelationStop::NodeType(stop) => {
+                RelationStop::Pattern(Self::add_node_type(pattern, stop))
+            }
+        };
+
+        Relation {
+            pattern: node_type,
+            stop,
+        }
     }
 
     /// Add one node-type operation to a compiled pattern.
@@ -114,8 +155,8 @@ pub(crate) struct TestMatcher {
     predicates: Vec<String>,
     /// Additional checked modules.
     files: Vec<(String, String)>,
-    /// Additional pattern relations.
-    relations: Vec<TestRelation>,
+    /// Additional pattern operations.
+    operations: Vec<TestOperation>,
 }
 
 impl TestMatcher {
@@ -127,7 +168,7 @@ impl TestMatcher {
             selector: None,
             predicates: Vec::new(),
             files: Vec::new(),
-            relations: Vec::new(),
+            operations: Vec::new(),
         }
     }
 
@@ -139,7 +180,7 @@ impl TestMatcher {
             selector: Some(selector),
             predicates: Vec::new(),
             files: Vec::new(),
-            relations: Vec::new(),
+            operations: Vec::new(),
         }
     }
 
@@ -158,37 +199,152 @@ impl TestMatcher {
         self
     }
 
+    /// Require at least one candidate node type.
+    pub(crate) fn any(mut self, node_types: &[dir::NodeType]) -> Self {
+        self.operations
+            .push(TestOperation::Any(node_types.to_vec()));
+
+        self
+    }
+
+    /// Reject one candidate node type.
+    pub(crate) fn not(mut self, node_type: dir::NodeType) -> Self {
+        self.operations.push(TestOperation::Not(node_type));
+
+        self
+    }
+
     /// Require the structural fragment to occur inside one node type.
     pub(crate) fn inside(mut self, node_type: dir::NodeType) -> Self {
-        self.relations.push(TestRelation::Inside(node_type));
+        self.operations
+            .push(TestOperation::Inside(node_type, TestRelationStop::End));
+
+        self
+    }
+
+    /// Require the nearest ancestor to have one node type.
+    pub(crate) fn inside_neighbor(mut self, node_type: dir::NodeType) -> Self {
+        self.operations
+            .push(TestOperation::Inside(node_type, TestRelationStop::Neighbor));
+
+        self
+    }
+
+    /// Search ancestors until one node type.
+    pub(crate) fn inside_until(mut self, node_type: dir::NodeType, stop: dir::NodeType) -> Self {
+        self.operations.push(TestOperation::Inside(
+            node_type,
+            TestRelationStop::NodeType(stop),
+        ));
 
         self
     }
 
     /// Require the structural fragment to contain one node type.
     pub(crate) fn has(mut self, node_type: dir::NodeType) -> Self {
-        self.relations.push(TestRelation::Has(node_type));
+        self.operations
+            .push(TestOperation::Has(node_type, TestRelationStop::End));
+
+        self
+    }
+
+    /// Require one direct child with the node type.
+    pub(crate) fn has_neighbor(mut self, node_type: dir::NodeType) -> Self {
+        self.operations
+            .push(TestOperation::Has(node_type, TestRelationStop::Neighbor));
+
+        self
+    }
+
+    /// Search descendants without entering one node type.
+    pub(crate) fn has_until(mut self, node_type: dir::NodeType, stop: dir::NodeType) -> Self {
+        self.operations.push(TestOperation::Has(
+            node_type,
+            TestRelationStop::NodeType(stop),
+        ));
 
         self
     }
 
     /// Require the structural fragment to precede one node type.
     pub(crate) fn precedes(mut self, node_type: dir::NodeType) -> Self {
-        self.relations.push(TestRelation::Precedes(node_type));
+        self.operations
+            .push(TestOperation::Precedes(node_type, TestRelationStop::End));
+
+        self
+    }
+
+    /// Require the immediately following sibling to have one node type.
+    pub(crate) fn precedes_neighbor(mut self, node_type: dir::NodeType) -> Self {
+        self.operations.push(TestOperation::Precedes(
+            node_type,
+            TestRelationStop::Neighbor,
+        ));
+        self
+    }
+
+    /// Search following siblings until one node type.
+    pub(crate) fn precedes_until(mut self, node_type: dir::NodeType, stop: dir::NodeType) -> Self {
+        self.operations.push(TestOperation::Precedes(
+            node_type,
+            TestRelationStop::NodeType(stop),
+        ));
 
         self
     }
 
     /// Require the structural fragment to follow one node type.
     pub(crate) fn follows(mut self, node_type: dir::NodeType) -> Self {
-        self.relations.push(TestRelation::Follows(node_type));
+        self.operations
+            .push(TestOperation::Follows(node_type, TestRelationStop::End));
+
+        self
+    }
+
+    /// Require the immediately preceding sibling to have one node type.
+    pub(crate) fn follows_neighbor(mut self, node_type: dir::NodeType) -> Self {
+        self.operations.push(TestOperation::Follows(
+            node_type,
+            TestRelationStop::Neighbor,
+        ));
 
         self
     }
 
     /// Require the structural fragment to occupy one exact sibling position.
     pub(crate) fn nth_child(mut self, position: i32) -> Self {
-        self.relations.push(TestRelation::NthChild(position));
+        self.operations.push(TestOperation::NthChild {
+            step: 0,
+            offset: position,
+            filter: None,
+        });
+
+        self
+    }
+
+    /// Require the structural fragment to occupy an `an+b` sibling position.
+    pub(crate) fn nth_child_formula(mut self, step: i32, offset: i32) -> Self {
+        self.operations.push(TestOperation::NthChild {
+            step,
+            offset,
+            filter: None,
+        });
+
+        self
+    }
+
+    /// Require one position among siblings with the selected node type.
+    pub(crate) fn nth_child_of_type(
+        mut self,
+        step: i32,
+        offset: i32,
+        node_type: dir::NodeType,
+    ) -> Self {
+        self.operations.push(TestOperation::NthChild {
+            step,
+            offset,
+            filter: Some(node_type),
+        });
 
         self
     }
@@ -230,9 +386,9 @@ impl TestMatcher {
                 .expect("compile test predicate");
         }
 
-        // add programmatic relation operations
-        for relation in self.relations {
-            relation.add_to(&mut pattern);
+        // add programmatic tree operations
+        for operation in self.operations {
+            operation.add_to(&mut pattern);
         }
 
         // match every candidate DIR node in parse allocation order

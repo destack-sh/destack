@@ -488,3 +488,96 @@ fetch("value");
 "#,
     );
 }
+
+/// Evaluate every equality operator over one name binding.
+#[test]
+fn test_match_equality_operators() {
+    TestMatcher::new(
+        "$OBJECT.$MEMBER",
+        r#"
+user.name
+user.email
+"#,
+    )
+    .guard(
+        r#"$MEMBER == "name" && $MEMBER === "name" && $MEMBER != "email" && $MEMBER !== "email""#,
+    )
+    .assert(
+        r#"
+user.name
+^^^^^^^^^ match OBJECT.node="user" MEMBER.name="name"
+user.email
+"#,
+    );
+}
+
+/// Evaluate every ordered comparison over checked static values.
+#[test]
+fn test_match_order_operators() {
+    TestMatcher::new(
+        "consume($COUNT)",
+        r#"
+function consume(count: int32): void {}
+
+consume(0);
+consume(1);
+consume(2);
+consume(3);
+"#,
+    )
+    .guard("$COUNT > 0 && $COUNT >= 1 && $COUNT < 3 && $COUNT <= 2")
+    .assert(
+        r#"
+function consume(count: int32): void {}
+
+consume(0);
+consume(1);
+^^^^^^^^^^ match COUNT.node="1"
+consume(2);
+^^^^^^^^^^ match COUNT.node="2"
+consume(3);
+"#,
+    );
+}
+
+/// Evaluate a direct metavariable condition by binding presence.
+#[test]
+fn test_match_binding_condition() {
+    TestMatcher::new(
+        "consume($VALUE)",
+        r#"
+consume(first)
+consume(second)
+"#,
+    )
+    .guard("$VALUE")
+    .assert(
+        r#"
+consume(first)
+^^^^^^^^^^^^^^ match VALUE.node="first"
+consume(second)
+^^^^^^^^^^^^^^^ match VALUE.node="second"
+"#,
+    );
+}
+
+/// Conjoin separately authored predicates in tree order.
+#[test]
+fn test_match_multiple_predicates() {
+    TestMatcher::new(
+        "$OBJECT.$MEMBER",
+        r#"
+user.name
+user.email
+"#,
+    )
+    .guard("$MEMBER != \"email\"")
+    .guard("$MEMBER == \"name\"")
+    .assert(
+        r#"
+user.name
+^^^^^^^^^ match OBJECT.node="user" MEMBER.name="name"
+user.email
+"#,
+    );
+}

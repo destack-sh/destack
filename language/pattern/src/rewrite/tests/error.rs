@@ -60,3 +60,53 @@ for more information about an error, run `destack explain incompatible-replaceme
         .trim_end()
     );
 }
+
+/// Reject anonymous metavariables in replacement source.
+#[test]
+fn test_reject_anonymous_replacement_metavariable() {
+    let strings = Arc::new(StringPool::new());
+    let pattern = test_file("<pattern>", "fetch($_)");
+    let replacement = test_file("<replacement>", "client($_)");
+    let diagnostics = Rewrite::parse(pattern, replacement.clone(), strings)
+        .expect_err("anonymous replacement should fail");
+    let actual = render_diagnostics(&[replacement], &diagnostics);
+
+    assert_eq!(
+        actual,
+        r#"error[anonymous-replacement-metavariable]: anonymous metavariables cannot be used in replacements
+ ──▶ destack:replacement:1:8
+  │
+1 │ client($_)
+  │        ^^
+  │
+
+for more information about an error, run `destack explain anonymous-replacement-metavariable`
+"#
+        .trim_end()
+    );
+}
+
+/// Reject repeated replacement markers outside repeated DIR lists.
+#[test]
+fn test_reject_invalid_repeated_replacement_metavariable() {
+    let strings = Arc::new(StringPool::new());
+    let pattern = test_file("<pattern>", "fetch($$$ARGUMENTS)");
+    let replacement = test_file("<replacement>", "$$$ARGUMENTS");
+    let diagnostics = Rewrite::parse(pattern, replacement.clone(), strings)
+        .expect_err("invalid repeated replacement should fail");
+    let actual = render_diagnostics(&[replacement], &diagnostics);
+
+    assert_eq!(
+        actual,
+        r#"error[invalid-repeated-replacement-metavariable]: repeated replacement metavariable does not occupy a repeated DIR list
+ ──▶ destack:replacement:1:1
+  │
+1 │ $$$ARGUMENTS
+  │ ^^^^^^^^^^^^
+  │
+
+for more information about an error, run `destack explain invalid-repeated-replacement-metavariable`
+"#
+        .trim_end()
+    );
+}
