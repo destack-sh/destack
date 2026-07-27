@@ -565,7 +565,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     });
                 };
                 let bytes = self.builder.intrinsic(
-                    mir::Intrinsic::PointerOffsetFrom,
+                    mir::Intrinsic::PointerByteOffsetFrom,
                     domain,
                     vec![pointer, origin],
                 );
