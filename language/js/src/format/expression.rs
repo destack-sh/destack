@@ -1,22 +1,25 @@
 use crate::tree::Precedence;
-use crate::{ArrayElement, Asynchrony, Expression, Keyword, LocalNodeId, PostfixPosition};
+use crate::{
+    ArrayElement, ArrowFunctionBody, Asynchrony, BinaryOperator, Expression, Keyword, LocalNodeId,
+    ScalarLiteral, UnaryOperator,
+};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::NodeSpanType;
 
-use crate::format::argument::{format_type_parameter_list, list_like};
-use crate::format::function::format_function_signature_parameters;
+use crate::format::argument::list_like;
+use crate::format::function::format_function_parameters;
 use crate::format::literal::{
     format_scalar_literal, format_string_literal_with_source_span, format_template_literal,
 };
-use crate::{FormatNode, JsFormatter};
+use crate::{FormatNode, Formatter};
 
 impl<'ast> FormatNode<'ast, ArrayElement> for ArrayElement {
     fn format_node(
         &self,
         _node_id: LocalNodeId<ArrayElement>,
-        f: &mut JsFormatter<'ast, '_>,
+        f: &mut Formatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             ArrayElement::Expression { value } => {
@@ -36,7 +39,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
     fn format_node(
         &self,
         node_id: LocalNodeId<Expression>,
-        f: &mut JsFormatter<'ast, '_>,
+        f: &mut Formatter<'ast, '_>,
     ) -> FormatResult<()> {
         format_expression_with_precedence(node_id, self, Precedence::Lowest, f)
     }
@@ -47,7 +50,7 @@ fn format_expression_with_precedence<'ast>(
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
     parent_precedence: Precedence,
-    f: &mut JsFormatter<'ast, '_>,
+    f: &mut Formatter<'ast, '_>,
 ) -> FormatResult<()> {
     let expression = Expression::without_parentheses(f.context().tree, expression);
     let current_precedence = expression.precedence();
@@ -58,60 +61,36 @@ fn format_expression_with_precedence<'ast>(
         write!(f, [token("(")])?;
     }
 
-    if !f.context().include_types() && expression.is_type_only(f.context().tree) {
-        return Ok(());
-    }
-
     match expression {
         Expression::Declaration { declaration } => {
             write!(f, [declaration])?;
         }
-        Expression::ArrowFunction { signature, body } => {
+        Expression::ArrowFunction {
+            asynchrony,
+            parameters,
+            body,
+        } => {
             // asynchrony
-            if signature.asynchrony == Asynchrony::Async {
+            if *asynchrony == Asynchrony::Async {
                 write!(f, [Keyword::Async, space()])?;
             }
 
-            // generator
-            if signature.is_generator {
-                write!(f, [token("*")])?;
-            }
-
-            // generic parameters
-            if f.context().include_types() && !signature.generic_parameters.is_empty() {
-                format_type_parameter_list(&signature.generic_parameters, f)?;
-            }
-
             // parameters
-            format_function_signature_parameters(signature, f)?;
-
-            // return type
-            if f.context().include_types()
-                && let Some(return_type) = signature.return_type
-            {
-                write!(f, [token(":"), space(), return_type])?;
-            }
+            format_function_parameters(parameters, f)?;
 
             // body
             write!(f, [space(), token("=>"), space()])?;
             match body {
-                crate::ArrowFunctionBody::Expression(body) => {
+                ArrowFunctionBody::Expression(body) => {
                     format_expression_id_with_precedence(*body, Precedence::Assignment, f)?;
                 }
-                crate::ArrowFunctionBody::Block(body) => {
+                ArrowFunctionBody::Block(body) => {
                     write!(f, [body])?;
                 }
             }
         }
-        Expression::Path {
-            path,
-            generic_arguments,
-        } => {
+        Expression::Path { path } => {
             write!(f, [path])?;
-
-            if f.context().include_types() && !generic_arguments.is_empty() {
-                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
-            }
         }
         Expression::ImportMeta => {
             write!(f, [token("import"), token("."), token("meta")])?;
@@ -151,20 +130,6 @@ fn format_expression_with_precedence<'ast>(
         Expression::Parenthesized { .. } => {
             unreachable!("parenthesized expressions are unwrapped")
         }
-        Expression::As {
-            expression,
-            target_type,
-        } => {
-            format_expression_id_with_precedence(*expression, Precedence::Compare, f)?;
-            write!(f, [space(), Keyword::As, space(), target_type])?;
-        }
-        Expression::Satisfies {
-            expression,
-            target_type,
-        } => {
-            format_expression_id_with_precedence(*expression, Precedence::Compare, f)?;
-            write!(f, [space(), Keyword::Satisfies, space(), target_type])?;
-        }
         Expression::InstanceOf { value, target } => {
             format_expression_id_with_precedence(*value, Precedence::Compare, f)?;
             write!(f, [space(), Keyword::InstanceOf, space()])?;
@@ -190,10 +155,7 @@ fn format_expression_with_precedence<'ast>(
         Expression::Unary { operator, right } => {
             // operator
             if operator.is_prefix() {
-                let needs_space = matches!(
-                    operator,
-                    crate::UnaryOperator::Typeof | crate::UnaryOperator::Void
-                );
+                let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
 
                 if needs_space {
                     write!(f, [operator, space()])?;
@@ -213,12 +175,12 @@ fn format_expression_with_precedence<'ast>(
             right,
         } => {
             let precedence = operator.precedence();
-            let left_precedence = if *operator == crate::BinaryOperator::Exponent {
+            let left_precedence = if *operator == BinaryOperator::Exponent {
                 precedence.tighter()
             } else {
                 precedence
             };
-            let right_precedence = if *operator == crate::BinaryOperator::Exponent {
+            let right_precedence = if *operator == BinaryOperator::Exponent {
                 precedence
             } else {
                 precedence.tighter()
@@ -242,74 +204,36 @@ fn format_expression_with_precedence<'ast>(
             write!(f, [operator])?;
             format_expression_id_with_precedence(*right, Precedence::Assignment, f)?;
         }
-        Expression::Maybe { position, left } => {
+        Expression::Member {
+            left,
+            name,
+            is_optional,
+        } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
-
-            if *position == PostfixPosition::Indirect {
-                write!(f, [token(".")])?;
-            }
-
-            write!(f, [token("?")])?;
-        }
-        Expression::Must { position, left } => {
-            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
-
-            if *position == PostfixPosition::Indirect {
-                write!(f, [token(".")])?;
-            }
-
-            write!(f, [token("!")])?;
-        }
-        Expression::Member { left, name } => {
-            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
-            write!(f, [token("."), *name])?;
+            write!(f, [token(if *is_optional { "?." } else { "." }), *name])?;
         }
         Expression::PrivateMember { left, name } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
             write!(f, [token("."), token("#"), *name])?;
         }
         Expression::Index {
-            position,
             left,
             right,
+            is_optional,
         } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
-
-            if *position == PostfixPosition::Indirect {
-                write!(f, [token(".")])?;
-            }
-
-            write!(f, [token("[")])?;
+            write!(f, [token(if *is_optional { "?.[" } else { "[" })])?;
             format_expression_id_with_precedence(*right, Precedence::Lowest, f)?;
             write!(f, [token("]")])?;
         }
-        Expression::Instantiation {
-            left,
-            generic_arguments,
-        } => {
-            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
-
-            if f.context().include_types() {
-                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
-            }
-        }
         Expression::Call {
-            position,
             left,
-            generic_arguments,
             arguments,
+            is_optional,
         } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
-
-            if *position == PostfixPosition::Indirect {
-                write!(f, [token(".")])?;
-            }
-
-            if f.context().include_types() && !generic_arguments.is_empty() {
-                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
-            }
-
-            let mut arguments = list_like("(", ")", ",", arguments);
+            let open = if *is_optional { "?.(" } else { "(" };
+            let mut arguments = list_like(open, ")", ",", arguments);
             arguments.without_trailing_separator();
             write!(f, [arguments])?;
         }
@@ -325,7 +249,7 @@ fn format_expression_with_precedence<'ast>(
 
             // exact target literal span
             if let Expression::ScalarLiteral {
-                value: crate::ScalarLiteral::String(value),
+                value: ScalarLiteral::String(value),
             } = target_expression
             {
                 format_string_literal_with_source_span(*value, target_span, f)?;
@@ -342,17 +266,9 @@ fn format_expression_with_precedence<'ast>(
 
             write!(f, [token(")")])?;
         }
-        Expression::New {
-            left,
-            generic_arguments,
-            arguments,
-        } => {
+        Expression::New { left, arguments } => {
             write!(f, [token("new"), space()])?;
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
-
-            if f.context().include_types() && !generic_arguments.is_empty() {
-                write!(f, [list_like("<", ">", ",", generic_arguments)])?;
-            }
 
             let mut arguments = list_like("(", ")", ",", arguments);
             arguments.without_trailing_separator();
@@ -368,14 +284,8 @@ fn format_expression_with_precedence<'ast>(
             format_expression_id_with_precedence(*then_expression, Precedence::Assignment, f)?;
             write!(f, [token(":")])?;
 
-            if let Some(else_expression) = else_expression {
-                format_expression_id_with_precedence(*else_expression, Precedence::Assignment, f)?;
-            }
+            format_expression_id_with_precedence(*else_expression, Precedence::Assignment, f)?;
         }
-        Expression::Missing => {
-            write!(f, [token("/* MISSING */")])?;
-        }
-        Expression::Stub => {}
         Expression::Error => {
             write!(f, [token("/* ERROR */")])?;
         }
@@ -393,7 +303,7 @@ fn format_expression_with_precedence<'ast>(
 fn format_expression_id_with_precedence<'ast>(
     expression_id: LocalNodeId<Expression>,
     parent_precedence: Precedence,
-    f: &mut JsFormatter<'ast, '_>,
+    f: &mut Formatter<'ast, '_>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
 

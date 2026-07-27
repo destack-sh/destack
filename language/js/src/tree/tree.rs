@@ -10,9 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
-    Declaration, Declarator, DependencyItem, EnumField, Expression, GenericParameter, LocalNodeId,
-    Member, Node, NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
-    TupleElement, TypeExpression, TypeMember,
+    Declaration, Declarator, DependencyItem, Expression, LocalNodeId, Member, Node, NodeType,
+    Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
 };
 
 /// The local binding base name for one synthetic non-code module default.
@@ -32,8 +31,8 @@ impl NodeIndexEntry {
     /// Pack one local id and node type into a dense entry.
     #[inline]
     pub(crate) fn new(local_id: u32, node_type: NodeType) -> Self {
-        debug_assert!(
-            local_id < Self::LOCAL_ID_MASK,
+        assert!(
+            local_id <= Self::LOCAL_ID_MASK,
             "JS node local id exceeds packed index capacity: {local_id}"
         );
 
@@ -61,20 +60,15 @@ impl NodeIndexEntry {
             6 => NodeType::Declarator,
             7 => NodeType::Property,
             8 => NodeType::Member,
-            9 => NodeType::TypeExpression,
-            10 => NodeType::TupleElement,
-            11 => NodeType::TypeMember,
-            12 => NodeType::EnumField,
-            13 => NodeType::DependencyItem,
-            14 => NodeType::SwitchCase,
-            15 => NodeType::Pattern,
-            16 => NodeType::PatternField,
-            17 => NodeType::AssignPattern,
-            18 => NodeType::AssignPatternField,
-            19 => NodeType::GenericParameter,
-            20 => NodeType::Parameter,
-            21 => NodeType::Argument,
-            22 => NodeType::Annotation,
+            9 => NodeType::DependencyItem,
+            10 => NodeType::SwitchCase,
+            11 => NodeType::Pattern,
+            12 => NodeType::PatternField,
+            13 => NodeType::AssignPattern,
+            14 => NodeType::AssignPatternField,
+            15 => NodeType::Parameter,
+            16 => NodeType::Argument,
+            17 => NodeType::Annotation,
             _ => unreachable!("invalid JS node type tag in packed node index"),
         }
     }
@@ -92,20 +86,15 @@ impl NodeIndexEntry {
             NodeType::Declarator => 6,
             NodeType::Property => 7,
             NodeType::Member => 8,
-            NodeType::TypeExpression => 9,
-            NodeType::TupleElement => 10,
-            NodeType::TypeMember => 11,
-            NodeType::EnumField => 12,
-            NodeType::DependencyItem => 13,
-            NodeType::SwitchCase => 14,
-            NodeType::Pattern => 15,
-            NodeType::PatternField => 16,
-            NodeType::AssignPattern => 17,
-            NodeType::AssignPatternField => 18,
-            NodeType::GenericParameter => 19,
-            NodeType::Parameter => 20,
-            NodeType::Argument => 21,
-            NodeType::Annotation => 22,
+            NodeType::DependencyItem => 9,
+            NodeType::SwitchCase => 10,
+            NodeType::Pattern => 11,
+            NodeType::PatternField => 12,
+            NodeType::AssignPattern => 13,
+            NodeType::AssignPatternField => 14,
+            NodeType::Parameter => 15,
+            NodeType::Argument => 16,
+            NodeType::Annotation => 17,
         }
     }
 }
@@ -157,13 +146,8 @@ pub struct Tree {
     pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
     pub(crate) members: Arena<Member>,
-    pub(crate) type_expressions: Arena<TypeExpression>,
-    pub(crate) tuple_elements: Arena<TupleElement>,
-    pub(crate) type_members: Arena<TypeMember>,
-    pub(crate) enum_fields: Arena<EnumField>,
     pub(crate) dependency_items: Arena<DependencyItem>,
     pub(crate) switch_cases: Arena<SwitchCase>,
-    pub(crate) generic_parameters: Arena<GenericParameter>,
     pub(crate) parameters: Arena<Parameter>,
     pub(crate) arguments: Arena<Argument>,
     pub(crate) patterns: Arena<Pattern>,
@@ -214,13 +198,8 @@ impl Tree {
             declarators: Arena::new(),
             properties: Arena::new(),
             members: Arena::new(),
-            type_expressions: Arena::new(),
-            tuple_elements: Arena::new(),
-            type_members: Arena::new(),
-            enum_fields: Arena::new(),
             dependency_items: Arena::new(),
             switch_cases: Arena::new(),
-            generic_parameters: Arena::new(),
             parameters: Arena::new(),
             arguments: Arena::new(),
             patterns: Arena::new(),
@@ -480,13 +459,8 @@ impl_tree_stores! {
     Declarator => declarators,
     Property => properties,
     Member => members,
-    TypeExpression => type_expressions,
-    TupleElement => tuple_elements,
-    TypeMember => type_members,
-    EnumField => enum_fields,
     DependencyItem => dependency_items,
     SwitchCase => switch_cases,
-    GenericParameter => generic_parameters,
     Parameter => parameters,
     Argument => arguments,
     Pattern => patterns,

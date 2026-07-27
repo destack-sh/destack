@@ -1,56 +1,20 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
-    Asynchrony, BindingKeyword, CatchClause, Declaration, DependencyForm, Expression,
-    ForInitialization, FormatNode, JsFormatContext, JsFormatter, Keyword, LocalNodeId,
+    Asynchrony, BindingKeyword, CatchClause, Declarator, DependencyAttributeClause,
+    DependencyAttributeClauseKind, ForInitialization, FormatNode, Formatter, Keyword, LocalNodeId,
     LocalNodeIdAny, Mutability, NodeType, Statement,
 };
-use destack_fir::format::{FormatResult, Formatter};
+use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::NodeSpanType;
 
-fn statement_is_elided(context: &JsFormatContext<'_>, statement: &Statement) -> bool {
-    !context.include_types() && statement.is_type_only(context.tree)
-}
-
-fn root_is_elided(context: &JsFormatContext<'_>, root: LocalNodeIdAny) -> bool {
-    if context.include_types() {
-        return false;
-    }
-
-    match root.ty {
-        NodeType::Declaration => {
-            let declaration_id = LocalNodeId::<Declaration>::new(root.id);
-            let declaration = context.tree.get(declaration_id);
-            declaration.is_type_only()
-        }
-        NodeType::Statement => {
-            let statement_id = LocalNodeId::<Statement>::new(root.id);
-            let statement = context.tree.get(statement_id);
-            statement.is_type_only(context.tree)
-        }
-        NodeType::Expression => {
-            let expression_id = LocalNodeId::<Expression>::new(root.id);
-            let expression = context.tree.get(expression_id);
-            expression.is_type_only(context.tree)
-        }
-        _ => false,
-    }
-}
-
 /// Format root-level statements with semicolons and trailing newline.
-pub fn format_roots<'a>(
-    f: &mut Formatter<'_, 'a, JsFormatContext<'a>>,
-    roots: &[LocalNodeIdAny],
-) -> FormatResult<()> {
+pub fn format_roots<'a>(f: &mut Formatter<'a, '_>, roots: &[LocalNodeIdAny]) -> FormatResult<()> {
     // emit each root with the pretty statement separator
     let mut printed_any = false;
     for root in roots.iter().copied() {
-        if root_is_elided(f.context(), root) {
-            continue;
-        }
-
         if printed_any {
             write!(f, [hard_line_break()])?;
         }
@@ -63,7 +27,7 @@ pub fn format_roots<'a>(
             let statement_id = LocalNodeId::<Statement>::new(root.id);
             let statement = f.context().tree.get(statement_id);
 
-            if !statement_is_elided(f.context(), statement) && statement.needs_semicolon() {
+            if statement.needs_semicolon() {
                 write!(f, [token(";")])?;
             }
         }
@@ -78,8 +42,8 @@ pub fn format_roots<'a>(
 }
 
 fn format_variable_declarators<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
-    declarators: &[LocalNodeId<crate::Declarator>],
+    f: &mut Formatter<'ast, '_>,
+    declarators: &[LocalNodeId<Declarator>],
 ) -> FormatResult<()> {
     for (index, declarator) in declarators.iter().enumerate() {
         if index == 0 {
@@ -95,7 +59,7 @@ fn format_variable_declarators<'ast>(
 }
 
 fn format_for_each_binding_keyword<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
+    f: &mut Formatter<'ast, '_>,
     keyword: BindingKeyword,
 ) -> FormatResult<()> {
     let declaration_keyword = match keyword {
@@ -108,12 +72,12 @@ fn format_for_each_binding_keyword<'ast>(
 }
 
 fn format_dependency_attributes<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
-    attributes: &crate::DependencyAttributeClause,
+    f: &mut Formatter<'ast, '_>,
+    attributes: &DependencyAttributeClause,
 ) -> FormatResult<()> {
     let keyword = match attributes.kind {
-        crate::DependencyAttributeClauseKind::With => Keyword::With,
-        crate::DependencyAttributeClauseKind::Assert => Keyword::Assert,
+        DependencyAttributeClauseKind::With => Keyword::With,
+        DependencyAttributeClauseKind::Assert => Keyword::Assert,
     };
 
     write!(
@@ -131,11 +95,10 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
     fn format_node(
         &self,
         node_id: LocalNodeId<Statement>,
-        f: &mut JsFormatter<'ast, '_>,
+        f: &mut Formatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Statement::Import {
-                form: dependency_form,
                 target,
                 target_module: _,
                 items,
@@ -145,16 +108,12 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 let items = items.as_deref().unwrap_or(&[]);
 
                 write!(f, [Keyword::Import, space()])?;
-                if *dependency_form == DependencyForm::Type {
-                    write!(f, [Keyword::Type, space()])?;
-                }
                 format_import_binding(f, *target, items, target_span)?;
                 if let Some(attributes) = attributes {
                     format_dependency_attributes(f, attributes)?;
                 }
             }
             Statement::Export {
-                form: dependency_form,
                 target,
                 target_module: _,
                 items,
@@ -163,24 +122,16 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 let target_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
 
                 write!(f, [Keyword::Export, space()])?;
-                if *dependency_form == DependencyForm::Type {
-                    write!(f, [Keyword::Type, space()])?;
-                }
                 format_export_binding(f, *target, items, target_span)?;
                 if let Some(attributes) = attributes {
                     format_dependency_attributes(f, attributes)?;
                 }
             }
-            Statement::ExportValue { value } => {
-                write!(f, [Keyword::Export, space(), token("="), space()])?;
+            Statement::ExportDefault { value } => {
+                write!(f, [Keyword::Export, space(), Keyword::Default, space()])?;
                 write!(f, [value])?;
             }
             Statement::Declaration { declaration } => {
-                let declaration_value = f.context().tree.get(*declaration);
-                if !f.context().include_types() && declaration_value.is_type_only() {
-                    return Ok(());
-                }
-
                 write!(f, [declaration])?;
             }
             Statement::Block { block } => {
@@ -191,19 +142,13 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             }
 
             Statement::Let {
-                export,
-                is_ambient,
+                is_exported,
                 mutability,
                 declarators,
             } => {
                 // export
-                if let Some(export) = export {
-                    write!(f, [*export, space()])?;
-                }
-
-                // ambient
-                if *is_ambient {
-                    write!(f, [Keyword::Declare, space()])?;
+                if *is_exported {
+                    write!(f, [Keyword::Export, space()])?;
                 }
 
                 // keyword
@@ -216,18 +161,12 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 format_variable_declarators(f, declarators)?;
             }
             Statement::Var {
-                export,
-                is_ambient,
+                is_exported,
                 declarators,
             } => {
                 // export
-                if let Some(export) = export {
-                    write!(f, [*export, space()])?;
-                }
-
-                // ambient
-                if *is_ambient {
-                    write!(f, [Keyword::Declare, space()])?;
+                if *is_exported {
+                    write!(f, [Keyword::Export, space()])?;
                 }
 
                 // keyword
@@ -238,18 +177,12 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             }
             Statement::Using {
                 asynchrony,
-                export,
-                is_ambient,
+                is_exported,
                 declarators,
             } => {
                 // export
-                if let Some(export) = export {
-                    write!(f, [*export, space()])?;
-                }
-
-                // ambient
-                if *is_ambient {
-                    write!(f, [Keyword::Declare, space()])?;
+                if *is_exported {
+                    write!(f, [Keyword::Export, space()])?;
                 }
 
                 // keyword
@@ -457,7 +390,7 @@ impl<'ast> FormatNode<'ast, CatchClause> for CatchClause {
     fn format_node(
         &self,
         _node_id: LocalNodeId<CatchClause>,
-        f: &mut JsFormatter<'ast, '_>,
+        f: &mut Formatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [Keyword::Catch])?;
 

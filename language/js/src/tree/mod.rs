@@ -17,7 +17,6 @@ mod property;
 mod script;
 mod statement;
 mod tree;
-mod r#type;
 mod visit;
 mod walk;
 
@@ -44,6 +43,5 @@ pub use property::*;
 pub use script::*;
 pub use statement::*;
 pub use tree::*;
-pub use r#type::*;
 pub use visit::*;
 pub use walk::*;

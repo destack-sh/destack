@@ -2,54 +2,55 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BindingModifier, Block, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType,
-    TypeExpression,
+    Block, Expression, FunctionRole, FunctionSignature, Key, LocalNodeId, MemberModifier, Node,
+    NodeType, Parameter,
 };
 
 /// A Property is a property of an object literal (may be a field, method, or spread).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Property {
-    /// Named field (like `x: int32`).
+    /// Named field such as `x: value`.
     Field {
-        modifiers: Option<BindingModifier>,
         key: Key,
         value: LocalNodeId<Expression>,
         is_shorthand: bool,
     },
-    /// Named member function (like `foo()` or `<T>(): T`).
+    /// Named method such as `foo()`.
     Method {
-        modifiers: Option<BindingModifier>,
-        key: Option<Key>,
+        key: Key,
+        role: Option<FunctionRole>,
         signature: FunctionSignature,
-        body: Option<LocalNodeId<Block>>,
+        body: LocalNodeId<Block>,
     },
     /// Spread property (like `...a`).
-    Spread {
-        modifiers: Option<BindingModifier>,
-        value: LocalNodeId<Expression>,
-    },
+    Spread { value: LocalNodeId<Expression> },
 }
 
 impl Node for Property {
     const TYPE: NodeType = NodeType::Property;
 }
 
-/// A Member is a member of a object-like declaration.
+/// One class member.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Member {
-    /// Named field (like `x: int32`).
+    /// Named field such as `x = value`.
     Field {
-        modifiers: Option<BindingModifier>,
+        modifiers: MemberModifier,
         key: Key,
-        value: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
     },
-    /// Named member function (like `foo()` or `<T>(): T`).
+    /// Named method.
     Method {
-        modifiers: Option<BindingModifier>,
-        key: Option<Key>,
+        modifiers: MemberModifier,
+        key: Key,
+        role: Option<FunctionRole>,
         signature: FunctionSignature,
-        body: Option<LocalNodeId<Block>>,
+        body: LocalNodeId<Block>,
+    },
+    /// Constructor method.
+    Constructor {
+        parameters: Vec<LocalNodeId<Parameter>>,
+        body: LocalNodeId<Block>,
     },
     /// Static initialization block (like `static { ... }`).
     StaticBlock { body: LocalNodeId<Block> },

@@ -2,20 +2,11 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, AssignOperator, AssignPattern, BinaryOperator, Block, Declaration, FunctionSignature,
-    LocalNodeId, Node, NodeType, Path, Property, ScalarLiteral, StringId, TemplateLiteral,
-    TypeExpression, UnaryOperator,
+    Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
+    LocalNodeId, Node, NodeType, Parameter, Path, Property, ScalarLiteral, StringId,
+    TemplateLiteral, Tree, UnaryOperator,
 };
 use destack_source::ModuleId;
-
-/// The position of a postfix expression.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum PostfixPosition {
-    // Regular postfix (just `x?`)
-    Direct,
-    // Dot postfix (like `x.?`)
-    Indirect,
-}
 
 /// An Expression is value-producing JS form.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -26,10 +17,7 @@ pub enum Expression {
     },
 
     /// Path.
-    Path {
-        path: Path,
-        generic_arguments: Vec<LocalNodeId<TypeExpression>>,
-    },
+    Path { path: Path },
     /// Import meta expression.
     ImportMeta,
     /// This intrinsic value.
@@ -58,16 +46,6 @@ pub enum Expression {
     /// Parenthesized expression.
     Parenthesized { expression: LocalNodeId<Expression> },
 
-    /// TypeScript-style `as` assertion.
-    As {
-        expression: LocalNodeId<Expression>,
-        target_type: LocalNodeId<TypeExpression>,
-    },
-    /// TypeScript-style `satisfies` expression.
-    Satisfies {
-        expression: LocalNodeId<Expression>,
-        target_type: LocalNodeId<TypeExpression>,
-    },
     /// Runtime constructor guard.
     InstanceOf {
         value: LocalNodeId<Expression>,
@@ -97,20 +75,11 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
-    /// Maybe unwrap an expression with `?`.
-    Maybe {
-        position: PostfixPosition,
-        left: LocalNodeId<Expression>,
-    },
-    /// Force unwrap an expression with `!`.
-    Must {
-        position: PostfixPosition,
-        left: LocalNodeId<Expression>,
-    },
     /// Member access.
     Member {
         left: LocalNodeId<Expression>,
         name: StringId,
+        is_optional: bool,
     },
     /// Private member access.
     PrivateMember {
@@ -119,21 +88,15 @@ pub enum Expression {
     },
     /// Index.
     Index {
-        position: PostfixPosition,
         left: LocalNodeId<Expression>,
         right: LocalNodeId<Expression>,
-    },
-    /// Instantiation expression.
-    Instantiation {
-        left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<TypeExpression>>,
+        is_optional: bool,
     },
     /// Call.
     Call {
-        position: PostfixPosition,
         left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<TypeExpression>>,
         arguments: Vec<LocalNodeId<Argument>>,
+        is_optional: bool,
     },
     /// Dynamic import call.
     ImportCall {
@@ -151,26 +114,20 @@ pub enum Expression {
     /// New.
     New {
         left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<TypeExpression>>,
         arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Arrow function expression.
     ArrowFunction {
-        signature: FunctionSignature,
+        asynchrony: Asynchrony,
+        parameters: Vec<LocalNodeId<Parameter>>,
         body: ArrowFunctionBody,
     },
     /// If ternary.
     IfTernary {
         condition: LocalNodeId<Expression>,
         then_expression: LocalNodeId<Expression>,
-        else_expression: Option<LocalNodeId<Expression>>,
+        else_expression: LocalNodeId<Expression>,
     },
-
-    /// Missing expression child.
-    Missing,
-
-    /// Stub placeholder for annotation-only files.
-    Stub,
 
     /// Error placeholder.
     Error,
@@ -272,18 +229,8 @@ impl Precedence {
 }
 
 impl Expression {
-    /// Return whether this expression is type only in plain js output.
-    pub fn is_type_only(&self, tree: &crate::Tree) -> bool {
-        let Self::Declaration { declaration } = self else {
-            return false;
-        };
-        let declaration = tree.get(*declaration);
-
-        declaration.is_type_only()
-    }
-
     /// Return this expression without redundant explicit parentheses.
-    pub(crate) fn without_parentheses<'a>(tree: &'a crate::Tree, expression: &'a Self) -> &'a Self {
+    pub(crate) fn without_parentheses<'a>(tree: &'a Tree, expression: &'a Self) -> &'a Self {
         let mut expression = expression;
 
         while let Self::Parenthesized {
@@ -304,16 +251,11 @@ impl Expression {
             Self::Assign { .. } | Self::AssignBinary { .. } => Precedence::Assignment,
             Self::IfTernary { .. } => Precedence::Conditional,
             Self::Binary { operator, .. } => operator.precedence(),
-            Self::As { .. } | Self::Satisfies { .. } | Self::InstanceOf { .. } => {
-                Precedence::Compare
-            }
+            Self::InstanceOf { .. } => Precedence::Compare,
             Self::Await { .. } | Self::Unary { .. } => Precedence::Prefix,
-            Self::Maybe { .. }
-            | Self::Must { .. }
-            | Self::Member { .. }
+            Self::Member { .. }
             | Self::PrivateMember { .. }
             | Self::Index { .. }
-            | Self::Instantiation { .. }
             | Self::Call { .. }
             | Self::ImportCall { .. }
             | Self::New { .. } => Precedence::Postfix,
@@ -329,8 +271,6 @@ impl Expression {
             | Self::ArrayLiteral { .. }
             | Self::ObjectLiteral { .. }
             | Self::Parenthesized { .. }
-            | Self::Missing
-            | Self::Stub
             | Self::Error => Precedence::Primary,
         }
     }

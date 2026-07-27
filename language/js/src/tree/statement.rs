@@ -2,9 +2,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, DependencyBinding,
-    DependencyForm, DependencyItem, Expression, LocalNodeId, Mutability, Node, NodeType, Pattern,
-    Property, StringId, SwitchCase,
+    AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, DependencyItem,
+    Expression, LocalNodeId, Mutability, Node, NodeType, Pattern, Property, StringId, SwitchCase,
 };
 use destack_source::ModuleId;
 
@@ -26,27 +25,25 @@ pub struct DependencyAttributeClause {
     pub properties: Vec<LocalNodeId<Property>>,
 }
 
-/// A Statement is a JS/TS top-level statement in some container/block.
+/// A JavaScript statement in some container or block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Statement {
-    /// Import items (including type items).
+    /// Import items.
     Import {
-        form: DependencyForm,
         target: StringId,
         target_module: Option<ModuleId>,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
         attributes: Option<DependencyAttributeClause>,
     },
-    /// Export items (including type items).
+    /// Export items.
     Export {
-        form: DependencyForm,
         target: Option<StringId>,
         target_module: Option<ModuleId>,
         items: Vec<LocalNodeId<DependencyItem>>,
         attributes: Option<DependencyAttributeClause>,
     },
-    /// Export value.
-    ExportValue { value: LocalNodeId<Expression> },
+    /// Default export.
+    ExportDefault { value: LocalNodeId<Expression> },
 
     /// Declaration statement.
     Declaration {
@@ -62,22 +59,19 @@ pub enum Statement {
 
     /// Let binding.
     Let {
-        export: Option<DependencyBinding>,
-        is_ambient: bool,
+        is_exported: bool,
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Var binding.
     Var {
-        export: Option<DependencyBinding>,
-        is_ambient: bool,
+        is_exported: bool,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Using binding.
     Using {
         asynchrony: Asynchrony,
-        export: Option<DependencyBinding>,
-        is_ambient: bool,
+        is_exported: bool,
         declarators: Vec<LocalNodeId<Declarator>>,
     },
     /// Assignment operation.
@@ -181,28 +175,6 @@ pub enum ForInitialization {
 }
 
 impl Statement {
-    /// Return whether this statement is type only in plain js output.
-    pub fn is_type_only(&self, tree: &crate::Tree) -> bool {
-        match self {
-            Self::Declaration { declaration } => {
-                let declaration = tree.get(*declaration);
-                declaration.is_type_only()
-            }
-            Self::Expression { expression } => {
-                let expression = tree.get(*expression);
-                expression.is_type_only(tree)
-            }
-            Self::Labelled { body, .. } => {
-                let body = tree.get(*body);
-                body.is_type_only(tree)
-            }
-            Self::Let { is_ambient, .. }
-            | Self::Var { is_ambient, .. }
-            | Self::Using { is_ambient, .. } => *is_ambient,
-            _ => false,
-        }
-    }
-
     /// Returns true if this statement needs a trailing semicolon.
     pub fn needs_semicolon(&self) -> bool {
         match self {
@@ -223,7 +195,7 @@ impl Statement {
             // all other statements need semicolons
             Statement::Import { .. }
             | Statement::Export { .. }
-            | Statement::ExportValue { .. }
+            | Statement::ExportDefault { .. }
             | Statement::Let { .. }
             | Statement::Var { .. }
             | Statement::Using { .. }

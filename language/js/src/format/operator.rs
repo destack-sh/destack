@@ -3,10 +3,10 @@ use destack_fir::write;
 
 use crate::{AssignOperator, BinaryOperator, UnaryOperator};
 
-use crate::{JsFormatContext, JsFormatter};
+use crate::{Context, Formatter};
 
-impl<'ast> Format<'ast, JsFormatContext<'ast>> for UnaryOperator {
-    fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<'ast, Context<'ast>> for UnaryOperator {
+    fn format(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             UnaryOperator::PostIncrement => token("++"),
             UnaryOperator::PostDecrement => token("--"),
@@ -23,8 +23,8 @@ impl<'ast> Format<'ast, JsFormatContext<'ast>> for UnaryOperator {
     }
 }
 
-impl<'ast> Format<'ast, JsFormatContext<'ast>> for BinaryOperator {
-    fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<'ast, Context<'ast>> for BinaryOperator {
+    fn format(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             // multiplication
             BinaryOperator::Multiply => token("*"),
@@ -69,8 +69,8 @@ impl<'ast> Format<'ast, JsFormatContext<'ast>> for BinaryOperator {
     }
 }
 
-impl<'ast> Format<'ast, JsFormatContext<'ast>> for AssignOperator {
-    fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<'ast, Context<'ast>> for AssignOperator {
+    fn format(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {
             // addition
             AssignOperator::AddAssign => "+=",

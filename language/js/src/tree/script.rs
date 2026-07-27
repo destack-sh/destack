@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{LocalNodeIdAny, Tree};
 
-/// One lowered JavaScript or TypeScript module tree.
+/// One lowered JavaScript module tree.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct Module {
     /// The lowered script tree.

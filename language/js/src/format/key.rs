@@ -3,11 +3,11 @@ use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{JsFormatContext, JsFormatter};
+use crate::{Context, Formatter};
 
-impl<'ast> Format<'ast, JsFormatContext<'ast>> for Key {
+impl<'ast> Format<'ast, Context<'ast>> for Key {
     #[inline]
-    fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Key::Name(name) => {
                 write!(f, [name])?;
@@ -18,13 +18,6 @@ impl<'ast> Format<'ast, JsFormatContext<'ast>> for Key {
             Key::Expression(expression) => {
                 write!(f, [token("[")])?;
                 write!(f, [expression])?;
-                write!(f, [token("]")])?;
-            }
-            Key::NamedExpression { name, key } => {
-                write!(f, [token("[")])?;
-                write!(f, [name])?;
-                write!(f, [token(":"), space()])?;
-                write!(f, [key])?;
                 write!(f, [token("]")])?;
             }
         }

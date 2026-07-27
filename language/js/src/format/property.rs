@@ -1,175 +1,39 @@
+use crate::format::function::{format_function_parameters, format_function_signature_parameters};
 use crate::{
-    AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
-    Keyword, LocalNodeId, Member, Mutability, Property, VarianceModifier,
+    Asynchrony, FormatNode, Formatter, FunctionRole, FunctionSignature, Key, Keyword, LocalNodeId,
+    Member, MemberModifier, Property,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::format::argument::list_like;
-use crate::format::function::format_function_signature_parameters;
-use crate::{FormatNode, JsFormatter};
-
-#[inline]
-pub(crate) fn format_binding_modifiers_prefix<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
-    modifiers: BindingModifier,
-) -> FormatResult<()> {
-    // variance
-    if let Some(variance) = modifiers.variance {
-        match variance {
-            VarianceModifier::In => write!(f, [token("in"), space()])?,
-            VarianceModifier::Out => write!(f, [token("out"), space()])?,
-            VarianceModifier::InOut => {
-                write!(f, [token("in"), space(), token("out"), space()])?;
-            }
-        }
-    }
-    // visibility
-    if let Some(visibility) = modifiers.visibility {
-        write!(f, [visibility, space()])?;
-    }
-    // scope
-    if modifiers.anchor == Some(BindingAnchor::Static) {
-        write!(f, [Keyword::Static, space()])?;
-    }
-    // mutability
-    if modifiers.mutability == Some(Mutability::Immutable) {
-        write!(f, [Keyword::Readonly, space()])?;
-    }
-    // operator
-    if modifiers.operator == Some(BindingOperator::AsConst) {
-        write!(f, [Keyword::Const, space()])?;
-    }
-    // accessor
-    if modifiers.accessor == Some(AccessorKind::Accessor) {
-        write!(f, [Keyword::Accessor, space()])?;
-    }
-    Ok(())
-}
-
-#[inline]
-pub(crate) fn format_binding_modifiers_prefix_maybe<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
-    modifiers: Option<BindingModifier>,
-) -> FormatResult<()> {
-    if let Some(modifiers) = modifiers {
-        format_binding_modifiers_prefix(f, modifiers)?;
-    }
-    Ok(())
-}
-
-#[inline]
-pub(crate) fn format_binding_modifiers_postfix<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
-    modifiers: BindingModifier,
-) -> FormatResult<()> {
-    // form
-    if modifiers.kind == Some(BindingKind::Maybe) {
-        write!(f, [token("?")])?;
-    }
-
-    // definite assignment
-    if modifiers.definite {
-        write!(f, [token("!")])?;
-    }
-    Ok(())
-}
-
-#[inline]
-pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
-    modifiers: Option<BindingModifier>,
-) -> FormatResult<()> {
-    if let Some(modifiers) = modifiers {
-        format_binding_modifiers_postfix(f, modifiers)?;
-    }
-    Ok(())
-}
-
 impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Property>,
-        f: &mut JsFormatter<'ast, '_>,
+        f: &mut Formatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
-            Property::Field {
-                modifiers,
+            Self::Field {
                 key,
                 value,
                 is_shorthand,
             } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // key
                 write!(f, [key])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-
-                // value
                 if !is_shorthand {
                     write!(f, [token(":"), space(), value])?;
                 }
             }
-            Property::Method {
-                modifiers,
+            Self::Method {
                 key,
+                role,
                 signature,
                 body,
             } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // abstraction
-                if signature.is_abstract {
-                    write!(f, [Keyword::Abstract, space()])?;
-                }
-
-                if signature.is_override {
-                    write!(f, [Keyword::Override, space()])?;
-                }
-                // asynchrony
-                if signature.asynchrony == Asynchrony::Async {
-                    write!(f, [Keyword::Async, space()])?;
-                }
-                // role
-                if let Some(role) = signature.role {
-                    if let Some(keyword) = role.to_keyword() {
-                        write!(f, [keyword])?;
-                    }
-                    if key.is_some() {
-                        write!(f, [space()])?;
-                    }
-                }
-                // generator
-                if signature.is_generator {
-                    write!(f, [token("*")])?;
-                }
-                // key
-                write!(f, [key])?;
-                // generic parameters
-                if !signature.generic_parameters.is_empty() {
-                    write!(f, [list_like("<", ">", ",", &signature.generic_parameters)])?;
-                }
-                // parameters
-                format_function_signature_parameters(signature, f)?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // return type
-                if f.context().include_types()
-                    && let Some(return_type) = signature.return_type
-                {
-                    write!(f, [token(":"), space(), return_type])?;
-                }
-                // body
-                if let Some(body) = body {
-                    write!(f, [space(), body])?;
-                }
+                format_method(None, *key, *role, signature, f)?;
+                write!(f, [space(), body])?;
             }
-            Property::Spread { modifiers, value } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // value
+            Self::Spread { value } => {
                 write!(f, [token("..."), value])?;
             }
         }
@@ -182,92 +46,80 @@ impl<'ast> FormatNode<'ast, Member> for Member {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Member>,
-        f: &mut JsFormatter<'ast, '_>,
+        f: &mut Formatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
-            Member::Field {
+            Self::Field {
                 modifiers,
                 key,
-                value,
                 default,
             } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // key
+                format_member_modifiers(*modifiers, f)?;
                 write!(f, [key])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // value
-                if let Some(value) = value {
-                    write!(f, [token(":"), space(), value])?;
-                }
-                // default
                 if let Some(default) = default {
                     write!(f, [space(), token("="), space(), default])?;
                 }
             }
-            Member::Method {
+            Self::Method {
                 modifiers,
                 key,
+                role,
                 signature,
                 body,
             } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // abstraction
-                if signature.is_abstract {
-                    write!(f, [Keyword::Abstract, space()])?;
-                }
-
-                if signature.is_override {
-                    write!(f, [Keyword::Override, space()])?;
-                }
-                // asynchrony
-                if signature.asynchrony == Asynchrony::Async {
-                    write!(f, [Keyword::Async, space()])?;
-                }
-                // role
-                if let Some(role) = signature.role {
-                    if let Some(keyword) = role.to_keyword() {
-                        write!(f, [keyword])?;
-                    }
-                    if key.is_some() {
-                        write!(f, [space()])?;
-                    }
-                }
-                // generator
-                if signature.is_generator {
-                    write!(f, [token("*")])?;
-                }
-                // key
-                write!(f, [key])?;
-                // generic parameters
-                if !signature.generic_parameters.is_empty() {
-                    write!(f, [list_like("<", ">", ",", &signature.generic_parameters)])?;
-                }
-                // parameters
-                format_function_signature_parameters(signature, f)?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // return type
-                if f.context().include_types()
-                    && let Some(return_type) = signature.return_type
-                {
-                    write!(f, [token(":"), space(), return_type])?;
-                }
-                // body
-                if let Some(body) = body {
-                    write!(f, [space(), body])?;
-                }
+                format_method(Some(*modifiers), *key, *role, signature, f)?;
+                write!(f, [space(), body])?;
             }
-            Member::StaticBlock { body } => {
-                // keyword
-                write!(f, [Keyword::Static, space()])?;
-                // body
-                write!(f, [body])?;
+            Self::Constructor { parameters, body } => {
+                write!(f, [Keyword::Constructor])?;
+                format_function_parameters(parameters, f)?;
+                write!(f, [space(), body])?;
+            }
+            Self::StaticBlock { body } => {
+                write!(f, [Keyword::Static, space(), body])?;
             }
         }
 
         Ok(())
     }
+}
+
+/// Format one method header.
+fn format_method<'ast>(
+    modifiers: Option<MemberModifier>,
+    key: Key,
+    role: Option<FunctionRole>,
+    signature: &FunctionSignature,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    if let Some(modifiers) = modifiers {
+        format_member_modifiers(modifiers, f)?;
+    }
+    if signature.asynchrony == Asynchrony::Async {
+        write!(f, [Keyword::Async, space()])?;
+    }
+    if let Some(role) = role {
+        write!(f, [role.keyword(), space()])?;
+    }
+    if signature.is_generator {
+        write!(f, [token("*")])?;
+    }
+    write!(f, [key])?;
+
+    format_function_signature_parameters(signature, f)
+}
+
+/// Format the runtime modifiers of one class member.
+fn format_member_modifiers<'ast>(
+    modifiers: MemberModifier,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    if modifiers.is_static {
+        write!(f, [Keyword::Static, space()])?;
+    }
+    if modifiers.is_accessor {
+        write!(f, [Keyword::Accessor, space()])?;
+    }
+
+    Ok(())
 }

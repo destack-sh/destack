@@ -1,7 +1,8 @@
-use crate::{Expression, LocalNodeId, Node, NodeType, Statement};
+use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, Statement};
 
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+
 /// Block of statements.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Block {
@@ -17,7 +18,7 @@ impl Node for Block {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CatchClause {
     /// The optional catch pattern.
-    pub pattern: Option<LocalNodeId<crate::Pattern>>,
+    pub pattern: Option<LocalNodeId<Pattern>>,
     /// The catch body.
     pub body: LocalNodeId<Block>,
 }

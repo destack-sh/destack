@@ -1,4 +1,4 @@
-use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, TypeExpression};
+use crate::{Expression, LocalNodeId, Node, NodeType, Pattern};
 
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -8,8 +8,6 @@ use serde::{Deserialize, Serialize};
 pub struct Declarator {
     /// The pattern to bind (can be a simple identifier or destructuring pattern).
     pub pattern: LocalNodeId<Pattern>,
-    /// Optional type annotation.
-    pub ty: Option<LocalNodeId<TypeExpression>>,
     /// Optional value expression.
     pub value: Option<LocalNodeId<Expression>>,
 }

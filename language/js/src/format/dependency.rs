@@ -1,4 +1,4 @@
-use crate::{DependencyBinding, DependencyForm, DependencyItem, Keyword, LocalNodeId, Name};
+use crate::{DependencyBinding, DependencyItem, Keyword, LocalNodeId, Name};
 use destack_core::StringId;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -7,11 +7,11 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::format::argument::list_like;
 use crate::format::literal::format_string_literal_with_source_span;
-use crate::{FormatNode, JsFormatter};
+use crate::{FormatNode, Formatter};
 
 /// Format a dependency item name.
 fn format_dependency_item_name<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
+    f: &mut Formatter<'ast, '_>,
     name: Name,
     source_span: Option<Span>,
 ) -> FormatResult<()> {
@@ -37,7 +37,7 @@ fn format_dependency_item_name<'ast>(
 
 /// Format a dependency item alias.
 fn format_dependency_item_alias<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
+    f: &mut Formatter<'ast, '_>,
     alias: destack_core::StringId,
     source_span: Option<Span>,
 ) -> FormatResult<()> {
@@ -58,17 +58,12 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
         &self,
         node_id: LocalNodeId<DependencyItem>,
-        f: &mut JsFormatter<'ast, '_>,
+        f: &mut Formatter<'ast, '_>,
     ) -> FormatResult<()> {
         let name_span = f
             .context()
             .source_part_span(node_id.id, NodeSpanType::Region(NodeSpanRegion::Type));
         let alias_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
-
-        // type
-        if self.form == Some(DependencyForm::Type) {
-            write!(f, [Keyword::Type, space()])?;
-        }
 
         // default binding
         if self.binding == DependencyBinding::Default {
@@ -88,13 +83,14 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
                 format_dependency_item_alias(f, alias, alias_span)?;
             }
         }
+
         Ok(())
     }
 }
 
 /// Format an import binding (like `"foo"` or `{ bar, baz } from "foo"` or `* as foo from "foo"`).
 pub(crate) fn format_import_binding<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
+    f: &mut Formatter<'ast, '_>,
     target: StringId,
     items: &[LocalNodeId<DependencyItem>],
     target_span: Option<Span>,
@@ -129,10 +125,10 @@ pub(crate) fn format_import_binding<'ast>(
                 format_dependency_item_alias(f, alias, alias_span)?;
             }
 
-            write!(f, [token(","), space()])?;
             let rest_items: Vec<LocalNodeId<DependencyItem>> =
                 items.iter().skip(1).copied().collect();
             if !rest_items.is_empty() {
+                write!(f, [token(","), space()])?;
                 write!(f, [list_like("{", "}", ",", &rest_items).include_space()])?;
             }
         }
@@ -155,21 +151,13 @@ pub(crate) fn format_import_binding<'ast>(
 
 /// Format an export binding (like `{ bar, baz }` or `{ bar } from "foo"` or `* from "foo"`).
 pub(crate) fn format_export_binding<'ast>(
-    f: &mut JsFormatter<'ast, '_>,
+    f: &mut Formatter<'ast, '_>,
     target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
     target_span: Option<Span>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let first_item = items.first().map(|item| tree.get(*item));
-
-    // value export (like `export = foo`)
-    if let Some(first_item) = first_item
-        && let Some(value) = first_item.value
-    {
-        write!(f, [token("="), space(), value])?;
-        return Ok(());
-    }
 
     // namespace (like `export * from "foo"` or `export * as bar from "foo"`)
     if items.len() == 1

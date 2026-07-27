@@ -3,62 +3,71 @@ use std::marker::PhantomData;
 
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum NodeType {
+    /// Block.
     Block,
+    /// Catch clause.
     CatchClause,
+    /// Statement.
     Statement,
+    /// Expression.
     Expression,
+    /// Array element.
     ArrayElement,
+    /// Declaration.
     Declaration,
+    /// Declarator.
     Declarator,
+    /// Object property.
     Property,
+    /// Class member.
     Member,
-    TypeExpression,
-    TupleElement,
-    TypeMember,
-    EnumField,
+    /// Dependency item.
     DependencyItem,
+    /// Switch case.
     SwitchCase,
+    /// Binding pattern.
     Pattern,
+    /// Binding pattern field.
     PatternField,
+    /// Assignment pattern.
     AssignPattern,
+    /// Assignment pattern field.
     AssignPatternField,
-    GenericParameter,
+    /// Function parameter.
     Parameter,
+    /// Call argument.
     Argument,
+    /// Annotation.
     Annotation,
 }
 
 impl NodeType {
     /// Get the name of the node type.
     #[inline]
-    pub fn name(&self) -> &'static str {
+    pub const fn name(self) -> &'static str {
         match self {
-            NodeType::Block => "block",
-            NodeType::CatchClause => "catch clause",
-            NodeType::Statement => "statement",
-            NodeType::Expression => "expression",
-            NodeType::ArrayElement => "array element",
-            NodeType::Declaration => "declaration",
-            NodeType::Declarator => "declarator",
-            NodeType::Property => "property",
-            NodeType::Member => "member",
-            NodeType::TypeExpression => "type expression",
-            NodeType::TupleElement => "tuple element",
-            NodeType::TypeMember => "type member",
-            NodeType::EnumField => "enum field",
-            NodeType::DependencyItem => "dependency item",
-            NodeType::SwitchCase => "switch case",
-            NodeType::Pattern => "pattern",
-            NodeType::PatternField => "pattern field",
-            NodeType::AssignPattern => "assign pattern",
-            NodeType::AssignPatternField => "assign pattern field",
-            NodeType::GenericParameter => "generic parameter",
-            NodeType::Parameter => "parameter",
-            NodeType::Argument => "argument",
-            NodeType::Annotation => "annotation",
+            Self::Block => "block",
+            Self::CatchClause => "catch clause",
+            Self::Statement => "statement",
+            Self::Expression => "expression",
+            Self::ArrayElement => "array element",
+            Self::Declaration => "declaration",
+            Self::Declarator => "declarator",
+            Self::Property => "property",
+            Self::Member => "member",
+            Self::DependencyItem => "dependency item",
+            Self::SwitchCase => "switch case",
+            Self::Pattern => "pattern",
+            Self::PatternField => "pattern field",
+            Self::AssignPattern => "assign pattern",
+            Self::AssignPatternField => "assignment pattern field",
+            Self::Parameter => "parameter",
+            Self::Argument => "argument",
+            Self::Annotation => "annotation",
         }
     }
 }
@@ -66,25 +75,20 @@ impl NodeType {
 /// Unique identifier for nodes with dynamic type.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct LocalNodeIdAny {
+    /// The tree node id.
     pub id: u32,
+    /// The node type.
     pub ty: NodeType,
 }
 
 impl LocalNodeIdAny {
+    /// Create an untyped node id.
     pub fn new(id: u32, ty: NodeType) -> Self {
         Self { id, ty }
     }
-
-    #[inline]
-    pub fn get(&self) -> usize {
-        self.id as usize
-    }
 }
 
-impl<T: Node> From<LocalNodeId<T>> for LocalNodeIdAny
-where
-    T: Node,
-{
+impl<T: Node> From<LocalNodeId<T>> for LocalNodeIdAny {
     fn from(id: LocalNodeId<T>) -> Self {
         Self {
             id: id.id,
@@ -126,6 +130,7 @@ impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
 #[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[serde(bound = "")]
 pub struct LocalNodeId<T: Node> {
+    /// The tree node id.
     pub id: u32,
     #[serde(skip)]
     _ty: PhantomData<fn() -> T>,
@@ -141,7 +146,7 @@ impl<T: Node> LocalNodeId<T> {
         }
     }
 
-    /// Turn into a LocalNodeIdAny.
+    /// Erase the node type.
     #[inline]
     pub fn into_any(self) -> LocalNodeIdAny {
         LocalNodeIdAny {
@@ -160,27 +165,10 @@ impl<T: Node> Debug for LocalNodeId<T> {
 /// Manually mark as Copy since PhantomData over T breaks Copy otherwise.
 impl<T: Clone + Node> Copy for LocalNodeId<T> {}
 
-impl<T: Node> LocalNodeId<T> {
-    #[inline]
-    pub fn get(&self) -> usize {
-        self.id as usize
-    }
-}
-
 /// A Node.
 pub trait Node: Sized {
+    /// The concrete node type.
     const TYPE: NodeType;
-}
-
-/// A Visibility is the visibility of an item.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum Visibility {
-    /// Public to everything.
-    Public,
-    /// Protected to derived constructs.
-    Protected,
-    /// Private to the closest module scope.
-    Private,
 }
 
 /// The asynchrony of a function.
@@ -192,11 +180,11 @@ pub enum Asynchrony {
     Async,
 }
 
-/// A Mutability is the mutability of a binding (const or mutable).
+/// The reassignment behavior of one binding.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Mutability {
-    /// Cannot be modified (incl. inner even if they are mutable).
+    /// The binding cannot be reassigned.
     Immutable,
-    /// May be modified (incl. inner if they are also mutable).
+    /// The binding may be reassigned.
     Mutable,
 }

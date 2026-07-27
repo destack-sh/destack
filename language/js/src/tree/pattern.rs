@@ -1,15 +1,13 @@
-use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, StringId};
+use crate::{Expression, LocalNodeId, Name, Node, NodeType, StringId};
 
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Pattern {
     /// Binding pattern (like `x`).
-    Binding {
-        mutability: Option<Mutability>,
-        name: StringId,
-    },
+    Binding { name: StringId },
     /// Assignment pattern (like `x = 1`).
     Assign {
         pattern: LocalNodeId<Pattern>,
@@ -34,26 +32,25 @@ impl Node for Pattern {
 /// A PatternField is a field in a pattern (object, array, etc.).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum PatternField {
-    /// Named pattern field (like `x` or `x: y` or `x = 4`).
+    /// Named pattern field like `x: y`.
     Named {
-        mutability: Option<Mutability>,
         name: StringId,
-        is_shorthand: bool,
-        pattern: Option<LocalNodeId<Pattern>>,
+        pattern: LocalNodeId<Pattern>,
+    },
+    /// Shorthand pattern field like `x` or `x = 4`.
+    Shorthand {
+        name: StringId,
+        value: Option<LocalNodeId<Expression>>,
     },
     /// Computed pattern field (like `[key]: value`).
     Computed {
-        mutability: Option<Mutability>,
         key: LocalNodeId<Expression>,
         pattern: LocalNodeId<Pattern>,
     },
     /// Positional field with a pattern (like `4` or `x = 1`).
     Positional { pattern: LocalNodeId<Pattern> },
-    /// Spread field (like `...x` or `...[a, b]`).
-    Spread {
-        mutability: Option<Mutability>,
-        pattern: Option<LocalNodeId<Pattern>>,
-    },
+    /// Spread field like `...x` or `...[a, b]`.
+    Spread { pattern: LocalNodeId<Pattern> },
     /// Elision (hole) in an array pattern (like `[,a]`).
     Elision,
 }
@@ -89,11 +86,15 @@ impl Node for AssignPattern {
 /// An AssignPatternField is one field in a destructuring assignment target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignPatternField {
-    /// Named field like `{ x }` or `{ x: y }`.
+    /// Named field like `{ x: y }`.
     Named {
         name: Name,
-        is_shorthand: bool,
-        pattern: Option<LocalNodeId<AssignPattern>>,
+        pattern: LocalNodeId<AssignPattern>,
+    },
+    /// Shorthand field like `{ x }` or `{ x = 4 }`.
+    Shorthand {
+        name: Name,
+        value: Option<LocalNodeId<Expression>>,
     },
     /// Computed field like `{ [key]: value }`.
     Computed {
@@ -103,9 +104,7 @@ pub enum AssignPatternField {
     /// Positional field like `[value]`.
     Positional { pattern: LocalNodeId<AssignPattern> },
     /// Spread field like `{ ...rest }` or `[...rest]`.
-    Spread {
-        pattern: Option<LocalNodeId<AssignPattern>>,
-    },
+    Spread { pattern: LocalNodeId<AssignPattern> },
     /// Elision like `[, value]`.
     Elision,
 }

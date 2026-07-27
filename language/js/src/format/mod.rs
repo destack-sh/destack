@@ -16,7 +16,6 @@ mod pattern;
 mod property;
 mod statement;
 mod switch;
-mod r#type;
 
 pub use context::*;
 pub use statement::format_roots;

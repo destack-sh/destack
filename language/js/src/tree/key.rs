@@ -1,4 +1,4 @@
-use crate::{Expression, LocalNodeId, TypeExpression};
+use crate::{Expression, LocalNodeId};
 use destack_core::StringId;
 
 use destack_serde::Reflect;
@@ -21,9 +21,4 @@ pub enum Key {
     Private(StringId),
     /// Dynamic key (like `["Content-Type"]`).
     Expression(LocalNodeId<Expression>),
-    /// Named dynamic key (like `[x: string]: any`).
-    NamedExpression {
-        name: Name,
-        key: LocalNodeId<TypeExpression>,
-    },
 }

@@ -1,50 +1,17 @@
 use crate::{
     Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
-    Declaration, Declarator, DependencyItem, EnumField, Expression, GenericParameter, LocalNodeId,
-    LocalNodeIdAny, Member, Node, NodeType, Parameter, Pattern, PatternField, Property, Statement,
-    SwitchCase, Tree, TreeImpl, TupleElement, TypeExpression, TypeMember,
+    Declaration, Declarator, DependencyItem, Expression, LocalNodeId, LocalNodeIdAny, Member, Node,
+    NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Tree, TreeImpl,
 };
 use destack_core::StringPool;
-use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
-use destack_fir::prelude::*;
+use destack_dir as dir;
+use destack_fir::format::{self, Format, FormatResult};
+use destack_fir::prelude::{hard_line_break, source_position};
 use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions as FirPrintOptions};
 use destack_source::{File, IndentStyle, LineEnding, NodeSpanType, Span};
 
-/// The formatter type for one JS formatting pass.
-pub type JsFormatter<'context, 'state> = Formatter<'state, 'context, JsFormatContext<'context>>;
-
-/// One source span provider for JS formatting and printing.
-pub trait JsSourceMap: std::fmt::Debug {
-    /// Return one source span for one lowered node when one exists.
-    fn source_span(&self, tree: &Tree, node_id: u32) -> Option<Span>;
-
-    /// Return one source part span for one lowered node when one exists.
-    fn source_part_span(&self, tree: &Tree, node_id: u32, span_type: NodeSpanType) -> Option<Span>;
-}
-
-/// One no-op source span provider.
-#[derive(Debug, Default)]
-pub struct NoopJsSourceMap;
-
-impl JsSourceMap for NoopJsSourceMap {
-    fn source_span(&self, tree: &Tree, node_id: u32) -> Option<Span> {
-        let _ = tree;
-        let _ = node_id;
-
-        None
-    }
-
-    fn source_part_span(&self, tree: &Tree, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
-        let _ = tree;
-        let _ = node_id;
-        let _ = span_type;
-
-        None
-    }
-}
-
-/// One reusable no-op source span provider.
-pub static NOOP_JS_SOURCE_MAP: NoopJsSourceMap = NoopJsSourceMap;
+/// The formatter for one JavaScript formatting pass.
+pub type Formatter<'context, 'state> = format::Formatter<'state, 'context, Context<'context>>;
 
 /// The formatting mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -56,39 +23,11 @@ pub enum FormatMode {
     Minimal,
 }
 
-/// The script syntax emitted by one print pass.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum ScriptFormat {
-    /// JavaScript without type syntax.
-    JavaScript,
-    /// TypeScript with runtime and type syntax.
-    #[default]
-    TypeScript,
-}
-
-impl ScriptFormat {
-    /// Return whether type syntax should be emitted.
-    #[inline]
-    pub fn includes_types(self) -> bool {
-        self == Self::TypeScript
-    }
-
-    /// Return the canonical output extension.
-    pub fn extension(self) -> &'static str {
-        match self {
-            Self::JavaScript => "js",
-            Self::TypeScript => "ts",
-        }
-    }
-}
-
-/// JS/TS format options.
+/// JavaScript formatting options.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
-pub struct JsFormatOptions {
+pub struct Options {
     /// The formatting mode.
     pub mode: FormatMode = FormatMode::Pretty,
-    /// The emitted script syntax.
-    pub format: ScriptFormat = ScriptFormat::TypeScript,
     /// The line ending to apply to printed output.
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
@@ -99,7 +38,7 @@ pub struct JsFormatOptions {
     pub line_width: u8 = 100,
 }
 
-impl JsFormatOptions {
+impl Options {
     /// Create pretty-printing options.
     pub fn pretty() -> Self {
         Self {
@@ -115,12 +54,6 @@ impl JsFormatOptions {
             indent_width: 0,
             ..Self::default()
         }
-    }
-
-    /// Set the emitted script syntax.
-    pub fn with_format(mut self, format: ScriptFormat) -> Self {
-        self.format = format;
-        self
     }
 
     /// Set the line ending.
@@ -161,10 +94,7 @@ impl JsFormatOptions {
     }
 }
 
-/// One explicit JS print configuration.
-pub type PrintOptions = JsFormatOptions;
-
-impl FormatOptions for JsFormatOptions {
+impl format::FormatOptions for Options {
     #[inline]
     fn indent_style(&self) -> IndentStyle {
         self.indent_style
@@ -186,46 +116,62 @@ impl FormatOptions for JsFormatOptions {
     }
 }
 
-/// JS/TS format context.
+/// One JavaScript formatting pass.
 #[derive(Debug)]
-pub struct JsFormatContext<'a> {
+pub struct Context<'a> {
     /// The format options.
-    pub options: JsFormatOptions,
+    pub options: Options,
     /// The source file for line ending and print integration.
     pub file: &'a File,
-    /// The JS AST tree.
+    /// The JavaScript tree.
     pub tree: &'a Tree,
     /// Root nodes to format.
     pub roots: &'a [LocalNodeIdAny],
     /// The string pool.
     pub strings: &'a StringPool,
-    /// The source span provider.
-    pub source_map: &'a dyn JsSourceMap,
+    /// The originating DIR tree when source markers are requested.
+    pub source: Option<&'a dir::Tree>,
 }
 
-impl<'context> JsFormatContext<'context> {
-    /// Return whether type syntax should be emitted.
-    #[inline]
-    pub fn include_types(&self) -> bool {
-        self.options.format.includes_types()
+impl Context<'_> {
+    /// Return the source id for one lowered node when one exists.
+    fn source_id(&self, node_id: u32) -> Option<u32> {
+        let source = self.source?;
+        let origin = self.tree.get_origin(node_id)?;
+
+        // ignore nodes originating outside this source tree
+        if origin.module_id != source.module_id || !source.has_node_id(origin.node_id) {
+            return None;
+        }
+
+        Some(source.get_source(origin.node_id))
     }
 
     /// Return one source span for one lowered node when one exists.
     #[inline]
     pub fn source_span(&self, node_id: u32) -> Option<Span> {
-        self.source_map.source_span(self.tree, node_id)
+        let source = self.source?;
+        let source_id = self.source_id(node_id)?;
+
+        source.get_span_by_id(source_id)
     }
 
     /// Return one source part span when one exists.
     #[inline]
     pub fn source_part_span(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
-        self.source_map
-            .source_part_span(self.tree, node_id, span_type)
+        let source = self.source?;
+        let source_id = self.source_id(node_id)?;
+
+        match span_type {
+            NodeSpanType::Enclosing => source.get_span_by_id(source_id),
+            NodeSpanType::Main => source.get_main_span_by_id(source_id),
+            other => source.get_side_span_by_id(source_id, other),
+        }
     }
 }
 
-impl<'a> FormatContext for JsFormatContext<'a> {
-    type Options = JsFormatOptions;
+impl<'a> format::FormatContext for Context<'a> {
+    type Options = Options;
 
     #[inline]
     fn options(&self) -> &Self::Options {
@@ -241,21 +187,20 @@ impl<'a> FormatContext for JsFormatContext<'a> {
 /// Format one node with extra tree context.
 pub(crate) trait FormatNode<'a, T: Node>
 where
-    JsFormatContext<'a>: FormatContext,
+    Context<'a>: format::FormatContext,
 {
     /// Format one node.
-    fn format_node(&self, node_id: LocalNodeId<T>, f: &mut JsFormatter<'a, '_>)
-    -> FormatResult<()>;
+    fn format_node(&self, node_id: LocalNodeId<T>, f: &mut Formatter<'a, '_>) -> FormatResult<()>;
 }
 
-impl<'a, T: Node> Format<'a, JsFormatContext<'a>> for LocalNodeId<T>
+impl<'a, T: Node> Format<'a, Context<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
     Tree: TreeImpl<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]
-    fn format(&self, f: &mut JsFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();
         let source_span = context.source_span(self.id);
         let node = context.tree.get(*self);
@@ -275,9 +220,9 @@ where
     }
 }
 
-impl<'a> Format<'a, JsFormatContext<'a>> for LocalNodeIdAny {
+impl<'a> Format<'a, Context<'a>> for LocalNodeIdAny {
     #[inline]
-    fn format(&self, f: &mut JsFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'a, '_>) -> FormatResult<()> {
         match self.ty {
             NodeType::Block => LocalNodeId::<Block>::new(self.id).format(f),
             NodeType::CatchClause => LocalNodeId::<CatchClause>::new(self.id).format(f),
@@ -287,10 +232,6 @@ impl<'a> Format<'a, JsFormatContext<'a>> for LocalNodeIdAny {
             NodeType::Declaration => LocalNodeId::<Declaration>::new(self.id).format(f),
             NodeType::Property => LocalNodeId::<Property>::new(self.id).format(f),
             NodeType::Member => LocalNodeId::<Member>::new(self.id).format(f),
-            NodeType::TypeExpression => LocalNodeId::<TypeExpression>::new(self.id).format(f),
-            NodeType::TupleElement => LocalNodeId::<TupleElement>::new(self.id).format(f),
-            NodeType::TypeMember => LocalNodeId::<TypeMember>::new(self.id).format(f),
-            NodeType::EnumField => LocalNodeId::<EnumField>::new(self.id).format(f),
             NodeType::DependencyItem => LocalNodeId::<DependencyItem>::new(self.id).format(f),
             NodeType::SwitchCase => LocalNodeId::<SwitchCase>::new(self.id).format(f),
             NodeType::Pattern => LocalNodeId::<Pattern>::new(self.id).format(f),
@@ -299,7 +240,6 @@ impl<'a> Format<'a, JsFormatContext<'a>> for LocalNodeIdAny {
             NodeType::AssignPatternField => {
                 LocalNodeId::<AssignPatternField>::new(self.id).format(f)
             }
-            NodeType::GenericParameter => LocalNodeId::<GenericParameter>::new(self.id).format(f),
             NodeType::Parameter => LocalNodeId::<Parameter>::new(self.id).format(f),
             NodeType::Argument => LocalNodeId::<Argument>::new(self.id).format(f),
             NodeType::Annotation => LocalNodeId::<Annotation>::new(self.id).format(f),
@@ -308,9 +248,9 @@ impl<'a> Format<'a, JsFormatContext<'a>> for LocalNodeIdAny {
     }
 }
 
-impl<'a> Format<'a, JsFormatContext<'a>> for JsFormatContext<'a> {
+impl<'a> Format<'a, Context<'a>> for Context<'a> {
     #[inline]
-    fn format(&self, f: &mut JsFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'a, '_>) -> FormatResult<()> {
         f.join_with(hard_line_break())
             .entries(self.roots)
             .finish()?;

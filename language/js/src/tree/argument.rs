@@ -1,89 +1,15 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Expression, LocalNodeId, Mutability, Node, NodeType, Pattern, StringId, TypeExpression,
-    Visibility,
-};
+use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, StringId};
 
-/// The type of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum BindingKind {
-    /// Must binding (like `x`).
-    Must,
-    /// Maybe binding (like `x?`).
-    Maybe,
-}
-
-/// Variance annotation for type parameters.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum VarianceModifier {
-    /// Contravariant type parameter.
-    In,
-    /// Covariant type parameter.
-    Out,
-    /// Invariant type parameter.
-    InOut,
-}
-
-/// The scope of a binding (dynamic or static).
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum BindingAnchor {
-    /// Container scope.
-    Instance,
-    /// Static scope.
-    Static,
-}
-
-/// The operator to apply to the binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum BindingOperator {
-    /// Apply `as const` to the value of the binding.
-    AsConst,
-}
-
-/// The accessor kind of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum AccessorKind {
-    /// Auto-accessor (generates getter/setter).
-    Accessor,
-}
-
-/// The modifiers of a field-like item.
+/// Runtime modifiers of one class member.
 #[derive(Debug, Copy, Clone, PartialEq, Default, Serialize, Deserialize, Reflect)]
-pub struct BindingModifier {
-    /// The kind of the binding.
-    pub kind: Option<BindingKind>,
-    /// The variance of a type parameter.
-    pub variance: Option<VarianceModifier>,
-    /// The scope of the binding.
-    pub anchor: Option<BindingAnchor>,
-    /// The mutability of the field.
-    pub mutability: Option<Mutability>,
-    /// The visibility of the field.
-    pub visibility: Option<Visibility>,
-    /// The operator to apply to the binding.
-    pub operator: Option<BindingOperator>,
-    /// Whether the binding uses a definite assignment assertion.
-    pub definite: bool,
-    /// The accessor kind of the binding.
-    pub accessor: Option<AccessorKind>,
-}
-
-/// One generic parameter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum GenericParameter {
-    /// Type parameter.
-    Type {
-        modifiers: Option<BindingModifier>,
-        name: StringId,
-        constraint: Option<LocalNodeId<TypeExpression>>,
-        default: Option<LocalNodeId<TypeExpression>>,
-    },
-}
-
-impl Node for GenericParameter {
-    const TYPE: NodeType = NodeType::GenericParameter;
+pub struct MemberModifier {
+    /// Whether the member belongs to the class itself.
+    pub is_static: bool,
+    /// Whether the field uses JavaScript auto-accessor semantics.
+    pub is_accessor: bool,
 }
 
 /// Named or positional parameter to some construct.
@@ -91,30 +17,18 @@ impl Node for GenericParameter {
 pub enum Parameter {
     /// Named parameter (like `x: int32` or `Validate: boolean = true`).
     Named {
-        modifiers: Option<BindingModifier>,
         name: StringId,
-        ty: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
     },
     /// Pattern parameter (like `_` or `{ x }` or `{ x, ..rest }: MyType = Foo`).
     Pattern {
-        modifiers: Option<BindingModifier>,
         pattern: LocalNodeId<Pattern>,
-        ty: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
     },
     /// Variadic parameter with a named binding (like `...args: int32[]`).
-    VariadicNamed {
-        modifiers: Option<BindingModifier>,
-        name: StringId,
-        ty: Option<LocalNodeId<TypeExpression>>,
-    },
+    VariadicNamed { name: StringId },
     /// Variadic parameter with a pattern binding (like `...[a, b]`).
-    VariadicPattern {
-        modifiers: Option<BindingModifier>,
-        pattern: LocalNodeId<Pattern>,
-        ty: Option<LocalNodeId<TypeExpression>>,
-    },
+    VariadicPattern { pattern: LocalNodeId<Pattern> },
 }
 
 impl Node for Parameter {

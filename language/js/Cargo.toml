@@ -1,6 +1,6 @@
 [package]
 name = "destack_js"
-description = "Destack JavaScript and TypeScript IR"
+description = "Destack JavaScript IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

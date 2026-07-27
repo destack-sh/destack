@@ -1,22 +1,20 @@
 use crate::format::argument::list_like;
-use crate::{FunctionSignature, JsFormatter};
+use crate::{Formatter, FunctionSignature, LocalNodeId, Parameter};
 use destack_fir::format::FormatResult;
 use destack_fir::write;
 
 /// Format one function signature parameter list.
 pub(crate) fn format_function_signature_parameters<'ast>(
     signature: &FunctionSignature,
-    f: &mut JsFormatter<'ast, '_>,
+    f: &mut Formatter<'ast, '_>,
 ) -> FormatResult<()> {
-    let mut parameters = Vec::with_capacity(signature.parameters.len() + 1);
+    format_function_parameters(&signature.parameters, f)
+}
 
-    if f.context().include_types()
-        && let Some(this_parameter) = signature.this_parameter
-    {
-        parameters.push(this_parameter);
-    }
-
-    parameters.extend(signature.parameters.iter().copied());
-
-    write!(f, [list_like("(", ")", ",", &parameters)])
+/// Format one JavaScript parameter list.
+pub(crate) fn format_function_parameters<'ast>(
+    parameters: &[LocalNodeId<Parameter>],
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    write!(f, [list_like("(", ")", ",", parameters)])
 }

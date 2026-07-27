@@ -5,13 +5,13 @@ use destack_fir::write;
 use crate::format::block::format_block_of_statements;
 use crate::{Keyword, LocalNodeId, SwitchCase};
 
-use crate::{FormatNode, JsFormatter};
+use crate::{FormatNode, Formatter};
 
 impl<'ast> FormatNode<'ast, SwitchCase> for SwitchCase {
     fn format_node(
         &self,
         _node_id: LocalNodeId<SwitchCase>,
-        f: &mut JsFormatter<'ast, '_>,
+        f: &mut Formatter<'ast, '_>,
     ) -> FormatResult<()> {
         if let Some(value) = self.value {
             write!(f, [Keyword::Case, space(), value, token(":")])?;

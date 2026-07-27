@@ -4,28 +4,28 @@ use destack_fir::format::{Format, FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{JsFormatContext, JsFormatter};
+use crate::{Context, Formatter};
 
-impl<'ast> Format<'ast, JsFormatContext<'ast>> for StringId {
+impl<'ast> Format<'ast, Context<'ast>> for StringId {
     #[inline]
-    fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         let string = f.context().strings.get(*self);
         write!(f, [text(string)])
     }
 }
 
-impl<'ast> Format<'ast, JsFormatContext<'ast>> for Name {
+impl<'ast> Format<'ast, Context<'ast>> for Name {
     #[inline]
-    fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Name::Identifier(string) => string.format(f),
             Name::String(string) => write!(f, [token("\""), string, token("\"")]),
         }
     }
 }
-impl<'ast> Format<'ast, JsFormatContext<'ast>> for Keyword {
+impl<'ast> Format<'ast, Context<'ast>> for Keyword {
     #[inline]
-    fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [text(self.as_str())])
     }
 }
