@@ -48,26 +48,20 @@ impl<'a> JsLinker<'a> {
         if let Some(format) = self.target.js.output.format
             && format != JsOutputFormat::Esm
         {
+            let format = match format {
+                JsOutputFormat::Esm => "esm",
+                JsOutputFormat::Iife => "iife",
+            };
+
             return Err(LinkError::InvalidTarget {
                 anchor: self.package_id.into(),
                 package: self.package_id,
                 target: *self.target_id,
-                message: format!(
-                    "js.output.format '{}' is not implemented yet",
-                    Self::js_output_format_name(format)
-                ),
+                message: format!("js.output.format '{format}' is not implemented yet"),
             });
         }
 
         Ok(())
-    }
-
-    /// Return the config spelling for one bundle format.
-    fn js_output_format_name(format: JsOutputFormat) -> &'static str {
-        match format {
-            JsOutputFormat::Esm => "esm",
-            JsOutputFormat::Iife => "iife",
-        }
     }
 
     /// Build the packaged JS output groups for this target.

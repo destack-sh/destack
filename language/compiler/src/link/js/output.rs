@@ -1,43 +1,28 @@
 use std::path::{Component, Path, PathBuf};
 
-use crate::emit::js::{
-    JsFormatOptions, Module as ScriptModule, PrintedJsModule, ScriptFormat,
-    print_js_module as print_codegen_script_module,
-};
+use crate::emit::js;
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
 use crate::{Compiler, CompilerError, CompilerResult, JsLinker};
-use base64::Engine as _;
+use base64::Engine;
 use destack_artifact::{BundleFile, BundleSection, Script, SourceMap};
 use destack_repository::{Module, ProviderContext, SourceMapMode, Target};
 use destack_source::{FileType, ModuleId, Uri};
 
-/// One final JS text output policy derived from one target.
+/// One final JS text output derived from one target.
 #[derive(Debug, Clone, Copy)]
-struct JsTextOutputPolicy<'a> {
+struct TextOutput<'a> {
     /// The target that drives final output shaping.
     target: &'a Target,
 }
 
-impl<'a> JsTextOutputPolicy<'a> {
-    /// Create one JS text output policy.
+impl<'a> TextOutput<'a> {
+    /// Create one JS text output.
     fn new(target: &'a Target) -> Self {
         Self { target }
     }
 
-    /// Apply the target output policy before source map annotation.
-    fn shape_script_text(self, mut code: String) -> String {
-        // final JS shaping
-        code = self.apply_js_banner_and_footer(code);
-
-        if self.target.should_minify_js_output() {
-            // TODO #Incomplete: final JS minification is not implemented yet
-        }
-
-        code
-    }
-
     /// Append one source map reference when the target wants one.
-    fn annotate_js_text_with_map(
+    fn annotate(
         self,
         code: String,
         map: Option<&SourceMap>,
@@ -68,8 +53,8 @@ impl<'a> JsTextOutputPolicy<'a> {
     }
 
     /// Apply configured banner and footer text to one final JS payload.
-    fn apply_js_banner_and_footer(self, mut code: String) -> String {
-        let banner_prefix = self.js_banner_prefix();
+    fn apply_banner_and_footer(self, mut code: String) -> String {
+        let banner_prefix = self.banner_prefix();
 
         // prepend banner text before the emitted module body
         if !banner_prefix.is_empty() {
@@ -96,7 +81,7 @@ impl<'a> JsTextOutputPolicy<'a> {
     }
 
     /// Return the exact banner prefix inserted before mapped JS code.
-    fn js_banner_prefix(self) -> String {
+    fn banner_prefix(self) -> String {
         let Some(banner) = self.target.js.output.banner.as_deref() else {
             return String::new();
         };
@@ -110,8 +95,8 @@ impl<'a> JsTextOutputPolicy<'a> {
     }
 
     /// Return the mapped byte offset introduced before emitted JS code.
-    fn js_banner_prefix_byte_count(self) -> u32 {
-        self.js_banner_prefix().len() as u32
+    fn banner_prefix_byte_count(self) -> u32 {
+        self.banner_prefix().len() as u32
     }
 
     /// Return the number of unmapped annotation lines appended after mapped JS code.
@@ -155,10 +140,9 @@ impl JsLinker<'_> {
         &self,
         module_id: ModuleId,
         target: &Target,
-        format: ScriptFormat,
-        module: &ScriptModule,
+        module: &js::Module,
         context: &dyn ProviderContext,
-    ) -> CompilerResult<PrintedJsModule> {
+    ) -> CompilerResult<js::PrintedJsModule> {
         // source artifacts
         let parsed =
             self.artifacts
@@ -171,17 +155,16 @@ impl JsLinker<'_> {
         let source_module = self.compiler.module(context.revision(), module_id)?;
         let source_file = self.compiler.file(context, source_module.file_id)?;
         let options = if target.should_minify_js_output() {
-            JsFormatOptions::minimal()
+            js::Options::minimal()
         } else {
-            JsFormatOptions::pretty()
-        }
-        .with_format(format);
+            js::Options::pretty()
+        };
 
-        print_codegen_script_module(options, &parsed, source_file.as_ref(), module).map_err(
-            |error| CompilerError::Internal {
+        js::print_js_module(options, &parsed, source_file.as_ref(), module).map_err(|error| {
+            CompilerError::Internal {
                 message: format!("failed to print JS module: {error:?}"),
-            },
-        )
+            }
+        })
     }
 
     /// Build one source map builder for one linked JS module.
@@ -189,7 +172,7 @@ impl JsLinker<'_> {
         &self,
         package_dir: &Path,
         module: &Module,
-        printed: &PrintedJsModule,
+        printed: &js::PrintedJsModule,
         context: &dyn ProviderContext,
     ) -> CompilerResult<SourceMapBuilder> {
         let source_path = self
@@ -210,34 +193,23 @@ impl JsLinker<'_> {
     pub(crate) fn link_js_output_files(
         &self,
         module: &Module,
-        artifact: &Script,
+        script: &Script,
         target: &Target,
         package_dir: &Path,
         root_dir: Option<&Path>,
         context: &dyn ProviderContext,
     ) -> CompilerResult<Vec<BundleFile>> {
-        let format = self.js_output_format().map_err(CompilerError::from)?;
         let map_path = target
             .emits_source_map_output()
             .then(|| OutputLayout::module_output_path(package_dir, root_dir, target, module, "map"))
             .transpose()
             .map_err(|message| CompilerError::Internal { message })?;
-        let output_path = OutputLayout::module_output_path(
-            package_dir,
-            root_dir,
-            target,
-            module,
-            format.extension(),
-        )
-        .map_err(|message| CompilerError::Internal { message })?;
+        let output_path =
+            OutputLayout::module_output_path(package_dir, root_dir, target, module, "js")
+                .map_err(|message| CompilerError::Internal { message })?;
 
         // print the script and build its source map
-        let Some(script) = artifact.ecmascript_module() else {
-            return Err(CompilerError::Internal {
-                message: format!("expected ECMAScript script for module {:?}", module.id),
-            });
-        };
-        let printed = self.print_js_module(module.id, target, format, script, context)?;
+        let printed = self.print_js_module(module.id, target, script.module(), context)?;
         let map = self.script_module_map(package_dir, module, &printed, context)?;
 
         // link the script and optional source map file
@@ -260,25 +232,24 @@ impl JsLinker<'_> {
         map: Option<SourceMapBuilder>,
         map_path: Option<&Path>,
     ) -> Result<Vec<BundleFile>, String> {
-        let output_policy = JsTextOutputPolicy::new(target);
+        let output = TextOutput::new(target);
         let map_reference = map_path.map(|path| relative_map_reference(output_path, path));
-        let shaped_code = output_policy.shape_script_text(code);
+        let shaped_code = output.apply_banner_and_footer(code);
         let mut map = map;
         let has_map = map.is_some();
 
         // banner bytes shift every emitted marker forward in the final output
         if let Some(map) = &mut map {
-            map.prepend_emitted_bytes(output_policy.js_banner_prefix_byte_count());
+            map.prepend_emitted_bytes(output.banner_prefix_byte_count());
         }
         let map = map.map(|map| {
             map.build(
                 &shaped_code,
-                output_policy.map_annotation_line_count(has_map, map_reference.is_some()),
+                output.map_annotation_line_count(has_map, map_reference.is_some()),
             )
         });
 
-        let code =
-            output_policy.annotate_js_text_with_map(shaped_code, map.as_ref(), map_reference)?;
+        let code = output.annotate(shaped_code, map.as_ref(), map_reference)?;
         let content = Compiler::text_output_content(code);
         let section = if self.target.is_single_file() {
             BundleSection::Entry

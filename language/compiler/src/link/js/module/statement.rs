@@ -17,14 +17,7 @@ impl JsLinker<'_> {
         output_layout: &OutputLayout,
         target: &Target,
     ) -> LinkResult<js::Module> {
-        let Some(script) = script.ecmascript_module() else {
-            return Err(LinkError::Internal {
-                anchor: module_id.into(),
-                package: self.package_id,
-                message: format!("expected ECMAScript script for module {module_id:?}"),
-            });
-        };
-        let mut module = script.clone();
+        let mut module = script.module().clone();
         let roots = module.roots.clone();
         let mut rewritten_roots = Vec::with_capacity(module.roots.len());
 
@@ -80,12 +73,11 @@ impl JsLinker<'_> {
         module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
     ) -> LinkResult<Vec<js::LocalNodeIdAny>> {
-        let (specifier, target_module, is_type_dependency, item_set, has_arguments, is_import) = {
+        let (specifier, target_module, item_set, has_arguments, is_import) = {
             let statement = module.tree.get(statement_id);
 
             match statement {
                 js::Statement::Import {
-                    form,
                     target: specifier,
                     target_module: Some(target_module),
                     items,
@@ -94,13 +86,11 @@ impl JsLinker<'_> {
                 } => (
                     module.strings.get(*specifier).to_string(),
                     *target_module,
-                    *form == js::DependencyForm::Type,
                     items.clone().unwrap_or_default(),
                     attributes.is_some(),
                     true,
                 ),
                 js::Statement::Export {
-                    form,
                     target: Some(specifier),
                     target_module: Some(target_module),
                     items,
@@ -108,7 +98,6 @@ impl JsLinker<'_> {
                 } => (
                     module.strings.get(*specifier).to_string(),
                     *target_module,
-                    *form == js::DependencyForm::Type,
                     items.clone(),
                     false,
                     false,
@@ -140,7 +129,6 @@ impl JsLinker<'_> {
                     module_id,
                     module,
                     statement_id,
-                    is_type_dependency,
                     &item_set,
                     has_arguments,
                     target_module,
@@ -151,7 +139,6 @@ impl JsLinker<'_> {
                 module_id,
                 module,
                 statement_id,
-                is_type_dependency,
                 &item_set,
             );
         }
@@ -186,17 +173,11 @@ impl JsLinker<'_> {
         module_id: ModuleId,
         module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
-        is_type_dependency: bool,
         item_set: &[js::LocalNodeId<js::DependencyItem>],
         has_arguments: bool,
         target_module: ModuleId,
     ) -> LinkResult<Vec<js::LocalNodeIdAny>> {
         let target_module_ref = self.module(target_module)?;
-
-        // erase same-output type-only imports
-        if is_type_dependency {
-            return Ok(Vec::new());
-        }
 
         // asset wrapper imports become local value bindings
         if !target_module_ref.is_code() {
@@ -255,14 +236,8 @@ impl JsLinker<'_> {
         module_id: ModuleId,
         module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
-        is_type_dependency: bool,
         item_set: &[js::LocalNodeId<js::DependencyItem>],
     ) -> LinkResult<Vec<js::LocalNodeIdAny>> {
-        // erase same-output type-only re-exports
-        if is_type_dependency {
-            return Ok(Vec::new());
-        }
-
         // reject export forms that need binding rewrites
         if !self
             .compiler

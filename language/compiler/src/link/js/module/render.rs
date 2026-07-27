@@ -1,14 +1,13 @@
 use crate::emit::js;
+use crate::link::{OutputLocation, TargetLocation};
 use crate::{Compiler, LinkError, LinkResult};
-use destack_artifact::BundleFile;
+use destack_artifact::{BundleFile, Script};
 use destack_repository::JsOutputMode;
 use destack_source::ModuleId;
 
 use super::super::plan::Plan;
 use super::super::{JsLinker, OutputId};
 use super::linker::OutputModule;
-use crate::link::{OutputLocation, TargetLocation};
-use destack_artifact::Script;
 
 impl<'a> JsLinker<'a> {
     /// Build one linked JS text for one output node.
@@ -16,7 +15,6 @@ impl<'a> JsLinker<'a> {
         &self,
         output_id: OutputId,
         plan: &Plan,
-        format: js::ScriptFormat,
     ) -> LinkResult<Vec<(ModuleId, js::PrintedJsModule)>> {
         let output = plan
             .output_graph()
@@ -31,13 +29,7 @@ impl<'a> JsLinker<'a> {
         // rewrite each output member in stable member order
         for module_id in output.modules() {
             let script = self.js_output_for_output(output_id, *module_id, plan)?;
-            let Some(module) = script.into_ecmascript_module() else {
-                return Err(LinkError::Internal {
-                    anchor: (*module_id).into(),
-                    package: self.package_id,
-                    message: format!("expected ECMAScript script for module {module_id:?}"),
-                });
-            };
+            let module = script.into_module();
 
             modules.push((*module_id, module));
         }
@@ -61,7 +53,7 @@ impl<'a> JsLinker<'a> {
         // print each rewritten module after output-level rewrites and minification
         for (module_id, module) in modules {
             let printed = self
-                .print_js_module(module_id, self.target, format, &module, self.context)
+                .print_js_module(module_id, self.target, &module, self.context)
                 .map_err(|error| Compiler::link_error(self.package_id, error))?;
 
             segments.push((module_id, printed));
@@ -72,8 +64,6 @@ impl<'a> JsLinker<'a> {
 
     /// Render the JS outputs for the current JS graph.
     pub(in super::super) fn render_js_graph(&self, plan: &Plan) -> LinkResult<Vec<BundleFile>> {
-        self.validate_script_print_format()?;
-
         if plan.output_graph().bundle_mode() == JsOutputMode::PreserveModules {
             return self.link_module_outputs(plan);
         }
@@ -129,7 +119,7 @@ impl<'a> JsLinker<'a> {
             return self.build_resource_js_output(output_id, module_id, plan.output_graph(), plan);
         }
 
-        let script = self.script_for_module(module_id)?;
+        let script = self.script(module_id)?;
         let rewritten_module = self.rewrite_code_script_module(
             output_id,
             module_id,
@@ -139,15 +129,14 @@ impl<'a> JsLinker<'a> {
             plan.output_layout(),
             self.target,
         )?;
-        let mut script = script;
-        script.replace_ecmascript_module(rewritten_module);
+        let mut script = script.as_ref().clone();
+        script.replace_module(rewritten_module);
 
         Ok(script)
     }
 
     /// Link graph-based outputs for this target.
     fn link_output_graph(&self, plan: &Plan) -> LinkResult<Vec<BundleFile>> {
-        let format = self.js_output_format()?;
         let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut output_files = Vec::new();
 
@@ -165,7 +154,7 @@ impl<'a> JsLinker<'a> {
                             output_id.0
                         ),
                     })?;
-            let parts = self.render_js_output_parts(output_id, plan, format)?;
+            let parts = self.render_js_output_parts(output_id, plan)?;
             let code = self.compose_script_text(
                 parts
                     .iter()

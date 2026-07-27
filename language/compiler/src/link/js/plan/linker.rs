@@ -1,84 +1,14 @@
 use std::collections::{HashSet, VecDeque};
 
-use crate::emit::js::DependencyForm;
 use destack_artifact::{ArtifactDependencySet, ArtifactKey};
 use destack_repository::ProviderError;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
 
-use crate::{CompilerResult, LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult, LinkError, LinkResult};
 
 use super::super::{JsLinker, dynamic_js_dependencies, static_js_dependencies};
 use super::{ModuleSet, OutputGraph, Plan};
-use crate::CompilerError;
-
-/// Order the included modules after their bundled dependencies.
-fn order_script_modules(
-    linker: &JsLinker<'_>,
-    module_ids: &[ModuleId],
-) -> LinkResult<Vec<ModuleId>> {
-    let included_modules = module_ids.iter().copied().collect::<HashSet<_>>();
-    let mut active_modules = HashSet::new();
-    let mut finished_modules = HashSet::new();
-    let mut ordered_modules = Vec::with_capacity(module_ids.len());
-
-    // walk each requested module
-    for module_id in module_ids {
-        visit_ordered_module(
-            linker,
-            &included_modules,
-            &mut active_modules,
-            &mut finished_modules,
-            &mut ordered_modules,
-            *module_id,
-        )?;
-    }
-
-    Ok(ordered_modules)
-}
-
-/// Visit one module and append it after its included dependencies.
-fn visit_ordered_module(
-    linker: &JsLinker<'_>,
-    included_modules: &HashSet<ModuleId>,
-    active_modules: &mut HashSet<ModuleId>,
-    finished_modules: &mut HashSet<ModuleId>,
-    ordered_modules: &mut Vec<ModuleId>,
-    module_id: ModuleId,
-) -> LinkResult<()> {
-    // skip modules that are already fully ordered
-    if finished_modules.contains(&module_id) {
-        return Ok(());
-    }
-
-    // keep dependency cycles in their discovered relative order
-    if !active_modules.insert(module_id) {
-        return Ok(());
-    }
-
-    // order included dependencies before the current module
-    let dependency_modules = linker.bundled_script_dependency_modules(module_id)?;
-    for dependency_module in dependency_modules {
-        if !included_modules.contains(&dependency_module) {
-            continue;
-        }
-
-        visit_ordered_module(
-            linker,
-            included_modules,
-            active_modules,
-            finished_modules,
-            ordered_modules,
-            dependency_module,
-        )?;
-    }
-
-    active_modules.remove(&module_id);
-    finished_modules.insert(module_id);
-    ordered_modules.push(module_id);
-
-    Ok(())
-}
 
 impl<'a> JsLinker<'a> {
     /// Build the JS module set for one target.
@@ -89,7 +19,7 @@ impl<'a> JsLinker<'a> {
     ) -> LinkResult<ModuleSet> {
         let entry_modules = entry_modules.to_vec();
         let included_modules = module_ids.to_vec();
-        let modules = order_script_modules(self, &included_modules)?;
+        let modules = self.order_script_modules(&included_modules)?;
         let mut module_set = ModuleSet {
             entry_modules,
             modules,
@@ -104,6 +34,69 @@ impl<'a> JsLinker<'a> {
         Ok(module_set)
     }
 
+    /// Order the included modules after their bundled dependencies.
+    fn order_script_modules(&self, module_ids: &[ModuleId]) -> LinkResult<Vec<ModuleId>> {
+        let included_modules = module_ids.iter().copied().collect::<HashSet<_>>();
+        let mut active_modules = HashSet::new();
+        let mut finished_modules = HashSet::new();
+        let mut ordered_modules = Vec::with_capacity(module_ids.len());
+
+        // walk each requested module
+        for module_id in module_ids {
+            self.visit_ordered_module(
+                &included_modules,
+                &mut active_modules,
+                &mut finished_modules,
+                &mut ordered_modules,
+                *module_id,
+            )?;
+        }
+
+        Ok(ordered_modules)
+    }
+
+    /// Visit one module and append it after its included dependencies.
+    fn visit_ordered_module(
+        &self,
+        included_modules: &HashSet<ModuleId>,
+        active_modules: &mut HashSet<ModuleId>,
+        finished_modules: &mut HashSet<ModuleId>,
+        ordered_modules: &mut Vec<ModuleId>,
+        module_id: ModuleId,
+    ) -> LinkResult<()> {
+        // skip modules that are already fully ordered
+        if finished_modules.contains(&module_id) {
+            return Ok(());
+        }
+
+        // keep dependency cycles in their discovered relative order
+        if !active_modules.insert(module_id) {
+            return Ok(());
+        }
+
+        // order included dependencies before the current module
+        let dependency_modules = self.bundled_script_dependency_modules(module_id)?;
+        for dependency_module in dependency_modules {
+            if !included_modules.contains(&dependency_module) {
+                continue;
+            }
+
+            self.visit_ordered_module(
+                included_modules,
+                active_modules,
+                finished_modules,
+                ordered_modules,
+                dependency_module,
+            )?;
+        }
+
+        active_modules.remove(&module_id);
+        finished_modules.insert(module_id);
+        ordered_modules.push(module_id);
+
+        Ok(())
+    }
+
     /// Collect the retained external and dynamic JS targets.
     fn collect_retained_script_targets(&self, module_set: &mut ModuleSet) -> LinkResult<()> {
         for module_id in &module_set.modules {
@@ -114,9 +107,7 @@ impl<'a> JsLinker<'a> {
             }
 
             let script = self.script(*module_id)?;
-            let Some(script) = script.ecmascript_module() else {
-                continue;
-            };
+            let script = script.module();
 
             // retained static externals
             for dependency in static_js_dependencies(script) {
@@ -258,17 +249,11 @@ impl<'a> JsLinker<'a> {
 
         let profile_id = self.profile_id()?;
         let script = self.script(module_id)?;
-        let Some(script) = script.ecmascript_module() else {
-            return Ok(Vec::new());
-        };
+        let script = script.module();
         let mut requirements = IndexSet::new();
 
         // collect bundled static dependency export tables
         for dependency in static_js_dependencies(script) {
-            if dependency.form == DependencyForm::Type {
-                continue;
-            }
-
             let should_bundle = self
                 .should_bundle_js_dependency(
                     self.module_anchor_span(module_id)?,

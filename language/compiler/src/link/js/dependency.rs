@@ -1,6 +1,6 @@
 use crate::emit::js::{
-    DependencyForm, Expression, LocalNodeId, Module, Node, NodeVisitor, NodeVisitorOptions,
-    ScalarLiteral, Statement, Tree, walk_expression, walk_root, walk_statement,
+    Expression, LocalNodeId, Module, Node, NodeVisitor, ScalarLiteral, Statement, Tree,
+    walk_expression, walk_root, walk_statement,
 };
 use destack_source::ModuleId;
 
@@ -41,8 +41,6 @@ impl JsDependencyTarget {
 /// One static JS import or re-export.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct StaticJsDependency {
-    /// The dependency form.
-    pub(crate) form: DependencyForm,
     /// The dependency target.
     pub(crate) target: JsDependencyTarget,
 }
@@ -109,7 +107,6 @@ fn collect_static_statement_dependency(
 ) {
     match statement {
         Statement::Import {
-            form,
             target,
             target_module,
             ..
@@ -117,13 +114,9 @@ fn collect_static_statement_dependency(
             let specifier = module.strings.get(*target);
             let target = js_dependency_target(specifier, *target_module);
 
-            dependencies.push(StaticJsDependency {
-                form: *form,
-                target,
-            });
+            dependencies.push(StaticJsDependency { target });
         }
         Statement::Export {
-            form,
             target: Some(target),
             target_module,
             ..
@@ -131,10 +124,7 @@ fn collect_static_statement_dependency(
             let specifier = module.strings.get(*target);
             let target = js_dependency_target(specifier, *target_module);
 
-            dependencies.push(StaticJsDependency {
-                form: *form,
-                target,
-            });
+            dependencies.push(StaticJsDependency { target });
         }
         _ => {}
     }
@@ -146,8 +136,6 @@ struct DynamicDependencyCollector<'a> {
     module: &'a Module,
     /// The collected dynamic dependencies.
     dependencies: Vec<DynamicJsDependency>,
-    /// Visitor options.
-    options: NodeVisitorOptions,
 }
 
 impl<'a> DynamicDependencyCollector<'a> {
@@ -156,7 +144,6 @@ impl<'a> DynamicDependencyCollector<'a> {
         Self {
             module,
             dependencies: Vec::new(),
-            options: NodeVisitorOptions::default(),
         }
     }
 
@@ -186,10 +173,6 @@ impl<'a> DynamicDependencyCollector<'a> {
 }
 
 impl NodeVisitor for DynamicDependencyCollector<'_> {
-    fn options(&self) -> &NodeVisitorOptions {
-        &self.options
-    }
-
     fn visit_expression(
         &mut self,
         tree: &Tree,

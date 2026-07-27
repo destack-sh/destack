@@ -10,8 +10,6 @@ use crate::{Compiler, JsLinker, LinkError, LinkResult};
 struct DynamicImportCallCollector {
     /// The collected import call expression ids.
     import_calls: Vec<js::LocalNodeId<js::Expression>>,
-    /// Visitor options.
-    options: js::NodeVisitorOptions,
 }
 
 impl DynamicImportCallCollector {
@@ -22,10 +20,6 @@ impl DynamicImportCallCollector {
 }
 
 impl js::NodeVisitor for DynamicImportCallCollector {
-    fn options(&self) -> &js::NodeVisitorOptions {
-        &self.options
-    }
-
     fn visit_expression(
         &mut self,
         tree: &js::Tree,

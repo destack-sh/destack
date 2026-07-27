@@ -40,7 +40,6 @@ impl JsLinker<'_> {
         script: &mut js::Module,
         module_id: ModuleId,
         statement_id: js::LocalNodeId<js::Statement>,
-        form: js::DependencyForm,
         specifier: &str,
         target_module: Option<ModuleId>,
         items: &[js::LocalNodeId<js::DependencyItem>],
@@ -63,11 +62,6 @@ impl JsLinker<'_> {
         // keep external imports untouched
         if !is_internal {
             return Ok(Some(statement_id.into_any()));
-        }
-
-        // erase bundled type-only imports
-        if form == js::DependencyForm::Type {
-            return Ok(None);
         }
 
         // bundled asset imports become local value bindings
@@ -128,7 +122,6 @@ impl JsLinker<'_> {
         script: &mut js::Module,
         module_id: ModuleId,
         statement_id: js::LocalNodeId<js::Statement>,
-        form: js::DependencyForm,
         specifier: Option<String>,
         target_module: Option<ModuleId>,
         items: &[js::LocalNodeId<js::DependencyItem>],
@@ -156,11 +149,6 @@ impl JsLinker<'_> {
         // keep external re-exports untouched
         if !is_internal {
             return Ok(Some(statement_id.into_any()));
-        }
-
-        // erase bundled type-only re-exports
-        if form == js::DependencyForm::Type {
-            return Ok(None);
         }
 
         // non-entry modules do not re-export bindings in bundled output
@@ -209,7 +197,6 @@ impl JsLinker<'_> {
 
         match statement {
             js::Statement::Import {
-                form,
                 target: specifier,
                 target_module,
                 items,
@@ -222,7 +209,6 @@ impl JsLinker<'_> {
                     script,
                     module_id,
                     statement_id,
-                    form,
                     &specifier,
                     target_module,
                     &items,
@@ -235,7 +221,6 @@ impl JsLinker<'_> {
                 )
             }
             js::Statement::Export {
-                form,
                 target: export_target,
                 target_module,
                 items,
@@ -244,7 +229,6 @@ impl JsLinker<'_> {
                 script,
                 module_id,
                 statement_id,
-                form,
                 export_target.map(|target| script.strings.get(target).to_string()),
                 target_module,
                 &items,
@@ -255,7 +239,7 @@ impl JsLinker<'_> {
             ),
 
             // non-entry bundled exports degrade to plain expressions
-            js::Statement::ExportValue { value } => {
+            js::Statement::ExportDefault { value } => {
                 Ok(if self.is_bundled_entry_module(module_set, module_id) {
                     Some(statement_id.into_any())
                 } else {
@@ -282,14 +266,7 @@ impl JsLinker<'_> {
         profile_id: ProfileId,
         context: &dyn ProviderContext,
     ) -> LinkResult<js::Module> {
-        let Some(script) = script.ecmascript_module() else {
-            return Err(LinkError::Internal {
-                anchor: module_id.into(),
-                package: package_id,
-                message: format!("expected ECMAScript script for module {module_id:?}"),
-            });
-        };
-        let mut module = script.clone();
+        let mut module = script.module().clone();
         let mut rewritten_roots = Vec::with_capacity(module.roots.len());
         let roots = module.roots.clone();
 

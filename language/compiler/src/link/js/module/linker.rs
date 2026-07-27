@@ -3,8 +3,8 @@ use std::path::Path;
 
 use crate::emit::js;
 use crate::{Compiler, LinkError, LinkResult};
-use destack_artifact::{EmitFormat, Script};
-use destack_repository::{JsOutputFormat, JsOutputMode, Target};
+use destack_artifact::Script;
+use destack_repository::{JsOutputMode, Target};
 use destack_source::{ModuleId, PackageId};
 
 use super::super::{JsDependencyTarget, JsLinker, ModuleSet, OutputGraph, OutputId, OutputLayout};
@@ -20,7 +20,7 @@ impl<'a> JsLinker<'a> {
         module: &js::Module,
         specifier: &str,
         item: &js::DependencyItem,
-    ) -> Option<(String, (String, u8, Option<String>, Option<u8>))> {
+    ) -> Option<(String, (String, u8, Option<String>))> {
         let imported_name = item.name.map(|name| match name {
             js::Name::Identifier(name) | js::Name::String(name) => {
                 module.strings.get(name).to_string()
@@ -45,7 +45,6 @@ impl<'a> JsLinker<'a> {
             specifier.to_string(),
             Self::import_mode_tag(item.binding),
             imported_name,
-            item.form.map(Self::import_form_tag),
         );
 
         Some((local_binding, source))
@@ -60,22 +59,13 @@ impl<'a> JsLinker<'a> {
         }
     }
 
-    /// Return one stable hashable tag for one import form.
-    fn import_form_tag(form: js::DependencyForm) -> u8 {
-        match form {
-            js::DependencyForm::Type => 0,
-            js::DependencyForm::Plain => 1,
-        }
-    }
-
     /// Deduplicate output-local import bindings across concatenated modules.
     pub(super) fn rewrite_output_script_imports(
         &self,
         modules: &mut [OutputModule],
     ) -> LinkResult<()> {
         let mut imported_specifiers = HashSet::<String>::new();
-        let mut imported_bindings =
-            HashMap::<String, (String, u8, Option<String>, Option<u8>)>::new();
+        let mut imported_bindings = HashMap::<String, (String, u8, Option<String>)>::new();
 
         // normalize one module at a time in stable output order
         for (module_id, module) in modules.iter_mut() {
@@ -93,7 +83,6 @@ impl<'a> JsLinker<'a> {
                 let statement = module.tree.get(statement_id).clone();
 
                 let js::Statement::Import {
-                    form,
                     target,
                     items,
                     attributes,
@@ -105,8 +94,8 @@ impl<'a> JsLinker<'a> {
                 };
                 let items = items.unwrap_or_default();
 
-                // keep type imports and attributed imports untouched here
-                if form == js::DependencyForm::Type || attributes.is_some() {
+                // keep attributed imports untouched here
+                if attributes.is_some() {
                     let specifier = module.strings.get(target).to_string();
                     imported_specifiers.insert(specifier);
                     normalized_roots.push(root);
@@ -174,59 +163,6 @@ impl<'a> JsLinker<'a> {
             }
 
             module.roots = normalized_roots;
-        }
-
-        Ok(())
-    }
-
-    /// Load one emitted structured script for linking.
-    pub(crate) fn script_for_module(&self, module_id: ModuleId) -> LinkResult<Script> {
-        let script = self.script(module_id)?;
-        if script.ecmascript_module().is_none() {
-            return Err(LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!(
-                    "expected ECMAScript script for module {:?} target '{}'",
-                    module_id,
-                    self.target_name()
-                ),
-            });
-        }
-
-        Ok(script.as_ref().clone())
-    }
-
-    /// Return the script format for one linked JS target.
-    pub(crate) fn js_output_format(&self) -> LinkResult<js::ScriptFormat> {
-        match self.target.emit {
-            EmitFormat::Js => Ok(js::ScriptFormat::JavaScript),
-            EmitFormat::Ts => Ok(js::ScriptFormat::TypeScript),
-            other => Err(LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("unsupported linked JS output: {other:?}"),
-            }),
-        }
-    }
-
-    /// Validate that linked JS printing uses one supported output format.
-    pub(super) fn validate_script_print_format(&self) -> LinkResult<()> {
-        // linked JS printing is still esm-only
-        if let Some(format) = self.target.js.output.format
-            && format != JsOutputFormat::Esm
-        {
-            let format = match format {
-                JsOutputFormat::Esm => "esm",
-                JsOutputFormat::Iife => "iife",
-            };
-
-            return Err(LinkError::InvalidTarget {
-                anchor: self.package_id.into(),
-                package: self.package_id,
-                target: *self.target_id,
-                message: format!("output.format '{format}' is not implemented yet"),
-            });
         }
 
         Ok(())
@@ -309,11 +245,9 @@ impl Compiler {
         module: &js::Module,
         items: &[js::LocalNodeId<js::DependencyItem>],
     ) -> bool {
-        items.iter().all(|item_id| {
-            let item = module.tree.get(*item_id);
-
-            item.binding == js::DependencyBinding::Named && item.value.is_none()
-        })
+        items
+            .iter()
+            .all(|item_id| module.tree.get(*item_id).binding == js::DependencyBinding::Named)
     }
 
     /// Build one resolved JS dependency target from statement metadata.

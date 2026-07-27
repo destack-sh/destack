@@ -1,12 +1,12 @@
 use crate::emit::js;
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use destack_artifact::{Data, EmitFormat, Script, ScriptBody, ScriptLanguage};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+use destack_artifact::{Data, Script};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::Module;
 use destack_source::{Content, Loader, ModuleId};
-use serde_json::Value as JsonValue;
+use serde_json::Value;
 
 use crate::link::TargetLocation;
 use crate::{LinkError, LinkResult};
@@ -32,7 +32,6 @@ fn insert_bound_value_statement(
     let binding_name_id = strings.intern(binding_name);
     let pattern = tree.insert_from_source_any(
         js::Pattern::Binding {
-            mutability: None,
             name: binding_name_id,
         },
         module_id,
@@ -42,7 +41,6 @@ fn insert_bound_value_statement(
     let declarator = tree.insert_from_source_any(
         js::Declarator {
             pattern,
-            ty: None,
             value: Some(value),
         },
         module_id,
@@ -51,8 +49,7 @@ fn insert_bound_value_statement(
 
     tree.insert_from_source_any(
         js::Statement::Let {
-            export: None,
-            is_ambient: false,
+            is_exported: false,
             mutability: js::Mutability::Immutable,
             declarators: vec![declarator],
         },
@@ -74,10 +71,8 @@ fn insert_default_export_statement(
     let export_item = tree.insert_from_source_any(
         js::DependencyItem {
             binding: js::DependencyBinding::Named,
-            form: Some(js::DependencyForm::Plain),
             name: Some(js::Name::Identifier(binding_name_id)),
             alias: Some(default_name_id),
-            value: None,
         },
         module_id,
         anchor,
@@ -86,7 +81,6 @@ fn insert_default_export_statement(
 
     tree.insert_from_source_any(
         js::Statement::Export {
-            form: js::DependencyForm::Plain,
             target: None,
             target_module: None,
             items: vec![export_item],
@@ -120,24 +114,24 @@ fn insert_json_expression(
     strings: &mut StringPool,
     module_id: ModuleId,
     anchor: dir::LocalNodeIdAny,
-    value: &JsonValue,
+    value: &Value,
 ) -> LinkResult<js::LocalNodeId<js::Expression>> {
     match value {
-        JsonValue::Null => Ok(tree.insert_from_source_any(
+        Value::Null => Ok(tree.insert_from_source_any(
             js::Expression::ScalarLiteral {
                 value: js::ScalarLiteral::Null,
             },
             module_id,
             anchor,
         )),
-        JsonValue::Bool(value) => Ok(tree.insert_from_source_any(
+        Value::Bool(value) => Ok(tree.insert_from_source_any(
             js::Expression::ScalarLiteral {
                 value: js::ScalarLiteral::Boolean(*value),
             },
             module_id,
             anchor,
         )),
-        JsonValue::Number(value) => {
+        Value::Number(value) => {
             let number = value.as_f64().ok_or_else(|| LinkError::Internal {
                 anchor: (module_id.package_id).into(),
                 package: module_id.package_id,
@@ -152,10 +146,10 @@ fn insert_json_expression(
                 anchor,
             ))
         }
-        JsonValue::String(value) => Ok(insert_string_expression(
+        Value::String(value) => Ok(insert_string_expression(
             tree, strings, module_id, anchor, value,
         )),
-        JsonValue::Array(values) => {
+        Value::Array(values) => {
             let mut elements = Vec::with_capacity(values.len());
 
             for value in values {
@@ -174,7 +168,7 @@ fn insert_json_expression(
                 anchor,
             ))
         }
-        JsonValue::Object(values) => {
+        Value::Object(values) => {
             let mut properties = Vec::with_capacity(values.len());
 
             for (name, value) in values {
@@ -182,7 +176,6 @@ fn insert_json_expression(
                 let key = js::Key::Name(js::Name::String(strings.intern(name)));
                 let property = tree.insert_from_source_any(
                     js::Property::Field {
-                        modifiers: None,
                         key,
                         value,
                         is_shorthand: false,
@@ -232,7 +225,6 @@ fn insert_binary_expression(
             path: js::Path {
                 segments: smallvec::smallvec![strings.intern(UINT8_ARRAY_NAME)],
             },
-            generic_arguments: vec![],
         },
         module_id,
         anchor,
@@ -243,7 +235,6 @@ fn insert_binary_expression(
     tree.insert_from_source_any(
         js::Expression::New {
             left: constructor,
-            generic_arguments: vec![],
             arguments: vec![argument],
         },
         module_id,
@@ -355,20 +346,8 @@ impl<'a> JsLinker<'a> {
             roots,
             strings,
         };
-        let language = match self.target.emit {
-            EmitFormat::Js => ScriptLanguage::JavaScript,
-            EmitFormat::Ts => ScriptLanguage::TypeScript,
-            other => {
-                return Err(LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message: format!("unsupported linked JS language: {other:?}"),
-                });
-            }
-        };
         Ok(Script {
-            language,
-            body: ScriptBody::EcmaScript(script_module),
+            module: script_module,
             map: None,
             has_top_level_side_effects: false,
         })
@@ -403,7 +382,7 @@ impl<'a> JsLinker<'a> {
                     ),
                 });
             };
-            let encoded = BASE64_STANDARD.encode(content);
+            let encoded = STANDARD.encode(content);
 
             return Ok(insert_string_expression(
                 tree, strings, module.id, anchor, &encoded,

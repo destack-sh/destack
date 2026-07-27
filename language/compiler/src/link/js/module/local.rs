@@ -35,7 +35,6 @@ impl JsLinker<'_> {
                 path: js::Path {
                     segments: smallvec::smallvec![synthetic_default_name],
                 },
-                generic_arguments: vec![],
             },
             statement_id,
         );
@@ -95,17 +94,12 @@ impl JsLinker<'_> {
                 continue;
             }
 
-            let pattern = module.tree.insert_from(
-                js::Pattern::Binding {
-                    mutability: None,
-                    name: binding_name,
-                },
-                item_id,
-            );
+            let pattern = module
+                .tree
+                .insert_from(js::Pattern::Binding { name: binding_name }, item_id);
             let value = if is_namespace {
                 let property = module.tree.insert_from(
                     js::Property::Field {
-                        modifiers: None,
                         key: js::Key::Name(js::Name::Identifier(default_name)),
                         value: resource_value,
                         is_shorthand: false,
@@ -124,7 +118,6 @@ impl JsLinker<'_> {
             let declarator = module.tree.insert_from(
                 js::Declarator {
                     pattern,
-                    ty: None,
                     value: Some(value),
                 },
                 statement_id,
@@ -138,8 +131,7 @@ impl JsLinker<'_> {
         }
 
         let replacement = js::Statement::Let {
-            export: None,
-            is_ambient: false,
+            is_exported: false,
             mutability: js::Mutability::Immutable,
             declarators,
         };
@@ -209,7 +201,6 @@ impl JsLinker<'_> {
                 )?;
                 let pattern = module.tree.insert_from(
                     js::Pattern::Binding {
-                        mutability: None,
                         name: local_binding_name,
                     },
                     item_id,
@@ -222,7 +213,6 @@ impl JsLinker<'_> {
                 let declarator = module.tree.insert_from(
                     js::Declarator {
                         pattern,
-                        ty: None,
                         value: Some(value),
                     },
                     statement_id,
@@ -260,7 +250,6 @@ impl JsLinker<'_> {
             );
             let pattern = module.tree.insert_from(
                 js::Pattern::Binding {
-                    mutability: None,
                     name: local_binding_name,
                 },
                 item_id,
@@ -273,7 +262,6 @@ impl JsLinker<'_> {
             let declarator = module.tree.insert_from(
                 js::Declarator {
                     pattern,
-                    ty: None,
                     value: Some(value),
                 },
                 statement_id,
@@ -287,8 +275,7 @@ impl JsLinker<'_> {
         }
 
         let replacement = js::Statement::Let {
-            export: None,
-            is_ambient: false,
+            is_exported: false,
             mutability: js::Mutability::Immutable,
             declarators,
         };
@@ -417,7 +404,6 @@ impl JsLinker<'_> {
                 path: js::Path {
                     segments: smallvec::smallvec![content],
                 },
-                generic_arguments: vec![],
             },
             statement_id,
         );
@@ -490,7 +476,6 @@ impl JsLinker<'_> {
         for property_id in module.tree.get_nodes::<js::Property>() {
             let property = module.tree.get(property_id).clone();
             let js::Property::Field {
-                modifiers: None,
                 key: js::Key::Name(js::Name::Identifier(key)),
                 value,
                 is_shorthand,
@@ -505,10 +490,8 @@ impl JsLinker<'_> {
 
             let is_target_value = matches!(
                 module.tree.get(value),
-                js::Expression::Path { path, generic_arguments }
-                    if path.segments.len() == 1
-                        && path.segments[0] == target_name
-                        && generic_arguments.is_empty()
+                js::Expression::Path { path }
+                    if path.segments.len() == 1 && path.segments[0] == target_name
             );
             if is_shorthand && is_target_value {
                 continue;
@@ -519,7 +502,6 @@ impl JsLinker<'_> {
                     path: js::Path {
                         segments: smallvec::smallvec![target_name],
                     },
-                    generic_arguments: vec![],
                 },
                 property_id,
             );
@@ -606,21 +588,14 @@ impl JsLinker<'_> {
             );
             let property = module.tree.insert_from(
                 js::Property::Method {
-                    modifiers: None,
-                    key: Some(key),
+                    key,
+                    role: Some(js::FunctionRole::Getter),
                     signature: js::FunctionSignature {
                         asynchrony: js::Asynchrony::Sync,
-                        role: Some(js::FunctionRole::Getter),
-                        form: js::FunctionForm::Function,
-                        generic_parameters: Vec::new(),
-                        this_parameter: None,
                         parameters: Vec::new(),
-                        return_type: None,
-                        is_abstract: false,
-                        is_override: false,
                         is_generator: false,
                     },
-                    body: Some(block),
+                    body: block,
                 },
                 statement_id,
             );

@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
-use crate::emit::js::ScriptFormat;
 use crate::{LinkError, LinkResult};
 use destack_core::{StableHasher, stable_hash_bytes};
 use destack_repository::{JsOutputFormat, JsOutputMode, Module, Target};
@@ -66,10 +65,8 @@ impl OutputLayout {
         root_dir: Option<&Path>,
         target: &Target,
         module: &Module,
-        format: ScriptFormat,
     ) -> Result<OutputLocation, String> {
-        let output_path =
-            Self::module_output_path(package_dir, root_dir, target, module, format.extension())?;
+        let output_path = Self::module_output_path(package_dir, root_dir, target, module, "js")?;
 
         Ok(OutputLocation::new(output_path))
     }
@@ -281,13 +278,11 @@ impl<'a> JsLinker<'a> {
                         .to_string(),
                 });
             };
-            let format = JsLinker::js_output_format(self)?;
             let output_location = OutputLayout::module_output_location(
                 self.package_dir,
                 self.root_dir,
                 self.target,
                 self.module(module_id)?.as_ref(),
-                format,
             )
             .map_err(|message| LinkError::Internal {
                 anchor: (self.package_id).into(),
@@ -416,7 +411,6 @@ impl<'a> JsLinker<'a> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use crate::emit::js::ScriptFormat;
     use destack_repository::{Module, Target};
     use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 
@@ -496,7 +490,7 @@ mod tests {
             Some(Path::new("/workspace/pkg/src")),
             &target,
             &module,
-            ScriptFormat::JavaScript.extension(),
+            "js",
         )
         .unwrap();
 
