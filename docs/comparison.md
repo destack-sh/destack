@@ -724,7 +724,7 @@ let handle = tokio::spawn(async { fetch().await }); // leaks if never awaited
 
 ```ds
 await using scope = TaskScope.open();
-const task = scope.spawn(() => fetch()); // owned: cancelled or joined before the scope exits
+const task = scope.spawn(async (): Task<Response> => await fetch()); // explicit consuming task
 ```
 
 #### Workers

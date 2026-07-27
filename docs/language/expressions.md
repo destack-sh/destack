@@ -130,13 +130,14 @@ Of course, closures with custom capture behavior must still follow general owner
 
 ## Continuations
 
-Async functions and generators are closures that can pause and be resumed later via stackful `Continuation`s: the runtime parks the live frame and hands back an ordinary owned value whose one-shot `resume(value)` continues the frame and whose `Drop` cancels it, under the usual ownership rules.
-`Promise`, `Generator`, and `AsyncGenerator` are standard library types that store such continuations in ordinary fields:
+Async functions and generators are closures that can pause and be resumed later via stackful `Continuation`s: the runtime parks the live frame and hands back an ordinary owned value whose one-shot `resume(value)` continues the frame, whose `complete(value)` enters generator completion, and whose `Drop` destroys retained execution without re-entering it.
+Generators store continuations directly, while promises and tasks expose completion under their respective observation and ownership rules:
 
 | Form | Meaning |
 |------|---------|
-| `Continuation<TResume, TYield, TReturn>` | one-shot owned continuation, `Drop` cancels it |
-| `Promise<T>` | Worker-local async result object |
+| `Continuation<TResume, TYield, TReturn>` | one-shot owned continuation, `Drop` destroys it |
+| `Promise<T>` | repeatable Worker-local completion for a copyable value |
+| `Task<T>` | consuming Worker-local completion with cancellation and scope ownership |
 | `Generator<Y, R, N>` | Worker-local suspended generator |
 | `AsyncGenerator<Y, R, N>` | Worker-local suspended async generator |
 | produced `T` | value eventually produced by async code |
@@ -157,22 +158,28 @@ async function read(user: User): Promise<string> {
 ## Tasks
 
 Stackful continuations and (relatively) cheap Workers make Destack's concurrency ergonomic and _structured_ by default, while also keeping TypeScript's familiar `Promise` behavior: calling an async function starts it eagerly and returns a worker-local `Promise<T>` that can be stored, combined, and awaited as usual.
-There is no special machinery required for this - pending handles live in ordinary places (like a `Promise`'s reactions, the scheduler's queue, a `Task`), so structure is just storage and cancellation is just `Drop`.
-Nice.
-Work that outlives its frame can be spawned into an explicit `TaskScope`, which cannot exit until its children complete or are cancelled (the structured concurrency model of Trio and Kotlin):
+Pending handles live in ordinary places such as a `Promise`'s reactions, the scheduler queue, or a `Task`, while task cancellation remains an explicit cooperative operation.
+Work that outlives its frame can be spawned into an explicit `TaskScope` following the structured concurrency model of Trio and Kotlin.
+Asynchronous disposal cancels pending children and waits for their cleanup:
 
 ```ds
 async function crawl(seeds: [Url]): Promise<Report> {
     await using scope = TaskScope.open();
 
-    const pages = seeds.map((seed) => scope.spawn(() => fetch(seed)));
-    const results = await Promise.all(pages);
+    const tasks = seeds.map((seed) =>
+        scope.spawn(async (): Task<Page> => await fetch(seed)),
+    );
+    const pages = [];
+    for (const task of tasks) {
+        pages.push(await task);
+    }
 
-    return Report.from(results);
-} // the scope cannot exit while children are pending; pending children are cancelled on unwind
+    return Report.from(pages);
+} // asynchronous disposal cancels pending children and waits for cleanup
 ```
 
-Cancelling a task resumes its parked continuation into the unwind path at its suspension point, cleanup (`using` / `finally` / `Drop`) runs deterministically, and the unwind stops at the task boundary - the Worker carries on, and `Cancelled` surfaces only at `join()`.
+Cancelling a task resumes its parked continuation into the cancellation path at its suspension point, cleanup (`using` / `finally` / `Drop`) runs deterministically, and cancellation stops at the task boundary while the Worker carries on.
+Awaiting a cancelled task enters the awaiting coroutine's cancellation path.
 By the time a frame exits normally, everything it started must be awaited, returned, or handed to a scope - the `no-floating-promises` rule, `deny` by default in `.ds` (strict TypeScript codebases already lint this, Destack just means it) - and when a frame unwinds instead, its still-pending children are cancelled:
 
 ```ds
