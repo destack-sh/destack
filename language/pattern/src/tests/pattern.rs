@@ -73,7 +73,7 @@ impl TestPattern {
 
         // compile predicates into the shared metavariable table
         for predicate in &self.predicates {
-            pattern.add_predicate(predicate.clone(), self.strings.clone())?;
+            pattern.add_predicate(predicate.clone())?;
         }
 
         Ok(pattern)

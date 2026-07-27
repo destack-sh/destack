@@ -226,7 +226,7 @@ impl TestMatcher {
             let name = format!("<predicate-{}>", index + 1);
             let predicate = test_file(&name, predicate);
             pattern
-                .add_predicate(predicate, strings.clone())
+                .add_predicate(predicate)
                 .expect("compile test predicate");
         }
 
@@ -247,7 +247,6 @@ impl TestMatcher {
             .expect("match test pattern");
 
         TestMatches {
-            strings,
             pattern,
             source,
             matches,
@@ -257,8 +256,6 @@ impl TestMatcher {
 
 /// Complete results of one matcher exercise.
 struct TestMatches {
-    /// Strings shared by the pattern and candidate.
-    strings: Arc<StringPool>,
     /// The compiled pattern.
     pattern: Pattern,
     /// The candidate source.
@@ -346,7 +343,7 @@ impl TestMatches {
     fn format_bindings(&self, pattern_match: &PatternMatch) -> String {
         let mut output = String::new();
         for (variable_id, variable) in self.pattern.metavariables().iter() {
-            let name = self.strings.get(variable.name());
+            let name = self.pattern.strings().get(variable.name());
             let binding = pattern_match.bindings.values[variable_id.0 as usize]
                 .as_ref()
                 .expect("named metavariable binding");
@@ -360,7 +357,9 @@ impl TestMatches {
     fn format_binding(&self, binding: &Binding) -> String {
         match binding {
             Binding::Node(node) => format!("node={:?}", self.source.node_text(*node)),
-            Binding::Name { name, .. } => format!("name={:?}", self.strings.get(*name)),
+            Binding::Name { name, .. } => {
+                format!("name={:?}", self.pattern.strings().get(*name))
+            }
             Binding::Nodes(nodes) => {
                 let nodes = nodes
                     .iter()

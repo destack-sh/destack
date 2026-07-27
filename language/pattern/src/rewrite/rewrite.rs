@@ -61,12 +61,8 @@ impl Rewrite {
     }
 
     /// Add one predicate expression to the search pattern.
-    pub fn add_predicate(
-        &mut self,
-        file: Arc<File>,
-        strings: Arc<StringPool>,
-    ) -> Result<(), DiagnosticCollection> {
-        self.pattern.add_predicate(file, strings)
+    pub fn add_predicate(&mut self, file: Arc<File>) -> Result<(), DiagnosticCollection> {
+        self.pattern.add_predicate(file)
     }
 
     /// Return the search pattern.

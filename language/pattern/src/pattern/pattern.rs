@@ -1,10 +1,14 @@
-use destack_core::Arena;
+use std::sync::Arc;
+
+use destack_core::{Arena, StringPool};
 
 use crate::{Fragment, FragmentId, MetavariableTable, Predicate, PredicateId, Tree};
 
 /// A compiled pattern.
 #[derive(Debug)]
 pub struct Pattern {
+    /// The strings referenced by parsed DIR and metavariable names.
+    pub(crate) strings: Arc<StringPool>,
     /// The operations evaluated for each candidate node.
     pub(crate) tree: Tree,
     /// The parsed structural fragments.
@@ -16,6 +20,11 @@ pub struct Pattern {
 }
 
 impl Pattern {
+    /// Return the strings referenced by this pattern.
+    pub fn strings(&self) -> &Arc<StringPool> {
+        &self.strings
+    }
+
     /// Return the pattern operations.
     pub fn tree(&self) -> &Tree {
         &self.tree

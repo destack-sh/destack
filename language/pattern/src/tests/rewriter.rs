@@ -132,7 +132,7 @@ impl TestRewriter {
             let name = format!("<predicate-{}>", index + 1);
             let predicate = test_file(&name, predicate);
             rewrite
-                .add_predicate(predicate, strings.clone())
+                .add_predicate(predicate)
                 .expect("compile test rewrite predicate");
         }
 

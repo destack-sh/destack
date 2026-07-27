@@ -135,6 +135,7 @@ impl Compiler {
         };
 
         Pattern {
+            strings: self.strings,
             tree,
             fragments,
             predicates: Arena::new(),
@@ -516,12 +517,8 @@ impl Pattern {
     }
 
     /// Add one predicate expression to this pattern.
-    pub fn add_predicate(
-        &mut self,
-        file: Arc<File>,
-        strings: Arc<StringPool>,
-    ) -> Result<(), DiagnosticCollection> {
-        let mut compiler = Compiler::new(strings);
+    pub fn add_predicate(&mut self, file: Arc<File>) -> Result<(), DiagnosticCollection> {
+        let mut compiler = Compiler::new(self.strings.clone());
         let predicate = compiler.compile_predicate(file, &self.metavariables)?;
         let predicate = PredicateId(self.predicates.allocate(predicate));
         let predicate = NodeId(self.tree.nodes.allocate(Node::Predicate(predicate)));
