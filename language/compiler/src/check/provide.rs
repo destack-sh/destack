@@ -476,43 +476,18 @@ impl Compiler {
         let mut inference = FxIndexSet::default();
         let mut modules = FxIndexMap::default();
 
-        // reach inherent extensions whose target loads here
-        let referenced = graph.transitive_reference_dependencies(component);
-        let mut reachable = referenced.clone();
-        if !graph.inherent_closure_contains(component) {
-            // treat language items and globals as loaded everywhere
-            let implicit = global.implicit_modules().collect::<FxIndexSet<_>>();
-            for extension in graph.inherent_extensions() {
-                // skip extensions whose target does not load here
-                let loaded = implicit.contains(&extension.target.module_id)
-                    || graph
-                        .reference_component(extension.target.module_id)
-                        .is_some_and(|target| referenced.contains(&target));
-                let Some(source) = graph.reference_component(extension.symbol.module_id) else {
-                    continue;
-                };
-                if !loaded || source == component || reachable.contains(&source) {
-                    continue;
-                }
-
-                // reach the extension's component and its dependencies
-                reachable.push(source);
-                for dependency in graph.transitive_reference_dependencies(source) {
-                    if !reachable.contains(&dependency) {
-                        reachable.push(dependency);
-                    }
-                }
-            }
-        }
+        // resolve reference and Inherent Extension components
+        let external = graph.external_reference_components(component, global.implicit_modules());
+        let inherent = external
+            .inherent
+            .iter()
+            .flat_map(|component| graph.reference_members(*component))
+            .copied()
+            .collect::<FxIndexSet<_>>();
 
         // bind each reachable member to its checked component
-        let mut inherent = FxIndexSet::default();
-        for reference in reachable.iter().copied() {
-            let is_inherent = !referenced.contains(&reference);
+        for reference in external.components() {
             for module in graph.reference_members(reference) {
-                if is_inherent {
-                    inherent.insert(*module);
-                }
                 let component =
                     graph
                         .inference_component(*module)
@@ -525,7 +500,7 @@ impl Compiler {
         }
 
         Ok(ExternalComponents {
-            references: reachable.into_iter().collect(),
+            references: external.components().collect(),
             inference,
             modules,
             inherent,
