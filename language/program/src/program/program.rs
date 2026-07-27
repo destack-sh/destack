@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AllocationSiteId, BindingId, CallSite, CallSiteId, Continuation, ContinuationSite,
     ContinuationSiteId, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable,
-    DynamicTableId, Error, FrameLayout, FrameLayoutId, FrameSlot, FrameState, FrameStateId,
-    FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
+    DynamicTableId, Error, FrameLayout, FrameLayoutId, FramePoint, FrameSlot, FrameState,
+    FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
     GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable,
     ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
     SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, SuspensionSite,
@@ -640,7 +640,7 @@ impl Program {
         visit_heap_root_slots(&trace_map, 0, bytes, ReferenceRange::All, visit).map_err(Error::from)
     }
 
-    /// Visit mutable heap roots retained by one suspended continuation.
+    /// Visit mutable heap roots retained by one continuation.
     pub fn visit_continuation_root_slots(
         &self,
         continuation: &mut Continuation,
@@ -707,8 +707,8 @@ impl Program {
         Ok(())
     }
 
-    /// Visit mutable frame pointers from one byte range.
-    pub fn visit_byte_frame_pointers(
+    /// Visit mutable frame addresses from one byte range.
+    pub fn visit_byte_frame_addresses(
         &self,
         ty: TypeId,
         bytes: &mut [u8],
@@ -733,7 +733,7 @@ impl Program {
 
         self.traces
             .view(self.sections())
-            .visit_frame_pointer_slots(layout.trace, bytes, visit)
+            .visit_frame_address_slots(layout.trace, bytes, visit)
             .map_err(Error::from)
     }
 
@@ -781,13 +781,13 @@ impl Program {
         visit_heap_root_slots(&trace_map, 0, bytes, ReferenceRange::All, visit).map_err(Error::from)
     }
 
-    /// Return the program point for one frame state.
-    pub fn frame_point(&self, frame_state: FrameStateId) -> Option<ProgramPoint> {
+    /// Return the logical coordinate for one frame state.
+    pub fn frame_point(&self, frame_state: FrameStateId) -> Option<FramePoint> {
         Some(self.frame_state(frame_state)?.point)
     }
 
-    /// Return one frame state id for one program point.
-    pub fn frame_state_at(&self, point: ProgramPoint) -> Option<FrameStateId> {
+    /// Return one frame state id for one logical coordinate.
+    pub fn frame_state_at(&self, point: FramePoint) -> Option<FrameStateId> {
         self.frames.state_at(self.sections(), point)
     }
 }

@@ -6,7 +6,7 @@ use destack_core::{
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{ProgramPoint, TypeId};
+use super::{FramePoint, TypeId};
 
 /// Program frame states and their canonical layouts.
 #[repr(C)]
@@ -32,12 +32,8 @@ impl FrameTable {
         self.states(sections).get(state.index())
     }
 
-    /// Return the frame state at one program point.
-    pub fn state_at(
-        &self,
-        sections: SectionImage<'_>,
-        point: ProgramPoint,
-    ) -> Option<FrameStateId> {
+    /// Return the frame state at one logical frame coordinate.
+    pub fn state_at(&self, sections: SectionImage<'_>, point: FramePoint) -> Option<FrameStateId> {
         let states = self.states(sections);
         let index = states
             .binary_search_by_key(&point, |state| state.point)
@@ -46,7 +42,7 @@ impl FrameTable {
         Some(FrameStateId(index as u32))
     }
 
-    /// Return all frame states in program point order.
+    /// Return all frame states in logical coordinate order.
     pub fn states<'a>(&self, sections: SectionImage<'a>) -> &'a [FrameState] {
         sections.entries(self.states)
     }
@@ -90,7 +86,7 @@ impl FrameTable {
 /// Mutable Program frame table before section packing.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FrameTableBuilder {
-    /// Frame states in program point order.
+    /// Frame states in logical coordinate order.
     states: Vec<FrameState>,
     /// Canonical frame layouts in frame layout id order.
     layouts: Vec<FrameLayoutBuilder>,
@@ -102,7 +98,7 @@ impl FrameTableBuilder {
         Self::default()
     }
 
-    /// Set frame states in program point order.
+    /// Set frame states in logical coordinate order.
     pub fn states(mut self, states: impl IntoIterator<Item = FrameState>) -> Self {
         self.states = states.into_iter().collect();
 
@@ -117,19 +113,19 @@ impl FrameTableBuilder {
     }
 }
 
-/// Canonical frame state at one executable program point.
+/// Canonical state at one logical frame coordinate.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FrameState {
-    /// The program point represented by this state.
-    pub point: ProgramPoint,
+    /// The logical frame coordinate represented by this state.
+    pub point: FramePoint,
     /// The exact canonical layout of the live frame values.
     pub layout: FrameLayoutId,
 }
 
 impl FrameState {
     /// Create one canonical frame state.
-    pub const fn new(point: ProgramPoint, layout: FrameLayoutId) -> Self {
+    pub const fn new(point: FramePoint, layout: FrameLayoutId) -> Self {
         Self { point, layout }
     }
 }
@@ -269,6 +265,6 @@ impl FrameLayoutId {
     }
 }
 
-const _: () = assert!(size_of::<FrameState>() == 12);
+const _: () = assert!(size_of::<FrameState>() == 16);
 const _: () = assert!(size_of::<FrameLayout>() == 16);
 const _: () = assert!(size_of::<FrameSlot>() == 12);
