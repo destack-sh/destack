@@ -120,7 +120,7 @@ impl Value {
             // SAFETY: the indirect storage kind selects an initialized Arc
             let words = unsafe { &self.storage.indirect };
 
-            Self::indirect(self.ty, words.clone())
+            Self::indirect(self.ty, (**words).clone())
         }
     }
 

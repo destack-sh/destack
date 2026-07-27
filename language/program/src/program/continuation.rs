@@ -4,14 +4,14 @@ use destack_heap::{HeapResult, RootSlot};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, Result};
+use crate::Result;
 
-use super::{FrameStateId, FunctionId, Program, Word};
+use super::{FrameStateId, Program, Word};
 
-/// One suspended coroutine call chain.
+/// One canonical coroutine call chain.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Continuation {
-    /// Root completion mode for the suspended call chain.
+    /// Root completion mode for the call chain.
     completion: Completion,
     /// Canonical frame states in caller to callee order.
     states: Arc<[FrameStateId]>,
@@ -19,7 +19,7 @@ pub struct Continuation {
     bytes: Arc<[u8]>,
 }
 
-/// Root completion mode preserved by one suspended continuation.
+/// Root completion mode preserved by one coroutine call chain.
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Completion {
@@ -38,20 +38,6 @@ pub struct ContinuationTable {
     vacant: Vec<u32>,
 }
 
-/// One ready or suspended coroutine execution.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ContinuationEntry {
-    /// A coroutine body that has not entered its first instruction.
-    Ready {
-        /// The coroutine body function.
-        function: FunctionId,
-        /// Captured arguments in parameter order.
-        arguments: Arc<[Word]>,
-    },
-    /// A coroutine body suspended at an await or yield operation.
-    Suspended(Continuation),
-}
-
 /// One generation-checked continuation identity.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -63,11 +49,11 @@ struct ContinuationSlot {
     /// Generation required by the current id.
     generation: u32,
     /// Live continuation when this slot is occupied.
-    continuation: Option<ContinuationEntry>,
+    continuation: Option<Continuation>,
 }
 
 impl Continuation {
-    /// Create one suspended coroutine call chain.
+    /// Create one canonical coroutine call chain.
     pub fn new(
         completion: Completion,
         states: impl Into<Arc<[FrameStateId]>>,
@@ -99,7 +85,7 @@ impl Continuation {
         &self.states
     }
 
-    /// Return the innermost suspended frame state.
+    /// Return the innermost frame state.
     pub fn innermost(&self) -> Option<FrameStateId> {
         self.states.last().copied()
     }
@@ -125,7 +111,7 @@ impl ContinuationTable {
     }
 
     /// Insert one continuation and return its runtime identity.
-    pub fn insert(&mut self, continuation: ContinuationEntry) -> ContinuationId {
+    pub fn insert(&mut self, continuation: Continuation) -> ContinuationId {
         let Some(index) = self.vacant.pop() else {
             let index = self.slots.len() as u32;
             self.slots.push(ContinuationSlot {
@@ -142,7 +128,7 @@ impl ContinuationTable {
     }
 
     /// Consume one continuation selected by its exact generation.
-    pub fn take(&mut self, id: ContinuationId) -> Option<ContinuationEntry> {
+    pub fn take(&mut self, id: ContinuationId) -> Option<Continuation> {
         let index = id.index();
         let slot = self.slots.get_mut(index as usize)?;
         if slot.generation != id.generation() {
@@ -166,87 +152,10 @@ impl ContinuationTable {
                 continue;
             };
 
-            match continuation {
-                ContinuationEntry::Ready {
-                    function,
-                    arguments,
-                } => {
-                    let arguments = Arc::make_mut(arguments);
-                    Self::visit_arguments(program, *function, arguments, visit)?;
-                }
-                ContinuationEntry::Suspended(continuation) => {
-                    program.visit_continuation_root_slots(continuation, visit)?;
-                }
-            }
+            program.visit_continuation_root_slots(continuation, visit)?;
         }
 
         Ok(())
-    }
-
-    /// Visit captured arguments through the coroutine function parameters.
-    fn visit_arguments(
-        program: &Program,
-        function: FunctionId,
-        arguments: &mut [Word],
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<()> {
-        let parameters = program
-            .function_parameters(function)
-            .ok_or_else(|| Error::undefined_function(function))?;
-        let function_entry = program
-            .function(function)
-            .ok_or_else(|| Error::undefined_function(function))?;
-        let environment = function_entry.environment();
-        let mut expected_word_count = 0usize;
-
-        // determine the complete captured argument width
-        let types = environment.into_iter().chain(parameters.iter().copied());
-        for ty in types {
-            let byte_len = program
-                .type_byte_len(ty)
-                .ok_or_else(|| Error::undefined_type(ty))?;
-            expected_word_count += byte_len.div_ceil(Word::BYTE_LEN);
-        }
-        if arguments.len() != expected_word_count {
-            return Err(Error::ContinuationWordCountMismatch {
-                function,
-                expected: expected_word_count,
-                actual: arguments.len(),
-            });
-        }
-
-        // visit each captured value through its linked program type
-        let bytes = Word::bytes_mut(arguments);
-        let mut word_offset = 0usize;
-        let types = environment.into_iter().chain(parameters.iter().copied());
-        for ty in types {
-            let byte_len = program
-                .type_byte_len(ty)
-                .ok_or_else(|| Error::undefined_type(ty))?;
-            let word_count = byte_len.div_ceil(Word::BYTE_LEN);
-            let byte_offset = word_offset * Word::BYTE_LEN;
-            let argument = &mut bytes[byte_offset..byte_offset + byte_len];
-            program.visit_byte_root_slots(ty, argument, visit)?;
-            word_offset += word_count;
-        }
-
-        Ok(())
-    }
-}
-
-impl ContinuationEntry {
-    /// Fork this continuation entry through copy-on-write retained bytes.
-    fn fork(&self) -> Self {
-        match self {
-            Self::Ready {
-                function,
-                arguments,
-            } => Self::Ready {
-                function: *function,
-                arguments: arguments.clone(),
-            },
-            Self::Suspended(continuation) => Self::Suspended(continuation.fork()),
-        }
     }
 }
 
@@ -255,7 +164,7 @@ impl ContinuationSlot {
     fn fork(&self) -> Self {
         Self {
             generation: self.generation,
-            continuation: self.continuation.as_ref().map(ContinuationEntry::fork),
+            continuation: self.continuation.as_ref().map(Continuation::fork),
         }
     }
 }

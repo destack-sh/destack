@@ -96,17 +96,8 @@ pub enum Error {
         /// The missing frame layout id.
         frame_layout: FrameLayoutId,
     },
-    /// A suspended continuation contains no frames.
+    /// A continuation contains no frames.
     EmptyContinuation,
-    /// A ready continuation carries the wrong number of captured words.
-    ContinuationWordCountMismatch {
-        /// The coroutine function.
-        function: FunctionId,
-        /// The required captured word count.
-        expected: usize,
-        /// The supplied captured word count.
-        actual: usize,
-    },
     /// A waiter does not name a live suspended continuation.
     UndefinedWaiter {
         /// The undefined waiter.
@@ -263,14 +254,6 @@ impl fmt::Display for Error {
                 write!(formatter, "undefined frame layout {frame_layout:?}")
             }
             Self::EmptyContinuation => formatter.write_str("continuation contains no frames"),
-            Self::ContinuationWordCountMismatch {
-                function,
-                expected,
-                actual,
-            } => write!(
-                formatter,
-                "continuation for {function:?} requires {expected} words, found {actual}"
-            ),
             Self::UndefinedWaiter { waiter } => {
                 write!(formatter, "undefined waiter {waiter:?}")
             }
