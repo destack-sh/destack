@@ -515,6 +515,34 @@ fn test_parse_labeled_tuple_type() {
     });
 }
 
+/// Record labeled tuple names as their element main spans.
+#[test]
+fn test_record_labeled_tuple_main_spans() {
+    let test = TestParser::new("type T = (start: number, rest: ...string[])");
+    let mut parser = test.prepare();
+    let expression = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
+
+    TestParser::assert_no_errors(&parser);
+
+    // read both regular and spread tuple labels
+    assert_node!(parser.tree, expression, Expression::Declaration(declaration) => {
+        assert_node!(parser.tree, *declaration, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements, .. } => {
+                let start = parser.tree.get_main_span(elements[0]).expect("start label span");
+                let rest = parser.tree.get_main_span(elements[1]).expect("rest label span");
+
+                assert_eq!(parser.span_str(start), "start");
+                assert_eq!(parser.span_str(rest), "rest");
+            });
+        });
+    });
+}
+
 #[test]
 fn test_parse_labeled_tuple_type_complex() {
     let test = TestParser::new("type T = (importCode: string, nameMap: Record<string, string>)");

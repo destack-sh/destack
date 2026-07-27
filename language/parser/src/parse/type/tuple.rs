@@ -2,12 +2,15 @@ use crate::parse::context::TypeContext;
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{LocalNodeId, StringId, TokenType, TupleElement, TypeExpression};
+use destack_source::ByteRange;
 
 /// One labeled tuple element head.
 #[derive(Clone, Copy)]
 struct TupleLabel {
     /// The element label.
     name: StringId,
+    /// The label source range.
+    range: ByteRange,
     /// Whether the label carries an optional marker.
     is_optional: bool,
 }
@@ -47,7 +50,7 @@ impl Parser {
     /// rest: ...string[]
     /// ```
     fn parse_tuple_label(&mut self) -> ParserResult<TupleLabel> {
-        let (name, _) = self.eat_identifier_with_range()?;
+        let (name, range) = self.eat_identifier_with_range()?;
 
         // parse the optional marker
         let is_optional = if self.peek_is(TokenType::Maybe) {
@@ -60,7 +63,11 @@ impl Parser {
         // close the label
         self.eat_token(TokenType::Colon)?;
 
-        Ok(TupleLabel { name, is_optional })
+        Ok(TupleLabel {
+            name,
+            range,
+            is_optional,
+        })
     }
 
     /// Parse one type tuple element directly in type space.
@@ -122,13 +129,18 @@ impl Parser {
         // parse the rest payload
         let value = self.parse_type(context.nested())?;
 
-        Ok(self.insert_node(
+        let element = self.insert_node(
             TupleElement::Spread {
                 label: label.map(|label| label.name),
                 value,
             },
             self.range_since(start),
-        ))
+        );
+        if let Some(label) = label {
+            self.tree.set_main_range(element, label.range);
+        }
+
+        Ok(element)
     }
 
     /// Parse a regular tuple element.
@@ -157,7 +169,7 @@ impl Parser {
             false
         };
 
-        Ok(self.insert_node(
+        let element = self.insert_node(
             TupleElement::Element {
                 label: label.map(|label| label.name),
                 value,
@@ -165,7 +177,12 @@ impl Parser {
                 is_readonly: false,
             },
             self.range_since(start),
-        ))
+        );
+        if let Some(label) = label {
+            self.tree.set_main_range(element, label.range);
+        }
+
+        Ok(element)
     }
 
     /// Parse the rest of a type tuple after one unlabeled value head.
