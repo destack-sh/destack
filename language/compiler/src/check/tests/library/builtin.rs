@@ -8,7 +8,7 @@ use crate::tests::TestSession;
 fn test_check_library() {
     let session = TestSession::builder().build();
     let repository = session.repository();
-    let package = repository.builtin_package();
+    let package = repository.embedded_builtin();
     let target = TargetId::new(package.package_id(), "default");
     let profile = repository
         .profile_for_target(session.revision(), target)

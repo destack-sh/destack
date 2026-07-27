@@ -25,6 +25,54 @@ import { Math } from "destack:math";
 }
 
 #[test]
+fn test_import_resolves_authored_builtin_modules() {
+    let compiler = TestSession::builder()
+        .data(
+            "destack.json",
+            r#"
+{
+    "name": "destack"
+}
+"#,
+        )
+        .module(
+            "src/main.ds",
+            r#"
+import { absolute } from "destack:absolute";
+import { relative } from "./relative.ds";
+"#,
+        )
+        .module(
+            "src/absolute.ds",
+            r#"
+export const absolute = 1;
+"#,
+        )
+        .module(
+            "src/relative.ds",
+            r#"
+export const relative = 2;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_imported(
+        "src/main.ds",
+        DirRows::modules().with_summaries().with_import_stats(),
+        r#"
+import { absolute } from "destack:absolute";
+/// @module.edge relation=import specifier=destack:absolute module=destack://absolute.ds
+
+import { relative } from "./relative.ds";
+/// @module.edge relation=import specifier=./relative.ds module=destack://relative.ds
+
+/// @module.summary edges=2
+/// @import.stats roots=2 expressions=2 clauses=import:2,reexport:0
+"#,
+    );
+}
+
+#[test]
 fn test_import_reports_builtin_internal_subpath() {
     let compiler = TestSession::builder()
         .module(

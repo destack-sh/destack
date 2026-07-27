@@ -752,11 +752,16 @@ impl TestSession {
             .collect::<BTreeMap<_, _>>();
 
         // include builtin modules referenced by language item types
-        let package = repository.builtin_package().package_id();
-        for builtin in repository.builtin_package().files() {
-            let module_id = builtin.module_id(package);
+        for module_id in repository
+            .builtin_module_ids(revision)
+            .expect("builtin test modules should resolve")
+        {
+            let module = repository
+                .module(revision, module_id)
+                .expect("builtin test module lookup should work")
+                .expect("builtin test module should exist");
 
-            paths.insert(module_id, builtin.uri.to_string());
+            paths.insert(module_id, module.uri.to_string());
         }
 
         paths
@@ -1244,7 +1249,11 @@ impl TestSession {
             .collect::<Vec<_>>();
 
         // include builtin labels for language item references
-        for module_id in self.repository.builtin_package().module_ids() {
+        for module_id in self
+            .repository
+            .builtin_module_ids(self.revision)
+            .expect("builtin test modules should resolve")
+        {
             if module_id == entry.module.id {
                 continue;
             }

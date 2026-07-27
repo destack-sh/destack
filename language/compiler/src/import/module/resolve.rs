@@ -58,12 +58,8 @@ impl Compiler {
     ) -> CompilerResult<Option<ModuleId>> {
         let specifier_parts = ImportSpecifier::parse(specifier);
 
-        // resolve builtin module edges in builtin package space
-        if self
-            .repository
-            .builtin_package()
-            .contains_uri(state.module.uri.as_ref())
-        {
+        // resolve Builtin module edges in Builtin Package space
+        if self.repository.is_builtin_package(state.module.package_id) {
             self.resolve_builtin_module(state, anchor, specifier, specifier_parts)
         }
         // resolve user module edges through package space
@@ -72,7 +68,7 @@ impl Compiler {
         }
     }
 
-    /// Resolve one builtin package module.
+    /// Resolve one Builtin Package module.
     fn resolve_builtin_module(
         &self,
         state: &mut ImportState<'_>,
@@ -80,10 +76,11 @@ impl Compiler {
         specifier: &str,
         specifier_parts: ImportSpecifier,
     ) -> CompilerResult<Option<ModuleId>> {
-        let builtin = self.repository.builtin_package();
-
         // resolve absolute builtin specifier
-        if let Some(uri) = builtin.module_uri_for_internal_specifier(specifier) {
+        if let Some(uri) = self
+            .repository
+            .builtin_module_uri_for_internal_specifier(state.revision, specifier)?
+        {
             return self.resolve_module_uri(state, anchor, specifier, &uri);
         }
 
@@ -91,8 +88,11 @@ impl Compiler {
             // resolve relative builtin specifier
             ImportSpecifier::Relative(specifier_parts) => {
                 let specifier = specifier_parts.path();
-                let uri =
-                    builtin.module_uri_for_relative_specifier(state.module.uri.as_ref(), specifier);
+                let uri = self.repository.builtin_module_uri_for_relative_specifier(
+                    state.revision,
+                    state.module.uri.as_ref(),
+                    specifier,
+                )?;
 
                 // relative builtin module exists
                 if let Some(uri) = uri {
@@ -130,10 +130,11 @@ impl Compiler {
         specifier_parts: ImportSpecifier,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
-        let builtin = self.repository.builtin_package();
-
         // resolve internal package specifier
-        if let Some(uri) = builtin.module_uri_for_specifier(specifier) {
+        if let Some(uri) = self
+            .repository
+            .builtin_module_uri_for_specifier(state.revision, specifier)?
+        {
             self.resolve_module_uri(state, anchor, specifier, &uri)
         }
         // resolve source graph specifier

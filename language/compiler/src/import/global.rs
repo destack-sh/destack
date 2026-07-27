@@ -23,8 +23,7 @@ impl Compiler {
         for entry in &profile.key.globals {
             let specifier = self
                 .repository
-                .builtin_package()
-                .module_uri_for_specifier(entry);
+                .builtin_module_uri_for_specifier(context.revision(), entry)?;
             let module_id = match specifier {
                 Some(uri) => self.module_id_for_uri(context.revision(), &uri)?,
                 None => self.module_id_for_path(context.revision(), Path::new(entry))?,

@@ -22,25 +22,34 @@ impl Repository {
             .then_some(file_id)
     }
 
-    /// Build one shared package with declaration configuration applied.
+    /// Build one Package from an authored package root.
     fn build_package(
         &self,
         revision: Revision,
         file_root: TreapRoot,
-        package: &Package,
+        discovered_kind: PackageKind,
+        package_root: &Path,
     ) -> Result<Arc<Package>, RepositoryError> {
-        let destack_file_id = package
-            .path
-            .as_ref()
-            .and_then(|path| self.tracked_file_id(file_root, &path.join("destack.json")));
-        let destack_config = package
-            .path
-            .as_ref()
-            .map(|path| self.inherited_destack_for_path(revision, &path.join("destack.json")))
-            .transpose()?
-            .flatten()
+        let config_path = package_root.join("destack.json");
+        let destack_file_id = self.tracked_file_id(file_root, &config_path);
+        let destack_config = self
+            .inherited_destack_for_path(revision, &config_path)?
             .map(Arc::new);
         let config = destack_config.as_deref();
+        let is_builtin = config
+            .and_then(|config| config.name.as_deref())
+            .is_some_and(|name| name == self.embedded_builtin.package_name());
+        let kind = if is_builtin {
+            PackageKind::Builtin
+        } else {
+            discovered_kind
+        };
+        let id = self.package_id(kind, package_root);
+        let uri = if kind == PackageKind::Builtin {
+            self.embedded_builtin.package_uri().clone()
+        } else {
+            Uri::logical(package_root.to_string_lossy())
+        };
         let mut targets = IndexMap::new();
         let mut conditional_dependencies = Vec::new();
         let mut exports = IndexMap::new();
@@ -48,7 +57,7 @@ impl Repository {
         // explicit targets
         if let Some(config) = config {
             for (name, target) in &config.targets {
-                let target_id = TargetId::new(package.id, name);
+                let target_id = TargetId::new(id, name);
 
                 targets.insert(target_id, target.clone());
             }
@@ -59,10 +68,10 @@ impl Repository {
         }
 
         let package = Package {
-            id: package.id,
-            kind: package.kind,
-            uri: package.uri.clone(),
-            path: package.path.clone(),
+            id,
+            kind,
+            uri,
+            path: Some(package_root.to_path_buf()),
             name: config.and_then(|config| config.name.clone()),
             version: config.and_then(|config| config.version.clone()),
             dependencies: config
@@ -83,7 +92,7 @@ impl Repository {
         Ok(Arc::new(package))
     }
 
-    /// Build the package index from one file bindings.
+    /// Build the PackageIndex for one file root.
     pub(crate) fn package_index_for_files(
         &self,
         revision: Revision,
@@ -92,15 +101,22 @@ impl Repository {
         let package_roots = self.package_roots_for_files(revision, file_root)?;
         let mut packages = OrdMap::new();
 
-        // include the immutable builtin package
-        let package = self.builtin.package();
-        packages.insert(package.id, package);
+        // build authored packages from config
+        for (package_root, discovered_kind) in package_roots {
+            let package =
+                self.build_package(revision, file_root, discovered_kind, &package_root)?;
+            if package.kind == PackageKind::Builtin && packages.contains_key(&package.id) {
+                return Err(RepositoryError::DuplicatePackageName {
+                    name: self.embedded_builtin.package_name().to_string(),
+                });
+            }
 
-        // enrich editable workspace packages from config
-        for (package_root, kind) in package_roots {
-            let package = self.base_package(kind, &package_root);
-            let package = self.build_package(revision, file_root, &package)?;
+            packages.insert(package.id, package);
+        }
 
+        // insert the embedded Builtin Package only when authored sources do not replace it
+        if !packages.contains_key(&self.embedded_builtin.package_id()) {
+            let package = self.embedded_builtin.package();
             packages.insert(package.id, package);
         }
 
@@ -346,29 +362,10 @@ impl Repository {
     /// Return the package id for one package root.
     fn package_id(&self, kind: PackageKind, root: &Path) -> PackageId {
         match kind {
-            PackageKind::Builtin => self.builtin.package_id(),
+            PackageKind::Builtin => self.embedded_builtin.package_id(),
             PackageKind::Declared | PackageKind::Dependency | PackageKind::Implicit => {
                 PackageId::from_path(root)
             }
-        }
-    }
-
-    /// Return one base package for one package root.
-    fn base_package(&self, kind: PackageKind, package_root: &Path) -> Package {
-        Package {
-            id: self.package_id(kind, package_root),
-            kind,
-            uri: Uri::logical(package_root.to_string_lossy()),
-            path: Some(package_root.to_path_buf()),
-            name: None,
-            version: None,
-            dependencies: IndexMap::new(),
-            conditional_dependencies: Vec::new(),
-            vendor: Default::default(),
-            exports: IndexMap::new(),
-            topology: Default::default(),
-            destack_file_id: None,
-            targets: IndexMap::new(),
         }
     }
 

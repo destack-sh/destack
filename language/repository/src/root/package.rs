@@ -12,7 +12,7 @@ use crate::config::{
 /// The ownership kind for a package.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PackageKind {
-    /// Builtin package shipped with the toolchain.
+    /// Canonical builtin language package.
     Builtin,
     /// Declared package rooted by authored workspace config.
     Declared,

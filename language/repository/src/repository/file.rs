@@ -191,8 +191,8 @@ impl Repository {
 
     /// Build one file id for one workspace path.
     pub fn file_id(&self, path: &Path) -> FileId {
-        // prefer immutable builtin files
-        if let Some(file_id) = self.builtin.file_id_for_path(path) {
+        // resolve embedded Builtin source URIs before authored paths
+        if let Some(file_id) = self.embedded_builtin.file_id_for_path(path) {
             return file_id;
         }
 
@@ -208,8 +208,8 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<Arc<File>>, RepositoryError> {
-        // prefer immutable builtin files, loaded once
-        if let Some(builtin) = self.builtin.file(file_id) {
+        // resolve embedded Builtin FileIds from their immutable table
+        if let Some(builtin) = self.embedded_builtin.file(file_id) {
             return Ok(Some(Arc::clone(builtin)));
         }
 
@@ -240,8 +240,8 @@ impl Repository {
         revision: Revision,
         path: &Path,
     ) -> Result<Option<FileMetadata>, RepositoryError> {
-        // prefer immutable builtin files
-        if let Some(builtin) = self.builtin.builtin_file_for_path(path) {
+        // resolve embedded Builtin source URIs before authored paths
+        if let Some(builtin) = self.embedded_builtin.builtin_file_for_path(path) {
             return Ok(Some(builtin.metadata()));
         }
 
@@ -279,8 +279,8 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<ContentId>, RepositoryError> {
-        // prefer immutable builtin files
-        if let Some(builtin) = self.builtin.builtin_file(file_id) {
+        // resolve embedded Builtin FileIds from their immutable table
+        if let Some(builtin) = self.embedded_builtin.builtin_file(file_id) {
             return Ok(Some(builtin.content_id()));
         }
 
@@ -301,8 +301,8 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<String>, RepositoryError> {
-        // prefer immutable builtin files
-        if let Some(builtin) = self.builtin.builtin_file(file_id) {
+        // resolve embedded Builtin FileIds from their immutable table
+        if let Some(builtin) = self.embedded_builtin.builtin_file(file_id) {
             return Ok(Some(builtin.uri.to_string()));
         }
 
@@ -343,8 +343,16 @@ impl Repository {
             .map(|(file_id, _entry)| file_id)
             .collect::<Vec<_>>();
 
-        // append immutable builtin files
-        file_ids.extend(self.builtin.files().iter().map(|builtin| builtin.file_id()));
+        // include embedded files only when no authored Builtin Package replaces them
+        let package = self.builtin_package(revision)?;
+        if package.path.is_none() {
+            file_ids.extend(
+                self.embedded_builtin
+                    .files()
+                    .iter()
+                    .map(|builtin| builtin.file_id()),
+            );
+        }
         file_ids.sort_unstable();
         file_ids.dedup();
 

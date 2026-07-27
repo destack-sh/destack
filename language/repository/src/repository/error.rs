@@ -56,6 +56,13 @@ pub enum RepositoryError {
     MissingPackagePath { package: PackageId },
     /// Multiple packages declare the same package name.
     DuplicatePackageName { name: String },
+    /// One builtin module lies outside the canonical source directory.
+    BuiltinModuleOutsideSourceDirectory {
+        /// The module path.
+        path: PathBuf,
+        /// The canonical source directory.
+        source_directory: PathBuf,
+    },
     /// The requested target does not exist in the given revision.
     MissingTarget { target: TargetId },
     /// The requested target belongs to a different package than the module.
@@ -168,6 +175,17 @@ impl fmt::Display for RepositoryError {
             }
             Self::DuplicatePackageName { name } => {
                 write!(formatter, "duplicate package name '{name}'")
+            }
+            Self::BuiltinModuleOutsideSourceDirectory {
+                path,
+                source_directory,
+            } => {
+                write!(
+                    formatter,
+                    "builtin module '{}' lies outside source directory '{}'",
+                    path.display(),
+                    source_directory.display()
+                )
             }
             Self::MissingTarget { target } => {
                 write!(formatter, "missing repository target '{target}'")

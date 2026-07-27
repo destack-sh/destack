@@ -91,7 +91,7 @@ impl Repository {
         // build modules from base files only
         let mut modules = OrdMap::<ModuleId, Arc<Module>>::new();
         for (base_path, base) in base_files {
-            let mut module = self.module_from_candidate(base);
+            let mut module = self.module_from_candidate(base)?;
             if let Some(mut files) = condition_files.remove(&base_path) {
                 files.sort_by(|left, right| {
                     left.aliases
@@ -102,7 +102,7 @@ impl Repository {
                 });
 
                 for file in files {
-                    module.push_condition_file(Self::module_file_from_candidate(file));
+                    module.push_condition_file(self.module_file_from_candidate(file)?);
                 }
             }
 
@@ -189,29 +189,60 @@ impl Repository {
     }
 
     /// Build one module from its base file candidate.
-    fn module_from_candidate(&self, candidate: ModuleFileCandidate) -> Module {
+    fn module_from_candidate(
+        &self,
+        candidate: ModuleFileCandidate,
+    ) -> Result<Module, RepositoryError> {
         let language_type = LanguageType::try_from(candidate.file_type).ok();
-        let module_id = ModuleId::from_path_with_loader(
-            candidate.package_id,
-            &candidate.path,
-            candidate.package_root.as_deref(),
-            None,
-        );
+        let (module_id, uri) = match candidate.package_root.as_deref() {
+            Some(package_root) if self.is_builtin_package(candidate.package_id) => {
+                let module_id = self.embedded_builtin.module_id_for_path(
+                    &candidate.path,
+                    package_root,
+                    None,
+                )?;
+                let uri = self
+                    .embedded_builtin
+                    .module_uri_for_path(&candidate.path, package_root)?;
 
-        Module::blank(
+                (module_id, uri)
+            }
+            _ => {
+                let module_id = ModuleId::from_path_with_loader(
+                    candidate.package_id,
+                    &candidate.path,
+                    candidate.package_root.as_deref(),
+                    None,
+                );
+                let uri = Uri::logical(candidate.path.to_string_lossy());
+
+                (module_id, uri)
+            }
+        };
+
+        Ok(Module::blank(
             module_id,
             candidate.file_id,
-            Uri::logical(candidate.path.to_string_lossy()),
+            uri,
             Some(candidate.path),
             candidate.package_id,
             language_type,
             candidate.loader,
-        )
+        ))
     }
 
     /// Build one module file from a conditional file candidate.
-    fn module_file_from_candidate(candidate: ModuleFileCandidate) -> ModuleFile {
+    fn module_file_from_candidate(
+        &self,
+        candidate: ModuleFileCandidate,
+    ) -> Result<ModuleFile, RepositoryError> {
         let language_type = LanguageType::try_from(candidate.file_type).ok();
+        let uri = match candidate.package_root.as_deref() {
+            Some(package_root) if self.is_builtin_package(candidate.package_id) => self
+                .embedded_builtin
+                .module_uri_for_path(&candidate.path, package_root)?,
+            _ => Uri::logical(candidate.path.to_string_lossy()),
+        };
         let aliases = candidate
             .aliases
             .iter()
@@ -223,15 +254,15 @@ impl Repository {
             .map(|alias| alias.gate)
             .collect();
 
-        ModuleFile::new(
+        Ok(ModuleFile::new(
             candidate.file_id,
-            Uri::logical(candidate.path.to_string_lossy()),
+            uri,
             Some(candidate.path),
             language_type,
             candidate.loader,
             aliases,
             gates,
-        )
+        ))
     }
 
     /// Return condition aliases for one path when it has any.
@@ -257,9 +288,13 @@ impl Repository {
             return Vec::new();
         };
 
-        // walk known aliases from the right edge
+        // walk known aliases while preserving one base name segment
         let mut aliases = Vec::new();
-        for segment in stem.rsplit('.') {
+        let mut segments = stem.rsplit('.').peekable();
+        while let Some(segment) = segments.next() {
+            if segments.peek().is_none() {
+                break;
+            }
             let Some((rank, name, alias)) = known_aliases.get_full(segment) else {
                 break;
             };
@@ -310,8 +345,15 @@ impl Repository {
         let files = self.revision_files(revision)?;
         let mut modules = self.build_modules(revision, files.as_ref(), packages.as_ref())?;
 
-        // append immutable builtin modules
-        modules.extend(self.builtin.modules());
+        // include embedded modules only when no authored Builtin Package replaces them
+        let package = packages.package(self.embedded_builtin.package_id()).ok_or(
+            RepositoryError::MissingPackage {
+                package: self.embedded_builtin.package_id(),
+            },
+        )?;
+        if package.path.is_none() {
+            modules.extend(self.embedded_builtin.modules());
+        }
 
         let modules = Arc::new(ModuleIndex::new(modules));
         let modules = revision_cache.modules.get_or_init(|| modules);

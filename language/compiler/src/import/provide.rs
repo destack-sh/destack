@@ -22,7 +22,7 @@ impl Compiler {
         let mut dependencies = ArtifactDependencySet::default();
 
         // language item modules back the language environment
-        for module in self.repository.builtin_package().module_ids() {
+        for module in self.repository.builtin_module_ids(context.revision())? {
             dependencies.require(ArtifactKey::dir_bound(module, profile));
         }
 
@@ -42,11 +42,7 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         // discover environment inputs
         let globals = self.load_global_module_ids(profile, context)?;
-        let language_modules = self
-            .repository
-            .builtin_package()
-            .module_ids()
-            .collect::<Vec<_>>();
+        let language_modules = self.repository.builtin_module_ids(context.revision())?;
 
         // build language environment for profile
         let artifacts = self.artifact_reader(context.revision());

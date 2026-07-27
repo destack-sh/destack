@@ -11,7 +11,7 @@ use destack_source::{Content, ContentEntry, ContentId, File, FileSystem};
 
 use crate::artifact::Artifacts;
 use crate::repository::{
-    BuiltinPackage, ContentPool, Files, Ref, RepositoryError, Revision, RevisionBase,
+    ContentPool, EmbeddedBuiltinPackage, Files, Ref, RepositoryError, Revision, RevisionBase,
     RevisionEntry, RevisionState,
 };
 use crate::{DestackLayout, Host, Root, RootKind, Settings};
@@ -39,8 +39,8 @@ pub struct Repository {
     pub(crate) settings: Settings,
     /// Shared immutable in-process contents.
     pub(crate) content_pool: ContentPool,
-    /// Immutable builtin package shipped with the current build.
-    pub(crate) builtin: BuiltinPackage,
+    /// Embedded Builtin Package shipped with the current build.
+    pub(crate) embedded_builtin: EmbeddedBuiltinPackage,
     /// Repository-owned source state.
     pub(crate) files: Files,
     /// Repository-owned artifact state.
@@ -75,7 +75,7 @@ impl Repository {
             artifacts: Artifacts::new(artifact_store),
             content_pool,
             mounts: DashMap::new(),
-            builtin: BuiltinPackage::new(),
+            embedded_builtin: EmbeddedBuiltinPackage::new(),
             strings: Arc::new(StringPool::new()),
             build: BUILD_FINGERPRINT.trim().to_owned(),
             layout,
