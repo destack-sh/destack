@@ -274,18 +274,14 @@ pub enum WordLayout {
     Float32,
     /// Float64 value.
     Float64,
-    /// Local heap reference.
-    HeapReference,
-    /// Shared heap reference.
-    SharedHeapReference,
-    /// Native address.
-    Address,
-    /// Stack pointer.
-    StackPointer,
-    /// Frame pointer.
-    FramePointer,
-    /// Global address.
-    GlobalAddress,
+    /// Local storage reference.
+    LocalReference,
+    /// Shared storage reference.
+    SharedReference,
+    /// Frame storage reference.
+    FrameReference,
+    /// Global storage reference.
+    GlobalReference,
     /// Function pointer.
     FunctionPointer,
 }
@@ -293,13 +289,12 @@ pub enum WordLayout {
 impl WordLayout {
     /// Return the word layout for one reference.
     #[inline(always)]
-    pub fn reference(space: Space, kind: ReferenceKind) -> Self {
-        match (space, kind) {
-            (Space::Local | Space::Shared, ReferenceKind::Raw) => Self::Address,
-            (Space::Local, _) => Self::HeapReference,
-            (Space::Shared, _) => Self::SharedHeapReference,
-            (Space::Frame, _) => Self::FramePointer,
-            (Space::Static, _) => Self::GlobalAddress,
+    pub fn reference(space: Space) -> Self {
+        match space {
+            Space::Local => Self::LocalReference,
+            Space::Shared => Self::SharedReference,
+            Space::Frame => Self::FrameReference,
+            Space::Static => Self::GlobalReference,
         }
     }
 
@@ -314,13 +309,11 @@ impl WordLayout {
             Self::Float16 | Self::Bfloat16 => 2,
             Self::Float32 => 4,
             Self::Float64 => 8,
-            Self::HeapReference
-            | Self::SharedHeapReference
-            | Self::Address
-            | Self::StackPointer
-            | Self::FramePointer
+            Self::LocalReference
+            | Self::SharedReference
+            | Self::FrameReference
             | Self::FunctionPointer => pointer_bytes,
-            Self::GlobalAddress => GlobalAddress::BYTE_LEN,
+            Self::GlobalReference => GlobalAddress::BYTE_LEN,
         }
     }
 
@@ -336,12 +329,10 @@ impl WordLayout {
             Self::Float16 | Self::Bfloat16 => Word::from_bits(raw),
             Self::Float32 => Word::float32(f32::from_bits(raw as u32)),
             Self::Float64 => Word::float64(f64::from_bits(raw)),
-            Self::HeapReference
-            | Self::SharedHeapReference
-            | Self::Address
-            | Self::StackPointer
-            | Self::FramePointer
-            | Self::GlobalAddress
+            Self::LocalReference
+            | Self::SharedReference
+            | Self::FrameReference
+            | Self::GlobalReference
             | Self::FunctionPointer => Word::from_bits(raw),
         }
     }
@@ -359,12 +350,10 @@ impl WordLayout {
             | Self::Bfloat16
             | Self::Float32
             | Self::Float64
-            | Self::HeapReference
-            | Self::SharedHeapReference
-            | Self::Address
-            | Self::StackPointer
-            | Self::FramePointer
-            | Self::GlobalAddress
+            | Self::LocalReference
+            | Self::SharedReference
+            | Self::FrameReference
+            | Self::GlobalReference
             | Self::FunctionPointer => value.bits(),
         }
     }
@@ -587,7 +576,7 @@ impl Layout {
             }) => Some(WordLayout::Float64),
             LayoutShape::Reference(reference) => reference.word_layout(),
             LayoutShape::FunctionPointer(_) => Some(WordLayout::FunctionPointer),
-            LayoutShape::Tensor(_) => Some(WordLayout::HeapReference),
+            LayoutShape::Tensor(_) => Some(WordLayout::LocalReference),
             _ => None,
         }
     }
@@ -684,7 +673,9 @@ impl ReferenceLayout {
 
     /// Return the word layout for this reference.
     pub fn word_layout(&self) -> Option<WordLayout> {
-        Some(WordLayout::reference(self.space()?, self.flags.kind()?))
+        self.flags.kind()?;
+
+        Some(WordLayout::reference(self.space()?))
     }
 }
 
@@ -1259,7 +1250,7 @@ mod tests {
         let reference = reference(ReferenceKind::Managed, Space::Local);
 
         assert_eq!(reference.heap_space(), Some(Space::Local));
-        assert_eq!(reference.word_layout(), Some(WordLayout::HeapReference));
+        assert_eq!(reference.word_layout(), Some(WordLayout::LocalReference));
     }
 
     /// Managed shared references trace shared heap storage.
@@ -1268,19 +1259,16 @@ mod tests {
         let reference = reference(ReferenceKind::Managed, Space::Shared);
 
         assert_eq!(reference.heap_space(), Some(Space::Shared));
-        assert_eq!(
-            reference.word_layout(),
-            Some(WordLayout::SharedHeapReference)
-        );
+        assert_eq!(reference.word_layout(), Some(WordLayout::SharedReference));
     }
 
-    /// Raw references use native address cells and do not trace heap storage.
+    /// Raw references use relative storage coordinates and do not trace heap storage.
     #[test]
     fn test_reference_layout_rejects_raw_heap_tracing() {
         let reference = reference(ReferenceKind::Raw, Space::Local);
 
         assert_eq!(reference.heap_space(), None);
-        assert_eq!(reference.word_layout(), Some(WordLayout::Address));
+        assert_eq!(reference.word_layout(), Some(WordLayout::LocalReference));
     }
 
     /// Frame and static references are not heap edges.

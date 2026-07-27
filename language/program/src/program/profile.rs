@@ -119,18 +119,14 @@ pub enum SampleValue {
         /// The floating-point format.
         format: FloatType,
     },
-    /// Local heap reference value.
-    HeapReference(HeapReference),
-    /// Shared heap reference value.
-    SharedHeapReference(SharedHeapReference),
-    /// Native address value.
-    Address(u64),
-    /// Stack pointer value.
-    StackPointer(u64),
-    /// Frame pointer value.
-    FramePointer(u64),
-    /// Global address value.
-    GlobalAddress(GlobalAddress),
+    /// Local storage reference value.
+    LocalReference(HeapReference),
+    /// Shared storage reference value.
+    SharedReference(SharedHeapReference),
+    /// Frame storage reference value.
+    FrameReference(u64),
+    /// Global storage reference value.
+    GlobalReference(GlobalAddress),
     /// Function pointer value.
     FunctionPointer(u64),
 }
@@ -239,17 +235,15 @@ impl SampleKey {
                 bits: self.0,
                 format: FloatType::Float64,
             },
-            WordLayout::HeapReference => {
-                SampleValue::HeapReference(HeapReference::from_bits(self.0 as usize))
+            WordLayout::LocalReference => {
+                SampleValue::LocalReference(HeapReference::from_bits(self.0 as usize))
             }
-            WordLayout::SharedHeapReference => {
-                SampleValue::SharedHeapReference(SharedHeapReference::from_bits(self.0 as usize))
+            WordLayout::SharedReference => {
+                SampleValue::SharedReference(SharedHeapReference::from_bits(self.0 as usize))
             }
-            WordLayout::Address => SampleValue::Address(self.0),
-            WordLayout::StackPointer => SampleValue::StackPointer(self.0),
-            WordLayout::FramePointer => SampleValue::FramePointer(self.0),
-            WordLayout::GlobalAddress => {
-                SampleValue::GlobalAddress(GlobalAddress::from_bits(self.0))
+            WordLayout::FrameReference => SampleValue::FrameReference(self.0),
+            WordLayout::GlobalReference => {
+                SampleValue::GlobalReference(GlobalAddress::from_bits(self.0))
             }
             WordLayout::FunctionPointer => SampleValue::FunctionPointer(self.0),
         };
