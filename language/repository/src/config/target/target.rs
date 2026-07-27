@@ -33,7 +33,7 @@ pub struct Target {
 
     /// Policy declarations and rules for this target.
     pub policy: Policy,
-    /// Emitted artifact family (js, ts, bytecode, wasm, native).
+    /// Emitted artifact family (js, bytecode, wasm, native).
     pub emit: EmitFormat,
     /// Target operating system.
     pub platform: Platform,
@@ -86,7 +86,6 @@ impl Target {
         &[
             "default",
             "js",
-            "ts",
             "bytecode",
             "wasm",
             "wasm-wasi",
@@ -113,11 +112,6 @@ impl Target {
     /// Create a target with default JavaScript output.
     pub fn js() -> Self {
         Self::new(EmitFormat::Js, Host::Browser)
-    }
-
-    /// Create a target with TypeScript output.
-    pub fn ts() -> Self {
-        Self::new(EmitFormat::Ts, Host::Browser)
     }
 
     /// Create a target with Destack bytecode output.
@@ -180,7 +174,6 @@ impl Target {
         match name {
             "default" => Some(Self::default()),
             "js" => Some(Self::js()),
-            "ts" => Some(Self::ts()),
             "bytecode" => Some(Self::bytecode()),
             "wasm" => Some(Self::wasm_js()),
             "wasm-wasi" | "wasi" => Some(Self::wasm_wasi()),

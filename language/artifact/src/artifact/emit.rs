@@ -22,8 +22,6 @@ pub enum EmitFormat {
     /// JavaScript (.js).
     #[default]
     Js,
-    /// TypeScript (.ts).
-    Ts,
     /// Destack bytecode program.
     Bytecode,
     /// WebAssembly (.wasm).
@@ -37,7 +35,6 @@ impl EmitFormat {
     pub fn canonical_tag(&self) -> &'static str {
         match self {
             Self::Js => "js",
-            Self::Ts => "ts",
             Self::Bytecode => "bytecode",
             Self::Wasm => "wasm",
             Self::Native => "native",
@@ -46,7 +43,7 @@ impl EmitFormat {
 
     /// Whether this family produces a script artifact.
     pub fn is_script(&self) -> bool {
-        matches!(self, Self::Js | Self::Ts)
+        matches!(self, Self::Js)
     }
 
     /// Whether this family produces a linked Program artifact.
