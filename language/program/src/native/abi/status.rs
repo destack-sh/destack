@@ -3,58 +3,56 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-/// Native entry exit discriminant.
-pub type NativeExitCode = u32;
+/// Native runtime operation status code.
+pub type NativeRuntimeStatusCode = u32;
 
-/// Native entry exit kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Native runtime operation status.
 #[repr(u32)]
-pub enum NativeExitKind {
-    /// Execution completed normally.
-    Completed = 0,
-    /// Execution trapped.
-    Trapped = 1,
-    /// Execution deoptimized into interpreter state.
-    Deoptimized = 2,
-    /// Execution stopped with a language panic.
-    Panicked = 3,
-    /// Execution stopped for host inspection.
-    Stopped = 4,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NativeRuntimeStatus {
+    /// Native execution may continue.
+    Continue = 0,
+    /// The operation failed normally and native code should take its failure edge.
+    Failed = 1,
+    /// Native execution must return the exit kind stored in the context.
+    Exit = 2,
 }
 
-impl NativeExitKind {
-    /// Return the native ABI exit code.
-    pub const fn code(self) -> NativeExitCode {
-        self as NativeExitCode
-    }
-}
-
-/// Native exit code conversion error.
+/// Native runtime status code conversion error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NativeExitError {
-    /// The invalid exit code.
-    pub code: NativeExitCode,
+pub struct NativeRuntimeStatusError {
+    /// The invalid status code.
+    pub code: NativeRuntimeStatusCode,
 }
 
-impl fmt::Display for NativeExitError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid native exit code {}", self.code)
+impl NativeRuntimeStatus {
+    /// Return the native runtime status code.
+    pub const fn code(self) -> NativeRuntimeStatusCode {
+        self as NativeRuntimeStatusCode
     }
 }
 
-impl Error for NativeExitError {}
+impl fmt::Display for NativeRuntimeStatusError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "invalid native runtime status code {}",
+            self.code
+        )
+    }
+}
 
-impl TryFrom<NativeExitCode> for NativeExitKind {
-    type Error = NativeExitError;
+impl Error for NativeRuntimeStatusError {}
 
-    fn try_from(code: NativeExitCode) -> Result<Self, Self::Error> {
+impl TryFrom<NativeRuntimeStatusCode> for NativeRuntimeStatus {
+    type Error = NativeRuntimeStatusError;
+
+    fn try_from(code: NativeRuntimeStatusCode) -> Result<Self, Self::Error> {
         match code {
-            0 => Ok(Self::Completed),
-            1 => Ok(Self::Trapped),
-            2 => Ok(Self::Deoptimized),
-            3 => Ok(Self::Panicked),
-            4 => Ok(Self::Stopped),
-            code => Err(NativeExitError { code }),
+            0 => Ok(Self::Continue),
+            1 => Ok(Self::Failed),
+            2 => Ok(Self::Exit),
+            code => Err(NativeRuntimeStatusError { code }),
         }
     }
 }

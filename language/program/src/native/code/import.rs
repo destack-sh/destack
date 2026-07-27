@@ -134,43 +134,67 @@ impl SymbolImport {
 )]
 pub enum RuntimeBinding {
     /// Heap object allocation through the runtime.
-    Allocate,
+    Allocate = 0x0000,
     /// Repeated heap backing allocation through the runtime.
-    AllocateSlice,
+    AllocateSlice = 0x0001,
     /// Unique heap release.
-    Free,
+    Free = 0x0002,
     /// Heap pin.
-    Pin,
+    Pin = 0x0003,
     /// Heap unpin.
-    Unpin,
+    Unpin = 0x0004,
     /// Managed reference write barrier.
-    WriteBarrier,
+    WriteBarrier = 0x0005,
+
     /// Runtime safepoint cooperation.
-    Safepoint,
+    Safepoint = 0x0010,
     /// Stop execution for host inspection.
-    Stop,
+    Stop = 0x0011,
     /// Native to bytecode deoptimization.
-    Deopt,
+    Deopt = 0x0012,
     /// Native trap exit.
-    Trap,
+    Trap = 0x0013,
     /// Language panic exit.
-    Panic,
+    Panic = 0x0014,
+    /// Language panic exit with one typed value.
+    PanicValue = 0x0015,
     /// Continue the active language unwind.
-    UnwindResume,
+    UnwindResume = 0x0016,
+
+    /// Queue one suspended waiter.
+    WaiterQueue = 0x0020,
+    /// Cancel one suspended waiter.
+    WaiterCancel = 0x0021,
+    /// Create one already completed task.
+    TaskResolve = 0x0022,
+    /// Start one running task.
+    TaskStart = 0x0023,
+    /// Suspend one running task.
+    TaskSuspend = 0x0024,
+    /// Park one waiter until a task settles.
+    TaskPark = 0x0025,
+    /// Request cooperative task cancellation.
+    TaskCancel = 0x0026,
+    /// Query cooperative task cancellation.
+    TaskIsCancelled = 0x0027,
+    /// Detach one task result.
+    TaskDetach = 0x0028,
+
     /// Current worker-local execution context.
-    ContextCurrent,
+    ContextCurrent = 0x0030,
     /// Scoped context push.
-    ContextPush,
+    ContextPush = 0x0031,
     /// Scoped context pop.
-    ContextPop,
+    ContextPop = 0x0032,
     /// Userland context entry lookup.
-    ContextGet,
+    ContextGet = 0x0033,
     /// Required userland context entry lookup.
-    ContextRequire,
+    ContextRequire = 0x0034,
     /// Builtin context binding family lookup.
-    ContextFamily,
+    ContextFamily = 0x0035,
+
     /// Official host binding call through the active context implementation.
-    BindingCall,
+    BindingCall = 0x0040,
 }
 
 impl RuntimeBinding {
@@ -188,7 +212,17 @@ impl RuntimeBinding {
             Self::Deopt => "__destack_deopt",
             Self::Trap => "__destack_trap",
             Self::Panic => "__destack_panic",
+            Self::PanicValue => "__destack_panic_value",
             Self::UnwindResume => "__destack_unwind_resume",
+            Self::WaiterQueue => "__destack_waiter_queue",
+            Self::WaiterCancel => "__destack_waiter_cancel",
+            Self::TaskResolve => "__destack_task_resolve",
+            Self::TaskStart => "__destack_task_start",
+            Self::TaskSuspend => "__destack_task_suspend",
+            Self::TaskPark => "__destack_task_park",
+            Self::TaskCancel => "__destack_task_cancel",
+            Self::TaskIsCancelled => "__destack_task_is_cancelled",
+            Self::TaskDetach => "__destack_task_detach",
             Self::ContextCurrent => "__destack_context_current",
             Self::ContextPush => "__destack_context_push",
             Self::ContextPop => "__destack_context_pop",

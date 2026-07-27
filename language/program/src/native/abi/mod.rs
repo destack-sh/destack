@@ -1,15 +1,19 @@
 mod binding;
 mod call;
-mod context;
+mod exit;
+mod memory;
+mod runtime;
 mod status;
+mod task;
 mod trap;
-mod value;
 mod version;
 
 pub use binding::*;
 pub use call::*;
-pub use context::*;
+pub use exit::*;
+pub use memory::*;
+pub use runtime::*;
 pub use status::*;
+pub use task::*;
 pub use trap::*;
-pub use value::*;
 pub use version::*;
