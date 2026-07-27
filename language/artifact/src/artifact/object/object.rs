@@ -6,8 +6,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AllocationSite, CallSite, CounterSite, EdgeSite, FrameState, Function, Global, MemorySite,
-    ResumeSite, SampleSite, SuspensionSite, Type,
+    AllocationSite, CallSite, ContinuationSite, CounterSite, EdgeSite, FrameState, Function,
+    Global, MemorySite, SampleSite, SuspensionSite, Type,
 };
 
 /// One relocatable module linked into a Program.
@@ -40,8 +40,8 @@ pub struct Object {
     pub(super) memory: Vec<MemorySite>,
     /// Function call sites.
     pub(super) calls: Vec<CallSite>,
-    /// Continuation resume sites.
-    pub(super) resumes: Vec<ResumeSite>,
+    /// Continuation control sites.
+    pub(super) continuations: Vec<ContinuationSite>,
     /// Control flow edges.
     pub(super) edges: Vec<EdgeSite>,
     /// Coroutine suspension sites.
@@ -162,9 +162,9 @@ impl Object {
         &self.calls
     }
 
-    /// Return continuation resume sites.
-    pub fn resumes(&self) -> &[ResumeSite] {
-        &self.resumes
+    /// Return continuation control sites.
+    pub fn continuations(&self) -> &[ContinuationSite] {
+        &self.continuations
     }
 
     /// Return control flow edges.

@@ -53,10 +53,10 @@ pub struct CallSite {
     pub signature: mir::TypeId,
 }
 
-/// One continuation resume operation.
+/// One continuation control operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ResumeSite {
-    /// The operation resuming the continuation.
+pub struct ContinuationSite {
+    /// The operation driving the continuation.
     pub point: Point,
     /// The operation entered when the continuation yields.
     pub yielded: Point,
@@ -84,6 +84,8 @@ pub struct SuspensionSite {
     pub resume: Point,
     /// The operation entered during cancellation when present.
     pub cancel: Option<Point>,
+    /// The operation entered during explicit completion when present.
+    pub complete: Option<Point>,
     /// The operation entered during panic unwinding when present.
     pub unwind: Option<Point>,
     /// The suspension operation.
@@ -92,6 +94,8 @@ pub struct SuspensionSite {
     pub value_type: mir::TypeId,
     /// The value received when execution resumes.
     pub resume_type: mir::TypeId,
+    /// The value received during explicit completion when present.
+    pub complete_type: Option<mir::TypeId>,
 }
 
 /// One explicit profile counter operation.
@@ -117,7 +121,7 @@ pub struct SampleSite {
 /// Coroutine suspension operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Suspension {
-    /// Wait for a promise to fulfill.
+    /// Wait for one asynchronous value.
     Await,
     /// Yield one value to a generator owner.
     Yield,
