@@ -22,3 +22,35 @@ impl Point {
         }
     }
 }
+
+/// One logical frame coordinate in an emitted object.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum FramePoint {
+    /// State before a coroutine executes its first operation.
+    Entry {
+        /// The object-local coroutine function.
+        function: mir::FunctionId,
+    },
+    /// State at one executable operation.
+    Operation(Point),
+}
+
+impl FramePoint {
+    /// Create one coroutine entry coordinate.
+    pub const fn entry(function: mir::FunctionId) -> Self {
+        Self::Entry { function }
+    }
+
+    /// Create one executable operation coordinate.
+    pub const fn operation(point: Point) -> Self {
+        Self::Operation(point)
+    }
+
+    /// Return the object-local function containing this coordinate.
+    pub const fn function(self) -> mir::FunctionId {
+        match self {
+            Self::Entry { function } => function,
+            Self::Operation(point) => point.function,
+        }
+    }
+}
