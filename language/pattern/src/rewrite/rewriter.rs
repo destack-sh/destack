@@ -2,7 +2,6 @@ use destack_dir as dir;
 use destack_source::{DiagnosticCollection, File, FilePatch, ModuleId, Patch, Span};
 
 use super::renderer::Renderer;
-use super::span::NodeSpans;
 use crate::{ContextError, Matcher, ModuleContext, ProgramContext, Rewrite, RewriteError};
 
 /// One rendered source edit selected by a structural match.
@@ -73,21 +72,17 @@ impl<'rewrite, 'candidate> Rewriter<'rewrite, 'candidate> {
         let matches = matcher
             .find(candidates)
             .map_err(|error| RewriteError::internal(self.source, error))?;
-        let spans = NodeSpans::new(self.candidate)
-            .map_err(|error| RewriteError::internal(self.source, error))?;
-        let renderer = Renderer::new(
-            self.rewrite.replacement(),
-            self.candidate,
-            self.source,
-            &spans,
-        );
+        let renderer = Renderer::new(self.rewrite.replacement(), self.candidate, self.source);
         let mut edits = Vec::with_capacity(matches.len());
 
         // render every match against its complete source span
         for pattern_match in matches {
-            let span = spans.get(pattern_match.root).ok_or_else(|| {
-                RewriteError::internal(self.source, "matched candidate has no source span")
-            })?;
+            let span = self
+                .candidate
+                .get_decorated_span(pattern_match.root)
+                .ok_or_else(|| {
+                    RewriteError::internal(self.source, "matched candidate has no source span")
+                })?;
             let text = renderer
                 .render(&pattern_match)
                 .map_err(|error| RewriteError::internal(self.source, error))?;

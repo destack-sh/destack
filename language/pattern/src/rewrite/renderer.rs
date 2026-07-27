@@ -3,7 +3,6 @@ use std::fmt::{Display, Formatter};
 use destack_dir as dir;
 use destack_source::{File, Span};
 
-use super::span::NodeSpans;
 use crate::{Binding, Fragment, MetavariableUse, PatternMatch, Replacement, Sequence};
 
 /// An invariant violation while rendering a compiled replacement.
@@ -66,30 +65,26 @@ struct Substitution {
 }
 
 /// Render structural replacements from typed match bindings.
-pub(super) struct Renderer<'replacement, 'candidate, 'spans> {
+pub(super) struct Renderer<'replacement, 'candidate> {
     /// The replacement fragment.
     replacement: &'replacement Replacement,
     /// The candidate nodes.
     candidate: dir::View<'candidate>,
     /// The authored candidate source.
     source: &'candidate File,
-    /// The complete source span for each candidate node.
-    spans: &'spans NodeSpans,
 }
 
-impl<'replacement, 'candidate, 'spans> Renderer<'replacement, 'candidate, 'spans> {
+impl<'replacement, 'candidate> Renderer<'replacement, 'candidate> {
     /// Create a replacement renderer.
     pub(super) fn new(
         replacement: &'replacement Replacement,
         candidate: dir::View<'candidate>,
         source: &'candidate File,
-        spans: &'spans NodeSpans,
     ) -> Self {
         Self {
             replacement,
             candidate,
             source,
-            spans,
         }
     }
 
@@ -205,11 +200,11 @@ impl<'replacement, 'candidate, 'spans> Renderer<'replacement, 'candidate, 'spans
         // preserve the complete authored candidate sequence
         let first = nodes
             .first()
-            .and_then(|node| self.spans.get(*node))
+            .and_then(|node| self.candidate.get_decorated_span(*node))
             .ok_or(RenderError::MissingCandidateSpan)?;
         let last = nodes
             .last()
-            .and_then(|node| self.spans.get(*node))
+            .and_then(|node| self.candidate.get_decorated_span(*node))
             .ok_or(RenderError::MissingCandidateSpan)?;
         let source = Span::new(first.file, first.start, last.end);
         let text = self.span_text(source)?.to_string();
@@ -226,7 +221,7 @@ impl<'replacement, 'candidate, 'spans> Renderer<'replacement, 'candidate, 'spans
     ) -> Result<&str, RenderError> {
         let decorators = fragment.tree().get_decorators_ref(placeholder.id);
         let span = if decorators.is_empty() {
-            self.spans.get(node)
+            self.candidate.get_decorated_span(node)
         } else {
             self.candidate.get_span_by_id(node.id)
         }
