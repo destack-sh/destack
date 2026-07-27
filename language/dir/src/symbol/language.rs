@@ -236,13 +236,6 @@ define_language_items! {
                 "async.AsyncGenerator.create"
             ),
 
-            /// Receive one resumed async generator result.
-            AsyncGeneratorReceive => (
-                Function,
-                "async/generator",
-                "receive",
-                "async.AsyncGenerator.receive"
-            ),
         }
 
         /// `destack:async/iterator`.
@@ -258,21 +251,6 @@ define_language_items! {
         continuation {
             /// Continuation struct.
             Continuation => (Struct, "async/continuation", "Continuation"),
-
-            /// Continuation resume command newtype.
-            Resume => (Newtype, "async/continuation", "Resume"),
-
-            /// Continuation resume cancel struct.
-            ResumeCancel => (Struct, "async/continuation", "ResumeCancel"),
-
-            /// Continuation resume next struct.
-            ResumeNext => (Struct, "async/continuation", "ResumeNext"),
-
-            /// Continuation resume return struct.
-            ResumeReturn => (Struct, "async/continuation", "ResumeReturn"),
-
-            /// Continuation parked struct.
-            ContinuationParked => (Struct, "async/continuation", "ContinuationParked"),
 
             /// Continuation result newtype.
             ContinuationResult => (Newtype, "async/continuation", "ContinuationResult"),
@@ -292,6 +270,15 @@ define_language_items! {
             /// Promise class.
             Promise => (Class, "async/promise", "Promise"),
 
+            /// Create the pending promise for one lowered async function.
+            PromiseCreate => (Function, "async/promise", "create", "async.Promise.create"),
+
+            /// Fulfill one lowered async function promise.
+            PromiseFulfill => (Function, "async/promise", "fulfill", "async.Promise.fulfill"),
+
+            /// Cancel one lowered async function promise.
+            PromiseCancel => (Function, "async/promise", "cancel", "async.Promise.cancel"),
+
             /// Promise resolver pair.
             PromiseResolvers => (Struct, "async/promise", "PromiseResolvers"),
         }
@@ -300,6 +287,9 @@ define_language_items! {
         task {
             /// Task struct.
             Task => (Struct, "async/task", "Task"),
+
+            /// Create one task from its first continuation.
+            TaskCreate => (Function, "async/task", "create", "async.Task.create"),
 
             /// Queue one microtask.
             QueueMicrotask => (Function, "async/task", "queueMicrotask"),
