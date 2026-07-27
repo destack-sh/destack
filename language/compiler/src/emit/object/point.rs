@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::iter;
 
 use destack_artifact::{MirOptimized, Point};
 use destack_mir as mir;
@@ -15,7 +16,7 @@ pub(super) struct PointIndex {
 }
 
 impl PointIndex {
-    /// Index every emitted operation in stable function layout order.
+    /// Index every emitted operation in executable block order.
     pub(super) fn build(optimized: &MirOptimized) -> Self {
         let mut instructions = HashMap::new();
         let mut blocks = HashMap::new();
@@ -28,9 +29,17 @@ impl PointIndex {
             };
             let mut operation = 0;
 
-            for block_id in body.blocks() {
-                let block = optimized.tree.get(*block_id);
-                blocks.insert(*block_id, Point::new(function_id, operation));
+            let entry = body.entry();
+            let ordered_blocks = iter::once(entry).chain(
+                body.blocks()
+                    .iter()
+                    .copied()
+                    .filter(|block| *block != entry),
+            );
+
+            for block_id in ordered_blocks {
+                let block = optimized.tree.get(block_id);
+                blocks.insert(block_id, Point::new(function_id, operation));
 
                 for instruction_id in &block.instructions {
                     let point = Point::new(function_id, operation);
@@ -39,7 +48,7 @@ impl PointIndex {
                 }
 
                 let point = Point::new(function_id, operation);
-                terminators.insert(*block_id, point);
+                terminators.insert(block_id, point);
                 operation += 1;
             }
         }
@@ -59,6 +68,11 @@ impl PointIndex {
     /// Return one block entry point.
     pub(super) fn block(&self, block: mir::BlockId) -> Point {
         self.blocks[&block]
+    }
+
+    /// Sort blocks into emitted operation order.
+    pub(super) fn order_blocks(&self, blocks: &mut [mir::BlockId]) {
+        blocks.sort_unstable_by_key(|block| self.block(*block).operation);
     }
 
     /// Return one block terminator point.

@@ -82,14 +82,5 @@ function caller {
         .operation(function, 1)
         .expect("caller operation should decode")
         .expect("caller operation should exist");
-    let function = bytecode
-        .function(function)
-        .expect("caller function should exist");
-    let operation = function
-        .operation(bytecode.operations(), 1)
-        .expect("caller operation should exist");
-    let frame = bytecode.frames()[function.frames.start as usize + 1];
-
     assert_eq!(instruction.opcode(), bytecode::Opcode::CALL);
-    assert_eq!(frame.code_offset, operation);
 }

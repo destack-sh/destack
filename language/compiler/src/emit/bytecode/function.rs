@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_artifact::MirOptimized;
+use destack_artifact::{FramePoint, MirOptimized, Point};
 use destack_bytecode as bytecode;
 use destack_mir as mir;
 use destack_source::ModuleId;
@@ -9,22 +9,20 @@ use crate::{EmitError, ObjectEmitter};
 
 use super::{RegisterAllocation, RegisterAllocator, TypeEmitter};
 
-/// One emitted bytecode function and its object sections.
+/// One bytecode function emission and its object sections.
 #[derive(Debug)]
-pub(crate) struct EmittedFunction {
-    /// The object-local function identity.
-    pub(crate) function: mir::FunctionId,
+pub(crate) struct FunctionEmission {
     /// The encoded function body and object-relative references.
     pub(crate) body: bytecode::FunctionBody,
-    /// Physical frame maps in operation order.
-    pub(crate) frames: Vec<EmittedFrame>,
+    /// Logical and physical frame states in coordinate order.
+    pub(crate) frames: Vec<FrameEmission>,
 }
 
-/// One logical frame state and its physical bytecode locations.
+/// One logical frame state and its physical bytecode registers.
 #[derive(Debug)]
-pub(crate) struct EmittedFrame {
-    /// The logical operation represented by this frame.
-    pub(crate) operation: u32,
+pub(crate) struct FrameEmission {
+    /// The object-local logical coordinate.
+    pub(crate) point: FramePoint,
     /// Object-local types in acquisition order.
     pub(crate) types: Vec<mir::TypeId>,
     /// Physical register spans in acquisition order.
@@ -52,14 +50,14 @@ pub(crate) struct FunctionEmitter<'a> {
     ranges: Vec<Option<bytecode::RegisterSpan>>,
     /// Permanent register ranges keyed by MIR local identity.
     locals: HashMap<mir::LocalId, bytecode::RegisterSpan>,
-    /// Exact-type scratch ranges used to break parallel copy cycles.
+    /// Reusable exact-type scratch ranges.
     scratches: Vec<(bytecode::ValueType, bytecode::RegisterSpan)>,
     /// Reusable contiguous outgoing call registers.
     arguments: Vec<ArgumentRegisters>,
     /// CFG-correct MIR liveness used to materialize frame states.
     liveness: mir::FunctionLiveness,
-    /// Physical frame maps in operation order.
-    frames: Vec<EmittedFrame>,
+    /// Frame states in emitted coordinate order.
+    frames: Vec<FrameEmission>,
     /// Branch labels keyed by MIR block identity.
     blocks: HashMap<mir::BlockId, bytecode::Label>,
     /// Deferred blocks emitted after the main blocks.
@@ -159,30 +157,38 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     /// Emit the complete function definition.
-    pub(crate) fn build(mut self) -> Result<EmittedFunction, EmitError> {
+    pub(crate) fn emit(mut self) -> Result<FunctionEmission, EmitError> {
         let body = self
             .function
             .body
             .as_ref()
             .ok_or_else(|| self.invalid_input("missing body"))?;
 
-        // emit main blocks in stable MIR layout order
-        for block_id in body.blocks() {
-            let label = self.block_label(*block_id)?;
+        // retain the complete callable input before coroutine execution begins
+        if self.function.coroutine.is_some() {
+            let frame = self.entry_frame()?;
+            self.frames.push(frame);
+        }
+
+        // emit blocks in the operation order shared by object metadata
+        let mut blocks = body.blocks().to_vec();
+        self.object.order_blocks(&mut blocks);
+        for block_id in blocks {
+            let label = self.block_label(block_id)?;
             self.define(label)?;
-            let block = self.optimized.tree.get(*block_id);
+            let block = self.optimized.tree.get(block_id);
 
             for (index, instruction_id) in block.instructions.iter().enumerate() {
                 let instruction = self.optimized.tree.get(*instruction_id);
                 let operation = self.builder.begin_operation();
                 self.emit_instruction(*instruction_id, instruction)?;
-                let frame = self.instruction_frame(*block_id, index, operation)?;
+                let frame = self.instruction_frame(block_id, index, operation)?;
                 self.frames.push(frame);
             }
 
             let operation = self.builder.begin_operation();
             self.emit_terminator(self.optimized.tree.get(block.terminator))?;
-            let frame = self.terminator_frame(*block_id, operation)?;
+            let frame = self.terminator_frame(block_id, operation)?;
             self.frames.push(frame);
         }
 
@@ -210,20 +216,53 @@ impl<'a> FunctionEmitter<'a> {
             .build()
             .map_err(|error| Self::invalid(module, &error.to_string()))?;
 
-        Ok(EmittedFunction {
-            function: self.function_id,
+        Ok(FunctionEmission {
             body,
             frames: self.frames,
         })
     }
 
-    /// Build one frame map before an MIR instruction.
+    /// Build one coroutine's initial frame state.
+    fn entry_frame(&self) -> Result<FrameEmission, EmitError> {
+        let entry = self
+            .function
+            .entry()
+            .ok_or_else(|| self.invalid_input("missing function entry block"))?;
+        let parameters = &self.optimized.tree.get(entry).parameters;
+        let mut types =
+            Vec::with_capacity(parameters.len() + usize::from(self.function.environment.is_some()));
+        let mut registers = Vec::with_capacity(types.capacity());
+
+        // retain the hidden callable environment first
+        if let Some(environment) = self.function.environment {
+            let ty = self.types.register_type(environment)?;
+            types.push(environment);
+            registers.push(bytecode::RegisterSpan::new(
+                bytecode::RegisterId(0),
+                ty.word_count(),
+            ));
+        }
+
+        // retain every explicit argument in calling order
+        for parameter in parameters {
+            types.push(parameter.ty);
+            registers.push(self.register(parameter.value)?);
+        }
+
+        Ok(FrameEmission {
+            point: FramePoint::entry(self.function_id),
+            types,
+            registers,
+        })
+    }
+
+    /// Build one frame state before a MIR instruction.
     fn instruction_frame(
         &self,
         block: mir::BlockId,
         index: usize,
         operation: u32,
-    ) -> Result<EmittedFrame, EmitError> {
+    ) -> Result<FrameEmission, EmitError> {
         let mut values = self
             .liveness
             .value_live_before_instruction(&self.optimized.tree, block, index)
@@ -240,12 +279,12 @@ impl<'a> FunctionEmitter<'a> {
         self.frame(operation, &values, &locals)
     }
 
-    /// Build one frame map before an MIR terminator.
+    /// Build one frame state before a MIR terminator.
     fn terminator_frame(
         &self,
         block: mir::BlockId,
         operation: u32,
-    ) -> Result<EmittedFrame, EmitError> {
+    ) -> Result<FrameEmission, EmitError> {
         let mut values = self
             .liveness
             .value_live_before_terminator(&self.optimized.tree, block)
@@ -262,13 +301,13 @@ impl<'a> FunctionEmitter<'a> {
         self.frame(operation, &values, &locals)
     }
 
-    /// Build one physical frame map from live MIR values and locals.
+    /// Build one frame state from live MIR values and locals.
     fn frame(
         &self,
         operation: u32,
         values: &[mir::Value],
         locals: &[mir::LocalId],
-    ) -> Result<EmittedFrame, EmitError> {
+    ) -> Result<FrameEmission, EmitError> {
         let entry = self
             .function
             .entry()
@@ -319,8 +358,8 @@ impl<'a> FunctionEmitter<'a> {
             registers.push(range);
         }
 
-        Ok(EmittedFrame {
-            operation,
+        Ok(FrameEmission {
+            point: FramePoint::operation(Point::new(self.function_id, operation)),
             types,
             registers,
         })
@@ -913,13 +952,13 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[(result, ty)])
     }
 
-    /// Emit one relocatable global address.
+    /// Emit one relocatable global reference.
     fn emit_global_address(
         &mut self,
         destination: mir::Value,
         global: mir::GlobalId,
     ) -> Result<(), EmitError> {
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::POINTER_GLOBAL);
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::GLOBAL_ADDRESS);
         let global = self.types.global_id(global)?;
         instruction.relocation(bytecode::RelocationTag::GLOBAL, global.0);
         let definition = self.definition(destination)?;
@@ -940,14 +979,14 @@ impl<'a> FunctionEmitter<'a> {
         self.emit_move(source, destination, ty)
     }
 
-    /// Return one MIR local's stable register address.
+    /// Return one MIR local's stable frame reference.
     fn emit_local_address(
         &mut self,
         destination: mir::Value,
         local: mir::LocalId,
     ) -> Result<(), EmitError> {
         let local = self.local(local)?;
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::POINTER_FRAME);
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::FRAME_ADDRESS);
         instruction.span(local);
         let definition = self.definition(destination)?;
 
@@ -967,11 +1006,11 @@ impl<'a> FunctionEmitter<'a> {
     fn emit_load(
         &mut self,
         destination: mir::Value,
-        pointer: mir::Value,
+        reference: mir::Value,
         result_type: mir::TypeId,
     ) -> Result<(), EmitError> {
         let ty = self.register_type(destination)?;
-        let pointer = self.word(pointer)?;
+        let pointer = self.materialize_pointer(reference)?;
         let instruction = if let Some(scalar) = ty.scalar_type() {
             let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::memory(
                 bytecode::MemoryOperation::Load,
@@ -993,9 +1032,9 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     /// Emit one scalar or packed value store.
-    fn emit_store(&mut self, pointer: mir::Value, value: mir::Value) -> Result<(), EmitError> {
+    fn emit_store(&mut self, reference: mir::Value, value: mir::Value) -> Result<(), EmitError> {
         let ty = self.register_type(value)?;
-        let pointer = self.word(pointer)?;
+        let pointer = self.materialize_pointer(reference)?;
         let instruction = if let Some(scalar) = ty.scalar_type() {
             let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::memory(
                 bytecode::MemoryOperation::Store,
@@ -1019,6 +1058,30 @@ impl<'a> FunctionEmitter<'a> {
         };
 
         self.encode(instruction, &[])
+    }
+
+    /// Materialize one relative MIR reference as an ephemeral machine pointer.
+    fn materialize_pointer(
+        &mut self,
+        reference: mir::Value,
+    ) -> Result<bytecode::RegisterId, EmitError> {
+        let ty = self.value_type(reference)?;
+        let mir::Type::Reference { space, .. } = self.optimized.tree.get(ty) else {
+            return Err(self.invalid_input("memory access requires a reference"));
+        };
+        let opcode = match space {
+            mir::Space::Local => bytecode::Opcode::POINTER_LOCAL,
+            mir::Space::Shared => bytecode::Opcode::POINTER_SHARED,
+            mir::Space::Frame => bytecode::Opcode::POINTER_FRAME,
+            mir::Space::Static => bytecode::Opcode::POINTER_GLOBAL,
+        };
+        let pointer = self.scratch(bytecode::ValueType::pointer())?;
+        let mut instruction = bytecode::InstructionBuilder::new(opcode);
+        instruction.register(self.word(reference)?);
+
+        self.encode(instruction, &[(pointer, bytecode::ValueType::pointer())])?;
+
+        Ok(pointer.start)
     }
 
     /// Emit one direct allocation operation.
@@ -1571,7 +1634,7 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[(destination, ty)])
     }
 
-    /// Return an exact-type scratch range for parallel transfers.
+    /// Return one reusable exact-type scratch range.
     fn scratch(&mut self, ty: bytecode::ValueType) -> Result<bytecode::RegisterSpan, EmitError> {
         if let Some((_, registers)) = self.scratches.iter().find(|(other, _)| *other == ty) {
             return Ok(*registers);

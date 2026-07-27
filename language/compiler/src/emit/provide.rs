@@ -42,7 +42,6 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_bound(module, profile));
         dependencies.require(ArtifactKey::dir_imported(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
-        dependencies.require(ArtifactKey::dir_checked(module, profile));
         dependencies.require(ArtifactKey::dir_materialized(module, profile));
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
@@ -191,7 +190,7 @@ impl Compiler {
             .dir_resolved(module, profile)
             .map_err(CompilerError::from)?;
         let modules = resolved
-            .dependency_modules()
+            .target_modules()
             .filter(|target| *target != module)
             .collect::<Vec<_>>();
         let object = ObjectEmitter::new(module, &mir, modules)?;

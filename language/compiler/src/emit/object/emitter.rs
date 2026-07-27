@@ -159,6 +159,11 @@ impl ObjectEmitter {
         self.points.instruction(instruction)
     }
 
+    /// Sort blocks into emitted operation order.
+    pub(crate) fn order_blocks(&self, blocks: &mut [mir::BlockId]) {
+        self.points.order_blocks(blocks);
+    }
+
     /// Return the allocation index assigned to one object-local program point.
     pub(crate) fn allocation_index(&self, point: Point) -> Option<u32> {
         self.allocation_indices.get(&point).copied()

@@ -1,4 +1,4 @@
-use destack_artifact::{FrameState, MirOptimized, Point};
+use destack_artifact::{FrameState, MirOptimized};
 use destack_bytecode as bytecode;
 use destack_core::{EntryRange, Optional};
 use destack_mir as mir;
@@ -6,7 +6,7 @@ use destack_source::ModuleId;
 
 use crate::{EmitError, ObjectEmitter};
 
-use super::{EmittedFunction, FunctionEmitter, TypeEmitter};
+use super::{FunctionEmission, FunctionEmitter, TypeEmitter};
 
 /// Emit one relocatable bytecode object from optimized MIR.
 #[derive(Debug)]
@@ -60,7 +60,7 @@ impl<'a> BytecodeEmitter<'a> {
                 function_id,
                 function,
             )?
-            .build()?;
+            .emit()?;
             rows.push(Self::append(
                 emitted,
                 &mut logical_frames,
@@ -106,7 +106,7 @@ impl<'a> BytecodeEmitter<'a> {
 
     /// Append one emitted function and return its physical object row.
     fn append(
-        emitted: EmittedFunction,
+        emitted: FunctionEmission,
         logical_frames: &mut Vec<FrameState>,
         frames: &mut Vec<bytecode::FrameMap>,
         registers: &mut Vec<bytecode::RegisterSpan>,
@@ -114,29 +114,22 @@ impl<'a> BytecodeEmitter<'a> {
         relocations: &mut Vec<bytecode::Relocation>,
         code: &mut Vec<u8>,
     ) -> bytecode::Function {
-        let EmittedFunction {
-            function,
+        let FunctionEmission {
             body,
             frames: emitted_frames,
         } = emitted;
 
-        // append matching logical and physical frame maps
-        let frame_start = frames.len() as u32;
+        // append matching logical and physical frame states
         for frame in emitted_frames {
-            let code_offset = body.operations[frame.operation as usize];
             let register_start = registers.len() as u32;
             let register_count = frame.registers.len() as u32;
             registers.extend(frame.registers);
-            frames.push(bytecode::FrameMap::new(
-                code_offset,
-                EntryRange::new(register_start, register_count),
-            ));
-            logical_frames.push(FrameState::new(
-                Point::new(function, frame.operation),
-                frame.types,
-            ));
+            frames.push(bytecode::FrameMap::new(EntryRange::new(
+                register_start,
+                register_count,
+            )));
+            logical_frames.push(FrameState::new(frame.point, frame.types));
         }
-        let frame_count = frames.len() as u32 - frame_start;
 
         // append logical operation offsets
         let operation_start = operations.len() as u32;
@@ -158,7 +151,6 @@ impl<'a> BytecodeEmitter<'a> {
                 byte_offset: code_start,
                 byte_len: code_len,
             }),
-            EntryRange::new(frame_start, frame_count),
             EntryRange::new(operation_start, operation_count),
             body.register_count,
         )
