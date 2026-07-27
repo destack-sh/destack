@@ -6,28 +6,32 @@ fn test_format_pointer_operations() {
     assert_format_eq(
         r#"
 function f0 {
-    pointer.frame r3, r0:r1
-pointer.global r4,g0
-pointer.local r5,r2
-pointer.shared r6,r3
-pointer.add r7, r4,16
-pointer.add r8, r3,r0
-pointer.add r9, r3,r0,8
-pointer.byteOffsetFrom r10,r9,r7
-return r10
+    frame.address r2, r0:r1
+pointer.frame r3,r2
+global.address r4,g0
+pointer.global r5,r4
+pointer.local r6,r2
+pointer.shared r7,r3
+pointer.add r8, r5,16
+pointer.add r9, r3,r0
+pointer.add r10, r3,r0,8
+pointer.byteOffsetFrom r11,r10,r8
+return r11
 }
 "#,
         r#"
 function f0 {
-    pointer.frame r3, r0:r1
-    pointer.global r4, g0
-    pointer.local r5, r2
-    pointer.shared r6, r3
-    pointer.add r7, r4, 16
-    pointer.add r8, r3, r0
-    pointer.add r9, r3, r0, 8
-    pointer.byteOffsetFrom r10, r9, r7
-    return r10
+    frame.address r2, r0:r1
+    pointer.frame r3, r2
+    global.address r4, g0
+    pointer.global r5, r4
+    pointer.local r6, r2
+    pointer.shared r7, r3
+    pointer.add r8, r5, 16
+    pointer.add r9, r3, r0
+    pointer.add r10, r3, r0, 8
+    pointer.byteOffsetFrom r11, r10, r8
+    return r11
 }
 "#,
     );

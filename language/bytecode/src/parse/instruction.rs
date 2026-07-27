@@ -39,7 +39,8 @@ impl Parser<'_> {
                 self.parse_aggregate_operation(name, token, function)
             }
 
-            // pointers
+            // addresses and pointers
+            "frame" | "global" => self.parse_address(name, token, function),
             "pointer" => self.parse_pointer_operation(name, token, function),
 
             // byte ranges, prefetch, and memory

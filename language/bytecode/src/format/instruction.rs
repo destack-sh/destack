@@ -131,7 +131,8 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::CONSTANT_UNDEFINED
             | Opcode::CONSTANT_ZEROED => self.format_named_constant(opcode),
 
-            // pointers
+            // addresses and pointers
+            Opcode::FRAME_ADDRESS | Opcode::GLOBAL_ADDRESS => self.format_address(opcode),
             Opcode::POINTER_FRAME
             | Opcode::POINTER_GLOBAL
             | Opcode::POINTER_LOCAL

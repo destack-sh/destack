@@ -7,15 +7,17 @@ use super::TestParser;
 fn test_parse_pointer_operations() {
     let (_, opcodes) = TestParser::new(
         r#"
-function f0 {    pointer.frame r4, r2:r3
-    pointer.global r5, g0
-    pointer.local r6, r0
-    pointer.shared r7, r1
-    pointer.add r8, r5, 16
-    pointer.add r9, r4, r0
-    pointer.add r10, r4, r0, 8
-    pointer.byteOffsetFrom r11, r10, r8
-    return r11
+function f0 {    frame.address r4, r2:r3
+    pointer.frame r5, r4
+    global.address r6, g0
+    pointer.global r7, r6
+    pointer.local r8, r0
+    pointer.shared r9, r1
+    pointer.add r10, r7, 16
+    pointer.add r11, r5, r0
+    pointer.add r12, r5, r0, 8
+    pointer.byteOffsetFrom r13, r12, r10
+    return r13
 }
 "#,
     )
@@ -24,7 +26,9 @@ function f0 {    pointer.frame r4, r2:r3
     assert_eq!(
         opcodes,
         vec![
+            Opcode::FRAME_ADDRESS,
             Opcode::POINTER_FRAME,
+            Opcode::GLOBAL_ADDRESS,
             Opcode::POINTER_GLOBAL,
             Opcode::POINTER_LOCAL,
             Opcode::POINTER_SHARED,

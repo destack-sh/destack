@@ -1,3 +1,4 @@
+mod address;
 mod aggregate;
 mod atomic;
 mod call;

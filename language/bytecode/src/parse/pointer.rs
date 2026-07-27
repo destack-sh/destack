@@ -1,6 +1,5 @@
 use crate::{
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterSpan, RelocationTag,
-    Token, TokenType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterSpan, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -24,19 +23,20 @@ impl Parser<'_> {
         };
         let results = self.parse_definitions(opcode)?;
 
-        match name {
-            "pointer.frame" => self.parse_pointer_frame(&results, function),
-            "pointer.global" => self.parse_pointer_global(&results, function),
-            "pointer.local" | "pointer.shared" => {
-                self.parse_pointer_reference(opcode, &results, function)
+        match opcode {
+            Opcode::POINTER_FRAME
+            | Opcode::POINTER_GLOBAL
+            | Opcode::POINTER_LOCAL
+            | Opcode::POINTER_SHARED => self.parse_pointer_reference(opcode, &results, function),
+            Opcode::POINTER_ADD => self.parse_pointer_add(token, &results, function),
+            Opcode::POINTER_BYTE_OFFSET_FROM => {
+                self.parse_pointer_byte_offset_from(&results, function)
             }
-            "pointer.add" => self.parse_pointer_add(token, &results, function),
-            "pointer.byteOffsetFrom" => self.parse_pointer_byte_offset_from(&results, function),
             _ => Err(ParseError::new("invalid pointer operation", token.span)),
         }
     }
 
-    /// Parse one stable reference pointer materialization.
+    /// Materialize one stable reference as a pointer.
     fn parse_pointer_reference(
         &mut self,
         opcode: Opcode,
@@ -46,39 +46,6 @@ impl Parser<'_> {
         let reference = self.parse_register()?;
         let mut instruction = InstructionBuilder::new(opcode);
         instruction.register(reference);
-
-        function.emit(instruction, results, self.empty_span())
-    }
-
-    /// Parse one linked global pointer materialization.
-    fn parse_pointer_global(
-        &mut self,
-        results: &[RegisterSpan],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let token = self.eat_token(TokenType::Identifier)?;
-        let global = self
-            .text(token)
-            .strip_prefix('g')
-            .and_then(|index| index.parse::<u32>().ok())
-            .ok_or_else(|| ParseError::new("expected global id", token.span))?;
-
-        // encode the linked global identity
-        let mut instruction = InstructionBuilder::new(Opcode::POINTER_GLOBAL);
-        instruction.relocation(RelocationTag::GLOBAL, global);
-
-        function.emit(instruction, results, self.empty_span())
-    }
-
-    /// Parse one frame pointer materialization.
-    fn parse_pointer_frame(
-        &mut self,
-        results: &[RegisterSpan],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let value = self.parse_register_span()?;
-        let mut instruction = InstructionBuilder::new(Opcode::POINTER_FRAME);
-        instruction.span(value);
 
         function.emit(instruction, results, self.empty_span())
     }

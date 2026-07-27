@@ -1,4 +1,4 @@
-use crate::{Opcode, RegisterId, RegisterSpan};
+use crate::{Opcode, RegisterId};
 use destack_fir::format::{FormatError, FormatResult};
 
 use super::instruction::InstructionFormatter;
@@ -7,9 +7,10 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one pointer operation.
     pub(super) fn format_pointer(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
-            Opcode::POINTER_FRAME => self.format_pointer_frame(),
-            Opcode::POINTER_GLOBAL => self.format_pointer_global(),
-            Opcode::POINTER_LOCAL | Opcode::POINTER_SHARED => self.format_pointer_reference(opcode),
+            Opcode::POINTER_FRAME
+            | Opcode::POINTER_GLOBAL
+            | Opcode::POINTER_LOCAL
+            | Opcode::POINTER_SHARED => self.format_pointer_reference(opcode),
             Opcode::POINTER_ADD_IMMEDIATE => self.format_pointer_add_immediate(),
             Opcode::POINTER_ADD => self.format_pointer_add(),
             Opcode::POINTER_ADD_SCALED => self.format_pointer_add_scaled(),
@@ -20,7 +21,7 @@ impl InstructionFormatter<'_, '_, '_> {
         }
     }
 
-    /// Format one stable reference pointer materialization.
+    /// Format one stable reference materialization.
     fn format_pointer_reference(&mut self, opcode: Opcode) -> FormatResult<()> {
         let result = self.register_id()?;
         let reference = self.register_id()?;
@@ -32,29 +33,6 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_result(result)?;
         self.write_comma()?;
         self.write_register(reference)
-    }
-
-    /// Format one linked global pointer materialization.
-    fn format_pointer_global(&mut self) -> FormatResult<()> {
-        self.write_opcode("pointer.global")?;
-        self.result()?;
-        let symbol = self.relocation_text()?;
-
-        // write the linked global
-        self.write_comma()?;
-        self.write_text(&symbol)
-    }
-
-    /// Format one frame pointer materialization.
-    fn format_pointer_frame(&mut self) -> FormatResult<()> {
-        self.write_opcode("pointer.frame")?;
-        self.result()?;
-        let (register, word_count) = self.register_span_id()?;
-        let value = RegisterSpan::new(register, word_count);
-
-        // write the addressable register value
-        self.write_comma()?;
-        self.write_span(value)
     }
 
     /// Format one immediate pointer addition.

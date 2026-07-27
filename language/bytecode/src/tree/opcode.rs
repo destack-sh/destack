@@ -192,43 +192,53 @@ opcodes! {
         operands: [ResultRange],
     }
 
-    // pointers
-    POINTER_FRAME = 0x0030 {
-        text: "pointer.frame",
-        signature: "(value: value) => pointer",
+    // references and pointers
+    FRAME_ADDRESS = 0x0030 {
+        text: "frame.address",
+        signature: "(value: value) => ref<space(frame)>",
         operands: [Result, RegisterSpan],
     }
-    POINTER_GLOBAL = 0x0031 {
-        text: "pointer.global",
-        signature: "(global: GlobalId) => pointer",
+    GLOBAL_ADDRESS = 0x0031 {
+        text: "global.address",
+        signature: "(global: GlobalId) => ref<space(static)>",
         operands: [Result, Global],
     }
-    POINTER_LOCAL = 0x0032 {
+    POINTER_FRAME = 0x0032 {
+        text: "pointer.frame",
+        signature: "(reference: ref<space(frame)>) => pointer",
+        operands: [Result, Register],
+    }
+    POINTER_GLOBAL = 0x0033 {
+        text: "pointer.global",
+        signature: "(reference: ref<space(static)>) => pointer",
+        operands: [Result, Register],
+    }
+    POINTER_LOCAL = 0x0034 {
         text: "pointer.local",
         signature: "(reference: ref<space(local)>) => pointer",
         operands: [Result, Register],
     }
-    POINTER_SHARED = 0x0033 {
+    POINTER_SHARED = 0x0035 {
         text: "pointer.shared",
         signature: "(reference: ref<space(shared)>) => pointer",
         operands: [Result, Register],
     }
-    POINTER_ADD_IMMEDIATE = 0x0034 {
+    POINTER_ADD_IMMEDIATE = 0x0036 {
         text: "pointer.add",
         signature: "(base: pointer, byteOffset: int32) => pointer",
         operands: [Result, Register, Signed32],
     }
-    POINTER_ADD = 0x0035 {
+    POINTER_ADD = 0x0037 {
         text: "pointer.add",
         signature: "(base: pointer, byteOffset: int64) => pointer",
         operands: [Result, Register, Register],
     }
-    POINTER_ADD_SCALED = 0x0036 {
+    POINTER_ADD_SCALED = 0x0038 {
         text: "pointer.add",
         signature: "(base: pointer, offset: int64, scale: uint32) => pointer",
         operands: [Result, Register, Register, Unsigned32],
     }
-    POINTER_BYTE_OFFSET_FROM = 0x0037 {
+    POINTER_BYTE_OFFSET_FROM = 0x0039 {
         text: "pointer.byteOffsetFrom",
         signature: "(pointer: pointer, origin: pointer) => int64",
         operands: [Result, Register, Register],
