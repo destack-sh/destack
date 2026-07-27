@@ -101,10 +101,10 @@ impl<'tree> LayoutBuilder<'tree> {
     /// Compute a layout when one reachable type has a value representation.
     fn layout_reachable_type(&mut self, ty: mir::LocalNodeId<mir::Type>) -> CompilerResult<()> {
         match self.tree.get(ty) {
-            // recovery and callable descriptions do not represent values
+            // skip types without runtime representations
             mir::Type::Error | mir::Type::Never | mir::Type::FunctionSignature { .. } => Ok(()),
 
-            // represented types require one canonical layout
+            // compute one layout for each represented type
             mir::Type::Void
             | mir::Type::Boolean
             | mir::Type::Character
@@ -130,7 +130,9 @@ impl<'tree> LayoutBuilder<'tree> {
             | mir::Type::Tensor { .. }
             | mir::Type::TensorView { .. }
             | mir::Type::Function { .. }
-            | mir::Type::FunctionPointer { .. } => {
+            | mir::Type::FunctionPointer { .. }
+            | mir::Type::Continuation { .. }
+            | mir::Type::Waiter { .. } => {
                 self.layout_type(ty)?;
 
                 Ok(())
@@ -202,6 +204,11 @@ impl<'tree> LayoutBuilder<'tree> {
                 Ok(mir::Layout::scalar(bytes, self.pointer_alignment()))
             }
             mir::Type::TypeId => Ok(mir::Layout::scalar(4, 4)),
+            mir::Type::Continuation { .. } | mir::Type::Waiter { .. } => {
+                let bytes = u64::BITS.div_ceil(8);
+
+                Ok(mir::Layout::scalar(bytes, Self::scalar_alignment(bytes)))
+            }
             mir::Type::Float(float) => {
                 let bytes = (float.width() as u32).div_ceil(8);
 
