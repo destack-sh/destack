@@ -22,15 +22,9 @@ impl Rewriter<'_, '_> {
 
         match (module.tree.get(left), module.tree.get(right)) {
             (
-                js::Expression::Path {
-                    path: left_path,
-                    generic_arguments: left_arguments,
-                },
-                js::Expression::Path {
-                    path: right_path,
-                    generic_arguments: right_arguments,
-                },
-            ) => left_arguments.is_empty() && right_arguments.is_empty() && left_path == right_path,
+                js::Expression::Path { path: left_path },
+                js::Expression::Path { path: right_path },
+            ) => left_path == right_path,
             (
                 js::Expression::Parenthesized {
                     expression: left_expression,
@@ -187,14 +181,7 @@ impl Rewriter<'_, '_> {
                     _ => None,
                 }
             }
-            js::Expression::Path {
-                path,
-                generic_arguments,
-            } => {
-                if !generic_arguments.is_empty() {
-                    return None;
-                }
-
+            js::Expression::Path { path } => {
                 Self::global_scalar_literal_expression(module, expression_id, path)
             }
             js::Expression::ScalarLiteral { value } => Some(value.clone()),
@@ -232,14 +219,7 @@ impl Rewriter<'_, '_> {
                     _ => None,
                 }
             }
-            js::Expression::Path {
-                path,
-                generic_arguments,
-            } => {
-                if !generic_arguments.is_empty() {
-                    return None;
-                }
-
+            js::Expression::Path { path } => {
                 self.output_global_scalar_literal_expression(module, expression_id, path)
             }
             js::Expression::ScalarLiteral { value } => Some(value.clone()),

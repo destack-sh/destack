@@ -39,15 +39,9 @@ pub(super) struct MinifySourceContext {
 struct ReferencedNodeCollector {
     /// The visited node ids in walk order.
     visited: Vec<u32>,
-    /// The visitor options.
-    options: js::NodeVisitorOptions,
 }
 
 impl js::NodeVisitor for ReferencedNodeCollector {
-    fn options(&self) -> &js::NodeVisitorOptions {
-        &self.options
-    }
-
     fn visit_any(&mut self, _tree: &js::Tree, _ty: js::NodeType, id: u32) {
         self.visited.push(id);
     }

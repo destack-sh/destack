@@ -526,21 +526,21 @@ impl JsLinker<'_> {
 
                 // keep direct exported declarator bindings stable
                 js::Statement::Let {
-                    export,
+                    is_exported,
                     declarators,
                     ..
                 }
                 | js::Statement::Var {
-                    export,
+                    is_exported,
                     declarators,
                     ..
                 }
                 | js::Statement::Using {
-                    export,
+                    is_exported,
                     declarators,
                     ..
                 } => {
-                    if export.is_none() {
+                    if !is_exported {
                         continue;
                     }
 
@@ -640,13 +640,7 @@ impl JsLinker<'_> {
         pattern_field_id: js::LocalNodeId<js::PatternField>,
     ) -> Option<String> {
         let pattern_field = module.tree.get(pattern_field_id);
-        let js::PatternField::Named {
-            name,
-            is_shorthand: true,
-            pattern: None,
-            ..
-        } = pattern_field
-        else {
+        let js::PatternField::Shorthand { name, .. } = pattern_field else {
             return None;
         };
 
@@ -660,36 +654,30 @@ impl JsLinker<'_> {
         binding_name: &str,
     ) {
         let pattern_field = module.tree.get(pattern_field_id).clone();
-        let js::PatternField::Named {
-            mutability,
-            is_shorthand: true,
-            pattern: None,
-            ..
-        } = pattern_field
-        else {
+        let js::PatternField::Shorthand { name, value } = pattern_field else {
             return;
         };
 
         // explicit binding pattern
         let binding_name = module.strings.intern(binding_name);
-        let binding_pattern = js::Pattern::Binding {
-            mutability,
-            name: binding_name,
-        };
-        let binding_pattern_id = module.tree.insert_from(binding_pattern, pattern_field_id);
+        let binding_pattern = js::Pattern::Binding { name: binding_name };
+        let mut binding_pattern = module.tree.insert_from(binding_pattern, pattern_field_id);
+
+        // preserve shorthand defaults around the renamed binding
+        if let Some(value) = value {
+            let pattern = js::Pattern::Assign {
+                pattern: binding_pattern,
+                value,
+            };
+            binding_pattern = module.tree.insert_from(pattern, pattern_field_id);
+        }
 
         // rewrite the field into non-shorthand form
         let pattern_field = module.tree.get_mut(pattern_field_id);
-        let js::PatternField::Named {
-            is_shorthand,
-            pattern,
-            ..
-        } = pattern_field
-        else {
-            unreachable!("expected shorthand named pattern field");
+        *pattern_field = js::PatternField::Named {
+            name,
+            pattern: binding_pattern,
         };
-        *is_shorthand = false;
-        *pattern = Some(binding_pattern_id);
     }
 
     /// Collect one exported pattern tree as preserved bindings.
@@ -718,87 +706,49 @@ impl JsLinker<'_> {
                     bindings,
                 )?;
             }
-            js::Pattern::Array { fields } => {
-                for field_id in fields {
-                    let field = module.tree.get(*field_id);
-
-                    match field {
-                        js::PatternField::Named {
-                            pattern: Some(pattern),
-                            ..
-                        }
-                        | js::PatternField::Computed { pattern, .. }
-                        | js::PatternField::Positional { pattern, .. } => {
-                            self.collect_exported_pattern_bindings(
-                                module,
-                                *pattern,
-                                source_contexts,
-                                bindings,
-                            )?;
-                        }
-                        js::PatternField::Spread { .. }
-                        | js::PatternField::Elision
-                        | js::PatternField::Named { pattern: None, .. } => {}
-                    }
-                }
-            }
-            js::Pattern::Object { fields } => {
-                for field_id in fields {
-                    let field = module.tree.get(*field_id);
-
-                    match field {
-                        js::PatternField::Named {
-                            pattern: Some(pattern),
-                            ..
-                        }
-                        | js::PatternField::Computed { pattern, .. }
-                        | js::PatternField::Positional { pattern, .. } => {
-                            self.collect_exported_pattern_bindings(
-                                module,
-                                *pattern,
-                                source_contexts,
-                                bindings,
-                            )?;
-                        }
-                        js::PatternField::Named {
-                            pattern: None,
-                            is_shorthand: true,
-                            ..
-                        } => {
-                            let Some(symbol_id) = module.tree.symbol(*field_id) else {
-                                continue;
-                            };
-                            let Some(name) =
-                                Self::shorthand_pattern_field_binding_name(module, *field_id)
-                            else {
-                                continue;
-                            };
-                            self.record_binding_symbol(
-                                symbol_id,
-                                name,
-                                true,
-                                source_contexts,
-                                bindings,
-                            )?;
-                        }
-                        js::PatternField::Spread {
-                            pattern: Some(pattern),
-                            ..
-                        } => {
-                            self.collect_exported_pattern_bindings(
-                                module,
-                                *pattern,
-                                source_contexts,
-                                bindings,
-                            )?;
-                        }
-                        js::PatternField::Named { pattern: None, .. }
-                        | js::PatternField::Spread { pattern: None, .. }
-                        | js::PatternField::Elision => {}
-                    }
-                }
+            js::Pattern::Array { fields } | js::Pattern::Object { fields } => {
+                self.collect_exported_pattern_fields(module, fields, source_contexts, bindings)?
             }
             js::Pattern::Hole => {}
+        }
+
+        Ok(())
+    }
+
+    /// Collect exported bindings from one destructuring field list.
+    fn collect_exported_pattern_fields(
+        &self,
+        module: &js::Module,
+        fields: &[js::LocalNodeId<js::PatternField>],
+        source_contexts: &HashMap<ModuleId, MinifySourceContext>,
+        bindings: &mut HashMap<js::ScriptSymbolId, BindingEntry>,
+    ) -> LinkResult<()> {
+        for field_id in fields {
+            let field = module.tree.get(*field_id);
+
+            // recurse into explicit nested patterns
+            let pattern = match field {
+                js::PatternField::Named { pattern, .. }
+                | js::PatternField::Computed { pattern, .. }
+                | js::PatternField::Positional { pattern }
+                | js::PatternField::Spread { pattern } => Some(*pattern),
+                js::PatternField::Shorthand { .. } | js::PatternField::Elision => None,
+            };
+            if let Some(pattern) = pattern {
+                self.collect_exported_pattern_bindings(module, pattern, source_contexts, bindings)?;
+
+                continue;
+            }
+
+            // preserve shorthand binding names at the export boundary
+            let js::PatternField::Shorthand { name, .. } = field else {
+                continue;
+            };
+            let Some(symbol_id) = module.tree.symbol(*field_id) else {
+                continue;
+            };
+            let name = module.strings.get(*name).to_string();
+            self.record_binding_symbol(symbol_id, name, true, source_contexts, bindings)?;
         }
 
         Ok(())
@@ -1128,7 +1078,6 @@ impl JsLinker<'_> {
                 | js::Declaration::Function(js::FunctionDeclaration { name, .. }) => {
                     *name = None;
                 }
-                _ => {}
             }
         }
 

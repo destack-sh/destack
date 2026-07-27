@@ -82,15 +82,11 @@ impl Rewriter<'_, '_> {
         expression_id: js::LocalNodeId<js::Expression>,
         name: StringId,
     ) -> bool {
-        let js::Expression::Path {
-            path,
-            generic_arguments,
-        } = module.tree.get(expression_id)
-        else {
+        let js::Expression::Path { path } = module.tree.get(expression_id) else {
             return false;
         };
 
-        path.segments.len() == 1 && path.segments[0] == name && generic_arguments.is_empty()
+        path.segments.len() == 1 && path.segments[0] == name
     }
 
     /// Rewrite `let x = undefined` into `let x` for simple mutable bindings.
@@ -220,8 +216,7 @@ impl Rewriter<'_, '_> {
         right_statement_id: js::LocalNodeId<js::Statement>,
     ) -> bool {
         let js::Statement::Let {
-            export: left_export,
-            is_ambient: left_is_ambient,
+            is_exported: is_left_exported,
             mutability: left_mutability,
             declarators: _,
         } = module.tree.get(left_statement_id).clone()
@@ -230,8 +225,7 @@ impl Rewriter<'_, '_> {
         };
 
         let js::Statement::Let {
-            export: right_export,
-            is_ambient: right_is_ambient,
+            is_exported: is_right_exported,
             mutability: right_mutability,
             declarators: right_declarators,
         } = module.tree.get(right_statement_id).clone()
@@ -239,10 +233,7 @@ impl Rewriter<'_, '_> {
             return false;
         };
 
-        if left_mutability != right_mutability
-            || left_export != right_export
-            || left_is_ambient != right_is_ambient
-        {
+        if left_mutability != right_mutability || is_left_exported != is_right_exported {
             return false;
         }
 
@@ -265,9 +256,7 @@ impl Rewriter<'_, '_> {
             let declaration = module.tree.get(declaration_id).clone();
 
             let js::Declaration::Function(js::FunctionDeclaration {
-                signature,
-                body: Some(body),
-                ..
+                signature, body, ..
             }) = declaration
             else {
                 continue;
@@ -369,7 +358,7 @@ impl Rewriter<'_, '_> {
 
             js::Statement::Import { .. }
             | js::Statement::Export { .. }
-            | js::Statement::ExportValue { .. }
+            | js::Statement::ExportDefault { .. }
             | js::Statement::Declaration { .. }
             | js::Statement::Let { .. }
             | js::Statement::Var { .. }
@@ -394,7 +383,6 @@ impl Rewriter<'_, '_> {
             let property = self.module.tree.get(property_id).clone();
 
             let js::Property::Field {
-                modifiers,
                 key: js::Key::Name(js::Name::Identifier(key)),
                 value,
                 is_shorthand,
@@ -403,7 +391,7 @@ impl Rewriter<'_, '_> {
                 continue;
             };
 
-            if modifiers.is_some() || is_shorthand {
+            if is_shorthand {
                 continue;
             }
 
@@ -429,39 +417,27 @@ pub(super) trait DeclarationBindingAccess {
     fn name_mut(&mut self) -> Option<&mut Option<js::Name>>;
 
     /// Return the declaration export kind.
-    fn export(&self) -> Option<js::DependencyBinding>;
+    fn export(&self) -> Option<js::ExportKind>;
 }
 
 impl DeclarationBindingAccess for js::Declaration {
     fn name(&self) -> Option<js::Name> {
         match self {
-            js::Declaration::Global(_) => None,
-            js::Declaration::Type(declaration) => declaration.name,
             js::Declaration::Class(declaration) => declaration.name,
-            js::Declaration::Interface(declaration) => declaration.name,
-            js::Declaration::Enum(declaration) => declaration.name,
             js::Declaration::Function(declaration) => declaration.name,
         }
     }
 
     fn name_mut(&mut self) -> Option<&mut Option<js::Name>> {
         match self {
-            js::Declaration::Global(_) => None,
-            js::Declaration::Type(declaration) => Some(&mut declaration.name),
             js::Declaration::Class(declaration) => Some(&mut declaration.name),
-            js::Declaration::Interface(declaration) => Some(&mut declaration.name),
-            js::Declaration::Enum(declaration) => Some(&mut declaration.name),
             js::Declaration::Function(declaration) => Some(&mut declaration.name),
         }
     }
 
-    fn export(&self) -> Option<js::DependencyBinding> {
+    fn export(&self) -> Option<js::ExportKind> {
         match self {
-            js::Declaration::Global(_) => None,
-            js::Declaration::Type(declaration) => declaration.export,
             js::Declaration::Class(declaration) => declaration.export,
-            js::Declaration::Interface(declaration) => declaration.export,
-            js::Declaration::Enum(declaration) => declaration.export,
             js::Declaration::Function(declaration) => declaration.export,
         }
     }

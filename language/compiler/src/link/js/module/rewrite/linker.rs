@@ -85,7 +85,7 @@ impl<'module, 'a> Rewriter<'module, 'a> {
             let js::Expression::IfTernary {
                 condition,
                 then_expression,
-                else_expression: Some(else_expression),
+                else_expression,
             } = expression
             else {
                 continue;
@@ -168,7 +168,7 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     };
                     Self::set_property_key_name(key, name);
                 }
-                js::Property::Method { key: Some(key), .. } => {
+                js::Property::Method { key, .. } => {
                     let Some(name) = self.rewritten_property_name(&key) else {
                         continue;
                     };
@@ -177,13 +177,9 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     let js::Property::Method { key, .. } = property else {
                         continue;
                     };
-                    let Some(key) = key else {
-                        continue;
-                    };
                     Self::set_property_key_name(key, name);
                 }
                 js::Property::Spread { .. } => {}
-                js::Property::Method { key: None, .. } => {}
             }
         }
 
@@ -203,7 +199,7 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     };
                     Self::set_property_key_name(key, name);
                 }
-                js::Member::Method { key: Some(key), .. } => {
+                js::Member::Method { key, .. } => {
                     let Some(name) = self.rewritten_property_name(&key) else {
                         continue;
                     };
@@ -212,13 +208,9 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     let js::Member::Method { key, .. } = member else {
                         continue;
                     };
-                    let Some(key) = key else {
-                        continue;
-                    };
                     Self::set_property_key_name(key, name);
                 }
-                js::Member::StaticBlock { .. } => {}
-                js::Member::Method { key: None, .. } => {}
+                js::Member::Constructor { .. } | js::Member::StaticBlock { .. } => {}
             }
         }
 
@@ -233,14 +225,10 @@ impl<'module, 'a> Rewriter<'module, 'a> {
 
             match expression {
                 js::Expression::Index {
-                    position,
                     left,
                     right,
+                    is_optional,
                 } => {
-                    if position != js::PostfixPosition::Direct {
-                        continue;
-                    }
-
                     let js::Expression::ScalarLiteral {
                         value: js::ScalarLiteral::String(name),
                     } = self.module.tree.get(right)
@@ -254,10 +242,18 @@ impl<'module, 'a> Rewriter<'module, 'a> {
                     }
 
                     let expression = self.module.tree.get_mut(expression_id);
-                    *expression = js::Expression::Member { left, name };
+                    *expression = js::Expression::Member {
+                        left,
+                        name,
+                        is_optional,
+                    };
                 }
 
-                js::Expression::Member { left, name } => {
+                js::Expression::Member {
+                    left,
+                    name,
+                    is_optional,
+                } => {
                     if self.can_use_identifier_property_name(self.module.strings.get(name)) {
                         continue;
                     }
@@ -271,9 +267,9 @@ impl<'module, 'a> Rewriter<'module, 'a> {
 
                     let expression = self.module.tree.get_mut(expression_id);
                     *expression = js::Expression::Index {
-                        position: js::PostfixPosition::Direct,
                         left,
                         right,
+                        is_optional,
                     };
                 }
 
@@ -286,14 +282,7 @@ impl<'module, 'a> Rewriter<'module, 'a> {
             let expression = self.module.tree.get(expression_id).clone();
 
             match expression {
-                js::Expression::Path {
-                    path,
-                    generic_arguments,
-                } => {
-                    if !generic_arguments.is_empty() {
-                        continue;
-                    }
-
+                js::Expression::Path { path } => {
                     if let Some(rewritten) =
                         self.fold_global_infinity_reference(expression_id, path)
                     {

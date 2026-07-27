@@ -43,7 +43,6 @@ impl TestModuleBuilder {
             path: js::Path {
                 segments: smallvec::smallvec![name],
             },
-            generic_arguments: vec![],
         })
     }
 
@@ -51,10 +50,7 @@ impl TestModuleBuilder {
     fn binding_pattern(&mut self, name: &str) -> js::LocalNodeId<js::Pattern> {
         let name = self.strings.intern(name);
 
-        self.tree.insert_generated(js::Pattern::Binding {
-            mutability: Some(js::Mutability::Mutable),
-            name,
-        })
+        self.tree.insert_generated(js::Pattern::Binding { name })
     }
 
     /// Insert one object pattern.
@@ -117,7 +113,11 @@ impl TestModuleBuilder {
     ) -> js::LocalNodeId<js::Expression> {
         let name = self.strings.intern(name);
 
-        self.expression(js::Expression::Member { left, name })
+        self.expression(js::Expression::Member {
+            left,
+            name,
+            is_optional: false,
+        })
     }
 
     /// Insert one index expression.
@@ -127,9 +127,9 @@ impl TestModuleBuilder {
         right: js::LocalNodeId<js::Expression>,
     ) -> js::LocalNodeId<js::Expression> {
         self.expression(js::Expression::Index {
-            position: js::PostfixPosition::Direct,
             left,
             right,
+            is_optional: false,
         })
     }
 
@@ -148,10 +148,9 @@ impl TestModuleBuilder {
             .collect();
 
         self.expression(js::Expression::Call {
-            position: js::PostfixPosition::Direct,
             left,
-            generic_arguments: vec![],
             arguments,
+            is_optional: false,
         })
     }
 
@@ -177,15 +176,12 @@ impl TestModuleBuilder {
         pattern: js::LocalNodeId<js::Pattern>,
         value: Option<js::LocalNodeId<js::Expression>>,
     ) -> js::LocalNodeId<js::Statement> {
-        let declarator = self.tree.insert_generated(js::Declarator {
-            pattern,
-            ty: None,
-            value,
-        });
+        let declarator = self
+            .tree
+            .insert_generated(js::Declarator { pattern, value });
 
         self.tree.insert_generated(js::Statement::Let {
-            export: None,
-            is_ambient: true,
+            is_exported: false,
             mutability: js::Mutability::Mutable,
             declarators: vec![declarator],
         })
@@ -196,24 +192,15 @@ impl TestModuleBuilder {
         &mut self,
         asynchrony: js::Asynchrony,
         is_generator: bool,
-        body: Option<js::LocalNodeId<js::Block>>,
+        body: js::LocalNodeId<js::Block>,
     ) -> js::LocalNodeId<js::Declaration> {
         self.tree
             .insert_generated(js::Declaration::Function(js::FunctionDeclaration {
                 name: None,
                 export: None,
-                is_ambient: true,
-                is_abstract: false,
                 signature: js::FunctionSignature {
                     asynchrony,
-                    role: None,
-                    form: js::FunctionForm::Function,
-                    generic_parameters: Vec::new(),
-                    this_parameter: None,
                     parameters: Vec::new(),
-                    return_type: None,
-                    is_abstract: false,
-                    is_override: false,
                     is_generator,
                 },
                 body,
@@ -1020,30 +1007,44 @@ fn test_rewrites_es2020_nullish_coalescing_ternary() {
     assert_eq!(right, fallback);
 }
 
-/// Rewrite `value == null ? undefined : value.plain` to `value?.plain`.
+/// Rewrite `value == null ? undefined : value.first.second` to `value?.first.second`.
 #[test]
-fn test_rewrites_es2020_optional_member_ternary() {
+fn test_rewrites_es2020_optional_member_chain() {
     let mut builder = TestModuleBuilder::new();
     let value = builder.path("value");
     let null = builder.null();
     let condition = builder.binary(value, js::BinaryOperator::Equal, null);
     let undefined = builder.undefined();
-    let member = builder.member(value, "plain");
+    let first = builder.member(value, "first");
+    let second = builder.member(first, "second");
     let mut rewriter = TestRewriter::new(builder.finish());
 
     let rewritten = rewriter
-        .fold_es2020_ternary(condition, undefined, member)
+        .fold_es2020_ternary(condition, undefined, second)
         .expect("expected es2020 optional member rewrite");
 
-    let js::Expression::Member { left, name, .. } = rewritten else {
+    let js::Expression::Member {
+        left,
+        name,
+        is_optional,
+    } = rewritten
+    else {
         panic!("expected rewritten member expression");
     };
-    let js::Expression::Maybe { left: receiver, .. } = rewriter.module().tree.get(left) else {
-        panic!("expected optional receiver");
+    let js::Expression::Member {
+        left: receiver,
+        name: first_name,
+        is_optional: is_first_optional,
+    } = rewriter.module().tree.get(left)
+    else {
+        panic!("expected rewritten receiver member");
     };
 
     assert_eq!(*receiver, value);
-    assert_eq!(rewriter.module().strings.get(name), "plain");
+    assert!(*is_first_optional);
+    assert!(!is_optional);
+    assert_eq!(rewriter.module().strings.get(*first_name), "first");
+    assert_eq!(rewriter.module().strings.get(name), "second");
 }
 
 /// Rewrite `value != null ? value[key] : undefined` to `value?.[key]`.
@@ -1063,19 +1064,15 @@ fn test_rewrites_es2020_optional_index_ternary() {
         .expect("expected es2020 optional index rewrite");
 
     let js::Expression::Index {
-        position,
         left,
         right,
+        is_optional,
     } = rewritten
     else {
         panic!("expected rewritten index expression");
     };
-    let js::Expression::Maybe { left: receiver, .. } = rewriter.module().tree.get(left) else {
-        panic!("expected optional receiver");
-    };
-
-    assert_eq!(position, js::PostfixPosition::Indirect);
-    assert_eq!(*receiver, value);
+    assert_eq!(left, value);
+    assert!(is_optional);
     assert_eq!(right, key);
 }
 
@@ -1096,16 +1093,12 @@ fn test_rewrites_es2020_optional_call_ternary() {
         .expect("expected es2020 optional call rewrite");
 
     let js::Expression::Call {
-        position,
         left,
         arguments,
-        ..
+        is_optional,
     } = rewritten
     else {
         panic!("expected rewritten call expression");
-    };
-    let js::Expression::Maybe { left: receiver, .. } = rewriter.module().tree.get(left) else {
-        panic!("expected optional receiver");
     };
     let js::Argument::Positional {
         value: rewritten_arg,
@@ -1114,8 +1107,8 @@ fn test_rewrites_es2020_optional_call_ternary() {
         panic!("expected positional argument");
     };
 
-    assert_eq!(position, js::PostfixPosition::Indirect);
-    assert_eq!(*receiver, value);
+    assert_eq!(left, value);
+    assert!(is_optional);
     assert_eq!(*rewritten_arg, argument);
 }
 
@@ -1126,7 +1119,7 @@ fn test_keeps_undefined_return_in_async_generator() {
     let undefined_value = builder.undefined();
     let statement = builder.return_statement(Some(undefined_value));
     let body = builder.block(vec![statement]);
-    builder.function_declaration(js::Asynchrony::Async, true, Some(body));
+    builder.function_declaration(js::Asynchrony::Async, true, body);
     let mut module = builder.finish();
 
     Rewriter::elide_undefined_returns(&mut module);
@@ -1145,7 +1138,7 @@ fn test_elides_undefined_return_in_plain_function() {
     let undefined_value = builder.undefined();
     let statement = builder.return_statement(Some(undefined_value));
     let body = builder.block(vec![statement]);
-    builder.function_declaration(js::Asynchrony::Sync, false, Some(body));
+    builder.function_declaration(js::Asynchrony::Sync, false, body);
     let mut module = builder.finish();
 
     Rewriter::elide_undefined_returns(&mut module);

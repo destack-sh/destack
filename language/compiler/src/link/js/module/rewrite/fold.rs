@@ -984,98 +984,86 @@ impl Rewriter<'_, '_> {
         receiver: js::LocalNodeId<js::Expression>,
         expression_id: js::LocalNodeId<js::Expression>,
     ) -> Option<js::Expression> {
-        let rewritten = Self::rewrite_optional_chain_receiver(module, receiver, expression_id)?;
+        let (rewritten, is_pending) =
+            Self::rewrite_optional_chain_receiver(module, receiver, expression_id)?;
+        if is_pending {
+            return None;
+        }
 
         Some(module.tree.get(rewritten).clone())
     }
 
-    /// Rewrite one receiver occurrence inside one expression tree into an optional receiver.
+    /// Rewrite one receiver chain and return whether its next access must be optional.
     fn rewrite_optional_chain_receiver(
         module: &mut js::Module,
         receiver: js::LocalNodeId<js::Expression>,
         expression_id: js::LocalNodeId<js::Expression>,
-    ) -> Option<js::LocalNodeId<js::Expression>> {
-        // direct receiver
+    ) -> Option<(js::LocalNodeId<js::Expression>, bool)> {
         if Self::same_expression_value(module, receiver, expression_id) {
-            let rewritten = js::Expression::Maybe {
-                position: Self::optional_receiver_position(module, expression_id),
-                left: expression_id,
-            };
-
-            return Some(module.tree.insert_from(rewritten, expression_id));
+            return Some((expression_id, true));
         }
 
         let expression = module.tree.get(expression_id).clone();
 
         // recurse down the receiver side
-        let rewritten = match expression {
+        match expression {
             js::Expression::Parenthesized { expression } => {
-                let expression =
+                let (expression, is_pending) =
                     Self::rewrite_optional_chain_receiver(module, receiver, expression)?;
+                let rewritten = js::Expression::Parenthesized { expression };
+                let rewritten = module.tree.insert_from(rewritten, expression_id);
 
-                js::Expression::Parenthesized { expression }
+                Some((rewritten, is_pending))
             }
-            js::Expression::Member { left, name } => {
-                let left = Self::rewrite_optional_chain_receiver(module, receiver, left)?;
+            js::Expression::Member {
+                left,
+                name,
+                is_optional,
+            } => {
+                let (left, is_pending) =
+                    Self::rewrite_optional_chain_receiver(module, receiver, left)?;
+                let rewritten = js::Expression::Member {
+                    left,
+                    name,
+                    is_optional: is_optional || is_pending,
+                };
+                let rewritten = module.tree.insert_from(rewritten, expression_id);
 
-                js::Expression::Member { left, name }
+                Some((rewritten, false))
             }
             js::Expression::Index {
-                position,
                 left,
                 right,
+                is_optional,
             } => {
-                let left = Self::rewrite_optional_chain_receiver(module, receiver, left)?;
-                let position = if matches!(module.tree.get(left), js::Expression::Maybe { .. }) {
-                    js::PostfixPosition::Indirect
-                } else {
-                    position
-                };
-
-                js::Expression::Index {
-                    position,
+                let (left, is_pending) =
+                    Self::rewrite_optional_chain_receiver(module, receiver, left)?;
+                let rewritten = js::Expression::Index {
                     left,
                     right,
-                }
+                    is_optional: is_optional || is_pending,
+                };
+                let rewritten = module.tree.insert_from(rewritten, expression_id);
+
+                Some((rewritten, false))
             }
             js::Expression::Call {
-                position,
                 left,
-                generic_arguments,
                 arguments,
+                is_optional,
             } => {
-                let left = Self::rewrite_optional_chain_receiver(module, receiver, left)?;
-                let position = if matches!(module.tree.get(left), js::Expression::Maybe { .. }) {
-                    js::PostfixPosition::Indirect
-                } else {
-                    position
-                };
-
-                js::Expression::Call {
-                    position,
+                let (left, is_pending) =
+                    Self::rewrite_optional_chain_receiver(module, receiver, left)?;
+                let rewritten = js::Expression::Call {
                     left,
-                    generic_arguments,
                     arguments,
-                }
+                    is_optional: is_optional || is_pending,
+                };
+                let rewritten = module.tree.insert_from(rewritten, expression_id);
+
+                Some((rewritten, false))
             }
-            _ => return None,
-        };
-
-        Some(module.tree.insert_from(rewritten, expression_id))
-    }
-
-    /// Return the postfix position for one wrapped optional receiver.
-    fn optional_receiver_position(
-        module: &js::Module,
-        expression_id: js::LocalNodeId<js::Expression>,
-    ) -> js::PostfixPosition {
-        if matches!(
-            module.tree.get(expression_id),
-            js::Expression::Maybe { .. } | js::Expression::Must { .. }
-        ) {
-            js::PostfixPosition::Indirect
-        } else {
-            js::PostfixPosition::Direct
+            _ => None,
         }
     }
 
