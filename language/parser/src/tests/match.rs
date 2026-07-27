@@ -9,6 +9,65 @@ use crate::{
     block_expression_ids,
 };
 
+/// Keep repeated match-arm placeholders outside ordinary Destack grammar.
+#[test]
+fn test_reject_match_arm_placeholder_in_destack_grammar() {
+    let test = TestParser::new("match (value) { $$$ARMS }");
+    let mut parser = test.prepare();
+    parser.parse();
+
+    TestParser::assert_errors(
+        &parser,
+        &[
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::CloseBrace),
+                Some(TokenType::ArrowWide),
+                "}",
+            ),
+            (None, Some(TokenType::CloseBrace), None, "}"),
+        ],
+    );
+}
+
+/// Parse repeated Pattern placeholders as complete match arms and switch cases.
+#[test]
+fn test_parse_pattern_branch_placeholders() {
+    let test = TestParser::new("match (value) { $$$ARMS }");
+    let mut parser = test.prepare_pattern();
+    let roots = parser.parse();
+
+    TestParser::assert_no_errors(&parser);
+    assert_node!(parser.tree, roots[0], Expression::Match { arms, .. } => {
+        assert_eq!(arms.len(), 1);
+        assert_node!(parser.tree, arms[0], MatchArm::Expression { pattern, body, .. } => {
+            assert_node!(parser.tree, *pattern, Pattern::Wildcard);
+            assert_node!(parser.tree, *body, Expression::Error);
+        });
+    });
+
+    let test = TestParser::new("switch (value) { $$$CASES }");
+    let mut parser = test.prepare_pattern();
+    let roots = parser.parse();
+
+    TestParser::assert_no_errors(&parser);
+    assert_node!(parser.tree, roots[0], Expression::Switch { cases, .. } => {
+        assert_eq!(cases.len(), 1);
+        assert_node!(parser.tree, cases[0], SwitchCase {
+            selector: SwitchSelector::Default,
+            body,
+        } => {
+            assert_node!(parser.tree, *body, Block {
+                leading_expressions,
+                tail_expression: None,
+                ..
+            } => {
+                assert!(leading_expressions.is_empty());
+            });
+        });
+    });
+}
+
 #[test]
 fn test_parse_match_simple_arms() {
     let test = TestParser::new(

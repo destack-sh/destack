@@ -7,7 +7,7 @@ use std::sync::Arc;
 use destack_core::{StringId, StringPool};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
-use crate::{CommentRetention, Parser};
+use crate::{CommentRetention, Grammar, Parser};
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
@@ -49,6 +49,11 @@ impl TestParser {
     /// Create a parser for this test.
     pub(crate) fn prepare(&self) -> Parser {
         self.prepare_with_comment_retention(CommentRetention::All)
+    }
+
+    /// Create a parser accepting structural Pattern placeholders.
+    pub(crate) fn prepare_pattern(&self) -> Parser {
+        self.prepare().with_grammar(Grammar::Pattern)
     }
 
     /// Create a parser with explicit comment retention for this test.

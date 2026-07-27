@@ -1,10 +1,30 @@
 use destack_dir::{
-    CommentKind, IntegerType, NodeType, TokenType, TypeExpression, TypeLiteral, WhereClause,
-    WhereRelation,
+    CommentKind, Declaration, Expression, IntegerType, NodeType, TokenType, TypeExpression,
+    TypeLiteral, WhereClause, WhereRelation,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{TestParser, assert_comment, assert_expression_path, assert_node, assert_path};
+
+/// Parse a repeated Pattern placeholder as one complete where clause.
+#[test]
+fn test_parse_pattern_where_clause_placeholder() {
+    let test = TestParser::new("function example<T>(): void where $$$CLAUSES {}");
+    let mut parser = test.prepare_pattern();
+    let roots = parser.parse();
+
+    TestParser::assert_no_errors(&parser);
+    assert_node!(parser.tree, roots[0], Expression::Declaration(value) => {
+        assert_node!(parser.tree, *value, Declaration::Function(declaration) => {
+            let clauses = &declaration.signature.where_clauses;
+            assert_eq!(clauses.len(), 1);
+            assert_node!(parser.tree, clauses[0], WhereClause { left, right, .. } => {
+                assert_node!(parser.tree, *left, TypeExpression::Error);
+                assert_node!(parser.tree, *right, TypeExpression::Error);
+            });
+        });
+    });
+}
 
 #[test]
 fn test_parse_where_type_assertion() {

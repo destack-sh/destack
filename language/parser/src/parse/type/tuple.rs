@@ -18,7 +18,9 @@ struct TupleLabel {
 impl Parser {
     /// Return whether the current token starts a type tuple head.
     pub(crate) fn peek_type_tuple(&self) -> bool {
-        self.peek_is(TokenType::Spread) || self.peek_labeled_tuple()
+        self.peek_is(TokenType::Spread)
+            || self.peek_labeled_tuple()
+            || self.peek_repeated_pattern_marker()
     }
 
     /// Return whether the current token starts a labeled type tuple head.

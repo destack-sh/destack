@@ -2,7 +2,9 @@ use crate::parse::context::{ExpressionContext, ExpressionStops, FunctionContext,
 use crate::parse::error::ParserResultExt;
 use crate::{Parser, ParserResult};
 
-use destack_dir::{BlockContext, Expression, Keyword, LocalNodeId, MatchArm, NodeType, TokenType};
+use destack_dir::{
+    BlockContext, Expression, Keyword, LocalNodeId, MatchArm, NodeType, Pattern, TokenType,
+};
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 /// One match guard and its source range.
@@ -42,6 +44,12 @@ impl Parser {
     ) -> ParserResult<Vec<LocalNodeId<MatchArm>>> {
         let mut arms = Vec::new();
         while self.has_more_tokens() && !self.peek_is(TokenType::CloseBrace) {
+            // retain one repeated Pattern placeholder as a complete arm
+            if self.peek_repeated_pattern_marker() {
+                arms.push(self.parse_match_arm_placeholder());
+                continue;
+            }
+
             // consume separators between arms
             if Self::is_statement_stop_token(self.peek_token_type()) {
                 self.eat_statement_stop()?;
@@ -53,6 +61,21 @@ impl Parser {
         }
 
         Ok(arms)
+    }
+
+    /// Parse one repeated Pattern placeholder as a complete match arm.
+    fn parse_match_arm_placeholder(&mut self) -> LocalNodeId<MatchArm> {
+        let range = self.peek_token().range();
+        let pattern = self.insert_node(Pattern::Wildcard, range);
+        let body = self.insert_node(Expression::Error, range);
+        let arm = MatchArm::Expression {
+            pattern,
+            guard: None,
+            body,
+        };
+        self.bump();
+
+        self.insert_node(arm, range)
     }
 
     /// Parse one match arm.

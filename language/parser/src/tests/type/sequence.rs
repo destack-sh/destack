@@ -6,6 +6,23 @@ use destack_dir::{
     TupleElement, TupleForm, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 
+/// Parse a repeated Pattern placeholder as one complete tuple element.
+#[test]
+fn test_parse_pattern_tuple_element_placeholder() {
+    let test = TestParser::new("type Values = [$$$ELEMENTS]");
+    let mut parser = test.prepare_pattern();
+    let roots = parser.parse();
+
+    TestParser::assert_no_errors(&parser);
+    assert_node!(parser.tree, roots[0], Expression::Declaration(value) => {
+        assert_node!(parser.tree, *value, Declaration::Type(declaration) => {
+            assert_node!(parser.tree, declaration.value, TypeExpression::Tuple { elements, .. } => {
+                assert_eq!(elements.len(), 1);
+            });
+        });
+    });
+}
+
 #[test]
 fn test_parse_array_tuple_type() {
     let test = TestParser::new("[string, int32]");

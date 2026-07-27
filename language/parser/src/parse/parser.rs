@@ -1,4 +1,4 @@
-use crate::{CommentRetention, ParserError, ParserResult, classify_keyword};
+use crate::{CommentRetention, ParserError, ParserResult, PatternMarker, classify_keyword};
 use core::fmt;
 use destack_core::{LocalStringPool, StringId, StringPool, ensure_sufficient_stack};
 use destack_dir::{
@@ -21,6 +21,16 @@ const STACK_CHECK_INTERVAL: u16 = 8;
 /// Maximum nested recursive parser descent before reporting malformed input.
 const MAX_RECURSIVE_DESCENT_DEPTH: u16 = 2048;
 
+/// The source grammar accepted by a parser.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Grammar {
+    /// Ordinary Destack source.
+    #[default]
+    Destack,
+    /// Destack source with structural Pattern placeholders.
+    Pattern,
+}
+
 /// An indexed parser for one source file.
 pub struct Parser {
     /// The source file.
@@ -33,6 +43,8 @@ pub struct Parser {
     is_finished: bool,
     /// The current nested recursive descent depth.
     recursive_descent_depth: u16,
+    /// The accepted source grammar.
+    grammar: Grammar,
 
     /// The DIR tree.
     pub tree: Tree,
@@ -153,6 +165,7 @@ impl Parser {
             cursor,
             is_finished: false,
             recursive_descent_depth: 0,
+            grammar: Grammar::Destack,
             is_ambient: language.is_declaration(),
             tree,
             strings: LocalStringPool::new(),
@@ -187,6 +200,13 @@ impl Parser {
         let tree = Tree::with_capacities(module_id, capacity);
 
         Self::new(file, language, strings, tree, cursor)
+    }
+
+    /// Select the source grammar accepted by this parser.
+    pub fn with_grammar(mut self, grammar: Grammar) -> Self {
+        self.grammar = grammar;
+
+        self
     }
 
     /// Create a parser that appends one module source file to an existing DIR tree.
@@ -766,6 +786,19 @@ impl Parser {
     #[inline]
     pub fn peek_token_type(&self) -> TokenType {
         self.cursor.peek().ty()
+    }
+
+    /// Return whether the current token is a repeated Pattern placeholder.
+    #[inline]
+    pub(crate) fn peek_repeated_pattern_marker(&self) -> bool {
+        if self.grammar != Grammar::Pattern {
+            return false;
+        }
+
+        matches!(
+            PatternMarker::parse(self.peek_token_str()),
+            Some(PatternMarker::Nodes { .. })
+        )
     }
 
     /// Return whether the current token matches the given type.

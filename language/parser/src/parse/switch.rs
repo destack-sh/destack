@@ -40,6 +40,12 @@ impl Parser {
         let mut cases = Vec::new();
         let mut has_default = false;
         while self.has_more_tokens() && !self.peek_is(TokenType::CloseBrace) {
+            // retain one repeated Pattern placeholder as a complete case
+            if self.peek_repeated_pattern_marker() {
+                cases.push(self.parse_switch_case_placeholder());
+                continue;
+            }
+
             // consume separators between cases
             if Self::is_statement_stop_token(self.peek_token_type()) {
                 self.eat_statement_stop()?;
@@ -62,6 +68,27 @@ impl Parser {
         }
 
         Ok(cases)
+    }
+
+    /// Parse one repeated Pattern placeholder as a complete switch case.
+    fn parse_switch_case_placeholder(&mut self) -> LocalNodeId<SwitchCase> {
+        let range = self.peek_token().range();
+        let body = self.insert_node(
+            Block {
+                context: BlockContext::Statement,
+                form: BlockForm::Implicit,
+                leading_expressions: Vec::new(),
+                tail_expression: None,
+            },
+            range,
+        );
+        let case = SwitchCase {
+            selector: SwitchSelector::Default,
+            body,
+        };
+        self.bump();
+
+        self.insert_node(case, range)
     }
 
     /// Parse one switch case.

@@ -1,7 +1,9 @@
 use crate::parse::context::{ConditionalTypeContext, FunctionContext, TypeContext};
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, WhereClause, WhereRelation};
+use destack_dir::{
+    Keyword, LocalNodeId, NodeType, TokenType, TypeExpression, WhereClause, WhereRelation,
+};
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
@@ -91,6 +93,24 @@ impl Parser {
         &mut self,
         function: FunctionContext,
     ) -> ParserResult<LocalNodeId<WhereClause>> {
+        // retain one repeated Pattern placeholder as a complete clause
+        if self.peek_repeated_pattern_marker() {
+            let range = self.peek_token().range();
+            let left = self.insert_node(TypeExpression::Error, range);
+            let right = self.insert_node(TypeExpression::Error, range);
+            let clause = self.insert_node(
+                WhereClause {
+                    relation: WhereRelation::Satisfies,
+                    left,
+                    right,
+                },
+                range,
+            );
+            self.bump();
+
+            return Ok(clause);
+        }
+
         let start = self.mark_parse_start();
 
         // parse left operand
