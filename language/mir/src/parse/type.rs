@@ -1092,35 +1092,6 @@ impl Parser {
         Ok(LifetimeTerm::Slot(slot))
     }
 
-    /// Parse function signature borrow obligations.
-    pub(super) fn parse_borrow_obligations(&mut self) -> ParseResult<Vec<BorrowObligation>> {
-        let mut obligations = Vec::new();
-
-        // parse trailing suspension source requirements
-        while self.peek_borrow_obligation() {
-            self.eat_token(TokenType::At)?;
-            self.eat_token(TokenType::Identifier)?;
-
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let lifetime = self.parse_lifetime_union()?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-            obligations.push(BorrowObligation::SuspensionStable { lifetime });
-        }
-
-        Ok(obligations)
-    }
-
-    /// Return whether the next tokens start a borrow obligation.
-    fn peek_borrow_obligation(&self) -> bool {
-        if !self.peek_is(TokenType::At) {
-            return false;
-        }
-
-        self.peek_nth_token(1).is_some_and(|token| {
-            self.token_type(token) == TokenType::Identifier
-                && self.tree.source_text(token.span) == "suspensionSafe"
-        })
-    }
     /// Parse a tensor shape list.
     fn parse_tensor_shape(&mut self) -> ParseResult<Vec<TensorDimension>> {
         self.eat_token(TokenType::OpenParenthesis)?;

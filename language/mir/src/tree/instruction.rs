@@ -88,13 +88,13 @@ pub enum Instruction {
         /// The local variable to load from.
         local: LocalId,
     },
-    /// Get the address of a local variable (stack slot).
+    /// Get a reference to a local variable.
     LocalAddr {
         /// The SSA value to define with the local address.
         destination: Value,
         /// The local variable to take the address of.
         local: LocalId,
-        /// The result type of the address.
+        /// The result reference type.
         result_type: TypeId,
     },
     /// Store to a local variable (stack slot).
@@ -106,14 +106,13 @@ pub enum Instruction {
     },
 
     // global variables (global.address)
-    /// Get the address of a mutable global variable.
-    /// Returns a raw pointer that can be used with Load/Store.
+    /// Get a reference to a mutable global variable.
     GlobalAddr {
-        /// The SSA value to define with the pointer.
+        /// The SSA value to define with the reference.
         destination: Value,
         /// The global variable to get the address of.
         global: GlobalId,
-        /// The result type of the address.
+        /// The result reference type.
         result_type: TypeId,
     },
     /// Get a function pointer for a function (function.address).

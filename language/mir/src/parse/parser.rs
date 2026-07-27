@@ -335,7 +335,7 @@ impl Parser {
         &mut self,
         lifetimes: &mut [LifetimeParameter],
     ) -> ParseResult<()> {
-        if !self.eat_identifier_text("where") {
+        if !self.eat_name_if("where") {
             return Ok(());
         }
 

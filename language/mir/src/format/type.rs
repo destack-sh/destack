@@ -812,26 +812,6 @@ pub(super) fn format_function_signature<'a>(
     Ok(())
 }
 
-pub(super) fn format_borrow_obligations<'a>(
-    obligations: &[BorrowObligation],
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    for obligation in obligations {
-        match obligation {
-            BorrowObligation::SuspensionStable { lifetime } => {
-                write!(
-                    f,
-                    [space(), token("@"), token("suspensionSafe"), token("(")]
-                )?;
-                format_lifetime_terms(lifetime, f)?;
-                write!(f, [token(")")])?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
 pub(super) fn format_lifetime_terms<'a>(
     lifetime: &Lifetime,
     f: &mut MirFormatter<'a, '_>,

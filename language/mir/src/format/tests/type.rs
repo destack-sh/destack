@@ -134,20 +134,6 @@ entry(v0: ref<int32, borrowed, 'LA, mutable>):
     );
 }
 
-/// Formats callable suspension contracts canonically.
-#[test]
-fn test_format_callable_suspension_contract() {
-    assert_format(
-        r#"
-function callContract(v0: <'L0>(ref<int32, borrowed, 'L0, readonly> @suspensionSafe('L0)) => int32, v1: ref<int32, borrowed, readonly>): int32 {
-entry(v0: <'L0>(ref<int32, borrowed, 'L0, readonly> @suspensionSafe('L0)) => int32, v1: ref<int32, borrowed, readonly>):
-    v2: int32 = call.indirect v0(v1): <'L0>(ref<int32, borrowed, 'L0, readonly> @suspensionSafe('L0)) => int32
-    return v2
-}
-"#,
-    );
-}
-
 /// Formats borrowed shaped views canonically.
 #[test]
 fn test_format_borrowed_shaped_views() {
