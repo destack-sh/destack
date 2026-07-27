@@ -579,21 +579,36 @@ fn remap_terminator_blocks(
         mir::Terminator::Yield {
             value,
             resume,
+            complete,
             unwind,
         } => mir::Terminator::Yield {
             value: *value,
             resume: clone_target(resume),
+            complete: clone_target(complete),
             unwind: unwind.as_ref().map(clone_target),
         },
-        mir::Terminator::Resume {
+        mir::Terminator::ContinuationResume {
             continuation,
-            command,
+            value,
             yielded,
             returned,
             unwind,
-        } => mir::Terminator::Resume {
+        } => mir::Terminator::ContinuationResume {
             continuation: *continuation,
-            command: *command,
+            value: *value,
+            yielded: clone_target(yielded),
+            returned: clone_target(returned),
+            unwind: unwind.as_ref().map(clone_target),
+        },
+        mir::Terminator::ContinuationComplete {
+            continuation,
+            value,
+            yielded,
+            returned,
+            unwind,
+        } => mir::Terminator::ContinuationComplete {
+            continuation: *continuation,
+            value: *value,
             yielded: clone_target(yielded),
             returned: clone_target(returned),
             unwind: unwind.as_ref().map(clone_target),

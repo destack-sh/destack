@@ -171,13 +171,25 @@ fn run_propagate_copies(
                     record_predecessor(unwind);
                 }
             }
-            mir::Terminator::Yield { resume, unwind, .. } => {
+            mir::Terminator::Yield {
+                resume,
+                complete,
+                unwind,
+                ..
+            } => {
                 record_predecessor(resume);
+                record_predecessor(complete);
                 if let Some(unwind) = unwind {
                     record_predecessor(unwind);
                 }
             }
-            mir::Terminator::Resume {
+            mir::Terminator::ContinuationResume {
+                yielded,
+                returned,
+                unwind,
+                ..
+            }
+            | mir::Terminator::ContinuationComplete {
                 yielded,
                 returned,
                 unwind,

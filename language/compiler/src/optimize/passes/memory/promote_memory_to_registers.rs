@@ -859,23 +859,40 @@ fn update_terminator_arguments(
         mir::Terminator::Yield {
             value,
             resume,
+            complete,
             unwind,
         } => mir::Terminator::Yield {
             value: remap_value_reference(*value, substitutions),
             resume: extend_target(tree, resume, block_params, value_stacks, substitutions),
+            complete: extend_target(tree, complete, block_params, value_stacks, substitutions),
             unwind: unwind.as_ref().map(|unwind| {
                 extend_target(tree, unwind, block_params, value_stacks, substitutions)
             }),
         },
-        mir::Terminator::Resume {
+        mir::Terminator::ContinuationResume {
             continuation,
-            command,
+            value,
             yielded,
             returned,
             unwind,
-        } => mir::Terminator::Resume {
+        } => mir::Terminator::ContinuationResume {
             continuation: remap_value_reference(*continuation, substitutions),
-            command: remap_value_reference(*command, substitutions),
+            value: remap_value_reference(*value, substitutions),
+            yielded: extend_target(tree, yielded, block_params, value_stacks, substitutions),
+            returned: extend_target(tree, returned, block_params, value_stacks, substitutions),
+            unwind: unwind.as_ref().map(|unwind| {
+                extend_target(tree, unwind, block_params, value_stacks, substitutions)
+            }),
+        },
+        mir::Terminator::ContinuationComplete {
+            continuation,
+            value,
+            yielded,
+            returned,
+            unwind,
+        } => mir::Terminator::ContinuationComplete {
+            continuation: remap_value_reference(*continuation, substitutions),
+            value: remap_value_reference(*value, substitutions),
             yielded: extend_target(tree, yielded, block_params, value_stacks, substitutions),
             returned: extend_target(tree, returned, block_params, value_stacks, substitutions),
             unwind: unwind.as_ref().map(|unwind| {
