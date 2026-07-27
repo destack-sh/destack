@@ -553,64 +553,29 @@ impl Program {
         layout.word_layout()
     }
 
-    /// Encode one program value through its runtime layout.
-    pub fn encode_value(&self, ty: TypeId, value: &Value) -> Result<Vec<Word>> {
-        let Some(layout) = self.layout(ty) else {
-            return Err(Error::undefined_type(ty));
-        };
+    /// Create one exact value for a Program type.
+    pub fn value(&self, ty: TypeId, words: impl IntoIterator<Item = Word>) -> Result<Value> {
+        let value = Value::new(ty, words);
+        self.value_words(ty, &value)?;
 
-        // preserve an already encoded multiword value
-        if let Value::Words { ty: actual, words } = value {
-            if *actual != ty {
-                return Err(Error::ValueTypeMismatch {
-                    expected: ty,
-                    actual: *actual,
-                });
-            }
-
-            let expected = (layout.size as usize).div_ceil(Word::BYTE_LEN);
-            if words.len() != expected {
-                return Err(Error::ValueWordCountMismatch {
-                    ty,
-                    expected,
-                    actual: words.len(),
-                });
-            }
-
-            return Ok(words.to_vec());
-        }
-
-        // encode scalar host values through one execution word
-        let Some(word_layout) = layout.word_layout() else {
-            return Err(Error::UnsupportedValue { ty });
-        };
-        let word = value.encode(word_layout)?;
-
-        Ok(word.into_iter().collect())
+        Ok(value)
     }
 
-    /// Decode one program value from its execution result words.
-    pub fn decode_value(&self, ty: TypeId, words: &[Word]) -> Result<Value> {
+    /// Return one value's words after requiring the expected Program type and width.
+    pub fn value_words<'a>(&self, ty: TypeId, value: &'a Value) -> Result<&'a [Word]> {
         let Some(layout) = self.layout(ty) else {
             return Err(Error::undefined_type(ty));
         };
+        if value.ty() != ty {
+            return Err(Error::ValueTypeMismatch {
+                expected: ty,
+                actual: value.ty(),
+            });
+        }
 
-        // preserve non-scalar values as exact execution words
-        let Some(word_layout) = layout.word_layout() else {
-            let expected = (layout.size as usize).div_ceil(Word::BYTE_LEN);
-            if words.len() != expected {
-                return Err(Error::ValueWordCountMismatch {
-                    ty,
-                    expected,
-                    actual: words.len(),
-                });
-            }
-
-            return Ok(Value::words(ty, words.iter().copied()));
-        };
-
-        // require exactly the words implied by the selected layout
-        let expected = usize::from(word_layout != WordLayout::Void);
+        // require the exact physical width selected by the Program layout
+        let words = value.words();
+        let expected = (layout.size as usize).div_ceil(Word::BYTE_LEN);
         if words.len() != expected {
             return Err(Error::ValueWordCountMismatch {
                 ty,
@@ -619,12 +584,7 @@ impl Program {
             });
         }
 
-        // decode void without indexing the empty result range
-        if word_layout == WordLayout::Void {
-            return Ok(Value::Void);
-        }
-
-        Value::decode(word_layout, words[0])
+        Ok(words)
     }
 
     /// Return the scalar layout for one type.
@@ -803,30 +763,22 @@ impl Program {
         value: &mut Value,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
-        match value {
-            Value::HeapReference(reference) => {
-                visit(RootSlot::HeapReference(reference)).map_err(Error::from)
-            }
-            Value::SharedHeapReference(reference) => {
-                visit(RootSlot::SharedHeapReference(reference)).map_err(Error::from)
-            }
-            Value::Words { ty, words } => {
-                let byte_len = self
-                    .layout(*ty)
-                    .ok_or_else(|| Error::undefined_type(*ty))?
-                    .size as usize;
-                let bytes = Word::bytes_mut(words);
-                let actual = bytes.len();
-                let bytes = bytes.get_mut(..byte_len).ok_or(Error::ByteLengthMismatch {
-                    ty: *ty,
-                    expected: byte_len,
-                    actual,
-                })?;
+        let ty = value.ty();
+        self.value_words(ty, value)?;
 
-                self.visit_byte_root_slots(*ty, bytes, visit)
-            }
-            _ => Ok(()),
+        // avoid materializing shared value storage when this type has no heap roots
+        let layout = self.layout(ty).ok_or_else(|| Error::undefined_type(ty))?;
+        let trace_map = self.trace_map(layout.trace)?;
+        if !trace_map.has_heap_reference() {
+            return Ok(());
         }
+
+        // visit the exact value bytes through the linked trace
+        let byte_len = layout.size as usize;
+        let bytes = Word::bytes_mut(value.words_mut());
+        let bytes = &mut bytes[..byte_len];
+
+        visit_heap_root_slots(&trace_map, 0, bytes, ReferenceRange::All, visit).map_err(Error::from)
     }
 
     /// Return the program point for one frame state.

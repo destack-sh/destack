@@ -36,7 +36,7 @@ impl Task {
 }
 
 /// The terminal outcome of one asynchronous task.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum TaskOutcome {
     /// The task completed with a value.
     Completed(Value),

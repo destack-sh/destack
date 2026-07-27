@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AllocationSiteId, FrameLayoutId, FrameStateId, FunctionId, GlobalId, LayoutId, Signature,
-    SignatureId, Task, TypeId, ValueMismatch, Waiter,
+    SignatureId, Task, TypeId, Waiter,
 };
 
 /// Result of one Program operation.
@@ -15,36 +15,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// One Program operation error.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Error {
-    /// A runtime value does not match its program type.
-    ValueMismatch {
-        /// The mismatched value tags.
-        mismatch: ValueMismatch,
-    },
-    /// A multiword value carries the wrong concrete program type.
+    /// A value carries the wrong concrete Program type.
     ValueTypeMismatch {
         /// The required program type.
         expected: TypeId,
         /// The supplied program type.
         actual: TypeId,
     },
-    /// An integer value does not match its program width.
-    IntegerWidthMismatch {
-        /// The required integer width.
-        expected: u8,
-        /// The supplied integer width.
-        actual: u16,
-    },
-    /// A character word is not a Unicode scalar value.
-    InvalidCharacter {
-        /// The invalid Unicode code point.
-        code_point: u32,
-    },
-    /// A runtime value uses an unsupported multiword representation.
-    UnsupportedValue {
-        /// The unsupported program type.
-        ty: TypeId,
-    },
-    /// A bytecode value has the wrong number of words.
+    /// A value carries the wrong number of execution words.
     ValueWordCountMismatch {
         /// The runtime value type.
         ty: TypeId,
@@ -175,11 +153,6 @@ pub enum Error {
 }
 
 impl Error {
-    /// Return one value mismatch error.
-    pub const fn value_mismatch(mismatch: ValueMismatch) -> Self {
-        Self::ValueMismatch { mismatch }
-    }
-
     /// Return one function signature mismatch error.
     pub fn function_signature_mismatch(
         function: FunctionId,
@@ -239,22 +212,11 @@ impl fmt::Display for Error {
     /// Format one Program operation failure.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ValueMismatch { mismatch } => mismatch.fmt(formatter),
             Self::ValueTypeMismatch { expected, actual } => write!(
                 formatter,
                 "expected value type {}, found {}",
                 expected.0, actual.0
             ),
-            Self::IntegerWidthMismatch { expected, actual } => write!(
-                formatter,
-                "expected a {expected}-bit integer, found a {actual}-bit integer"
-            ),
-            Self::InvalidCharacter { code_point } => {
-                write!(formatter, "invalid Unicode code point {code_point:#x}")
-            }
-            Self::UnsupportedValue { ty } => {
-                write!(formatter, "type {ty:?} is not a scalar program value")
-            }
             Self::ValueWordCountMismatch {
                 ty,
                 expected,

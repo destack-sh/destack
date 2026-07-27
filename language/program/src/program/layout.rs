@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::GlobalAddress;
 
-use super::{SignatureId, TypeId, ValueTag, Word};
+use super::{SignatureId, TypeId, Word};
 
 /// Shared layout table for runtime values.
 #[repr(C)]
@@ -291,28 +291,6 @@ pub enum WordLayout {
 }
 
 impl WordLayout {
-    /// Return the program value tag accepted by this word layout.
-    pub(crate) const fn value_tag(self) -> ValueTag {
-        match self {
-            Self::Void => ValueTag::Void,
-            Self::Boolean => ValueTag::Bool,
-            Self::Character => ValueTag::Char,
-            Self::Int { .. } => ValueTag::Int,
-            Self::Uint { .. } => ValueTag::UInt,
-            Self::Float16 => ValueTag::Float16,
-            Self::Bfloat16 => ValueTag::Bfloat16,
-            Self::Float32 => ValueTag::Float32,
-            Self::Float64 => ValueTag::Float64,
-            Self::HeapReference => ValueTag::HeapReference,
-            Self::SharedHeapReference => ValueTag::SharedHeapReference,
-            Self::Address
-            | Self::StackPointer
-            | Self::FramePointer
-            | Self::GlobalAddress
-            | Self::FunctionPointer => ValueTag::Address,
-        }
-    }
-
     /// Return the word layout for one reference.
     #[inline(always)]
     pub fn reference(space: Space, kind: ReferenceKind) -> Self {

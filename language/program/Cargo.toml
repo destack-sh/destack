@@ -23,7 +23,6 @@ destack_source = { workspace = true }
 
 # general
 serde = { workspace = true, features = ["derive", "rc"] }
-smallvec = { workspace = true, features = ["serde"] }
 
 [lints]
 workspace = true
