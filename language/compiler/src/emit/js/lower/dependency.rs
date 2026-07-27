@@ -1,7 +1,5 @@
 use crate::EmitError;
-use crate::emit::js::{
-    DependencyBinding, DependencyForm, DependencyItem, Expression, LocalNodeId, ModuleLowerer,
-};
+use crate::emit::js::{DependencyBinding, DependencyItem, LocalNodeId, ModuleLowerer};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -21,15 +19,7 @@ impl ModuleLowerer<'_> {
             })
     }
 
-    /// Lower a dependency form from DIR into JS AST.
-    pub(crate) fn lower_dependency_form(&self, form: dir::DependencyForm) -> DependencyForm {
-        match form {
-            dir::DependencyForm::Type => DependencyForm::Type,
-            dir::DependencyForm::Plain => DependencyForm::Plain,
-        }
-    }
-
-    /// Lower a dependency binding from DIR into JS AST.
+    /// Lower a dependency binding from DIR into JavaScript.
     pub(crate) fn lower_dependency_binding(
         &self,
         binding: dir::DependencyBinding,
@@ -41,7 +31,7 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower dependency items from DIR into JS AST.
+    /// Lower dependency items from DIR into JavaScript.
     pub(crate) fn lower_dependency_items(
         &mut self,
         form: dir::DependencyForm,
@@ -64,24 +54,26 @@ impl ModuleLowerer<'_> {
                     alias,
                     value,
                 } => {
+                    let item_form = item_form.unwrap_or(form);
+                    if item_form == dir::DependencyForm::Type {
+                        continue;
+                    }
+
+                    if value.is_some() {
+                        return Err(self.unsupported_construct(
+                            item_id.into_global_any(self.module.id),
+                            Some("export assignment has no JavaScript module form".to_string()),
+                        ));
+                    }
+
                     let source_id = *item_id;
                     let binding = self.lower_dependency_binding(*binding);
                     let name = name.map(|name| self.lower_name(name));
                     let alias = *alias;
-                    let value = value
-                        .map(|value| self.lower_expression_as::<Expression>(value))
-                        .transpose()?;
-                    let item_form = item_form.unwrap_or(form);
                     let item = DependencyItem {
                         binding,
-                        form: if item_form != form {
-                            Some(self.lower_dependency_form(item_form))
-                        } else {
-                            None
-                        },
                         name,
                         alias,
-                        value,
                     };
                     let item_id = self
                         .tree
@@ -93,6 +85,7 @@ impl ModuleLowerer<'_> {
                 }
             }
         }
+
         Ok(lowered_item_ids)
     }
 }

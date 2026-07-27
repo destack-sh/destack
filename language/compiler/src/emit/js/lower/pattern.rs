@@ -5,7 +5,7 @@ use destack_js as js;
 use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
-    /// Lower one assign pattern from DIR into JS AST.
+    /// Lower one assign pattern from DIR into JavaScript.
     pub(crate) fn lower_assign_pattern(
         &mut self,
         assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
@@ -57,7 +57,7 @@ impl ModuleLowerer<'_> {
         Ok(assign_pattern_id)
     }
 
-    /// Lower one assign pattern field from DIR into JS AST.
+    /// Lower one assign pattern field from DIR into JavaScript.
     pub(crate) fn lower_assign_pattern_field(
         &mut self,
         assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
@@ -69,18 +69,33 @@ impl ModuleLowerer<'_> {
                 is_shorthand,
                 pattern,
             } => {
-                let is_plain_shorthand =
-                    *is_shorthand && self.is_plain_shorthand_assign_pattern(*pattern, *name);
-                let name = self.lower_name(*name);
-                let pattern = if is_plain_shorthand {
-                    None
+                let source_name = *name;
+                let name = self.lower_name(source_name);
+                let assign_pattern_field = if *is_shorthand {
+                    let value = match self.dir_tree.get(*pattern) {
+                        dir::AssignPattern::Place { .. }
+                            if self.is_plain_shorthand_assign_pattern(*pattern, source_name) =>
+                        {
+                            None
+                        }
+                        dir::AssignPattern::Default { pattern, value }
+                            if self.is_plain_shorthand_assign_pattern(*pattern, source_name) =>
+                        {
+                            Some(self.lower_expression_as::<js::Expression>(*value)?)
+                        }
+                        _ => {
+                            return Err(self.unsupported_construct(
+                                assign_pattern_field_id.into_global_any(self.module.id),
+                                Some("invalid JavaScript shorthand assignment target".to_string()),
+                            ));
+                        }
+                    };
+
+                    js::AssignPatternField::Shorthand { name, value }
                 } else {
-                    Some(self.lower_assign_pattern(*pattern)?)
-                };
-                let assign_pattern_field = js::AssignPatternField::Named {
-                    name,
-                    is_shorthand: *is_shorthand,
-                    pattern,
+                    let pattern = self.lower_assign_pattern(*pattern)?;
+
+                    js::AssignPatternField::Named { name, pattern }
                 };
                 self.tree.insert_from_source(
                     assign_pattern_field,
@@ -108,9 +123,13 @@ impl ModuleLowerer<'_> {
                 )
             }
             dir::AssignPatternField::Rest { pattern } => {
-                let pattern = pattern
-                    .map(|pattern_id| self.lower_assign_pattern(pattern_id))
-                    .transpose()?;
+                let Some(pattern) = pattern else {
+                    return Err(self.unsupported_construct(
+                        assign_pattern_field_id.into_global_any(self.module.id),
+                        Some("JavaScript rest assignments require a target".to_string()),
+                    ));
+                };
+                let pattern = self.lower_assign_pattern(*pattern)?;
                 let assign_pattern_field = js::AssignPatternField::Spread { pattern };
                 self.tree.insert_from_source(
                     assign_pattern_field,
@@ -151,7 +170,23 @@ impl ModuleLowerer<'_> {
         )
     }
 
-    /// Lower a pattern from DIR into JS AST.
+    /// Return whether one DIR binding is implied by shorthand syntax.
+    fn is_plain_shorthand_pattern(
+        &self,
+        pattern: dir::LocalNodeId<dir::Pattern>,
+        name: dir::Name,
+    ) -> bool {
+        let dir::Name::Identifier(expected) = name else {
+            return false;
+        };
+
+        matches!(
+            self.dir_tree.get(pattern),
+            dir::Pattern::Binding { name, pattern: None } if *name == expected
+        )
+    }
+
+    /// Lower a pattern from DIR into JavaScript.
     pub(crate) fn lower_pattern(
         &mut self,
         pattern_id: dir::LocalNodeId<dir::Pattern>,
@@ -161,19 +196,13 @@ impl ModuleLowerer<'_> {
         let pattern_id = match pattern {
             dir::Pattern::Wildcard => {
                 let name = self.strings.intern("_");
-                let pattern = js::Pattern::Binding {
-                    mutability: None,
-                    name,
-                };
+                let pattern = js::Pattern::Binding { name };
                 self.tree
                     .insert_from_source(pattern, self.module.id, pattern_id)
             }
             dir::Pattern::Binding { name, pattern: _ } => {
                 let name = *name;
-                let pattern = js::Pattern::Binding {
-                    mutability: None,
-                    name,
-                };
+                let pattern = js::Pattern::Binding { name };
                 let pattern_id = self
                     .tree
                     .insert_from_source(pattern, self.module.id, pattern_id);
@@ -210,15 +239,7 @@ impl ModuleLowerer<'_> {
         Ok(pattern_id)
     }
 
-    /// Lower a declaration-shaped pattern from DIR into JS AST.
-    pub(crate) fn lower_declaration_pattern(
-        &mut self,
-        pattern_id: dir::LocalNodeId<dir::Pattern>,
-    ) -> Result<js::LocalNodeId<js::Pattern>, EmitError> {
-        self.lower_pattern(pattern_id)
-    }
-
-    /// Lower one array or tuple pattern field into JS pattern syntax.
+    /// Lower one array or tuple pattern field into JavaScript pattern syntax.
     pub(crate) fn lower_array_pattern_field(
         &mut self,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
@@ -235,10 +256,7 @@ impl ModuleLowerer<'_> {
                     Some(pattern_id) => self.lower_pattern(*pattern_id)?,
                     None => {
                         let name = name.string();
-                        let pattern = js::Pattern::Binding {
-                            mutability: None,
-                            name,
-                        };
+                        let pattern = js::Pattern::Binding { name };
                         let pattern_id =
                             self.tree
                                 .insert_from_source(pattern, self.module.id, pattern_field_id);
@@ -262,7 +280,7 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower a pattern field from DIR into JS AST.
+    /// Lower a pattern field from DIR into JavaScript.
     pub(crate) fn lower_pattern_field(
         &mut self,
         pattern_field_id: dir::LocalNodeId<dir::PatternField>,
@@ -275,15 +293,42 @@ impl ModuleLowerer<'_> {
                 is_shorthand,
                 pattern,
             } => {
-                let name = name.string();
-                let pattern = pattern
-                    .map(|pattern| self.lower_pattern(pattern))
-                    .transpose()?;
-                let pattern_field = js::PatternField::Named {
-                    mutability: None,
-                    name,
-                    is_shorthand: *is_shorthand,
-                    pattern,
+                let source_name = *name;
+                let name = source_name.string();
+                let pattern_field = if *is_shorthand {
+                    let value = match pattern {
+                        None => None,
+                        Some(pattern) => match self.dir_tree.get(*pattern) {
+                            dir::Pattern::Default { pattern, value }
+                                if self.is_plain_shorthand_pattern(*pattern, source_name) =>
+                            {
+                                Some(self.lower_expression_as::<js::Expression>(*value)?)
+                            }
+                            dir::Pattern::Binding { .. }
+                                if self.is_plain_shorthand_pattern(*pattern, source_name) =>
+                            {
+                                None
+                            }
+                            _ => {
+                                return Err(self.unsupported_construct(
+                                    pattern_field_id.into_global_any(self.module.id),
+                                    Some("invalid JavaScript shorthand binding".to_string()),
+                                ));
+                            }
+                        },
+                    };
+
+                    js::PatternField::Shorthand { name, value }
+                } else {
+                    let Some(pattern) = pattern else {
+                        return Err(self.unsupported_construct(
+                            pattern_field_id.into_global_any(self.module.id),
+                            Some("JavaScript named patterns require a target".to_string()),
+                        ));
+                    };
+                    let pattern = self.lower_pattern(*pattern)?;
+
+                    js::PatternField::Named { name, pattern }
                 };
                 let pattern_field_id =
                     self.tree
@@ -296,11 +341,7 @@ impl ModuleLowerer<'_> {
             dir::PatternField::Computed { key, pattern } => {
                 let key = self.lower_expression_as::<js::Expression>(*key)?;
                 let pattern = self.lower_pattern(*pattern)?;
-                let pattern_field = js::PatternField::Computed {
-                    mutability: None,
-                    key,
-                    pattern,
-                };
+                let pattern_field = js::PatternField::Computed { key, pattern };
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
@@ -311,13 +352,14 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
             dir::PatternField::Rest { pattern } => {
-                let pattern = pattern
-                    .map(|pattern_id| self.lower_pattern(pattern_id))
-                    .transpose()?;
-                let pattern_field = js::PatternField::Spread {
-                    mutability: None,
-                    pattern,
+                let Some(pattern) = pattern else {
+                    return Err(self.unsupported_construct(
+                        pattern_field_id.into_global_any(self.module.id),
+                        Some("JavaScript rest bindings require a target".to_string()),
+                    ));
                 };
+                let pattern = self.lower_pattern(*pattern)?;
+                let pattern_field = js::PatternField::Spread { pattern };
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }

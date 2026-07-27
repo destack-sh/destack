@@ -6,13 +6,11 @@ use destack_repository::Module;
 use crate::emit::js::ScriptSymbolId;
 use crate::{DiagnosticAnchor, EmitError};
 
-/// Context for lowering a DIR module to JS AST.
+/// Context for lowering a DIR module to a JavaScript tree.
 #[derive(Debug)]
 pub(crate) struct ModuleLowerer<'a> {
     /// The source module.
     pub(crate) module: &'a Module,
-    /// The source string pool for bound DIR nodes.
-    pub(crate) source_strings: &'a StringPool,
 
     /// The DIR roots.
     pub(crate) dir_roots: &'a [dir::LocalNodeId<dir::Expression>],
@@ -20,16 +18,10 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) dir_tree: dir::View<'a>,
     /// The symbol table.
     pub(crate) symbols: dir::BindingTable<'static>,
-    /// The type table.
-    pub(crate) types: &'a dir::TypeTable<'static>,
-    /// The static table.
-    pub(crate) statics: &'a dir::StaticTable<'static>,
-    /// The generic table.
-    pub(crate) generics: &'a dir::GenericTable<'static>,
     /// The module table.
     pub(crate) modules: dir::ModuleTable<'static>,
 
-    /// The output JS AST tree.
+    /// The output JavaScript tree.
     pub(crate) tree: js::Tree,
     /// Root nodes in the output.
     pub(crate) roots: Vec<js::LocalNodeIdAny>,
@@ -40,33 +32,6 @@ pub(crate) struct ModuleLowerer<'a> {
 }
 
 impl<'a> ModuleLowerer<'a> {
-    // TODO #Cleanup: not entirely sure if guarding js::ModuleLowerer only to local operands is right?
-
-    /// Return one checked type visible to this lowering context.
-    pub(crate) fn require_type(&self, type_id: dir::GlobalTypeId) -> Result<dir::Type, EmitError> {
-        if type_id.module_id != self.module.id {
-            return Err(self.internal_error(format!(
-                "JS lowering cannot read foreign DIR type {type_id:?}"
-            )));
-        }
-
-        Ok(self.types.get_type(type_id.local_id))
-    }
-
-    /// Return one checked static value visible to this lowering context.
-    pub(crate) fn require_static(
-        &self,
-        static_id: dir::GlobalStaticId,
-    ) -> Result<&dir::StaticTerm, EmitError> {
-        if static_id.module_id != self.module.id {
-            return Err(self.internal_error(format!(
-                "JS lowering cannot read foreign DIR static {static_id:?}"
-            )));
-        }
-
-        Ok(self.statics.get_static(static_id.local_id))
-    }
-
     /// Build one lowered script symbol id from one local DIR symbol.
     pub(crate) fn source_symbol_id(&self, symbol_id: dir::LocalSymbolId) -> ScriptSymbolId {
         ScriptSymbolId::Source(symbol_id.into_global(self.module.id))
@@ -85,7 +50,7 @@ impl<'a> ModuleLowerer<'a> {
         self.symbols.declaration_symbol(node_id)
     }
 
-    /// Store one lowered script symbol id on one JS AST node.
+    /// Store one lowered script symbol id on one JavaScript node.
     pub(crate) fn set_node_symbol<T>(
         &mut self,
         node_id: js::LocalNodeId<T>,
@@ -97,7 +62,7 @@ impl<'a> ModuleLowerer<'a> {
         self.tree.set_symbol(node_id, symbol_id);
     }
 
-    /// Store one source-backed symbol id on one JS AST node.
+    /// Store one source-backed symbol id on one JavaScript node.
     pub(crate) fn set_source_node_symbol<T>(
         &mut self,
         node_id: js::LocalNodeId<T>,
@@ -124,18 +89,6 @@ impl<'a> ModuleLowerer<'a> {
         }
     }
 
-    /// Store one global source-backed symbol id on one JS AST node.
-    pub(crate) fn set_global_node_symbol<T>(
-        &mut self,
-        node_id: js::LocalNodeId<T>,
-        symbol_id: dir::GlobalSymbolId,
-    ) where
-        T: js::Node,
-        js::Tree: js::TreeImpl<T>,
-    {
-        self.set_node_symbol(node_id, ScriptSymbolId::Source(symbol_id));
-    }
-
     /// Create a new module lowerer.
     pub(crate) fn new(
         module: &'a Module,
@@ -143,9 +96,6 @@ impl<'a> ModuleLowerer<'a> {
         roots: &'a [dir::LocalNodeId<dir::Expression>],
         source_strings: &'a StringPool,
         symbols: dir::BindingTable<'static>,
-        types: &'a dir::TypeTable<'static>,
-        statics: &'a dir::StaticTable<'static>,
-        generics: &'a dir::GenericTable<'static>,
         modules: dir::ModuleTable<'static>,
     ) -> Self {
         let strings = StringPool::new();
@@ -153,13 +103,9 @@ impl<'a> ModuleLowerer<'a> {
 
         Self {
             module,
-            source_strings,
             dir_tree: tree,
             dir_roots: roots,
             symbols,
-            types,
-            statics,
-            generics,
             modules,
             tree: js::Tree::new(),
             roots: Vec::new(),
@@ -174,18 +120,20 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Build one source span anchor from a DIR node.
-    pub(crate) fn anchor(&self, node: dir::GlobalNodeIdAny) -> DiagnosticAnchor {
-        assert_eq!(
-            self.module.id, node.module_id,
-            "JS diagnostic node belongs to a different module"
-        );
+    pub(crate) fn anchor(&self, node: dir::GlobalNodeIdAny) -> Result<DiagnosticAnchor, EmitError> {
+        if self.module.id != node.module_id {
+            return Err(self.internal_error(
+                "JavaScript diagnostic node belongs to a different module".to_string(),
+            ));
+        }
 
-        let span = self
-            .dir_tree
-            .get_span_by_id(node.local_id.id)
-            .expect("JS diagnostic node is missing a source span");
+        let Some(span) = self.dir_tree.get_span_by_id(node.local_id.id) else {
+            return Err(self.internal_error(
+                "JavaScript diagnostic node is missing a source span".to_string(),
+            ));
+        };
 
-        DiagnosticAnchor::Span(span)
+        Ok(DiagnosticAnchor::Span(span))
     }
 
     /// Build one unsupported construct error.
@@ -194,8 +142,13 @@ impl<'a> ModuleLowerer<'a> {
         node: dir::GlobalNodeIdAny,
         message: Option<String>,
     ) -> EmitError {
+        let anchor = match self.anchor(node) {
+            Ok(anchor) => anchor,
+            Err(error) => return error,
+        };
+
         EmitError::UnsupportedConstruct {
-            anchor: self.anchor(node),
+            anchor,
             module: self.module.id,
             message: message.unwrap_or_else(|| format!("unsupported {}", node.local_id.ty.name())),
         }
@@ -208,8 +161,13 @@ impl<'a> ModuleLowerer<'a> {
         wanted: js::NodeType,
         message: Option<String>,
     ) -> EmitError {
+        let anchor = match self.anchor(node) {
+            Ok(anchor) => anchor,
+            Err(error) => return error,
+        };
+
         EmitError::UnexpectedConstruct {
-            anchor: self.anchor(node),
+            anchor,
             module: self.module.id,
             message: message.unwrap_or_else(|| {
                 format!(
@@ -221,7 +179,7 @@ impl<'a> ModuleLowerer<'a> {
         }
     }
 
-    /// Return one lowered node as the expected JS node type.
+    /// Return one lowered node as the expected JavaScript node type.
     pub(crate) fn expect_node<T>(
         &self,
         node_id: js::LocalNodeIdAny,
@@ -265,7 +223,7 @@ impl<'a> ModuleLowerer<'a> {
         self.expect_node::<T>(node_id, anchor)
     }
 
-    /// Lower one DIR expression and return it as the expected JS node type.
+    /// Lower one DIR expression and return it as the expected JavaScript node type.
     pub(crate) fn lower_expression_as<T>(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -279,14 +237,6 @@ impl<'a> ModuleLowerer<'a> {
         )
     }
 
-    /// Build one missing type error.
-    pub(crate) fn missing_type(&self, node: dir::GlobalNodeIdAny) -> EmitError {
-        EmitError::MissingType {
-            anchor: self.anchor(node),
-            module: self.module.id,
-        }
-    }
-
     /// Build one internal JS emit error.
     pub(crate) fn internal_error(&self, message: String) -> EmitError {
         EmitError::Internal {
@@ -296,14 +246,72 @@ impl<'a> ModuleLowerer<'a> {
         }
     }
 
-    /// Lower the module to JS AST.
-    pub(crate) fn lower_module(&mut self) -> Result<(), EmitError> {
+    /// Lower the module to a JavaScript tree.
+    pub(crate) fn lower_module(&mut self) {
         for expression_id in self.dir_roots.iter() {
+            if self.expression_is_erased(*expression_id) {
+                continue;
+            }
+
             match self.lower_expression(*expression_id) {
                 Ok(root_id) => self.roots.push(root_id),
                 Err(error) => self.error(error),
             }
         }
-        Ok(())
+    }
+
+    /// Return whether one DIR expression has no JavaScript runtime form.
+    pub(crate) fn expression_is_erased(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        match self.dir_tree.get(expression_id) {
+            dir::Expression::Declaration(declaration_id) => {
+                match self.dir_tree.get(*declaration_id) {
+                    dir::Declaration::Global(declaration) => declaration.is_ambient,
+                    dir::Declaration::Type(_) => true,
+                    dir::Declaration::Struct(declaration) => declaration.is_ambient,
+                    dir::Declaration::Class(declaration) => declaration.is_ambient,
+                    dir::Declaration::Interface(_) => true,
+                    dir::Declaration::Enum(declaration) => declaration.is_ambient,
+                    dir::Declaration::Function(declaration) => declaration.body.is_none(),
+                    _ => false,
+                }
+            }
+            dir::Expression::Import { form, items, .. } => {
+                *form == dir::DependencyForm::Type
+                    || items.as_ref().is_some_and(|items| {
+                        !items.is_empty()
+                            && items
+                                .iter()
+                                .all(|item_id| self.dependency_item_is_erased(*form, *item_id))
+                    })
+            }
+            dir::Expression::Export { form, items, .. } => {
+                *form == dir::DependencyForm::Type
+                    || (!items.is_empty()
+                        && items
+                            .iter()
+                            .all(|item_id| self.dependency_item_is_erased(*form, *item_id)))
+            }
+            dir::Expression::Let { is_ambient, .. } | dir::Expression::Using { is_ambient, .. } => {
+                *is_ambient
+            }
+            _ => false,
+        }
+    }
+
+    /// Return whether one dependency item has no JavaScript runtime form.
+    fn dependency_item_is_erased(
+        &self,
+        form: dir::DependencyForm,
+        item_id: dir::LocalNodeId<dir::DependencyItem>,
+    ) -> bool {
+        match self.dir_tree.get(item_id) {
+            dir::DependencyItem::Binding {
+                form: item_form, ..
+            } => item_form.unwrap_or(form) == dir::DependencyForm::Type,
+            dir::DependencyItem::Error => false,
+        }
     }
 }

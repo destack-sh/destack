@@ -5,7 +5,7 @@ use destack_js as js;
 use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
-    /// Lower a parameter from DIR into JS AST.
+    /// Lower a parameter from DIR into JavaScript.
     pub(crate) fn lower_parameter(
         &mut self,
         parameter_id: dir::LocalNodeId<dir::Parameter>,
@@ -13,32 +13,12 @@ impl ModuleLowerer<'_> {
         let source_parameter_id = parameter_id;
         let parameter = self.dir_tree.get(parameter_id);
         match parameter {
-            dir::Parameter::Named {
-                name,
-                is_optional,
-                declared_type: _,
-                default,
-                ..
-            } => {
-                let modifiers = is_optional.then_some(js::BindingModifier {
-                    kind: Some(js::BindingKind::Maybe),
-                    ..js::BindingModifier::default()
-                });
+            dir::Parameter::Named { name, default, .. } => {
                 let name = *name;
-                let ty = self
-                    .types
-                    .get_node_type_id(parameter_id.into_global_any(self.module.id))
-                    .map(|ty| self.lower_type(ty, parameter_id.into_any()))
-                    .transpose()?;
                 let default = default
                     .map(|default| self.lower_expression_as::<js::Expression>(default))
                     .transpose()?;
-                let parameter = js::Parameter::Named {
-                    modifiers,
-                    name,
-                    ty,
-                    default,
-                };
+                let parameter = js::Parameter::Named { name, default };
                 let parameter_id =
                     self.tree
                         .insert_from_source(parameter, self.module.id, parameter_id);
@@ -46,31 +26,13 @@ impl ModuleLowerer<'_> {
                 Ok(parameter_id)
             }
             dir::Parameter::Pattern {
-                pattern,
-                is_optional,
-                declared_type: _,
-                default,
-                ..
+                pattern, default, ..
             } => {
-                let modifiers = is_optional.then_some(js::BindingModifier {
-                    kind: Some(js::BindingKind::Maybe),
-                    ..js::BindingModifier::default()
-                });
                 let pattern = self.lower_pattern(*pattern)?;
-                let ty = self
-                    .types
-                    .get_node_type_id(parameter_id.into_global_any(self.module.id))
-                    .map(|ty| self.lower_type(ty, parameter_id.into_any()))
-                    .transpose()?;
                 let default = default
                     .map(|default| self.lower_expression_as::<js::Expression>(default))
                     .transpose()?;
-                let parameter = js::Parameter::Pattern {
-                    modifiers,
-                    pattern,
-                    ty,
-                    default,
-                };
+                let parameter = js::Parameter::Pattern { pattern, default };
                 let parameter_id =
                     self.tree
                         .insert_from_source(parameter, self.module.id, parameter_id);
@@ -78,18 +40,8 @@ impl ModuleLowerer<'_> {
                 Ok(parameter_id)
             }
             dir::Parameter::VariadicNamed { name, .. } => {
-                let modifiers = None;
                 let name = *name;
-                let ty = self
-                    .types
-                    .get_node_type_id(parameter_id.into_global_any(self.module.id))
-                    .map(|ty| self.lower_type(ty, parameter_id.into_any()))
-                    .transpose()?;
-                let parameter = js::Parameter::VariadicNamed {
-                    modifiers,
-                    name,
-                    ty,
-                };
+                let parameter = js::Parameter::VariadicNamed { name };
                 let parameter_id =
                     self.tree
                         .insert_from_source(parameter, self.module.id, parameter_id);
@@ -97,18 +49,8 @@ impl ModuleLowerer<'_> {
                 Ok(parameter_id)
             }
             dir::Parameter::VariadicPattern { pattern, .. } => {
-                let modifiers = None;
                 let pattern = self.lower_pattern(*pattern)?;
-                let ty = self
-                    .types
-                    .get_node_type_id(parameter_id.into_global_any(self.module.id))
-                    .map(|ty| self.lower_type(ty, parameter_id.into_any()))
-                    .transpose()?;
-                let parameter = js::Parameter::VariadicPattern {
-                    modifiers,
-                    pattern,
-                    ty,
-                };
+                let parameter = js::Parameter::VariadicPattern { pattern };
                 let parameter_id =
                     self.tree
                         .insert_from_source(parameter, self.module.id, parameter_id);
@@ -122,7 +64,7 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower an argument from DIR into JS AST.
+    /// Lower an argument from DIR into JavaScript.
     pub(crate) fn lower_argument(
         &mut self,
         argument_id: dir::LocalNodeId<dir::Argument>,

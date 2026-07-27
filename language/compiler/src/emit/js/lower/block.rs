@@ -9,14 +9,17 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_expression_as_statement(
         &mut self,
         source_expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Result<js::LocalNodeId<js::Statement>, EmitError> {
+    ) -> Result<Option<js::LocalNodeId<js::Statement>>, EmitError> {
+        if self.expression_is_erased(source_expression_id) {
+            return Ok(None);
+        }
+
         let lowered_id = self.lower_expression(source_expression_id)?;
 
         let statement_id = match lowered_id.ty {
-            js::NodeType::Statement => lowered_id.try_into().unwrap(),
+            js::NodeType::Statement => js::LocalNodeId::new(lowered_id.id),
             js::NodeType::Expression => {
-                let lowered_expression_id: js::LocalNodeId<js::Expression> =
-                    lowered_id.try_into().unwrap();
+                let lowered_expression_id = js::LocalNodeId::new(lowered_id.id);
                 let statement = js::Statement::Expression {
                     expression: lowered_expression_id,
                 };
@@ -24,7 +27,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(statement, self.module.id, source_expression_id)
             }
             js::NodeType::Block => {
-                let block_id: js::LocalNodeId<js::Block> = lowered_id.try_into().unwrap();
+                let block_id = js::LocalNodeId::new(lowered_id.id);
                 let statement = js::Statement::Block { block: block_id };
                 self.tree
                     .insert_from_source(statement, self.module.id, source_expression_id)
@@ -40,7 +43,7 @@ impl ModuleLowerer<'_> {
             }
         };
 
-        Ok(statement_id)
+        Ok(Some(statement_id))
     }
 
     /// Lower one expression into a JS block.
@@ -51,9 +54,9 @@ impl ModuleLowerer<'_> {
         let lowered_id = self.lower_expression(source_expression_id)?;
 
         let block_id = match lowered_id.ty {
-            js::NodeType::Block => lowered_id.try_into().unwrap(),
+            js::NodeType::Block => js::LocalNodeId::new(lowered_id.id),
             js::NodeType::Statement => {
-                let statement_id: js::LocalNodeId<js::Statement> = lowered_id.try_into().unwrap();
+                let statement_id = js::LocalNodeId::new(lowered_id.id);
                 let block = js::Block {
                     statements: vec![statement_id],
                 };
@@ -61,8 +64,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(block, self.module.id, source_expression_id)
             }
             js::NodeType::Expression => {
-                let lowered_expression_id: js::LocalNodeId<js::Expression> =
-                    lowered_id.try_into().unwrap();
+                let lowered_expression_id = js::LocalNodeId::new(lowered_id.id);
                 let statement = js::Statement::Expression {
                     expression: lowered_expression_id,
                 };
@@ -89,17 +91,21 @@ impl ModuleLowerer<'_> {
         Ok(block_id)
     }
 
-    /// Lower a block from DIR into JS AST.
+    /// Lower a block from DIR into JavaScript.
     pub(crate) fn lower_block(
         &mut self,
         block_id: dir::LocalNodeId<dir::Block>,
     ) -> Result<js::LocalNodeId<js::Block>, EmitError> {
         let block = self.dir_tree.get(block_id);
-        let statements = block
-            .iter_expressions()
-            .map(|statement| self.lower_expression_as_statement(statement))
-            .collect::<Result<Vec<_>, EmitError>>()?;
+        let mut statements = Vec::with_capacity(block.len());
+        for expression in block.iter_expressions() {
+            if let Some(statement) = self.lower_expression_as_statement(expression)? {
+                statements.push(statement);
+            }
+        }
+
         let block = js::Block { statements };
+
         Ok(self
             .tree
             .insert_from_source(block, self.module.id, block_id))

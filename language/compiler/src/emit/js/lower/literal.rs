@@ -4,7 +4,7 @@ use destack_js as js;
 use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
-    /// Lower a scalar literal from DIR into JS AST.
+    /// Lower a scalar literal from DIR into JavaScript.
     pub(crate) fn lower_scalar_literal(
         &mut self,
         literal: &dir::ScalarLiteral,

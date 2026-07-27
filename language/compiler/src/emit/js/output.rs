@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirMaterialized, DirParsed,
-    EmitFormat, Script, ScriptBody, ScriptLanguage,
+    DirBound, DirExpanded, DirImported, DirMaterialized, DirParsed, EmitFormat, Script,
 };
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
@@ -24,10 +23,6 @@ pub(crate) struct ScriptGenerator<'a> {
     imported: Arc<DirImported>,
     /// The current expanded DIR artifact.
     expanded: Arc<DirExpanded>,
-    /// The current declared DIR artifact.
-    declared: Arc<DirDeclared>,
-    /// The current checked DIR artifact.
-    checked: Arc<DirChecked>,
     /// The current materialized DIR artifact.
     materialized: Arc<DirMaterialized>,
     /// The shared string pool.
@@ -44,8 +39,6 @@ impl<'a> ScriptGenerator<'a> {
         bound: Arc<DirBound>,
         imported: Arc<DirImported>,
         expanded: Arc<DirExpanded>,
-        declared: Arc<DirDeclared>,
-        checked: Arc<DirChecked>,
         materialized: Arc<DirMaterialized>,
         strings: Arc<StringPool>,
         target: &'a Target,
@@ -56,8 +49,6 @@ impl<'a> ScriptGenerator<'a> {
             bound,
             imported,
             expanded,
-            declared,
-            checked,
             materialized,
             strings,
             target,
@@ -67,8 +58,8 @@ impl<'a> ScriptGenerator<'a> {
     /// Emit one structured script.
     pub(crate) fn emit(self) -> Result<(Script, Vec<EmitError>), EmitError> {
         // validate target
-        if !self.target.emit.is_script() {
-            return Err(self.unsupported_target("expected JS, TS, or HTML".to_string()));
+        if self.target.emit != EmitFormat::Js {
+            return Err(self.unsupported_target("expected JavaScript".to_string()));
         }
 
         // current module inputs
@@ -77,8 +68,6 @@ impl<'a> ScriptGenerator<'a> {
         let bound = self.bound.as_ref();
         let imported = self.imported.as_ref();
         let expanded = self.expanded.as_ref();
-        let declared = self.declared.as_ref();
-        let checked = self.checked.as_ref();
         let materialized = self.materialized.as_ref();
 
         // asset modules are linked directly in the JS linker
@@ -90,31 +79,18 @@ impl<'a> ScriptGenerator<'a> {
         }
 
         // emit one lowered JavaScript module tree
-        let lower = lower_module(
+        let (module, errors) = lower_module(
             module,
             parsed,
             self.strings.as_ref(),
             bound,
             imported,
             expanded,
-            declared,
-            checked,
             materialized,
-        )?;
-        let errors = lower.errors;
-
-        // language selection
-        let language = match self.target.emit {
-            EmitFormat::Js => ScriptLanguage::JavaScript,
-            EmitFormat::Ts => ScriptLanguage::TypeScript,
-            _ => {
-                return Err(self.unsupported_target("expected JS, TS, or HTML".to_string()));
-            }
-        };
+        );
 
         let script = Script {
-            language,
-            body: ScriptBody::EcmaScript(lower.module),
+            module,
             map: None,
             has_top_level_side_effects: true,
         };

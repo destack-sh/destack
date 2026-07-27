@@ -5,270 +5,131 @@ use destack_js as js;
 use crate::emit::js::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
-    /// Lower visibility from DIR into JS AST.
-    pub(crate) fn lower_visibility(&self, visibility: dir::Visibility) -> js::Visibility {
-        match visibility {
-            dir::Visibility::Public => js::Visibility::Public,
-            dir::Visibility::Protected => js::Visibility::Protected,
-            dir::Visibility::Private => js::Visibility::Private,
-        }
-    }
-
-    /// Lower an export kind from DIR into JS AST.
-    pub(crate) fn lower_export_kind(&self, export: dir::ExportKind) -> js::DependencyBinding {
+    /// Lower an export kind from DIR into JavaScript.
+    pub(crate) fn lower_export_kind(&self, export: dir::ExportKind) -> js::ExportKind {
         match export {
-            dir::ExportKind::Named => js::DependencyBinding::Named,
-            dir::ExportKind::Default => js::DependencyBinding::Default,
+            dir::ExportKind::Named => js::ExportKind::Named,
+            dir::ExportKind::Default => js::ExportKind::Default,
         }
     }
 
-    /// Lower one interface heritage type from DIR into JS AST.
-    pub(crate) fn lower_interface_heritage(
-        &mut self,
-        extends_type: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> Result<js::InterfaceHeritage, EmitError> {
-        let (expression, type_arguments) = self.lower_type_callee(extends_type)?;
-
-        Ok(js::InterfaceHeritage {
-            expression,
-            type_arguments,
-        })
+    /// Lower one variable export marker.
+    pub(crate) fn lower_binding_export(
+        &self,
+        export: Option<dir::ExportKind>,
+    ) -> Result<bool, EmitError> {
+        match export {
+            None => Ok(false),
+            Some(dir::ExportKind::Named) => Ok(true),
+            Some(dir::ExportKind::Default) => Err(self
+                .internal_error("default export reached JavaScript variable lowering".to_string())),
+        }
     }
 
-    /// Lower a declaration from DIR into JS AST.
+    /// Lower one runtime declaration from DIR into JavaScript.
     pub(crate) fn lower_declaration(
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
     ) -> Result<js::LocalNodeId<js::Declaration>, EmitError> {
         let source_declaration_id = declaration_id;
         let declaration = self.dir_tree.get(declaration_id);
+
         let declaration = match declaration {
-            dir::Declaration::Global(declaration) => {
-                // body
-                let statements = declaration
-                    .expressions
-                    .iter()
-                    .map(|expression| self.lower_expression_as::<js::Statement>(*expression))
-                    .collect::<Result<Vec<_>, EmitError>>()?;
-
-                let declaration = js::GlobalDeclaration {
-                    is_ambient: declaration.is_ambient,
-                    statements,
-                };
-
-                js::Declaration::Global(declaration)
-            }
-            dir::Declaration::Type(declaration) => {
-                // generic parameters
-                let generic_parameters =
-                    self.lower_generic_parameters(&declaration.generic_parameters)?;
-
-                // value
-                let Some(declared_type_id) = self
-                    .types
-                    .get_node_type_id(declaration_id.into_global_any(self.module.id))
-                else {
-                    return Err(self.unsupported_construct(
-                        declaration_id.into_global_any(self.module.id),
-                        Some(
-                            "type declarations need semantic types before JS lowering".to_string(),
-                        ),
-                    ));
-                };
-                let value = self.lower_type(declared_type_id, declaration_id.into_any())?;
-
-                let declaration = js::TypeDeclaration {
-                    name: Some(self.lower_name(declaration.name)),
-                    export: declaration
-                        .export
-                        .map(|export| self.lower_export_kind(export)),
-                    is_ambient: declaration.is_ambient,
-                    generic_parameters,
-                    value,
-                };
-
-                js::Declaration::Type(declaration)
-            }
             dir::Declaration::Struct(declaration) => {
-                // generic parameters
-                let generic_parameters =
-                    self.lower_generic_parameters(&declaration.generic_parameters)?;
-
-                // implements
-                let implements_types =
-                    self.lower_type_annotation_expressions(&declaration.implements_types)?;
-
-                // members
                 let members = declaration
                     .members
                     .iter()
-                    .map(|member| self.lower_member(*member))
-                    .collect::<Result<Vec<_>, EmitError>>()?;
-
-                // struct declarations currently lower through class form
-
+                    .map(|member_id| self.lower_member(*member_id))
+                    .collect::<Result<Vec<_>, EmitError>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect();
                 let declaration = js::ClassDeclaration {
                     name: Some(self.lower_name(declaration.name)),
                     export: declaration
                         .export
                         .map(|export| self.lower_export_kind(export)),
-                    is_ambient: declaration.is_ambient,
-                    is_abstract: false,
-                    generic_parameters,
                     extends_expression: None,
-                    extends_generic_arguments: Vec::new(),
-                    implements_types,
                     members,
                 };
 
                 js::Declaration::Class(declaration)
             }
             dir::Declaration::Class(declaration) => {
-                // generic parameters
-                let generic_parameters =
-                    self.lower_generic_parameters(&declaration.generic_parameters)?;
-
-                // extends
-                let extends = declaration
+                let extends_expression = declaration
                     .extends_type
                     .map(|extends_type| self.lower_type_callee(extends_type))
                     .transpose()?;
-                let (extends_expression, extends_generic_arguments) = extends
-                    .map_or((None, Vec::new()), |(expression, generic_arguments)| {
-                        (Some(expression), generic_arguments)
-                    });
-
-                // implements
-                let implements_types =
-                    self.lower_type_annotation_expressions(&declaration.implements_types)?;
-
-                // members
                 let members = declaration
                     .members
                     .iter()
-                    .map(|member| self.lower_member(*member))
-                    .collect::<Result<Vec<_>, EmitError>>()?;
-
+                    .map(|member_id| self.lower_member(*member_id))
+                    .collect::<Result<Vec<_>, EmitError>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect();
                 let declaration = js::ClassDeclaration {
                     name: declaration.name.map(|name| self.lower_name(name)),
                     export: declaration
                         .export
                         .map(|export| self.lower_export_kind(export)),
-                    is_ambient: declaration.is_ambient,
-                    is_abstract: declaration.is_abstract,
-                    generic_parameters,
                     extends_expression,
-                    extends_generic_arguments,
-                    implements_types,
                     members,
                 };
 
                 js::Declaration::Class(declaration)
             }
-            dir::Declaration::Interface(declaration) => {
-                // generic parameters
-                let generic_parameters =
-                    self.lower_generic_parameters(&declaration.generic_parameters)?;
-
-                // extends
-                let extends = declaration
-                    .extends_types
-                    .iter()
-                    .copied()
-                    .map(|extends_type| self.lower_interface_heritage(extends_type))
-                    .collect::<Result<Vec<_>, EmitError>>()?;
-
-                // members
-                let members = declaration
-                    .members
-                    .iter()
-                    .map(|member| self.lower_type_member(*member))
-                    .collect::<Result<Vec<_>, EmitError>>()?;
-
-                let declaration = js::InterfaceDeclaration {
-                    name: declaration.name.map(|name| self.lower_name(name)),
-                    export: declaration
-                        .export
-                        .map(|export| self.lower_export_kind(export)),
-                    is_ambient: declaration.is_ambient,
-                    generic_parameters,
-                    extends,
-                    members,
-                };
-
-                js::Declaration::Interface(declaration)
-            }
-            dir::Declaration::Enum(declaration) => {
-                // fields
-                let fields = declaration
-                    .fields
-                    .iter()
-                    .map(|field| self.lower_enum_field(*field))
-                    .collect::<Result<Vec<_>, EmitError>>()?;
-
-                let declaration = js::EnumDeclaration {
-                    name: declaration.name.map(|name| self.lower_name(name)),
-                    export: declaration
-                        .export
-                        .map(|export| self.lower_export_kind(export)),
-                    is_ambient: declaration.is_ambient,
-                    fields,
-                };
-
-                js::Declaration::Enum(declaration)
-            }
             dir::Declaration::Function(declaration) => {
-                // signature
+                let Some(body) = declaration.body else {
+                    return Err(self.unsupported_construct(
+                        declaration_id.into_global_any(self.module.id),
+                        Some("JavaScript functions require executable bodies".to_string()),
+                    ));
+                };
                 let signature = self.lower_function_signature(&declaration.signature)?;
-
-                // body
-                let body = declaration
-                    .body
-                    .map(|body| self.lower_expression_as_block(body))
-                    .transpose()?;
-
+                let body = self.lower_expression_as_block(body)?;
                 let declaration = js::FunctionDeclaration {
                     name: declaration.name.map(|name| self.lower_name(name)),
                     export: declaration
                         .export
                         .map(|export| self.lower_export_kind(export)),
-                    is_ambient: declaration.is_ambient,
-                    is_abstract: declaration.signature.is_abstract,
                     signature,
                     body,
                 };
 
                 js::Declaration::Function(declaration)
             }
-            _ => {
+            dir::Declaration::Enum(_) => {
+                return Err(self.unsupported_construct(
+                    declaration_id.into_global_any(self.module.id),
+                    Some("JavaScript enum representation is undefined".to_string()),
+                ));
+            }
+            dir::Declaration::Global(_) => {
+                return Err(self.unsupported_construct(
+                    declaration_id.into_global_any(self.module.id),
+                    Some(
+                        "non-ambient global declarations have no JavaScript runtime form"
+                            .to_string(),
+                    ),
+                ));
+            }
+            dir::Declaration::Type(_) | dir::Declaration::Interface(_) => {
+                return Err(self.internal_error(
+                    "compile-time declaration reached JavaScript lowering".to_string(),
+                ));
+            }
+            dir::Declaration::Module(_) | dir::Declaration::Extension(_) => {
                 return Err(self
                     .unsupported_construct(declaration_id.into_global_any(self.module.id), None));
             }
         };
+
         let declaration_id =
             self.tree
                 .insert_from_source(declaration, self.module.id, declaration_id);
-
         self.copy_source_node_symbol(declaration_id, source_declaration_id);
 
         Ok(declaration_id)
-    }
-
-    /// Lower an enum field from DIR into JS AST.
-    pub(crate) fn lower_enum_field(
-        &mut self,
-        field_id: dir::LocalNodeId<dir::EnumField>,
-    ) -> Result<js::LocalNodeId<js::EnumField>, EmitError> {
-        let field = self.dir_tree.get(field_id);
-        let name = field.name.string();
-        let value = field
-            .value
-            .map(|value_id| self.lower_expression_as::<js::Expression>(value_id))
-            .transpose()?;
-        let field = js::EnumField { name, value };
-        let field_id = self
-            .tree
-            .insert_from_source(field, self.module.id, field_id);
-        Ok(field_id)
     }
 }

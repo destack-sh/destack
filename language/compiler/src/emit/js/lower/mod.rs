@@ -12,7 +12,6 @@ mod operator;
 mod path;
 mod pattern;
 mod property;
-mod r#type;
 
 pub(crate) use lowerer::*;
 pub(in crate::emit::js) use module::*;
