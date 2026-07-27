@@ -857,6 +857,15 @@ impl Tree {
         self.source_index.get_main(node_id)
     }
 
+    /// Find the innermost typed node span containing one source span.
+    #[inline]
+    pub fn find_innermost_node_span_owner(
+        &self,
+        span: Span,
+    ) -> Option<destack_source::NodeSpanKey> {
+        self.source_index.find_innermost_node_span_owner(span)
+    }
+
     /// Set the main source span for one parsed node.
     #[inline]
     pub fn set_main_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)

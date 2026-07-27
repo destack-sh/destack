@@ -119,6 +119,14 @@ impl<'a> View<'a> {
         tree.get_side_span_by_id(node_id.id, span_type)
     }
 
+    /// Get one visible side source span by local node id.
+    pub fn get_side_span_by_id(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
+        let node_id = self.node_id_any(node_id);
+        let (tree, node_id) = self.visible_node(node_id)?;
+
+        tree.get_side_span_by_id(node_id.id, span_type)
+    }
+
     /// Get the visible parent for one local node id.
     pub fn get_parent(&self, node_id: u32) -> Option<LocalNodeIdAny> {
         let node_id = self.node_id_any(node_id);
