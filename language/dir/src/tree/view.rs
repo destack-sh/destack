@@ -107,6 +107,32 @@ impl<'a> View<'a> {
         tree.get_span_by_id(node_id.id)
     }
 
+    /// Return a visible node span extended across attached decorators.
+    pub fn get_decorated_span(&self, root: LocalNodeIdAny) -> Option<Span> {
+        let mut span = self.get_span_by_id(root.id)?;
+
+        // include decorators attached anywhere inside the selected subtree
+        for decorator in self.iter_node_ids_of_type::<Decorator>() {
+            let mut node = decorator.into_any();
+            while let Some(parent) = self.get_parent_any(node) {
+                if parent != root {
+                    node = parent;
+                    continue;
+                }
+
+                let decorator_span = self.get_span(decorator);
+                if decorator_span.file != span.file {
+                    return None;
+                }
+                span.start = span.start.min(decorator_span.start);
+                span.end = span.end.max(decorator_span.end);
+                break;
+            }
+        }
+
+        Some(span)
+    }
+
     /// Get one visible side source span by typed id.
     pub fn get_side_span<T: Node>(
         &self,
