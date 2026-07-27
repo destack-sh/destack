@@ -8,8 +8,7 @@ use crate::{
     EmitFormat, EnvironmentBound, EnvironmentDeclared, Host, LanguageEnvironment,
     LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
     ModuleEdges, ModuleGraph, ModuleIndex, ModuleLinted, Object, Platform, Product, ProductTarget,
-    ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime, Script, ScriptBody, ScriptLanguage,
-    SourceMap,
+    ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime, Script, SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -65,8 +64,6 @@ pub fn schema(registry: &mut SchemaRegistry) {
 
     registry.register::<SourceMap>();
     registry.register::<Object>();
-    registry.register::<ScriptLanguage>();
-    registry.register::<ScriptBody>();
     registry.register::<Script>();
     registry.register::<Asset>();
     registry.register::<BundleSection>();
