@@ -186,3 +186,13 @@ impl From<ExportTarget> for ImportTarget {
         }
     }
 }
+
+impl From<ImportTarget> for ExportTarget {
+    /// Convert one imported target into its exported target form.
+    fn from(target: ImportTarget) -> Self {
+        match target {
+            ImportTarget::Symbol(symbol) => Self::Symbol(symbol),
+            ImportTarget::Namespace(module) => Self::Namespace(module),
+        }
+    }
+}
