@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use bytecode::{BytecodeFormatOptions, format_bytecode};
 use destack_artifact::{
     ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DiagnosticLike, DiagnosticRecord, MirLowered, MirOptimized,
+    DiagnosticError, DiagnosticLike, DiagnosticRecord, MirLowered, MirOptimized, Object,
 };
 use destack_bytecode as bytecode;
 use destack_core::StringPool;
@@ -11,7 +13,6 @@ use destack_source::{
     DiagnosticLabel, DiagnosticSeverity, DiagnosticTarget, File, FileId, FileType, ModuleId,
     PackageId, ProfileId, Span, TargetId, Uri,
 };
-use std::sync::Arc;
 
 use crate::lower::LayoutBuilder;
 use crate::tests::snapshot::assert_snapshot;
@@ -83,8 +84,9 @@ impl TestProgram {
         test_target_id()
     }
 
-    /// Assert emitted bytecode for this MIR program.
-    pub(crate) fn assert_bytecode(&self, expected: &str) -> bytecode::Object {
+    /// Emit one object and assert its exact bytecode text.
+    #[track_caller]
+    pub(crate) fn assert_bytecode(&self, expected: &str) -> Object {
         let mut tree = self.lowered.tree.clone();
         let mut layouts = self.lowered.layouts.clone();
 
@@ -131,7 +133,7 @@ impl TestProgram {
             .into_iter()
             .map(|(_, name)| name)
             .collect::<Vec<_>>();
-        let (bytecode, _) = BytecodeEmitter::new(self.module_id(), &optimized, &object)
+        let (bytecode, frames) = BytecodeEmitter::new(self.module_id(), &optimized, &object)
             .emit()
             .expect("test MIR should emit bytecode");
         let formatted =
@@ -140,7 +142,7 @@ impl TestProgram {
 
         assert_snapshot(formatted, expected);
 
-        bytecode
+        object.build(bytecode, frames)
     }
 
     /// Return the type id with one display name.

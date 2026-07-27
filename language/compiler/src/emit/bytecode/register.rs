@@ -15,7 +15,7 @@ pub(crate) struct RegisterAllocation {
     pub(crate) values: Vec<Option<bytecode::RegisterSpan>>,
     /// Permanent register ranges keyed by MIR local identity.
     pub(crate) locals: HashMap<mir::LocalId, bytecode::RegisterSpan>,
-    /// MIR liveness used to derive canonical frame states.
+    /// MIR liveness used to derive frame states in acquisition order.
     pub(crate) liveness: mir::FunctionLiveness,
 }
 
@@ -225,12 +225,7 @@ impl<'a> RegisterAllocator<'a> {
 
     /// Place function parameters into one contiguous leading register window.
     fn allocate_parameters(&mut self) -> Result<(), EmitError> {
-        // reserve the hidden closure environment before explicit parameters
-        if let Some(environment) = self.function.environment {
-            let ty = self.types.register_type(environment)?;
-            self.append_range(ty.word_count())?;
-        }
-
+        // place explicit parameters after the environment reserved during construction
         for parameter in &self.function.parameters {
             let ty = self.register_type(parameter.value)?;
             let registers = self.append_range(ty.word_count())?;

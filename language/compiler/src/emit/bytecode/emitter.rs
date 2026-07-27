@@ -15,12 +15,13 @@ pub struct BytecodeEmitter<'a> {
     optimized: &'a MirOptimized,
     /// Module owning the emitted MIR.
     module: ModuleId,
-    /// Common object identity assignments.
+    /// Object-local identity assignments.
     object: &'a ObjectEmitter,
     /// Physical bytecode type projection.
     types: TypeEmitter<'a>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> BytecodeEmitter<'a> {
     /// Create one bytecode emitter.
     pub fn new(module: ModuleId, optimized: &'a MirOptimized, object: &'a ObjectEmitter) -> Self {
@@ -43,7 +44,7 @@ impl<'a> BytecodeEmitter<'a> {
         let mut code = Vec::new();
         let mut rows = Vec::with_capacity(functions.len());
 
-        // emit functions in their common object order
+        // emit functions in object order
         for (function_id, function) in functions {
             if function.body.is_none() {
                 rows.push(bytecode::Function::declaration());
@@ -83,7 +84,7 @@ impl<'a> BytecodeEmitter<'a> {
         Ok((object, logical_frames))
     }
 
-    /// Return MIR functions in common object identity order.
+    /// Return MIR functions in object identity order.
     fn ordered_functions(&self) -> Result<Vec<(mir::FunctionId, &mir::Function)>, EmitError> {
         let mut functions = self
             .optimized
@@ -104,7 +105,6 @@ impl<'a> BytecodeEmitter<'a> {
     }
 
     /// Append one emitted function and return its physical object row.
-    #[allow(clippy::too_many_arguments)]
     fn append(
         emitted: EmittedFunction,
         logical_frames: &mut Vec<FrameState>,
@@ -123,11 +123,12 @@ impl<'a> BytecodeEmitter<'a> {
         // append matching logical and physical frame maps
         let frame_start = frames.len() as u32;
         for frame in emitted_frames {
+            let code_offset = body.operations[frame.operation as usize];
             let register_start = registers.len() as u32;
             let register_count = frame.registers.len() as u32;
             registers.extend(frame.registers);
             frames.push(bytecode::FrameMap::new(
-                frame.code_offset,
+                code_offset,
                 EntryRange::new(register_start, register_count),
             ));
             logical_frames.push(FrameState::new(

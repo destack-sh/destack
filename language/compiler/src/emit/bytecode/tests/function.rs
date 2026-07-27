@@ -17,6 +17,12 @@ export function identity(v0: slice<int32, managed, mutable>): slice<int32, manag
 entry(v0: slice<int32, managed, mutable>):
     return v0
 }
+
+@environment(ref<void, managed, mutable>)
+export function closure(v0: int32): int32 {
+entry(v0: int32):
+    return v0
+}
 "#,
     );
 
@@ -29,6 +35,10 @@ function add {
 
 function identity {
     return r0:r1
+}
+
+function closure {
+    return r1
 }
 "#,
     );
@@ -50,7 +60,7 @@ entry(v0: int32, v1: boolean, v2: int32):
 "#,
     );
 
-    let bytecode = program.assert_bytecode(
+    let object = program.assert_bytecode(
         r#"
 function consume
 
@@ -66,11 +76,20 @@ function caller {
     );
 
     // retain the semantic call coordinate after its outgoing register moves
+    let bytecode = object.bytecode();
     let function = bytecode::FunctionId(1);
     let instruction = bytecode
         .operation(function, 1)
         .expect("caller operation should decode")
         .expect("caller operation should exist");
+    let function = bytecode
+        .function(function)
+        .expect("caller function should exist");
+    let operation = function
+        .operation(bytecode.operations(), 1)
+        .expect("caller operation should exist");
+    let frame = bytecode.frames()[function.frames.start as usize + 1];
 
     assert_eq!(instruction.opcode(), bytecode::Opcode::CALL);
+    assert_eq!(frame.code_offset, operation);
 }

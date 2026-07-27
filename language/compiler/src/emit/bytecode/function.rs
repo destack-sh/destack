@@ -25,11 +25,9 @@ pub(crate) struct EmittedFunction {
 pub(crate) struct EmittedFrame {
     /// The logical operation represented by this frame.
     pub(crate) operation: u32,
-    /// The encoded operation represented by this frame.
-    pub(crate) code_offset: bytecode::CodeOffset,
-    /// Object-local types in canonical slot order.
+    /// Object-local types in acquisition order.
     pub(crate) types: Vec<mir::TypeId>,
-    /// Physical register spans in canonical slot order.
+    /// Physical register spans in acquisition order.
     pub(crate) registers: Vec<bytecode::RegisterSpan>,
 }
 
@@ -38,9 +36,9 @@ pub(crate) struct EmittedFrame {
 pub(crate) struct FunctionEmitter<'a> {
     /// Optimized MIR being emitted.
     optimized: &'a MirOptimized,
-    /// Shared object-local type identities.
+    /// Object-local type identities.
     types: &'a TypeEmitter<'a>,
-    /// Shared object identity assignments.
+    /// Object-local identity assignments.
     object: &'a ObjectEmitter,
     /// Module owning the function.
     module: ModuleId,
@@ -177,16 +175,14 @@ impl<'a> FunctionEmitter<'a> {
             for (index, instruction_id) in block.instructions.iter().enumerate() {
                 let instruction = self.optimized.tree.get(*instruction_id);
                 let operation = self.builder.begin_operation();
-                let code_offset = self.builder.code_offset();
                 self.emit_instruction(*instruction_id, instruction)?;
-                let frame = self.instruction_frame(*block_id, index, operation, code_offset)?;
+                let frame = self.instruction_frame(*block_id, index, operation)?;
                 self.frames.push(frame);
             }
 
             let operation = self.builder.begin_operation();
-            let code_offset = self.builder.code_offset();
             self.emit_terminator(self.optimized.tree.get(block.terminator))?;
-            let frame = self.terminator_frame(*block_id, operation, code_offset)?;
+            let frame = self.terminator_frame(*block_id, operation)?;
             self.frames.push(frame);
         }
 
@@ -227,7 +223,6 @@ impl<'a> FunctionEmitter<'a> {
         block: mir::BlockId,
         index: usize,
         operation: u32,
-        code_offset: bytecode::CodeOffset,
     ) -> Result<EmittedFrame, EmitError> {
         let mut values = self
             .liveness
@@ -242,7 +237,7 @@ impl<'a> FunctionEmitter<'a> {
             .collect::<Vec<_>>();
         locals.sort_unstable();
 
-        self.frame_registers(operation, code_offset, values, locals)
+        self.frame(operation, &values, &locals)
     }
 
     /// Build one frame map before an MIR terminator.
@@ -250,7 +245,6 @@ impl<'a> FunctionEmitter<'a> {
         &self,
         block: mir::BlockId,
         operation: u32,
-        code_offset: bytecode::CodeOffset,
     ) -> Result<EmittedFrame, EmitError> {
         let mut values = self
             .liveness
@@ -265,40 +259,25 @@ impl<'a> FunctionEmitter<'a> {
             .collect::<Vec<_>>();
         locals.sort_unstable();
 
-        self.frame_registers(operation, code_offset, values, locals)
+        self.frame(operation, &values, &locals)
     }
 
     /// Build one physical frame map from live MIR values and locals.
-    fn frame_registers(
+    fn frame(
         &self,
         operation: u32,
-        code_offset: bytecode::CodeOffset,
-        values: impl IntoIterator<Item = mir::Value>,
-        locals: impl IntoIterator<Item = mir::LocalId>,
+        values: &[mir::Value],
+        locals: &[mir::LocalId],
     ) -> Result<EmittedFrame, EmitError> {
+        let entry = self
+            .function
+            .entry()
+            .ok_or_else(|| self.invalid_input("missing function entry block"))?;
+        let parameters = &self.optimized.tree.get(entry).parameters;
         let mut types = Vec::new();
         let mut registers = Vec::new();
 
-        // map live SSA values into their fixed register ranges
-        for value in values {
-            let ty = self
-                .function
-                .value_type(value)
-                .ok_or_else(|| self.invalid_input("missing live value type"))?;
-            let range = self.register(value)?;
-            types.push(ty);
-            registers.push(range);
-        }
-
-        // map live locals into their permanent register ranges
-        for local in locals {
-            let ty = self.optimized.tree.get(local).ty;
-            let range = self.local(local)?;
-            types.push(ty);
-            registers.push(range);
-        }
-
-        // retain the hidden environment for the complete function lifetime
+        // retain the hidden environment before every source value
         if let Some(environment) = self.function.environment {
             let ty = self.types.register_type(environment)?;
             types.push(environment);
@@ -308,9 +287,40 @@ impl<'a> FunctionEmitter<'a> {
             ));
         }
 
+        // retain live function parameters in calling order
+        for parameter in parameters {
+            if !values.contains(&parameter.value) {
+                continue;
+            }
+            let range = self.register(parameter.value)?;
+            types.push(parameter.ty);
+            registers.push(range);
+        }
+
+        // retain live locals in declaration order
+        for &local in locals {
+            let ty = self.optimized.tree.get(local).ty;
+            let range = self.local(local)?;
+            types.push(ty);
+            registers.push(range);
+        }
+
+        // retain remaining live SSA values in creation order
+        for &value in values {
+            if parameters.iter().any(|parameter| parameter.value == value) {
+                continue;
+            }
+            let ty = self
+                .function
+                .value_type(value)
+                .ok_or_else(|| self.invalid_input("missing live value type"))?;
+            let range = self.register(value)?;
+            types.push(ty);
+            registers.push(range);
+        }
+
         Ok(EmittedFrame {
             operation,
-            code_offset,
             types,
             registers,
         })
@@ -405,10 +415,32 @@ impl<'a> FunctionEmitter<'a> {
                 function,
                 arguments,
             } => self.emit_continuation_new(*destination, *function, *arguments),
-            mir::Instruction::WaiterQueue { waiter, value } => {
-                self.emit_waiter_queue(*waiter, *value)
+            mir::Instruction::ContinuationDestroy { continuation } => {
+                self.emit_continuation_destroy(*continuation)
             }
-            mir::Instruction::WaiterCancel { waiter } => self.emit_waiter_cancel(*waiter),
+            mir::Instruction::WaiterQueue {
+                destination,
+                waiter,
+                value,
+            } => self.emit_waiter_queue(*destination, *waiter, *value),
+            mir::Instruction::WaiterCancel {
+                destination,
+                waiter,
+            } => self.emit_waiter_cancel(*destination, *waiter),
+            mir::Instruction::TaskResolve { destination, value } => {
+                self.emit_task_resolve(*destination, *value)
+            }
+            mir::Instruction::TaskStart {
+                destination,
+                continuation,
+            } => self.emit_task_start(*destination, *continuation),
+            mir::Instruction::TaskPark { task, waiter } => self.emit_task_park(*task, *waiter),
+            mir::Instruction::TaskCancel { task } => {
+                self.emit_task(bytecode::Opcode::TASK_CANCEL, *task)
+            }
+            mir::Instruction::TaskDetach { task } => {
+                self.emit_task(bytecode::Opcode::TASK_DETACH, *task)
+            }
             mir::Instruction::Drop { value } => self.emit_drop(*value),
             mir::Instruction::NewZeroed {
                 destination,
@@ -576,18 +608,35 @@ impl<'a> FunctionEmitter<'a> {
             mir::Terminator::Yield {
                 value,
                 resume,
+                complete,
                 unwind,
-            } => self.emit_yield(terminator, *value, resume, unwind.as_ref()),
-            mir::Terminator::Resume {
+            } => self.emit_yield(terminator, *value, resume, complete, unwind.as_ref()),
+            mir::Terminator::ContinuationResume {
                 continuation,
-                command,
+                value,
                 yielded,
                 returned,
                 unwind,
-            } => self.emit_resume(
+            } => self.emit_continuation_transfer(
                 terminator,
+                bytecode::Opcode::CONTINUATION_RESUME,
                 *continuation,
-                *command,
+                *value,
+                yielded,
+                returned,
+                unwind.as_ref(),
+            ),
+            mir::Terminator::ContinuationComplete {
+                continuation,
+                value,
+                yielded,
+                returned,
+                unwind,
+            } => self.emit_continuation_transfer(
+                terminator,
+                bytecode::Opcode::CONTINUATION_COMPLETE,
+                *continuation,
+                *value,
                 yielded,
                 returned,
                 unwind.as_ref(),
@@ -665,14 +714,18 @@ impl<'a> FunctionEmitter<'a> {
         terminator: &mir::Terminator,
         value: mir::Value,
         resume: &mir::BlockTarget,
+        complete: &mir::BlockTarget,
         unwind: Option<&mir::BlockTarget>,
     ) -> Result<(), EmitError> {
-        let definitions = self.successor_definitions(terminator, resume)?;
+        let mut definitions = self.successor_definitions(terminator, resume)?;
+        definitions.extend(self.successor_definitions(terminator, complete)?);
         let resume = self.edge_label(terminator, resume)?;
+        let complete = self.edge_label(terminator, complete)?;
         let unwind = self.unwind_label(terminator, unwind)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::YIELD);
         instruction.span(self.register(value)?);
         instruction.branch(resume);
+        instruction.branch(complete);
         instruction.branch(unwind);
 
         self.encode(instruction, &definitions)
@@ -866,7 +919,7 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         global: mir::GlobalId,
     ) -> Result<(), EmitError> {
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::GLOBAL_ADDRESS);
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::POINTER_GLOBAL);
         let global = self.types.global_id(global)?;
         instruction.relocation(bytecode::RelocationTag::GLOBAL, global.0);
         let definition = self.definition(destination)?;
@@ -894,7 +947,7 @@ impl<'a> FunctionEmitter<'a> {
         local: mir::LocalId,
     ) -> Result<(), EmitError> {
         let local = self.local(local)?;
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::ADDRESS);
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::POINTER_FRAME);
         instruction.span(local);
         let definition = self.definition(destination)?;
 
@@ -1259,9 +1312,19 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[definition])
     }
 
+    /// Emit destruction of one continuation.
+    fn emit_continuation_destroy(&mut self, continuation: mir::Value) -> Result<(), EmitError> {
+        let mut instruction =
+            bytecode::InstructionBuilder::new(bytecode::Opcode::CONTINUATION_DESTROY);
+        instruction.register(self.word(continuation)?);
+
+        self.encode(instruction, &[])
+    }
+
     /// Emit one asynchronous waiter settlement.
     fn emit_waiter_queue(
         &mut self,
+        destination: mir::Value,
         waiter: mir::Value,
         value: mir::Value,
     ) -> Result<(), EmitError> {
@@ -1271,24 +1334,77 @@ impl<'a> FunctionEmitter<'a> {
         instruction.register(self.word(waiter)?);
         instruction.relocation(bytecode::RelocationTag::TYPE, ty.0);
         instruction.span(self.register(value)?);
+        let definition = self.definition(destination)?;
 
-        self.encode(instruction, &[])
+        self.encode(instruction, &[definition])
     }
 
     /// Emit one asynchronous waiter cancellation.
-    fn emit_waiter_cancel(&mut self, waiter: mir::Value) -> Result<(), EmitError> {
+    fn emit_waiter_cancel(
+        &mut self,
+        destination: mir::Value,
+        waiter: mir::Value,
+    ) -> Result<(), EmitError> {
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::WAITER_CANCEL);
+        instruction.register(self.word(waiter)?);
+        let definition = self.definition(destination)?;
+
+        self.encode(instruction, &[definition])
+    }
+
+    /// Emit one already completed task.
+    fn emit_task_resolve(
+        &mut self,
+        destination: mir::Value,
+        value: mir::Value,
+    ) -> Result<(), EmitError> {
+        let ty = self.value_type(value)?;
+        let ty = self.types.type_id(ty)?;
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::TASK_RESOLVE);
+        instruction.relocation(bytecode::RelocationTag::TYPE, ty.0);
+        instruction.span(self.register(value)?);
+        let definition = self.definition(destination)?;
+
+        self.encode(instruction, &[definition])
+    }
+
+    /// Emit one eager task start.
+    fn emit_task_start(
+        &mut self,
+        destination: mir::Value,
+        continuation: mir::Value,
+    ) -> Result<(), EmitError> {
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::TASK_START);
+        instruction.register(self.word(continuation)?);
+        let definition = self.definition(destination)?;
+
+        self.encode(instruction, &[definition])
+    }
+
+    /// Emit parking one waiter on a task.
+    fn emit_task_park(&mut self, task: mir::Value, waiter: mir::Value) -> Result<(), EmitError> {
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::TASK_PARK);
+        instruction.register(self.word(task)?);
         instruction.register(self.word(waiter)?);
 
         self.encode(instruction, &[])
     }
 
-    /// Emit one continuation resume control transfer.
-    fn emit_resume(
+    /// Emit one scalar task operation.
+    fn emit_task(&mut self, opcode: bytecode::Opcode, task: mir::Value) -> Result<(), EmitError> {
+        let mut instruction = bytecode::InstructionBuilder::new(opcode);
+        instruction.register(self.word(task)?);
+
+        self.encode(instruction, &[])
+    }
+
+    /// Emit one continuation control transfer.
+    fn emit_continuation_transfer(
         &mut self,
         terminator: &mir::Terminator,
+        opcode: bytecode::Opcode,
         continuation: mir::Value,
-        command: mir::Value,
+        value: mir::Value,
         yielded: &mir::BlockTarget,
         returned: &mir::BlockTarget,
         unwind: Option<&mir::BlockTarget>,
@@ -1300,9 +1416,9 @@ impl<'a> FunctionEmitter<'a> {
         let unwind = self.unwind_label(terminator, unwind)?;
 
         // encode both completion paths and their direct destinations
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::RESUME);
+        let mut instruction = bytecode::InstructionBuilder::new(opcode);
         instruction.register(self.word(continuation)?);
-        instruction.span(self.register(command)?);
+        instruction.span(self.register(value)?);
         instruction.branch(yielded);
         instruction.branch(returned);
         instruction.branch(unwind);

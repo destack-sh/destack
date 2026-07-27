@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use destack_artifact::{
-    AllocationSite, CallMode, CallSite, CounterSite, EdgeSite, MemorySite, MirOptimized, Point,
-    ResumeSite, SampleSite, Suspension, SuspensionSite,
+    AllocationSite, CallMode, CallSite, ContinuationSite, CounterSite, EdgeSite, MemorySite,
+    MirOptimized, Point, SampleSite, Suspension, SuspensionSite,
 };
 use destack_mir as mir;
 use destack_source::ModuleId;
@@ -23,8 +23,8 @@ pub(super) struct Sites {
     pub(super) memory: Vec<MemorySite>,
     /// Function call sites.
     pub(super) calls: Vec<CallSite>,
-    /// Continuation resume sites.
-    pub(super) resumes: Vec<ResumeSite>,
+    /// Continuation control sites.
+    pub(super) continuations: Vec<ContinuationSite>,
     /// Control flow edges.
     pub(super) edges: Vec<EdgeSite>,
     /// Coroutine suspension sites.
@@ -45,7 +45,7 @@ impl Sites {
     ) -> Result<Self, EmitError> {
         let mut sites = Self::default();
 
-        // walk each defined function in common object order
+        // walk each defined function in object order
         for (_, function) in optimized.tree.iter_nodes::<mir::Function>() {
             let Some(body) = &function.body else {
                 continue;
@@ -244,20 +244,26 @@ impl Sites {
             _ => {}
         }
 
-        // record continuation resume metadata
-        if let mir::Terminator::Resume {
-            yielded,
-            returned,
-            unwind,
-            ..
-        } = terminator
-        {
-            self.resumes.push(ResumeSite {
+        // record continuation control metadata
+        match terminator {
+            mir::Terminator::ContinuationResume {
+                yielded,
+                returned,
+                unwind,
+                ..
+            }
+            | mir::Terminator::ContinuationComplete {
+                yielded,
+                returned,
+                unwind,
+                ..
+            } => self.continuations.push(ContinuationSite {
                 point,
                 yielded: points.block(yielded.block),
                 returned: points.block(returned.block),
                 unwind: unwind.as_ref().map(|target| points.block(target.block)),
-            });
+            }),
+            _ => {}
         }
 
         // record coroutine suspension metadata
@@ -278,11 +284,13 @@ impl Sites {
                 *value,
                 resume,
                 Some(cancel),
+                None,
                 unwind.as_ref(),
             )?),
             mir::Terminator::Yield {
                 value,
                 resume,
+                complete,
                 unwind,
             } => self.suspensions.push(Self::suspension(
                 module,
@@ -294,6 +302,7 @@ impl Sites {
                 *value,
                 resume,
                 None,
+                Some(complete),
                 unwind.as_ref(),
             )?),
             _ => {}
@@ -324,21 +333,27 @@ impl Sites {
         value: mir::Value,
         resume: &mir::BlockTarget,
         cancel: Option<&mir::BlockTarget>,
+        complete: Option<&mir::BlockTarget>,
         unwind: Option<&mir::BlockTarget>,
     ) -> Result<SuspensionSite, EmitError> {
         let value_type = function
             .value_type(value)
             .ok_or_else(|| ObjectEmitter::invalid(module, "missing suspension value type"))?;
         let resume_type = Self::success_type(module, optimized, resume)?;
+        let complete_type = complete
+            .map(|target| Self::success_type(module, optimized, target))
+            .transpose()?;
 
         Ok(SuspensionSite {
             point,
             resume: points.block(resume.block),
             cancel: cancel.map(|target| points.block(target.block)),
+            complete: complete.map(|target| points.block(target.block)),
             unwind: unwind.map(|target| points.block(target.block)),
             operation,
             value_type,
             resume_type,
+            complete_type,
         })
     }
 

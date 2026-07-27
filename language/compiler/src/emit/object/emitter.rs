@@ -13,30 +13,31 @@ use crate::EmitError;
 use super::point::PointIndex;
 use super::site::Sites;
 
-/// Emit the common linker input shared by every code form.
+/// Emit one relocatable object from optimized MIR.
 #[derive(Debug)]
 pub struct ObjectEmitter {
-    /// Common relocatable object state.
+    /// Relocatable object under construction.
     object: ObjectBuilder,
-    /// Common object type indices keyed by MIR identity.
+    /// Object type indices keyed by MIR identity.
     type_indices: HashMap<mir::TypeId, usize>,
-    /// Common object function indices keyed by MIR identity.
+    /// Object function indices keyed by MIR identity.
     function_indices: HashMap<mir::FunctionId, usize>,
-    /// Common object global indices keyed by MIR identity.
+    /// Object global indices keyed by MIR identity.
     global_indices: HashMap<mir::GlobalId, usize>,
-    /// Common object program points keyed by MIR operation identity.
+    /// Object program points keyed by MIR operation identity.
     points: PointIndex,
     /// Allocation indices keyed by object-local program point.
     allocation_indices: HashMap<Point, u32>,
 }
 
 impl ObjectEmitter {
-    /// Collect common object state from optimized MIR.
+    /// Collect relocatable object metadata from optimized MIR.
     pub fn new(
         module: ModuleId,
         optimized: &MirOptimized,
         dependencies: impl IntoIterator<Item = ModuleId>,
     ) -> Result<Self, EmitError> {
+        // assign stable object type identities
         let mut type_indices = HashMap::new();
         let types = optimized.tree.iter_nodes::<mir::Type>().enumerate().map(
             |(index, (id, definition))| {
@@ -52,6 +53,8 @@ impl ObjectEmitter {
                 }
             },
         );
+
+        // assign stable object function identities
         let mut function_indices = HashMap::new();
         let functions = optimized
             .tree
@@ -77,6 +80,8 @@ impl ObjectEmitter {
                     coroutine: function.coroutine,
                 }
             });
+
+        // assign stable object global identities
         let mut global_indices = HashMap::new();
         let globals =
             optimized
@@ -97,9 +102,13 @@ impl ObjectEmitter {
                         initializer: global.initializer.clone(),
                     }
                 });
+
+        // collect execution metadata under object-local identities
         let points = PointIndex::build(optimized);
         let sites = Sites::emit(module, optimized, &points)?;
         let allocation_indices = sites.allocation_indices;
+
+        // build code-independent object state
         let object = ObjectBuilder::new(optimized.target)
             .dependencies(dependencies)
             .types(types)
@@ -111,7 +120,7 @@ impl ObjectEmitter {
             .allocations(sites.allocations)
             .memory(sites.memory)
             .calls(sites.calls)
-            .resumes(sites.resumes)
+            .continuations(sites.continuations)
             .edges(sites.edges)
             .suspensions(sites.suspensions)
             .counters(sites.counters)
@@ -127,17 +136,17 @@ impl ObjectEmitter {
         })
     }
 
-    /// Return the common object index assigned to one MIR type.
+    /// Return the object index assigned to one MIR type.
     pub(crate) fn type_index(&self, ty: mir::TypeId) -> Option<usize> {
         self.type_indices.get(&ty).copied()
     }
 
-    /// Return the common object index assigned to one MIR function.
+    /// Return the object index assigned to one MIR function.
     pub(crate) fn function_index(&self, function: mir::FunctionId) -> Option<usize> {
         self.function_indices.get(&function).copied()
     }
 
-    /// Return the common object index assigned to one MIR global.
+    /// Return the object index assigned to one MIR global.
     pub(crate) fn global_index(&self, global: mir::GlobalId) -> Option<usize> {
         self.global_indices.get(&global).copied()
     }
