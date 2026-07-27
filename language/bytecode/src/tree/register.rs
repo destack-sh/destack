@@ -4,39 +4,18 @@ use destack_core::{EntryRange, SectionEntry};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::CodeOffset;
-
 /// Physical bytecode locations for one canonical frame state.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FrameMap {
-    /// The function-relative byte offset restored for this state.
-    pub code_offset: CodeOffset,
     /// Physical register spans retained by this state.
     pub registers: EntryRange<RegisterSpan>,
 }
 
-/// An object-local physical frame map id.
-#[repr(transparent)]
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub struct FrameMapId(pub u32);
-
-impl FrameMapId {
-    /// Return this id as a dense frame map index.
-    pub const fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
 impl FrameMap {
     /// Create one physical frame map.
-    pub const fn new(code_offset: CodeOffset, registers: EntryRange<RegisterSpan>) -> Self {
-        Self {
-            code_offset,
-            registers,
-        }
+    pub const fn new(registers: EntryRange<RegisterSpan>) -> Self {
+        Self { registers }
     }
 
     /// Return the physical register spans retained by this map.
@@ -100,7 +79,6 @@ impl RegisterId {
     }
 }
 
-const _: () = assert!(size_of::<FrameMap>() == 12);
-const _: () = assert!(size_of::<FrameMapId>() == 4);
+const _: () = assert!(size_of::<FrameMap>() == 8);
 const _: () = assert!(size_of::<RegisterSpan>() == 4);
 const _: () = assert!(size_of::<RegisterId>() == 2);

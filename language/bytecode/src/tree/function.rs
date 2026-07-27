@@ -2,7 +2,7 @@ use destack_core::{EntryRange, Optional, SectionEntry};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{CodeOffset, CodeRange, FrameMap};
+use crate::{CodeOffset, CodeRange};
 
 /// One physical bytecode function.
 #[repr(C, align(8))]
@@ -10,40 +10,31 @@ use crate::{CodeOffset, CodeRange, FrameMap};
 pub struct Function {
     /// The encoded function body when this object defines the function.
     pub code: Optional<CodeRange>,
-    /// Physical frame maps used by this function.
-    pub frames: EntryRange<FrameMap>,
     /// Function-relative byte offsets of logical operations.
     pub operations: EntryRange<CodeOffset>,
     /// The number of 64-bit words in the register file.
     pub register_count: u16,
-    /// Reserved function bytes.
-    reserved: [u8; 2],
+    /// Explicit initialized row padding.
+    padding: [u8; 2],
 }
 
 impl Function {
     /// Create one function without bytecode.
     pub const fn declaration() -> Self {
-        Self::new(
-            Optional::none(),
-            EntryRange::empty(),
-            EntryRange::empty(),
-            0,
-        )
+        Self::new(Optional::none(), EntryRange::empty(), 0)
     }
 
     /// Create one physical bytecode function.
     pub const fn new(
         code: Optional<CodeRange>,
-        frames: EntryRange<FrameMap>,
         operations: EntryRange<CodeOffset>,
         register_count: u16,
     ) -> Self {
         Self {
             code,
-            frames,
             operations,
             register_count,
-            reserved: [0; 2],
+            padding: [0; 2],
         }
     }
 
@@ -65,6 +56,18 @@ impl Function {
     /// Return one logical operation's function-relative byte offset.
     pub fn operation(&self, operations: &[CodeOffset], operation: u32) -> Option<CodeOffset> {
         self.operations(operations).get(operation as usize).copied()
+    }
+
+    /// Return the logical operation containing one physical bytecode offset.
+    pub fn operation_at(&self, operations: &[CodeOffset], offset: CodeOffset) -> Option<u32> {
+        let operations = self.operations(operations);
+        let index = match operations.binary_search(&offset) {
+            Ok(index) => index,
+            Err(0) => return None,
+            Err(index) => index - 1,
+        };
+
+        Some(index as u32)
     }
 }
 
@@ -110,7 +113,7 @@ impl SamplerId {
     }
 }
 
-const _: () = assert!(size_of::<Function>() == 32);
+const _: () = assert!(size_of::<Function>() == 24);
 const _: () = assert!(size_of::<FunctionId>() == 4);
 const _: () = assert!(size_of::<CounterId>() == 4);
 const _: () = assert!(size_of::<SamplerId>() == 4);

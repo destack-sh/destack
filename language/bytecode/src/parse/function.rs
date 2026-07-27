@@ -2,7 +2,7 @@ use crate::{
     Function, FunctionBuilder, FunctionId, InstructionBuilder, Label, Opcode, ParseError,
     ParseResult, Parser, RegisterId, RegisterSpan, RelocationTag, Token, TokenType,
 };
-use destack_core::{EntryRange, Optional};
+use destack_core::Optional;
 use destack_source::Span;
 
 /// Parser state for one physical bytecode function.
@@ -83,12 +83,7 @@ impl Parser<'_> {
         // append function-owned sections and publish the physical row
         let operations = self.object.push_operations(body.operations);
         let code = self.object.push_code(&body.code, body.relocations);
-        let function = Function::new(
-            Optional::some(code),
-            EntryRange::empty(),
-            operations,
-            body.register_count,
-        );
+        let function = Function::new(Optional::some(code), operations, body.register_count);
         self.functions[function_id.index()] = Some(function);
 
         Ok(())

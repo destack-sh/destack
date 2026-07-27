@@ -2,7 +2,7 @@ use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, FrameMap, FrameMapId, Function, Instruction, Instructions, RegisterSpan};
+use crate::{Error, FrameMap, Function, Instruction, Instructions, RegisterSpan};
 
 /// Linked executable bytecode stored in Program sections.
 #[repr(C, align(8))]
@@ -49,23 +49,6 @@ impl Code {
         frame_index: usize,
     ) -> Option<&'a FrameMap> {
         self.frames(sections).get(frame_index)
-    }
-
-    /// Return the physical frame map at one function-relative byte offset.
-    pub fn frame_at<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        function_index: usize,
-        offset: CodeOffset,
-    ) -> Option<(FrameMapId, &'a FrameMap)> {
-        let function = self.function(sections, function_index)?;
-        let frames = function.frames.slice(self.frames(sections));
-        let index = frames
-            .binary_search_by_key(&offset, |frame| frame.code_offset)
-            .ok()?;
-        let frame = FrameMapId(function.frames.start + index as u32);
-
-        Some((frame, &frames[index]))
     }
 
     /// Return flattened register spans referenced by frame maps.
