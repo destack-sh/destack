@@ -323,7 +323,7 @@ fn test_insert_drop_on_yield_unwind_path() {
         r#"
 function test(v0: ref<int32, unique, mutable>, v1: int32): int32 {
 entry(v0: ref<int32, unique, mutable>, v1: int32):
-    yield v1 => b1(v0) | cleanup
+    yield v1 => b1(v0) | b1(v0) | cleanup
 
 b1(v2: int32, v3: ref<int32, unique, mutable>):
     return v2
@@ -338,7 +338,7 @@ cleanup:
         r#"
 function test(v0: ref<int32, unique, mutable>, v1: int32): int32 {
 entry(v0: ref<int32, unique, mutable>, v1: int32):
-    yield v1 => b1(v0) | cleanup
+    yield v1 => b1(v0) | b1(v0) | cleanup
 
 b1(v2: int32, v3: ref<int32, unique, mutable>):
     free v3
