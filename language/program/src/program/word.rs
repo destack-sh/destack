@@ -161,6 +161,14 @@ impl Word {
         Some(Self(u64::from_le_bytes(bytes)))
     }
 
+    /// View contiguous words as their native in-memory bytes.
+    pub fn bytes(words: &[Self]) -> &[u8] {
+        let byte_len = std::mem::size_of_val(words);
+
+        // SAFETY: Word has an aligned 64-bit representation with no invalid bit patterns
+        unsafe { std::slice::from_raw_parts(words.as_ptr().cast(), byte_len) }
+    }
+
     /// View contiguous words as their native in-memory bytes mutably.
     pub fn bytes_mut(words: &mut [Self]) -> &mut [u8] {
         let byte_len = std::mem::size_of_val(words);

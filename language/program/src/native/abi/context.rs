@@ -1,5 +1,3 @@
-use std::ffi::c_void;
-
 use super::{NativeExitCode, NativeExitKind, NativeTrapCode, NativeValue};
 use crate::{NativeConstantSpace, NativeStaticSpace};
 
@@ -7,8 +5,6 @@ use crate::{NativeConstantSpace, NativeStaticSpace};
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NativeContext {
-    /// Opaque runtime-owned native call state.
-    pub state: *mut c_void,
     /// Program constant bytes.
     pub constants: NativeConstantSpace,
     /// Runtime-shared static bytes.
@@ -22,14 +18,12 @@ pub struct NativeContext {
 impl NativeContext {
     /// Create one native call context.
     pub const fn new(
-        state: *mut c_void,
         constants: NativeConstantSpace,
         shared_statics: NativeStaticSpace,
         local_statics: NativeStaticSpace,
         exit: *mut NativeExit,
     ) -> Self {
         Self {
-            state,
             constants,
             shared_statics,
             local_statics,

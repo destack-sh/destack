@@ -138,7 +138,7 @@ impl FrameState {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct FrameLayout {
-    /// Live frame slots in canonical order.
+    /// Live frame slots in acquisition order.
     pub slots: EntryRange<FrameSlot>,
     /// Complete packed frame byte length.
     pub byte_len: u32,
@@ -161,7 +161,7 @@ impl FrameLayout {
 /// Mutable canonical frame layout before section packing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FrameLayoutBuilder {
-    /// Live frame slots in canonical order.
+    /// Live frame slots in acquisition order.
     slots: Vec<FrameSlot>,
     /// Complete packed frame byte length.
     byte_len: u32,
@@ -179,7 +179,7 @@ impl FrameLayoutBuilder {
         }
     }
 
-    /// Set live frame slots in canonical order.
+    /// Set live frame slots in acquisition order.
     pub fn slots(mut self, slots: impl IntoIterator<Item = FrameSlot>) -> Self {
         self.slots = slots.into_iter().collect();
 

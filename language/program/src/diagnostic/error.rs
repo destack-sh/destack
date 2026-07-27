@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AllocationSiteId, FrameLayoutId, FrameStateId, FunctionId, GlobalId, LayoutId, Signature,
-    SignatureId, TypeId, ValueMismatch, Waiter,
+    SignatureId, Task, TypeId, ValueMismatch, Waiter,
 };
 
 /// Result of one Program operation.
@@ -120,10 +120,29 @@ pub enum Error {
     },
     /// A suspended continuation contains no frames.
     EmptyContinuation,
+    /// A ready continuation carries the wrong number of captured words.
+    ContinuationWordCountMismatch {
+        /// The coroutine function.
+        function: FunctionId,
+        /// The required captured word count.
+        expected: usize,
+        /// The supplied captured word count.
+        actual: usize,
+    },
     /// A waiter does not name a live suspended continuation.
     UndefinedWaiter {
         /// The undefined waiter.
         waiter: Waiter,
+    },
+    /// A task does not name one live asynchronous execution.
+    UndefinedTask {
+        /// The undefined task.
+        task: Task,
+    },
+    /// A task operation is invalid for its current execution state.
+    InvalidTaskState {
+        /// The task in the invalid state.
+        task: Task,
     },
     /// A captured frame byte width differs from its frame layout.
     FrameByteLengthMismatch {
@@ -282,8 +301,20 @@ impl fmt::Display for Error {
                 write!(formatter, "undefined frame layout {frame_layout:?}")
             }
             Self::EmptyContinuation => formatter.write_str("continuation contains no frames"),
+            Self::ContinuationWordCountMismatch {
+                function,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "continuation for {function:?} requires {expected} words, found {actual}"
+            ),
             Self::UndefinedWaiter { waiter } => {
                 write!(formatter, "undefined waiter {waiter:?}")
+            }
+            Self::UndefinedTask { task } => write!(formatter, "undefined task {task:?}"),
+            Self::InvalidTaskState { task } => {
+                write!(formatter, "invalid state for task {task:?}")
             }
             Self::FrameByteLengthMismatch {
                 frame_state,

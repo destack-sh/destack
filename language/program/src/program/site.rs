@@ -19,8 +19,8 @@ pub struct SiteTable {
     memory: SectionSlice<MemorySite>,
     /// Function call operation sites sorted by program point.
     calls: SectionSlice<CallSite>,
-    /// Continuation resume operation sites sorted by program point.
-    resumes: SectionSlice<ResumeSite>,
+    /// Continuation control sites sorted by program point.
+    continuations: SectionSlice<ContinuationSite>,
     /// Control-flow edge sites sorted by source and target point.
     edges: SectionSlice<EdgeSite>,
     /// Coroutine suspension sites sorted by program point.
@@ -102,28 +102,28 @@ impl SiteTable {
         self.calls(sections).len()
     }
 
-    /// Return the continuation resume site at one program point.
-    pub fn resume<'a>(
+    /// Return the continuation control site at one program point.
+    pub fn continuation<'a>(
         &self,
         sections: SectionImage<'a>,
         point: ProgramPoint,
-    ) -> Option<(ResumeSiteId, &'a ResumeSite)> {
-        let resumes = self.resumes(sections);
-        let index = resumes
+    ) -> Option<(ContinuationSiteId, &'a ContinuationSite)> {
+        let continuations = self.continuations(sections);
+        let index = continuations
             .binary_search_by_key(&point, |site| site.point)
             .ok()?;
 
-        Some((ResumeSiteId(index as u32), &resumes[index]))
+        Some((ContinuationSiteId(index as u32), &continuations[index]))
     }
 
-    /// Return all continuation resume sites.
-    pub fn resumes<'a>(&self, sections: SectionImage<'a>) -> &'a [ResumeSite] {
-        sections.entries(self.resumes)
+    /// Return all continuation control sites.
+    pub fn continuations<'a>(&self, sections: SectionImage<'a>) -> &'a [ContinuationSite] {
+        sections.entries(self.continuations)
     }
 
-    /// Return the number of continuation resume sites.
-    pub fn resume_count(&self, sections: SectionImage<'_>) -> usize {
-        self.resumes(sections).len()
+    /// Return the number of continuation control sites.
+    pub fn continuation_count(&self, sections: SectionImage<'_>) -> usize {
+        self.continuations(sections).len()
     }
 
     /// Return the edge site for one observed transfer.
@@ -239,8 +239,8 @@ pub struct SiteTableBuilder {
     memory: Vec<MemorySite>,
     /// Function call operation sites.
     calls: Vec<CallSite>,
-    /// Continuation resume operation sites.
-    resumes: Vec<ResumeSite>,
+    /// Continuation control sites.
+    continuations: Vec<ContinuationSite>,
     /// Control-flow edge sites.
     edges: Vec<EdgeSite>,
     /// Coroutine suspension sites.
@@ -278,9 +278,12 @@ impl SiteTableBuilder {
         self
     }
 
-    /// Set continuation resume operation sites.
-    pub fn resumes(mut self, resumes: impl IntoIterator<Item = ResumeSite>) -> Self {
-        self.resumes = resumes.into_iter().collect();
+    /// Set continuation control sites.
+    pub fn continuations(
+        mut self,
+        continuations: impl IntoIterator<Item = ContinuationSite>,
+    ) -> Self {
+        self.continuations = continuations.into_iter().collect();
 
         self
     }
@@ -315,10 +318,11 @@ impl SiteTableBuilder {
 
     /// Build this site table into final program sections.
     pub(crate) fn build(mut self, sections: &mut SectionBuilder) -> SiteTable {
+        // order every site family for direct lookup
         self.allocations.sort_unstable_by_key(|site| site.point);
         self.memory.sort_unstable_by_key(|site| site.point);
         self.calls.sort_unstable_by_key(|site| site.point);
-        self.resumes.sort_unstable_by_key(|site| site.point);
+        self.continuations.sort_unstable_by_key(|site| site.point);
         self.edges
             .sort_unstable_by_key(|site| (site.source, site.target));
         self.edges.dedup_by_key(|site| (site.source, site.target));
@@ -326,11 +330,12 @@ impl SiteTableBuilder {
         self.counters.sort_unstable_by_key(|site| site.point);
         self.samples.sort_unstable_by_key(|site| site.point);
 
+        // pack every site family into immutable program storage
         SiteTable {
             allocations: sections.insert(self.allocations),
             memory: sections.insert(self.memory),
             calls: sections.insert(self.calls),
-            resumes: sections.insert(self.resumes),
+            continuations: sections.insert(self.continuations),
             edges: sections.insert(self.edges),
             suspensions: sections.insert(self.suspensions),
             counters: sections.insert(self.counters),
@@ -375,7 +380,7 @@ pub struct AllocationSiteId(pub u32);
 )]
 pub struct CallSiteId(pub u32);
 
-/// Dense continuation resume site identifier within one program.
+/// Dense continuation site identifier within one program.
 #[repr(transparent)]
 #[derive(
     Debug,
@@ -391,7 +396,7 @@ pub struct CallSiteId(pub u32);
     Reflect,
     SectionEntry,
 )]
-pub struct ResumeSiteId(pub u32);
+pub struct ContinuationSiteId(pub u32);
 
 /// Dense control-flow edge site identifier within one program.
 #[repr(transparent)]
@@ -517,11 +522,11 @@ pub struct CallSite {
     pub slot: Optional<u32>,
 }
 
-/// Continuation resume operation at one program point.
+/// Continuation control operation at one program point.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct ResumeSite {
-    /// The program point that resumes the continuation.
+pub struct ContinuationSite {
+    /// The program point that drives the continuation.
     pub point: ProgramPoint,
     /// The program point entered when the continuation yields.
     pub yielded: ProgramPoint,
@@ -553,6 +558,8 @@ pub struct SuspensionSite {
     pub resume: ProgramPoint,
     /// The program point entered during cancellation when present.
     pub cancel: Optional<ProgramPoint>,
+    /// The program point entered during explicit completion when present.
+    pub complete: Optional<ProgramPoint>,
     /// The program point entered during panic unwinding.
     pub unwind: Optional<ProgramPoint>,
     /// The canonical frame state captured at this site.
@@ -563,6 +570,8 @@ pub struct SuspensionSite {
     pub value_type: TypeId,
     /// The value received when execution resumes.
     pub resume_type: TypeId,
+    /// The value received during explicit completion when present.
+    pub complete_type: Optional<TypeId>,
 }
 
 /// Coroutine suspension operation.
@@ -657,7 +666,7 @@ impl CallSiteId {
     }
 }
 
-impl ResumeSiteId {
+impl ContinuationSiteId {
     /// Return this site id as a dense array index.
     pub const fn index(self) -> usize {
         self.0 as usize

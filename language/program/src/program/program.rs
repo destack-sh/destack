@@ -13,15 +13,15 @@ use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocationSiteId, BindingId, CallSite, CallSiteId, Continuation, DispatchTable, DropEntry,
-    DropTable, DynamicEntry, DynamicTable, DynamicTableId, Error, FrameLayout, FrameLayoutId,
-    FrameSlot, FrameState, FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global,
-    GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
-    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, ResumeSite, ResumeSiteId,
-    SampleKey, SampleSite, SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId,
-    SiteTable, StaticImage, StaticSpace, StringTable, SuspensionSite, SuspensionSiteId,
-    TensorDimension, TensorLayout, TensorViewLayout, TypeId, TypeTable, Value, VariantCaseLayout,
-    VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout, native, wasm,
+    AllocationSiteId, BindingId, CallSite, CallSiteId, Continuation, ContinuationSite,
+    ContinuationSiteId, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable,
+    DynamicTableId, Error, FrameLayout, FrameLayoutId, FrameSlot, FrameState, FrameStateId,
+    FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
+    GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable,
+    ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
+    SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, SuspensionSite,
+    SuspensionSiteId, TensorDimension, TensorLayout, TensorViewLayout, TypeId, TypeTable, Value,
+    VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout, native, wasm,
 };
 
 /// Linked program.
@@ -209,9 +209,12 @@ impl Program {
         self.sites.call(self.sections(), point)
     }
 
-    /// Return the continuation resume site at one program point.
-    pub fn resume(&self, point: ProgramPoint) -> Option<(ResumeSiteId, &ResumeSite)> {
-        self.sites.resume(self.sections(), point)
+    /// Return the continuation control site at one program point.
+    pub fn continuation(
+        &self,
+        point: ProgramPoint,
+    ) -> Option<(ContinuationSiteId, &ContinuationSite)> {
+        self.sites.continuation(self.sections(), point)
     }
 
     /// Return the coroutine suspension site at one program point.
@@ -712,7 +715,7 @@ impl Program {
         }
 
         // visit every canonical value through its exact Program type
-        let (states, bytes) = continuation.parts_mut();
+        let (states, bytes) = continuation.state_bytes_mut();
         let mut frame_byte_offset = 0usize;
         for &frame_state in states {
             let state = self
