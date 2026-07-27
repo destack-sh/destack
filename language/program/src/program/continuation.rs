@@ -9,7 +9,7 @@ use crate::{Error, Result};
 use super::{FrameStateId, FunctionId, Program, Word};
 
 /// One suspended coroutine call chain.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Continuation {
     /// Root completion mode for the suspended call chain.
     completion: Completion,
@@ -20,6 +20,7 @@ pub struct Continuation {
 }
 
 /// Root completion mode preserved by one suspended continuation.
+#[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum Completion {
     /// Publish the function's returned value.
@@ -29,7 +30,7 @@ pub enum Completion {
 }
 
 /// Runtime continuations addressed by generation-checked handles.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContinuationTable {
     /// Stable slots addressed by continuation ids.
     slots: Vec<ContinuationSlot>,
@@ -38,7 +39,7 @@ pub struct ContinuationTable {
 }
 
 /// One ready or suspended coroutine execution.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ContinuationEntry {
     /// A coroutine body that has not entered its first instruction.
     Ready {
@@ -57,7 +58,7 @@ pub enum ContinuationEntry {
 pub struct ContinuationId(u64);
 
 /// One reusable continuation table slot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct ContinuationSlot {
     /// Generation required by the current id.
     generation: u32,
@@ -86,7 +87,11 @@ impl Continuation {
 
     /// Fork this continuation through copy-on-write frame storage.
     pub fn fork(&self) -> Self {
-        self.clone()
+        Self {
+            completion: self.completion,
+            states: self.states.clone(),
+            bytes: self.bytes.clone(),
+        }
     }
 
     /// Return canonical frame states in caller to callee order.
@@ -111,6 +116,14 @@ impl Continuation {
 }
 
 impl ContinuationTable {
+    /// Fork this continuation table through copy-on-write continuation storage.
+    pub fn fork(&self) -> Self {
+        Self {
+            slots: self.slots.iter().map(ContinuationSlot::fork).collect(),
+            vacant: self.vacant.clone(),
+        }
+    }
+
     /// Insert one continuation and return its runtime identity.
     pub fn insert(&mut self, continuation: ContinuationEntry) -> ContinuationId {
         let Some(index) = self.vacant.pop() else {
@@ -218,6 +231,32 @@ impl ContinuationTable {
         }
 
         Ok(())
+    }
+}
+
+impl ContinuationEntry {
+    /// Fork this continuation entry through copy-on-write retained bytes.
+    fn fork(&self) -> Self {
+        match self {
+            Self::Ready {
+                function,
+                arguments,
+            } => Self::Ready {
+                function: *function,
+                arguments: arguments.clone(),
+            },
+            Self::Suspended(continuation) => Self::Suspended(continuation.fork()),
+        }
+    }
+}
+
+impl ContinuationSlot {
+    /// Fork this occupied or vacant continuation slot.
+    fn fork(&self) -> Self {
+        Self {
+            generation: self.generation,
+            continuation: self.continuation.as_ref().map(ContinuationEntry::fork),
+        }
     }
 }
 
