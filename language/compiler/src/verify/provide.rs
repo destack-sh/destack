@@ -36,7 +36,6 @@ impl Compiler {
         let mut state = VerifyState::new(module, profile, target, context, &lowered);
 
         state.check_ownership();
-        state.check_drop_hooks();
 
         // emit every diagnostic and fail the verified artifact
         let mut diagnostics = state.take_diagnostics();

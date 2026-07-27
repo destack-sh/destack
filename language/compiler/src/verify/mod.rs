@@ -1,4 +1,3 @@
-mod drop;
 mod error;
 mod ownership;
 mod provide;

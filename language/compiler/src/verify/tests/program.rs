@@ -24,20 +24,6 @@ impl TestProgram {
         state.errors().to_vec()
     }
 
-    /// Run Drop hook verification.
-    pub(in crate::verify::tests) fn run_drop_hooks(&self) -> Vec<DiagnosticBuilder<VerifyError>> {
-        let mut state = VerifyState::new(
-            self.module_id(),
-            self.profile_id(),
-            self.target_id(),
-            &self.provider,
-            &self.lowered,
-        );
-        state.check_drop_hooks();
-
-        state.errors().to_vec()
-    }
-
     /// Assert no ownership errors.
     pub(in crate::verify::tests) fn assert_no_ownership_errors(&mut self) {
         let diagnostics = self.run_ownership();

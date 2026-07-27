@@ -219,11 +219,11 @@ type Pair {
     right: ref<int32, unique, mutable>;
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: int32): int32 {
+function* test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: int32): int32 {
 entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: int32):
     v3: Pair = aggregate (v0, v1)
     v4: ref<int32, unique, mutable> = field.get v3, 0
-    yield v2 => b1
+    yield v2 => b1 | b1
 
 b1(v5: int32):
     return v5

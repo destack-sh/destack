@@ -20,10 +20,6 @@ pub(crate) struct VerifyState<'a> {
     pub(in crate::verify) tree: &'a mir::Tree,
     /// Canonical MIR drop table.
     pub(in crate::verify) drops: &'a mir::DropTable,
-    /// Virtual and dynamic dispatch tables.
-    pub(in crate::verify) dispatch: &'a mir::DispatchTable,
-    /// Explicit memory access table.
-    pub(in crate::verify) memory: &'a mir::MemoryTable,
     /// Function and call effect table.
     pub(in crate::verify) effects: &'a mir::EffectTable,
     /// Accumulated errors.
@@ -58,8 +54,6 @@ impl<'a> VerifyState<'a> {
             context,
             tree: &lowered.tree,
             drops: &lowered.drops,
-            dispatch: &lowered.dispatch,
-            memory: &lowered.memory,
             effects: &lowered.effects,
             errors: Vec::new(),
         }

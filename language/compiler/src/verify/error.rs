@@ -54,30 +54,6 @@ pub enum VerifyError {
         moved_at: DiagnosticAnchor,
     },
 
-    /// A Drop method cannot panic.
-    #[diagnostic(id = "drop-may-panic", message = "Drop method may panic")]
-    DropMayPanic {
-        /// The Drop method.
-        anchor: DiagnosticAnchor,
-    },
-
-    /// A Drop method cannot allocate storage.
-    #[diagnostic(id = "drop-may-allocate", message = "Drop method may allocate")]
-    DropMayAllocate {
-        /// The Drop method.
-        anchor: DiagnosticAnchor,
-    },
-
-    /// A Drop method cannot observe entropy or host state.
-    #[diagnostic(
-        id = "drop-may-observe-entropy",
-        message = "Drop method may observe entropy"
-    )]
-    DropMayObserveEntropy {
-        /// The Drop method.
-        anchor: DiagnosticAnchor,
-    },
-
     /// Cannot move a field out of a type that implements Drop.
     #[diagnostic(
         id = "move-out-of-drop",
@@ -85,16 +61,6 @@ pub enum VerifyError {
     )]
     MoveOutOfDrop {
         /// The projected move.
-        anchor: DiagnosticAnchor,
-    },
-
-    /// A Drop method must exclusively borrow its receiver and return void.
-    #[diagnostic(
-        id = "invalid-drop-signature",
-        message = "Drop method must take one exclusive borrowed receiver and return void"
-    )]
-    InvalidDropSignature {
-        /// The invalid Drop method.
         anchor: DiagnosticAnchor,
     },
 
