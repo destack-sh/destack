@@ -5,8 +5,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GenericParameterBinding, GenericTemplate, GlobalNodeIdAny, LocalGenericParameterId,
-    LocalGenericTemplateId, SegmentView, VarianceModifier,
+    Arena, GenericParameterBinding, GenericTemplate, GlobalNodeIdAny, GlobalSymbolId,
+    LocalGenericParameterId, LocalGenericTemplateId, SegmentView, VarianceModifier,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -100,6 +100,29 @@ impl<'a> GenericTable<'a> {
         }
 
         None
+    }
+
+    /// Return the generic template declared by one symbol.
+    pub fn template_by_symbol(&self, symbol: GlobalSymbolId) -> Option<LocalGenericTemplateId> {
+        for (template_id, template) in self.iter_templates() {
+            if template.symbol == Some(symbol) {
+                return Some(template_id);
+            }
+        }
+
+        None
+    }
+
+    /// Return one parameter's declared or checker-derived variance.
+    pub fn parameter_variance(
+        &self,
+        parameter: LocalGenericParameterId,
+    ) -> Option<VarianceModifier> {
+        let binding = self.get_parameter(parameter);
+
+        binding
+            .variance
+            .or_else(|| self.derived_variance(parameter))
     }
 
     /// Get a generic template by id.
