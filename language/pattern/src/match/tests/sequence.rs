@@ -55,3 +55,54 @@ type Values = First | Second | Third
 "#,
     );
 }
+
+/// Match complete block bodies across the semantic tail split.
+#[test]
+fn test_match_block_sequence() {
+    TestMatcher::new(
+        "function example(): void { $$$EXPRESSIONS }",
+        r#"
+function example(): void {}
+function example(): void { first(); second() }
+"#,
+    )
+    .assert(
+        r#"
+function example(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^^ match EXPRESSIONS.nodes=[]
+function example(): void { first(); second() }
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ match EXPRESSIONS.nodes=["first()", "second()"]
+"#,
+    );
+}
+
+/// Match complete arm and tree-child lists.
+#[test]
+fn test_match_wrapper_sequences() {
+    TestMatcher::new(
+        "match (value) { $$$ARMS }",
+        r#"
+match (value) {
+    First => one
+    Second => two
+}
+"#,
+    )
+    .assert(
+        r#"
+match (value) {
+^ match:start ARMS.nodes=["First => one", "Second => two"]
+    First => one
+    Second => two
+}
+^ match:end
+"#,
+    );
+
+    TestMatcher::new("<div>$$$CHILDREN</div>", "<div>first<span /></div>\n").assert(
+        r#"
+<div>first<span /></div>
+^^^^^^^^^^^^^^^^^^^^^^^^ match CHILDREN.nodes=["first", "<span />"]
+"#,
+    );
+}

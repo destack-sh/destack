@@ -11,7 +11,12 @@ pub(super) enum MarkerTarget {
     /// A complete node.
     Node(dir::LocalNodeIdAny),
     /// A placeholder in a repeated node list.
-    Nodes(dir::LocalNodeIdAny),
+    Nodes {
+        /// The placeholder element.
+        node: dir::LocalNodeIdAny,
+        /// The source span occupied by the placeholder element.
+        node_span: Span,
+    },
     /// A name stored directly on a node.
     Name {
         /// The node storing the name.
@@ -30,8 +35,25 @@ impl Marker {
         if self.is_nodes {
             for node in exact_nodes {
                 if Self::is_repeated_element(tree, node) {
-                    return Ok(MarkerTarget::Nodes(node));
+                    return Ok(MarkerTarget::Nodes {
+                        node,
+                        node_span: self.token_span,
+                    });
                 }
+            }
+
+            // include structural prefixes owned by a repeated element
+            for node in tree.iter_node_ids() {
+                if tree.get_main_span_by_id(node.id) != Some(self.span)
+                    || !Self::is_repeated_element(tree, node)
+                {
+                    continue;
+                }
+                let Some(node_span) = tree.get_span_by_id(node.id) else {
+                    return Err(MarkerError::MissingNodeSpan { span: self.span });
+                };
+
+                return Ok(MarkerTarget::Nodes { node, node_span });
             }
 
             return Err(MarkerError::InvalidRepeated { span: self.span });
@@ -51,7 +73,7 @@ impl Marker {
 
     /// Return exact range nodes from deepest to shallowest.
     fn exact_nodes(&self, tree: &dir::Tree) -> Vec<dir::LocalNodeIdAny> {
-        let range = self.span.range();
+        let range = self.token_span.range();
         let mut nodes = tree
             .iter_node_ids()
             .filter(|node| {
@@ -106,7 +128,7 @@ impl MarkerTarget {
                 name,
                 node_type: node.ty,
             },
-            Self::Nodes(node) => Metavariable::Nodes {
+            Self::Nodes { node, .. } => Metavariable::Nodes {
                 name,
                 node_type: node.ty,
             },
@@ -126,9 +148,10 @@ impl MarkerTarget {
                 node,
                 span,
             },
-            Self::Nodes(node) => MetavariableUse::Nodes {
+            Self::Nodes { node, node_span } => MetavariableUse::Nodes {
                 variable,
                 node,
+                node_span,
                 span,
             },
             Self::Name { node, span_type } => MetavariableUse::Name {

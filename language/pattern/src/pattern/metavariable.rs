@@ -128,6 +128,8 @@ pub enum MetavariableUse {
         variable: Option<MetavariableId>,
         /// The placeholder element parsed from the marker.
         node: dir::LocalNodeIdAny,
+        /// The source span occupied by the placeholder element.
+        node_span: Span,
         /// The authored marker.
         span: Span,
     },

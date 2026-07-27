@@ -3,13 +3,12 @@ use std::fmt::{Display, Formatter};
 use destack_dir as dir;
 use destack_source::{File, Span};
 
+use super::span::NodeSpans;
 use crate::{Binding, Fragment, MetavariableUse, PatternMatch, Replacement, Sequence};
 
 /// An invariant violation while rendering a compiled replacement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum RenderError {
-    /// The compiled replacement root has no source span.
-    MissingRootSpan,
     /// The compiled replacement root span is outside its retained source.
     MissingRootSource,
     /// A compiled replacement contains an anonymous metavariable.
@@ -36,7 +35,6 @@ impl Display for RenderError {
     /// Format the violated rendering invariant.
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         let message = match self {
-            Self::MissingRootSpan => "replacement root has no source span",
             Self::MissingRootSource => "replacement root source is unavailable",
             Self::AnonymousMetavariable => "replacement contains an anonymous metavariable",
             Self::MissingBinding => "replacement metavariable has no match binding",
@@ -68,36 +66,37 @@ struct Substitution {
 }
 
 /// Render structural replacements from typed match bindings.
-pub(super) struct Renderer<'replacement, 'candidate> {
+pub(super) struct Renderer<'replacement, 'candidate, 'spans> {
     /// The replacement fragment.
     replacement: &'replacement Replacement,
     /// The candidate nodes.
     candidate: dir::View<'candidate>,
     /// The authored candidate source.
     source: &'candidate File,
+    /// The complete source span for each candidate node.
+    spans: &'spans NodeSpans,
 }
 
-impl<'replacement, 'candidate> Renderer<'replacement, 'candidate> {
+impl<'replacement, 'candidate, 'spans> Renderer<'replacement, 'candidate, 'spans> {
     /// Create a replacement renderer.
     pub(super) fn new(
         replacement: &'replacement Replacement,
         candidate: dir::View<'candidate>,
         source: &'candidate File,
+        spans: &'spans NodeSpans,
     ) -> Self {
         Self {
             replacement,
             candidate,
             source,
+            spans,
         }
     }
 
     /// Render one replacement from a successful match.
     pub(super) fn render(&self, pattern_match: &PatternMatch) -> Result<String, RenderError> {
         let fragment = self.replacement.fragment();
-        let root_span = fragment
-            .tree()
-            .get_span_by_id(fragment.root().id)
-            .ok_or(RenderError::MissingRootSpan)?;
+        let root_span = fragment.span();
         let root_source = self
             .replacement
             .file()
@@ -142,9 +141,16 @@ impl<'replacement, 'candidate> Renderer<'replacement, 'candidate> {
         binding: &Binding,
     ) -> Result<Substitution, RenderError> {
         match (metavariable_use, binding) {
-            (MetavariableUse::Node { span, .. }, Binding::Node(node)) => Ok(Substitution {
+            (
+                MetavariableUse::Node {
+                    node: placeholder,
+                    span,
+                    ..
+                },
+                Binding::Node(node),
+            ) => Ok(Substitution {
                 span,
-                text: self.node_text(*node)?.to_string(),
+                text: self.node_text(fragment, placeholder, *node)?.to_string(),
             }),
             (MetavariableUse::Name { span, .. }, Binding::Name { span: source, .. }) => {
                 Ok(Substitution {
@@ -152,9 +158,12 @@ impl<'replacement, 'candidate> Renderer<'replacement, 'candidate> {
                     text: self.span_text(*source)?.to_string(),
                 })
             }
-            (MetavariableUse::Nodes { node, span, .. }, Binding::Nodes(nodes)) => {
-                self.nodes_substitution(fragment, node, span, nodes)
-            }
+            (
+                MetavariableUse::Nodes {
+                    node, node_span, ..
+                },
+                Binding::Nodes(nodes),
+            ) => self.nodes_substitution(fragment, node, node_span, nodes),
             _ => Err(RenderError::IncompatibleBinding),
         }
     }
@@ -196,11 +205,11 @@ impl<'replacement, 'candidate> Renderer<'replacement, 'candidate> {
         // preserve the complete authored candidate sequence
         let first = nodes
             .first()
-            .and_then(|node| self.candidate.get_span_by_id(node.id))
+            .and_then(|node| self.spans.get(*node))
             .ok_or(RenderError::MissingCandidateSpan)?;
         let last = nodes
             .last()
-            .and_then(|node| self.candidate.get_span_by_id(node.id))
+            .and_then(|node| self.spans.get(*node))
             .ok_or(RenderError::MissingCandidateSpan)?;
         let source = Span::new(first.file, first.start, last.end);
         let text = self.span_text(source)?.to_string();
@@ -209,11 +218,19 @@ impl<'replacement, 'candidate> Renderer<'replacement, 'candidate> {
     }
 
     /// Return exact source for one candidate node.
-    fn node_text(&self, node: dir::LocalNodeIdAny) -> Result<&str, RenderError> {
-        let span = self
-            .candidate
-            .get_span_by_id(node.id)
-            .ok_or(RenderError::MissingCandidateSpan)?;
+    fn node_text(
+        &self,
+        fragment: &Fragment,
+        placeholder: dir::LocalNodeIdAny,
+        node: dir::LocalNodeIdAny,
+    ) -> Result<&str, RenderError> {
+        let decorators = fragment.tree().get_decorators_ref(placeholder.id);
+        let span = if decorators.is_empty() {
+            self.spans.get(node)
+        } else {
+            self.candidate.get_span_by_id(node.id)
+        }
+        .ok_or(RenderError::MissingCandidateSpan)?;
 
         self.span_text(span)
     }

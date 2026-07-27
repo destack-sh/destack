@@ -246,8 +246,19 @@ impl Sequence {
         if node.ty != dir::NodeType::Expression {
             return None;
         }
+        let mut nodes = block
+            .leading_expressions
+            .iter()
+            .map(|expression| expression.into_any())
+            .collect::<Vec<_>>();
+        if let Some(expression) = block.tail_expression {
+            nodes.push(expression.into_any());
+        }
+        if !nodes.contains(&node) {
+            return None;
+        }
 
-        Self::containing(&block.leading_expressions, node)
+        Some(Self { nodes })
     }
 
     /// Find a sequence owned by a declaration.

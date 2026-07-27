@@ -70,7 +70,7 @@ impl TestCompilation {
             .first()
             .expect("compiled structural fragment");
         let root = fragment.root();
-        let root_span = fragment.tree().get_span_by_id(root.id).expect("root span");
+        let root_span = fragment.span();
         let root_source = self.files[0].get_span_str(root_span).expect("root source");
         let mut rows = vec![SnapshotRow::new(
             root_span,

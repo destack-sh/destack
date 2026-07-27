@@ -169,18 +169,6 @@ impl<'pattern, 'candidate> Matcher<'pattern, 'candidate> {
         if pattern.ty != candidate.ty {
             return Ok(false);
         }
-        let pattern_decorators = nodes.tree().get_decorators_any(pattern);
-        let candidate_decorators = self.candidate.get_decorators_any(candidate);
-        if !self.match_nodes(
-            nodes,
-            &pattern_decorators,
-            &candidate_decorators,
-            0,
-            0,
-            bindings,
-        )? {
-            return Ok(false);
-        }
 
         match pattern.ty {
             dir::NodeType::Expression => self.match_expression(
@@ -346,6 +334,44 @@ impl<'pattern, 'candidate> Matcher<'pattern, 'candidate> {
                 bindings,
             ),
         }
+    }
+
+    /// Match decorators attached to one structural node pair.
+    pub(crate) fn match_decorators(
+        &self,
+        nodes: &PatternNodes<'_>,
+        pattern: dir::LocalNodeIdAny,
+        candidate: dir::LocalNodeIdAny,
+        bindings: &mut Bindings,
+    ) -> Result<bool, MatchError> {
+        let patterns = nodes.tree().get_decorators_any(pattern);
+        let candidates = self.candidate.get_decorators_any(candidate);
+
+        self.match_nodes(nodes, &patterns, &candidates, 0, 0, bindings)
+    }
+
+    /// Match one opaque node metavariable and its explicit decorators.
+    pub(crate) fn match_metavariable(
+        &self,
+        nodes: &PatternNodes<'_>,
+        pattern: dir::LocalNodeIdAny,
+        candidate: dir::LocalNodeIdAny,
+        bindings: &mut Bindings,
+    ) -> Result<Option<bool>, MatchError> {
+        let Some(use_entry) = nodes.uses().get_node(pattern) else {
+            return Ok(None);
+        };
+        let decorators = nodes.tree().get_decorators_any(pattern);
+
+        // only authored decorators constrain an otherwise opaque node
+        if !decorators.is_empty() {
+            let candidates = self.candidate.get_decorators_any(candidate);
+            if !self.match_nodes(nodes, &decorators, &candidates, 0, 0, bindings)? {
+                return Ok(Some(false));
+            }
+        }
+
+        self.bind_node(use_entry, candidate, bindings).map(Some)
     }
 
     /// Match one typed node through erased dispatch.

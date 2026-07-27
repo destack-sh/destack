@@ -290,6 +290,13 @@ impl Compiler {
                 },
                 file,
             ),
+            MarkerError::MissingNodeSpan { span } => self.report(
+                PredicateError::Internal {
+                    anchor: span.into(),
+                    message: "repeated placeholder element has no source span".to_string(),
+                },
+                file,
+            ),
         }
     }
 }

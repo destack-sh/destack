@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::Span;
 
 use crate::MetavariableUses;
 
@@ -14,6 +15,8 @@ pub struct Fragment {
     pub(crate) tree: dir::Tree,
     /// The node compared with candidate nodes.
     pub(crate) root: dir::LocalNodeIdAny,
+    /// The authored source occupied by the fragment.
+    pub(crate) span: Span,
     /// The metavariable markers in the parsed nodes.
     pub(crate) uses: MetavariableUses,
 }
@@ -27,6 +30,11 @@ impl Fragment {
     /// Return the node compared with candidate nodes.
     pub fn root(&self) -> dir::LocalNodeIdAny {
         self.root
+    }
+
+    /// Return the authored source occupied by the fragment.
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     /// Return the type required of candidate nodes.

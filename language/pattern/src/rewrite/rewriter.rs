@@ -2,7 +2,16 @@ use destack_dir as dir;
 use destack_source::{DiagnosticCollection, File, FilePatch, ModuleId, Patch, Span};
 
 use super::renderer::Renderer;
+use super::span::NodeSpans;
 use crate::{ContextError, Matcher, ModuleContext, ProgramContext, Rewrite, RewriteError};
+
+/// One rendered source edit selected by a structural match.
+struct RewriteEdit {
+    /// The complete candidate source replaced by the edit.
+    span: Span,
+    /// The rendered replacement source.
+    text: String,
+}
 
 /// A structural rewrite over one candidate DIR and source file.
 #[derive(Debug)]
@@ -64,28 +73,33 @@ impl<'rewrite, 'candidate> Rewriter<'rewrite, 'candidate> {
         let matches = matcher
             .find(candidates)
             .map_err(|error| RewriteError::internal(self.source, error))?;
-        let renderer = Renderer::new(self.rewrite.replacement(), self.candidate, self.source);
-        let mut replacements = Vec::with_capacity(matches.len());
+        let spans = NodeSpans::new(self.candidate)
+            .map_err(|error| RewriteError::internal(self.source, error))?;
+        let renderer = Renderer::new(
+            self.rewrite.replacement(),
+            self.candidate,
+            self.source,
+            &spans,
+        );
+        let mut edits = Vec::with_capacity(matches.len());
 
-        // render matches before selecting a non-overlapping edit set
+        // render every match against its complete source span
         for pattern_match in matches {
-            let span = self
-                .candidate
-                .get_span_by_id(pattern_match.root.id)
-                .ok_or_else(|| {
-                    RewriteError::internal(self.source, "matched candidate has no source span")
-                })?;
+            let span = spans.get(pattern_match.root).ok_or_else(|| {
+                RewriteError::internal(self.source, "matched candidate has no source span")
+            })?;
             let text = renderer
                 .render(&pattern_match)
                 .map_err(|error| RewriteError::internal(self.source, error))?;
-            replacements.push((span, text));
+            edits.push(RewriteEdit { span, text });
         }
-        replacements.sort_unstable_by_key(|(span, _)| (span.start, std::cmp::Reverse(span.end)));
+        edits.sort_unstable_by_key(|edit| (edit.span.start, std::cmp::Reverse(edit.span.end)));
 
         // reject ambiguous edits instead of selecting an implicit overlap policy
-        let mut patches = Vec::with_capacity(replacements.len());
+        let mut patches = Vec::with_capacity(edits.len());
         let mut previous: Option<Span> = None;
-        for (span, text) in replacements {
+        for edit in edits {
+            let RewriteEdit { span, text } = edit;
             if let Some(previous) = previous
                 && previous.intersects(span)
             {

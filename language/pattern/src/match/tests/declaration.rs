@@ -72,3 +72,28 @@ function second(): void {}
 "#,
     );
 }
+
+/// Constrain an opaque node metavariable with an authored decorator.
+#[test]
+fn test_match_decorated_metavariable() {
+    TestMatcher::new(
+        "@trace\n$NODE",
+        r#"
+@trace
+first()
+
+@other
+second()
+"#,
+    )
+    .assert(
+        r#"
+@trace
+first()
+^^^^^^^ match NODE.node="first()"
+
+@other
+second()
+"#,
+    );
+}

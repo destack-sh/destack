@@ -6,7 +6,7 @@ use destack_artifact::{
 };
 use destack_core::{Arena, StringPool};
 use destack_dir as dir;
-use destack_parser::{CommentRetention, Parser};
+use destack_parser::{CommentRetention, Grammar, Parser};
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, LanguageType, Span,
 };
@@ -156,7 +156,7 @@ impl Compiler {
         // publish parser strings before interning metavariable names
         parser.publish_strings();
         let mut uses = MetavariableUses::new(parser.tree.node_count());
-        let Some(root_span) = parser.tree.get_span_by_id(root.id) else {
+        let Some(root_span) = dir::View::new(&parser.tree).get_decorated_span(root) else {
             let error = PatternError::Internal {
                 anchor: file.id.into(),
                 message: "selected pattern root has no source span".to_string(),
@@ -193,6 +193,7 @@ impl Compiler {
         let fragment = Fragment {
             tree: parser.tree,
             root,
+            span: root_span,
             uses,
         };
 
@@ -277,6 +278,7 @@ impl Compiler {
             CommentRetention::Ignore,
             self.strings.clone(),
         )
+        .with_grammar(Grammar::Pattern)
     }
 
     /// Retain one authored file for diagnostic resolution.
@@ -409,6 +411,13 @@ impl Compiler {
             (MarkerError::InvalidRepeated { span }, FragmentRole::Replacement) => self.report(
                 RewriteError::InvalidRepeatedMetavariable {
                     anchor: span.into(),
+                },
+                file,
+            ),
+            (MarkerError::MissingNodeSpan { span }, _) => self.report(
+                PatternError::Internal {
+                    anchor: span.into(),
+                    message: "repeated placeholder element has no source span".to_string(),
                 },
                 file,
             ),
