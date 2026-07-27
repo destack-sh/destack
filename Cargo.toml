@@ -37,6 +37,7 @@ members = [
 	"language/vm",
 	"language/mir",
 	"language/parser",
+	"language/pattern",
 	"language/query",
 	"language/runtime",
 	"language/session",
@@ -89,6 +90,7 @@ destack_memory = { path = "language/memory" }
 destack_vm = { path = "language/vm" }
 destack_mir = { path = "language/mir" }
 destack_parser = { path = "language/parser" }
+destack_pattern = { path = "language/pattern" }
 destack_query = { path = "language/query" }
 destack_runtime = { path = "language/runtime" }
 destack_session = { path = "language/session", default-features = false }

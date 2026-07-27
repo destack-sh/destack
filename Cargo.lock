@@ -1223,6 +1223,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_pattern"
+version = "0.55.4"
+dependencies = [
+ "destack_artifact",
+ "destack_artifact_macros",
+ "destack_core",
+ "destack_dir",
+ "destack_formatter",
+ "destack_parser",
+ "destack_repository",
+ "destack_session",
+ "destack_source",
+]
+
+[[package]]
 name = "destack_program"
 version = "0.55.4"
 dependencies = [
