@@ -2,8 +2,9 @@ use destack_artifact as artifact;
 use destack_core::Optional;
 use destack_mir as mir;
 use destack_program::{
-    AllocationSite, CallDispatch, CallMode, CallSite, CounterSite, EdgeSite, MemoryAccess,
-    MemorySite, ProgramPoint, ResumeSite, SampleSite, SiteTableBuilder, Suspension, SuspensionSite,
+    AllocationSite, CallDispatch, CallMode, CallSite, ContinuationSite, CounterSite, EdgeSite,
+    MemoryAccess, MemorySite, ProgramPoint, SampleSite, SiteTableBuilder, Suspension,
+    SuspensionSite,
 };
 use destack_source::ModuleId;
 
@@ -30,14 +31,15 @@ impl<'a> SiteLinker<'a> {
         let mut allocations = Vec::new();
         let mut memory = Vec::new();
         let mut calls = Vec::new();
-        let mut resumes = Vec::new();
+        let mut continuations = Vec::new();
         let mut edges = Vec::new();
         let mut suspensions = Vec::new();
-        let mut counter_sites = Vec::new();
+        let mut counters = Vec::new();
         let mut samples = Vec::new();
 
         // project every object-local site into dense Program identities
         for (module, object) in self.program.objects() {
+            // link allocation and memory operations
             allocations.extend(
                 object
                     .allocations()
@@ -51,6 +53,8 @@ impl<'a> SiteLinker<'a> {
                     .iter()
                     .map(|site| self.memory(*module, site)),
             );
+
+            // link calls and continuation transfers
             calls.extend(
                 object
                     .calls()
@@ -58,12 +62,14 @@ impl<'a> SiteLinker<'a> {
                     .map(|site| self.call(*module, site))
                     .collect::<LinkResult<Vec<_>>>()?,
             );
-            resumes.extend(
+            continuations.extend(
                 object
-                    .resumes()
+                    .continuations()
                     .iter()
-                    .map(|site| self.resume(*module, site)),
+                    .map(|site| self.continuation(*module, site)),
             );
+
+            // link edges and coroutine suspensions
             edges.extend(object.edges().iter().map(|site| self.edge(*module, site)));
             suspensions.extend(
                 object
@@ -72,7 +78,9 @@ impl<'a> SiteLinker<'a> {
                     .map(|site| self.suspension(*module, site))
                     .collect::<LinkResult<Vec<_>>>()?,
             );
-            counter_sites.extend(
+
+            // link profile counters and samples
+            counters.extend(
                 object
                     .counters()
                     .iter()
@@ -90,10 +98,10 @@ impl<'a> SiteLinker<'a> {
             .allocations(allocations)
             .memory(memory)
             .calls(calls)
-            .resumes(resumes)
+            .continuations(continuations)
             .edges(edges)
             .suspensions(suspensions)
-            .counters(counter_sites)
+            .counters(counters)
             .samples(samples))
     }
 
@@ -173,9 +181,13 @@ impl<'a> SiteLinker<'a> {
         })
     }
 
-    /// Link one continuation resume site.
-    fn resume(&self, module: ModuleId, site: &artifact::ResumeSite) -> ResumeSite {
-        ResumeSite {
+    /// Link one continuation control site.
+    fn continuation(
+        &self,
+        module: ModuleId,
+        site: &artifact::ContinuationSite,
+    ) -> ContinuationSite {
+        ContinuationSite {
             point: self.point(module, site.point),
             yielded: self.point(module, site.yielded),
             returned: self.point(module, site.returned),
@@ -206,6 +218,7 @@ impl<'a> SiteLinker<'a> {
             point: self.point(module, site.point),
             resume: self.point(module, site.resume),
             cancel: Optional::from(site.cancel.map(|point| self.point(module, point))),
+            complete: Optional::from(site.complete.map(|point| self.point(module, point))),
             unwind: Optional::from(site.unwind.map(|point| self.point(module, point))),
             frame_state,
             operation: match site.operation {
@@ -214,6 +227,10 @@ impl<'a> SiteLinker<'a> {
             },
             value_type: self.program.type_id(module, site.value_type),
             resume_type: self.program.type_id(module, site.resume_type),
+            complete_type: Optional::from(
+                site.complete_type
+                    .map(|ty| self.program.type_id(module, ty)),
+            ),
         })
     }
 
