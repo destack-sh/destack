@@ -1,20 +1,21 @@
-use crate::{FunctionId, Opcode, ReferenceKind, ReferenceType, RegisterId, Space};
+use crate::{FunctionId, Opcode};
 
 use super::TestParser;
 
-/// Parse global, register, reference, additive, and distance pointer operations.
+/// Parse every pointer materialization and calculation form.
 #[test]
 fn test_parse_pointer_operations() {
-    let (object, opcodes) = TestParser::new(
+    let (_, opcodes) = TestParser::new(
         r#"
-function f0 {    global.address r4, g0
-    address r5, r2:r3
-    reference.pointer.local.managed r6, r1
-    pointer.add r7, r4, 16
-    pointer.add r8, r5, r0
-    pointer.add r9, r5, r0, 8
-    pointer.distance r10, r9, r7
-    return r10
+function f0 {    pointer.frame r4, r2:r3
+    pointer.global r5, g0
+    pointer.local r6, r0
+    pointer.shared r7, r1
+    pointer.add r8, r5, 16
+    pointer.add r9, r4, r0
+    pointer.add r10, r4, r0, 8
+    pointer.byteOffsetFrom r11, r10, r8
+    return r11
 }
 "#,
     )
@@ -23,30 +24,15 @@ function f0 {    global.address r4, g0
     assert_eq!(
         opcodes,
         vec![
-            Opcode::GLOBAL_ADDRESS,
-            Opcode::ADDRESS,
-            Opcode::REFERENCE_POINTER,
+            Opcode::POINTER_FRAME,
+            Opcode::POINTER_GLOBAL,
+            Opcode::POINTER_LOCAL,
+            Opcode::POINTER_SHARED,
             Opcode::POINTER_ADD_IMMEDIATE,
             Opcode::POINTER_ADD,
             Opcode::POINTER_ADD_SCALED,
-            Opcode::POINTER_DISTANCE,
+            Opcode::POINTER_BYTE_OFFSET_FROM,
             Opcode::RETURN,
         ]
-    );
-
-    // retain the reference representation required to resolve its pointer
-    let instruction = object
-        .operation(FunctionId(0), 2)
-        .expect("valid instruction")
-        .expect("reference pointer instruction");
-    let mut operands = instruction.operands();
-    assert_eq!(operands.register().expect("result register"), RegisterId(6));
-    assert_eq!(
-        operands.register().expect("reference register"),
-        RegisterId(1)
-    );
-    assert_eq!(
-        operands.reference().expect("reference representation"),
-        ReferenceType::new(ReferenceKind::MANAGED, Space::LOCAL)
     );
 }

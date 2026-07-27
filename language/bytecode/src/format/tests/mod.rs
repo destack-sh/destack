@@ -12,6 +12,7 @@ mod pointer;
 mod reference;
 mod scalar;
 mod slice;
+mod task;
 mod tensor;
 mod value;
 mod vector;

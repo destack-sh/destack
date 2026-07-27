@@ -17,6 +17,7 @@ mod profile;
 mod reference;
 mod scalar;
 mod slice;
+mod task;
 mod tensor;
 mod r#type;
 mod value;

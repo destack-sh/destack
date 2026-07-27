@@ -193,40 +193,45 @@ opcodes! {
     }
 
     // pointers
-    GLOBAL_ADDRESS = 0x0030 {
-        text: "global.address",
-        signature: "(global: GlobalId) => pointer",
-        operands: [Result, Global],
-    }
-    ADDRESS = 0x0031 {
-        text: "address",
+    POINTER_FRAME = 0x0030 {
+        text: "pointer.frame",
         signature: "(value: value) => pointer",
         operands: [Result, RegisterSpan],
     }
-    POINTER_ADD_IMMEDIATE = 0x0032 {
+    POINTER_GLOBAL = 0x0031 {
+        text: "pointer.global",
+        signature: "(global: GlobalId) => pointer",
+        operands: [Result, Global],
+    }
+    POINTER_LOCAL = 0x0032 {
+        text: "pointer.local",
+        signature: "(reference: ref<space(local)>) => pointer",
+        operands: [Result, Register],
+    }
+    POINTER_SHARED = 0x0033 {
+        text: "pointer.shared",
+        signature: "(reference: ref<space(shared)>) => pointer",
+        operands: [Result, Register],
+    }
+    POINTER_ADD_IMMEDIATE = 0x0034 {
         text: "pointer.add",
         signature: "(base: pointer, byteOffset: int32) => pointer",
         operands: [Result, Register, Signed32],
     }
-    POINTER_ADD = 0x0033 {
+    POINTER_ADD = 0x0035 {
         text: "pointer.add",
         signature: "(base: pointer, byteOffset: int64) => pointer",
         operands: [Result, Register, Register],
     }
-    POINTER_ADD_SCALED = 0x0034 {
+    POINTER_ADD_SCALED = 0x0036 {
         text: "pointer.add",
         signature: "(base: pointer, offset: int64, scale: uint32) => pointer",
         operands: [Result, Register, Register, Unsigned32],
     }
-    POINTER_DISTANCE = 0x0035 {
-        text: "pointer.distance",
-        signature: "(left: pointer, right: pointer) => int64",
+    POINTER_BYTE_OFFSET_FROM = 0x0037 {
+        text: "pointer.byteOffsetFrom",
+        signature: "(pointer: pointer, origin: pointer) => int64",
         operands: [Result, Register, Register],
-    }
-    REFERENCE_POINTER = 0x0036 {
-        text: "reference.pointer",
-        signature: "(reference: ref) => pointer",
-        operands: [Result, Register, Reference],
     }
 
     // byte ranges
@@ -395,21 +400,28 @@ opcodes! {
         operands: [RegisterSpan, Unsigned16, RegisterSpan],
     }
 
-    // continuations
+    // continuation values
     CONTINUATION_NEW = 0x00ac {
         text: "continuation.new",
         signature: "(function: FunctionId, captures: value[]) => continuation",
         operands: [Result, Function, RegisterSpan],
     }
-    WAITER_QUEUE = 0x00ad {
-        text: "waiter.queue",
-        signature: "(waiter: waiter, value: T, type: TypeId) => void",
-        operands: [Register, Type, RegisterSpan],
-    }
-    WAITER_CANCEL = 0x00ae {
-        text: "waiter.cancel",
-        signature: "(waiter: waiter) => void",
+    CONTINUATION_DESTROY = 0x00ad {
+        text: "continuation.destroy",
+        signature: "(continuation: continuation) => void",
         operands: [Register],
+    }
+
+    // waiters
+    WAITER_QUEUE = 0x00ae {
+        text: "waiter.queue",
+        signature: "(waiter: waiter, value: T, type: TypeId) => boolean",
+        operands: [Result, Register, Type, RegisterSpan],
+    }
+    WAITER_CANCEL = 0x00af {
+        text: "waiter.cancel",
+        signature: "(waiter: waiter) => boolean",
+        operands: [Result, Register],
     }
 
     // control flow
@@ -435,30 +447,35 @@ opcodes! {
     }
     YIELD = 0x00b4 {
         text: "yield",
-        signature: "(value: value, resume: label, unwind: label) => value",
-        operands: [ResultRange, RegisterSpan, Branch, Branch],
+        signature: "(value: value, resume: label, complete: label, unwind: label) => resumeValue | completeValue",
+        operands: [ResultRange, ResultRange, RegisterSpan, Branch, Branch, Branch],
     }
-    RESUME = 0x00b5 {
-        text: "resume",
-        signature: "(continuation: continuation, command: value, yielded: label, returned: label, unwind: label) => (yield: value, continuation: continuation) | (return: value)",
+    CONTINUATION_RESUME = 0x00b5 {
+        text: "continuation.resume",
+        signature: "(continuation: continuation, value: value, yielded: label, returned: label, unwind: label) => (yield: value, continuation: continuation) | (return: value)",
         operands: [ResultRange, Result, ResultRange, Register, RegisterSpan, Branch, Branch, Branch],
     }
-    RETURN = 0x00b6 {
+    CONTINUATION_COMPLETE = 0x00b6 {
+        text: "continuation.complete",
+        signature: "(continuation: continuation, value: value, yielded: label, returned: label, unwind: label) => (yield: value, continuation: continuation) | (return: value)",
+        operands: [ResultRange, Result, ResultRange, Register, RegisterSpan, Branch, Branch, Branch],
+    }
+    RETURN = 0x00b7 {
         text: "return",
         signature: "(results: value[]) => never",
         operands: [RegisterSpan],
     }
-    TRAP = 0x00b7 {
+    TRAP = 0x00b8 {
         text: "trap",
         signature: "(kind: TrapKind) => never",
         operands: [Unsigned16],
     }
-    UNREACHABLE = 0x00b8 {
+    UNREACHABLE = 0x00b9 {
         text: "unreachable",
         signature: "() => never",
         operands: [],
     }
-    BREAKPOINT = 0x00b9 {
+    BREAKPOINT = 0x00ba {
         text: "breakpoint",
         signature: "() => void",
         operands: [],
@@ -527,6 +544,33 @@ opcodes! {
         text: "profile.sample",
         signature: "(sampler: SamplerId, value: value) => void",
         operands: [Sampler, Register],
+    }
+
+    // tasks
+    TASK_RESOLVE = 0x00e8 {
+        text: "task.resolve",
+        signature: "(value: T, type: TypeId) => task<T>",
+        operands: [Result, Type, RegisterSpan],
+    }
+    TASK_START = 0x00e9 {
+        text: "task.start",
+        signature: "(continuation: continuation<void, never, T>) => task<T>",
+        operands: [Result, Register],
+    }
+    TASK_PARK = 0x00ea {
+        text: "task.park",
+        signature: "(task: task<T>, waiter: waiter<T>) => void",
+        operands: [Register, Register],
+    }
+    TASK_CANCEL = 0x00eb {
+        text: "task.cancel",
+        signature: "(task: task<T>) => void",
+        operands: [Register],
+    }
+    TASK_DETACH = 0x00ec {
+        text: "task.detach",
+        signature: "(task: task<T>) => void",
+        operands: [Register],
     }
 
     ;
@@ -1123,7 +1167,8 @@ impl Opcode {
                 | Self::SWITCH
                 | Self::AWAIT
                 | Self::YIELD
-                | Self::RESUME
+                | Self::CONTINUATION_RESUME
+                | Self::CONTINUATION_COMPLETE
                 | Self::INVOKE
                 | Self::INVOKE_INDIRECT
                 | Self::INVOKE_VIRTUAL
@@ -1143,10 +1188,21 @@ impl Opcode {
 
     /// Return the branch that receives one result operand.
     pub fn result_branch(self, result: usize) -> Option<usize> {
-        if self == Self::RESUME {
+        if matches!(
+            self,
+            Self::CONTINUATION_RESUME | Self::CONTINUATION_COMPLETE
+        ) {
             return match result {
                 0 | 1 => Some(0),
                 2 => Some(1),
+                _ => None,
+            };
+        }
+
+        if self == Self::YIELD {
+            return match result {
+                0 => Some(0),
+                1 => Some(1),
                 _ => None,
             };
         }
@@ -1155,7 +1211,6 @@ impl Opcode {
             && (matches!(
                 self,
                 Self::AWAIT
-                    | Self::YIELD
                     | Self::INVOKE
                     | Self::INVOKE_INDIRECT
                     | Self::INVOKE_VIRTUAL

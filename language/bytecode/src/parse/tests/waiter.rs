@@ -8,7 +8,7 @@ fn test_parse_waiters() {
     let (_, queue_opcodes) = TestParser::new(
         r#"
 function settle {
-    waiter.queue r0, r1, t1
+    waiter.queue r2, r0, r1, t1
     return
 }
 "#,
@@ -17,7 +17,7 @@ function settle {
     let (_, cancel_opcodes) = TestParser::new(
         r#"
 function cancel {
-    waiter.cancel r0
+    waiter.cancel r1, r0
     return
 }
 "#,

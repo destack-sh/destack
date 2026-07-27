@@ -18,13 +18,16 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one waiter queue operation.
     fn format_waiter_queue(&mut self) -> FormatResult<()> {
+        let result = self.register_id()?;
         let waiter = self.register_id()?;
         let ty = self.relocation_text()?;
         let (start, word_count) = self.register_span_id()?;
         let value = RegisterSpan::new(start, word_count);
 
-        // write the waiter, result value, and its Program type
+        // write the settlement result, waiter, value, and Program type
         self.write_opcode("waiter.queue")?;
+        self.write_result(result)?;
+        self.write_comma()?;
         self.write_register(waiter)?;
         self.write_comma()?;
         self.write_span(value)?;
@@ -34,9 +37,12 @@ impl InstructionFormatter<'_, '_, '_> {
 
     /// Format one waiter cancellation operation.
     fn format_waiter_cancel(&mut self) -> FormatResult<()> {
+        let result = self.register_id()?;
         let waiter = self.register_id()?;
 
         self.write_opcode("waiter.cancel")?;
+        self.write_result(result)?;
+        self.write_comma()?;
         self.write_register(waiter)
     }
 }

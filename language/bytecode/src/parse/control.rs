@@ -19,7 +19,6 @@ impl Parser<'_> {
             "switch" => Opcode::SWITCH,
             "await" => Opcode::AWAIT,
             "yield" => Opcode::YIELD,
-            "resume" => Opcode::RESUME,
             "return" => Opcode::RETURN,
             "trap" => Opcode::TRAP,
             "unreachable" => Opcode::UNREACHABLE,
@@ -37,7 +36,6 @@ impl Parser<'_> {
             "switch" => self.parse_switch(token, &results, function),
             "await" => self.parse_await(&results, function),
             "yield" => self.parse_yield(&results, function),
-            "resume" => self.parse_resume(&results, function),
             "return" => self.parse_return(&results, function),
             "trap" => self.parse_trap(&results, function),
             "unreachable" => self.parse_empty_control(Opcode::UNREACHABLE, &results, function),
@@ -153,32 +151,11 @@ impl Parser<'_> {
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let value = self.parse_register_span()?;
-        let (resume, unwind) = self.parse_suspension_targets()?;
+        let (resume, complete, unwind) = self.parse_yield_targets()?;
         let mut instruction = InstructionBuilder::new(Opcode::YIELD);
         instruction.span(value);
         instruction.branch(resume);
-        instruction.branch(unwind);
-
-        function.emit(instruction, results, self.empty_span())
-    }
-
-    /// Parse one continuation resume until it yields or returns.
-    fn parse_resume(
-        &mut self,
-        results: &[RegisterSpan],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let continuation = self.parse_register()?;
-        self.eat_token(TokenType::Comma)?;
-        let command = self.parse_register_span()?;
-        let (yielded, returned, unwind) = self.parse_resume_targets()?;
-
-        // encode the continuation, command, and result destinations
-        let mut instruction = InstructionBuilder::new(Opcode::RESUME);
-        instruction.register(continuation);
-        instruction.span(command);
-        instruction.branch(yielded);
-        instruction.branch(returned);
+        instruction.branch(complete);
         instruction.branch(unwind);
 
         function.emit(instruction, results, self.empty_span())
@@ -196,26 +173,16 @@ impl Parser<'_> {
         Ok((resume, cancel, unwind))
     }
 
-    /// Parse resume and unwind destinations for one suspension.
-    fn parse_suspension_targets(&mut self) -> ParseResult<(Label, Label)> {
+    /// Parse resume, completion, and unwind destinations for one yield.
+    fn parse_yield_targets(&mut self) -> ParseResult<(Label, Label, Label)> {
         self.eat_token(TokenType::FatArrow)?;
         let resume = self.parse_label()?;
         self.eat_token(TokenType::Pipe)?;
-        let unwind = self.parse_label()?;
-
-        Ok((resume, unwind))
-    }
-
-    /// Parse yielded, returned, and unwind destinations for one continuation resume.
-    fn parse_resume_targets(&mut self) -> ParseResult<(Label, Label, Label)> {
-        self.eat_token(TokenType::FatArrow)?;
-        let yielded = self.parse_label()?;
-        self.eat_token(TokenType::Pipe)?;
-        let returned = self.parse_label()?;
+        let complete = self.parse_label()?;
         self.eat_token(TokenType::Pipe)?;
         let unwind = self.parse_label()?;
 
-        Ok((yielded, returned, unwind))
+        Ok((resume, complete, unwind))
     }
 
     /// Parse one function return.

@@ -102,7 +102,7 @@ fn test_parse_suspension() {
 function f0 {    await r2:r3, f1, r0 => b0 | b2 | b3
 
 b0:
-    yield r4:r5, r2:r3 => b1 | b3
+    yield r4:r5, r6:r7, r2:r3 => b1 | b2 | b3
 
 b1:
     return r4:r5

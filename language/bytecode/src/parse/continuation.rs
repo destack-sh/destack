@@ -15,6 +15,9 @@ impl Parser<'_> {
     ) -> ParseResult<()> {
         let opcode = match name {
             "continuation.new" => Opcode::CONTINUATION_NEW,
+            "continuation.destroy" => Opcode::CONTINUATION_DESTROY,
+            "continuation.resume" => Opcode::CONTINUATION_RESUME,
+            "continuation.complete" => Opcode::CONTINUATION_COMPLETE,
             _ => {
                 return Err(ParseError::new(
                     "invalid continuation operation",
@@ -26,8 +29,53 @@ impl Parser<'_> {
 
         match opcode {
             Opcode::CONTINUATION_NEW => self.parse_continuation_new(&results, function),
+            Opcode::CONTINUATION_DESTROY => self.parse_continuation_destroy(&results, function),
+            Opcode::CONTINUATION_RESUME | Opcode::CONTINUATION_COMPLETE => {
+                self.parse_continuation_execution(opcode, &results, function)
+            }
             _ => unreachable!("continuation opcode selected above"),
         }
+    }
+
+    /// Parse destruction of one continuation.
+    fn parse_continuation_destroy(
+        &mut self,
+        results: &[RegisterSpan],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let continuation = self.parse_register()?;
+        let mut instruction = InstructionBuilder::new(Opcode::CONTINUATION_DESTROY);
+        instruction.register(continuation);
+
+        function.emit(instruction, results, self.empty_span())
+    }
+
+    /// Parse one continuation execution until it yields or returns.
+    fn parse_continuation_execution(
+        &mut self,
+        opcode: Opcode,
+        results: &[RegisterSpan],
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let continuation = self.parse_register()?;
+        self.eat_token(TokenType::Comma)?;
+        let value = self.parse_register_span()?;
+        self.eat_token(TokenType::FatArrow)?;
+        let yielded = self.parse_label()?;
+        self.eat_token(TokenType::Pipe)?;
+        let returned = self.parse_label()?;
+        self.eat_token(TokenType::Pipe)?;
+        let unwind = self.parse_label()?;
+
+        // encode the continuation, value, and outcome destinations
+        let mut instruction = InstructionBuilder::new(opcode);
+        instruction.register(continuation);
+        instruction.span(value);
+        instruction.branch(yielded);
+        instruction.branch(returned);
+        instruction.branch(unwind);
+
+        function.emit(instruction, results, self.empty_span())
     }
 
     /// Parse one ready continuation.

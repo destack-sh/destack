@@ -131,14 +131,15 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::CONSTANT_UNDEFINED
             | Opcode::CONSTANT_ZEROED => self.format_named_constant(opcode),
 
-            // addresses
-            Opcode::ADDRESS
-            | Opcode::GLOBAL_ADDRESS
+            // pointers
+            Opcode::POINTER_FRAME
+            | Opcode::POINTER_GLOBAL
+            | Opcode::POINTER_LOCAL
+            | Opcode::POINTER_SHARED
             | Opcode::POINTER_ADD_IMMEDIATE
             | Opcode::POINTER_ADD
             | Opcode::POINTER_ADD_SCALED
-            | Opcode::POINTER_DISTANCE
-            | Opcode::REFERENCE_POINTER => self.format_pointer(opcode),
+            | Opcode::POINTER_BYTE_OFFSET_FROM => self.format_pointer(opcode),
 
             // byte ranges
             Opcode::COPY_BYTES
@@ -186,10 +187,20 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::TAIL_CALL_DYNAMIC => self.format_call(opcode),
 
             // continuations
-            Opcode::CONTINUATION_NEW => self.format_continuation(opcode),
+            Opcode::CONTINUATION_NEW
+            | Opcode::CONTINUATION_DESTROY
+            | Opcode::CONTINUATION_RESUME
+            | Opcode::CONTINUATION_COMPLETE => self.format_continuation(opcode),
 
             // waiters
             Opcode::WAITER_QUEUE | Opcode::WAITER_CANCEL => self.format_waiter(opcode),
+
+            // tasks
+            Opcode::TASK_RESOLVE
+            | Opcode::TASK_START
+            | Opcode::TASK_PARK
+            | Opcode::TASK_CANCEL
+            | Opcode::TASK_DETACH => self.format_task(opcode),
 
             // control flow
             Opcode::JUMP
@@ -197,7 +208,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::SWITCH
             | Opcode::AWAIT
             | Opcode::YIELD
-            | Opcode::RESUME
             | Opcode::RETURN
             | Opcode::TRAP
             | Opcode::UNREACHABLE

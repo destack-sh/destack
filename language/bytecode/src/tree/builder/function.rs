@@ -27,8 +27,6 @@ pub struct FunctionBody {
     pub code: Vec<u8>,
     /// The byte offset of each logical operation.
     pub operations: Vec<CodeOffset>,
-    /// The label byte offsets.
-    pub labels: Vec<CodeOffset>,
     /// The identity operands awaiting object linking.
     pub relocations: Vec<Relocation>,
     /// The number of 64-bit words in the register file.
@@ -132,7 +130,6 @@ impl FunctionBuilder {
         Ok(FunctionBody {
             code: self.code,
             operations: self.operations,
-            labels: self.labels,
             relocations: self.relocations,
             register_count: self.register_count,
         })

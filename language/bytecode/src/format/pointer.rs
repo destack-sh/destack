@@ -7,34 +7,36 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one pointer operation.
     pub(super) fn format_pointer(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
-            Opcode::ADDRESS => self.format_address(),
-            Opcode::GLOBAL_ADDRESS => self.format_global_address(),
+            Opcode::POINTER_FRAME => self.format_pointer_frame(),
+            Opcode::POINTER_GLOBAL => self.format_pointer_global(),
+            Opcode::POINTER_LOCAL | Opcode::POINTER_SHARED => self.format_pointer_reference(opcode),
             Opcode::POINTER_ADD_IMMEDIATE => self.format_pointer_add_immediate(),
             Opcode::POINTER_ADD => self.format_pointer_add(),
             Opcode::POINTER_ADD_SCALED => self.format_pointer_add_scaled(),
-            Opcode::POINTER_DISTANCE => self.format_pointer_distance(),
-            Opcode::REFERENCE_POINTER => self.format_reference_pointer(),
+            Opcode::POINTER_BYTE_OFFSET_FROM => self.format_pointer_byte_offset_from(),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid pointer opcode",
             }),
         }
     }
 
-    /// Format one stable heap reference projection.
-    fn format_reference_pointer(&mut self) -> FormatResult<()> {
+    /// Format one stable reference pointer materialization.
+    fn format_pointer_reference(&mut self, opcode: Opcode) -> FormatResult<()> {
         let result = self.register_id()?;
         let reference = self.register_id()?;
-        let reference_type = self.reference()?;
+        let name = opcode.name().ok_or(FormatError::SyntaxError {
+            message: "unnamed pointer opcode",
+        })?;
 
-        self.write_reference_opcode("reference.pointer", reference_type)?;
+        self.write_opcode(name)?;
         self.write_result(result)?;
         self.write_comma()?;
         self.write_register(reference)
     }
 
-    /// Format one linked global address.
-    fn format_global_address(&mut self) -> FormatResult<()> {
-        self.write_opcode("global.address")?;
+    /// Format one linked global pointer materialization.
+    fn format_pointer_global(&mut self) -> FormatResult<()> {
+        self.write_opcode("pointer.global")?;
         self.result()?;
         let symbol = self.relocation_text()?;
 
@@ -43,9 +45,9 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_text(&symbol)
     }
 
-    /// Format the stable address of one register value.
-    fn format_address(&mut self) -> FormatResult<()> {
-        self.write_opcode("address")?;
+    /// Format one frame pointer materialization.
+    fn format_pointer_frame(&mut self) -> FormatResult<()> {
+        self.write_opcode("pointer.frame")?;
         self.result()?;
         let (register, word_count) = self.register_span_id()?;
         let value = RegisterSpan::new(register, word_count);
@@ -100,18 +102,18 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_comma()
     }
 
-    /// Format one signed distance between two pointers.
-    fn format_pointer_distance(&mut self) -> FormatResult<()> {
+    /// Format one signed byte offset between two pointers.
+    fn format_pointer_byte_offset_from(&mut self) -> FormatResult<()> {
         let result = self.register_id()?;
-        let left = self.register_id()?;
-        let right = self.register_id()?;
+        let pointer = self.register_id()?;
+        let origin = self.register_id()?;
 
-        // write both pointer operands
-        self.write_opcode("pointer.distance")?;
+        // write the pointer and its origin
+        self.write_opcode("pointer.byteOffsetFrom")?;
         self.write_register(result)?;
         self.write_comma()?;
-        self.write_register(left)?;
+        self.write_register(pointer)?;
         self.write_comma()?;
-        self.write_register(right)
+        self.write_register(origin)
     }
 }

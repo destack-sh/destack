@@ -17,6 +17,7 @@ mod reference;
 mod relocation;
 mod scalar;
 mod slice;
+mod task;
 mod tensor;
 mod r#type;
 mod value;

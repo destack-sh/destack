@@ -13,55 +13,45 @@ impl Parser<'_> {
         token: Token,
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let operation = if name.starts_with("reference.pointer.") {
-            "reference.pointer"
-        } else {
-            name
-        };
-        let opcode = match operation {
-            "address" => Opcode::ADDRESS,
-            "global.address" => Opcode::GLOBAL_ADDRESS,
+        let opcode = match name {
+            "pointer.frame" => Opcode::POINTER_FRAME,
+            "pointer.global" => Opcode::POINTER_GLOBAL,
+            "pointer.local" => Opcode::POINTER_LOCAL,
+            "pointer.shared" => Opcode::POINTER_SHARED,
             "pointer.add" => Opcode::POINTER_ADD,
-            "pointer.distance" => Opcode::POINTER_DISTANCE,
-            "reference.pointer" => Opcode::REFERENCE_POINTER,
+            "pointer.byteOffsetFrom" => Opcode::POINTER_BYTE_OFFSET_FROM,
             _ => return Err(ParseError::new("unknown pointer operation", token.span)),
         };
         let results = self.parse_definitions(opcode)?;
 
-        match operation {
-            "address" => self.parse_address(&results, function),
-            "global.address" => self.parse_global_address(&results, function),
+        match name {
+            "pointer.frame" => self.parse_pointer_frame(&results, function),
+            "pointer.global" => self.parse_pointer_global(&results, function),
+            "pointer.local" | "pointer.shared" => {
+                self.parse_pointer_reference(opcode, &results, function)
+            }
             "pointer.add" => self.parse_pointer_add(token, &results, function),
-            "pointer.distance" => self.parse_pointer_distance(&results, function),
-            "reference.pointer" => self.parse_reference_pointer(name, token, &results, function),
+            "pointer.byteOffsetFrom" => self.parse_pointer_byte_offset_from(&results, function),
             _ => Err(ParseError::new("invalid pointer operation", token.span)),
         }
     }
 
-    /// Parse one stable heap reference projection.
-    fn parse_reference_pointer(
+    /// Parse one stable reference pointer materialization.
+    fn parse_pointer_reference(
         &mut self,
-        name: &str,
-        token: Token,
+        opcode: Opcode,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let (operation, reference_type) = self.parse_reference_name(name, token)?;
-        if operation != "reference.pointer" {
-            return Err(ParseError::new("invalid reference operation", token.span));
-        }
         let reference = self.parse_register()?;
-
-        // retain the representation required to resolve the stable offset
-        let mut instruction = InstructionBuilder::new(Opcode::REFERENCE_POINTER);
+        let mut instruction = InstructionBuilder::new(opcode);
         instruction.register(reference);
-        instruction.reference(reference_type.kind(), reference_type.space());
 
         function.emit(instruction, results, self.empty_span())
     }
 
-    /// Parse one linked global address.
-    fn parse_global_address(
+    /// Parse one linked global pointer materialization.
+    fn parse_pointer_global(
         &mut self,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
@@ -74,20 +64,20 @@ impl Parser<'_> {
             .ok_or_else(|| ParseError::new("expected global id", token.span))?;
 
         // encode the linked global identity
-        let mut instruction = InstructionBuilder::new(Opcode::GLOBAL_ADDRESS);
+        let mut instruction = InstructionBuilder::new(Opcode::POINTER_GLOBAL);
         instruction.relocation(RelocationTag::GLOBAL, global);
 
         function.emit(instruction, results, self.empty_span())
     }
 
-    /// Parse the stable address of one register value.
-    fn parse_address(
+    /// Parse one frame pointer materialization.
+    fn parse_pointer_frame(
         &mut self,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let value = self.parse_register_span()?;
-        let mut instruction = InstructionBuilder::new(Opcode::ADDRESS);
+        let mut instruction = InstructionBuilder::new(Opcode::POINTER_FRAME);
         instruction.span(value);
 
         function.emit(instruction, results, self.empty_span())
@@ -139,19 +129,20 @@ impl Parser<'_> {
         function.emit(instruction, results, self.empty_span())
     }
 
-    /// Parse one signed distance between two pointers.
-    fn parse_pointer_distance(
+    /// Parse one signed byte offset between two pointers.
+    fn parse_pointer_byte_offset_from(
         &mut self,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
-        let left = self.parse_register()?;
+        let pointer = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
-        let right = self.parse_register()?;
-        // encode the signed byte distance
-        let mut instruction = InstructionBuilder::new(Opcode::POINTER_DISTANCE);
-        instruction.register(left);
-        instruction.register(right);
+        let origin = self.parse_register()?;
+
+        // encode the signed byte offset from the origin
+        let mut instruction = InstructionBuilder::new(Opcode::POINTER_BYTE_OFFSET_FROM);
+        instruction.register(pointer);
+        instruction.register(origin);
 
         function.emit(instruction, results, self.empty_span())
     }
