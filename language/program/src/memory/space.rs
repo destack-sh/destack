@@ -53,7 +53,7 @@ impl StaticImage {
     }
 
     /// Return a native address for one static byte range.
-    pub fn native_address(
+    pub fn address(
         &self,
         sections: SectionImage<'_>,
         global: &Global,
@@ -77,8 +77,7 @@ impl StaticImage {
         address: GlobalAddress,
         byte_len: usize,
     ) -> bool {
-        self.native_address(sections, global, address, byte_len)
-            .is_some()
+        self.address(sections, global, address, byte_len).is_some()
     }
 
     /// Materialize this image into mutable runtime static memory.
@@ -198,7 +197,7 @@ impl StaticSpace {
     }
 
     /// Return a native address for one static byte range.
-    pub fn native_address(
+    pub fn address(
         &self,
         global: &Global,
         address: GlobalAddress,
@@ -214,7 +213,7 @@ impl StaticSpace {
     }
 
     /// Return a mutable native address for one static byte range.
-    pub fn native_address_mut(
+    pub fn address_mut(
         &mut self,
         global: &Global,
         address: GlobalAddress,

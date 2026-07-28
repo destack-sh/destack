@@ -74,7 +74,7 @@ impl Memory<'_> {
     }
 
     /// Resolve one stable heap edge into an ephemeral native address.
-    pub fn native_address(&self, edge: HeapEdge) -> usize {
+    pub fn address(&self, edge: HeapEdge) -> usize {
         match edge {
             HeapEdge::Local(reference) => self.heap.heap_base_address() + reference.offset(),
             HeapEdge::Shared(reference) => {
