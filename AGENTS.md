@@ -224,7 +224,7 @@ else {
 
 ### Dependencies
 
-- Fewer dependencies is better, but sometimes it's worth it, especially when they wrap or define som ebig ugly contract (a la `windows_sys`) that we would just have to redefine and maintain ourselves anyway.
+- Fewer dependencies is better, but sometimes it's worth it, especially when they wrap or define some big ugly contract (a la `windows_sys`) that we would just have to redefine and maintain ourselves anyway.
 - When simple logic is needed, we just implement it ourselves.
 - Moderately complex logic is sometimes vendored.
 - Complex or dev-only dependencies are sometimes okay.
