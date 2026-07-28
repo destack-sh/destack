@@ -8,10 +8,8 @@ use crate::common::{
     emit_workspace_text_output, finish_diagnostic_command, report_error,
     run_workspace_command_or_report, target_overrides_from_args, watch_error,
 };
-use crate::console::{render_stage_summary, render_timeline};
 use crate::diagnostic::ConsoleResult;
 use clap::Args;
-use destack_repository::{TraceSnapshot, TraceView};
 use destack_workspace::WatchPolicy;
 
 /// State for build watch mode.
@@ -41,10 +39,6 @@ pub struct BuildArgs {
     /// Show what would be built without compiling.
     #[arg(long)]
     pub dry_run: bool,
-
-    /// Show a detailed per-worker build timeline.
-    #[arg(long)]
-    pub timings: bool,
 }
 
 /// Compile source files and produce output.
@@ -88,7 +82,6 @@ fn run_build(args: &BuildArgs) -> i32 {
     .dry_run(args.dry_run)
     .build();
     let request = BuildInput {
-        trace: TraceView::detailed(args.timings),
         product: None,
         outputs: build_outputs(),
         ..(CommandRevision::Current, common).into()
@@ -141,19 +134,7 @@ fn run_build(args: &BuildArgs) -> i32 {
 
     // show where the build spent its time in text mode
     if !args.report.is_json() {
-        let trace = data
-            .as_ref()
-            .and_then(|value| value.get("trace"))
-            .and_then(|value| serde_json::from_value::<TraceSnapshot>(value.clone()).ok());
-        if let Some(report) = trace {
-            println!("{}", render_stage_summary(&report));
-            if args.timings {
-                let timeline = render_timeline(&report);
-                if !timeline.is_empty() {
-                    println!("\n{timeline}");
-                }
-            }
-        }
+        result.emit_timings();
     }
 
     exit_code
@@ -214,7 +195,6 @@ where
             .build();
 
         Ok(BuildInput {
-            trace: TraceView::detailed(args.timings),
             product: None,
             outputs: build_outputs(),
             ..(CommandRevision::Current, common).into()

@@ -9,6 +9,48 @@ const LANE_WIDTH: usize = 72;
 
 /// The number of slowest artifacts listed under the timeline.
 const SLOWEST_COUNT: usize = 8;
+/// Prefix identifying command-local timing spans.
+const COMMAND_SPAN_PREFIX: &str = "command.";
+
+/// Render command phases and artifact execution as one timing report.
+pub fn render_timings(report: &TraceSnapshot) -> String {
+    let mut output = String::from("command\n");
+
+    // render command-local phases in execution order
+    for span in &report.spans {
+        if let Some(name) = span.name.strip_prefix(COMMAND_SPAN_PREFIX) {
+            let micros = span.micros;
+            output.push_str(&format!("  {name:<24} {}\n", render_trace_duration(micros)));
+        }
+    }
+    output.push_str(&format!(
+        "  {:<24} {}\n",
+        "total",
+        render_trace_duration(report.total_micros)
+    ));
+
+    // render aggregate artifact work when the command requested any artifacts
+    let stats = &report.stats;
+    let artifact_count =
+        stats.built + stats.memory_cached + stats.store_cached + stats.parked + stats.failed;
+    if artifact_count > 0 {
+        output.push('\n');
+        output.push_str("artifacts\n  ");
+        output.push_str(&render_stage_summary(report));
+        output.push('\n');
+    }
+
+    // append the detailed worker timeline
+    let timeline = render_timeline(report);
+    if !timeline.is_empty() {
+        if !output.is_empty() {
+            output.push('\n');
+        }
+        output.push_str(&timeline);
+    }
+
+    output.trim_end().to_string()
+}
 
 /// Render the one-line stage summary of one build trace.
 ///

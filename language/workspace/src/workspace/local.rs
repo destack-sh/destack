@@ -193,6 +193,10 @@ impl LocalWorkspace {
         let revision = context.revision()?;
         let files = command_file_images(&context, revision, &diagnostics, &files)?;
         let success = exit_code == 0;
+        let trace = common
+            .trace
+            .map(|view| context.command_trace(revision, view))
+            .transpose()?;
 
         let output = Output {
             revision,
@@ -203,6 +207,7 @@ impl LocalWorkspace {
             messages,
             output: output.chunks,
             outputs: Vec::new(),
+            trace,
             data,
             module_count,
             profile_count,

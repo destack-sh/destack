@@ -5,7 +5,7 @@ use std::sync::Arc;
 use destack_formatter::format_source;
 use destack_json::{JsonFormatOptions, format_json};
 use destack_parser::{colorize_source, source_colorizer};
-use destack_repository::{FormatterOptions, Repository, Revision};
+use destack_repository::{FormatterOptions, Repository, Revision, TraceView};
 use destack_serde::Reflect;
 use destack_source::{
     Content, ContentId, DiagnosticCollection, DiagnosticSeverity, File, FileId, FileSystem,
@@ -74,6 +74,8 @@ pub struct FormatInput {
     pub watch: bool,
     /// Whether the command should skip writes.
     pub dry_run: bool,
+    /// Trace detail returned for this command.
+    pub trace: Option<TraceView>,
     /// Formatting source.
     pub source: FormatSource,
     /// Formatting mode.

@@ -1,3 +1,4 @@
+use destack_repository::TraceView;
 use destack_workspace::{
     CommandInput, CommandOptions, CommandTargetOverrides, JsonValue, ManifestOverride,
 };
@@ -31,6 +32,7 @@ impl CommandOptionsBuilder {
             overrides: overrides_from_program(program),
             watch: false,
             dry_run: false,
+            trace: program.timings.then_some(TraceView::Detailed),
         };
 
         Ok(Self { options })

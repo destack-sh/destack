@@ -1,3 +1,4 @@
+use destack_repository::TraceView;
 use destack_serde::Reflect;
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
@@ -69,6 +70,8 @@ pub struct InfoInput {
     pub watch: bool,
     /// Whether the command should skip writes.
     pub dry_run: bool,
+    /// Trace detail returned for this command.
+    pub trace: Option<TraceView>,
     /// Whether to include all workspace packages.
     pub all: bool,
 }

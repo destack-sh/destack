@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::path::PathBuf;
 
 use destack_artifact::{ArtifactKey, ArtifactReference};
-use destack_repository::{Revision, TraceSnapshot, TraceView};
+use destack_repository::{Revision, TraceView};
 use destack_serde::Reflect;
 use destack_source::{ModuleId, PackageId, ProductId};
 use serde::{Deserialize, Serialize};
@@ -14,13 +14,6 @@ use super::common::{
 };
 use super::context::{CommandContext, SelectedTarget};
 use super::outcome::CommandOutcome;
-/// Options for the build command.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
-pub struct BuildOptions {
-    /// Trace detail returned in the response.
-    #[serde(default)]
-    pub trace: TraceView,
-}
 
 /// Request to build target artifacts.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -49,9 +42,9 @@ pub struct BuildInput {
     pub watch: bool,
     /// Whether the command should skip writes.
     pub dry_run: bool,
-    /// Trace detail returned in the response.
+    /// Trace detail returned for this command.
     #[serde(default)]
-    pub trace: TraceView,
+    pub trace: Option<TraceView>,
     /// Product name selected for this build.
     pub product: Option<String>,
     /// Build outputs requested by the caller.
@@ -59,7 +52,6 @@ pub struct BuildInput {
 }
 
 impl_command_input_options!(BuildInput {
-    trace: TraceView::default(),
     product: None,
     outputs: BuildOutputs::default(),
 });
@@ -100,8 +92,6 @@ pub struct BuildPayload {
     pub programs: Vec<ArtifactReference>,
     /// Per-module asset artifacts produced by this build.
     pub assets: Vec<ArtifactReference>,
-    /// Trace payload for this build.
-    pub trace: TraceSnapshot,
 }
 
 impl CommandContext<'_> {
@@ -135,15 +125,10 @@ impl CommandContext<'_> {
         artifact_keys.extend(product_keys.iter().copied());
 
         // provide the requested build roots
-        self.session
-            .provide(revision, &artifact_keys)
-            .map_err(|error| error.to_string())?;
+        self.provide(revision, &artifact_keys)?;
 
         // collect requested artifact refs
-        let mut payload = BuildPayload {
-            trace: self.command_trace(revision, input.trace)?,
-            ..BuildPayload::default()
-        };
+        let mut payload = BuildPayload::default();
         for key in &artifact_keys {
             self.push_build_artifact(revision, *key, input.outputs, &mut payload)?;
         }

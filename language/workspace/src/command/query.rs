@@ -1,20 +1,21 @@
 use std::cmp::Reverse;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_dir as dir;
-use destack_pattern::{Binding, Matcher, Pattern, PatternMatch};
-use destack_repository::ArtifactReader;
+use destack_pattern::{Binding, Pattern, PatternMatch};
+use destack_repository::TraceView;
 use destack_serde::Reflect;
 use destack_source::{DiagnosticCollection, File, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use super::super::common::{
+use super::common::{
     CommandEnvVar, CommandInput, CommandOptions, CommandRevision, CommandTargetOverrides,
     ManifestOverride, impl_command_input_options,
 };
-use super::super::{CommandContext, CommandError, CommandOutcome, CommandResult};
-use super::program::CheckedPrograms;
+use super::selection::PatternSelection;
+use super::{CommandContext, CommandError, CommandOutcome, CommandResult};
 
 /// Request to query source with one structural pattern.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -43,6 +44,8 @@ pub struct QueryInput {
     pub watch: bool,
     /// Whether the command should skip writes.
     pub dry_run: bool,
+    /// Trace detail returned for this command.
+    pub trace: Option<TraceView>,
     /// The authored structural pattern.
     pub pattern: String,
     /// The contextual node type, or expression matching by default.
@@ -195,10 +198,7 @@ impl QueryInput {
         &self,
         context: &mut CommandContext<'_>,
     ) -> CommandResult<Result<Pattern, DiagnosticCollection>> {
-        let file = context.add_file(
-            PathBuf::from(".destack/command/query/pattern.ds-pattern"),
-            &self.pattern,
-        )?;
+        let file = context.add_memory_file("query/pattern.ds-pattern", &self.pattern)?;
         let strings = context.repository.string_pool().clone();
         let pattern = match self.kind {
             Some(kind) => Pattern::parse_context(file, kind, strings),
@@ -212,8 +212,8 @@ impl QueryInput {
 
         // compile every predicate against the structural metavariable table
         for (index, predicate) in self.predicates.iter().enumerate() {
-            let path = format!(".destack/command/query/predicate-{}.ds-pattern", index + 1);
-            let file = context.add_file(PathBuf::from(path), predicate)?;
+            let path = format!("query/predicate-{}.ds-pattern", index + 1);
+            let file = context.add_memory_file(&path, predicate)?;
             if let Err(predicate_diagnostics) = pattern.add_predicate(file) {
                 diagnostics.merge_from(&predicate_diagnostics);
             }
@@ -233,9 +233,10 @@ impl CommandContext<'_> {
         &mut self,
         input: &QueryInput,
     ) -> CommandResult<CommandOutcome<QueryPayload>> {
-        let inputs = self.resolve_command_inputs()?;
-        let modules = self.resolve_modules(&inputs)?;
-        let pattern = match input.compile(self)? {
+        let trace = self.trace();
+        let inputs = trace.span("command.resolve inputs", || self.resolve_command_inputs())?;
+        let modules = trace.span("command.resolve modules", || self.resolve_modules(&inputs))?;
+        let pattern = match trace.span("command.compile pattern", || input.compile(self))? {
             Ok(pattern) => pattern,
             Err(diagnostics) => {
                 let exit_code = diagnostics.get_status_code();
@@ -246,36 +247,57 @@ impl CommandContext<'_> {
             }
         };
 
-        // request only parsed DIR for structural queries
-        let checked = if input.predicates.is_empty() {
-            let revision = self.revision()?;
-            let keys = modules
-                .iter()
-                .map(|module| ArtifactKey::dir_parsed(*module))
-                .collect::<Vec<_>>();
-            self.session
-                .provide(revision, &keys)
-                .map_err(|error| error.to_string())?;
-
-            None
-        }
-        // request the complete loaded checked closure for semantic predicates
-        else {
-            Some(CheckedPrograms::new(self, &modules)?)
-        };
-
-        // stop before matching when the requested artifact closure is invalid
-        let artifact_keys = match checked.as_ref() {
-            Some(checked) => checked.artifact_keys().to_vec(),
-            None => modules
-                .iter()
-                .map(|module| ArtifactKey::dir_parsed(*module))
-                .collect(),
-        };
+        // provide parsed DIR before structural selection
         let revision = self.revision()?;
-        let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
+        let parsed_keys = modules
+            .iter()
+            .map(|module| ArtifactKey::dir_parsed(*module))
+            .collect::<Vec<_>>();
+        trace.span("command.parse sources", || {
+            self.provide(revision, &parsed_keys)
+        })?;
+        let diagnostics = self.command_diagnostics(revision, &parsed_keys)?;
         let exit_code = diagnostics.get_status_code();
-        let profile_count = checked.as_ref().map_or(0, CheckedPrograms::profile_count);
+        if exit_code != 0 {
+            let outcome = CommandOutcome::new(diagnostics, exit_code, modules.len(), 0, 0)
+                .with_data(QueryPayload::default());
+
+            return Ok(outcome);
+        }
+
+        // retain structural matches before requesting checked DIR
+        let mut selection = trace.span("command.select matches", || {
+            PatternSelection::find(&pattern, &modules, revision, self)
+        })?;
+        let profiles = if pattern.predicates().is_empty() {
+            Default::default()
+        } else {
+            selection.group_by_profile(revision, self)?
+        };
+        let profile_count = profiles.len();
+        let mut programs = Vec::with_capacity(profile_count);
+        let mut checked_keys = Vec::new();
+        trace.span("command.check matches", || -> CommandResult<()> {
+            for (profile, roots) in profiles {
+                checked_keys.extend(
+                    roots
+                        .iter()
+                        .map(|module| ArtifactKey::dir_checked(*module, profile)),
+                );
+                let program = self.provide_program_context(profile, &roots, revision)?;
+                programs.push((roots, program));
+            }
+
+            Ok(())
+        })?;
+
+        // stop before predicate evaluation when checked roots are invalid
+        let diagnostics = if checked_keys.is_empty() {
+            diagnostics
+        } else {
+            self.command_diagnostics(revision, &checked_keys)?
+        };
+        let exit_code = diagnostics.get_status_code();
         if exit_code != 0 {
             let outcome =
                 CommandOutcome::new(diagnostics, exit_code, modules.len(), profile_count, 0)
@@ -284,54 +306,45 @@ impl CommandContext<'_> {
             return Ok(outcome);
         }
 
-        let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
-        let mut matches = Vec::new();
-        let mut files = Vec::new();
-        for module in modules.iter().copied() {
-            let parsed = artifacts
-                .dir_parsed(module)
-                .map_err(|error| error.to_string())?;
-            let view = dir::View::new(&parsed.tree);
-            let matcher = match checked.as_ref() {
-                Some(checked) => {
-                    let (module, program) = checked.module(module)?;
-
-                    Matcher::with_module(&pattern, view, module, program)
-                }
-                None => Matcher::new(&pattern, view),
-            };
-
-            // query each physical source file independently
-            for parsed_file in &parsed.files {
-                let file = self
-                    .repository
-                    .file(revision, parsed_file.file_id)
-                    .map_err(|error| error.to_string())?
-                    .ok_or_else(|| {
-                        CommandError::internal(format!(
-                            "missing query source file {:?}",
-                            parsed_file.file_id
-                        ))
-                    })?;
-                let candidates = view.iter_node_ids_in_file(file.id);
-                let selected = matcher
-                    .find(candidates)
-                    .map_err(|error| CommandError::internal(error.to_string()))?;
-                if input.include_sources && !selected.is_empty() {
-                    files.push(file.clone());
-                }
-                let mut selected = selected
-                    .into_iter()
-                    .map(|pattern_match| {
-                        QueryMatch::new(&pattern, view, file.as_ref(), pattern_match)
-                    })
-                    .collect::<CommandResult<Vec<_>>>()?;
-                selected.sort_unstable_by_key(|pattern_match| {
-                    (pattern_match.span.start, Reverse(pattern_match.span.end))
-                });
-                matches.extend(selected);
+        // evaluate predicates against each exact checked program
+        trace.span("command.evaluate predicates", || -> CommandResult<()> {
+            for (roots, program) in &programs {
+                selection.retain(&pattern, roots, program)?;
             }
-        }
+
+            Ok(())
+        })?;
+
+        // project retained structural bindings into source results
+        let (matches, files) = trace.span(
+            "command.project matches",
+            || -> CommandResult<(Vec<QueryMatch>, Vec<Arc<File>>)> {
+                let mut matches = Vec::new();
+                let mut files = Vec::new();
+                for module in selection.modules {
+                    let view = dir::View::new(&module.parsed.tree);
+                    for file in module.files {
+                        let source = file.file;
+                        if input.include_sources {
+                            files.push(source.clone());
+                        }
+                        let mut selected = file
+                            .matches
+                            .into_iter()
+                            .map(|pattern_match| {
+                                QueryMatch::new(&pattern, view, source.as_ref(), pattern_match)
+                            })
+                            .collect::<CommandResult<Vec<_>>>()?;
+                        selected.sort_unstable_by_key(|pattern_match| {
+                            (pattern_match.span.start, Reverse(pattern_match.span.end))
+                        });
+                        matches.extend(selected);
+                    }
+                }
+
+                Ok((matches, files))
+            },
+        )?;
 
         let payload = QueryPayload::new(&pattern, matches);
 

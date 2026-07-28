@@ -7,10 +7,8 @@ use crate::common::{
     finish_diagnostic_command, is_tty, report_error, run_workspace_command, watch_error,
 };
 use crate::console;
-use crate::console::{render_stage_summary, render_timeline};
 use crate::diagnostic::ConsoleResult;
 use clap::{Args, ValueEnum};
-use destack_repository::{TraceSnapshot, TraceView};
 use destack_workspace::{CheckInput, CommandRevision, WatchPolicy};
 
 /// State for check watch mode.
@@ -117,10 +115,6 @@ pub struct CheckArgs {
     /// Show progress indicator (auto, on, off, detailed).
     #[arg(long, value_enum, default_value = "auto")]
     pub progress: Progress,
-
-    /// Show a detailed per-worker timeline.
-    #[arg(long)]
-    pub timings: bool,
 }
 
 /// Check source files for type errors and lint issues.
@@ -133,14 +127,11 @@ pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
     // a directory argument selects the package or workspace root
     let mut args = args.clone();
     match args.input.take_directory_root() {
-        Ok(Some(root)) => match &args.program.workspace {
-            Some(workspace) if *workspace != root => {
-                let message =
-                    format!("directory argument {root:?} conflicts with --workspace {workspace:?}");
-                return report_error(command_name, &args.report, &message);
+        Ok(Some(root)) => {
+            if let Err(error) = args.program.select_workspace_root(root) {
+                return report_error(command_name, &args.report, &error.to_string());
             }
-            _ => args.program.workspace = Some(root),
-        },
+        }
         Ok(None) => {}
         Err(error) => return report_error(command_name, &args.report, &error.to_string()),
     }
@@ -212,19 +203,7 @@ fn run_check(args: &CheckArgs, command_name: &str, context: &CheckExecutionConte
 
     // show where the check spent its time in text mode
     if !args.report.is_json() {
-        let trace = data
-            .as_ref()
-            .and_then(|value| value.get("trace"))
-            .and_then(|value| serde_json::from_value::<TraceSnapshot>(value.clone()).ok());
-        if let Some(report) = trace {
-            println!("{}", render_stage_summary(&report));
-            if args.timings {
-                let timeline = render_timeline(&report);
-                if !timeline.is_empty() {
-                    println!("\n{timeline}");
-                }
-            }
-        }
+        result.emit_timings();
     }
 
     exit_code
@@ -538,7 +517,6 @@ fn build_check_command(args: &CheckArgs, sources: &[InputSource]) -> ConsoleResu
         fix: args.fix,
         unsafe_fixes: args.unsafe_fixes,
         diff: args.diff,
-        trace: TraceView::detailed(args.timings),
         ..(CommandRevision::Current, common).into()
     };
 

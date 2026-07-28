@@ -7,7 +7,7 @@ use destack_artifact::ArtifactKey;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_repository::OptimizeLevel;
 use destack_repository::{
-    DestackFile, Ref, Repository, Revision, Target, TargetRoot, TraceSnapshot, TraceView,
+    DestackFile, Ref, Repository, Revision, Target, TargetRoot, Trace, TraceSnapshot, TraceView,
     apply_manifest_overrides_to_json, parse_jsonc_text,
 };
 use destack_session::{Session, SessionEventHandler};
@@ -39,6 +39,8 @@ pub(crate) struct CommandContext<'a> {
     pub(super) base: Revision,
     /// Private command session over the active revision.
     pub(super) session: Session,
+    /// Trace spanning the complete command operation.
+    trace: Arc<Trace>,
     /// Command files retained for diagnostics without entering the module index.
     files: BTreeMap<FileId, Arc<File>>,
     /// Common command options.
@@ -86,6 +88,7 @@ impl<'a> CommandContext<'a> {
             CommandError::internal(format!("failed to initialize command session: {error}"))
         })?;
         Self::apply_overrides(&session, repository.as_ref(), &common.overrides)?;
+        let trace = session.start_trace();
 
         Ok(Self {
             workspace,
@@ -93,25 +96,21 @@ impl<'a> CommandContext<'a> {
             repository,
             base: revision,
             session,
+            trace,
             files: BTreeMap::new(),
             common,
             output,
         })
     }
 
-    /// Build the trace snapshot of the latest session run.
-    pub(super) fn command_trace(
+    /// Finish and snapshot this command trace.
+    pub(crate) fn command_trace(
         &self,
         revision: Revision,
         view: TraceView,
     ) -> CommandResult<TraceSnapshot> {
-        let Some(trace) = self.session.last_trace() else {
-            return Err(CommandError::internal(
-                "command completed without recording a trace",
-            ));
-        };
-
-        let report = trace.snapshot(
+        self.trace.finish();
+        let report = self.trace.snapshot(
             view,
             |key| self.artifact_label(revision, *key),
             |target| {
@@ -122,6 +121,22 @@ impl<'a> CommandContext<'a> {
         )?;
 
         Ok(report)
+    }
+
+    /// Return the trace spanning this command.
+    pub(super) fn trace(&self) -> Arc<Trace> {
+        self.trace.clone()
+    }
+
+    /// Provide artifacts while recording into the command trace.
+    pub(super) fn provide(
+        &self,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+    ) -> CommandResult<()> {
+        self.session
+            .provide_traced(revision, artifact_keys, self.trace.clone())
+            .map_err(|error| error.to_string().into())
     }
 
     /// Return the display label of one traced artifact.
@@ -434,9 +449,15 @@ impl<'a> CommandContext<'a> {
         Ok(module_id)
     }
 
-    /// Add one non-module command file retained for diagnostics.
-    pub(super) fn add_file(&mut self, path: PathBuf, content: &str) -> CommandResult<Arc<File>> {
-        let file_id = FileId::from_logical_path(&path);
+    /// Add one in-memory command file retained for diagnostics.
+    pub(super) fn add_memory_file(
+        &mut self,
+        path: &str,
+        content: &str,
+    ) -> CommandResult<Arc<File>> {
+        let uri = Uri::memory(path);
+        let file_id = FileId::from_logical_str(uri.as_ref());
+        let path = Path::new(path);
         let name = path
             .file_name()
             .ok_or_else(|| {
@@ -447,13 +468,12 @@ impl<'a> CommandContext<'a> {
             })?
             .to_string_lossy()
             .into_owned();
-        let uri = Uri::logical(path.to_string_lossy());
         let file = Arc::new(File::from_text(
             file_id,
             name,
             uri,
             None,
-            FileType::from_path_or_unknown(&path),
+            FileType::from_path_or_unknown(path),
             content.to_string(),
         ));
         self.files.insert(file_id, file.clone());

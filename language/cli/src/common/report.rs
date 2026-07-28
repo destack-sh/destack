@@ -1,4 +1,5 @@
 use clap::{Args, ValueEnum};
+use destack_repository::TraceSnapshot;
 use destack_workspace::{CommandMessagePayload, JsonValue};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -8,13 +9,15 @@ use crate::common::format::DiagnosticOutputJson;
 use crate::console;
 
 /// Reflect version for command reports.
-pub const REPORT_SCHEMA_VERSION: u32 = 5;
+pub const REPORT_SCHEMA_VERSION: u32 = 6;
 
 /// Output format for command reports.
-#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
 pub enum ReportFormat {
-    /// Human-readable text output.
+    /// Rich human-readable output.
     #[default]
+    Human,
+    /// Plain line-oriented text output.
     Text,
     /// JSON output for tooling integration.
     Json,
@@ -31,12 +34,12 @@ impl ReportFormat {
 /// Common report formatting arguments for commands.
 #[derive(Args, Debug, Clone, Default)]
 pub struct ReportArgs {
-    /// Output format for the command (text or json).
+    /// Output format for the command.
     #[arg(long = "output-format", value_enum)]
     pub output_format: Option<ReportFormat>,
 
     /// Emit JSON output (shorthand for --output-format json).
-    #[arg(long)]
+    #[arg(long, conflicts_with = "output_format")]
     pub json: bool,
 }
 
@@ -48,8 +51,8 @@ impl ReportArgs {
             return ReportFormat::Json;
         }
 
-        // fall back to the explicit format or text
-        self.output_format.unwrap_or(ReportFormat::Text)
+        // fall back to rich human output
+        self.output_format.unwrap_or(ReportFormat::Human)
     }
 
     /// Whether JSON output was requested.
@@ -121,6 +124,10 @@ pub struct CommandReport {
     /// Command-specific payload.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
+    /// Command timing trace when requested.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schema", schemars(with = "Option<Value>"))]
+    pub trace: Option<TraceSnapshot>,
 }
 
 impl CommandReport {
@@ -136,6 +143,7 @@ impl CommandReport {
             diagnostics: None,
             error: None,
             data: None,
+            trace: None,
         }
     }
 
@@ -151,6 +159,7 @@ impl CommandReport {
             diagnostics: None,
             error: None,
             data: None,
+            trace: None,
         }
     }
 }
@@ -159,7 +168,7 @@ impl CommandReport {
 pub fn print_report(report: &CommandReport, format: ReportFormat) {
     // format and emit the report payload
     match format {
-        ReportFormat::Text => {
+        ReportFormat::Human | ReportFormat::Text => {
             if let Some(summary) = report.summary.as_ref() {
                 match report.status {
                     CommandStatus::Success => console::success(summary),

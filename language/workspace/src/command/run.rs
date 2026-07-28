@@ -8,6 +8,7 @@ use destack_artifact::ArtifactKey;
 use destack_compiler::ProgramLinker;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_program::Program;
+use destack_repository::TraceView;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_repository::{Environment, Profile, ProviderError, Repository, Revision};
 #[cfg(not(target_arch = "wasm32"))]
@@ -83,6 +84,8 @@ pub struct RunInput {
     pub watch: bool,
     /// Whether the command should skip writes.
     pub dry_run: bool,
+    /// Trace detail returned for this command.
+    pub trace: Option<TraceView>,
     /// Optional run entry function name.
     pub entry: Option<String>,
     /// Optional command arguments.
@@ -152,9 +155,7 @@ impl CommandContext<'_> {
         )?;
 
         // provide the requested roots
-        self.session
-            .provide(revision, &artifact_keys)
-            .map_err(|error| error.to_string())?;
+        self.provide(revision, &artifact_keys)?;
         let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
         let exit_code = diagnostics.get_status_code();
         let profile_count = self

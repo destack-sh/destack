@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_artifact::ArtifactKey;
 use destack_dir as dir;
 use destack_pattern::{Rewrite, Rewriter};
-use destack_repository::ArtifactReader;
+use destack_repository::TraceView;
 use destack_serde::Reflect;
 use destack_source::{
     DiagnosticCollection, DiffOptions, Edit, File, FilePatch, Uri, apply_file_patch, format_diff,
@@ -13,12 +13,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::Commit;
 
-use super::super::common::{
+use super::common::{
     CommandEnvVar, CommandInput, CommandOptions, CommandRevision, CommandTargetOverrides,
     ManifestOverride, impl_command_input_options,
 };
-use super::super::{CommandContext, CommandError, CommandOutcome, CommandResult};
-use super::program::CheckedPrograms;
+use super::selection::PatternSelection;
+use super::{CommandContext, CommandError, CommandOutcome, CommandResult};
 
 /// Execution mode for a structural rewrite.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -59,6 +59,8 @@ pub struct RewriteInput {
     pub watch: bool,
     /// Whether the command should skip writes.
     pub dry_run: bool,
+    /// Trace detail returned for this command.
+    pub trace: Option<TraceView>,
     /// The authored structural search pattern.
     pub pattern: String,
     /// The authored structural replacement.
@@ -117,14 +119,9 @@ impl RewriteInput {
         &self,
         context: &mut CommandContext<'_>,
     ) -> CommandResult<Result<Rewrite, DiagnosticCollection>> {
-        let pattern = context.add_file(
-            PathBuf::from(".destack/command/rewrite/pattern.ds-pattern"),
-            &self.pattern,
-        )?;
-        let replacement = context.add_file(
-            PathBuf::from(".destack/command/rewrite/replacement.ds-pattern"),
-            &self.replacement,
-        )?;
+        let pattern = context.add_memory_file("rewrite/pattern.ds-pattern", &self.pattern)?;
+        let replacement =
+            context.add_memory_file("rewrite/replacement.ds-pattern", &self.replacement)?;
         let strings = context.repository.string_pool().clone();
         let rewrite = match self.kind {
             Some(kind) => Rewrite::parse_context(pattern, replacement, kind, strings),
@@ -138,11 +135,8 @@ impl RewriteInput {
 
         // compile every predicate against the search metavariable table
         for (index, predicate) in self.predicates.iter().enumerate() {
-            let path = format!(
-                ".destack/command/rewrite/predicate-{}.ds-pattern",
-                index + 1
-            );
-            let file = context.add_file(PathBuf::from(path), predicate)?;
+            let path = format!("rewrite/predicate-{}.ds-pattern", index + 1);
+            let file = context.add_memory_file(&path, predicate)?;
             if let Err(predicate_diagnostics) = rewrite.add_predicate(file) {
                 diagnostics.merge_from(&predicate_diagnostics);
             }
@@ -162,9 +156,10 @@ impl CommandContext<'_> {
         &mut self,
         input: &RewriteInput,
     ) -> CommandResult<CommandOutcome<RewritePayload>> {
-        let inputs = self.resolve_command_inputs()?;
-        let modules = self.resolve_modules(&inputs)?;
-        let rewrite = match input.compile(self)? {
+        let trace = self.trace();
+        let inputs = trace.span("command.resolve inputs", || self.resolve_command_inputs())?;
+        let modules = trace.span("command.resolve modules", || self.resolve_modules(&inputs))?;
+        let rewrite = match trace.span("command.compile rewrite", || input.compile(self))? {
             Ok(rewrite) => rewrite,
             Err(diagnostics) => {
                 let exit_code = diagnostics.get_status_code();
@@ -175,36 +170,57 @@ impl CommandContext<'_> {
             }
         };
 
-        // request only parsed DIR for structural rewrites
-        let checked = if input.predicates.is_empty() {
-            let revision = self.revision()?;
-            let keys = modules
-                .iter()
-                .map(|module| ArtifactKey::dir_parsed(*module))
-                .collect::<Vec<_>>();
-            self.session
-                .provide(revision, &keys)
-                .map_err(|error| error.to_string())?;
-
-            None
-        }
-        // request the complete loaded checked closure for semantic predicates
-        else {
-            Some(CheckedPrograms::new(self, &modules)?)
-        };
-
-        // stop before matching when the requested artifact closure is invalid
-        let artifact_keys = match checked.as_ref() {
-            Some(checked) => checked.artifact_keys().to_vec(),
-            None => modules
-                .iter()
-                .map(|module| ArtifactKey::dir_parsed(*module))
-                .collect(),
-        };
+        // provide parsed DIR before structural selection
         let revision = self.revision()?;
-        let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
+        let parsed_keys = modules
+            .iter()
+            .map(|module| ArtifactKey::dir_parsed(*module))
+            .collect::<Vec<_>>();
+        trace.span("command.parse sources", || {
+            self.provide(revision, &parsed_keys)
+        })?;
+        let diagnostics = self.command_diagnostics(revision, &parsed_keys)?;
         let exit_code = diagnostics.get_status_code();
-        let profile_count = checked.as_ref().map_or(0, CheckedPrograms::profile_count);
+        if exit_code != 0 {
+            let outcome = CommandOutcome::new(diagnostics, exit_code, modules.len(), 0, 0)
+                .with_data(RewritePayload::default());
+
+            return Ok(outcome);
+        }
+
+        // retain structural matches before requesting checked DIR
+        let mut selection = trace.span("command.select matches", || {
+            PatternSelection::find(rewrite.pattern(), &modules, revision, self)
+        })?;
+        let profiles = if rewrite.pattern().predicates().is_empty() {
+            Default::default()
+        } else {
+            selection.group_by_profile(revision, self)?
+        };
+        let profile_count = profiles.len();
+        let mut programs = Vec::with_capacity(profile_count);
+        let mut checked_keys = Vec::new();
+        trace.span("command.check matches", || -> CommandResult<()> {
+            for (profile, roots) in profiles {
+                checked_keys.extend(
+                    roots
+                        .iter()
+                        .map(|module| ArtifactKey::dir_checked(*module, profile)),
+                );
+                let program = self.provide_program_context(profile, &roots, revision)?;
+                programs.push((roots, program));
+            }
+
+            Ok(())
+        })?;
+
+        // stop before predicate evaluation when checked roots are invalid
+        let diagnostics = if checked_keys.is_empty() {
+            diagnostics
+        } else {
+            self.command_diagnostics(revision, &checked_keys)?
+        };
+        let exit_code = diagnostics.get_status_code();
         if exit_code != 0 {
             let outcome =
                 CommandOutcome::new(diagnostics, exit_code, modules.len(), profile_count, 0)
@@ -213,57 +229,51 @@ impl CommandContext<'_> {
             return Ok(outcome);
         }
 
-        let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
-        let mut changes = Vec::new();
-        let mut rewrite_diagnostics = DiagnosticCollection::new();
-        for module in modules.iter().copied() {
-            let parsed = artifacts
-                .dir_parsed(module)
-                .map_err(|error| error.to_string())?;
-            let view = dir::View::new(&parsed.tree);
+        // evaluate predicates against each exact checked program
+        trace.span("command.evaluate predicates", || -> CommandResult<()> {
+            for (roots, program) in &programs {
+                selection.retain(rewrite.pattern(), roots, program)?;
+            }
 
-            // rewrite each physical source file independently
-            for parsed_file in &parsed.files {
-                let file = self
-                    .repository
-                    .file(revision, parsed_file.file_id)
-                    .map_err(|error| error.to_string())?
-                    .ok_or_else(|| {
-                        CommandError::internal(format!(
-                            "missing rewrite source file {:?}",
-                            parsed_file.file_id
-                        ))
-                    })?;
-                let rewriter = match checked.as_ref() {
-                    Some(checked) => {
-                        let (module, program) = checked.module(module)?;
+            Ok(())
+        })?;
 
-                        Rewriter::with_module(&rewrite, view, module, program, file.as_ref())
+        // render retained matches into non-overlapping file patches
+        let (mut changes, rewrite_diagnostics) = trace.span(
+            "command.render replacements",
+            || -> CommandResult<(Vec<PendingRewrite>, DiagnosticCollection)> {
+                let mut changes = Vec::new();
+                let mut diagnostics = DiagnosticCollection::new();
+                for module in selection.modules {
+                    let view = dir::View::new(&module.parsed.tree);
+                    for file in module.files {
+                        let source = file.file;
+                        let rewriter = Rewriter::new(&rewrite, view, source.as_ref());
+                        let patch = match rewriter.rewrite(file.matches) {
+                            Ok(patch) => patch,
+                            Err(file_diagnostics) => {
+                                diagnostics.merge_from(&file_diagnostics);
+
+                                continue;
+                            }
+                        };
+                        if patch.is_empty() {
+                            continue;
+                        }
+
+                        let rewritten = apply_file_patch(source.as_ref(), &patch)
+                            .map_err(|error| error.to_string())?;
+                        changes.push(PendingRewrite {
+                            file: source,
+                            patch,
+                            rewritten,
+                        });
                     }
-                    None => Rewriter::new(&rewrite, view, file.as_ref()),
-                };
-                let candidates = view.iter_node_ids_in_file(file.id);
-                let patch = match rewriter.rewrite(candidates) {
-                    Ok(patch) => patch,
-                    Err(diagnostics) => {
-                        rewrite_diagnostics.merge_from(&diagnostics);
-
-                        continue;
-                    }
-                };
-                if patch.is_empty() {
-                    continue;
                 }
 
-                let rewritten =
-                    apply_file_patch(file.as_ref(), &patch).map_err(|error| error.to_string())?;
-                changes.push(PendingRewrite {
-                    file,
-                    patch,
-                    rewritten,
-                });
-            }
-        }
+                Ok((changes, diagnostics))
+            },
+        )?;
 
         let mut diagnostics = diagnostics;
         diagnostics.merge_from(&rewrite_diagnostics);
@@ -279,7 +289,9 @@ impl CommandContext<'_> {
             changes.clear();
             None
         } else {
-            self.apply_rewrite_changes(&changes, mode)?
+            trace.span("command.apply replacements", || {
+                self.apply_rewrite_changes(&changes, mode)
+            })?
         };
         let replacements = changes.iter().map(|change| change.patch.len()).sum();
         let exit_code = if exit_code == 0 && mode == RewriteMode::Check && replacements > 0 {

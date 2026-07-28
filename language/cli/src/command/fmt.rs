@@ -96,6 +96,7 @@ pub fn run(args: &FmtArgs) -> i32 {
             &result.response.messages,
             &result.response.output,
         );
+        result.emit_timings();
         return result.response.exit_code;
     }
 
@@ -116,13 +117,14 @@ pub fn run(args: &FmtArgs) -> i32 {
     } else {
         Some("format payload missing".to_string())
     };
-    let report = report_from_payload(
+    let mut report = report_from_payload(
         "fmt",
         exit_code,
         payload.as_ref().map(|(_, value)| value.clone()),
         summary,
         None,
     );
+    report.trace = result.response.trace.clone();
     print_report(&report, args.report.format());
     exit_code
 }

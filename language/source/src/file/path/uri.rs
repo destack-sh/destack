@@ -39,6 +39,14 @@ impl Uri {
         }
     }
 
+    /// Create a URI for one in-memory source.
+    pub fn memory(path: impl AsRef<str>) -> Self {
+        let path = path.as_ref().replace('\\', "/");
+        let path = path.trim_start_matches('/');
+
+        Self(format!("memory:///{path}"))
+    }
+
     /// Create a new URI from a string.
     pub fn from_string<T: Into<String>>(uri: T) -> Self {
         Self(uri.into())

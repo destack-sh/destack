@@ -190,6 +190,10 @@ pub struct ProgramArgs {
     #[arg(long = "dev", global = true)]
     pub dev: bool,
 
+    /// Show command and artifact timings.
+    #[arg(long, global = true)]
+    pub timings: bool,
+
     /// The formatter options.
     #[command(flatten)]
     pub formatter: FormatterOptionsArgs,
@@ -213,6 +217,7 @@ impl Default for ProgramArgs {
             workers: default_workers(),
             watch: false,
             dev: false,
+            timings: false,
             formatter: FormatterOptionsArgs::default(),
             linter: LinterOptionsArgs::default(),
         }
@@ -220,6 +225,21 @@ impl Default for ProgramArgs {
 }
 
 impl ProgramArgs {
+    /// Select a workspace root from one positional directory argument.
+    pub fn select_workspace_root(&mut self, root: PathBuf) -> ConsoleResult<()> {
+        if let Some(workspace) = self.workspace.as_ref()
+            && *workspace != root
+        {
+            return Err(ConsoleError::message(format!(
+                "directory argument {root:?} conflicts with --workspace {workspace:?}"
+            )));
+        }
+
+        self.workspace = Some(root);
+
+        Ok(())
+    }
+
     /// Return the effective working directory for these arguments.
     pub fn effective_cwd(&self) -> ConsoleResult<PathBuf> {
         if let Some(cwd) = self.cwd.clone() {

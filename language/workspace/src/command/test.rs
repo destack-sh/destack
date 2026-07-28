@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use destack_repository::TraceView;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -41,6 +42,8 @@ pub struct TestInput {
     pub watch: bool,
     /// Whether the command should skip writes.
     pub dry_run: bool,
+    /// Trace detail returned for this command.
+    pub trace: Option<TraceView>,
 }
 
 impl_command_input_options!(TestInput {});

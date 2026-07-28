@@ -1,7 +1,8 @@
+use destack_repository::TraceView;
+
 use crate::command::{CheckInput, CommandInput, CommandOptions, CommandRevision};
 use crate::tests::harness::TestWorkspace;
 use crate::workspace::Workspace;
-use destack_repository::TraceView;
 
 #[test]
 fn test_check_command_reports_check_errors() {
@@ -119,7 +120,7 @@ fn test_check_command_lints_selected_module_and_program() {
             ..CommandOptions::default()
         },
     ));
-    input.trace = TraceView::Detailed;
+    input.trace = Some(TraceView::Detailed);
     let output = test
         .workspace
         .check(&test.roots[0], input, None)
@@ -134,9 +135,8 @@ fn test_check_command_lints_selected_module_and_program() {
     assert_eq!(diagnostic_ids, ["no-debugger"]);
 
     // run target program lints and both required module lint passes
-    let mut lint_artifacts = output
-        .data
-        .trace
+    let trace = output.trace.expect("check trace");
+    let mut lint_artifacts = trace
         .attempts
         .iter()
         .filter(|artifact| artifact.name.ends_with(".lint") && artifact.outcome == "built")

@@ -17,7 +17,6 @@ fn test_build_dry_run_single_file() {
         program: program.program_args(),
         report: ReportArgs::default(),
         dry_run: true,
-        timings: false,
     };
 
     // run the build command

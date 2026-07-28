@@ -86,7 +86,6 @@ pub fn run(args: &LintArgs) -> i32 {
         unsafe_fixes: args.unsafe_fixes,
         diff: args.diff,
         no_lint: false,
-        timings: false,
         format: args.format,
         quiet: args.quiet,
         no_diagnostics: args.no_diagnostics,

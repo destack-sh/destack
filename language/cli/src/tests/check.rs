@@ -25,7 +25,6 @@ fn test_check_compiles_single_file() {
         max_warnings: None,
         statistics: false,
         progress: Progress::Off,
-        timings: false,
     };
 
     // run the check command

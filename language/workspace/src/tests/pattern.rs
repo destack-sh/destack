@@ -10,10 +10,21 @@ use crate::tests::harness::TestPattern;
 use crate::workspace::Workspace;
 
 /// Manifest selecting one checked entry module.
-const CHECKED_CONFIG: &str = r#"{
+const ENTRY_CONFIG: &str = r#"{
   "targets": {
     "default": {
       "entry": ["main.ds"]
+    }
+  },
+  "defaultTarget": "default"
+}
+"#;
+
+/// Manifest selecting every authored module.
+const INCLUDE_CONFIG: &str = r#"{
+  "targets": {
+    "default": {
+      "include": ["**/*.ds"]
     }
   },
   "defaultTarget": "default"
@@ -161,7 +172,7 @@ myPackage.net.fetch("first");
     fetch("second");
 "#;
     let test = TestPattern::new("query-symbol-predicate")
-        .file("destack.json", CHECKED_CONFIG)
+        .file("destack.json", ENTRY_CONFIG)
         .file("package.ds", package_source)
         .file("net.ds", net_source)
         .input("main.ds", source);
@@ -401,7 +412,7 @@ fetch("first");
 send("second");
 "#;
     let test = TestPattern::new("rewrite-symbol-predicate")
-        .file("destack.json", CHECKED_CONFIG)
+        .file("destack.json", ENTRY_CONFIG)
         .input("main.ds", source);
     let output = test
         .rewrite("$CALLEE($VALUE)", "client.fetch($VALUE)")
@@ -437,7 +448,7 @@ consume("text");
 consume(42);
 "#;
     let test = TestPattern::new("query-type-predicate")
-        .file("destack.json", CHECKED_CONFIG)
+        .file("destack.json", ENTRY_CONFIG)
         .input("main.ds", source);
     let output = test
         .query("consume($VALUE)")
@@ -453,6 +464,42 @@ consume(42);
     assert_eq!(matches, ["consume(\"text\")"]);
 }
 
+/// Check only modules containing structural matches before evaluating Predicates.
+#[test]
+fn test_query_and_rewrite_check_selected_modules() {
+    let source = r#"
+function consume(value: string): void {}
+
+consume("text");
+"#;
+    let invalid = "const invalid: int32 = \"text\";\n";
+    let test = TestPattern::new("pattern-check-selected-modules")
+        .file("destack.json", INCLUDE_CONFIG)
+        .input("main.ds", source)
+        .input("invalid.ds", invalid);
+
+    let query = test
+        .query("consume($VALUE)")
+        .where_("$VALUE satisfies string")
+        .run();
+
+    assert_eq!(query.exit_code, 0);
+    assert!(query.diagnostics.is_empty());
+    assert_eq!(query.data.matches.len(), 1);
+    assert_eq!(query.data.matches[0].text, "consume(\"text\")");
+
+    let rewrite = test
+        .rewrite("consume($VALUE)", "inspect($VALUE)")
+        .where_("$VALUE satisfies string")
+        .mode(RewriteMode::Check)
+        .run();
+
+    assert_eq!(rewrite.exit_code, 1);
+    assert!(rewrite.diagnostics.is_empty());
+    assert_eq!(rewrite.data.replacements, 1);
+    assert_eq!(test.source("invalid.ds"), invalid);
+}
+
 /// Allow structural results and suppress semantic results over invalid checked source.
 #[test]
 fn test_distinguish_structural_and_semantic_invalid_programs() {
@@ -465,7 +512,7 @@ const invalid: int32 = "text";
 fetch("first");
 "#;
     let test = TestPattern::new("pattern-invalid-checked-program")
-        .file("destack.json", CHECKED_CONFIG)
+        .file("destack.json", ENTRY_CONFIG)
         .input("main.ds", source);
     let structural = test.query("fetch($VALUE)").run();
 

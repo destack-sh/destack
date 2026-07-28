@@ -138,7 +138,7 @@ mod tests {
                     overrides: Vec::new(),
                     watch: false,
                     dry_run: false,
-                    trace: TraceView::Summary,
+                    trace: Some(TraceView::Summary),
                     product: Some("app".to_string()),
                     outputs: BuildOutputs {
                         products: true,

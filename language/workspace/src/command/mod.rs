@@ -13,17 +13,19 @@ mod format;
 mod info;
 mod outcome;
 mod output;
-mod pattern;
+mod query;
+mod rewrite;
 mod run;
+mod selection;
 mod settings;
 mod targets;
 mod task;
 mod test;
 
 pub use bench::{BenchInput, BenchOptions};
-pub use build::{BuildInput, BuildOptions, BuildOutputs, BuildPayload};
+pub use build::{BuildInput, BuildOutputs, BuildPayload};
 pub use cache::{CacheEntry, CacheInput, CacheOptions, CachePayload};
-pub use check::{CheckInput, CheckPayload};
+pub use check::CheckInput;
 pub use clean::{CleanInput, CleanOptions, CleanPayload};
 pub use common::*;
 pub use constants::*;
@@ -42,7 +44,8 @@ pub use output::{
     DoctorOutput, FormatOutput, InfoOutput, Output, QueryOutput, RewriteOutput, RunOutput,
     SettingsOutput, TargetsOutput, TaskOutput, TestOutput,
 };
-pub use pattern::*;
+pub use query::*;
+pub use rewrite::*;
 pub use run::{RunInput, RunMode, RunOptions, RunPayload};
 pub use settings::{
     SettingsInput, SettingsNetwork, SettingsOptions, SettingsPayload, SettingsRegistry,

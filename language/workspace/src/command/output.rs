@@ -1,4 +1,4 @@
-use destack_repository::Revision;
+use destack_repository::{Revision, TraceSnapshot};
 use destack_serde::Reflect;
 use destack_source::Diagnostic;
 use serde::{Deserialize, Serialize};
@@ -7,13 +7,13 @@ use crate::{CommandOutputChunk, CommandOutputFile, FileImage, Message, OutputStr
 
 use super::build::BuildPayload;
 use super::cache::CachePayload;
-use super::check::CheckPayload;
 use super::clean::CleanPayload;
 use super::common::CommandMessagePayload;
 use super::doctor::DoctorPayload;
 use super::format::FormatPayload;
 use super::info::InfoPayload;
-use super::pattern::{QueryPayload, RewritePayload};
+use super::query::QueryPayload;
+use super::rewrite::RewritePayload;
 use super::run::RunPayload;
 use super::settings::SettingsPayload;
 use super::targets::TargetsPayload;
@@ -40,6 +40,8 @@ macro_rules! command_output {
             pub output: Vec<CommandOutputChunk>,
             /// Generated output files.
             pub outputs: Vec<CommandOutputFile>,
+            /// Timing trace when requested by the command.
+            pub trace: Option<TraceSnapshot>,
             /// Operation payload.
             pub data: $data,
             /// Count of modules involved.
@@ -61,6 +63,7 @@ macro_rules! command_output {
                     messages: output.messages,
                     output: output.output,
                     outputs: output.outputs,
+                    trace: output.trace,
                     data: output.data,
                     module_count: output.module_count,
                     profile_count: output.profile_count,
@@ -80,6 +83,7 @@ macro_rules! command_output {
                     messages: output.messages,
                     output: output.output,
                     outputs: output.outputs,
+                    trace: output.trace,
                     data: output.data,
                     module_count: output.module_count,
                     profile_count: output.profile_count,
@@ -117,6 +121,8 @@ pub struct Output<T = ()> {
     pub output: Vec<CommandOutputChunk>,
     /// Generated output files.
     pub outputs: Vec<CommandOutputFile>,
+    /// Timing trace when requested by the command.
+    pub trace: Option<TraceSnapshot>,
     /// Operation payload.
     pub data: T,
     /// Count of modules involved.
@@ -147,7 +153,7 @@ impl<T> CommandOutput for Output<T> {
 command_output!(BenchOutput, CommandMessagePayload);
 command_output!(BuildOutput, BuildPayload);
 command_output!(CacheOutput, CachePayload);
-command_output!(CheckOutput, CheckPayload);
+command_output!(CheckOutput, ());
 command_output!(CleanOutput, CleanPayload);
 command_output!(DocOutput, CommandMessagePayload);
 command_output!(DoctorOutput, DoctorPayload);

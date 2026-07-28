@@ -4,6 +4,7 @@ use std::sync::Arc;
 use destack_source::{DiagnosticCollection, File, FileId};
 use destack_workspace::{CommandError, CommandOutput, Error, FileImage, JsonValue, Output};
 
+use crate::console;
 use crate::diagnostic::{ConsoleError, ConsoleResult};
 
 /// Result of one CLI workspace operation.
@@ -39,6 +40,7 @@ impl CommandResult {
             messages: response.messages,
             output: response.output,
             outputs: response.outputs,
+            trace: response.trace,
             data,
             module_count: response.module_count,
             profile_count: response.profile_count,
@@ -50,6 +52,19 @@ impl CommandResult {
             diagnostics,
             files,
         })
+    }
+
+    /// Emit the command trace when one was requested.
+    pub(crate) fn emit_timings(&self) {
+        let Some(trace) = self.response.trace.as_ref() else {
+            return;
+        };
+        let timings = console::render_timings(trace);
+        if timings.is_empty() {
+            return;
+        }
+
+        console::write_line(&format!("\n{timings}"));
     }
 }
 

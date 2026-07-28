@@ -126,18 +126,22 @@ fn run_clean(args: &CleanArgs) -> i32 {
                 "clean encountered errors",
             ))
         };
-        let report = report_from_payload(
+        let mut report = report_from_payload(
             "clean",
             exit_code,
             payload.as_ref().map(|(_, value)| value.clone()),
             summary,
             error,
         );
+        report.trace = result.response.trace.clone();
         print_report(&report, args.report.format());
     }
 
     if exit_code != 0 && !args.report.is_json() {
         console::warn(&format!("clean exited with code {exit_code}"));
+    }
+    if !args.report.is_json() {
+        result.emit_timings();
     }
 
     exit_code

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_core::FxIndexSet;
-use destack_repository::{Revision, TraceSnapshot, TraceView};
+use destack_repository::{Revision, TraceView};
 use destack_serde::Reflect;
 use destack_source::{
     Applicability, DiagnosticCollection, DiffOptions, File, FileId, PatchSet, apply_patch_set,
@@ -19,13 +19,6 @@ use super::common::{
 };
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
-
-/// Payload for check command output.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
-pub struct CheckPayload {
-    /// Trace payload for this check.
-    pub trace: TraceSnapshot,
-}
 
 /// Diagnostic fix behavior for one check.
 #[derive(Debug, Clone, Copy)]
@@ -73,9 +66,9 @@ pub struct CheckInput {
     pub unsafe_fixes: bool,
     /// Show lint diff instead of applying fixes.
     pub diff: bool,
-    /// Trace detail returned in the response.
+    /// Trace detail returned for this command.
     #[serde(default)]
-    pub trace: TraceView,
+    pub trace: Option<TraceView>,
 }
 
 impl CheckInput {
@@ -94,14 +87,13 @@ impl_command_input_options!(CheckInput {
     fix: false,
     unsafe_fixes: false,
     diff: false,
-    trace: TraceView::default(),
 });
 impl CommandContext<'_> {
     /// Execute a check command.
     pub(crate) fn run_check_command(
         &mut self,
         input: &CheckInput,
-    ) -> CommandResult<CommandOutcome<CheckPayload>> {
+    ) -> CommandResult<CommandOutcome> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;
@@ -129,23 +121,20 @@ impl CommandContext<'_> {
         let artifact_keys = artifact_keys.into_iter().collect::<Vec<_>>();
 
         // provide the requested roots
-        self.session
-            .provide(revision, &artifact_keys)
-            .map_err(|error| error.to_string())?;
+        self.provide(revision, &artifact_keys)?;
 
-        // report where the check spent its time
-        let trace = self.command_trace(revision, input.trace)?;
         let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
         self.apply_diagnostic_suggestions(revision, &diagnostics, fix_options)?;
         let exit_code = diagnostics.get_status_code();
         let profile_count = self.selected_profile_count(revision, &modules)?;
 
-        let payload = CheckPayload { trace };
-
-        Ok(
-            CommandOutcome::new(diagnostics, exit_code, modules.len(), profile_count, 0)
-                .with_data(payload),
-        )
+        Ok(CommandOutcome::new(
+            diagnostics,
+            exit_code,
+            modules.len(),
+            profile_count,
+            0,
+        ))
     }
 
     /// Apply or print diagnostic suggestions requested by the command.

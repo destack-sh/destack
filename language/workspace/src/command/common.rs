@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use destack_serde::Reflect;
 
-use destack_repository::{Revision, Target};
+use destack_repository::{Revision, Target, TraceView};
 use destack_source::{FileType, TargetId};
 use serde::{Deserialize, Serialize};
 
@@ -369,6 +369,8 @@ pub struct CommandOptions {
     pub watch: bool,
     /// Whether the command should skip writes.
     pub dry_run: bool,
+    /// Trace detail returned for this command.
+    pub trace: Option<TraceView>,
 }
 
 impl Default for CommandOptions {
@@ -386,6 +388,7 @@ impl Default for CommandOptions {
             overrides: Vec::new(),
             watch: false,
             dry_run: false,
+            trace: None,
         }
     }
 }
@@ -408,6 +411,7 @@ macro_rules! impl_command_input_options {
                     overrides: self.overrides.clone(),
                     watch: self.watch,
                     dry_run: self.dry_run,
+                    trace: self.trace,
                 }
             }
         }
@@ -429,6 +433,7 @@ macro_rules! impl_command_input_options {
                     overrides: options.overrides,
                     watch: options.watch,
                     dry_run: options.dry_run,
+                    trace: options.trace,
                     $($field: $value,)*
                 }
             }

@@ -109,13 +109,15 @@ where
 
     // emit the structured report when requested
     if report_args.is_json() {
-        let report = json_report(exit_code, payload, payload_value);
+        let mut report = json_report(exit_code, payload, payload_value);
+        report.trace = result.response.trace.clone();
         print_report(&report, report_args.format());
         return exit_code;
     }
 
     // otherwise render the payload in text mode
     text_report(exit_code, payload);
+    result.emit_timings();
     exit_code
 }
 
@@ -170,10 +172,18 @@ pub(crate) fn finish_diagnostic_command(
             &result.diagnostics,
             json_format_options,
         );
-        let mut report = report_from_payload(command, format_result.exit_code(), data, None, None);
+        let diagnostic_exit_code = format_result.exit_code();
+        let exit_code = if diagnostic_exit_code == 0 {
+            result.response.exit_code
+        } else {
+            diagnostic_exit_code
+        };
+        let mut report = report_from_payload(command, exit_code, data, None, None);
+        report.trace = result.response.trace.clone();
         report.diagnostics = Some(output);
         print_report(&report, report_args.format());
-        return format_result.exit_code();
+
+        return exit_code;
     }
 
     // render diagnostics for text oriented output
@@ -207,7 +217,12 @@ pub(crate) fn finish_diagnostic_command(
         return 1;
     }
 
-    format_result.exit_code()
+    let diagnostic_exit_code = format_result.exit_code();
+    if diagnostic_exit_code == 0 {
+        result.response.exit_code
+    } else {
+        diagnostic_exit_code
+    }
 }
 
 /// Finish a run command with diagnostic and payload rendering.
@@ -230,6 +245,7 @@ pub(crate) fn finish_run_command(
 
         if format_result.exit_code() != 0 {
             let mut report = CommandReport::failure(command, format_result.exit_code());
+            report.trace = result.response.trace.clone();
             report.diagnostics = Some(output);
             print_report(&report, report_args.format());
             return format_result.exit_code();
@@ -244,6 +260,7 @@ pub(crate) fn finish_run_command(
             None,
         );
         if format_result.exit_code() != 0 {
+            result.emit_timings();
             return format_result.exit_code();
         }
     }
@@ -278,10 +295,14 @@ pub(crate) fn finish_run_command(
             Some((RunPayload::Value { .. }, value)) => (None, None, Some(value)),
             None => (None, None, None),
         };
-        let report = report_from_payload(command, exit_code, data, summary, error);
+        let mut report = report_from_payload(command, exit_code, data, summary, error);
+        report.trace = result.response.trace.clone();
         print_report(&report, report_args.format());
     } else if exit_code != 0 {
         console::warn(&format!("process exited with code {exit_code}"));
+    }
+    if !report_args.is_json() {
+        result.emit_timings();
     }
 
     exit_code
@@ -300,6 +321,7 @@ pub(crate) fn finish_workspace_message_command(
             &result.response.messages,
             &result.response.output,
         );
+        result.emit_timings();
         return result.response.exit_code;
     }
 
@@ -317,7 +339,8 @@ pub(crate) fn finish_workspace_message_command(
 
     // emit json report output
     let exit_code = result.response.exit_code;
-    let report = report_from_message_payload(command, exit_code, payload);
+    let mut report = report_from_message_payload(command, exit_code, payload);
+    report.trace = result.response.trace.clone();
     print_report(&report, report_args.format());
     exit_code
 }
