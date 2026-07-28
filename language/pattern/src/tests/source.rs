@@ -9,7 +9,7 @@ use destack_source::{
 };
 
 use super::TestProgram;
-use crate::ProgramContext;
+use crate::{Matcher, Pattern, PatternMatch, ProgramContext};
 
 /// Candidate source used by pattern tests.
 pub(crate) enum TestSource {
@@ -91,6 +91,33 @@ impl TestSource {
     /// Return a view over the candidate DIR.
     pub(crate) fn view(&self) -> dir::View<'_> {
         dir::View::new(self.tree())
+    }
+
+    /// Match every candidate node and evaluate predicates when checked DIR is available.
+    pub(crate) fn matches(&self, pattern: &Pattern) -> Vec<PatternMatch> {
+        let matcher = Matcher::new(pattern, self.view());
+        let matches = matcher
+            .find(self.tree().iter_node_ids())
+            .expect("match test pattern");
+        let Some((program, module)) = self.program() else {
+            assert!(
+                pattern.predicates().is_empty(),
+                "predicate test source must contain checked DIR"
+            );
+
+            return matches;
+        };
+        let module = program.module(module).expect("read checked test module");
+
+        matches
+            .into_iter()
+            .filter_map(|pattern_match| {
+                pattern
+                    .matches_predicates(&pattern_match, module, program)
+                    .expect("evaluate test predicates")
+                    .then_some(pattern_match)
+            })
+            .collect()
     }
 
     /// Return the checked program and candidate module when available.

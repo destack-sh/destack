@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::{FragmentId, PredicateId};
+use crate::FragmentId;
 
 /// The index of an operation in a pattern tree.
 #[repr(transparent)]
@@ -39,8 +39,6 @@ pub enum Node {
     Follows(Relation),
     /// Match a sibling position.
     NthChild(NthChild),
-    /// Evaluate a Destack predicate expression.
-    Predicate(PredicateId),
 }
 
 /// A pattern searched along one DIR relation.

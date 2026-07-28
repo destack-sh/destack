@@ -6,8 +6,6 @@ use crate::ContextError;
 /// An invariant violation while matching a compiled pattern.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MatchError {
-    /// A compiled predicate has no checked program context.
-    MissingPredicateContext,
     /// Checked DIR context required by a predicate is invalid.
     Context(ContextError),
     /// A compiled predicate expression has no evaluator implementation.
@@ -34,7 +32,6 @@ impl Display for MatchError {
     /// Format the violated matching invariant.
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         let message = match self {
-            Self::MissingPredicateContext => "compiled predicate has no checked program context",
             Self::Context(error) => return Display::fmt(error, formatter),
             Self::UnsupportedPredicateExpression => {
                 "compiled predicate expression has no evaluator"

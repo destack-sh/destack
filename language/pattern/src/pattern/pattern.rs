@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use destack_core::{Arena, StringPool};
 
-use crate::{Fragment, FragmentId, MetavariableTable, Predicate, PredicateId, Tree};
+use crate::{
+    Evaluator, Fragment, FragmentId, MatchError, MetavariableTable, ModuleContext, PatternMatch,
+    Predicate, ProgramContext, Tree,
+};
 
 /// A compiled pattern.
 #[derive(Debug)]
@@ -14,7 +17,7 @@ pub struct Pattern {
     /// The parsed structural fragments.
     pub(crate) fragments: Arena<Fragment>,
     /// The parsed predicate expressions.
-    pub(crate) predicates: Arena<Predicate>,
+    pub(crate) predicates: Vec<Predicate>,
     /// The shared metavariable declarations.
     pub(crate) metavariables: MetavariableTable,
 }
@@ -42,12 +45,30 @@ impl Pattern {
 
     /// Return the parsed predicate expressions.
     pub fn predicates(&self) -> &[Predicate] {
-        self.predicates.as_slice()
+        &self.predicates
     }
 
-    /// Return a parsed predicate expression.
-    pub fn predicate(&self, predicate: PredicateId) -> &Predicate {
-        self.predicates.get(predicate.0)
+    /// Evaluate every predicate against one checked structural match.
+    pub fn matches_predicates(
+        &self,
+        pattern_match: &PatternMatch,
+        module: &ModuleContext,
+        program: &ProgramContext,
+    ) -> Result<bool, MatchError> {
+        for predicate in &self.predicates {
+            let evaluator = Evaluator::new(
+                predicate,
+                &pattern_match.bindings,
+                pattern_match.root,
+                module,
+                program,
+            );
+            if !evaluator.evaluate()? {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
     }
 
     /// Return the shared metavariable declarations.

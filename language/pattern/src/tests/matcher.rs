@@ -6,8 +6,7 @@ use destack_dir as dir;
 
 use super::{TestSource, fixture_text, test_file};
 use crate::{
-    Binding, Matcher, Node, NodeId, NodeList, NthChild, Pattern, PatternMatch, Relation,
-    RelationStop,
+    Binding, Node, NodeId, NodeList, NthChild, Pattern, PatternMatch, Relation, RelationStop,
 };
 
 /// One additional operation required of a test pattern.
@@ -392,15 +391,7 @@ impl TestMatcher {
         }
 
         // match every candidate DIR node in parse allocation order
-        let matcher = match source.program() {
-            Some((program, module)) => {
-                Matcher::in_module(&pattern, module, program).expect("build checked test matcher")
-            }
-            None => Matcher::new(&pattern, source.view()),
-        };
-        let matches = matcher
-            .find(source.tree().iter_node_ids())
-            .expect("match test pattern");
+        let matches = source.matches(&pattern);
 
         TestMatches {
             pattern,

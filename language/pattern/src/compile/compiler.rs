@@ -15,7 +15,7 @@ use super::marker::{Marker, MarkerError};
 use super::sequence::SequenceError;
 use crate::{
     Fragment, FragmentId, MetavariableId, MetavariableTable, MetavariableUses, Node, NodeId,
-    NodeList, Pattern, PatternError, PredicateId, RewriteError, Tree,
+    Pattern, PatternError, RewriteError, Tree,
 };
 
 /// The authored role of one structural fragment.
@@ -138,7 +138,7 @@ impl Compiler {
             strings: self.strings,
             tree,
             fragments,
-            predicates: Arena::new(),
+            predicates: Vec::new(),
             metavariables: self.metavariables,
         }
     }
@@ -529,13 +529,7 @@ impl Pattern {
     pub fn add_predicate(&mut self, file: Arc<File>) -> Result<(), DiagnosticCollection> {
         let mut compiler = Compiler::new(self.strings.clone());
         let predicate = compiler.compile_predicate(file, &self.metavariables)?;
-        let predicate = PredicateId(self.predicates.allocate(predicate));
-        let predicate = NodeId(self.tree.nodes.allocate(Node::Predicate(predicate)));
-        let structural = self.tree.root;
-        let start = self.tree.node_ids.len() as u32;
-        self.tree.node_ids.extend([structural, predicate]);
-        let all = Node::All(NodeList { start, length: 2 });
-        self.tree.root = NodeId(self.tree.nodes.allocate(all));
+        self.predicates.push(predicate);
 
         Ok(())
     }

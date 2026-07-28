@@ -1,8 +1,8 @@
 use destack_dir as dir;
-use destack_source::{DiagnosticCollection, File, FilePatch, ModuleId, Patch, Span};
+use destack_source::{DiagnosticCollection, File, FilePatch, Patch, Span};
 
 use super::renderer::Renderer;
-use crate::{ContextError, Matcher, ModuleContext, ProgramContext, Rewrite, RewriteError};
+use crate::{PatternMatch, Rewrite, RewriteError};
 
 /// One rendered source edit selected by a structural match.
 struct RewriteEdit {
@@ -21,8 +21,6 @@ pub struct Rewriter<'rewrite, 'candidate> {
     candidate: dir::View<'candidate>,
     /// The authored candidate source.
     source: &'candidate File,
-    /// The checked module and program required by semantic predicates.
-    context: Option<(&'candidate ModuleContext, &'candidate ProgramContext)>,
 }
 
 impl<'rewrite, 'candidate> Rewriter<'rewrite, 'candidate> {
@@ -36,57 +34,17 @@ impl<'rewrite, 'candidate> Rewriter<'rewrite, 'candidate> {
             rewrite,
             candidate,
             source,
-            context: None,
-        }
-    }
-
-    /// Create a rewriter over one checked program module's parsed DIR.
-    pub fn in_module(
-        rewrite: &'rewrite Rewrite,
-        module: ModuleId,
-        program: &'candidate ProgramContext,
-        source: &'candidate File,
-    ) -> Result<Self, ContextError> {
-        let context = program.module(module)?;
-        let candidate = dir::View::new(context.tree());
-
-        Ok(Self::with_module(
-            rewrite, candidate, context, program, source,
-        ))
-    }
-
-    /// Create a rewriter over an explicit DIR view and checked module.
-    pub fn with_module(
-        rewrite: &'rewrite Rewrite,
-        candidate: dir::View<'candidate>,
-        module: &'candidate ModuleContext,
-        program: &'candidate ProgramContext,
-        source: &'candidate File,
-    ) -> Self {
-        Self {
-            rewrite,
-            candidate,
-            source,
-            context: Some((module, program)),
         }
     }
 
     /// Rewrite non-overlapping matches in source order.
     pub fn rewrite(
         &self,
-        candidates: impl IntoIterator<Item = dir::LocalNodeIdAny>,
+        matches: impl IntoIterator<Item = PatternMatch>,
     ) -> Result<FilePatch, DiagnosticCollection> {
-        let matcher = match self.context {
-            Some((module, program)) => {
-                Matcher::with_module(self.rewrite.pattern(), self.candidate, module, program)
-            }
-            None => Matcher::new(self.rewrite.pattern(), self.candidate),
-        };
-        let matches = matcher
-            .find(candidates)
-            .map_err(|error| RewriteError::internal(self.source, error))?;
+        let matches = matches.into_iter();
         let renderer = Renderer::new(self.rewrite.replacement(), self.candidate, self.source);
-        let mut edits = Vec::with_capacity(matches.len());
+        let mut edits = Vec::with_capacity(matches.size_hint().0);
 
         // render every match against its complete source span
         for pattern_match in matches {

@@ -1,22 +1,19 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 
 use super::nodes::PatternNodes;
 use super::relation::RelationIndex;
 use crate::{
-    Bindings, ContextError, Evaluator, FragmentId, MatchError, MetavariableUse, MetavariableUses,
-    ModuleContext, Node, NodeId, Pattern, PatternMatch, ProgramContext,
+    Bindings, FragmentId, MatchError, MetavariableUse, MetavariableUses, Node, NodeId, Pattern,
+    PatternMatch,
 };
 
-/// A pattern evaluator over a candidate DIR view.
+/// A structural matcher over a candidate DIR view.
 #[derive(Debug)]
 pub struct Matcher<'pattern, 'candidate> {
     /// The compiled pattern.
     pub(super) pattern: &'pattern Pattern,
     /// The candidate nodes.
     pub(super) candidate: dir::View<'candidate>,
-    /// The checked module and program required by semantic predicates.
-    context: Option<(&'candidate ModuleContext, &'candidate ProgramContext)>,
     /// The child index required by downward and sibling relations.
     pub(super) relations: Option<RelationIndex>,
 }
@@ -35,34 +32,8 @@ impl<'pattern, 'candidate> Matcher<'pattern, 'candidate> {
         Self {
             pattern,
             candidate,
-            context: None,
             relations,
         }
-    }
-
-    /// Create an evaluator over one checked program module's parsed DIR.
-    pub fn in_module(
-        pattern: &'pattern Pattern,
-        module: ModuleId,
-        program: &'candidate ProgramContext,
-    ) -> Result<Self, ContextError> {
-        let context = program.module(module)?;
-        let candidate = dir::View::new(context.tree());
-
-        Ok(Self::with_module(pattern, candidate, context, program))
-    }
-
-    /// Create an evaluator over an explicit DIR view and checked module.
-    pub fn with_module(
-        pattern: &'pattern Pattern,
-        candidate: dir::View<'candidate>,
-        module: &'candidate ModuleContext,
-        program: &'candidate ProgramContext,
-    ) -> Self {
-        let mut matcher = Self::new(pattern, candidate);
-        matcher.context = Some((module, program));
-
-        matcher
     }
 
     /// Match a candidate node.
@@ -142,15 +113,6 @@ impl<'pattern, 'candidate> Matcher<'pattern, 'candidate> {
             Node::Precedes(relation) => self.match_siblings(*relation, candidate, true, bindings),
             Node::Follows(relation) => self.match_siblings(*relation, candidate, false, bindings),
             Node::NthChild(nth_child) => self.match_nth_child(*nth_child, candidate, bindings),
-            Node::Predicate(predicate) => {
-                let Some((module, program)) = self.context else {
-                    return Err(MatchError::MissingPredicateContext);
-                };
-                let predicate = self.pattern.predicate(*predicate);
-                let evaluator = Evaluator::new(predicate, bindings, candidate, module, program);
-
-                evaluator.evaluate()
-            }
         }
     }
 

@@ -2,11 +2,6 @@ use destack_dir as dir;
 
 use crate::MetavariableId;
 
-/// The index of a predicate in a pattern.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct PredicateId(pub u32);
-
 /// A parsed Destack expression evaluated for a candidate match.
 #[derive(Debug)]
 pub struct Predicate {

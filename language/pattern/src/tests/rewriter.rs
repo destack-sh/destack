@@ -75,9 +75,8 @@ impl TestRewriter {
     pub(crate) fn assert(self, expected: &str) {
         let rewrite = self.compile();
         let rewriter = rewrite.rewriter();
-        let patch = rewriter
-            .rewrite(rewrite.source.tree().iter_node_ids())
-            .expect("rewrite test source");
+        let matches = rewrite.source.matches(rewrite.rewrite.pattern());
+        let patch = rewriter.rewrite(matches).expect("rewrite test source");
         let rewritten =
             apply_file_patch(rewrite.source.file(), &patch).expect("apply test rewrite");
         let actual = format_file_source(
@@ -95,9 +94,8 @@ impl TestRewriter {
     pub(crate) fn assert_diagnostics(self, expected: &str) {
         let rewrite = self.compile();
         let rewriter = rewrite.rewriter();
-        let diagnostics = rewriter
-            .rewrite(rewrite.source.tree().iter_node_ids())
-            .expect_err("rewrite should fail");
+        let matches = rewrite.source.matches(rewrite.rewrite.pattern());
+        let diagnostics = rewriter.rewrite(matches).expect_err("rewrite should fail");
         let source = Arc::new(rewrite.source.file().clone());
         let actual = render_diagnostics(&[source], &diagnostics);
 
@@ -151,12 +149,6 @@ struct TestRewrite {
 impl TestRewrite {
     /// Build the production rewriter for this exercise.
     fn rewriter(&self) -> Rewriter<'_, '_> {
-        match self.source.program() {
-            Some((program, module)) => {
-                Rewriter::in_module(&self.rewrite, module, program, self.source.file())
-                    .expect("build checked test rewriter")
-            }
-            None => Rewriter::new(&self.rewrite, self.source.view(), self.source.file()),
-        }
+        Rewriter::new(&self.rewrite, self.source.view(), self.source.file())
     }
 }
