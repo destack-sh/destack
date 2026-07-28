@@ -4,25 +4,26 @@ use std::slice;
 
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, View};
 use destack_query::{
-    CallItem, CallItemRequest, CodeActionsRequest, CodeLensesRequest, CompletionRequest,
-    DecoratorScope, DecoratorsRequest, ExtractVariableRequest, FindReferencesRequest,
-    FoldingRangesRequest, GotoDeclarationRequest, GotoDefinitionRequest, GotoImplementationRequest,
-    GotoTypeDefinitionRequest, HighlightRequest, HoverRequest, IncomingCallsRequest,
-    InlayHintsRequest, InlineRequest, LinksRequest, Module, OutgoingCallsRequest, OutlineRequest,
-    QueryPosition, QueryRange, QueryRequest, QueryResponse, RenameFilesRequest, RenameRequest,
-    RenameTargetRequest, SearchSymbolsRequest, SelectionRangesRequest, SemanticTokensRangeRequest,
-    SemanticTokensRequest, SignatureHelpRequest, SubtypesRequest, SupertypesRequest, TypeItem,
-    TypeItemRequest,
+    CallItem, CallItemRequest, CodeActionContext, CodeActionsRequest, CodeLensesRequest,
+    CompletionRequest, DecoratorScope, DecoratorsRequest, ExtractVariableRequest,
+    FindReferencesRequest, FoldingRangesRequest, GotoDeclarationRequest, GotoDefinitionRequest,
+    GotoImplementationRequest, GotoTypeDefinitionRequest, HighlightRequest, HoverRequest,
+    IncomingCallsRequest, InlayHintsRequest, InlineRequest, LinksRequest, Module,
+    OutgoingCallsRequest, OutlineRequest, QueryPosition, QueryRange, QueryRequest, QueryResponse,
+    RenameFilesRequest, RenameRequest, RenameTargetRequest, SearchSymbolsRequest,
+    SelectionRangesRequest, SemanticTokensRangeRequest, SemanticTokensRequest,
+    SignatureHelpRequest, SubtypesRequest, SupertypesRequest, TypeItem, TypeItemRequest,
 };
 use destack_repository::{ArtifactReader, Revision};
 use destack_source::{
-    DiffOptions, FileId, PatchSet, ProfileId, Span, apply_file_patch, format_diff,
+    DiagnosticLabel, DiagnosticReference, DiagnosticTarget, DiffOptions, FileId, PatchSet,
+    ProfileId, Span, apply_file_patch, format_diff,
 };
 
 use super::{
-    FixturePosition, FixtureRange, QueryAssertion, QueryCall, QueryDecoratorScope,
-    QueryExpectation, QueryFile, QueryFixture, QueryWorkspace, ResponseUpdate, display_query_path,
-    response_rows,
+    FixtureDiagnostic, FixturePosition, FixtureRange, QueryAssertion, QueryCall,
+    QueryDecoratorScope, QueryExpectation, QueryFile, QueryFixture, QueryWorkspace, ResponseUpdate,
+    display_query_path, response_rows,
 };
 
 /// One exact workspace execution of a query fixture.
@@ -378,10 +379,28 @@ impl<'a> QueryRun<'a> {
             QueryCall::Inline { position } => QueryRequest::Inline(InlineRequest {
                 position: self.position(position)?,
             }),
-            QueryCall::CodeActions { range, context } => {
+            QueryCall::CodeActions {
+                range,
+                only,
+                diagnostics,
+            } => {
+                let diagnostics = diagnostics
+                    .as_ref()
+                    .map(|diagnostics| {
+                        diagnostics
+                            .iter()
+                            .map(|diagnostic| self.diagnostic(diagnostic))
+                            .collect()
+                    })
+                    .transpose()?;
+                let context = CodeActionContext {
+                    only: only.clone(),
+                    diagnostics,
+                };
+
                 QueryRequest::CodeActions(CodeActionsRequest {
                     range: self.range(range)?,
-                    context: context.clone(),
+                    context,
                 })
             }
         };
@@ -438,6 +457,32 @@ impl<'a> QueryRun<'a> {
         Ok(QueryRange {
             module: self.module(&range.file)?,
             span: self.span(range)?,
+        })
+    }
+
+    /// Resolve one exact client diagnostic.
+    fn diagnostic(&self, diagnostic: &FixtureDiagnostic) -> Result<DiagnosticReference, String> {
+        let span = self.span(&diagnostic.range)?;
+        let content = self
+            .workspace
+            .repository()
+            .file_content_id(self.revision, span.file)
+            .map_err(|error| format!("failed to resolve query diagnostic content: {error}"))?
+            .ok_or_else(|| {
+                format!(
+                    "query diagnostic file '{}' has no content",
+                    display_query_path(&diagnostic.range.file)
+                )
+            })?;
+        let target = DiagnosticTarget::Span(span);
+        let primary = match &diagnostic.message {
+            Some(message) => DiagnosticLabel::message(content, target, message),
+            None => DiagnosticLabel::new(content, target),
+        };
+
+        Ok(DiagnosticReference {
+            id: diagnostic.id.clone(),
+            primary,
         })
     }
 

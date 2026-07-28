@@ -297,8 +297,20 @@ fn validate_call(call: &QueryCall, files: &IndexMap<PathBuf, QueryFile>) -> Resu
 
         QueryCall::InlayHints { range, .. }
         | QueryCall::SemanticTokensRange { range }
-        | QueryCall::ExtractVariable { range, .. }
-        | QueryCall::CodeActions { range, .. } => require_range(range, files),
+        | QueryCall::ExtractVariable { range, .. } => require_range(range, files),
+
+        QueryCall::CodeActions {
+            range, diagnostics, ..
+        } => {
+            require_range(range, files)?;
+            if let Some(diagnostics) = diagnostics {
+                for diagnostic in diagnostics {
+                    require_range(&diagnostic.range, files)?;
+                }
+            }
+
+            Ok(())
+        }
 
         QueryCall::IncomingCalls { item: position }
         | QueryCall::OutgoingCalls { item: position }

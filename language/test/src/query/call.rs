@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
-use destack_query::{
-    CodeActionContext, CodeActionKind, CompletionTrigger, FileRename, QueryMethodId,
-};
+use destack_query::{CodeActionKind, CompletionTrigger, FileRename, QueryMethodId};
 
 use super::{FixturePosition, FixtureRange};
 
@@ -181,8 +179,10 @@ pub(super) enum QueryCall {
     CodeActions {
         /// The queried source range.
         range: FixtureRange,
-        /// The requested code action context.
-        context: CodeActionContext,
+        /// The requested code action kinds.
+        only: Vec<CodeActionKind>,
+        /// Exact client diagnostics, or every matching diagnostic when absent.
+        diagnostics: Option<Vec<FixtureDiagnostic>>,
     },
 }
 
@@ -193,6 +193,17 @@ pub(super) enum QueryDecoratorScope {
     Module(PathBuf),
     /// Every program profile.
     Program,
+}
+
+/// One exact diagnostic supplied by a query fixture.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct FixtureDiagnostic {
+    /// The canonical diagnostic id.
+    pub(super) id: String,
+    /// The primary diagnostic range.
+    pub(super) range: FixtureRange,
+    /// The optional primary label message.
+    pub(super) message: Option<String>,
 }
 
 impl QueryCall {
@@ -318,7 +329,8 @@ impl QueryCall {
             },
             QueryMethodId::CodeActions => Self::CodeActions {
                 range: parser.range()?,
-                context: parser.code_action_context()?,
+                only: parser.code_action_kinds()?,
+                diagnostics: parse_code_action_diagnostics(body)?,
             },
         };
         parser.finish()?;
@@ -487,8 +499,8 @@ impl QueryCallParser {
         }
     }
 
-    /// Parse one code action context.
-    fn code_action_context(&mut self) -> Result<CodeActionContext, String> {
+    /// Parse requested code action kinds.
+    fn code_action_kinds(&mut self) -> Result<Vec<CodeActionKind>, String> {
         let only = self.optional_value("only")?;
         let only = only
             .map(|value| {
@@ -499,10 +511,8 @@ impl QueryCallParser {
             })
             .transpose()?
             .unwrap_or_default();
-        Ok(CodeActionContext {
-            only,
-            diagnostics: None,
-        })
+
+        Ok(only)
     }
 
     /// Require every header word to be consumed.
@@ -523,6 +533,60 @@ fn parse_code_action_kind(value: &str) -> Result<CodeActionKind, String> {
         "refactor_inline" => Ok(CodeActionKind::RefactorInline),
         _ => Err(format!("unknown code action kind '{value}'")),
     }
+}
+
+/// Parse exact diagnostics supplied with one code action request.
+fn parse_code_action_diagnostics(source: &str) -> Result<Option<Vec<FixtureDiagnostic>>, String> {
+    let lines = source
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>();
+    if lines.is_empty() {
+        return Ok(None);
+    }
+    if lines.as_slice() == ["diagnostics none"] {
+        return Ok(Some(Vec::new()));
+    }
+    let mut diagnostics = Vec::new();
+
+    // parse every explicit client diagnostic
+    for line in lines {
+        let words = parse_words(line)?;
+        if words.first().map(String::as_str) != Some("diagnostic") {
+            return Err(format!(
+                "code action request row '{line}' must start with 'diagnostic'"
+            ));
+        }
+        let Some(id) = words.get(1) else {
+            return Err(format!("code action diagnostic '{line}' has no id"));
+        };
+        let Some(range) = words.get(2) else {
+            return Err(format!("code action diagnostic '{line}' has no range"));
+        };
+        let message = match words.get(3) {
+            Some(value) => Some(
+                value
+                    .strip_prefix("message=")
+                    .ok_or_else(|| {
+                        format!("code action diagnostic option '{value}' must be 'message=<text>'")
+                    })?
+                    .to_string(),
+            ),
+            None => None,
+        };
+        if words.len() > 4 {
+            return Err(format!(
+                "code action diagnostic '{line}' has unexpected arguments"
+            ));
+        }
+        diagnostics.push(FixtureDiagnostic {
+            id: id.clone(),
+            range: FixtureRange::parse(range)?,
+            message,
+        });
+    }
+
+    Ok(Some(diagnostics))
 }
 
 /// Parse exact file rename lines.
