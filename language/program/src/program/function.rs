@@ -132,6 +132,11 @@ impl FunctionTable {
         Some(bindings[index].binding)
     }
 
+    /// Return all functions backed by runtime bindings.
+    pub fn bindings<'a>(&self, sections: SectionImage<'a>) -> &'a [FunctionBinding] {
+        sections.entries(self.bindings)
+    }
+
     /// Check that one function matches one call signature.
     pub fn check_signature<I>(
         &self,

@@ -16,12 +16,13 @@ use crate::{
     AllocationSiteId, BindingId, CallSite, CallSiteId, Continuation, ContinuationSite,
     ContinuationSiteId, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable,
     DynamicTableId, Error, FrameLayout, FrameLayoutId, FramePoint, FrameSlot, FrameState,
-    FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
-    GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable,
-    ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
-    SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, SuspensionSite,
-    SuspensionSiteId, TensorDimension, TensorLayout, TensorViewLayout, TypeId, TypeTable, Value,
-    VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout, native, wasm,
+    FrameStateId, FrameTable, Function, FunctionBinding, FunctionId, FunctionTable, Global,
+    GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
+    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite,
+    SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage,
+    StaticSpace, StringTable, SuspensionSite, SuspensionSiteId, TensorDimension, TensorLayout,
+    TensorViewLayout, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable,
+    VirtualTableId, Word, WordLayout, native, wasm,
 };
 
 /// Linked program.
@@ -103,6 +104,13 @@ impl Program {
         self.target_layout().pointer_bytes()
     }
 
+    /// Return the execution word count for one runtime type.
+    pub fn type_word_count(&self, ty: TypeId) -> Option<usize> {
+        let byte_len = self.type_byte_len(ty)?;
+
+        Some(byte_len.div_ceil(Word::BYTE_LEN))
+    }
+
     /// Return the program function table.
     pub fn functions(&self) -> &FunctionTable {
         &self.functions
@@ -123,6 +131,11 @@ impl Program {
         self.functions.binding(self.sections(), function)
     }
 
+    /// Return all functions backed by runtime bindings.
+    pub fn function_bindings(&self) -> &[FunctionBinding] {
+        self.functions.bindings(self.sections())
+    }
+
     /// Return parameter types for one program function.
     pub fn function_parameters(&self, function: FunctionId) -> Option<&[TypeId]> {
         let sections = self.sections();
@@ -139,6 +152,13 @@ impl Program {
         let signature = self.functions.signature(sections, function.signature)?;
 
         Some(signature.result)
+    }
+
+    /// Return the result word count for one program function.
+    pub fn function_result_word_count(&self, function: FunctionId) -> Option<usize> {
+        let result = self.function_result(function)?;
+
+        self.type_word_count(result)
     }
 
     /// Return one callable signature entry.

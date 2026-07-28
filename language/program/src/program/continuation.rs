@@ -141,6 +141,16 @@ impl ContinuationTable {
         Some(continuation)
     }
 
+    /// Iterate over every live continuation and its exact runtime identity.
+    pub fn iter(&self) -> impl Iterator<Item = (ContinuationId, &Continuation)> {
+        self.slots.iter().enumerate().filter_map(|(index, slot)| {
+            let continuation = slot.continuation.as_ref()?;
+            let id = ContinuationId::new(index as u32, slot.generation);
+
+            Some((id, continuation))
+        })
+    }
+
     /// Visit mutable heap roots retained by every live continuation.
     pub fn visit_root_slots(
         &mut self,
