@@ -45,11 +45,13 @@ fn test_roundtrip_shared_heap_storage_image() {
             true,
         )
         .expect("shared heap block should succeed");
-    let image = heap.image().expect("shared heap image should capture");
-    let restored_memory = test_memory(options.page_size_bytes);
+    let memory_image = memory.capture().expect("memory image should capture");
+    let image = heap.image();
+    let image_memory = Arc::new(memory_image.restore().expect("image memory should restore"));
+    let restored_memory = Arc::new(memory_image.restore().expect("memory should restore"));
     let restored = HeapStorage::from_image(restored_memory.clone(), &image)
         .expect("shared heap image restore should succeed");
-    let restored_image = restored.image().expect("shared heap image should capture");
+    let restored_image = restored.image();
 
     // restored metadata should match the captured image
     assert_eq!(
@@ -65,7 +67,9 @@ fn test_roundtrip_shared_heap_storage_image() {
 
     assert_eq!(bytes, first_bytes);
     assert_eq!(
-        restored_image.spans()[0].bytes[..first_bytes.len()],
+        restored_memory
+            .read_bytes(restored_image.spans()[0].first_offset, first_bytes.len())
+            .expect("restored span bytes should read"),
         first_bytes
     );
 
@@ -76,7 +80,7 @@ fn test_roundtrip_shared_heap_storage_image() {
 
     write_mapped_bytes(first_address, &[0xFE]);
 
-    let mutated_image = restored.image().expect("shared heap image should capture");
+    let mutated_image = restored.image();
     let mut expected_first = first_bytes.clone();
     expected_first[0] = 0xFE;
 
@@ -84,8 +88,15 @@ fn test_roundtrip_shared_heap_storage_image() {
 
     assert_eq!(bytes, expected_first);
     assert_eq!(
-        mutated_image.spans()[0].bytes[..expected_first.len()],
+        restored_memory
+            .read_bytes(mutated_image.spans()[0].first_offset, expected_first.len())
+            .expect("mutated span bytes should read"),
         expected_first
     );
-    assert_eq!(image.spans()[0].bytes[..first_bytes.len()], first_bytes);
+    assert_eq!(
+        image_memory
+            .read_bytes(image.spans()[0].first_offset, first_bytes.len())
+            .expect("captured span bytes should read"),
+        first_bytes
+    );
 }

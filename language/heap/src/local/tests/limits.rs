@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_mir::TraceMap;
 
 use crate::{
@@ -5,7 +7,7 @@ use crate::{
     test_layout,
 };
 
-use super::{TestHeapPlan, test_heap, test_heap_with_limits, test_memory, trace_view};
+use super::{TestHeapPlan, test_heap, test_heap_with_limits, trace_view};
 
 const SMALL_ALLOCATION_COUNT: usize = 1024;
 const SMALL_ALLOCATION_BYTES: usize = 32;
@@ -131,15 +133,17 @@ fn test_restore_heap_image_preserves_limits() {
     };
     heap.set_limits(limits)
         .expect("custom heap limits should fit current usage");
+    let memory_image = heap
+        .storage
+        .memory
+        .capture()
+        .expect("memory image should capture");
     let image = heap.image().expect("heap image should capture");
+    let memory = Arc::new(memory_image.restore().expect("memory should restore"));
 
     // restoring one captured image should keep the existing hard limits
-    heap.restore_image(
-        &image,
-        test_memory(image.options().page_size_bytes),
-        trace_view(),
-    )
-    .expect("heap image restore should succeed");
+    heap.restore_image(&image, memory, trace_view())
+        .expect("heap image restore should succeed");
 
     assert_eq!(heap.limits(), limits);
 }

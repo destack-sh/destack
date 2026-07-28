@@ -105,15 +105,6 @@ fn test_collect_minor_promotes_reachable_entries() {
     let bytes = read_mapped_bytes(address, 3);
 
     assert_eq!(bytes, &[1, 2, 3]);
-
-    // keep the reserved nursery pages represented in heap images
-    let image = heap.image().expect("heap image should capture");
-    let young = image.young();
-
-    assert_eq!(
-        young.bytes().len().div_ceil(young.page_size_bytes()),
-        young.capacity_bytes().div_ceil(young.page_size_bytes())
-    );
 }
 
 /// Promote reachable fixed-size young span slots.

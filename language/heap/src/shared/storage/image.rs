@@ -1,8 +1,8 @@
-use destack_serde::Reflect;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_memory::{MemoryMap, MemoryRange};
+use destack_serde::Reflect;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +14,7 @@ use crate::shared::gc::CollectorState;
 use crate::shared::storage::{HeapAccounting, HeapState, LargeStorage, SmallStorage};
 use crate::{GcState, HeapResult, PageTable, SizeClassTable};
 
-/// One frozen shared heap storage image.
+/// One frozen shared heap storage metadata image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) struct HeapStorageImage {
     /// The configured size-class table.
@@ -98,49 +98,34 @@ impl HeapStorageImage {
         self.next_unused_large_block_id
     }
 
+    /// Return the allocated shared heap bytes.
+    pub(crate) const fn allocated_bytes(&self) -> u64 {
+        self.allocated_bytes
+    }
+
     /// Return the captured shared heap collector state.
     pub(crate) fn gc_state(&self) -> &GcState {
         &self.gc_state
     }
 
-    /// Return the retained frozen page count.
+    /// Return the retained shared heap page count represented by this image.
     pub(crate) fn page_count(&self) -> usize {
         let mut page_count = 0;
 
         // count retained small-span bytes
         for span in self.spans() {
-            page_count += span.bytes.len().div_ceil(self.page_size_bytes());
+            page_count += span
+                .class
+                .span_size_bytes()
+                .div_ceil(self.page_size_bytes());
         }
 
         // count retained large-block bytes
         for block in self.blocks().iter().flatten() {
-            page_count += block.bytes.len().div_ceil(self.page_size_bytes());
+            page_count += block.byte_len.div_ceil(self.page_size_bytes());
         }
 
         page_count
-    }
-
-    /// Restore captured shared heap bytes into one claimed memory map.
-    fn restore_memory(&self, memory: &MemoryMap) -> HeapResult<()> {
-        // restore each captured small span range
-        for span in self.spans() {
-            if span.bytes.is_empty() {
-                continue;
-            }
-
-            memory.write_bytes(span.first_offset, &span.bytes)?;
-        }
-
-        // restore each captured large block range
-        for block in self.blocks().iter().flatten() {
-            if block.byte_len == 0 {
-                continue;
-            }
-
-            memory.write_bytes(block.first_offset, &block.bytes)?;
-        }
-
-        Ok(())
     }
 }
 
@@ -156,7 +141,7 @@ impl HeapStorage {
             .small
             .spans
             .iter()
-            .map(|span| -> HeapResult<Arc<SmallSpan>> {
+            .map(|span| {
                 let pages = span.pages();
                 let occupied = span.occupied_snapshot();
                 let local_reference_bits = span.local_reference_snapshot();
@@ -172,24 +157,24 @@ impl HeapStorage {
                     span.list.load(),
                 );
 
-                Ok(Arc::new(span))
+                Arc::new(span)
             })
-            .collect::<HeapResult<Vec<_>>>()?;
+            .collect();
 
         // clone large block metadata for independent branch mutation
         let blocks = store
             .large
             .blocks
             .iter()
-            .map(|block| -> HeapResult<Option<Arc<RwLock<LargeBlock>>>> {
+            .map(|block| {
                 let Some(block) = block else {
-                    return Ok(None);
+                    return None;
                 };
                 let block = block.read().clone();
 
-                Ok(Some(Arc::new(RwLock::new(block))))
+                Some(Arc::new(RwLock::new(block)))
             })
-            .collect::<HeapResult<Vec<_>>>()?;
+            .collect();
 
         let cloned_store = HeapState {
             small: SmallStorage {
@@ -220,10 +205,9 @@ impl HeapStorage {
         Ok(space)
     }
 
-    /// Create one shared heap storage from one frozen image over one shared memory.
+    /// Restore shared heap storage metadata over captured world memory.
     pub(crate) fn from_image(memory: Arc<MemoryMap>, image: &HeapStorageImage) -> HeapResult<Self> {
-        let mut store = Self::restore_state(image, &memory)?;
-        image.restore_memory(&memory)?;
+        let mut store = Self::restore_state(image);
 
         Self::rebuild_page_table(&mut store, image.page_size_bytes());
 
@@ -240,17 +224,14 @@ impl HeapStorage {
         Ok(space)
     }
 
-    /// Return one frozen shared heap storage image.
-    pub(crate) fn image(&self) -> HeapResult<HeapStorageImage> {
+    /// Capture one frozen shared heap storage metadata image.
+    pub(crate) fn image(&self) -> HeapStorageImage {
         let store = self.state.read();
         let mut spans = Vec::with_capacity(store.small.spans.len());
         let mut blocks = Vec::with_capacity(store.large.blocks.len());
 
-        // capture small spans from the live memory
+        // capture small span metadata
         for span in &store.small.spans {
-            let byte_len = span.mapped_byte_len();
-            let bytes = self.memory.read_bytes(span.first_offset, byte_len)?;
-
             spans.push(SmallSpanImage {
                 first_offset: span.first_offset,
                 class: span.class,
@@ -258,11 +239,10 @@ impl HeapStorage {
                 occupied: span.occupied_snapshot(),
                 local_reference_bits: span.local_reference_snapshot(),
                 shared_reference_bits: span.shared_reference_snapshot(),
-                bytes: bytes.into_boxed_slice(),
             });
         }
 
-        // capture large blocks from the live memory
+        // capture large block metadata
         for block in &store.large.blocks {
             let Some(block) = block else {
                 blocks.push(None);
@@ -270,15 +250,9 @@ impl HeapStorage {
                 continue;
             };
             let block = block.read();
-            let bytes = self
-                .memory
-                .read_bytes(block.first_offset, block.byte_len)?
-                .into_boxed_slice();
-
             blocks.push(Some(LargeBlockImage {
                 first_offset: block.first_offset,
                 byte_len: block.byte_len,
-                bytes,
                 trace_map: (*block.trace_map).clone(),
                 drop: block.drop,
             }));
@@ -287,7 +261,7 @@ impl HeapStorage {
         let allocation_count = self.accounting.allocation_count();
         let allocated_bytes = self.accounting.allocated_bytes();
 
-        Ok(HeapStorageImage::new(
+        HeapStorageImage::new(
             store.small.size_classes.clone(),
             store.small.span_size_bytes,
             spans.into_boxed_slice(),
@@ -298,26 +272,24 @@ impl HeapStorage {
             allocation_count,
             allocated_bytes,
             store.gc.clone(),
-        ))
+        )
     }
 
-    /// Restore one shared heap state into fresh page spans.
-    fn restore_state(image: &HeapStorageImage, memory: &MemoryMap) -> HeapResult<HeapState> {
-        Ok(HeapState {
+    /// Restore shared heap metadata over captured world memory.
+    fn restore_state(image: &HeapStorageImage) -> HeapState {
+        HeapState {
             small: SmallStorage {
                 size_classes: image.size_classes().clone(),
                 span_size_bytes: image.small_bytes(),
                 spans: image
                     .spans()
                     .iter()
-                    .map(|span| -> HeapResult<Arc<SmallSpan>> {
+                    .map(|span| {
                         let pages = MemoryRange {
                             offset: span.first_offset,
-                            byte_len: span.bytes.len(),
+                            byte_len: span.class.span_size_bytes(),
                         };
-                        memory.claim(pages)?;
-
-                        Ok(Arc::new(SmallSpan::from_image(
+                        Arc::new(SmallSpan::from_image(
                             span.first_offset,
                             span.class,
                             span.slot_count,
@@ -326,41 +298,39 @@ impl HeapStorage {
                             &span.shared_reference_bits,
                             pages,
                             SpanList::Central,
-                        )))
+                        ))
                     })
-                    .collect::<HeapResult<Vec<_>>>()?,
+                    .collect(),
                 partial_spans: BTreeMap::new(),
             },
             large: LargeStorage {
                 blocks: image
                     .blocks()
                     .iter()
-                    .map(|block| -> HeapResult<Option<Arc<RwLock<LargeBlock>>>> {
+                    .map(|block| {
                         let Some(block) = block else {
-                            return Ok(None);
+                            return None;
                         };
                         let pages = MemoryRange {
                             offset: block.first_offset,
-                            byte_len: block.bytes.len().next_multiple_of(image.page_size_bytes()),
+                            byte_len: block.byte_len.next_multiple_of(image.page_size_bytes()),
                         };
-                        memory.claim(pages)?;
-
-                        Ok(Some(Arc::new(RwLock::new(LargeBlock {
+                        Some(Arc::new(RwLock::new(LargeBlock {
                             first_offset: block.first_offset,
                             byte_len: block.byte_len,
                             pages,
                             trace_map: Arc::new(block.trace_map.clone()),
                             drop: block.drop,
                             mark_epoch: 0,
-                        }))))
+                        })))
                     })
-                    .collect::<HeapResult<Vec<_>>>()?,
+                    .collect(),
                 free_large_block_ids: image.free_large_block_ids.to_vec(),
                 next_unused_large_block_id: image.next_unused_large_block_id(),
             },
             page_table: PageTable::new(),
             gc: image.gc_state().clone(),
-        })
+        }
     }
 
     /// Rebuild shared small-span availability after cloning or restore.

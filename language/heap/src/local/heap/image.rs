@@ -1,43 +1,31 @@
-use destack_serde::Reflect;
 use std::sync::Arc;
 
-use crate::TraceView;
+use destack_memory::MemoryMap;
 use serde::{Deserialize, Serialize};
 
 use super::Heap;
 use crate::local::storage::{GcState, HeapStorage, HeapStorageImage};
-use crate::{HeapError, HeapLimits, HeapOptions};
-use destack_memory::MemoryMap;
+use crate::{HeapError, HeapLimits, HeapOptions, TraceView};
 
-/// One frozen heap image over one shared memory.
-#[derive(Debug, Clone)]
+/// One frozen local heap metadata image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HeapImage {
     /// The retained heap image state.
     state: Arc<ImageState>,
 }
 
-/// One retained heap image state.
-#[derive(Debug)]
+/// One retained local heap metadata state.
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct ImageState {
     /// The heap options used by this image.
     options: HeapOptions,
 
-    /// The captured heap storage image.
-    storage: HeapStorageImage,
-}
-
-/// One serialized heap snapshot payload.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub struct HeapSnapshot {
-    /// The heap options used by this image.
-    options: HeapOptions,
-
-    /// The serialized heap storage image.
+    /// The captured heap storage metadata.
     storage: HeapStorageImage,
 }
 
 impl HeapImage {
-    /// Create one frozen heap image.
+    /// Create one frozen local heap metadata image.
     pub(crate) fn new(options: HeapOptions, storage: HeapStorageImage) -> Self {
         let state = ImageState { options, storage };
 
@@ -46,33 +34,12 @@ impl HeapImage {
         }
     }
 
-    /// Build one heap image from one serialized payload and memory.
-    pub fn from_snapshot(snapshot: &HeapSnapshot) -> Self {
-        let storage = snapshot.storage.clone();
-        let state = ImageState {
-            options: snapshot.options.clone(),
-            storage,
-        };
-
-        Self {
-            state: Arc::new(state),
-        }
-    }
-
-    /// Flatten one heap image into one serialized snapshot.
-    pub fn snapshot(&self) -> HeapSnapshot {
-        HeapSnapshot {
-            options: self.options().clone(),
-            storage: self.storage().clone(),
-        }
-    }
-
     /// Return the heap options for this image.
     pub fn options(&self) -> &HeapOptions {
         &self.state.options
     }
 
-    /// Return the heap storage image.
+    /// Return the local heap storage metadata.
     pub(crate) fn storage(&self) -> &HeapStorageImage {
         &self.state.storage
     }
@@ -82,26 +49,14 @@ impl HeapImage {
         self.storage().gc_state()
     }
 
-    /// Return the total local allocated bytes captured by this image.
-    pub fn local_allocated_bytes(&self) -> u64 {
-        self.storage().allocated_bytes()
-    }
-}
-
-impl HeapSnapshot {
-    /// Return the captured collector state.
-    pub fn gc_state(&self) -> &GcState {
-        self.storage.gc_state()
-    }
-
-    /// Return the total page count reachable from this heap snapshot.
+    /// Return the retained local heap page count.
     pub fn page_count(&self) -> usize {
-        self.storage.page_count()
+        self.storage().page_count()
     }
 
-    /// Return the total allocated bytes captured by this snapshot.
+    /// Return the allocated local heap bytes.
     pub fn allocated_bytes(&self) -> u64 {
-        self.storage.allocated_bytes()
+        self.storage().allocated_bytes()
     }
 }
 
@@ -125,19 +80,7 @@ impl Heap {
         })
     }
 
-    /// Create one heap from one serialized heap snapshot, memory, and explicit hard limits.
-    pub fn from_snapshot(
-        snapshot: &HeapSnapshot,
-        memory: Arc<MemoryMap>,
-        limits: HeapLimits,
-        trace_view: TraceView<'_>,
-    ) -> Result<Self, HeapError> {
-        let image = HeapImage::from_snapshot(snapshot);
-
-        Self::from_image(&image, memory, limits, trace_view)
-    }
-
-    /// Create one heap from one frozen heap image and explicit hard limits.
+    /// Restore one heap image over its captured world memory and explicit hard limits.
     pub fn from_image(
         image: &HeapImage,
         memory: Arc<MemoryMap>,
@@ -161,14 +104,14 @@ impl Heap {
         Ok(heap)
     }
 
-    /// Capture one frozen heap image.
+    /// Capture one frozen local heap metadata image.
     pub fn image(&mut self) -> Result<HeapImage, HeapError> {
         let storage = self.storage.image()?;
 
         Ok(HeapImage::new(self.options().clone(), storage))
     }
 
-    /// Restore this heap from one frozen heap image.
+    /// Restore this heap image over its captured world memory.
     pub fn restore_image(
         &mut self,
         image: &HeapImage,

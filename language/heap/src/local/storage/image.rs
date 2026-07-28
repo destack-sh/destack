@@ -1,9 +1,8 @@
-use destack_memory::{MemoryMap, MemoryRange};
-use destack_serde::Reflect;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::TraceView;
+use destack_memory::{MemoryMap, MemoryRange};
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -12,11 +11,11 @@ use super::{
 };
 use crate::{
     AllocationClass, AllocationUsage, Bitmap, HeapAllocationError, HeapCaptureBlocker,
-    HeapConfigurationError, HeapError, HeapResult, PageTable, SizeClassTable,
+    HeapConfigurationError, HeapError, HeapResult, PageTable, SizeClassTable, TraceView,
 };
 
-/// One frozen heap storage image.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+/// One frozen local heap storage metadata image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) struct HeapStorageImage {
     /// The captured branchable young space image.
     young: YoungImage,
@@ -134,20 +133,20 @@ impl HeapStorageImage {
         self.allocated_bytes
     }
 
-    /// Return the number of pages needed to restore this image.
+    /// Return the retained heap page count represented by this image.
     pub(crate) fn page_count(&self) -> usize {
         let page_size_bytes = self.page_size_bytes();
-        let young_pages = self.young().bytes().len().div_ceil(page_size_bytes);
+        let young_pages = self.young().capacity_bytes().div_ceil(page_size_bytes);
         let span_pages = self
             .spans()
             .iter()
-            .map(|span| span.bytes.len().div_ceil(page_size_bytes))
+            .map(|span| span.class.span_size_bytes().div_ceil(page_size_bytes))
             .sum::<usize>();
         let block_pages = self
             .blocks()
             .iter()
             .flatten()
-            .map(|block| block.bytes.len().div_ceil(page_size_bytes))
+            .map(|block| block.byte_len.div_ceil(page_size_bytes))
             .sum::<usize>();
 
         young_pages + span_pages + block_pages
@@ -161,34 +160,6 @@ impl HeapStorageImage {
     /// Return the retained memory bytes represented by this image.
     fn retained_bytes(&self) -> u64 {
         self.page_count() as u64 * self.page_size_bytes() as u64
-    }
-
-    /// Restore captured heap bytes into one claimed memory map.
-    fn restore_memory(&self, memory: &MemoryMap) -> HeapResult<()> {
-        // restore the young mapped range first
-        if !self.young().bytes().is_empty() {
-            memory.write_bytes(self.young().memory_offset(), self.young().bytes())?;
-        }
-
-        // restore each captured small span range
-        for span in self.spans() {
-            if span.bytes.is_empty() {
-                continue;
-            }
-
-            memory.write_bytes(span.first_offset, &span.bytes)?;
-        }
-
-        // restore each captured large block range
-        for block in self.blocks().iter().flatten() {
-            if block.byte_len == 0 {
-                continue;
-            }
-
-            memory.write_bytes(block.first_offset, &block.bytes)?;
-        }
-
-        Ok(())
     }
 
     /// Return the live young allocation usage represented by this image.
@@ -284,9 +255,9 @@ impl HeapStorage {
         self.flush_young_cursor();
 
         // capture the live heap blocks directly
-        let young = self.capture_young_image()?;
-        let spans = self.capture_span_images()?;
-        let blocks = self.capture_large_block_images()?;
+        let young = self.capture_young_image();
+        let spans = self.capture_span_images();
+        let blocks = self.capture_large_block_images();
 
         // freeze the current heap image
         Ok(HeapStorageImage::new(
@@ -318,16 +289,11 @@ impl HeapStorage {
     }
 
     /// Restore the heap young space from one frozen image.
-    fn restore_young_space(memory: &MemoryMap, image: &HeapStorageImage) -> HeapResult<YoungSpace> {
+    fn restore_young_space(image: &HeapStorageImage) -> HeapResult<YoungSpace> {
         let pages = MemoryRange {
             offset: image.young().memory_offset(),
-            byte_len: image
-                .young()
-                .bytes()
-                .len()
-                .next_multiple_of(image.young().page_size_bytes()),
+            byte_len: image.young().capacity_bytes(),
         };
-        memory.claim(pages)?;
         let ranges = image.young().ranges().to_vec();
         let live = image.young().live().clone();
         let spans = image.young().spans().to_vec();
@@ -443,7 +409,7 @@ impl HeapStorage {
     /// Fork one heap storage over operating-system copy-on-write memory.
     fn fork_state(space: &mut Self, memory: Arc<MemoryMap>) -> Result<Self, HeapError> {
         let small = Self::fork_small_storage(space)?;
-        let large = Self::fork_large_storage(space)?;
+        let large = Self::fork_large_storage(space);
         let young = Self::fork_young_space(space)?;
         Ok(Self {
             memory,
@@ -460,12 +426,11 @@ impl HeapStorage {
         })
     }
 
-    /// Restore one heap storage into fresh page spans.
+    /// Restore heap storage metadata over captured world memory.
     fn restore_state(memory: Arc<MemoryMap>, image: &HeapStorageImage) -> Result<Self, HeapError> {
-        let young = Self::restore_young_space(memory.as_ref(), image)?;
-        let small = Self::restore_small_storage(memory.as_ref(), image)?;
-        let large = Self::restore_large_storage(memory.as_ref(), image)?;
-        image.restore_memory(&memory)?;
+        let young = Self::restore_young_space(image)?;
+        let small = Self::restore_small_storage(image)?;
+        let large = Self::restore_large_storage(image);
         let retained_bytes = image.retained_bytes();
         let max_young_allocation_bytes = if image.young().capacity_bytes() == 0 {
             0
@@ -489,16 +454,9 @@ impl HeapStorage {
     }
 
     /// Restore the heap small space from one frozen image.
-    fn restore_small_storage(
-        memory: &MemoryMap,
-        image: &HeapStorageImage,
-    ) -> Result<super::SmallStorage, HeapError> {
+    fn restore_small_storage(image: &HeapStorageImage) -> Result<super::SmallStorage, HeapError> {
         // restore the captured span images first
-        let spans = image
-            .spans()
-            .iter()
-            .map(|span| Self::restore_span(memory, span))
-            .collect::<HeapResult<Vec<_>>>()?;
+        let spans = image.spans().iter().map(Self::restore_span).collect();
 
         let mut small = super::SmallStorage {
             size_classes: image.size_classes().clone(),
@@ -516,12 +474,7 @@ impl HeapStorage {
     /// Fork the heap small space from one live space.
     fn fork_small_storage(space: &Self) -> Result<super::SmallStorage, HeapError> {
         // copy spans from the live memory
-        let spans = space
-            .small
-            .spans
-            .iter()
-            .map(Self::fork_span)
-            .collect::<HeapResult<Vec<_>>>()?;
+        let spans = space.small.spans.iter().map(Self::fork_span).collect();
 
         let mut small = super::SmallStorage {
             size_classes: space.small.size_classes.clone(),
@@ -570,16 +523,14 @@ impl HeapStorage {
     }
 
     /// Restore one heap span from one frozen span image.
-    fn restore_span(memory: &MemoryMap, span: &SmallSpanImage) -> HeapResult<SmallSpan> {
-        // rebuild the live span around fresh pages
+    fn restore_span(span: &SmallSpanImage) -> SmallSpan {
+        // rebuild the live span around its captured page range
         let dirty_card_bytes = span.slot_count * span.class.size_class();
         let pages = MemoryRange {
             offset: span.first_offset,
-            byte_len: span.bytes.len(),
+            byte_len: span.class.span_size_bytes(),
         };
-        memory.claim(pages)?;
-
-        Ok(SmallSpan {
+        SmallSpan {
             first_offset: span.first_offset,
             class: span.class,
             slot_count: span.slot_count,
@@ -593,14 +544,14 @@ impl HeapStorage {
             pages,
             dirty_cards: CardSet::with_len(dirty_card_bytes),
             is_dirty_queued: false,
-        })
+        }
     }
 
     /// Fork one heap span into shared metadata pages.
-    fn fork_span(span: &SmallSpan) -> HeapResult<SmallSpan> {
+    fn fork_span(span: &SmallSpan) -> SmallSpan {
         let pages = span.pages;
 
-        Ok(SmallSpan {
+        SmallSpan {
             first_offset: span.first_offset,
             class: span.class,
             slot_count: span.slot_count,
@@ -614,61 +565,55 @@ impl HeapStorage {
             pages,
             dirty_cards: span.dirty_cards.clone(),
             is_dirty_queued: span.is_dirty_queued,
-        })
+        }
     }
 
     /// Restore the heap large space from one frozen image.
-    fn restore_large_storage(
-        memory: &MemoryMap,
-        image: &HeapStorageImage,
-    ) -> Result<super::LargeStorage, HeapError> {
+    fn restore_large_storage(image: &HeapStorageImage) -> super::LargeStorage {
         // rebuild the captured block images first
         let blocks = image
             .blocks()
             .iter()
-            .map(|block| Self::restore_large_block(memory, image.page_size_bytes(), block))
-            .collect::<HeapResult<Vec<_>>>()?;
+            .map(|block| Self::restore_large_block(image.page_size_bytes(), block))
+            .collect();
 
-        Ok(super::LargeStorage {
+        super::LargeStorage {
             blocks,
             free_large_block_ids: image.free_large_block_ids.to_vec(),
             next_unused_large_block_id: image.next_unused_large_block_id(),
-        })
+        }
     }
 
     /// Fork the heap large space from one live space.
-    fn fork_large_storage(space: &Self) -> Result<super::LargeStorage, HeapError> {
+    fn fork_large_storage(space: &Self) -> super::LargeStorage {
         // copy blocks from the live memory
         let blocks = space
             .large
             .blocks
             .iter()
             .map(Self::fork_large_block)
-            .collect::<HeapResult<Vec<_>>>()?;
+            .collect();
 
-        Ok(super::LargeStorage {
+        super::LargeStorage {
             blocks,
             free_large_block_ids: space.large.free_large_block_ids.clone(),
             next_unused_large_block_id: space.large.next_unused_large_block_id,
-        })
+        }
     }
 
     /// Restore one heap block from one frozen block image.
     fn restore_large_block(
-        memory: &MemoryMap,
         page_size_bytes: usize,
         block: &Option<LargeBlockImage>,
-    ) -> HeapResult<Option<LargeBlock>> {
+    ) -> Option<LargeBlock> {
         let Some(block) = block else {
-            return Ok(None);
+            return None;
         };
         let pages = MemoryRange {
             offset: block.first_offset,
-            byte_len: block.bytes.len().next_multiple_of(page_size_bytes),
+            byte_len: block.byte_len.next_multiple_of(page_size_bytes),
         };
-        memory.claim(pages)?;
-
-        Ok(Some(LargeBlock {
+        Some(LargeBlock {
             first_offset: block.first_offset,
             byte_len: block.byte_len,
             pages,
@@ -677,16 +622,16 @@ impl HeapStorage {
             mark_epoch: 0,
             dirty_cards: CardSet::with_len(block.byte_len),
             is_dirty_queued: false,
-        }))
+        })
     }
 
     /// Fork one heap large block into shared metadata pages.
-    fn fork_large_block(block: &Option<LargeBlock>) -> HeapResult<Option<LargeBlock>> {
+    fn fork_large_block(block: &Option<LargeBlock>) -> Option<LargeBlock> {
         let Some(block) = block else {
-            return Ok(None);
+            return None;
         };
 
-        Ok(Some(LargeBlock {
+        Some(LargeBlock {
             first_offset: block.first_offset,
             byte_len: block.byte_len,
             pages: block.pages,
@@ -695,90 +640,68 @@ impl HeapStorage {
             mark_epoch: block.mark_epoch,
             dirty_cards: block.dirty_cards.clone(),
             is_dirty_queued: block.is_dirty_queued,
-        }))
+        })
     }
 
     /// Capture the live heap young space image.
-    fn capture_young_image(&self) -> HeapResult<YoungImage> {
+    fn capture_young_image(&self) -> YoungImage {
         let (ranges, live) = self.young.image_ranges();
 
-        // capture the current retained bytes directly
-        let bytes = self
-            .memory
-            .read_bytes(self.young.pages.offset, self.young.capacity_bytes)?;
-
-        Ok(YoungImage::new(
+        YoungImage::new(
             self.young.pages.offset,
             self.young.capacity_bytes,
             self.young.page_size_bytes,
             self.young.next_offset,
             self.young.allocation_alignment_bytes,
-            bytes.into_boxed_slice(),
             ranges,
             self.young.cloned_spans().into_boxed_slice(),
             self.young.span_bits.clone().into_boxed_slice(),
             live,
             self.young.local_reference_bits.clone(),
             self.young.shared_reference_bits.clone(),
-        ))
+        )
     }
 
     /// Capture every live heap span image.
-    fn capture_span_images(&self) -> HeapResult<Box<[SmallSpanImage]>> {
+    fn capture_span_images(&self) -> Box<[SmallSpanImage]> {
         self.small
             .spans
             .iter()
-            .map(|span| self.capture_span_image(span))
-            .collect::<HeapResult<Vec<_>>>()
-            .map(Vec::into_boxed_slice)
+            .map(Self::capture_span_image)
+            .collect::<Vec<_>>()
+            .into_boxed_slice()
     }
 
     /// Capture one live heap span image.
-    fn capture_span_image(&self, span: &SmallSpan) -> HeapResult<SmallSpanImage> {
-        let byte_len = span.pages.byte_len;
-
-        // capture the current retained bytes directly
-        let bytes = self.memory.read_bytes(span.first_offset, byte_len)?;
-
-        Ok(SmallSpanImage {
+    fn capture_span_image(span: &SmallSpan) -> SmallSpanImage {
+        SmallSpanImage {
             first_offset: span.first_offset,
             class: span.class,
             slot_count: span.slot_count,
             occupied: span.occupied.clone(),
             local_reference_bits: span.local_reference_bits.clone(),
             shared_reference_bits: span.shared_reference_bits.clone(),
-            bytes: bytes.into_boxed_slice(),
-        })
+        }
     }
 
     /// Capture every live heap block image in large space.
-    fn capture_large_block_images(&self) -> HeapResult<Box<[Option<LargeBlockImage>]>> {
+    fn capture_large_block_images(&self) -> Box<[Option<LargeBlockImage>]> {
         self.large
             .blocks
             .iter()
-            .map(|block| match block {
-                Some(block) => self.capture_large_block_image(block).map(Some),
-                None => Ok(None),
-            })
-            .collect::<HeapResult<Vec<_>>>()
-            .map(Vec::into_boxed_slice)
+            .map(|block| block.as_ref().map(Self::capture_large_block_image))
+            .collect::<Vec<_>>()
+            .into_boxed_slice()
     }
 
     /// Capture one live heap block image in large space.
-    fn capture_large_block_image(&self, block: &LargeBlock) -> HeapResult<LargeBlockImage> {
-        // capture the current retained bytes directly
-        let bytes = self
-            .memory
-            .read_bytes(block.first_offset, block.byte_len)?
-            .into_boxed_slice();
-
-        Ok(LargeBlockImage {
+    fn capture_large_block_image(block: &LargeBlock) -> LargeBlockImage {
+        LargeBlockImage {
             first_offset: block.first_offset,
             byte_len: block.byte_len,
-            bytes,
             trace_map: block.trace_map.clone(),
             drop: block.drop,
-        })
+        }
     }
 }
 

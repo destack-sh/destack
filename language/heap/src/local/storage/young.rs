@@ -1,13 +1,10 @@
-use destack_memory::MemoryRange;
-use destack_serde::Reflect;
 use std::mem;
 
+use destack_memory::{MemoryMap, MemoryRange};
+use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::Bitmap;
-use destack_memory::MemoryMap;
-
-use crate::{AllocationUsage, DropPlan, HeapReference, HeapResult, SmallSpanClass};
+use crate::{AllocationUsage, Bitmap, DropPlan, HeapReference, HeapResult, SmallSpanClass};
 
 /// One live heap young space.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -496,8 +493,6 @@ pub(crate) struct YoungImage {
     next_offset: usize,
     /// The required alignment for young block bases.
     allocation_alignment_bytes: usize,
-    /// The captured young space bytes.
-    bytes: Box<[u8]>,
     /// The captured young space ranges.
     ranges: Box<[YoungRange]>,
     /// The captured young space fixed-size spans.
@@ -520,7 +515,6 @@ impl YoungImage {
         page_size_bytes: usize,
         next_offset: usize,
         allocation_alignment_bytes: usize,
-        bytes: Box<[u8]>,
         ranges: Box<[YoungRange]>,
         spans: Box<[YoungSpan]>,
         span_bits: Box<[YoungSpanBits]>,
@@ -534,7 +528,6 @@ impl YoungImage {
             page_size_bytes,
             next_offset,
             allocation_alignment_bytes,
-            bytes,
             ranges,
             spans,
             span_bits,
@@ -567,11 +560,6 @@ impl YoungImage {
     /// Return the required young space block alignment.
     pub(crate) const fn allocation_alignment_bytes(&self) -> usize {
         self.allocation_alignment_bytes
-    }
-
-    /// Return the captured young space bytes.
-    pub(crate) fn bytes(&self) -> &[u8] {
-        &self.bytes
     }
 
     /// Return the young space ranges.

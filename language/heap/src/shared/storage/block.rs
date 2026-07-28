@@ -1,11 +1,11 @@
-use destack_serde::Reflect;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use destack_memory::MemoryRange;
 use destack_mir::TraceMap;
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
 
 use crate::{DropPlan, HeapError, HeapRepresentationError, HeapResult};
-use destack_memory::MemoryRange;
 
 /// One live shared heap large block.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,8 +58,6 @@ pub(crate) struct LargeBlockImage {
     pub first_offset: usize,
     /// The logical byte length of this block.
     pub byte_len: usize,
-    /// The captured block bytes.
-    pub bytes: Box<[u8]>,
     /// The trace map for this block.
     pub trace_map: TraceMap,
     /// The drop plan for this managed block.

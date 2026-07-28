@@ -312,12 +312,18 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     shared.flush_allocation_cache(&mut memory);
 
     let used_bytes = shared.usage().retained_bytes;
-    let image = shared.image().expect("shared image should capture");
+    let memory_image = shared
+        .storage
+        .memory
+        .capture()
+        .expect("memory image should capture");
+    let image = shared.image();
+    let memory = Arc::new(memory_image.restore().expect("memory should restore"));
 
     // reject restore when the explicit limit cannot contain the baseline
     let error = SharedHeap::from_image_with_limits(
         &image,
-        test_memory(options.page_size_bytes),
+        memory,
         SharedHeapLimits {
             max_bytes: None,
             retained_bytes: Some(0),

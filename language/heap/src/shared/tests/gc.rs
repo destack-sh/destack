@@ -11,8 +11,7 @@ use crate::{
 };
 
 use super::{
-    TestHeapPlan, TestTraceTable, read_mapped_bytes, test_allocate, test_memory, trace_view,
-    write_mapped_bytes,
+    TestHeapPlan, TestTraceTable, read_mapped_bytes, test_allocate, trace_view, write_mapped_bytes,
 };
 
 /// Build one shared heap whose pacer starts immediately in step-driven tests.
@@ -583,57 +582,16 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
     let stats = shared
         .collect_full(&[reference], trace_view(), &mut |_| Ok::<(), HeapError>(()))
         .expect("shared collection should succeed");
-    let image = shared.image().expect("shared image should capture");
-    let restored = SharedHeap::from_image_with_limits(
-        &image,
-        test_memory(image.options().page_size_bytes),
-        SharedHeapLimits::default(),
-    )
-    .expect("shared image should restore");
-
-    // restored state should preserve the last completed cycle
-    assert_eq!(
-        restored.gc_state().last_collector,
-        Some(GcCollector::Shared)
-    );
-    assert_eq!(restored.gc_state().last_stats, Some(stats));
-}
-
-/// Restore shared heap collector state from one serialized snapshot.
-#[test]
-fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
-    // allocate one rooted shared object and run a full collection
-    let layout = test_layout(8, TraceMap::empty());
-    let options = SharedHeapOptions::default();
-    let memory = Arc::new(
-        MemoryMap::reserve(1024 * 1024 * 1024, options.page_size_bytes)
-            .expect("test World memory should reserve"),
-    );
-    let shared = SharedHeap::new(memory, SharedHeapLimits::default(), options)
-        .expect("shared heap should build");
-    let mut memory = shared.allocation_cache();
-    let worker = shared.register_mark_worker();
-    let reference = test_allocate(
-        &shared,
-        &worker,
-        &mut memory,
-        layout.block(),
-        Payload::Bytes(&SharedHeapReference::NULL.bits().to_le_bytes()),
-    );
-    flush_shared_cache(&shared, &mut memory);
-
-    // capture the serialized heap snapshot after collection
-    let stats = shared
-        .collect_full(&[reference], trace_view(), &mut |_| Ok::<(), HeapError>(()))
-        .expect("shared collection should succeed");
-    let image = shared.image().expect("shared image should capture");
-    let snapshot = image.snapshot();
-    let restored = SharedHeap::from_snapshot(
-        &snapshot,
-        SharedHeapLimits::default(),
-        test_memory(image.options().page_size_bytes),
-    )
-    .expect("shared snapshot should restore");
+    let memory_image = shared
+        .storage
+        .memory
+        .capture()
+        .expect("memory image should capture");
+    let image = shared.image();
+    let restored_memory = Arc::new(memory_image.restore().expect("memory should restore"));
+    let restored =
+        SharedHeap::from_image_with_limits(&image, restored_memory, SharedHeapLimits::default())
+            .expect("shared image should restore");
 
     // restored state should preserve the last completed cycle
     assert_eq!(

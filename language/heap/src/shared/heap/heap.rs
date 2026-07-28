@@ -1,9 +1,7 @@
-use destack_memory::MemoryMap;
-use destack_serde::Reflect;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::TraceView;
+use destack_memory::MemoryMap;
 use destack_mir::TraceMap;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +13,7 @@ use crate::{
     AccountingRegion, Allocation, AllocationPlan, DropReference, GcAdvance, GcCollector, GcDrop,
     GcPacer, GcPhase, GcPressure, GcState, GcStats, HeapAllocationError, HeapError,
     HeapGcStateError, HeapResult, Payload, SharedHeapOptions, SharedHeapReference,
-    SmallAllocationClass, apply_byte_delta,
+    SmallAllocationClass, TraceView, apply_byte_delta,
 };
 
 /// One live shared heap.
@@ -35,33 +33,24 @@ pub struct SharedHeap {
     gc_pacer: Pacer,
 }
 
-/// One frozen shared heap.
-#[derive(Debug, Clone)]
+/// One frozen shared heap metadata image.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedHeapImage {
     /// The retained shared heap image state.
     state: Arc<ImageState>,
 }
 
-/// One retained shared heap image state.
-#[derive(Debug)]
+/// One retained shared heap metadata state.
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct ImageState {
     /// The captured shared heap options.
     options: SharedHeapOptions,
-    /// The frozen shared heap storage.
-    storage: HeapStorageImage,
-}
-
-/// One serialized shared heap snapshot.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct SharedHeapSnapshot {
-    /// The captured shared heap options.
-    options: SharedHeapOptions,
-    /// The frozen shared heap storage.
+    /// The frozen shared heap storage metadata.
     storage: HeapStorageImage,
 }
 
 impl SharedHeapImage {
-    /// Create one frozen shared heap image.
+    /// Create one frozen shared heap metadata image.
     pub(crate) fn new(options: SharedHeapOptions, storage: HeapStorageImage) -> Self {
         let state = ImageState { options, storage };
 
@@ -70,36 +59,38 @@ impl SharedHeapImage {
         }
     }
 
-    /// Build one shared heap image from one serialized snapshot and memory.
-    pub fn from_snapshot(snapshot: &SharedHeapSnapshot) -> Self {
-        Self::new(snapshot.options.clone(), snapshot.storage.clone())
-    }
-
-    /// Flatten this image into one serialized snapshot.
-    pub fn snapshot(&self) -> SharedHeapSnapshot {
-        SharedHeapSnapshot {
-            options: self.options().clone(),
-            storage: self.storage().clone(),
-        }
-    }
-
     /// Return the captured shared heap options.
     pub fn options(&self) -> &SharedHeapOptions {
         &self.state.options
     }
 
-    /// Return the frozen shared heap storage.
+    /// Return the shared heap storage metadata.
     pub(crate) fn storage(&self) -> &HeapStorageImage {
         &self.state.storage
     }
 
-    /// Return the retained frozen page count.
+    /// Return the captured collector state.
+    pub fn gc_state(&self) -> &GcState {
+        self.storage().gc_state()
+    }
+
+    /// Return the retained shared heap page count.
     pub fn page_count(&self) -> usize {
         self.storage().page_count()
+    }
+
+    /// Return the allocated shared heap bytes.
+    pub fn allocated_bytes(&self) -> u64 {
+        self.storage().allocated_bytes()
     }
 }
 
 impl SharedHeap {
+    /// Return the memory map backing this shared heap.
+    pub fn memory(&self) -> &Arc<MemoryMap> {
+        &self.storage.memory
+    }
+
     /// Create one shared heap over one explicit memory, limits, and options.
     pub fn new(
         memory: Arc<MemoryMap>,
@@ -537,7 +528,7 @@ impl SharedHeap {
         })
     }
 
-    /// Create one shared heap from one frozen shared heap image and explicit hard limits.
+    /// Restore one shared heap image over its captured world memory and explicit hard limits.
     pub fn from_image_with_limits(
         image: &SharedHeapImage,
         memory: Arc<MemoryMap>,
@@ -562,17 +553,6 @@ impl SharedHeap {
         shared.check_limits()?;
 
         Ok(shared)
-    }
-
-    /// Create one shared heap from one serialized snapshot, memory, and explicit hard limits.
-    pub fn from_snapshot(
-        snapshot: &SharedHeapSnapshot,
-        limits: SharedHeapLimits,
-        memory: Arc<MemoryMap>,
-    ) -> HeapResult<Self> {
-        let image = SharedHeapImage::from_snapshot(snapshot);
-
-        Self::from_image_with_limits(&image, memory, limits)
     }
 
     /// Check the current shared heap usage against the configured limits.
@@ -610,11 +590,11 @@ impl SharedHeap {
             .check_retained_byte_delta(self.storage.retained_bytes(), retained_byte_delta)
     }
 
-    /// Return one frozen shared heap image.
-    pub fn image(&self) -> HeapResult<SharedHeapImage> {
-        let heap = self.storage.image()?;
+    /// Capture one frozen shared heap metadata image.
+    pub fn image(&self) -> SharedHeapImage {
+        let heap = self.storage.image();
 
-        Ok(SharedHeapImage::new(self.options.clone(), heap))
+        SharedHeapImage::new(self.options.clone(), heap)
     }
 
     /// Return the number of live shared heap blocks.

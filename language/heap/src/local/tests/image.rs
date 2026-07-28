@@ -73,16 +73,19 @@ fn test_heap_with_empty_layouts(
 }
 
 /// Return the bytes for one large image block.
-fn read_large_block_bytes(block: &Option<LargeBlockImage>) -> Vec<u8> {
+fn read_large_block_bytes(memory: &MemoryMap, block: &Option<LargeBlockImage>) -> Vec<u8> {
     let Some(block) = block else {
         panic!("large block should be live");
     };
 
-    block.bytes[..block.byte_len].to_vec()
+    memory
+        .read_bytes(block.first_offset, block.byte_len)
+        .expect("large block bytes should read")
 }
 
 /// Return the bytes for one small-span slot.
 fn read_small_slot_bytes(
+    memory: &MemoryMap,
     span: &SmallSpanImage,
     size_class: usize,
     slot_index: usize,
@@ -90,7 +93,9 @@ fn read_small_slot_bytes(
 ) -> Vec<u8> {
     let start = size_class * slot_index;
 
-    span.bytes[start..start + byte_len].to_vec()
+    memory
+        .read_bytes(span.first_offset + start, byte_len)
+        .expect("small slot bytes should read")
 }
 
 /// Write one heap payload range for image assertions.
@@ -103,29 +108,34 @@ fn write_payload(heap: &mut Heap, reference: HeapReference, start: usize, bytes:
 }
 
 /// Return the bytes for one young space range.
-fn read_young_range_bytes(young: &YoungImage, range_index: usize) -> Vec<u8> {
+fn read_young_range_bytes(memory: &MemoryMap, young: &YoungImage, range_index: usize) -> Vec<u8> {
     let block = &young.ranges()[range_index];
-    let start = block.first_offset - young.memory_offset();
-    let end = start + block.byte_len;
 
-    young.bytes()[start..end].to_vec()
+    memory
+        .read_bytes(block.first_offset, block.byte_len)
+        .expect("young range bytes should read")
 }
 
 /// Return the bytes for one young space span slot.
-fn read_young_slot_bytes(young: &YoungImage, span_index: usize, slot_index: usize) -> Vec<u8> {
+fn read_young_slot_bytes(
+    memory: &MemoryMap,
+    young: &YoungImage,
+    span_index: usize,
+    slot_index: usize,
+) -> Vec<u8> {
     let span = &young.spans()[span_index];
-    let start = span.slot_offset(slot_index) - young.memory_offset();
-    let end = start + span.byte_len();
 
-    young.bytes()[start..end].to_vec()
+    memory
+        .read_bytes(span.slot_offset(slot_index), span.byte_len())
+        .expect("young slot bytes should read")
 }
 
 /// Return the first live heap block bytes from one captured image.
-fn read_first_heap_image_bytes(image: &HeapStorageImage) -> Vec<u8> {
+fn read_first_heap_image_bytes(memory: &MemoryMap, image: &HeapStorageImage) -> Vec<u8> {
     // young blocks first
     for range_index in 0..image.young().ranges().len() {
         if image.young().live().contains(range_index) {
-            return read_young_range_bytes(image.young(), range_index);
+            return read_young_range_bytes(memory, image.young(), range_index);
         }
     }
 
@@ -138,7 +148,7 @@ fn read_first_heap_image_bytes(image: &HeapStorageImage) -> Vec<u8> {
                 continue;
             }
 
-            return read_young_slot_bytes(image.young(), span_index, slot_index);
+            return read_young_slot_bytes(memory, image.young(), span_index, slot_index);
         }
     }
 
@@ -150,6 +160,7 @@ fn read_first_heap_image_bytes(image: &HeapStorageImage) -> Vec<u8> {
             }
 
             return read_small_slot_bytes(
+                memory,
                 span,
                 span.class.size_class(),
                 slot_index,
@@ -164,7 +175,7 @@ fn read_first_heap_image_bytes(image: &HeapStorageImage) -> Vec<u8> {
             continue;
         }
 
-        return read_large_block_bytes(block);
+        return read_large_block_bytes(memory, block);
     }
 
     panic!("heap image should contain one live block")
@@ -194,8 +205,10 @@ fn test_roundtrip_heap_storage_image() {
     // capture two blocks so the restored copy has independent bytes
     let first = heap.test_allocate(first_layout.block(), Payload::Bytes(&first_bytes));
     let _second = heap.test_allocate(second_layout.block(), Payload::Bytes(&second_bytes));
+    let memory_image = memory.capture().expect("memory image should capture");
     let image = heap.image().expect("heap image should capture");
-    let restored_memory = test_memory(options.page_size_bytes);
+    let image_memory = Arc::new(memory_image.restore().expect("image memory should restore"));
+    let restored_memory = Arc::new(memory_image.restore().expect("memory should restore"));
     let mut restored = HeapStorage::from_image(restored_memory.clone(), &image, trace_view())
         .expect("heap image should restore");
     let restored_image = restored.image().expect("heap image should capture");
@@ -208,7 +221,7 @@ fn test_roundtrip_heap_storage_image() {
 
     // restored bytes should match the captured heap bytes
     assert_eq!(
-        read_large_block_bytes(&restored_image.blocks()[0]),
+        read_large_block_bytes(&restored_memory, &restored_image.blocks()[0]),
         first_bytes
     );
     let first_address = restored.base_address() + first.offset();
@@ -217,7 +230,7 @@ fn test_roundtrip_heap_storage_image() {
 
     assert_eq!(bytes, first_bytes);
     assert_eq!(
-        read_large_block_bytes(&restored_image.blocks()[1]),
+        read_large_block_bytes(&restored_memory, &restored_image.blocks()[1]),
         second_bytes
     );
 
@@ -234,16 +247,19 @@ fn test_roundtrip_heap_storage_image() {
     let mut expected_first = first_bytes.clone();
     expected_first[0] = 0xFE;
 
-    assert_eq!(read_large_block_bytes(&image.blocks()[0]), first_bytes);
     assert_eq!(
-        read_large_block_bytes(&mutated_image.blocks()[0]),
+        read_large_block_bytes(&image_memory, &image.blocks()[0]),
+        first_bytes
+    );
+    assert_eq!(
+        read_large_block_bytes(&restored_memory, &mutated_image.blocks()[0]),
         expected_first
     );
     let bytes = read_mapped_bytes(first_address, expected_first.len());
 
     assert_eq!(bytes, expected_first);
     assert_eq!(
-        read_large_block_bytes(&mutated_image.blocks()[1]),
+        read_large_block_bytes(&restored_memory, &mutated_image.blocks()[1]),
         second_bytes
     );
 }
@@ -257,20 +273,22 @@ fn test_roundtrip_heap_image_and_fork() {
     let layout = &layout_ids[0];
     let heap = &mut test_heap;
     let _heap_reference = heap.test_allocate(layout.block(), Payload::Bytes(&heap_bytes));
+
     // capture both the frozen image and the live fork
+    let memory_image = heap
+        .storage
+        .memory
+        .capture()
+        .expect("memory image should capture");
     let image = heap.image().expect("heap image should capture");
-    let fork_memory = Arc::new(
-        heap.storage
-            .memory
-            .fork_lazy()
-            .expect("test World memory should fork"),
-    );
+    let fork_memory = Arc::new(memory_image.restore().expect("fork memory should restore"));
     let mut forked = heap
-        .fork(fork_memory, trace_view())
+        .fork(fork_memory.clone(), trace_view())
         .expect("heap fork should retain live pages");
+    let restored_memory = Arc::new(memory_image.restore().expect("memory should restore"));
     let mut restored = Heap::from_image(
         &image,
-        test_memory(image.options().page_size_bytes),
+        restored_memory.clone(),
         HeapLimits::default(),
         trace_view(),
     )
@@ -279,38 +297,11 @@ fn test_roundtrip_heap_image_and_fork() {
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_first_heap_image_bytes(forked_image.storage()),
+        read_first_heap_image_bytes(&fork_memory, forked_image.storage()),
         heap_bytes.to_vec()
     );
     assert_eq!(
-        read_first_heap_image_bytes(restored_image.storage()),
-        heap_bytes.to_vec()
-    );
-}
-
-/// Restore a heap from one serialized snapshot.
-#[test]
-fn test_roundtrip_heap_snapshot() {
-    let heap_bytes = 11i64.to_le_bytes();
-    let (mut test_heap, layout_ids) =
-        test_heap_with_empty_layouts(HeapOptions::local(), &[heap_bytes.len()]);
-    let layout = &layout_ids[0];
-    let heap = &mut test_heap;
-    heap.test_allocate(layout.block(), Payload::Bytes(&heap_bytes));
-
-    let image = heap.image().expect("heap image should capture");
-    let snapshot = image.snapshot();
-    let mut restored = Heap::from_snapshot(
-        &snapshot,
-        test_memory(image.options().page_size_bytes),
-        HeapLimits::default(),
-        trace_view(),
-    )
-    .expect("heap snapshot should restore");
-    let restored_image = restored.image().expect("heap image should capture");
-
-    assert_eq!(
-        read_first_heap_image_bytes(restored_image.storage()),
+        read_first_heap_image_bytes(&restored_memory, restored_image.storage()),
         heap_bytes.to_vec()
     );
 }
@@ -332,10 +323,17 @@ fn test_heap_image_write_preserves_captured_allocation_bytes() {
     let heap = &mut test_heap;
     let first = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&first_bytes));
     let _second = heap.test_allocate(layout_ids[1].block(), Payload::Bytes(&second_bytes));
+    let memory_image = heap
+        .storage
+        .memory
+        .capture()
+        .expect("memory image should capture");
     let image = heap.image().expect("heap image should capture");
+    let image_memory = Arc::new(memory_image.restore().expect("image memory should restore"));
+    let restored_memory = Arc::new(memory_image.restore().expect("memory should restore"));
     let mut restored = Heap::from_image(
         &image,
-        test_memory(image.options().page_size_bytes),
+        restored_memory.clone(),
         HeapLimits::default(),
         trace_view(),
     )
@@ -349,15 +347,15 @@ fn test_heap_image_write_preserves_captured_allocation_bytes() {
     expected_first[0] = 0xCC;
 
     assert_eq!(
-        read_large_block_bytes(&mutated_image.storage().blocks()[0]),
+        read_large_block_bytes(&restored_memory, &mutated_image.storage().blocks()[0]),
         expected_first
     );
     assert_eq!(
-        read_large_block_bytes(&mutated_image.storage().blocks()[1]),
+        read_large_block_bytes(&restored_memory, &mutated_image.storage().blocks()[1]),
         second_bytes
     );
     assert_eq!(
-        read_large_block_bytes(&image.storage().blocks()[0]),
+        read_large_block_bytes(&image_memory, &image.storage().blocks()[0]),
         vec![0xAA; 5000]
     );
 }
@@ -376,10 +374,17 @@ fn test_heap_image_write_preserves_captured_page_bytes() {
     let (mut heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut heap;
     let reference = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&bytes));
+    let memory_image = heap
+        .storage
+        .memory
+        .capture()
+        .expect("memory image should capture");
     let image = heap.image().expect("heap image should capture");
+    let image_memory = Arc::new(memory_image.restore().expect("image memory should restore"));
+    let restored_memory = Arc::new(memory_image.restore().expect("memory should restore"));
     let mut restored = Heap::from_image(
         &image,
-        test_memory(image.options().page_size_bytes),
+        restored_memory.clone(),
         HeapLimits::default(),
         trace_view(),
     )
@@ -392,10 +397,13 @@ fn test_heap_image_write_preserves_captured_page_bytes() {
     expected[4096] = 0xCC;
 
     assert_eq!(
-        read_large_block_bytes(&mutated_image.storage().blocks()[0]),
+        read_large_block_bytes(&restored_memory, &mutated_image.storage().blocks()[0]),
         expected
     );
-    assert_eq!(read_large_block_bytes(&image.storage().blocks()[0]), bytes);
+    assert_eq!(
+        read_large_block_bytes(&image_memory, &image.storage().blocks()[0]),
+        bytes
+    );
 }
 
 /// Preserve image bytes when writing several restored pages.
@@ -412,10 +420,17 @@ fn test_heap_image_write_preserves_captured_multi_page_bytes() {
     let (mut heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut heap;
     let reference = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&bytes));
+    let memory_image = heap
+        .storage
+        .memory
+        .capture()
+        .expect("memory image should capture");
     let image = heap.image().expect("heap image should capture");
+    let image_memory = Arc::new(memory_image.restore().expect("image memory should restore"));
+    let restored_memory = Arc::new(memory_image.restore().expect("memory should restore"));
     let mut restored = Heap::from_image(
         &image,
-        test_memory(image.options().page_size_bytes),
+        restored_memory.clone(),
         HeapLimits::default(),
         trace_view(),
     )
@@ -428,10 +443,13 @@ fn test_heap_image_write_preserves_captured_multi_page_bytes() {
     expected[..3 * 4096].fill(0xCC);
 
     assert_eq!(
-        read_large_block_bytes(&mutated_image.storage().blocks()[0]),
+        read_large_block_bytes(&restored_memory, &mutated_image.storage().blocks()[0]),
         expected
     );
-    assert_eq!(read_large_block_bytes(&image.storage().blocks()[0]), bytes);
+    assert_eq!(
+        read_large_block_bytes(&image_memory, &image.storage().blocks()[0]),
+        bytes
+    );
 }
 
 /// Preserve image bytes when most restored pages are written.
@@ -448,10 +466,17 @@ fn test_heap_image_write_preserves_captured_many_page_bytes() {
     let (mut heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut heap;
     let reference = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&bytes));
+    let memory_image = heap
+        .storage
+        .memory
+        .capture()
+        .expect("memory image should capture");
     let image = heap.image().expect("heap image should capture");
+    let image_memory = Arc::new(memory_image.restore().expect("image memory should restore"));
+    let restored_memory = Arc::new(memory_image.restore().expect("memory should restore"));
     let mut restored = Heap::from_image(
         &image,
-        test_memory(image.options().page_size_bytes),
+        restored_memory.clone(),
         HeapLimits::default(),
         trace_view(),
     )
@@ -464,10 +489,13 @@ fn test_heap_image_write_preserves_captured_many_page_bytes() {
     expected[..4 * 4096].fill(0xCC);
 
     assert_eq!(
-        read_large_block_bytes(&mutated_image.storage().blocks()[0]),
+        read_large_block_bytes(&restored_memory, &mutated_image.storage().blocks()[0]),
         expected
     );
-    assert_eq!(read_large_block_bytes(&image.storage().blocks()[0]), bytes);
+    assert_eq!(
+        read_large_block_bytes(&image_memory, &image.storage().blocks()[0]),
+        bytes
+    );
 }
 
 /// Preserve heap small-space bytes across image roundtrips.
@@ -484,14 +512,17 @@ fn test_roundtrip_heap_small_storage_image() {
     // small blocks should roundtrip as independent bytes
     let first = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&[1, 2, 3]));
     let _second = heap.test_allocate(layout_ids[1].block(), Payload::Bytes(&[4, 5, 6]));
+    let memory_image = memory.capture().expect("memory image should capture");
     let image = heap.image().expect("heap image should capture");
-    let mut restored =
-        HeapStorage::from_image(test_memory(options.page_size_bytes), &image, trace_view())
-            .expect("heap image should restore");
+    let image_memory = Arc::new(memory_image.restore().expect("image memory should restore"));
+    let restored_memory = Arc::new(memory_image.restore().expect("memory should restore"));
+    let mut restored = HeapStorage::from_image(restored_memory.clone(), &image, trace_view())
+        .expect("heap image should restore");
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
         read_small_slot_bytes(
+            &restored_memory,
             &restored_image.spans()[0],
             restored_image.spans()[0].class.size_class(),
             0,
@@ -512,6 +543,7 @@ fn test_roundtrip_heap_small_storage_image() {
 
     assert_eq!(
         read_small_slot_bytes(
+            &restored_memory,
             &mutated_image.spans()[0],
             mutated_image.spans()[0].class.size_class(),
             0,
@@ -520,7 +552,13 @@ fn test_roundtrip_heap_small_storage_image() {
         vec![1, 0xFE, 3]
     );
     assert_eq!(
-        read_small_slot_bytes(&image.spans()[0], image.spans()[0].class.size_class(), 0, 3,),
+        read_small_slot_bytes(
+            &image_memory,
+            &image.spans()[0],
+            image.spans()[0].class.size_class(),
+            0,
+            3,
+        ),
         vec![1, 2, 3]
     );
 }
@@ -538,14 +576,16 @@ fn test_roundtrip_heap_young_storage_image() {
     // young blocks should roundtrip as independent bytes
     let first = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&[1, 2, 3]));
     let _second = heap.test_allocate(layout_ids[1].block(), Payload::Bytes(&[4, 5, 6]));
+    let memory_image = memory.capture().expect("memory image should capture");
     let image = heap.image().expect("heap image should capture");
-    let mut restored =
-        HeapStorage::from_image(test_memory(options.page_size_bytes), &image, trace_view())
-            .expect("heap image should restore");
+    let image_memory = Arc::new(memory_image.restore().expect("image memory should restore"));
+    let restored_memory = Arc::new(memory_image.restore().expect("memory should restore"));
+    let mut restored = HeapStorage::from_image(restored_memory.clone(), &image, trace_view())
+        .expect("heap image should restore");
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_young_slot_bytes(restored_image.young(), 0, 0),
+        read_young_slot_bytes(&restored_memory, restored_image.young(), 0, 0),
         vec![1, 2, 3]
     );
 
@@ -560,10 +600,13 @@ fn test_roundtrip_heap_young_storage_image() {
     let mutated_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_young_slot_bytes(mutated_image.young(), 0, 0),
+        read_young_slot_bytes(&restored_memory, mutated_image.young(), 0, 0),
         vec![1, 0xFE, 3]
     );
-    assert_eq!(read_young_slot_bytes(image.young(), 0, 0), vec![1, 2, 3]);
+    assert_eq!(
+        read_young_slot_bytes(&image_memory, image.young(), 0, 0),
+        vec![1, 2, 3]
+    );
 }
 
 /// Reject invalid heap image metadata during restore.

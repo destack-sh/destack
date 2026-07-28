@@ -1,7 +1,8 @@
-use destack_serde::Reflect;
 use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
+use destack_memory::MemoryRange;
 use destack_mir::TraceMap;
+use destack_serde::Reflect;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +10,6 @@ use crate::{
     Bitmap, HeapReference, ReferenceRange, SharedHeapReference, SmallSpanClass,
     visit_static_reference_offsets,
 };
-use destack_memory::MemoryRange;
 
 /// The number of bits in one atomic bitmap word.
 const ATOMIC_BITMAP_WORD_BITS: usize = u64::BITS as usize;
@@ -476,8 +476,6 @@ pub(crate) struct SmallSpanImage {
     pub local_reference_bits: Bitmap,
     /// The exact shared-reference bits for each occupied slot.
     pub shared_reference_bits: Bitmap,
-    /// The captured span bytes.
-    pub bytes: Box<[u8]>,
 }
 
 /// One shared small-span block list.

@@ -1,9 +1,9 @@
+use destack_memory::MemoryRange;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::CardSet;
 use crate::{Bitmap, SmallSpanClass};
-use destack_memory::MemoryRange;
 
 /// One live heap span.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,6 +63,4 @@ pub(crate) struct SmallSpanImage {
     pub local_reference_bits: Bitmap,
     /// The exact shared-reference bits for each occupied slot.
     pub shared_reference_bits: Bitmap,
-    /// The captured span bytes.
-    pub bytes: Box<[u8]>,
 }
