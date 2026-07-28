@@ -1,10 +1,11 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
+use smallvec::SmallVec;
 use destack_source::ModuleId;
 
 use crate::check::{
     Answer, BodyForm, CauseKind, CheckError, CheckState, ClassInitializationObligation,
-    DeclarationHeritageObligation, ExtensionConformanceObligation, FlowBranch, FunctionHeader,
+    DeclarationHeritageObligation, InterfaceConformanceObligation, FlowBranch, FunctionHeader,
     GenericTemplateId, ImplementationCoherenceObligation, InducedParameterOwner, Obligation,
     Origin, ParameterUseObligation, Receiver, ReceiverBinding, Relation, RepresentationObligation,
     TypeSubstitution, VariableRole, WalkState, Widening,
@@ -204,7 +205,7 @@ impl WalkState<'_, '_> {
 
         // declare identities first so bounds may reference any template
         if pass == TemplatePass::Declare {
-            let template = self.open_generic_template(source, None, Some(symbol), parameters)?;
+            let template = self.open_generic_template(source, parameters)?;
 
             // hypotheses need a template: where clauses, heritage
             //  assumptions, and interfaces assuming their own application
@@ -217,12 +218,12 @@ impl WalkState<'_, '_> {
                     .is_some_and(|types| !types.is_empty());
             if template.is_none() && assumes {
                 self.check
-                    .open_generic_template(source, None, Some(symbol))?;
+                    .open_generic_template(source)?;
             }
 
             return Ok(());
         }
-        let template = self.walk_generic_template(source, None, Some(symbol), parameters)?;
+        let template = self.walk_generic_template(source, parameters)?;
 
         // interfaces assume this satisfies their own application
         if self.check.symbol_kind(symbol).is_interface()
@@ -284,15 +285,17 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         signature: &dir::FunctionSignature,
     ) -> CompilerResult<()> {
-        let Some(symbol) = self
+        // symbol-less declarations own no template
+        if self
             .check
             .module(self.module)
             .declaration_symbol(id.into_any())
-        else {
+            .is_none()
+        {
             return Ok(());
-        };
+        }
         let source = id.into_global_any(self.module);
-        let Some(template) = self.open_signature_template(source, None, Some(symbol), signature)?
+        let Some(template) = self.open_signature_template(source, signature)?
         else {
             return Ok(());
         };
@@ -468,7 +471,7 @@ impl WalkState<'_, '_> {
 
         // nominal values bind `this` to their own declaration
         let receiver = match declaration.is_nominal {
-            true => Some(self.nominal_receiver(symbol)?),
+            true => Some(self.nominal_receiver(symbol, None)?),
             false => None,
         };
         let _receiver = receiver.map(|receiver| self.enter_receiver_scope(Some(receiver)));
@@ -485,7 +488,7 @@ impl WalkState<'_, '_> {
                 template: template.map(|template| template.local_id),
                 representation: dir::Representation::default(),
                 backing: value,
-                discriminant: None,
+                discriminator: None,
                 members: Vec::new(),
             })
         } else {
@@ -533,7 +536,7 @@ impl WalkState<'_, '_> {
                 template: template.map(|template| template.local_id),
                 representation: dir::Representation::default(),
                 backing: value,
-                discriminant: None,
+                discriminator: None,
                 members: Vec::new(),
             });
             self.check.insert_definition(symbol, source, definition)?;
@@ -583,7 +586,7 @@ impl WalkState<'_, '_> {
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
-        let receiver = self.nominal_receiver(symbol)?;
+        let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Owned))?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk implemented interfaces
@@ -670,7 +673,7 @@ impl WalkState<'_, '_> {
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
-        let receiver = self.nominal_receiver(symbol)?;
+        let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Managed))?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk superclass type
@@ -682,14 +685,7 @@ impl WalkState<'_, '_> {
             if let Some((source, instance)) = self.heritage_instance(extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol) == dir::SymbolKind::Class {
                     self.relate_heritage_clause(extends_type, Relation::Extends, receiver.ty, ty);
-                    extends = Some(dir::NominalHeritage {
-                        source,
-                        symbol: instance.symbol,
-                        arguments: self
-                            .check
-                            .type_ids(ty.module_id, instance.arguments)?
-                            .to_vec(),
-                    });
+                    extends = Some(dir::NominalHeritage { source, ty });
                     super_ty = Some(ty);
                 } else {
                     self.check
@@ -805,7 +801,7 @@ impl WalkState<'_, '_> {
         template: Option<GenericTemplateId>,
         induction: InducedParameterOwner,
         implements_types: &[dir::LocalNodeId<dir::TypeExpression>],
-    ) -> CompilerResult<Vec<dir::NominalHeritage>> {
+    ) -> CompilerResult<Vec<dir::InterfaceImplementation>> {
         let mut implements = Vec::new();
         for implemented_type in implements_types {
             let ty = self.walk_type_expression(*implemented_type)?;
@@ -837,13 +833,9 @@ impl WalkState<'_, '_> {
             if let Some(template) = template {
                 self.push_this_heritage_predicate(source, template, ty)?;
             }
-            implements.push(dir::NominalHeritage {
-                source,
-                symbol: instance.symbol,
-                arguments: self
-                    .check
-                    .type_ids(ty.module_id, instance.arguments)?
-                    .to_vec(),
+            implements.push(dir::InterfaceImplementation {
+                interface: dir::NominalHeritage { source, ty },
+                members: Vec::new(),
             });
         }
 
@@ -938,7 +930,7 @@ impl WalkState<'_, '_> {
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
-        let receiver = self.nominal_receiver(symbol)?;
+        let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Owned))?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk implemented interfaces
@@ -997,9 +989,9 @@ impl WalkState<'_, '_> {
             values.insert(variant.value, variant.source);
 
             // commit the accepted singleton and its scalar value
-            let ty = self.intern_type(dir::Type::EnumMember(dir::EnumMemberType {
+            let ty = self.intern_type(dir::Type::Variant(dir::VariantType {
                 owner: receiver.ty,
-                member: variant.symbol,
+                variant: variant.symbol,
             }))?;
             self.bind_symbol_type(variant.symbol, ty)?;
             let literal = dir::ScalarLiteral::from(variant.value);
@@ -1084,7 +1076,7 @@ impl WalkState<'_, '_> {
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
-        let receiver = self.nominal_receiver(symbol)?;
+        let receiver = self.nominal_receiver(symbol, Some(dir::Ownership::Managed))?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk inherited interfaces
@@ -1094,14 +1086,7 @@ impl WalkState<'_, '_> {
             self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
-                    extends.push(dir::NominalHeritage {
-                        source,
-                        symbol: instance.symbol,
-                        arguments: self
-                            .check
-                            .type_ids(ty.module_id, instance.arguments)?
-                            .to_vec(),
-                    });
+                    extends.push(dir::NominalHeritage { source, ty });
                 } else {
                     self.check.report_interface_base_not_interface_symbol(
                         symbol,
@@ -1179,8 +1164,21 @@ impl WalkState<'_, '_> {
             dir::ExtensionTarget::Rooted { root, .. } => self.check.format_symbol(*root),
             _ => self.check.format_type(target_type),
         };
+        let origin = Origin::Node(source, self.flow().template_scope());
+        let ownership = match self.check.default_ownership(origin, target_type)? {
+            Answer::Ready(ownership) => ownership,
+            Answer::Pending(_) => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "extension target {} has unsettled ownership",
+                        self.check.format_type(target_type),
+                    ),
+                });
+            }
+        };
         let receiver = Receiver {
             declaration: Some(symbol),
+            ownership,
             ty: target_type,
             super_ty: None,
         };
@@ -1193,13 +1191,9 @@ impl WalkState<'_, '_> {
             self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
-                    implements.push(dir::NominalHeritage {
-                        source,
-                        symbol: instance.symbol,
-                        arguments: self
-                            .check
-                            .type_ids(ty.module_id, instance.arguments)?
-                            .to_vec(),
+                    implements.push(dir::InterfaceImplementation {
+                        interface: dir::NominalHeritage { source, ty },
+                        members: Vec::new(),
                     });
                 } else {
                     self.check
@@ -1281,7 +1275,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         let scope = self.check.symbol_template(symbol)?;
         self.check.push_obligation(
-            Obligation::ExtensionConformance(ExtensionConformanceObligation { source, symbol }),
+            Obligation::InterfaceConformance(InterfaceConformanceObligation { source, symbol }),
             scope,
         );
 
@@ -1391,7 +1385,7 @@ impl WalkState<'_, '_> {
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
         let template =
-            self.open_signature_template(source, None, Some(symbol), &declaration.signature)?;
+            self.open_signature_template(source, &declaration.signature)?;
 
         let (header, result, tracked) = self.walk_signature_header(
             id.into_any(),
@@ -1705,17 +1699,13 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn open_signature_template(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        parent: Option<GenericTemplateId>,
-        symbol: Option<dir::GlobalSymbolId>,
         signature: &dir::FunctionSignature,
     ) -> CompilerResult<Option<GenericTemplateId>> {
         if !signature.declares_generic_scope() {
             return Ok(None);
         }
 
-        self.check
-            .open_generic_template(source, parent, symbol)
-            .map(Some)
+        self.check.open_generic_template(source).map(Some)
     }
 
     /// Return the receiver introduced by one `this` parameter.
@@ -1750,6 +1740,7 @@ impl WalkState<'_, '_> {
             symbol,
             receiver: Receiver {
                 declaration: scope.and_then(|scope| scope.declaration),
+                ownership: scope.and_then(|scope| scope.ownership),
                 ty,
                 super_ty: scope.and_then(|scope| scope.super_ty),
             },
@@ -1834,14 +1825,16 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// struct Box { value: number }
     /// ```
-    fn nominal_receiver(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<Receiver> {
+    fn nominal_receiver(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ownership: Option<dir::Ownership>,
+    ) -> CompilerResult<Receiver> {
         // apply the declaration's own parameters as arguments
-        let parameters = self
-            .check
-            .generics
-            .template_by_symbol(symbol)
-            .map(|template| self.check.generic_template_parameters(template))
-            .unwrap_or_default();
+        let parameters = match self.check.generics.template_by_symbol(symbol) {
+            Some(template) => self.check.generic_template_parameters(template)?,
+            None => SmallVec::new(),
+        };
         let mut arguments = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             arguments.push(self.intern_type(dir::Type::Parameter(parameter))?);
@@ -1854,6 +1847,7 @@ impl WalkState<'_, '_> {
 
         Ok(Receiver {
             declaration: Some(symbol),
+            ownership,
             ty,
             super_ty: None,
         })

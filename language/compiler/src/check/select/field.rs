@@ -99,7 +99,7 @@ impl BodyState<'_, '_> {
         let key = match self.module(module).view().get(field).clone() {
             dir::PatternField::Named { name, .. } => Some((field.into_any(), name.static_key())),
             dir::PatternField::Computed { key, .. } => self
-                .static_key_from_expression(module, key)?
+                .evaluate_static_key(module, key)?
                 .map(|static_key| (key.into_any(), static_key)),
             dir::PatternField::Rest { .. }
             | dir::PatternField::Elision
@@ -120,7 +120,7 @@ impl BodyState<'_, '_> {
                 Some((field.into_any(), name.static_key()))
             }
             dir::AssignPatternField::Computed { key, .. } => self
-                .static_key_from_expression(module, key)?
+                .evaluate_static_key(module, key)?
                 .map(|static_key| (key.into_any(), static_key)),
             dir::AssignPatternField::Rest { .. }
             | dir::AssignPatternField::Elision

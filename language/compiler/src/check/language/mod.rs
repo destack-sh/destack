@@ -1,8 +1,8 @@
 mod apparent;
-mod r#enum;
 mod key;
 mod operator;
 mod subscript;
+mod variant;
 
 pub(in crate::check) use apparent::*;
 pub(in crate::check) use operator::*;

@@ -53,6 +53,11 @@ impl TreapRoot {
             hash: EMPTY_TREAP_HASH,
         }
     }
+
+    /// Return whether this root contains no entries.
+    pub const fn is_empty(self) -> bool {
+        self.node.is_none()
+    }
 }
 
 impl Default for TreapRoot {

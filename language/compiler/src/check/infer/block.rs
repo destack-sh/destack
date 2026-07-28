@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CauseId, CheckOutcome, FlowSite, PlaceUse, Relation, StaticGate, ValueCheck,
-    ValueUse, answer,
+    Answer, BodyState, CheckOutcome, Expectation, FlowSite, PlaceUse, StaticGate, ValueCheck,
+    answer,
 };
 
 impl BodyState<'_, '_> {
@@ -73,10 +73,7 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         block: dir::LocalNodeId<dir::Block>,
-        target: dir::GlobalTypeId,
-        relation: Relation,
-        cause: CauseId,
-        use_: ValueUse,
+        expectation: Expectation,
     ) -> CompilerResult<Answer<ValueCheck>> {
         let module = site.node.module_id;
         answer!(self.check_block_statements(module, block)?);
@@ -84,19 +81,23 @@ impl BodyState<'_, '_> {
         let check = match value {
             Some(value) => {
                 let value_site = self.node_site(value.into_global_any(module))?;
-                let check =
-                    answer!(self.check_node_expected(value_site, target, relation, cause, use_)?);
-                let value_type = answer!(self.node_type_at(value_site)?);
+                let check = answer!(self.check_node(value_site, expectation)?);
+                let value_type = check.source;
                 self.commit_node_type(site.node, value_type)?;
 
-                check
+                ValueCheck {
+                    source: value_type,
+                    outcome: check.outcome,
+                    target: check.target,
+                }
             }
             None => {
                 let value = self.end_type(module, block.into_any())?;
                 self.commit_node_type(site.node, value)?;
                 ValueCheck {
+                    source: value,
                     outcome: CheckOutcome::Holds,
-                    target,
+                    target: expectation.target,
                 }
             }
         };

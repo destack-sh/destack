@@ -23,6 +23,8 @@ impl WalkState<'_, '_> {
                 let resolution = dir::NameResolution::new(receiver.symbol);
                 self.check
                     .commit_decision(source, Decision::Name(resolution))?;
+                self.check
+                    .commit_access(source, dir::AccessPath::symbol(receiver.symbol))?;
             }
 
             return Ok(Some(receiver.receiver));
@@ -122,15 +124,19 @@ impl WalkState<'_, '_> {
         // select bare receiver symbols directly
         let Some(declaration) = receiver.receiver.declaration else {
             let resolution = dir::NameResolution::new(receiver.symbol);
+            self.check
+                .commit_decision(source, Decision::Name(resolution))?;
+
             return self
                 .check
-                .commit_decision(source, Decision::Name(resolution));
+                .commit_access(source, dir::AccessPath::symbol(receiver.symbol));
         };
 
         self.commit_receiver_decision(
             source,
             Receiver {
                 declaration: Some(declaration),
+                ownership: receiver.receiver.ownership,
                 ty: receiver.receiver.ty,
                 super_ty: receiver.receiver.super_ty,
             },
@@ -155,6 +161,9 @@ impl WalkState<'_, '_> {
         };
 
         self.check
-            .commit_decision(source, Decision::Receiver(resolution))
+            .commit_decision(source, Decision::Receiver(resolution))?;
+
+        self.check
+            .commit_access(source, dir::AccessPath::receiver(dir::ReceiverKind::This))
     }
 }

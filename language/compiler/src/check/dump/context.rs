@@ -3,7 +3,7 @@ use destack_source::{ModuleId, Span};
 
 use crate::check::{
     CheckState, ConstraintId, Dependency, ExpectedType, FlowPointId, FlowSite, ObligationId,
-    Origin, Relation, TypeBound, ValueUse, Widening,
+    Origin, Relation, TypeBound, Widening,
 };
 
 /// Rendering context for check trace values.
@@ -112,8 +112,9 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     pub(in crate::check) fn widening_label(&self, widening: Widening) -> &'static str {
         match widening {
             Widening::Never => "never",
+            Widening::Aggregate => "aggregate",
+            Widening::Multiple => "multiple",
             Widening::Always => "always",
-            Widening::WhenWritten => "when-written",
         }
     }
 
@@ -122,6 +123,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         match dependency {
             Dependency::Variable(variable) => self.variable_label(variable),
             Dependency::SymbolType(symbol) => self.symbol_label(symbol),
+            Dependency::NodeType(node) => self.node_label(node),
         }
     }
 
@@ -184,26 +186,13 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     pub(in crate::check) fn relation_label(&self, relation: Relation) -> &'static str {
         match relation {
             Relation::Equal => "equal",
+            Relation::Subtype => "subtype",
             Relation::Assignable => "assignable",
             Relation::Widens => "widens",
-            Relation::MethodAssignable => "method-assignable",
-            Relation::Writable => "writable",
             Relation::Castable => "castable",
             Relation::Satisfies => "satisfies",
             Relation::Extends => "extends",
             Relation::Implements => "implements",
-        }
-    }
-
-    /// Return a compact value use label.
-    pub(in crate::check) fn value_use_label(&self, use_: Option<ValueUse>) -> &'static str {
-        match use_ {
-            None => "check",
-            Some(ValueUse::Store) => "store",
-            Some(ValueUse::Argument) => "argument",
-            Some(ValueUse::Output) => "output",
-            Some(ValueUse::Condition) => "condition",
-            Some(ValueUse::Satisfies) => "satisfies",
         }
     }
 

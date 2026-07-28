@@ -85,7 +85,10 @@ const narrowMeta = segment.narrow;
 /// @type.node source=segment type=Segment
 /// @type.node source=segment.narrow type=NarrowMeta
 /// @resolution.name source=segment target=segment
-/// @resolution.member source=segment.narrow receiver=Segment kind=symbol target=Segment.narrow
+/// @resolution.member source=segment.narrow receiver=Segment type=NarrowMeta kind=field target_receiver=Segment key=narrow target=Segment.narrow target_type=NarrowMeta
+/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=segment root=segment
+/// @resolution.access source=segment.narrow root=segment keys=[narrow]
 "#,
     );
 }
@@ -173,6 +176,8 @@ segment.wide;
 /// @type.node source=segment type=Segment
 /// @type.node source=segment.wide type=<error>
 /// @resolution.name source=segment target=segment
+/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=segment root=segment
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'wide' does not exist on type 'Segment'"
@@ -248,10 +253,15 @@ class Packet<T> {
         /// @type.node source=this type=Packet<T>
         /// @type.node source=this.value type=T
         /// @resolution.receiver source=this kind=this declaration=Packet type=Packet<T>
-        /// @resolution.pattern.assign source=this.value kind=place place=field(Packet.value) type=T
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value write="receiver=Packet<T>, target=field(receiver=Packet<T>, target=Packet.value, type=T), type=T" type=T
         /// @generic.instance source=this id=Packet<T>
         /// @type.node source=value type=T
         /// @resolution.name source=value target=Packet.constructor.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Packet.constructor.value
 
     }
 }

@@ -41,7 +41,7 @@ export extension<T: Hash> of Set<T>
     }
 
     /// Create a set from `values`.
-    static fromIterator(values: Iterator<T>): ^Set<T> {
+    static fromIterator<R>(values: Iterator<T, R>): ^Set<T> {
         todo("Set.fromIterator")
     }
 
@@ -191,7 +191,7 @@ export extension<T: Hash> of ^Set<T> implements From<Iterable<T>>, FromIterator<
     }
 
     /// Create an owned set from `values`.
-    static fromIterator(values: Iterator<T>): ^Set<T> {
+    static fromIterator<R>(values: Iterator<T, R>): ^Set<T> {
         Set.fromIterator(values)
     }
 }

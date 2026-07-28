@@ -61,7 +61,7 @@ export extension<T, comptime N: number> of SmallArray<T, N>
     }
 
     /// Create a small array from `values`.
-    static fromIterator(values: Iterator<T>): SmallArray<T, N> {
+    static fromIterator<R>(values: Iterator<T, R>): SmallArray<T, N> {
         todo("SmallArray.fromIterator")
     }
 
@@ -113,11 +113,6 @@ export extension<T, comptime N: number> of SmallArray<T, N>
     /// Return whether this array has no elements.
     get isEmpty(): boolean {
         this.count == 0
-    }
-
-    /// Return the element at `index` by value.
-    index(index: usize): T {
-        todo("SmallArray.index")
     }
 
     /// Borrow a view over `start..end`.
@@ -288,7 +283,7 @@ export extension<T, comptime N: number, R: RangeBounds<usize>, comptime A: Acces
     SmallArray<T, N>
     implements Index<R, A> {
     /// The indexed output type.
-    type Output = WithAccess<&[T], A>;
+    type Output = [T];
 
     /// Return the normalized start and length for `range`.
     rangeSpan(&readonly this, range: R): (usize, usize) {

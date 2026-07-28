@@ -9,13 +9,13 @@ export type LogOptions = {
     fields?: Fields | undefined;
 
     /// Human-readable event message.
-    message?: &readonly string;
+    message?: &readonly string | undefined;
 
     /// Error value when available.
-    error?: unknown;
+    error?: unknown | undefined;
 
     /// Active span when available.
-    span?: SpanContext;
+    span?: SpanContext | undefined;
 };
 
 /// Structured logger.

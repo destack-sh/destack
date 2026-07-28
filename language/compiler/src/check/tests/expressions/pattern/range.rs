@@ -40,6 +40,8 @@ function isByte(value: int32): boolean {
     /// @type.node type=boolean
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=isByte.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=isByte.value
 
         0..=255 => {
         /// @type.node source=0 type=0
@@ -50,6 +52,8 @@ function isByte(value: int32): boolean {
             /// @type.node source="value satisfies 0..=255" type=0..=255
             /// @type.node source=value type=0..=255
             /// @resolution.name source=value target=isByte.value
+            /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=value root=isByte.value
 
             true
             /// @type.node source=true type=true
@@ -110,6 +114,8 @@ const label = match (value) {
 /// @type.node type="low" | "two"
 /// @type.node source=value type=Tiny reduced=0..=2
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
     0..=1 => "low"
     /// @type.node source=0 type=0
@@ -172,6 +178,8 @@ const isEarly = match (value) {
 /// @type.node type=true | false
 /// @type.node source=value type=LowerAscii reduced='a'..='z'
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
     'a'..='m' => true
     /// @type.node source='a' type='a'
@@ -235,6 +243,8 @@ const label = match (value) {
 /// @type.node type="low" | "high"
 /// @type.node source=value type=Tiny reduced=0..=3
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
     0..=1 => "low"
     /// @type.node source=0 type=0

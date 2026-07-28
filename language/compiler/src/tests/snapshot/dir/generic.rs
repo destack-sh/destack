@@ -23,6 +23,13 @@ impl SnapshotTable for dir::GenericSegment {
             if template.parameters.is_empty() {
                 continue;
             }
+
+            let bindings = builder
+                .bindings
+                .unwrap_or_else(|| panic!("generic snapshot is missing its binding table"));
+            let parent = bindings
+                .scope_ancestors(template.scope)
+                .find_map(|scope| self.template_by_scope(scope.id));
             let anchor = builder.anchor_node(template.source);
             let row = SnapshotRow::new(anchor, "generic", "template")
                 .optional_field(
@@ -40,9 +47,7 @@ impl SnapshotTable for dir::GenericSegment {
                 )
                 .optional_field(
                     "parent",
-                    template
-                        .parent
-                        .map(|parent| format!("template#{}", parent.0)),
+                    parent.map(|parent| format!("template#{}", parent.0)),
                 )
                 .tuple_field(
                     "parameters",

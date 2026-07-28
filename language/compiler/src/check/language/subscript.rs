@@ -1,9 +1,6 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{CheckState, Protocol};
-
 /// Protocol method selected by a subscript expression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum SubscriptProtocol {
@@ -14,15 +11,6 @@ pub(in crate::check) enum SubscriptProtocol {
 }
 
 impl SubscriptProtocol {
-    /// Return one subscript protocol interface instance.
-    pub(in crate::check) fn protocol(
-        self,
-        state: &CheckState<'_>,
-        arguments: Vec<dir::GlobalTypeId>,
-    ) -> CompilerResult<Protocol> {
-        state.language_protocol(self.item(), arguments)
-    }
-
     /// Return the source member key for this protocol method.
     pub(in crate::check) fn key(self, strings: &StringPool) -> dir::StaticKey {
         dir::StaticKey::Name(strings.intern(self.name()))

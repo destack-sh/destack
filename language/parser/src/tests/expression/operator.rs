@@ -2,7 +2,7 @@ use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_name, assert_node, assert_string};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Expression,
-    IfForm, LocalNodeId, ScalarLiteral, TypeExpression, TypeLiteral,
+    IfForm, LocalNodeId, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral,
 };
 
 /// Assert one assign pattern is an expression path.
@@ -709,6 +709,39 @@ fn test_parse_assign_operator_span() {
         .tree
         .get_main_span(expr_id)
         .expect("expected assign operator span");
+    assert_eq!(parser.span_str(main_span), "+=");
+}
+
+/// Parse a computed compound assignment as an indexed place.
+#[test]
+fn test_parse_computed_assignment() {
+    let test = TestParser::new("counter[\"value\"] += 1");
+    let mut parser = test.prepare();
+    let expression = parser.parse_expression(Default::default()).unwrap();
+
+    TestParser::assert_no_errors(&parser);
+    assert_node!(parser.tree, expression, Expression::Assign { operator, left, right } => {
+        assert_eq!(*operator, AssignOperator::AddAssign);
+        assert_node!(parser.tree, *left, AssignPattern::Place { expression: place } => {
+            assert_node!(parser.tree, *place, Expression::Index { position, left, index, is_optional } => {
+                assert_eq!(*position, PostfixPosition::Direct);
+                assert!(!is_optional);
+                assert_expression_path!(parser, parser.tree.get(*left), "counter");
+
+                let index = index.expect("expected index expression");
+                assert_node!(parser.tree, index, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                    assert_string!(parser, *value, "value");
+                });
+            });
+        });
+        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+    });
+
+    let main_span = parser
+        .tree
+        .get_main_span(expression)
+        .expect("expected assign operator span");
+
     assert_eq!(parser.span_str(main_span), "+=");
 }
 

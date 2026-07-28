@@ -131,7 +131,10 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
         Iterable<SortedMapEntry<&readonly K, &exclusive V>>,
         Extend<(K, V), "exclusive"> {
     /// The indexed output type.
-    type Output = V | undefined;
+    type Output = V;
+
+    /// The missing index result.
+    type Missing = undefined;
 
     /// Create a sorted map from entries.
     static from(entries: Iterable<(K, V)>): ^SortedMap<K, V> {
@@ -139,7 +142,7 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 
     /// Create a sorted map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): ^SortedMap<K, V> {
+    static fromIterator<R>(entries: Iterator<(K, V), R>): ^SortedMap<K, V> {
         todo("SortedMap.fromIterator")
     }
 
@@ -166,8 +169,11 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
         todo("SortedMap.get")
     }
 
-    /// Return a value by key through the index operator.
-    index(key: K): V | undefined {
+    /// Borrow a value by key through the index operator.
+    index<comptime A: Access = "readonly">(
+        this: WithAccess<&SortedMap<K, V>, A>,
+        key: K,
+    ): WithAccess<&V, A> | undefined {
         todo("SortedMap.index")
     }
 
@@ -308,7 +314,7 @@ export extension<K: Compare<K>, V> of ^SortedMap<K, V>
     }
 
     /// Create an owned sorted map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): ^SortedMap<K, V> {
+    static fromIterator<R>(entries: Iterator<(K, V), R>): ^SortedMap<K, V> {
         SortedMap.fromIterator(entries)
     }
 }

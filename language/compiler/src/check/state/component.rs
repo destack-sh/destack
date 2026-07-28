@@ -9,8 +9,9 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Cause, CauseId, CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable,
-    DecoratorApplication, FunctionBody, GenericIndex, GenericScope, GenericTemplateId, Origin,
-    OriginId, Solver, TryPropagationTarget, VarianceContext, VarianceState,
+    DecoratorApplication, FailedCheck, FunctionBody, GenericIndex, GenericScope, GenericTemplateId,
+    Origin,
+    OriginId, Solver, TryPropagationTarget, VarianceForm, VarianceState,
     should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
@@ -79,7 +80,7 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) scopes: FxIndexMap<GenericTemplateId, Arc<GenericScope>>,
     /// Generic parameter variance derivations per handle context.
     pub(in crate::check) variances:
-        FxIndexMap<(dir::GlobalGenericParameterId, VarianceContext), VarianceState>,
+        FxIndexMap<(dir::GlobalGenericParameterId, VarianceForm), VarianceState>,
     /// Declarations already walked, on demand or in root order.
     pub(in crate::check) walked_declarations: FxIndexSet<dir::GlobalNodeIdAny>,
     /// Declarations currently walking, innermost last.
@@ -89,20 +90,17 @@ pub(in crate::check) struct CheckState<'a> {
 
     // reduction state
     /// Memoized closed reduced types keyed by source type.
-    pub(in crate::check) reduced_types:
+    pub(in crate::check) reduced_heads:
         FxIndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
     /// Memoized closed reduced type graphs keyed by source type.
-    pub(in crate::check) reduced_type_graphs:
+    pub(in crate::check) reduced_graphs:
         FxIndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
-    /// Memoized common places for closed contextual types.
-    pub(in crate::check) contextual_places: FxIndexMap<
-        (dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>),
-        Option<dir::GlobalTypeId>,
-    >,
 
     // solver state
     /// Active component solver state.
     pub(in crate::check) solver: Solver,
+    /// Failed checks retained until their cause trees are complete.
+    pub(in crate::check) failures: Vec<FailedCheck>,
     /// Obligation steps run so far, for trace numbering.
     pub(in crate::check) solve_steps: usize,
     /// Named function bodies keyed by their declaration symbol.
@@ -171,10 +169,10 @@ impl<'a> CheckState<'a> {
             walked_declarations: FxIndexSet::default(),
             walking_declarations: Vec::new(),
             cyclic_inductions: FxIndexMap::default(),
-            reduced_types: FxIndexMap::default(),
-            reduced_type_graphs: FxIndexMap::default(),
-            contextual_places: FxIndexMap::default(),
+            reduced_heads: FxIndexMap::default(),
+            reduced_graphs: FxIndexMap::default(),
             solver: Solver::new(),
+            failures: Vec::new(),
             solve_steps: 0,
             functions: FxIndexMap::default(),
             lambdas: FxIndexMap::default(),
@@ -711,14 +709,6 @@ impl CheckState<'_> {
         Ok(self.module_mut(module).types_tail.intern_elements(values))
     }
 
-    /// Intern one shape field list into a module's working segment.
-    pub(in crate::check) fn intern_fields(
-        &mut self,
-        module: ModuleId,
-        values: &[dir::TypeField],
-    ) -> CompilerResult<dir::TypeListId> {
-        Ok(self.module_mut(module).types_tail.intern_fields(values))
-    }
 
     /// Intern one function parameter list into a module's working segment.
     pub(in crate::check) fn intern_parameters(
@@ -785,20 +775,6 @@ impl CheckState<'_> {
             list,
             |table| table.elements(list),
             |segment| segment.elements_maybe(list),
-        )
-    }
-
-    /// Return one shape field list owned by a module.
-    pub(in crate::check) fn shape_fields(
-        &self,
-        module: ModuleId,
-        list: dir::TypeListId,
-    ) -> CompilerResult<&[dir::TypeField]> {
-        self.type_rows(
-            module,
-            list,
-            |table| table.fields(list),
-            |segment| segment.fields_maybe(list),
         )
     }
 
@@ -1085,10 +1061,10 @@ impl CheckState<'_> {
 
                 dir::Type::Member(member)
             }
-            dir::Type::EnumMember(mut member) => {
+            dir::Type::Variant(mut member) => {
                 member.owner = map(self, member.owner)?;
 
-                dir::Type::EnumMember(member)
+                dir::Type::Variant(member)
             }
 
             // memory forms
@@ -1245,13 +1221,24 @@ impl CheckState<'_> {
 
             // structural shapes
             dir::Type::Shape(mut shape) => {
-                let mut fields = SmallVec::<[dir::TypeField; 8]>::from_slice(
-                    self.shape_fields(source, shape.fields)?,
+                let mut properties = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
+                    self.shape_properties(source, shape.properties)?,
                 );
-                for field in &mut fields {
-                    field.ty = map(self, field.ty)?;
+                for property in &mut properties {
+                    property.access = match property.access {
+                        dir::PropertyAccess::Read(ty) => dir::PropertyAccess::Read(map(self, ty)?),
+                        dir::PropertyAccess::Write(ty) => {
+                            dir::PropertyAccess::Write(map(self, ty)?)
+                        }
+                        dir::PropertyAccess::ReadWrite { read, write } => {
+                            dir::PropertyAccess::ReadWrite {
+                                read: map(self, read)?,
+                                write: map(self, write)?,
+                            }
+                        }
+                    };
                 }
-                shape.fields = self.intern_fields(target, &fields)?;
+                shape.properties = self.intern_properties(target, &properties)?;
                 shape.call_signatures =
                     self.map_type_id_list(source, target, shape.call_signatures, map)?;
                 shape.construct_signatures =
@@ -1336,4 +1323,106 @@ impl CheckState<'_> {
 
         self.intern_type_ids(target, &ids)
     }
+    /// Return the nominal application required beneath refinements and memory forms.
+    pub(in crate::check) fn require_nominal_application(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<(ModuleId, dir::GenericApplication)> {
+        self.nominal_application_maybe(id)?
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("type {id:?} has no nominal application"),
+            })
+    }
+
+    /// Return the nominal application beneath refinements and memory forms.
+    pub(in crate::check) fn nominal_application_maybe(
+        &self,
+        mut id: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<(ModuleId, dir::GenericApplication)>> {
+        loop {
+            match self.ty(id)? {
+                dir::Type::Refined(refined) => {
+                    id = self.type_refined(id.module_id, refined)?.base;
+                }
+                dir::Type::Form(form) => {
+                    id = form.value;
+                }
+                dir::Type::Application(application) => {
+                    return Ok(Some((id.module_id, application)));
+                }
+                _ => return Ok(None),
+            }
+        }
+    }
+
+    /// Return one shape property list owned by a module.
+    pub(in crate::check) fn shape_properties(
+        &self,
+        module: ModuleId,
+        list: dir::TypeListId,
+    ) -> CompilerResult<&[dir::TypeProperty]> {
+        self.type_rows(
+            module,
+            list,
+            |table| table.properties(list),
+            |segment| segment.properties_maybe(list),
+        )
+    }
+
+    /// Intern one shape property list into a component module's open segment.
+    pub(in crate::check) fn intern_properties(
+        &mut self,
+        module: ModuleId,
+        values: &[dir::TypeProperty],
+    ) -> CompilerResult<dir::TypeListId> {
+        Ok(self.module_mut(module).types_tail.intern_properties(values))
+    }
+
+    /// Intern associated bindings around one base type.
+    pub(in crate::check) fn intern_refinements(
+        &mut self,
+        module: ModuleId,
+        base: dir::GlobalTypeId,
+        bindings: &[(dir::StaticKey, dir::GlobalTypeId)],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut bindings = SmallVec::<[_; 2]>::from_slice(bindings);
+        bindings.sort_by_key(|(key, _)| *key);
+        let mut ty = base;
+
+        // build one canonical refinement chain
+        for (key, value) in bindings {
+            ty = self.intern_refined(
+                module,
+                dir::RefinedType {
+                    base: ty,
+                    key,
+                    value,
+                },
+            )?;
+        }
+
+        Ok(ty)
+    }
+
+    /// Return one refined type's base and associated bindings.
+    pub(in crate::check) fn refinement_bindings(
+        &self,
+        mut id: dir::GlobalTypeId,
+    ) -> CompilerResult<(
+        dir::GlobalTypeId,
+        SmallVec<[(dir::StaticKey, dir::GlobalTypeId); 2]>,
+    )> {
+        let mut bindings = SmallVec::new();
+
+        // peel the canonical refinement chain
+        while let dir::Type::Refined(refined) = self.ty(id)? {
+            let refined = self.type_refined(id.module_id, refined)?;
+            bindings.push((refined.key, refined.value));
+            id = refined.base;
+        }
+        bindings.sort_by_key(|(key, _)| *key);
+
+        Ok((id, bindings))
+    }
+
 }

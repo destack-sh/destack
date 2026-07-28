@@ -96,17 +96,17 @@ export extension of Device {
     }
 
     /// Return the device kind.
-    get kind(): DeviceKind {
+    get kind(&readonly this): DeviceKind {
         Context.current().compute.device.kind(this)
     }
 
     /// Return the human-readable device name.
-    get name(): &readonly string {
+    get name(&readonly this): &readonly string {
         Context.current().compute.device.name(this)
     }
 
     /// Return this device's runtime properties.
-    properties(): Result<DeviceProperties, ComputeError> {
+    properties(&readonly this): Result<DeviceProperties, ComputeError> {
         Context.current().compute.device.properties(this)
     }
 

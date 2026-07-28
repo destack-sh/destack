@@ -57,9 +57,11 @@ impl CheckState<'_> {
             | dir::Type::Key(_)
             | dir::Type::Memory(_)
             | dir::Type::Static(_)
-            | dir::Type::EnumMember(_)
             | dir::Type::Intrinsic
             | dir::Type::Range(_) => Ok(Answer::Ready(true)),
+            dir::Type::Variant(variant) => {
+                self.satisfies_dynamic_safe(origin, variant.owner, active)
+            }
             dir::Type::Reference(_) => Ok(Answer::Ready(false)),
             dir::Type::Application(instance) => {
                 let Some(definition) = self.definition(instance.symbol)? else {
@@ -115,9 +117,9 @@ impl CheckState<'_> {
             }
             dir::Type::Shape(shape) => {
                 let mut ids: SmallVec<[dir::GlobalTypeId; 8]> = self
-                    .shape_fields(ty.module_id, shape.fields)?
+                    .shape_properties(ty.module_id, shape.properties)?
                     .iter()
-                    .map(|field| field.ty)
+                    .flat_map(|field| field.access.types())
                     .collect();
                 ids.extend(
                     self.type_ids(ty.module_id, shape.call_signatures)?

@@ -51,7 +51,7 @@ const raw: uint8 = Mode.Read;
 /// @type.symbol symbol=raw source=raw type=uint8
 /// @resolution.pattern source=raw kind=binding target=raw
 /// @resolution.name source=Mode target=Mode
-/// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
+/// @resolution.member source=Mode.Read receiver=Mode type=Mode.Read kind=symbol target_receiver=Mode target=Mode.Read
 
 const mode: Mode = 1;
 /// @type.symbol symbol=mode source=mode type=Mode

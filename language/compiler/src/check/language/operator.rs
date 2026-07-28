@@ -136,8 +136,8 @@ impl OperatorProtocol {
 }
 
 impl CheckState<'_> {
-    /// Return whether two types can be compared by builtin strict equality.
-    pub(in crate::check) fn can_compare_strictly(
+    /// Return whether builtin strict equality accepts two operand types.
+    pub(in crate::check) fn supports_builtin_strict_equality(
         &mut self,
         origin: Origin,
         left: dir::GlobalTypeId,
@@ -148,17 +148,22 @@ impl CheckState<'_> {
 
         // compare transparent newtypes through their backing representations
         if let Some(instance) = self.decompose_newtype(origin, left)? {
-            return self.can_compare_strictly(origin, instance.backing, right);
+            return self.supports_builtin_strict_equality(origin, instance.backing, right);
         }
         if let Some(instance) = self.decompose_newtype(origin, right)? {
-            return self.can_compare_strictly(origin, left, instance.backing);
+            return self.supports_builtin_strict_equality(origin, left, instance.backing);
         }
 
-        // require builtin equality for every possible union pairing
+        // disjoint types use builtin equality so the caller can report their empty overlap
+        if !answer!(self.types_may_overlap(origin, left, right)?) {
+            return Ok(Answer::Ready(true));
+        }
+
+        // require builtin equality for every overlapping union pairing
         if let dir::Type::Union(union) = self.ty(left)? {
             let elements = self.type_ids(left.module_id, union.elements)?.to_vec();
             for element in elements {
-                if !answer!(self.can_compare_strictly(origin, element, right)?) {
+                if !answer!(self.supports_builtin_strict_equality(origin, element, right)?) {
                     return Ok(Answer::Ready(false));
                 }
             }
@@ -168,7 +173,7 @@ impl CheckState<'_> {
         if let dir::Type::Union(union) = self.ty(right)? {
             let elements = self.type_ids(right.module_id, union.elements)?.to_vec();
             for element in elements {
-                if !answer!(self.can_compare_strictly(origin, left, element)?) {
+                if !answer!(self.supports_builtin_strict_equality(origin, left, element)?) {
                     return Ok(Answer::Ready(false));
                 }
             }
@@ -224,7 +229,7 @@ impl CheckState<'_> {
             }
         }
 
-        self.language_protocol(protocol.item, arguments)
+        self.language_protocol(module, protocol.item, arguments)
     }
 }
 

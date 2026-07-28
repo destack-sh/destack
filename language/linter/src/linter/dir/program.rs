@@ -1,22 +1,19 @@
 use std::sync::Arc;
 
 use destack_artifact::GlobalEnvironment;
-use destack_core::FxIndexMap;
 use destack_repository::{ArtifactReader, ProviderError, Repository, Revision};
 use destack_source::ModuleId;
 
 use super::super::LintProgram;
-use super::DirModule;
+use super::{Dir, DirModule};
 
 /// Checked DIR for one target program.
 #[derive(Debug)]
 pub struct DirProgram {
     /// The program.
     pub program: Arc<LintProgram>,
-    /// The global environment.
-    pub environment: Arc<GlobalEnvironment>,
-    /// Checked DIR keyed by module id.
-    pub(crate) modules: FxIndexMap<ModuleId, DirModule>,
+    /// The checked DIR.
+    pub dir: Dir,
 }
 
 impl DirProgram {
@@ -29,60 +26,32 @@ impl DirProgram {
         environment: Arc<GlobalEnvironment>,
         modules: &[ModuleId],
     ) -> Result<Self, ProviderError> {
-        let profile = program.profile.id();
-        let target = program.target;
-        let mut loaded = FxIndexMap::default();
-        loaded.reserve(modules.len());
-
-        // load every code module in the DIR closure
-        for module in modules.iter().copied() {
-            let repository_module = repository
-                .module(revision, module)
-                .map_err(|error| ProviderError::internal(error.to_string()))?
-                .ok_or_else(|| {
-                    ProviderError::internal(format!("missing lint module {module:?}"))
-                })?;
-            if !repository_module.is_code() {
-                continue;
-            }
-
-            let module = DirModule::load(
-                repository,
-                revision,
-                profile,
-                target,
-                environment.clone(),
-                repository_module,
-                artifacts,
-            )?;
-            loaded.insert(module.id, module);
-        }
-
-        Ok(Self {
-            program,
+        let dir = Dir::load(
+            repository,
+            revision,
+            artifacts,
+            program.profile.id(),
             environment,
-            modules: loaded,
-        })
+            modules,
+        )?;
+
+        Ok(Self { program, dir })
     }
 
     /// Return checked DIR for one module.
-    pub fn module(&self, module: ModuleId) -> Result<&DirModule, ProviderError> {
-        self.modules
-            .get(&module)
-            .ok_or_else(|| ProviderError::Internal {
-                message: format!("DIR module {module:?} is outside the lint program"),
-            })
+    pub fn module(&self, module: ModuleId) -> Result<DirModule<'_>, ProviderError> {
+        self.dir.module(module)
     }
 
     /// Iterate every loaded DIR module.
-    pub fn modules(&self) -> impl Iterator<Item = &DirModule> {
-        self.modules.values()
+    pub fn modules(&self) -> impl Iterator<Item = DirModule<'_>> {
+        self.dir.modules()
     }
 
     /// Iterate package-owned DIR modules.
-    pub fn owned_modules(&self) -> impl Iterator<Item = &DirModule> {
-        self.modules
-            .values()
+    pub fn owned_modules(&self) -> impl Iterator<Item = DirModule<'_>> {
+        self.dir
+            .modules()
             .filter(|module| self.program.owns(module.id))
     }
 }

@@ -24,7 +24,7 @@ type Point {
     y: int32;
 }
 
-function main.sum(v0: Point): int32 {
+function test.main.sum(v0: Point): int32 {
 entry(v0: Point):
     v1: int32 = field.get v0, 0
     v2: int32 = field.get v0, 1
@@ -73,7 +73,7 @@ type Frame {
     size: Size;
 }
 
-function main.area(v0: Frame): int32 {
+function test.main.area(v0: Frame): int32 {
 entry(v0: Frame):
     v1: Size = field.get v0, 1
     v2: int32 = field.get v1, 0

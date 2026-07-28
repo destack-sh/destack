@@ -202,6 +202,27 @@ impl ModuleQueryContext<'_> {
         Ok(members)
     }
 
+    /// Classify one member value type as a method or field.
+    fn field_member_kind(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        type_id: dir::GlobalTypeId,
+    ) -> QueryResult<MemberKind> {
+        self.read_global_type(program, type_id, |ty, _| {
+            let is_function = matches!(
+                ty,
+                dir::Type::FunctionSignature(_)
+                    | dir::Type::Function(_)
+                    | dir::Type::FunctionPointer(_)
+            );
+
+            match is_function {
+                true => MemberKind::Method,
+                false => MemberKind::Field,
+            }
+        })
+    }
+
     /// Resolve checked type members while tracking active type ids.
     fn resolve_type_members_inner(
         &self,
@@ -233,11 +254,18 @@ impl ModuleQueryContext<'_> {
             dir::Type::Shape(object) => {
                 let mut members = Vec::new();
 
-                for field in self.types().fields(object.fields) {
+                for property in self.types().properties(object.properties) {
+                    let type_id = match property.access {
+                        dir::PropertyAccess::Read(type_id)
+                        | dir::PropertyAccess::Write(type_id)
+                        | dir::PropertyAccess::ReadWrite { read: type_id, .. } => type_id,
+                    };
+                    let kind = self.field_member_kind(program, type_id)?;
+
                     members.push(MemberCandidate {
-                        name: MemberName::from_static_key(&field.key, strings),
-                        type_id: Some(field.ty),
-                        kind: MemberKind::Property,
+                        name: MemberName::from_static_key(&property.key, strings),
+                        type_id: Some(type_id),
+                        kind,
                         symbol_id: None,
                         is_extension: false,
                     });

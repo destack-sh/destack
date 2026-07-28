@@ -51,7 +51,7 @@ export interface ComputeDeviceBinding {
         effect: "deterministic",
         requires: ["host.compute.device.read"],
     })
-    kind(device: Device): DeviceKind;
+    kind(device: &readonly Device): DeviceKind;
 
     /// Return the human-readable device name.
     @binding("destack.compute.device.name", {
@@ -59,7 +59,7 @@ export interface ComputeDeviceBinding {
         effect: "deterministic",
         requires: ["host.compute.device.read"],
     })
-    name(device: Device): &readonly string;
+    name(device: &readonly Device): &readonly string;
 
     /// Return device properties.
     @binding("destack.compute.device.properties", {
@@ -67,5 +67,5 @@ export interface ComputeDeviceBinding {
         effect: "external",
         requires: ["host.compute.device.read"],
     })
-    properties(device: Device): Result<DeviceProperties, ComputeError>;
+    properties(device: &readonly Device): Result<DeviceProperties, ComputeError>;
 }

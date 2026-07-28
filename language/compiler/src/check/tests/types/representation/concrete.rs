@@ -44,6 +44,8 @@ function storageSize<T: Concrete>(): usize {
 
     return size;
     /// @resolution.name source=size target=storageSize.size
+    /// @resolution.place source=size placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=size root=storageSize.size
 
 }
 
@@ -56,6 +58,8 @@ const size = storageSize<int32>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
+/// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=size root=size
 
 /// @generic.instance id=sizeOf<T> template=reflect.type.sizeOf arguments=(T)
 /// @generic.instance id=storageSize<int32> template=storageSize arguments=(int32)
@@ -143,6 +147,8 @@ const size = comptime sizeOf<Shape>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
+/// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=size root=size
 
 /// @generic.instance id=sizeOf<Shape> template=reflect.type.sizeOf arguments=(Shape)
 "#,
@@ -197,6 +203,8 @@ const size = comptime sizeOf<Dynamic<Writer>>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
+/// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=size root=size
 
 /// @generic.instance id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
 "#,
@@ -249,6 +257,8 @@ const size = comptime sizeOf<Dynamic<Writer>>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
+/// @resolution.place source=size placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=size root=size
 
 /// @generic.instance id=sizeOf<Dynamic<Writer>> template=reflect.type.sizeOf arguments=(Dynamic<Writer>)
 "#,
@@ -272,13 +282,15 @@ declare const value: Dynamic<<T>(input: T) => T>;
 
 === checked ===
 declare const value: Dynamic<<T>(input: T) => T>;
-/// @type.symbol symbol=value source=value type=<error>
+/// @type.symbol symbol=value source=value type=Dynamic<Function<(T,), T>>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 /// @generic.template source=type_expression parameters=(T)
 /// @type.symbol symbol=T source=T type=T
 /// @resolution.name source=T target=T
 /// @resolution.name source=T target=T
+
+/// @generic.instance id="Dynamic<Function<(T,), T>>" template=memory.dynamic.Dynamic arguments=(Function<(T,), T>)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '<T>(T) => T' does not satisfy 'DynamicSafe'"
@@ -328,7 +340,7 @@ struct Rectangle {
 type Shape = Circle | Rectangle;
 
 function makeCircle(): Shape {
-    return Circle { radius: 1.0 } as Shape;
+    return Circle { radius: 1.0 } as Circle | Rectangle;
 }
 
 makeCircle() satisfies Shape;
@@ -478,6 +490,8 @@ function makeShape(flag: boolean): Shape {
     if (flag) {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=makeShape.flag
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=flag root=makeShape.flag
 
         return Shape(Circle { radius: 1.0 } as Circle | Rectangle);
         /// @type.node source="Shape(Circle { radius: 1.0 } as Circle | Rectangle)" type=Shape
@@ -565,10 +579,10 @@ type Shape = Circle | Rectangle;
 
 function makeShape(flag: boolean): Shape {
     if (flag) {
-        return Circle { radius: 1.0 } as Shape;
+        return Circle { radius: 1.0 } as Circle | Rectangle;
     }
 
-    return Rectangle { width: 1.0, height: 1.0 } as Shape;
+    return Rectangle { width: 1.0, height: 1.0 } as Circle | Rectangle;
 }
 
 makeShape(true) satisfies Shape;
@@ -612,6 +626,8 @@ function makeShape(flag: boolean): Shape {
     if (flag) {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=makeShape.flag
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=flag root=makeShape.flag
 
         return Circle { radius: 1.0 };
         /// @type.node source="Circle { radius: 1.0 }" type=Circle

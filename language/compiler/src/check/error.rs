@@ -128,6 +128,29 @@ pub enum CheckError {
         target: String,
     },
 
+    /// Source type converts to more than one represented union case.
+    ///
+    /// ```ds
+    /// type Value = { x: int32 } | { x: int32; y?: int32 };
+    /// declare const source: { x: int32; y: int32 };
+    /// const value: Value = source;
+    /// ```
+    #[diagnostic(
+        id = "ambiguous-union-injection",
+        message = "type '{source}' converts to multiple cases of union '{target}'",
+        help = "cast the value to one union member before assigning it"
+    )]
+    AmbiguousUnionInjection {
+        /// Report the converted source value.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The converted source type.
+        source: String,
+        /// The represented target union.
+        target: String,
+    },
+
     /// Type does not satisfy a required structural or generic constraint.
     ///
     /// ```ds
@@ -148,6 +171,28 @@ pub enum CheckError {
         source: String,
         /// The required constraint.
         target: String,
+    },
+
+    /// An equality requirement has unequal normalized operands.
+    ///
+    /// ```ds
+    /// function same<T, U>(): void where T == U {}
+    ///
+    /// same<int32, string>();
+    /// ```
+    #[diagnostic(
+        id = "equality-requirement-not-satisfied",
+        message = "equality requirement '{left} == {right}' is not satisfied"
+    )]
+    EqualityRequirementNotSatisfied {
+        /// Report the failed equality relation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The normalized left operand.
+        left: String,
+        /// The normalized right operand.
+        right: String,
     },
 
     /// Type does not extend a required base type.
@@ -604,22 +649,94 @@ pub enum CheckError {
         provider: String,
     },
 
-    /// One Tagged backing arm has no string literal discriminant.
+    /// One Tagged backing arm lies outside the constructible record domain.
     ///
     /// ```ds
     /// @derive(Tagged)
-    /// newtype Shape = { kind: string };
+    /// newtype Shape = string;
     /// ```
     #[diagnostic(
         id = "invalid-tagged-variant",
-        message = "Tagged backing arm must declare a string literal '{discriminant}' field"
+        message = "Tagged backing arm must be a constructible shape or struct"
     )]
     InvalidTaggedVariant {
         /// Report the derive application.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The configured discriminant field.
+    },
+
+    /// A Tagged backing has no inferable discriminator.
+    ///
+    /// ```ds
+    /// @derive(Tagged)
+    /// newtype Shape = { value: int32 };
+    /// ```
+    #[diagnostic(
+        id = "missing-tagged-discriminator",
+        message = "Tagged backing has no common required field with distinct string literal types"
+    )]
+    MissingTaggedDiscriminator {
+        /// Report the derive application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A Tagged backing has more than one inferable discriminator.
+    ///
+    /// ```ds
+    /// @derive(Tagged)
+    /// newtype State = { kind: "on"; state: "ready" } | { kind: "off"; state: "done" };
+    /// ```
+    #[diagnostic(
+        id = "ambiguous-tagged-discriminator",
+        message = "Tagged backing has multiple possible discriminators: {discriminators}"
+    )]
+    AmbiguousTaggedDiscriminator {
+        /// Report the derive application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The possible discriminator fields.
+        discriminators: String,
+    },
+
+    /// An explicitly selected Tagged discriminator is invalid.
+    ///
+    /// ```ds
+    /// @derive(Tagged({ discriminator: "type" }))
+    /// newtype Shape = { kind: "circle" };
+    /// ```
+    #[diagnostic(
+        id = "invalid-tagged-discriminator",
+        message = "Tagged discriminator '{discriminator}' must be a required string literal field in every backing arm"
+    )]
+    InvalidTaggedDiscriminator {
+        /// Report the derive application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The rejected discriminator field.
+        discriminator: String,
+    },
+
+    /// Two Tagged backing arms carry the same discriminant.
+    ///
+    /// ```ds
+    /// @derive(Tagged)
+    /// newtype Shape = { kind: "shape" } | { kind: "shape"; radius: float64 };
+    /// ```
+    #[diagnostic(
+        id = "duplicate-tagged-discriminant",
+        message = "duplicate Tagged discriminant '{discriminant}'"
+    )]
+    DuplicateTaggedDiscriminant {
+        /// Report the derive application.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The duplicated discriminant value.
         discriminant: String,
     },
 
@@ -696,41 +813,6 @@ pub enum CheckError {
         key: String,
         /// The declared visibility.
         visibility: String,
-    },
-
-    /// One lifetime bound names a union instead of one lifetime.
-    ///
-    /// ```ds
-    /// function pick<'a, 'b, 'c>(a: &'a Node, b: &'b Node): &'c Node where 'c: 'a | 'b {}
-    /// ```
-    #[diagnostic(
-        id = "disjunctive-lifetime-bound",
-        message = "a lifetime bound must name one lifetime, not a union"
-    )]
-    DisjunctiveLifetimeBound {
-        /// Report the where clause.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-    },
-
-    /// One interpolated template argument has no display representation.
-    ///
-    /// ```ds
-    /// struct Point {}
-    /// const label = `${Point {}}`;
-    /// ```
-    #[diagnostic(
-        id = "template-argument-not-displayable",
-        message = "template argument of type '{argument}' has no display representation"
-    )]
-    TemplateArgumentNotDisplayable {
-        /// Report the interpolated argument.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The interpolated argument type.
-        argument: String,
     },
 
     /// No operator overload matches the supplied operands.
@@ -2431,6 +2513,22 @@ pub enum CheckError {
         module: ModuleId,
         /// The bodyless declaration name.
         name: String,
+    },
+
+    /// One lifetime bound spelled as a union of lifetimes.
+    ///
+    /// ```ds
+    /// function hold<'a, 'b>(value: &'a int32) where 'a: 'a | 'b {}
+    /// ```
+    #[diagnostic(
+        id = "disjunctive-lifetime-bound",
+        message = "a lifetime bound must name one lifetime, not a union"
+    )]
+    DisjunctiveLifetimeBound {
+        /// Report the where clause.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
     },
 
     /// Declaration repeats a member in the same owner.

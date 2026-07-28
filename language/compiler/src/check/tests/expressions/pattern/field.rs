@@ -29,6 +29,7 @@ let { y } = point;
 /// @type.symbol symbol=y source=y type=<error>
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=pattern-field-missing message="pattern field 'y' does not exist on type '{ x: int32 }'"
@@ -68,6 +69,7 @@ let { x, x: other } = point;
 /// @resolution.pattern source=other kind=binding target=other
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=duplicate-pattern-field message="field 'x' appears more than once in pattern"
@@ -109,6 +111,7 @@ let { left: value, right: value } = pair;
 /// @resolution.pattern source=value kind=binding target=value#2
 /// @type.node source=pair type={ left: int32; right: int32 }
 /// @resolution.name source=pair target=pair
+/// @resolution.access source=pair root=pair
 "#,
         r#"
 /// @diagnostic.error id=duplicate-pattern-binding message="binding 'value' appears more than once in pattern"

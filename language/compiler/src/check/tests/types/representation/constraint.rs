@@ -45,8 +45,10 @@ function paint(item: Drawable): void {
 
     item.draw();
     /// @resolution.name source=item target=paint.item
-    /// @resolution.member source=item.draw receiver=Dynamic<Drawable> kind=symbol target=Drawable.draw adjustments=(dynamic)
-    /// @resolution.call source=item.draw() parameters=() return=void kind=symbol target=Drawable.draw receiver=Drawable adjustments=(dynamic)
+    /// @resolution.member source=item.draw receiver=Dynamic<Drawable> type=(this: Drawable) => void kind=symbol target_receiver=Dynamic<Drawable> dispatch=dynamic constraint=Drawable target=Drawable.draw
+    /// @resolution.call source=item.draw() parameters=() return=void kind=dynamic target=Drawable.draw receiver=Dynamic<Drawable> constraint=Drawable
+    /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=item root=paint.item
 
 }
 "#,
@@ -95,8 +97,11 @@ function paint(item: Drawable): void {
 
     item.draw();
     /// @resolution.name source=item target=paint.item
-    /// @resolution.member source=item.draw receiver={ draw(): void } kind=field key=draw
-    /// @resolution.call source=item.draw() parameters=() return=void kind=expression
+    /// @resolution.member source=item.draw receiver={ draw(): void } type=() => void kind=field target_receiver={ draw(): void } key=draw target_type=() => void
+    /// @resolution.call source=item.draw() parameters=() return=void kind=expression target=expression
+    /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=item root=paint.item
+    /// @resolution.access source=item.draw root=paint.item keys=[draw]
 
 }
 "#,

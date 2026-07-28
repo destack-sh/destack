@@ -44,6 +44,8 @@ const ok: Keys = key;
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Keys target=Keys
 /// @resolution.name source=key target=key
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=key root=key
 
 const bad: Keys = "name";
 /// @type.symbol symbol=bad source=bad type=Keys reduced=symbol
@@ -106,11 +108,17 @@ const value = box[token];
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=box target=box
-/// @resolution.member source=box[token] receiver={ readonly [token]: int32 } kind=field key=token
+/// @resolution.place source=box placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=box root=box
+/// @resolution.subscript source=box[token] type=int32 kind=member target="receiver={ readonly [token]: int32 }, target=field(receiver={ readonly [token]: int32 }, target=token, type=int32), type=int32"
 /// @resolution.name source=token target=token
+/// @resolution.place source=token placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=token root=token
 
 value satisfies int32;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }
@@ -159,6 +167,8 @@ const ok: Keys = token;
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Keys target=Keys
 /// @resolution.name source=token target=token
+/// @resolution.place source=token placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=token root=token
 "#,
     );
 }
@@ -213,6 +223,8 @@ const bad: Keys = other;
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Keys target=Keys
 /// @resolution.name source=other target=other
+/// @resolution.place source=other placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=other root=other
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'other' is not assignable to type 'Keys'"
@@ -258,20 +270,24 @@ const box: RegistryBox = { [Symbol.for("token")]: "ok" };
 /// @resolution.pattern source=box kind=binding target=box
 /// @resolution.name source=RegistryBox target=RegistryBox
 /// @resolution.name source=Symbol target=types.symbol.Symbol
-/// @resolution.member source=Symbol.for receiver=Symbol kind=symbol target=types.symbol.Symbol.for
+/// @resolution.member source=Symbol.for receiver=Symbol type=(string) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.for
 /// @resolution.call source="Symbol.for(\"token\")" parameters=(string) arguments=(provided("token") as string) return=Symbol.for("token") kind=symbol target=types.symbol.Symbol.for receiver=Symbol
 
 const value = box[Symbol.for("token")];
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=box target=box
-/// @resolution.member source="box[Symbol.for(\"token\")]" receiver={ readonly [Symbol.for("token")]: string } kind=field key="Symbol.for(\"token\")"
+/// @resolution.subscript source="box[Symbol.for(\"token\")]" type=string kind=member target="receiver={ readonly [Symbol.for(\"token\")]: string }, target=field(receiver={ readonly [Symbol.for(\"token\")]: string }, target=Symbol.for(\"token\"), type=string), type=string"
+/// @resolution.place source=box placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=box root=box
 /// @resolution.name source=Symbol target=types.symbol.Symbol
-/// @resolution.member source=Symbol.for receiver=Symbol kind=symbol target=types.symbol.Symbol.for
+/// @resolution.member source=Symbol.for receiver=Symbol type=(string) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.for
 /// @resolution.call source="Symbol.for(\"token\")" parameters=(string) arguments=(provided("token") as string) return=Symbol.for("token") kind=symbol target=types.symbol.Symbol.for receiver=Symbol
 
 value satisfies string;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }

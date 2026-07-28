@@ -10,17 +10,28 @@ use crate::{CompilerError, CompilerResult};
 /// One Tagged provider configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TaggedOptions {
-    /// The property carrying each variant's string discriminant.
-    discriminant: dir::StringId,
+    /// The explicitly selected discriminator property.
+    discriminator: Option<dir::StaticKey>,
     /// The constructor naming policy.
-    case: TaggedCase,
+    case: TaggedCaseConvention,
     /// Explicit constructor names keyed by discriminant text.
     names: FxIndexMap<dir::StringId, dir::StringId>,
 }
 
+/// One constructible arm in a Tagged newtype backing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TaggedArm {
+    /// The checked backing leaf.
+    backing: dir::GlobalTypeId,
+    /// The declared fields exposed by the leaf.
+    declared_fields: Vec<dir::TypeProperty>,
+    /// The fields accepted when constructing the leaf.
+    constructor_fields: Vec<dir::TypeProperty>,
+}
+
 /// Constructor naming policy for one Tagged derivation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TaggedCase {
+enum TaggedCaseConvention {
     /// Preserve the discriminant text.
     Preserve,
     /// Convert the discriminant to lower camel case.
@@ -40,6 +51,8 @@ struct TaggedVariant {
     backing: dir::GlobalTypeId,
     /// The explicit string discriminator.
     discriminant: dir::StringId,
+    /// The constructor argument after removing the discriminator.
+    argument: Option<dir::GlobalTypeId>,
 }
 
 impl CheckState<'_> {
@@ -133,39 +146,58 @@ impl CheckState<'_> {
 
             return Ok(());
         };
-        let definition = self.loaded_definition(symbol).cloned();
-        let Some(dir::Definition::Newtype(definition)) = definition else {
-            self.report_invalid_derive_target(origin, provider)?;
+        let (backing, template, is_tagged) = match self.loaded_definition(symbol) {
+            Some(dir::Definition::Newtype(definition)) => (
+                definition.backing,
+                definition
+                    .template
+                    .map(|template| template.into_global(module)),
+                definition.is_tagged(),
+            ),
+            _ => {
+                self.report_invalid_derive_target(origin, provider)?;
 
-            return Ok(());
+                return Ok(());
+            }
         };
-        if definition.is_tagged() {
+        if is_tagged {
             self.report_duplicate_derive_provider(origin, provider)?;
 
             return Ok(());
         }
 
-        // decode the provider value and declared discriminator domain
+        // collect every constructible backing arm before selecting a discriminator
         let options = TaggedOptions::decode(value, self.strings())?;
-        let discriminant = dir::StaticKey::Name(options.discriminant);
-        let mut variants = Vec::new();
         let mut active = FxIndexSet::default();
-        let is_tagged = self.collect_tagged_variants(
-            origin,
-            definition.backing,
-            discriminant,
-            &mut active,
-            &mut variants,
-        )?;
-        if !is_tagged || variants.is_empty() {
-            self.report_invalid_tagged_variant(origin, options.discriminant)?;
+        let Some(arms) = self.tagged_arms(origin, backing, &mut active)? else {
+            self.report_invalid_tagged_variant(origin)?;
 
             return Ok(());
+        };
+        if arms.is_empty() {
+            return Err(CompilerError::Internal {
+                message: "Tagged backing produced no constructible arms".to_string(),
+            });
+        }
+
+        // select one explicit or uniquely inferred discriminator
+        let Some((discriminator, discriminants)) =
+            self.select_tagged_discriminator(origin, options.discriminator, &arms)?
+        else {
+            return Ok(());
+        };
+        let mut variants = Vec::with_capacity(arms.len());
+        for (arm, discriminant) in arms.into_iter().zip(discriminants) {
+            variants.push(self.derive_tagged_variant(
+                origin.module(),
+                arm,
+                discriminator,
+                discriminant,
+            )?);
         }
 
         // validate every generated key before mutating bindings
         let mut cases = Vec::with_capacity(variants.len());
-        let mut distinct_discriminants = FxIndexSet::default();
         let mut distinct_keys = FxIndexSet::default();
         for variant in variants {
             let Some(name) = options.case_name(variant.discriminant, self.strings()) else {
@@ -173,7 +205,7 @@ impl CheckState<'_> {
 
                 return Ok(());
             };
-            if !distinct_discriminants.insert(variant.discriminant) || !distinct_keys.insert(name) {
+            if !distinct_keys.insert(name) {
                 self.report_duplicate_tagged_case(origin, name)?;
 
                 return Ok(());
@@ -187,11 +219,13 @@ impl CheckState<'_> {
         let mut members = Vec::with_capacity(cases.len());
         for (key, variant) in cases {
             let member = self.insert_tagged_variant_symbol(symbol, key)?;
-            let ty = dir::Type::EnumMember(dir::EnumMemberType {
-                owner: owner_ty,
+            let ty = self.tagged_variant_member_type(
+                module,
+                owner_ty,
                 member,
-            });
-            let ty = self.intern_type(module, ty)?;
+                template,
+                variant.argument,
+            )?;
             self.bind_symbol_type(member, ty)?;
             members.push(dir::DefinitionMember::TaggedVariant(
                 dir::TaggedVariantDefinition {
@@ -200,6 +234,7 @@ impl CheckState<'_> {
                     key,
                     discriminant: variant.discriminant,
                     backing: variant.backing,
+                    argument: variant.argument,
                 },
             ));
         }
@@ -209,24 +244,22 @@ impl CheckState<'_> {
         let Some(dir::Definition::Newtype(definition)) = state.definitions.definition_mut(symbol)
         else {
             return Err(CompilerError::Internal {
-                message: format!("Tagged owner {symbol:?} lost its working newtype definition"),
+                message: format!("Tagged owner {symbol:?} lost its newtype definition"),
             });
         };
-        definition.discriminant = Some(options.discriminant);
+        definition.discriminator = Some(discriminator);
         definition.members.extend(members);
 
         Ok(())
     }
 
-    /// Collect the declared variants beneath one tagged backing type.
-    fn collect_tagged_variants(
+    /// Return the constructible arms beneath one Tagged backing type.
+    fn tagged_arms(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-        discriminant: dir::StaticKey,
         active: &mut FxIndexSet<dir::GlobalSymbolId>,
-        variants: &mut Vec<TaggedVariant>,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Option<Vec<TaggedArm>>> {
         let ty = self.settled_root(ty)?;
         let ty = match self.reduce_type_head(origin, ty)? {
             Answer::Ready(ty) => ty,
@@ -243,66 +276,283 @@ impl CheckState<'_> {
         match self.ty(ty)? {
             // flatten direct union arms in declaration order
             dir::Type::Union(union) => {
-                let arms = self.type_ids(ty.module_id, union.elements)?.to_vec();
-                for arm in arms {
-                    if !self.collect_tagged_variants(origin, arm, discriminant, active, variants)? {
-                        return Ok(false);
-                    }
+                let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
+                let mut arms = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let Some(element_arms) = self.tagged_arms(origin, element, active)? else {
+                        return Ok(None);
+                    };
+                    arms.extend(element_arms);
                 }
 
-                Ok(true)
+                Ok(Some(arms))
             }
 
-            // accept one explicitly discriminated structural arm
+            // return one structural arm with its checked fields
             dir::Type::Shape(shape) => {
-                let value = self.declared_shape_discriminant(ty.module_id, shape, discriminant)?;
-                let Some(dir::ScalarLiteral::String(value)) = value else {
-                    return Ok(false);
-                };
-                variants.push(TaggedVariant {
+                let fields = self.shape_properties(ty.module_id, shape.properties)?.to_vec();
+                let arm = TaggedArm {
                     backing: ty,
-                    discriminant: value,
-                });
-
-                Ok(true)
-            }
-
-            // accept a directly discriminated nominal arm or flatten a nested newtype
-            dir::Type::Application(instance) => {
-                let value = self.declared_nominal_discriminant(instance.symbol, discriminant)?;
-                if let Some(dir::ScalarLiteral::String(value)) = value {
-                    variants.push(TaggedVariant {
-                        backing: ty,
-                        discriminant: value,
-                    });
-
-                    return Ok(true);
-                }
-
-                let definition = self.definition(instance.symbol)?.cloned();
-                let Some(dir::Definition::Newtype(definition)) = definition else {
-                    return Ok(false);
+                    declared_fields: fields.clone(),
+                    constructor_fields: fields,
                 };
-                if !active.insert(instance.symbol) {
-                    return Ok(false);
-                }
 
-                // instantiate the nested backing under its written arguments
-                let substitution = self
-                    .instance_substitution(ty.module_id, &instance)?
-                    .with_receiver(ty);
-                let backing =
-                    self.substitute_type(origin.module(), definition.backing, &substitution)?;
-                let is_tagged =
-                    self.collect_tagged_variants(origin, backing, discriminant, active, variants)?;
-                active.swap_remove(&instance.symbol);
-
-                Ok(is_tagged)
+                Ok(Some(vec![arm]))
             }
 
-            // every tagged leaf must expose an explicit discriminator
-            _ => Ok(false),
+            // return structs or flatten a nested newtype
+            dir::Type::Application(instance) => {
+                match self.definition(instance.symbol)? {
+                    // return one struct arm with its instantiated fields
+                    Some(dir::Definition::Struct(_)) => {
+                        let declared_fields = match self.struct_fields(origin, ty)? {
+                            Answer::Ready(fields) => fields,
+                            Answer::Pending(blockers) => {
+                                return Err(CompilerError::Internal {
+                                    message: format!(
+                                        "Tagged struct {ty:?} remained blocked after decorator \
+                                         checking: {blockers:?}"
+                                    ),
+                                });
+                            }
+                        };
+                        let constructor_fields = match self.struct_constructor_fields(origin, ty)? {
+                            Answer::Ready(fields) => fields,
+                            Answer::Pending(blockers) => {
+                                return Err(CompilerError::Internal {
+                                    message: format!(
+                                        "Tagged struct constructor {ty:?} remained blocked after \
+                                         decorator checking: {blockers:?}"
+                                    ),
+                                });
+                            }
+                        };
+                        let arm = TaggedArm {
+                            backing: ty,
+                            declared_fields: declared_fields.into_vec(),
+                            constructor_fields: constructor_fields.into_vec(),
+                        };
+
+                        Ok(Some(vec![arm]))
+                    }
+
+                    // nested newtypes contribute their instantiated backing arms
+                    Some(dir::Definition::Newtype(definition)) => {
+                        let backing = definition.backing;
+                        if !active.insert(instance.symbol) {
+                            return Ok(None);
+                        }
+
+                        let substitution = self
+                            .instance_substitution(ty.module_id, &instance)?
+                            .with_receiver(ty);
+                        let backing =
+                            self.substitute_type(origin.module(), backing, &substitution)?;
+                        let arms = self.tagged_arms(origin, backing, active)?;
+                        active.swap_remove(&instance.symbol);
+
+                        Ok(arms)
+                    }
+
+                    // reject nominal leaves without field construction
+                    _ => Ok(None),
+                }
+            }
+
+            // reject leaves without structural construction
+            _ => Ok(None),
         }
+    }
+
+    /// Select one explicit or uniquely inferred Tagged discriminator.
+    fn select_tagged_discriminator(
+        &mut self,
+        origin: Origin,
+        explicit: Option<dir::StaticKey>,
+        arms: &[TaggedArm],
+    ) -> CompilerResult<Option<(dir::StaticKey, Vec<dir::StringId>)>> {
+        if let Some(discriminator) = explicit {
+            let Some(discriminants) =
+                self.collect_tagged_discriminants(origin, discriminator, arms)?
+            else {
+                self.report_invalid_tagged_discriminator(origin, discriminator)?;
+
+                return Ok(None);
+            };
+            if let Some(duplicate) = Self::duplicate_tagged_discriminant(&discriminants) {
+                self.report_duplicate_tagged_discriminant(origin, duplicate)?;
+
+                return Ok(None);
+            }
+
+            return Ok(Some((discriminator, discriminants)));
+        }
+
+        // infer candidates from fields present on the first arm
+        let mut candidates = Vec::new();
+        let mut duplicates = Vec::new();
+        for field in &arms[0].declared_fields {
+            let Some(discriminants) = self.collect_tagged_discriminants(origin, field.key, arms)?
+            else {
+                continue;
+            };
+            if let Some(duplicate) = Self::duplicate_tagged_discriminant(&discriminants) {
+                duplicates.push(duplicate);
+            } else {
+                candidates.push((field.key, discriminants));
+            }
+        }
+
+        match candidates.as_slice() {
+            [(discriminator, discriminants)] => Ok(Some((*discriminator, discriminants.clone()))),
+            [] if duplicates.len() == 1 => {
+                self.report_duplicate_tagged_discriminant(origin, duplicates[0])?;
+
+                Ok(None)
+            }
+            [] => {
+                self.report_missing_tagged_discriminator(origin)?;
+
+                Ok(None)
+            }
+            _ => {
+                let discriminators = candidates.iter().map(|(key, _)| *key).collect::<Vec<_>>();
+                self.report_ambiguous_tagged_discriminator(origin, &discriminators)?;
+
+                Ok(None)
+            }
+        }
+    }
+
+    /// Collect one string discriminant from every Tagged arm.
+    fn collect_tagged_discriminants(
+        &mut self,
+        origin: Origin,
+        discriminator: dir::StaticKey,
+        arms: &[TaggedArm],
+    ) -> CompilerResult<Option<Vec<dir::StringId>>> {
+        let mut discriminants = Vec::with_capacity(arms.len());
+        for arm in arms {
+            let Some(field) = arm
+                .declared_fields
+                .iter()
+                .find(|field| field.key == discriminator && !field.is_optional)
+            else {
+                return Ok(None);
+            };
+            let field_type = match self.reduce_type_head(origin, field.access.store())? {
+                Answer::Ready(ty) => ty,
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "Tagged discriminator field {:?} remained blocked after decorator checking: {blockers:?}",
+                            field.access.store(),
+                        ),
+                    });
+                }
+            };
+            let dir::Type::Literal(dir::ScalarLiteral::String(discriminant)) =
+                self.ty(field_type)?
+            else {
+                return Ok(None);
+            };
+            discriminants.push(discriminant);
+        }
+
+        Ok(Some(discriminants))
+    }
+
+    /// Return the first repeated Tagged discriminant.
+    fn duplicate_tagged_discriminant(discriminants: &[dir::StringId]) -> Option<dir::StringId> {
+        let mut distinct = FxIndexSet::default();
+
+        discriminants
+            .iter()
+            .copied()
+            .find(|discriminant| !distinct.insert(*discriminant))
+    }
+
+    /// Derive one Tagged variant from a selected arm.
+    fn derive_tagged_variant(
+        &mut self,
+        module: ModuleId,
+        arm: TaggedArm,
+        discriminator: dir::StaticKey,
+        discriminant: dir::StringId,
+    ) -> CompilerResult<TaggedVariant> {
+        // retain every constructor field except the injected discriminator
+        let argument_fields: Vec<_> = arm
+            .constructor_fields
+            .iter()
+            .filter(|field| field.key != discriminator)
+            .copied()
+            .collect();
+        let argument = if argument_fields.is_empty() {
+            None
+        } else {
+            let fields = self.intern_properties(module, &argument_fields)?;
+            let shape = dir::ShapeType {
+                properties: fields,
+                call_signatures: dir::TypeListId::EMPTY,
+                construct_signatures: dir::TypeListId::EMPTY,
+                index_signatures: dir::TypeListId::EMPTY,
+            };
+
+            Some(self.intern_type(module, dir::Type::Shape(shape))?)
+        };
+
+        Ok(TaggedVariant {
+            backing: arm.backing,
+            discriminant,
+            argument,
+        })
+    }
+
+    /// Build one generated tagged variant member type.
+    fn tagged_variant_member_type(
+        &mut self,
+        module: ModuleId,
+        owner: dir::GlobalTypeId,
+        member: dir::GlobalSymbolId,
+        template: Option<dir::GlobalGenericTemplateId>,
+        argument: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let variant = self.intern_type(
+            module,
+            dir::Type::Variant(dir::VariantType {
+                owner,
+                variant: member,
+            }),
+        )?;
+        let Some(argument) = argument else {
+            return Ok(variant);
+        };
+        let dir::Type::Shape(shape) = self.ty(argument)? else {
+            return Err(CompilerError::Internal {
+                message: format!("tagged constructor argument {argument:?} is not a shape"),
+            });
+        };
+        let is_optional = self
+            .shape_properties(argument.module_id, shape.properties)?
+            .iter()
+            .all(|field| field.is_optional);
+
+        let parameter = dir::FunctionParameterType {
+            ty: argument,
+            is_optional,
+            is_rest: false,
+        };
+        let parameters = self.intern_parameters(module, &[parameter])?;
+        let signature = dir::FunctionSignatureType {
+            asynchrony: dir::Asynchrony::Sync,
+            template,
+            this_parameter: None,
+            parameters,
+            return_type: Some(variant),
+            is_generator: false,
+        };
+
+        self.intern_signature(module, signature)
     }
 
     /// Insert one generated tagged variant member symbol.
@@ -319,14 +569,6 @@ impl CheckState<'_> {
                     message: format!("tagged owner {owner:?} has no member scope"),
                 });
             };
-
-            // reuse the variant symbol the declaration pass synthesized
-            if let dir::SymbolLookup::Found(symbol) =
-                bindings.lookup_key_member(owner.local_id, key)
-                && bindings.get_symbol(symbol).kind == dir::SymbolKind::Variant
-            {
-                return Ok(symbol.into_global(module));
-            }
             let scope_value = bindings.get_scope(scope).clone();
 
             (scope, scope_value)
@@ -347,61 +589,6 @@ impl CheckState<'_> {
 
         Ok(symbol.into_global(module))
     }
-
-    /// Return one declared structural discriminant.
-    fn declared_shape_discriminant(
-        &mut self,
-        module: ModuleId,
-        shape: dir::ShapeType,
-        tag_key: dir::StaticKey,
-    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        let field = self
-            .shape_fields(module, shape.fields)?
-            .iter()
-            .find(|field| field.key == tag_key)
-            .copied();
-        let Some(field) = field else {
-            return Ok(None);
-        };
-
-        self.declared_discriminant_literal(field.ty)
-    }
-
-    /// Return one declared nominal discriminant.
-    fn declared_nominal_discriminant(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        tag_key: dir::StaticKey,
-    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        let Some(definition) = self.definition(symbol)? else {
-            return Ok(None);
-        };
-        let field = definition.members().iter().find_map(|member| match member {
-            dir::DefinitionMember::Field(field)
-                if field.space == dir::MemberSpace::Instance && field.key == tag_key =>
-            {
-                Some(field.symbol)
-            }
-            _ => None,
-        });
-        let Some(field) = field else {
-            return Ok(None);
-        };
-        let ty = self.require_symbol_type(field)?;
-
-        self.declared_discriminant_literal(ty)
-    }
-
-    /// Return one literal discriminant type.
-    fn declared_discriminant_literal(
-        &self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        match self.ty(ty)? {
-            dir::Type::Literal(literal) => Ok(Some(literal)),
-            _ => Ok(None),
-        }
-    }
 }
 
 impl TaggedOptions {
@@ -413,8 +600,8 @@ impl TaggedOptions {
             });
         };
         let mut options = Self {
-            discriminant: strings.intern("kind"),
-            case: TaggedCase::UpperCamel,
+            discriminator: None,
+            case: TaggedCaseConvention::UpperCamel,
             names: FxIndexMap::default(),
         };
 
@@ -479,16 +666,23 @@ impl TaggedOptions {
         strings: &StringPool,
     ) -> CompilerResult<()> {
         match strings.get(key) {
-            "discriminant" => {
-                self.discriminant = value.as_string().ok_or_else(|| CompilerError::Internal {
-                    message: "Tagged discriminant has a non-string value".to_string(),
-                })?;
+            "discriminator" => {
+                self.discriminator = if value.as_scalar() == Some(dir::ScalarLiteral::Undefined) {
+                    None
+                } else {
+                    let discriminator =
+                        value.as_string().ok_or_else(|| CompilerError::Internal {
+                            message: "Tagged discriminator has a non-string value".to_string(),
+                        })?;
+
+                    Some(dir::StaticKey::Name(discriminator))
+                };
             }
             "case" => {
                 self.case = if value.as_scalar() == Some(dir::ScalarLiteral::Undefined) {
-                    TaggedCase::UpperCamel
+                    TaggedCaseConvention::UpperCamel
                 } else {
-                    TaggedCase::decode(value, strings)?
+                    TaggedCaseConvention::decode(value, strings)?
                 };
             }
             "names" => {
@@ -521,7 +715,7 @@ impl TaggedOptions {
     }
 }
 
-impl TaggedCase {
+impl TaggedCaseConvention {
     /// Decode one Tagged constructor naming policy.
     fn decode(value: &dir::StaticTerm, strings: &StringPool) -> CompilerResult<Self> {
         let value = value.as_string().ok_or_else(|| CompilerError::Internal {

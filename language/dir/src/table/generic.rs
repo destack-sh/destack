@@ -5,8 +5,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GenericParameterBinding, GenericTemplate, GlobalNodeIdAny, GlobalSymbolId,
-    LocalGenericParameterId, LocalGenericTemplateId, SegmentView, VarianceModifier,
+    Arena, GenericParameterBinding, GenericTemplate, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId,
+    LocalGenericParameterId, LocalGenericTemplateId, LocalScopeId, SegmentView, VarianceModifier,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -102,6 +102,17 @@ impl<'a> GenericTable<'a> {
         None
     }
 
+    /// Return the generic template that governs one lexical scope.
+    pub fn template_by_scope(&self, scope: LocalScopeId) -> Option<LocalGenericTemplateId> {
+        for segment in self.segments.iter() {
+            if let Some(template_id) = segment.template_by_scope(scope) {
+                return Some(template_id);
+            }
+        }
+
+        None
+    }
+
     /// Return the generic template declared by one symbol.
     pub fn template_by_symbol(&self, symbol: GlobalSymbolId) -> Option<LocalGenericTemplateId> {
         for (template_id, template) in self.iter_templates() {
@@ -180,6 +191,8 @@ pub struct GenericSegment {
     pub(crate) first_parameter_id: u32,
     /// Generic templates.
     pub(crate) templates: Arena<GenericTemplate>,
+    /// Generic template ids keyed by lexical scope id.
+    pub(crate) templates_by_scope: Vec<Option<LocalGenericTemplateId>>,
     /// Generic parameters.
     pub(crate) parameters: Arena<GenericParameterBinding>,
     /// Variances derived by check for unannotated earlier parameters.
@@ -194,6 +207,7 @@ impl GenericSegment {
             first_template_id: 0,
             first_parameter_id: 0,
             templates: Arena::new(),
+            templates_by_scope: Vec::new(),
             parameters: Arena::new(),
             derived_variances: Vec::new(),
         }
@@ -206,6 +220,7 @@ impl GenericSegment {
             first_template_id: base.template_count(),
             first_parameter_id: base.parameter_count(),
             templates: Arena::new(),
+            templates_by_scope: Vec::new(),
             parameters: Arena::new(),
             derived_variances: Vec::new(),
         }
@@ -234,6 +249,17 @@ impl GenericSegment {
     /// Append a generic template to this segment.
     pub fn push_template(&mut self, template: GenericTemplate) -> LocalGenericTemplateId {
         let template_id = LocalGenericTemplateId::new(self.template_count());
+        let scope_index = template.scope.0 as usize;
+        if self.templates_by_scope.len() <= scope_index {
+            self.templates_by_scope.resize(scope_index + 1, None);
+        }
+        assert!(
+            self.templates_by_scope[scope_index].is_none(),
+            "DIR generic scope {:?} already has a template",
+            template.scope
+        );
+
+        self.templates_by_scope[scope_index] = Some(template_id);
         self.templates.allocate(template);
 
         template_id
@@ -270,6 +296,14 @@ impl GenericSegment {
         self.get_local_template(template_id).unwrap_or_else(|| {
             panic!("DIR generic template {template_id:?} is not allocated in this segment")
         })
+    }
+
+    /// Return the generic template that governs one lexical scope.
+    pub fn template_by_scope(&self, scope: LocalScopeId) -> Option<LocalGenericTemplateId> {
+        self.templates_by_scope
+            .get(scope.0 as usize)
+            .copied()
+            .flatten()
     }
 
     /// Get a generic parameter by id.
@@ -312,6 +346,21 @@ impl GenericSegment {
     /// Return whether this segment has no entries.
     pub fn is_empty(&self) -> bool {
         self.templates.is_empty() && self.parameters.is_empty()
+    }
+
+    /// Apply one mapping to every type id stored in this segment.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        // map template predicates
+        for template in self.templates.iter_mut() {
+            for predicate in &mut template.predicates {
+                predicate.map_type_ids(map);
+            }
+        }
+
+        // map parameter types
+        for parameter in self.parameters.iter_mut() {
+            parameter.map_type_ids(map);
+        }
     }
 
     /// Get a generic template owned by this table segment.

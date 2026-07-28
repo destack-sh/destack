@@ -1,3 +1,4 @@
+mod access;
 mod argument;
 mod call;
 mod construct;
@@ -26,6 +27,7 @@ mod template;
 mod tuple;
 
 pub(in crate::check) use construct::ConstructResult;
+pub(in crate::check) use instantiation::TypeArgumentInference;
 pub(in crate::check) use member::*;
 pub(in crate::check) use newtype::{
     NewtypeMatch, NewtypeOverload, NewtypeRejection, NewtypeSignature,

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
 use crate::check::{CheckState, Origin};
+use crate::{CompilerError, CompilerResult};
 
 /// One newtype instance with its declared backing substituted.
 pub(in crate::check) struct NewtypeInstance {
@@ -14,6 +14,18 @@ pub(in crate::check) struct NewtypeInstance {
 }
 
 impl NewtypeInstance {
+    /// Convert this application into an implicit receiver adjustment.
+    pub(in crate::check) fn into_receiver_adjustment(
+        self,
+        ty: dir::GlobalTypeId,
+    ) -> dir::ReceiverAdjustment {
+        dir::ReceiverAdjustment::NewtypePayload {
+            symbol: self.symbol,
+            generic_arguments: self.generic_arguments,
+            ty,
+        }
+    }
+
     /// Convert this application into a runtime payload projection.
     pub(in crate::check) fn into_projection(self) -> dir::Projection {
         dir::Projection::NewtypePayload {
@@ -25,6 +37,32 @@ impl NewtypeInstance {
 }
 
 impl CheckState<'_> {
+    /// Return one physical newtype payload when the instance is not Tagged.
+    pub(in crate::check) fn newtype_payload(
+        &mut self,
+        origin: Origin,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<NewtypeInstance>> {
+        let Some(instance) = self.decompose_newtype(origin, value)? else {
+            return Ok(None);
+        };
+        let Some(definition) = self.definition(instance.symbol)? else {
+            return Err(CompilerError::Internal {
+                message: format!("newtype {:?} has no definition", instance.symbol),
+            });
+        };
+        let dir::Definition::Newtype(definition) = definition else {
+            return Err(CompilerError::Internal {
+                message: format!("newtype {:?} has a non-newtype definition", instance.symbol),
+            });
+        };
+        if definition.is_tagged() {
+            return Ok(None);
+        }
+
+        Ok(Some(instance))
+    }
+
     /// Decompose one nominal newtype instance.
     pub(in crate::check) fn decompose_newtype(
         &mut self,

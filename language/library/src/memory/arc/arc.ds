@@ -154,7 +154,7 @@ export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Borrow the referenced value.
-    dereference(): WithAccess<&this.Output, "readonly"> {
+    dereference(&readonly this): WithAccess<&this.Output, "readonly"> {
         todo("Arc.dereference")
     }
 

@@ -38,16 +38,21 @@ if (let (count, label) = pair) {
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node source=pair type=(int32, string) | null
 /// @resolution.name source=pair target=pair
+/// @resolution.access source=pair root=pair
 
     count satisfies int32;
     /// @type.node source="count satisfies int32" type=int32
     /// @type.node source=count type=int32
     /// @resolution.name source=count target=count
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=count
 
     label satisfies string;
     /// @type.node source="label satisfies string" type=string
     /// @type.node source=label type=string
     /// @resolution.name source=label target=label
+    /// @resolution.place source=label placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=label root=label
 
 }
 "#,
@@ -90,16 +95,21 @@ if (let { enabled, retries } = config) {
 /// @type.symbol symbol=retries#2 source=retries type=int32
 /// @type.node source=config type={ enabled: boolean; retries: int32 } | null
 /// @resolution.name source=config target=config
+/// @resolution.access source=config root=config
 
     enabled satisfies boolean;
     /// @type.node source="enabled satisfies boolean" type=boolean
     /// @type.node source=enabled type=boolean
     /// @resolution.name source=enabled target=enabled#2
+    /// @resolution.place source=enabled placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=enabled root=enabled#2
 
     retries satisfies int32;
     /// @type.node source="retries satisfies int32" type=int32
     /// @type.node source=retries type=int32
     /// @resolution.name source=retries target=retries#2
+    /// @resolution.place source=retries placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=retries root=retries#2
 
 }
 "#,
@@ -143,6 +153,8 @@ declare const pair: (int32, string) | null;
 if (ready && let (count, label) = pair && count > 0) {
 /// @type.node source=ready type=boolean
 /// @resolution.name source=ready target=ready
+/// @resolution.place source=ready placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ready root=ready
 /// @resolution.pattern source=(count, label) kind=tuple fields=(count, label)
 /// @type.symbol symbol=count source=count type=int32
 /// @resolution.pattern source=count kind=binding target=count
@@ -150,16 +162,21 @@ if (ready && let (count, label) = pair && count > 0) {
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node source=pair type=(int32, string) | null
 /// @resolution.name source=pair target=pair
+/// @resolution.access source=pair root=pair
 /// @type.node source="count > 0" type=boolean
 /// @type.node source=count type=int32
 /// @resolution.name source=count target=count
-/// @resolution.operator source="count > 0" kind=builtin
+/// @resolution.operator source="count > 0" type=boolean operator=">" kind=builtin operands=[count as int32 families=(integer), 0 as int32 families=(integer)]
+/// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=count root=count
 /// @type.node source=0 type=0
 
     label satisfies string;
     /// @type.node source="label satisfies string" type=string
     /// @type.node source=label type=string
     /// @resolution.name source=label target=label
+    /// @resolution.place source=label placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=label root=label
 
 }
 "#,
@@ -203,17 +220,22 @@ if (let "ready" = status) {
 /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status
+/// @resolution.access source=status root=status
 
     status satisfies "ready";
     /// @type.node source="status satisfies \"ready\"" type="ready"
     /// @type.node source=status type="ready"
     /// @resolution.name source=status target=status
+    /// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=status root=status
 
 } else {
     status satisfies "error";
     /// @type.node source="status satisfies \"error\"" type="error"
     /// @type.node source=status type="error"
     /// @resolution.name source=status target=status
+    /// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=status root=status
 
 }
 "#,
@@ -260,17 +282,22 @@ if (let 1 | 2 = value) {
 /// @resolution.pattern source=2 kind=literal value=2
 /// @type.node source=value type=1 | 2 | 3
 /// @resolution.name source=value target=value
+/// @resolution.access source=value root=value
 
     value satisfies 1 | 2;
     /// @type.node source="value satisfies 1 | 2" type=1 | 2
     /// @type.node source=value type=1 | 2
     /// @resolution.name source=value target=value
+    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value root=value
 
 } else {
     value satisfies 3;
     /// @type.node source="value satisfies 3" type=3
     /// @type.node source=value type=3
     /// @resolution.name source=value target=value
+    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value root=value
 
 }
 "#,
@@ -314,15 +341,20 @@ declare const user: { name: string } | null;
 if (ready && let { name } = user) {
 /// @type.node source=ready type=boolean
 /// @resolution.name source=ready target=ready
+/// @resolution.place source=ready placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ready root=ready
 /// @resolution.pattern source={ name } kind=object fields={ name }
 /// @type.symbol symbol=name#2 source=name type=string
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
+/// @resolution.access source=user root=user
 
     name satisfies string;
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=name root=name#2
 
 }
 "#,
@@ -362,18 +394,23 @@ if (let { name } = user && name.length > 0) {
 /// @type.symbol symbol=name#2 source=name type=string
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
+/// @resolution.access source=user root=user
 /// @type.node source="name.length > 0" type=boolean
 /// @type.node source=name type=string
 /// @type.node source=name.length type=usize
 /// @resolution.name source=name target=name#2
-/// @resolution.member source=name.length receiver=string kind=symbol target=string.string.length
-/// @resolution.operator source="name.length > 0" kind=builtin
+/// @resolution.member source=name.length receiver=string type=usize kind=call target="string.string.length(parameters=(), arguments=(), return=usize)"
+/// @resolution.operator source="name.length > 0" type=boolean operator=">" kind=builtin operands=[name.length as usize families=(integer), 0 as usize families=(integer)]
+/// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=name root=name#2
 /// @type.node source=0 type=0
 
     name satisfies string;
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=name root=name#2
 
 }
 "#,
@@ -421,20 +458,26 @@ if (let { name } = user && let { x } = point) {
 /// @type.symbol symbol=name#2 source=name type=string
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
+/// @resolution.access source=user root=user
 /// @resolution.pattern source={ x } kind=object fields={ x }
 /// @type.symbol symbol=x#2 source=x type=int32
 /// @type.node source=point type={ x: int32 } | null
 /// @resolution.name source=point target=point
+/// @resolution.access source=point root=point
 
     name satisfies string;
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=name root=name#2
 
     x satisfies int32;
     /// @type.node source="x satisfies int32" type=int32
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x#2
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=x#2
 
 }
 "#,
@@ -478,11 +521,14 @@ if (let { name } = user) {
 /// @type.symbol symbol=name#2 source=name type=string
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
+/// @resolution.access source=user root=user
 
     name satisfies string;
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=name root=name#2
 
 } else {
     name;
@@ -535,14 +581,20 @@ if (left && right) {
 /// @type.node source="left && right" type=boolean
 /// @type.node source=left type=boolean
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left && right" kind=builtin
+/// @resolution.operator source="left && right" type=boolean operator="&&" kind=builtin operands=[left as boolean families=(boolean), right as boolean families=(boolean)]
+/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=left root=left
 /// @type.node source=right type=boolean
 /// @resolution.name source=right target=right
+/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=right root=right
 
     left satisfies boolean;
     /// @type.node source="left satisfies boolean" type=boolean
     /// @type.node source=left type=boolean
     /// @resolution.name source=left target=left
+    /// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=left root=left
 
 }
 "#,

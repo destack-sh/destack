@@ -71,7 +71,7 @@ export extension<T> of RwLockReadGuard<T> implements Dispose, Dereference<"reado
     }
 
     /// Borrow the protected value.
-    dereference(): WithAccess<&this.Output, "readonly"> {
+    dereference(&readonly this): WithAccess<&this.Output, "readonly"> {
         todo("RwLockReadGuard.dereference")
     }
 }
@@ -92,7 +92,7 @@ export extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"excl
     }
 
     /// Borrow the protected value.
-    dereference(): WithAccess<&this.Output, "exclusive"> {
+    dereference(&exclusive this): WithAccess<&this.Output, "exclusive"> {
         todo("RwLockWriteGuard.dereference")
     }
 

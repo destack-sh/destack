@@ -26,7 +26,7 @@ type Point {
     y: int32;
 }
 
-function main.shift(v0: Point, v1: int32): Point {
+function test.main.shift(v0: Point, v1: int32): Point {
     local l0: Point
 
 entry(v0: Point, v1: int32):
@@ -84,7 +84,7 @@ type Frame {
     size: Size;
 }
 
-function main.widen(v0: Frame, v1: int32): Frame {
+function test.main.widen(v0: Frame, v1: int32): Frame {
     local l0: Frame
 
 entry(v0: Frame, v1: int32):
@@ -135,15 +135,15 @@ type Counter {
     hits: int32;
 }
 
-function main.tick(v0: Counter): Counter {
+function test.main.tick(v0: Counter): Counter {
     local l0: Counter
 
 entry(v0: Counter):
     local.set l0, v0
-    v1: int32 = 1
-    v2: Counter = local.get l0
-    v3: int32 = field.get v2, 0
-    v4: int32 = int.add v3, v1
+    v1: Counter = local.get l0
+    v2: int32 = field.get v1, 0
+    v3: int32 = 1
+    v4: int32 = int.add v2, v3
     v5: Counter = local.get l0
     v6: Counter = field.set v5, 0, v4
     local.set l0, v6

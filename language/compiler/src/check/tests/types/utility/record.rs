@@ -38,11 +38,19 @@ const flags: Flags = { a: true, b: false };
 
 flags.a satisfies boolean;
 /// @resolution.name source=flags target=flags
-/// @resolution.member source=flags.a receiver={ a: boolean; b: boolean } kind=field key=a
+/// @resolution.member source=flags.a receiver={ a: boolean; b: boolean } type=boolean kind=field target_receiver={ a: boolean; b: boolean } key=a target_type=boolean
+/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=flags root=flags
+/// @resolution.place source=flags.a placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=flags.a root=flags keys=[a]
 
 flags.b satisfies boolean;
 /// @resolution.name source=flags target=flags
-/// @resolution.member source=flags.b receiver={ a: boolean; b: boolean } kind=field key=b
+/// @resolution.member source=flags.b receiver={ a: boolean; b: boolean } type=boolean kind=field target_receiver={ a: boolean; b: boolean } key=b target_type=boolean
+/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=flags root=flags
+/// @resolution.place source=flags.b placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=flags.b root=flags keys=[b]
 
 /// @generic.instance id="Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
 "#,
@@ -87,11 +95,19 @@ const flags: Flags = { 1: "one", 2: "two" };
 
 flags[1] satisfies string;
 /// @resolution.name source=flags target=flags
-/// @resolution.member source=flags[1] receiver={ 1: string; 2: string } kind=field key=1
+/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=flags root=flags
+/// @resolution.place source=flags[1] placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=flags[1] root=flags keys=[1]
+/// @resolution.subscript source=flags[1] type=string kind=member target="receiver={ 1: string; 2: string }, target=field(receiver={ 1: string; 2: string }, target=1, type=string), type=string"
 
 flags[2] satisfies string;
 /// @resolution.name source=flags target=flags
-/// @resolution.member source=flags[2] receiver={ 1: string; 2: string } kind=field key=2
+/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=flags root=flags
+/// @resolution.place source=flags[2] placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=flags[2] root=flags keys=[2]
+/// @resolution.subscript source=flags[2] type=string kind=member target="receiver={ 1: string; 2: string }, target=field(receiver={ 1: string; 2: string }, target=2, type=string), type=string"
 
 /// @generic.instance id="Record<1 | 2, string>" template=types.object.Record arguments=(1 | 2, string)
 "#,
@@ -236,9 +252,11 @@ type Bad = Record<{ name: string }, boolean>;
 
 === checked ===
 type Bad = Record<{ name: string }, boolean>;
-/// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type=<error>
-/// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value=<error>
+/// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type=Record<{ name: string }, boolean> reduced={ [P in { name: string }]: boolean }
+/// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value=Record<{ name: string }, boolean> reduced={ [P in { name: string }]: boolean }
 /// @resolution.name source=Record target=types.object.Record
+
+/// @generic.instance id="Record<{ name: string }, boolean>" template=types.object.Record arguments=({ name: string }, boolean)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '{ name: string }' does not satisfy 'PropertyKey'"
@@ -292,11 +310,18 @@ const flags: Flags = { [key]: true };
 /// @resolution.pattern source=flags kind=binding target=flags
 /// @resolution.name source=Flags target=Flags
 /// @resolution.name source=key target=key
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=key root=key
 
 flags[key] satisfies boolean;
 /// @resolution.name source=flags target=flags
-/// @resolution.member source=flags[key] receiver={ [key]: boolean } kind=field key=key
+/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=flags root=flags
+/// @resolution.place source=flags[key] placement="local" lifetime="static" access="exclusive"
+/// @resolution.subscript source=flags[key] type=boolean kind=member target="receiver={ [key]: boolean }, target=field(receiver={ [key]: boolean }, target=key, type=boolean), type=boolean"
 /// @resolution.name source=key target=key
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=key root=key
 
 /// @generic.instance id="Record<typeof key, boolean>" template=types.object.Record arguments=(typeof key, boolean)
 "#,
@@ -349,20 +374,21 @@ const value = read(point);
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '{ x: int32 }' is not assignable to parameter of type 'Bag'"
+/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
 /// @diagnostic.label line=7 column=20 span="point" line_source="const value = read(point);"
 /// @diagnostic.related line=7 column=15 span="read(point)" line_source="const value = read(point);" message="in this call"
-/// @diagnostic.note message="'Bag' reduces to '{ [P: string]: int32 }'"
 "#,
     );
 }
 
 #[test]
-fn test_record_string_key_constraint_accepts_fresh_object() {
+fn test_record_string_key_constraint_accepts_object_literal() {
     let session = TestSession::single(
         r#"
 type Bag = Record<string, int32>;
@@ -442,7 +468,11 @@ declare const bag: Bag;
 
 bag["missing"] satisfies int32 | undefined;
 /// @resolution.name source=bag target=bag
-/// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=index key=string
+/// @resolution.place source="bag[\"missing\"]" placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source="bag[\"missing\"]" root=bag keys=[missing]
+/// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver={ [P: string]: int32 }, target=index(string), type=int32 | undefined"
+/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bag root=bag
 
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
@@ -492,15 +522,22 @@ const bag: Bag = map;
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 /// @resolution.name source=map target=map
+/// @resolution.place source=map placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=map root=map
 
 const value = bag["missing"];
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
-/// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=index key=string
+/// @resolution.access source="bag[\"missing\"]" root=bag keys=[missing]
+/// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver={ [P: string]: int32 }, target=index(string), type=int32 | undefined"
+/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bag root=bag
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
@@ -542,6 +579,8 @@ const empty: Empty = {};
 
 empty satisfies Empty;
 /// @resolution.name source=empty target=empty
+/// @resolution.place source=empty placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=empty root=empty
 /// @resolution.name source=Empty target=Empty
 
 /// @generic.instance id="Record<never, boolean>" template=types.object.Record arguments=(never, boolean)

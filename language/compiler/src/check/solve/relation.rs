@@ -6,15 +6,13 @@ use destack_dir as dir;
 pub(in crate::check) enum Relation {
     /// Both operands solve to the same type.
     Equal,
+    /// Every inhabitant of the source type inhabits the target type.
+    Subtype,
     /// The source operand is assignable to the target operand.
     Assignable,
     /// The source operand is assignable to the target operand through
     /// identity-witnessed widenings only: no coercion may be required.
     Widens,
-    /// The source method signature serves every use of the target one.
-    MethodAssignable,
-    /// The source operand is assignable to the target operand without influencing it.
-    Writable,
     /// The source operand is castable to the target operand.
     Castable,
     /// The source operand satisfies the target operand without influencing it.
@@ -25,21 +23,36 @@ pub(in crate::check) enum Relation {
     Implements,
 }
 
+impl From<dir::WhereRelation> for Relation {
+    fn from(relation: dir::WhereRelation) -> Self {
+        match relation {
+            dir::WhereRelation::Satisfies => Self::Satisfies,
+            dir::WhereRelation::Equal => Self::Equal,
+        }
+    }
+}
+
 impl Relation {
+    /// Return the transitive relation through one inference variable.
+    pub(in crate::check) fn transitive_with(self, next: Relation) -> Option<Relation> {
+        match (self, next) {
+            (Self::Equal, relation) | (relation, Self::Equal) => Some(relation),
+            (Self::Widens, Self::Widens) => Some(Self::Widens),
+            (Self::Assignable | Self::Widens, Self::Assignable | Self::Widens) => {
+                Some(Self::Assignable)
+            }
+            (Self::Assignable | Self::Widens, Self::Satisfies) => Some(Self::Satisfies),
+            _ => None,
+        }
+    }
+
     /// Return the relation for slots inside one related value.
     pub(in crate::check) fn interior(self) -> Relation {
         match self {
             Self::Assignable | Self::Widens => Self::Widens,
             Self::Equal => Self::Equal,
+            Self::Subtype => Self::Subtype,
             _ => Self::Assignable,
-        }
-    }
-
-    /// Return the edge one handle-context payload relates by.
-    pub(in crate::check) fn payload_edge(self) -> Relation {
-        match self {
-            Self::Assignable | Self::Widens => Self::Widens,
-            relation => relation,
         }
     }
 
@@ -47,9 +60,22 @@ impl Relation {
     pub(in crate::check) fn distributes_over_union_target(self) -> bool {
         matches!(
             self,
-            Self::Assignable
-                | Self::Writable
+            Self::Subtype
+                | Self::Assignable
                 | Self::Castable
+                | Self::Satisfies
+                | Self::Extends
+                | Self::Implements
+        )
+    }
+
+    /// Return whether every union source arm must satisfy this relation.
+    pub(in crate::check) fn distributes_over_union_source(self) -> bool {
+        matches!(
+            self,
+            Self::Subtype
+                | Self::Assignable
+                | Self::Widens
                 | Self::Satisfies
                 | Self::Extends
                 | Self::Implements
@@ -157,10 +183,9 @@ impl RelationCache {
     /// Roll back to one relation snapshot.
     pub(in crate::check) fn rollback(&mut self, snapshot: RelationCacheSnapshot) {
         while self.undo.len() > snapshot.undo {
-            let undo = self
-                .undo
-                .pop()
-                .expect("relation undo length checked before pop");
+            let Some(undo) = self.undo.pop() else {
+                unreachable!("relation undo length checked before pop");
+            };
 
             match undo.previous {
                 Some(previous) => {
@@ -175,6 +200,14 @@ impl RelationCache {
         self.stack = snapshot.stack;
         self.provisional = snapshot.provisional;
         self.snapshot_depth -= 1;
+    }
+
+    /// Commit decisions made after one relation snapshot.
+    pub(in crate::check) fn commit(&mut self, _snapshot: RelationCacheSnapshot) {
+        self.snapshot_depth -= 1;
+        if self.snapshot_depth == 0 {
+            self.undo.clear();
+        }
     }
 
     /// Return the memoized answer for one pair, recording cycle use.

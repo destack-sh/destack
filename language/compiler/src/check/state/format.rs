@@ -103,8 +103,8 @@ impl CheckState<'_> {
 
                 format!("{base}<type {key} = {value}>")
             }
-            dir::Type::EnumMember(member) => {
-                self.format_symbol_path_maybe_at(module, member.member)
+            dir::Type::Variant(variant) => {
+                self.format_symbol_path_maybe_at(module, variant.variant)
             }
 
             // intrinsic collections render their declared names
@@ -137,17 +137,38 @@ impl CheckState<'_> {
             }
 
             dir::Type::Shape(shape) => {
-                let shape_fields = self.shape_fields(id.module_id, shape.fields)?;
+                let shape_properties = self.shape_properties(id.module_id, shape.properties)?;
                 let index_signatures =
                     self.shape_index_signatures(id.module_id, shape.index_signatures)?;
 
                 let mut fields = Vec::new();
-                for field in shape_fields.iter().take(FORMAT_WIDTH) {
-                    let key = self.format_type_field_key(&field.key);
-                    let optional = if field.is_optional { "?" } else { "" };
-                    let ty = self.format_depth_at(module, field.ty, next)?;
+                for property in shape_properties.iter().take(FORMAT_WIDTH) {
+                    let key = self.format_type_field_key(&property.key);
+                    let optional = if property.is_optional { "?" } else { "" };
 
-                    fields.push(format!("{key}{optional}: {ty}"));
+                    fields.push(match property.access {
+                        dir::PropertyAccess::Read(ty) => {
+                            let ty = self.format_depth_at(module, ty, next)?;
+
+                            format!("readonly {key}{optional}: {ty}")
+                        }
+                        dir::PropertyAccess::Write(ty) => {
+                            let ty = self.format_depth_at(module, ty, next)?;
+
+                            format!("set {key}(value: {ty})")
+                        }
+                        dir::PropertyAccess::ReadWrite { read, write } if read == write => {
+                            let ty = self.format_depth_at(module, read, next)?;
+
+                            format!("{key}{optional}: {ty}")
+                        }
+                        dir::PropertyAccess::ReadWrite { read, write } => {
+                            let read = self.format_depth_at(module, read, next)?;
+                            let write = self.format_depth_at(module, write, next)?;
+
+                            format!("get {key}(): {read}; set {key}(value: {write})")
+                        }
+                    });
                 }
 
                 for signature in index_signatures.iter().take(FORMAT_WIDTH - fields.len()) {
@@ -164,7 +185,7 @@ impl CheckState<'_> {
                     fields.push(format!("{readonly}[{name}: {key}]{optional}: {value}"));
                 }
 
-                let field_count = shape_fields.len() + index_signatures.len();
+                let field_count = shape_properties.len() + index_signatures.len();
                 if field_count > FORMAT_WIDTH {
                     fields.push("…".to_string());
                 }

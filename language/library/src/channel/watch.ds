@@ -21,7 +21,7 @@ export extension<T> of WatchRef<T> implements Dispose, Dereference<"readonly"> {
     }
 
     /// Borrow the watched value.
-    dereference(): WithAccess<&this.Output, "readonly"> {
+    dereference(&readonly this): WithAccess<&this.Output, "readonly"> {
         todo("WatchRef.dereference")
     }
 }

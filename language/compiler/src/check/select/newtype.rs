@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateVerdict, InferenceScope, MemoryRank, Origin,
-    SignatureMatch, SignatureRejection, TypeSubstitution, answer,
+    Answer, BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Expectation,
+    MemoryRank, Origin, SignatureMatch, SignatureRejection, TypeSubstitution, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -28,8 +28,6 @@ pub(in crate::check) enum NewtypeMatch {
         signature: NewtypeSignature,
         /// The rejected invocation constraint.
         rejection: SignatureRejection,
-        /// The inference variables owned by the rejected invocation.
-        variables: InferenceScope,
     },
     /// No backing alternative accepted the arguments.
     Rejected(NewtypeRejection),
@@ -72,11 +70,12 @@ impl BodyState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         type_arguments: &[dir::GlobalTypeId],
-        expected_return: Option<dir::GlobalTypeId>,
+        expectation: Option<Expectation>,
         overload: NewtypeOverload,
+        use_: ValueUse,
     ) -> CompilerResult<Answer<NewtypeMatch>> {
         let module = origin.module();
-        let arguments = self.callable_arguments(module, argument_nodes)?;
+        let arguments = self.callable_arguments(module, argument_nodes, use_)?;
 
         // require the nominal definition established by the declaration walk
         let Some(dir::Definition::Newtype(definition)) = self.definition(symbol)? else {
@@ -87,12 +86,17 @@ impl BodyState<'_, '_> {
         let backing = definition.backing;
 
         // instantiate the nominal return from written or expected arguments
-        let generic_parameters = self
-            .symbol_template(symbol)?
-            .map(|template| self.generic_template_parameters(template))
-            .unwrap_or_default();
+        let generic_parameters = match self.symbol_template(symbol)? {
+            Some(template) => self.generic_template_parameters(template)?,
+            None => SmallVec::new(),
+        };
+        let template = self.symbol_template(symbol)?;
         let type_arguments = if type_arguments.is_empty() {
-            answer!(self.expected_newtype_arguments(origin, symbol, expected_return)?)
+            answer!(self.expected_newtype_arguments(
+                origin,
+                symbol,
+                expectation.map(|expectation| expectation.target),
+            )?)
         } else {
             type_arguments.to_vec()
         };
@@ -112,7 +116,7 @@ impl BodyState<'_, '_> {
 
         // build one signature candidate per backing alternative
         let candidates =
-            answer!(self.newtype_candidates(origin, backing, return_type, overload)?);
+            answer!(self.newtype_candidates(origin, backing, return_type, template, overload,)?);
 
         // select according to the construction's ambiguity rule
         let is_single_candidate = candidates.len() == 1;
@@ -130,15 +134,14 @@ impl BodyState<'_, '_> {
                     let outcome = state.match_newtype_candidate(
                         origin,
                         candidate,
-                        &generic_parameters,
                         &type_arguments,
                         &arguments,
-                        expected_return,
+                        expectation,
                     )?;
                     match outcome {
                         Answer::Ready(matched) => {
                             if let SignatureMatch::Selected(selection) = &matched {
-                                rank = answer!(selection.memory_rank(origin, &arguments, state)?);
+                                rank = selection.rank;
                             }
 
                             Ok(Answer::Ready(matched.into_candidate()))
@@ -147,11 +150,9 @@ impl BodyState<'_, '_> {
                     }
                 },
                 |state, rejection| {
-                    Ok(state.check.describe_signature_rejection(
-                        module,
-                        candidate.signature,
-                        rejection,
-                    ))
+                    state
+                        .check
+                        .describe_signature_rejection(module, candidate.signature, rejection)
                 },
             )?);
             match verdict {
@@ -188,15 +189,38 @@ impl BodyState<'_, '_> {
         let mut is_return_mismatch = false;
         let mut signature_rejection = None;
         if let Some(candidate) = winner.or(indeterminate) {
-            let matched = self.match_newtype_candidate(
-                origin,
-                candidate,
-                &generic_parameters,
-                &type_arguments,
-                &arguments,
-                expected_return,
-            )?;
-            match answer!(matched) {
+            let matched = answer!(self.confirm_candidate(|state| {
+                let matched = state.match_newtype_candidate(
+                    origin,
+                    candidate,
+                    &type_arguments,
+                    &arguments,
+                    expectation,
+                )?;
+
+                Ok(match matched {
+                    Answer::Ready(matched) if is_single_candidate => {
+                        Answer::Ready(CandidateOutcome::Accepted(matched))
+                    }
+                    Answer::Ready(SignatureMatch::Selected(selection)) => Answer::Ready(
+                        CandidateOutcome::Accepted(SignatureMatch::Selected(selection)),
+                    ),
+                    Answer::Ready(SignatureMatch::ReturnMismatch(selection)) => Answer::Ready(
+                        CandidateOutcome::Accepted(SignatureMatch::ReturnMismatch(selection)),
+                    ),
+                    Answer::Ready(SignatureMatch::Invalid { rejection, .. })
+                    | Answer::Ready(SignatureMatch::Inapplicable(rejection)) => {
+                        Answer::Ready(CandidateOutcome::Rejected(rejection))
+                    }
+                    Answer::Pending(blockers) => Answer::Pending(blockers),
+                })
+            })?);
+            let Some(matched) = matched else {
+                return Ok(Answer::Ready(NewtypeMatch::Rejected(
+                    NewtypeRejection::NoMatch(notes),
+                )));
+            };
+            match matched {
                 SignatureMatch::Selected(signature) => {
                     selected = Some((candidate, signature, None));
                 }
@@ -207,18 +231,15 @@ impl BodyState<'_, '_> {
                 SignatureMatch::Invalid {
                     selection,
                     rejection,
-                    variables,
                 } if is_single_candidate => {
-                    selected = Some((candidate, selection, Some((rejection, variables))));
+                    selected = Some((candidate, selection, Some(rejection)));
                 }
                 SignatureMatch::Inapplicable(rejection)
                     if is_single_candidate && rejection.is_precise() =>
                 {
                     signature_rejection = Some(rejection);
                 }
-                SignatureMatch::Invalid { variables, .. } => {
-                    self.check.poison_scope(variables)?;
-                }
+                SignatureMatch::Invalid { .. } => {}
                 SignatureMatch::Inapplicable(_) => {}
             }
         }
@@ -238,16 +259,7 @@ impl BodyState<'_, '_> {
 
         // substitute the exact backing with the selected generic arguments
         let substitution = TypeSubstitution {
-            parameters: signature
-                .generic_arguments
-                .iter()
-                .map(|binding| binding.parameter)
-                .collect(),
-            arguments: signature
-                .generic_arguments
-                .iter()
-                .map(|binding| binding.argument)
-                .collect(),
+            bindings: signature.generic_arguments.iter().copied().collect(),
             receiver: None,
         };
         let backing = self.substitute_type(module, candidate.backing, &substitution)?;
@@ -263,10 +275,9 @@ impl BodyState<'_, '_> {
             return_type: signature.return_type,
         };
         let matched = match rejection {
-            Some((rejection, variables)) => NewtypeMatch::Invalid {
+            Some(rejection) => NewtypeMatch::Invalid {
                 signature,
                 rejection,
-                variables,
             },
             None if is_return_mismatch => NewtypeMatch::ReturnMismatch(signature),
             None => NewtypeMatch::Selected(signature),
@@ -281,6 +292,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         backing: dir::GlobalTypeId,
         return_type: dir::GlobalTypeId,
+        template: Option<dir::GlobalGenericTemplateId>,
         overload: NewtypeOverload,
     ) -> CompilerResult<Answer<SmallVec<[NewtypeCandidate; 2]>>> {
         let backing = answer!(self.reduce_type_head(origin, backing)?);
@@ -324,7 +336,7 @@ impl BodyState<'_, '_> {
             let parameters = self.intern_parameters(module, &parameters)?;
             let function = dir::FunctionSignatureType {
                 asynchrony: dir::Asynchrony::Sync,
-                template: None,
+                template,
                 this_parameter: None,
                 parameters,
                 return_type: Some(return_type),
@@ -342,13 +354,11 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         candidate: NewtypeCandidate,
-        generic_parameters: &[dir::GlobalGenericParameterId],
         type_arguments: &[dir::GlobalTypeId],
         arguments: &[CallableArgument],
-        expected_return: Option<dir::GlobalTypeId>,
+        expectation: Option<Expectation>,
     ) -> CompilerResult<Answer<SignatureMatch>> {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
         let Some(function) = self.signature_head(candidate.signature)? else {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -362,8 +372,6 @@ impl BodyState<'_, '_> {
             origin,
             module,
             candidate.signature.module_id,
-            source,
-            generic_parameters,
             None,
             &[],
             type_arguments,
@@ -371,7 +379,7 @@ impl BodyState<'_, '_> {
             function.return_type,
             None,
             arguments,
-            expected_return,
+            expectation,
         )
     }
 

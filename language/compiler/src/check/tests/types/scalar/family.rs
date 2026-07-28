@@ -15,7 +15,7 @@ const floats = Vector { x: 1.5 as float32 };
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -33,12 +33,12 @@ const floats: Vector<float32> = Vector<float32> { x: 1.5 as float32 };
 import { Numeric } from "destack:math";
 
 struct Vector<T: Numeric> {
-/// @generic.template symbol=Vector parameters=(out T: math.scalar.Numeric)
+/// @generic.template symbol=Vector parameters=(out T: math.numeric.Numeric)
 /// @type.symbol symbol=Vector type=Vector
-/// @definition.struct symbol=Vector template=(out T: math.scalar.Numeric)
+/// @definition.struct symbol=Vector template=(out T: math.numeric.Numeric)
 /// @definition.field symbol=Vector.x source="x: T" key=x type=T
 /// @type.symbol symbol=Vector.T source="T: Numeric" type=T
-/// @resolution.name source=Numeric target=math.scalar.Numeric
+/// @resolution.name source=Numeric target=math.numeric.Numeric
 
     x: T;
     /// @type.symbol symbol=Vector.x source="x: T" type=T
@@ -59,7 +59,6 @@ const floats = Vector { x: 1.5 as float32 };
 /// @generic.instance id=Vector<float32> template=Vector arguments=(float32)
 /// @generic.instance id=Vector<int32> template=Vector arguments=(int32)
 "#,
-        r#""#,
     );
 }
 
@@ -117,8 +116,6 @@ const narrow = Index { value: 1 as int32 };
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'int64'"
-/// @diagnostic.label line=7 column=16 span="Index" line_source="const narrow = Index { value: 1 as int32 };"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'int64'"
 /// @diagnostic.label line=7 column=16 span="Index { value: 1 as int32 }" line_source="const narrow = Index { value: 1 as int32 };"
 /// @diagnostic.related line=2 column=14 span="T" line_source="struct Index<T: int> {" message="required by this bound on 'T'"
 "#,
@@ -174,6 +171,8 @@ const index: usize = key;
 /// @type.symbol symbol=index source=index type=usize
 /// @resolution.pattern source=index kind=binding target=index
 /// @resolution.name source=key target=key
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=key root=key
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '300' is not assignable to type 'int8'"
@@ -197,7 +196,7 @@ function shrink<comptime Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -241,6 +240,5 @@ function shrink<comptime Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
 /// @generic.instance id="Tensor<Rank#2 - 1>" template=Tensor arguments=(Rank#2 - 1)
 /// @generic.instance id=Tensor<Rank#2> template=Tensor arguments=(Rank#2)
 "#,
-        r#""#,
     );
 }

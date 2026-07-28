@@ -64,8 +64,8 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(nominal.value)
             }
-            // enum members carry their owning enum
-            dir::Type::EnumMember(member) => self.lower(member.owner),
+            // variants lower through their owning carrier
+            dir::Type::Variant(member) => self.lower(member.owner),
             // instance substitutions resolve generic parameters
             dir::Type::Parameter(_) => {
                 let argument = self.type_substitution.resolve(self.lowerer, id)?;
@@ -84,12 +84,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     return self.insert_nullable_reference(reference, nullability);
                 }
 
-                // literal unions store at their family carrier
-                if let Some(carrier) = self.lowerer.literal_union_carrier(id.module_id, &union)? {
-                    return Ok(self.tree.intern_type(carrier));
-                }
-
-                // tagged unions store as indexed variants
+                // non-nullish unions store as indexed variants
                 let elements = self
                     .lowerer
                     .types(id.module_id)?

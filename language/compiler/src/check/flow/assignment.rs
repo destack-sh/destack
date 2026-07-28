@@ -23,8 +23,8 @@ impl WalkState<'_, '_> {
             return;
         }
 
-        // moved places defer to the obligation, where the sealed transfer
-        // decision and copyability decide whether the move was real
+        // moved places defer to the obligation, where the selected transfer
+        // and copyability decide whether the move was real
         if let Some(site) = self.flow().moved_site(AssignedPlace::Symbol(symbol)) {
             self.check.push_obligation(
                 Obligation::UseAfterMove(UseAfterMoveObligation {
@@ -52,7 +52,7 @@ impl WalkState<'_, '_> {
     /// Mark one consuming-position source, when it names a local binding.
     ///
     /// Receiver positions carry their enclosing call so the obligation can
-    /// read the sealed receiver adjustment; initializer and assignment
+    /// read the selected receiver adjustment; initializer and assignment
     /// positions carry the receiving binding.
     pub(in crate::check) fn mark_moved_source(
         &mut self,
@@ -71,7 +71,7 @@ impl WalkState<'_, '_> {
 
     /// Mark one consuming argument, keyed by its bound argument node.
     ///
-    /// The sealed resolution binds parameters to argument nodes, so the
+    /// The selected resolution binds parameters to argument nodes, so the
     /// obligation matches the site against the argument, not its value.
     pub(in crate::check) fn mark_moved_argument(
         &mut self,

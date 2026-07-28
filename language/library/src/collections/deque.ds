@@ -48,7 +48,7 @@ export extension<T> of Deque<T>
     }
 
     /// Create a deque from `values`.
-    static fromIterator(values: Iterator<T>): ^Deque<T> {
+    static fromIterator<R>(values: Iterator<T, R>): ^Deque<T> {
         todo("Deque.fromIterator")
     }
 
@@ -70,11 +70,6 @@ export extension<T> of Deque<T>
     /// Return whether this deque has no elements.
     get isEmpty(): boolean {
         this.count == 0
-    }
-
-    /// Return the element at `index` by value.
-    index(index: usize): T {
-        todo("Deque.index")
     }
 
     /// Borrow the element at `index`.
@@ -184,7 +179,7 @@ export extension<T> of ^Deque<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create an owned deque from values.
-    static fromIterator(values: Iterator<T>): ^Deque<T> {
+    static fromIterator<R>(values: Iterator<T, R>): ^Deque<T> {
         Deque.fromIterator(values)
     }
 }

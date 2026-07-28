@@ -1,0 +1,120 @@
+import { todo } from "destack:error";
+import { Concrete } from "destack:memory";
+import { sizeOf } from "destack:reflect";
+
+import { One, Zero } from "./identity.ds";
+
+/// Marker for the builtin integer types of any width.
+@languageItem("math.Integer")
+export newtype interface Integer extends Concrete, Zero, One {}
+
+/// Methods shared by every builtin integer type.
+export extension<T: Integer> of T {
+    /// Count the leading zero bits.
+    countLeadingZeros(): uint32 {
+        countLeadingZeros(this)
+    }
+
+    /// Count the trailing zero bits.
+    countTrailingZeros(): uint32 {
+        countTrailingZeros(this)
+    }
+
+    /// Count the leading one bits.
+    countLeadingOnes(): uint32 {
+        (~this).countLeadingZeros()
+    }
+
+    /// Count the trailing one bits.
+    countTrailingOnes(): uint32 {
+        (~this).countTrailingZeros()
+    }
+
+    /// Count the one bits.
+    countOnes(): uint32 {
+        countOnes(this)
+    }
+
+    /// Count the zero bits.
+    countZeros(): uint32 {
+        ((sizeOf<T>() * 8) as uint32) - this.countOnes()
+    }
+
+    /// Reverse the byte order.
+    swapBytes(): T {
+        swapBytes(this)
+    }
+
+    /// Return this value with bytes interpreted as big-endian.
+    fromBigEndian(): T {
+        todo("Integer.fromBigEndian")
+    }
+
+    /// Return this value with bytes interpreted as little-endian.
+    fromLittleEndian(): T {
+        todo("Integer.fromLittleEndian")
+    }
+
+    /// Return this value encoded as big-endian.
+    toBigEndian(): T {
+        todo("Integer.toBigEndian")
+    }
+
+    /// Return this value encoded as little-endian.
+    toLittleEndian(): T {
+        todo("Integer.toLittleEndian")
+    }
+
+    /// Reverse every bit.
+    reverseBits(): T {
+        reverseBits(this)
+    }
+
+    /// Rotate bits left.
+    rotateLeft(amount: uint32): T {
+        rotateLeft(this, amount)
+    }
+
+    /// Rotate bits right.
+    rotateRight(amount: uint32): T {
+        rotateRight(this, amount)
+    }
+
+    /// Return whether this value is a power of two.
+    isPowerOfTwo(): boolean {
+        this > 0 && (this & (this - 1)) == 0
+    }
+
+    /// Return the next power of two, or `undefined` on overflow.
+    nextPowerOfTwo(): T | undefined {
+        todo("Integer.nextPowerOfTwo")
+    }
+}
+
+/// Count leading zero bits.
+@intrinsic("math.bits.leadingZeroCount")
+declare function countLeadingZeros<T: Integer>(value: T): uint32;
+
+/// Count trailing zero bits.
+@intrinsic("math.bits.trailingZeroCount")
+declare function countTrailingZeros<T: Integer>(value: T): uint32;
+
+/// Count one bits.
+@intrinsic("math.bits.populationCount")
+declare function countOnes<T: Integer>(value: T): uint32;
+
+/// Reverse byte order.
+@intrinsic("math.bits.byteSwap")
+declare function swapBytes<T: Integer>(value: T): T;
+
+/// Reverse every bit.
+@intrinsic("math.bits.bitReverse")
+declare function reverseBits<T: Integer>(value: T): T;
+
+/// Rotate bits left.
+@intrinsic("math.bits.rotateLeft")
+declare function rotateLeft<T: Integer>(value: T, amount: uint32): T;
+
+/// Rotate bits right.
+@intrinsic("math.bits.rotateRight")
+declare function rotateRight<T: Integer>(value: T, amount: uint32): T;

@@ -73,7 +73,7 @@ const value: bigint = 42n;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -99,7 +99,7 @@ const value: number = 42n;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '42n' is not assignable to type 'float64'"
@@ -130,7 +130,7 @@ const value: bigint | string = 42n;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=1 types=6 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -162,13 +162,15 @@ const isZero = (1n).isZero;
 /// @type.symbol symbol=isZero source=isZero type=boolean
 /// @resolution.pattern source=isZero kind=binding target=isZero
 /// @type.node source=(1n).isZero type=boolean
-/// @resolution.member source=(1n).isZero receiver=1n kind=symbol target=math.bigint.isZero
+/// @resolution.member source=(1n).isZero receiver=1n type=boolean kind=call target="math.bigint.isZero(parameters=(), arguments=(), return=boolean)"
 /// @type.node source=1n type=1n
 
 isZero satisfies boolean;
 /// @type.node source="isZero satisfies boolean" type=boolean
 /// @type.node source=isZero type=boolean
 /// @resolution.name source=isZero target=isZero
+/// @resolution.place source=isZero placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=isZero root=isZero
 "#,
     );
 }
@@ -209,12 +211,16 @@ const isZero = value.isZero;
 /// @type.node source=value type=bigint
 /// @type.node source=value.isZero type=boolean
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.isZero receiver=bigint kind=symbol target=math.bigint.isZero
+/// @resolution.member source=value.isZero receiver=bigint type=boolean kind=call target="math.bigint.isZero(parameters=(), arguments=(), return=boolean)"
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 isZero satisfies boolean;
 /// @type.node source="isZero satisfies boolean" type=boolean
 /// @type.node source=isZero type=boolean
 /// @resolution.name source=isZero target=isZero
+/// @resolution.place source=isZero placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=isZero root=isZero
 "#,
     );
 }

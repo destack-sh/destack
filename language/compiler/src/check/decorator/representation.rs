@@ -34,8 +34,7 @@ impl CheckState<'_> {
 
             return Ok(());
         };
-        // let the first persisted application for this owner win
-        let first = self
+        let previous = self
             .module(module)
             .decorators
             .iter_applications()
@@ -51,7 +50,7 @@ impl CheckState<'_> {
                     )
             })
             .map(|application| application.source);
-        if let Some(previous) = first.filter(|first| *first != decorator) {
+        if let Some(previous) = previous {
             let anchor = self.diagnostic_anchor(module, source.local_id);
             let error = CheckError::DuplicateRepresentationDecorator { anchor, module };
             let previous = self.diagnostic_anchor(module, previous.local_id.into_any());
@@ -178,17 +177,30 @@ impl CheckState<'_> {
             if !visited.insert(current) {
                 return Ok(true);
             }
-            let Some(dir::Definition::Class(definition)) = self.definition(current)? else {
-                return Err(CompilerError::Internal {
-                    message: format!("class {current:?} has no definition"),
-                });
+            let (declares_virtual_dispatch, base) = match self.definition(current)? {
+                Some(dir::Definition::Class(definition)) => (
+                    definition.declares_virtual_dispatch(),
+                    definition.extends.as_ref().map(|heritage| heritage.ty),
+                ),
+                _ => {
+                    return Err(CompilerError::Internal {
+                        message: format!("class {current:?} has no definition"),
+                    });
+                }
             };
 
             // direct virtual methods require an object dispatch header
-            if definition.declares_virtual_dispatch() {
+            if declares_virtual_dispatch {
                 return Ok(true);
             }
-            symbol = definition.extends.as_ref().map(|heritage| heritage.symbol);
+            symbol = match base {
+                Some(base) => {
+                    let (_, base) = self.require_nominal_application(base)?;
+
+                    Some(base.symbol)
+                }
+                None => None,
+            };
         }
 
         Ok(false)

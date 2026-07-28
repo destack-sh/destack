@@ -168,7 +168,7 @@ impl AutoInterface {
 
     /// Return whether the checker proves this interface by auto conformance.
     pub fn has_auto_conformance(self) -> bool {
-        self.is_marker() && self != Self::Concrete
+        self.is_marker()
     }
 }
 

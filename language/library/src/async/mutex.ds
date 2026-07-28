@@ -58,7 +58,7 @@ export extension<T> of AsyncMutexGuard<T> implements Dispose, Dereference<"exclu
     }
 
     /// Borrow the protected value.
-    dereference(): WithAccess<&this.Output, "exclusive"> {
+    dereference(&exclusive this): WithAccess<&this.Output, "exclusive"> {
         todo("AsyncMutexGuard.dereference")
     }
 }

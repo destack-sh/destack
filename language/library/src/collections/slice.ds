@@ -31,7 +31,7 @@ export extension<T> of Slice<T>
     }
 
     /// Create a slice from `values`.
-    static fromIterator(values: Iterator<T>): [T] {
+    static fromIterator<R>(values: Iterator<T, R>): [T] {
         todo("Slice.fromIterator")
     }
 
@@ -74,7 +74,7 @@ export extension<T> of Slice<T>
             return undefined;
         }
 
-        this.index(0)
+        this[0]
     }
 
     /// Borrow the first element.
@@ -92,7 +92,7 @@ export extension<T> of Slice<T>
             return undefined;
         }
 
-        this.index(length - 1)
+        this[length - 1]
     }
 
     /// Borrow the last element.
@@ -184,11 +184,6 @@ export extension<T> of Slice<T> implements Sequence<T>, Index<usize>, IndexSet<u
         this.size
     }
 
-    /// Return the element at `index` by value.
-    index(index: usize): T {
-        todo("Slice.index")
-    }
-
     /// Borrow a view over `start..end`.
     view<comptime A: Access = "readonly">(
         this: WithAccess<&[T], A>,
@@ -221,7 +216,7 @@ export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly"> of S
     implements
         Index<R, A> {
     /// The indexed output type.
-    type Output = WithAccess<&[T], A>;
+    type Output = [T];
 
     /// Return the normalized start and length for `range`.
     rangeSpan(&readonly this, range: R): (usize, usize) {

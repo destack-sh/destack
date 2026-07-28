@@ -36,15 +36,21 @@ function label({ name, age }: { name: string; age: int32 }): string {
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=label.name#2
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=name root=label.name#2
 
     age satisfies int32;
     /// @type.node source="age satisfies int32" type=int32
     /// @type.node source=age type=int32
     /// @resolution.name source=age target=label.age#2
+    /// @resolution.place source=age placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=age root=label.age#2
 
     name
     /// @type.node source=name type=string
     /// @resolution.name source=name target=label.name#2
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=name root=label.name#2
 
 }
 "#,
@@ -80,6 +86,8 @@ function first([head]: int32[]): int32 {
     head
     /// @type.node source=head type=int32
     /// @resolution.name source=head target=first.head
+    /// @resolution.place source=head placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=head root=first.head
 
 }
 "#,

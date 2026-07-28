@@ -46,7 +46,7 @@ export type Lifetime =
 /// Scenario trigger controls.
 export struct Trigger {
     /// Event kind for this trigger.
-    on?: EventKind;
+    on?: EventKind | undefined;
     /// Activation window for this trigger.
     activation?: Activation;
     /// Lifetime window for this trigger.

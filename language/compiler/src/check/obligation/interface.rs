@@ -12,7 +12,7 @@ impl CheckState<'_> {
         interface: dir::AutoInterface,
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
-        // poisoned operands already reported their cause
+        // error operands suppress diagnostics derived from an earlier failure
         if self.type_flags(ty)?.has_error() {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         }

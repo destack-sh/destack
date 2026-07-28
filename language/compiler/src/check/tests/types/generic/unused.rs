@@ -33,11 +33,11 @@ class Tag<T> {
 }
 "#,
         r#"
-/// @diagnostic.error id=field-not-definitely-initialized message="field 'name' is not initialized on every constructor path"
-/// @diagnostic.label line=3 column=5 span="name" line_source="name: string;"
 /// @diagnostic.error id=unused-generic-parameter message="generic parameter 'T' is never used"
 /// @diagnostic.label line=2 column=11 span="T" line_source="class Tag<T> {"
 /// @diagnostic.help message="declare explicit variance like 'out T' to keep a marker parameter"
+/// @diagnostic.error id=field-not-definitely-initialized message="field 'name' is not initialized on every constructor path"
+/// @diagnostic.label line=3 column=5 span="name" line_source="name: string;"
 "#,
     );
 }

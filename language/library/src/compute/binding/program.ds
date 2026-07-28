@@ -23,7 +23,7 @@ export interface ComputeProgramBinding {
         effect: "deterministic",
         requires: ["host.compute.program.read"],
     })
-    device(program: Program): Device;
+    device(program: &readonly Program): Device;
 
     /// Compile `source` for `device`.
     @binding("destack.compute.program.compile", {
@@ -32,7 +32,7 @@ export interface ComputeProgramBinding {
         requires: ["host.compute.program.compile"],
     })
     compile(
-        device: Device,
+        device: &readonly Device,
         source: ProgramSource,
         options?: ProgramOptions,
     ): Result<Program, ComputeError>;
@@ -43,7 +43,11 @@ export interface ComputeProgramBinding {
         effect: "external",
         requires: ["host.compute.program.compile"],
     })
-    build(device: Device, source: ProgramSource, options?: ProgramOptions): ProgramReport;
+    build(
+        device: &readonly Device,
+        source: ProgramSource,
+        options?: ProgramOptions,
+    ): ProgramReport;
 
     /// Return a kernel entry point by name.
     @binding("destack.compute.program.kernel", {
@@ -51,7 +55,7 @@ export interface ComputeProgramBinding {
         effect: "deterministic",
         requires: ["host.compute.program.read"],
     })
-    kernel(program: Program, name: string): Result<Kernel, ComputeError>;
+    kernel(program: &readonly Program, name: string): Result<Kernel, ComputeError>;
 
     /// Encode `value` as one kernel argument.
     @binding("destack.compute.kernel.argument.value", {
@@ -83,7 +87,7 @@ export interface ComputeProgramBinding {
         effect: "deterministic",
         requires: ["host.compute.kernel.read"],
     })
-    kernelProgram(kernel: Kernel): Program;
+    kernelProgram(kernel: &readonly Kernel): Program;
 
     /// Return the kernel entry point name.
     @binding("destack.compute.kernel.name", {
@@ -91,7 +95,7 @@ export interface ComputeProgramBinding {
         effect: "deterministic",
         requires: ["host.compute.kernel.read"],
     })
-    kernelName(kernel: Kernel): &readonly string;
+    kernelName(kernel: &readonly Kernel): &readonly string;
 
     /// Return kernel signature metadata.
     @binding("destack.compute.kernel.signature", {
@@ -99,7 +103,7 @@ export interface ComputeProgramBinding {
         effect: "deterministic",
         requires: ["host.compute.kernel.read"],
     })
-    signature(kernel: Kernel): KernelSignature;
+    signature(kernel: &readonly Kernel): KernelSignature;
 
     /// Dispatch `kernel` on `stream`.
     @binding("destack.compute.kernel.dispatch", {
@@ -108,10 +112,10 @@ export interface ComputeProgramBinding {
         requires: ["host.compute.kernel.dispatch"],
     })
     dispatch(
-        kernel: Kernel,
+        kernel: &readonly Kernel,
         arguments: [KernelArgument],
         workgroups: WorkgroupCount,
         workgroupSize?: WorkgroupSize,
-        stream?: Stream,
+        stream?: &Stream,
     ): Event;
 }

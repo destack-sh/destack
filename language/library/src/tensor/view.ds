@@ -59,11 +59,6 @@ export extension<T, comptime Rank: int, F: TensorViewFormat, P: Placement, compt
         return tensorViewByteLength<T, Rank, F, P, A>(this);
     }
 
-    /// Return the element at `coordinate` by value.
-    index(coordinate: Coordinate<Rank>): T {
-        todo("TensorView.index")
-    }
-
     /// Borrow the element at `coordinate`.
     index(this: &TensorView<T, Rank, F, P, "mutable">, coordinate: Coordinate<Rank>): &T {
         todo("TensorView.index")

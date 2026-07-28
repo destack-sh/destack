@@ -29,14 +29,6 @@ impl CheckState<'_> {
         self.reduce_type_head(origin, span)
     }
 
-    /// Return whether one type is a template pattern with open spans.
-    pub(in crate::check) fn is_open_template(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        Ok(matches!(
-            self.operation_head(ty)?,
-            Some(dir::TypeOperation::TemplateLiteral(_))
-        ) && !self.type_variables(ty)?.is_empty())
-    }
-
     /// Return one template's literal segments as owned text.
     fn template_segments(
         &self,

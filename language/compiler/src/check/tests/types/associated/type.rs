@@ -92,7 +92,7 @@ const size = Packet.Size;
 /// @type.symbol symbol=size source=size type=uint32
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=Packet target=Packet
-/// @resolution.member source=Packet.Size receiver=Packet kind=symbol target=Packet.Size
+/// @resolution.member source=Packet.Size receiver=Packet type=uint32 kind=symbol target_receiver=Packet target=Packet.Size
 "#,
         r#"
 
@@ -155,8 +155,10 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 
     return iter.next();
     /// @resolution.name source=iter target=nextByte.iter
-    /// @resolution.member source=iter.next receiver=I kind=symbol target=Iterator.next
+    /// @resolution.member source=iter.next receiver=I type=(this: I) => I.Item kind=symbol target_receiver=I target=Iterator.next
     /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
+    /// @resolution.place source=iter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=iter root=nextByte.iter
 
 }
 "#,
@@ -320,8 +322,10 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 
     return iter.next();
     /// @resolution.name source=iter target=nextDefault.iter
-    /// @resolution.member source=iter.next receiver=I kind=symbol target=Iterator.next
+    /// @resolution.member source=iter.next receiver=I type=(this: I) => I.Item kind=symbol target_receiver=I target=Iterator.next
     /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
+    /// @resolution.place source=iter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=iter root=nextDefault.iter
 
 }
 "#,

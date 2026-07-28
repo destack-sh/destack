@@ -28,12 +28,14 @@ const shifted = flags << 5;
 /// @type.symbol symbol=shifted source=shifted type=int32
 /// @resolution.pattern source=shifted kind=binding target=shifted
 /// @resolution.name source=flags target=flags
-/// @resolution.operator source="flags << 5" kind=builtin
+/// @resolution.operator source="flags << 5" type=int32 operator="<<" kind=builtin operands=[flags as int32 families=(integer), 5 as int32 families=(integer)]
+/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=flags root=flags
 
 const literal = 1 << 5;
 /// @type.symbol symbol=literal source=literal type=32
 /// @resolution.pattern source=literal kind=binding target=literal
-/// @resolution.operator source="1 << 5" kind=builtin
+/// @resolution.operator source="1 << 5" type=32 operator="<<" kind=builtin operands=[1 as 1 families=(integer), 5 as 5 families=(integer)]
 "#,
     );
 }
@@ -70,8 +72,12 @@ const masked = mask & bits;
 /// @type.symbol symbol=masked source=masked type=int32
 /// @resolution.pattern source=masked kind=binding target=masked
 /// @resolution.name source=mask target=mask
-/// @resolution.operator source="mask & bits" kind=builtin
+/// @resolution.operator source="mask & bits" type=int32 operator="&" kind=builtin operands=[mask as int32 families=(integer), bits as int32 families=(integer)]
+/// @resolution.place source=mask placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=mask root=mask
 /// @resolution.name source=bits target=bits
+/// @resolution.place source=bits placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bits root=bits
 "#,
     );
 }
@@ -102,6 +108,8 @@ const bad = scale & 2;
 /// @type.symbol symbol=bad source=bad type=<error>
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=scale target=scale
+/// @resolution.place source=scale placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=scale root=scale
 "#,
         r#"
 /// @diagnostic.error id=no-matching-operator message="operator '&' is not defined for 'float64' and '2'"
@@ -172,9 +180,9 @@ struct Flags {
 
 extension of Flags implements And<Flags> {
 /// @definition.extension symbol=<module>#2 form=local target=Flags
-/// @definition.implements symbol=<module>#2 source=And<Flags> target=ops.bitwise.And arguments=(Flags)
+/// @definition.implements symbol=<module>#2 source=And<Flags> target="And<Flags><type Output = Flags>"
 /// @definition.associated.type symbol=Output source="type Output = Flags" key=Output value=Flags
-/// @definition.method symbol=and slot=and type=(this: this, Flags) => Flags
+/// @definition.method symbol=and slot=and type=<and.'l0>(this: &and.'l0 exclusive this, Flags) => Flags
 /// @resolution.name source=Flags target=Flags
 /// @resolution.name source=And target=ops.bitwise.And
 /// @resolution.name source=Flags target=Flags
@@ -184,18 +192,27 @@ extension of Flags implements And<Flags> {
     /// @resolution.name source=Flags target=Flags
 
     and(other: Flags): Flags {
-    /// @type.symbol symbol=and type=(this: this, Flags) => Flags
+    /// @generic.template symbol=and parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=and type=<and.'l0>(this: &and.'l0 exclusive this, Flags) => Flags
     /// @type.symbol symbol=and.other source="other: Flags" type=Flags
     /// @resolution.name source=Flags target=Flags
     /// @resolution.name source=Flags target=Flags
 
         Flags { bits: this.bits & other.bits }
         /// @resolution.name source=Flags target=Flags
-        /// @resolution.member source=this.bits receiver=Flags kind=symbol target=Flags.bits
-        /// @resolution.operator source="this.bits & other.bits" kind=builtin
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Flags
+        /// @resolution.member source=this.bits receiver=&and.'l0 exclusive Flags type=int32 kind=field target_receiver=&and.'l0 exclusive Flags key=bits target=Flags.bits target_type=int32
+        /// @resolution.operator source="this.bits & other.bits" type=int32 operator="&" kind=builtin operands=[this.bits as int32 families=(integer), other.bits as int32 families=(integer)]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&and.'l0 exclusive Flags
+        /// @resolution.place source=this placement="local" lifetime=and.'l0 access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.bits placement="local" lifetime=and.'l0 access="exclusive"
+        /// @resolution.access source=this.bits root=this keys=[bits]
         /// @resolution.name source=other target=and.other
-        /// @resolution.member source=other.bits receiver=Flags kind=symbol target=Flags.bits
+        /// @resolution.member source=other.bits receiver=Flags type=int32 kind=field target_receiver=Flags key=bits target=Flags.bits target_type=int32
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=and.other
+        /// @resolution.place source=other.bits placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other.bits root=and.other keys=[bits]
 
     }
 }
@@ -214,8 +231,12 @@ const both = left & right;
 /// @type.symbol symbol=both source=both type=Flags
 /// @resolution.pattern source=both kind=binding target=both
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left & right" kind=call parameters=(Flags) arguments=(provided(right) as Flags) return=Flags target=and receiver=Flags
+/// @resolution.operator source="left & right" type=Flags operator="&" kind=call parameters=(Flags) arguments=(provided(right) as Flags) return=Flags kind=symbol target=and receiver=Flags adjustments=(borrow(&'static exclusive Flags))
+/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=left root=left
 /// @resolution.name source=right target=right
+/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=right root=right
 "#,
     );
 }

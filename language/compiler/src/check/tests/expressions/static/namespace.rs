@@ -56,6 +56,7 @@ const result = dep.value;
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node source=dep.value type=1
 /// @resolution.name source=dep.value target=dep.value
+/// @resolution.access source=dep.value root=dep.value
 
 /// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,

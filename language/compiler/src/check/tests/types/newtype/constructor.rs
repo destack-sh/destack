@@ -104,14 +104,14 @@ const config = Config({ debug: true });
 /// @type.node source=Config type=Config
 /// @resolution.name source=Config target=Config
 /// @resolution.construct source="Config({ debug: true })" parameters=({ debug: boolean }) arguments=(provided({ debug: true }) as { debug: boolean }) return=Config kind=newtype target=Config backing={ debug: boolean }
-/// @type.node source={ debug: true } type={ debug: true }
+/// @type.node source={ debug: true } type={ debug: boolean }
 /// @type.node source=true type=true
 "#,
     );
 }
 
 #[test]
-fn test_union_newtype_constructor_accepts_fresh_optional_object() {
+fn test_union_newtype_constructor_accepts_optional_object_literal() {
     let session = TestSession::single(
         r#"
 newtype Annotation = () | (string, { reason?: string });
@@ -142,7 +142,7 @@ const annotation = Annotation("lint", { reason: "intentional" });
 /// @resolution.name source=Annotation target=Annotation
 /// @resolution.construct source="Annotation(\"lint\", { reason: \"intentional\" })" parameters=(string, { reason?: string }) arguments=(provided("lint") as string, provided({ reason: "intentional" }) as { reason?: string }) return=Annotation kind=newtype target=Annotation backing=(string, { reason?: string })
 /// @type.node source="\"lint\"" type="lint"
-/// @type.node source={ reason: "intentional" } type={ reason: "intentional" }
+/// @type.node source={ reason: "intentional" } type={ reason?: string }
 /// @type.node source="\"intentional\"" type="intentional"
 "#,
     );
@@ -176,6 +176,7 @@ const id: UserId = _(42);
 /// @type.symbol symbol=id source=id type=UserId
 /// @resolution.pattern source=id kind=binding target=id
 /// @resolution.name source=UserId target=UserId
+/// @type.node source=_ type=UserId
 /// @type.node source=_(42) type=UserId
 /// @resolution.construct source=_(42) parameters=(int64) arguments=(provided(42) as int64) return=UserId kind=newtype target=UserId backing=int64
 /// @type.node source=42 type=42
@@ -212,6 +213,7 @@ const point: Point = _(1, 2);
 /// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 /// @type.node source="_(1, 2)" type=Point
+/// @type.node source=_ type=Point
 /// @resolution.construct source="_(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=Point kind=newtype target=Point backing=(int32, int32)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -248,8 +250,9 @@ const config: Config = _({ debug: true });
 /// @resolution.pattern source=config kind=binding target=config
 /// @resolution.name source=Config target=Config
 /// @type.node source="_({ debug: true })" type=Config
+/// @type.node source=_ type=Config
 /// @resolution.construct source="_({ debug: true })" parameters=({ debug: boolean }) arguments=(provided({ debug: true }) as { debug: boolean }) return=Config kind=newtype target=Config backing={ debug: boolean }
-/// @type.node source={ debug: true } type={ debug: true }
+/// @type.node source={ debug: true } type={ debug: boolean }
 /// @type.node source=true type=true
 "#,
     );
@@ -286,6 +289,7 @@ const value: Box<int32> = _(1);
 /// @type.symbol symbol=value source=value type=Box<int32>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Box target=Box
+/// @type.node source=_ type=Box
 /// @type.node source=_(1) type=Box<int32>
 /// @resolution.construct source=_(1) parameters=(int32) arguments=(provided(1) as int32) return=Box<int32> kind=newtype target=Box backing=int32 instance=Box<int32>
 /// @generic.instance source=_(1) id=Box<int32>
@@ -348,6 +352,8 @@ function from<T, E>(value: E): Result<T, E> {
     /// @generic.instance source=Result(value) id="Result<T#2, E#2>"
     /// @type.node source=value type=E#2
     /// @resolution.name source=value target=from.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=from.value
 
 }
 

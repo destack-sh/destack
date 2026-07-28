@@ -51,7 +51,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_intrinsic_call(
         &mut self,
         name: Option<String>,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let Some(name) = name else {
             return Err(LowerError::Unsupported {
@@ -85,7 +85,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_operation_intrinsic(
         &mut self,
         operation: mir::Intrinsic,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let result = self.lower_type(resolution.return_type)?;
         let values = self.lower_provided_arguments(resolution)?;
@@ -97,7 +97,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_instruction_intrinsic(
         &mut self,
         instruction: IntrinsicInstruction,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         match instruction {
             IntrinsicInstruction::AtomicFence => self.lower_atomic_fence(resolution),
@@ -147,7 +147,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_terminator_intrinsic(
         &mut self,
         terminator: IntrinsicTerminator,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         match terminator {
             IntrinsicTerminator::TrapAbort => self.builder.trap_abort(),
@@ -171,7 +171,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// subsume conservatively into the full fence.
     pub(in crate::lower) fn lower_atomic_fence(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let access = self.atomic_access(resolution, 0)?;
         self.builder.atomic_fence(mir::FenceAccess {
@@ -186,7 +186,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one atomic load from its pointer and comptime configuration.
     pub(in crate::lower) fn lower_atomic_load(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let access = self.atomic_access(resolution, 1)?;
@@ -198,7 +198,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one atomic store from its pointer, value, and configuration.
     pub(in crate::lower) fn lower_atomic_store(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let value = self.argument_value(resolution, 1)?;
@@ -212,7 +212,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_atomic_rmw(
         &mut self,
         operator: mir::AtomicRmwOperator,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let value = self.argument_value(resolution, 1)?;
@@ -232,7 +232,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_atomic_compare_exchange(
         &mut self,
         weak: bool,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let expected = self.argument_value(resolution, 1)?;
@@ -259,7 +259,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_cast_intrinsic(
         &mut self,
         operator: mir::CastOperator,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let operand = self.argument_value(resolution, 0)?;
         let target = self.lower_type(resolution.return_type)?;
@@ -270,7 +270,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one slice view over raw parts.
     pub(in crate::lower) fn lower_slice_from_raw(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let data = self.argument_value(resolution, 0)?;
         let length = self.argument_value(resolution, 1)?;
@@ -283,7 +283,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one slice element read.
     pub(in crate::lower) fn lower_slice_get(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let slice = self.argument_value(resolution, 0)?;
         let index = self.argument_value(resolution, 1)?;
@@ -296,7 +296,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one slice element write.
     pub(in crate::lower) fn lower_slice_set(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let slice = self.argument_value(resolution, 0)?;
         let index = self.argument_value(resolution, 1)?;
@@ -332,7 +332,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_storage_constant(
         &mut self,
         constant: mir::Constant,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let result = self.lower_type(resolution.return_type)?;
 
@@ -340,10 +340,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one initializing store returning the initialized borrow.
-    fn lower_init_write(
-        &mut self,
-        resolution: &dir::CallResolution,
-    ) -> CompilerResult<Option<mir::Value>> {
+    fn lower_init_write(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let value = self.argument_value(resolution, 1)?;
         self.builder.store(pointer, value);
@@ -359,7 +356,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one load through a raw pointer.
     pub(in crate::lower) fn lower_pointer_load(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let result = self.lower_type(resolution.return_type)?;
@@ -370,7 +367,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one store through a raw pointer.
     pub(in crate::lower) fn lower_pointer_store(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let value = self.argument_value(resolution, 1)?;
@@ -382,7 +379,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one pointed-to value exchange returning the old value.
     pub(in crate::lower) fn lower_pointer_replace(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let value = self.argument_value(resolution, 1)?;
@@ -396,7 +393,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one swap of two pointed-to values.
     pub(in crate::lower) fn lower_pointer_swap(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let first = self.argument_value(resolution, 0)?;
         let second = self.argument_value(resolution, 1)?;
@@ -412,7 +409,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one drop of the pointed-to value.
     pub(in crate::lower) fn lower_pointer_drop_in_place(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer = self.argument_value(resolution, 0)?;
         let pointee = self.pointee_type(pointer)?;
@@ -441,7 +438,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one slice length read.
     pub(in crate::lower) fn lower_slice_length(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let slice = self.argument_value(resolution, 0)?;
 
@@ -451,7 +448,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one slice view over a contiguous range.
     pub(in crate::lower) fn lower_slice_view(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let slice = self.argument_value(resolution, 0)?;
         let start = self.argument_value(resolution, 1)?;
@@ -468,7 +465,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// refinements subsume conservatively into whole-memory ordering.
     fn atomic_access(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
         start: usize,
     ) -> CompilerResult<mir::AtomicAccess> {
         let ordering = match self.comptime_case(resolution, start, "an atomic ordering")? {
@@ -515,7 +512,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_layout_intrinsic(
         &mut self,
         layout: LayoutIntrinsic,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let pointer_bits = self.builder.pointer_bits();
         let value = match layout {
@@ -591,15 +588,19 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the folded layout of one call's subject type argument.
-    fn subject_layout(&mut self, resolution: &dir::CallResolution) -> CompilerResult<mir::Layout> {
-        let dir::CallTarget::Symbol(candidate) = &resolution.target else {
+    fn subject_layout(&mut self, resolution: &dir::Call) -> CompilerResult<mir::Layout> {
+        let dir::Call {
+            target: dir::CallTarget::Symbol { function, .. },
+            ..
+        } = resolution
+        else {
             return Err(CompilerError::Internal {
                 message: "checked DIR bound a layout intrinsic without a candidate".to_string(),
             });
         };
         let arguments = self
             .lowerer
-            .instance_arguments(candidate, &self.type_substitution)?;
+            .instance_arguments(function, &self.type_substitution)?;
         let Some(subject) = arguments.first() else {
             return Err(CompilerError::Internal {
                 message: "checked DIR bound a layout intrinsic without a subject type".to_string(),
@@ -621,7 +622,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the padded element step of one call's subject type argument.
-    fn subject_stride(&mut self, resolution: &dir::CallResolution) -> CompilerResult<u32> {
+    fn subject_stride(&mut self, resolution: &dir::Call) -> CompilerResult<u32> {
         let layout = self.subject_layout(resolution)?;
 
         Ok(layout.size.next_multiple_of(layout.alignment.max(1)))
@@ -630,7 +631,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one provided argument's value expression.
     fn argument_value(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
         index: usize,
     ) -> CompilerResult<mir::Value> {
         let source = self.argument_expression(resolution, index)?;
@@ -641,25 +642,31 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Read one comptime enum argument as its declared case ordinal.
     fn comptime_case(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
         index: usize,
         construct: &str,
     ) -> CompilerResult<u32> {
         let source = self.argument_expression(resolution, index)?;
-        let dir::Type::EnumMember(member) = self.node_type(source)? else {
+        let dir::Type::Variant(member) = self.node_type(source)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("{construct} that is not comptime-known"),
             }
             .into());
         };
-        self.lowerer.enum_case_index(&member)
+        let dir::Type::Application(owner) = self.lowerer.ty(member.owner)? else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR typed an enum member without its owner instance".to_string(),
+            });
+        };
+
+        self.lowerer.variant_position(owner.symbol, member.variant)
     }
 
     /// Read one comptime boolean argument.
     fn comptime_boolean(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
         index: usize,
         construct: &str,
     ) -> CompilerResult<bool> {
@@ -677,10 +684,11 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return one provided argument's value expression node.
     fn argument_expression(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
         index: usize,
     ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
-        let Some(binding) = resolution.arguments.get(index) else {
+        let arguments = &resolution.arguments;
+        let Some(binding) = arguments.get(index) else {
             return Err(CompilerError::Internal {
                 message: "checked DIR bound too few arguments for one intrinsic".to_string(),
             });

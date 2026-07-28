@@ -28,6 +28,7 @@ const copy = value;
 /// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=value type=1
 /// @resolution.name source=value target=value
+/// @resolution.access source=value root=value
 
 /// @check.stats.solve variables=2 types=4 constraints=0 obligations=2 solutions=2 bounds=0 decisions=3
 "#,
@@ -128,6 +129,8 @@ const same = value as int32;
 /// @type.symbol symbol=same source=same type=int32
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
         r#"
 /// @diagnostic.warning id=redundant-cast message="cast to 'int32' has no effect"
@@ -182,6 +185,8 @@ const size = point.lenght;
 /// @type.symbol symbol=size source=size type=<error>
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'lenght' does not exist on type 'Point'; did you mean 'length'?"

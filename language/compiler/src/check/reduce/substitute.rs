@@ -3,19 +3,14 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
-use crate::check::{
-    Cause, CauseKind, CheckState, GenericParameterId, GenericTemplateId, Origin, VariableRole,
-    Widening,
-};
+use crate::check::CheckState;
+use crate::{CompilerError, CompilerResult};
 
-/// One positional generic substitution.
+/// One generic type substitution.
 #[derive(Debug, Clone, Default)]
 pub(in crate::check) struct TypeSubstitution {
-    /// The declared parameters in declaration order.
-    pub(in crate::check) parameters: SmallVec<[dir::GlobalGenericParameterId; 4]>,
-    /// The applied arguments in declaration order.
-    pub(in crate::check) arguments: SmallVec<[dir::GlobalTypeId; 4]>,
+    /// The applied generic arguments in declaration order.
+    pub(in crate::check) bindings: SmallVec<[dir::GenericArgumentBinding; 4]>,
     /// The qualified receiver replacing `this` references.
     pub(in crate::check) receiver: Option<dir::GlobalTypeId>,
 }
@@ -30,9 +25,49 @@ pub(in crate::check) struct InferSubstitution {
 }
 
 impl TypeSubstitution {
+    /// Return the argument bound to one parameter.
+    pub(in crate::check) fn argument(
+        &self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> Option<dir::GlobalTypeId> {
+        self.bindings
+            .iter()
+            .find(|binding| binding.parameter == parameter)
+            .map(|binding| binding.argument)
+    }
+
+    /// Bind one parameter to one argument.
+    pub(in crate::check) fn bind(
+        &mut self,
+        parameter: dir::GlobalGenericParameterId,
+        argument: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        // reject duplicate parameter bindings
+        if self
+            .bindings
+            .iter()
+            .any(|binding| binding.parameter == parameter)
+        {
+            return Err(CompilerError::Internal {
+                message: format!("generic parameter {parameter:?} was bound more than once"),
+            });
+        }
+
+        // append the binding in declaration order
+        self.bindings
+            .push(dir::GenericArgumentBinding::new(parameter, argument));
+
+        Ok(())
+    }
+
+    /// Return the applied arguments in binding order.
+    pub(in crate::check) fn arguments(&self) -> impl Iterator<Item = dir::GlobalTypeId> + '_ {
+        self.bindings.iter().map(|binding| binding.argument)
+    }
+
     /// Return whether this substitution replaces nothing.
     pub(in crate::check) fn is_empty(&self) -> bool {
-        self.parameters.is_empty() && self.receiver.is_none()
+        self.bindings.is_empty() && self.receiver.is_none()
     }
 
     /// Return this substitution with a qualified receiver.
@@ -42,187 +77,37 @@ impl TypeSubstitution {
     }
 
     /// Return this substitution extended by carried outer bindings.
-    pub(in crate::check) fn with_carried(&self, carried: &[dir::GenericArgumentBinding]) -> Self {
-        let mut composed = self.clone();
+    pub(in crate::check) fn with_carried(
+        mut self,
+        carried: &[dir::GenericArgumentBinding],
+    ) -> CompilerResult<Self> {
+        // merge carried bindings without changing an existing selection
         for binding in carried {
-            if !composed.parameters.contains(&binding.parameter) {
-                composed.parameters.push(binding.parameter);
-                composed.arguments.push(binding.argument);
+            match self.argument(binding.parameter) {
+                Some(argument) if argument == binding.argument => {}
+                Some(argument) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "generic parameter {:?} has conflicting arguments {argument:?} and {:?}",
+                            binding.parameter, binding.argument,
+                        ),
+                    });
+                }
+                None => self.bindings.push(*binding),
             }
         }
 
-        composed
-    }
-}
-
-impl CheckState<'_> {
-    /// Substitute written annotation arguments into one template.
-    pub(in crate::check) fn substitute_annotation_arguments(
-        &mut self,
-        origin: Origin,
-        template: GenericTemplateId,
-        written: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Option<TypeSubstitution>> {
-        let parameters = self.generic_template_parameters(template);
-
-        self.substitute_parameter_arguments(
-            origin,
-            &parameters,
-            written,
-            TypeSubstitution::default(),
-        )
-    }
-
-    /// Substitute written annotation arguments into one parameter list.
-    pub(in crate::check) fn substitute_parameter_arguments(
-        &mut self,
-        origin: Origin,
-        parameters: &[GenericParameterId],
-        written: &[dir::GlobalTypeId],
-        mut substitution: TypeSubstitution,
-    ) -> CompilerResult<Option<TypeSubstitution>> {
-        if written.len() > self.written_parameter_count(parameters) {
-            return Ok(None);
-        }
-
-        // bind writable parameters and fill omitted defaults
-        let mut cursor = 0;
-        for parameter in parameters.iter().copied() {
-            let Some(binding) = self.generic_parameter(parameter).copied() else {
-                return Ok(None);
-            };
-            let is_explicit = matches!(binding.origin, dir::GenericParameterOrigin::Explicit);
-            if binding.is_writable() && cursor < written.len() {
-                substitution.parameters.push(parameter);
-                substitution.arguments.push(written[cursor]);
-                cursor += 1;
-
-                continue;
-            }
-
-            // evaluate defaults against the application built so far
-            let default = binding
-                .default
-                .map(|default| self.substitute_type(origin.module(), default, &substitution))
-                .transpose()?;
-            if let Some(default) = default {
-                substitution.parameters.push(parameter);
-                substitution.arguments.push(default);
-
-                continue;
-            }
-
-            if is_explicit {
-                return Ok(None);
-            }
-        }
-
-        Ok(Some(substitution))
-    }
-
-    /// Instantiate one parameter list, opening omitted explicit parameters.
-    pub(in crate::check) fn instantiate_parameter_arguments(
-        &mut self,
-        origin: Origin,
-        parameters: &[GenericParameterId],
-        written: &[dir::GlobalTypeId],
-        mut substitution: TypeSubstitution,
-    ) -> CompilerResult<Option<TypeSubstitution>> {
-        if written.len() > self.written_parameter_count(parameters) {
-            return Ok(None);
-        }
-
-        // bind written parameters and open omitted inference parameters
-        let mut cursor = 0;
-        for parameter in parameters.iter().copied() {
-            let Some(binding) = self.generic_parameter(parameter).copied() else {
-                return Ok(None);
-            };
-            if binding.is_writable() && cursor < written.len() {
-                substitution.parameters.push(parameter);
-                substitution.arguments.push(written[cursor]);
-                cursor += 1;
-
-                continue;
-            }
-
-            // an opened parameter types its origin once, so re-walks reuse it
-            let origin_id = self.solver.intern_origin(origin);
-            if let Some(existing) = self.solver.instantiation(origin_id, parameter) {
-                let argument = self.variable_type(existing)?;
-                substitution.parameters.push(parameter);
-                substitution.arguments.push(argument);
-
-                continue;
-            }
-
-            // open every omitted parameter while only explicit parameters consume source arguments
-            let primitive_constraint = match binding.constraint {
-                Some(constraint) => matches!(
-                    self.ty(self.settled_root(constraint)?)?,
-                    dir::Type::Primitive(_)
-                ),
-                None => false,
-            };
-            let widening = match binding.is_const
-                || primitive_constraint
-                || binding.memory_parameter().is_some()
-            {
-                true => Widening::Never,
-                false => Widening::WhenWritten,
-            };
-            let variable =
-                self.allocate_variable(origin, widening, VariableRole::Instantiation { parameter });
-            self.solver
-                .record_instantiation(origin_id, parameter, variable);
-
-            // declared defaults complete the parameter when inference stays dry
-            if let Some(default) = binding.default {
-                let default = self.substitute_type(origin.module(), default, &substitution)?;
-                self.set_variable_default(variable, default);
-            }
-
-            let argument = self.variable_type(variable)?;
-            substitution.parameters.push(parameter);
-            substitution.arguments.push(argument);
-
-            // declared bounds substitute self-references and discharge on solutions
-            if binding.memory_parameter().is_none()
-                && let Some(bound) = binding.constraint
-            {
-                let bound = self.substitute_type(origin.module(), bound, &substitution)?;
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
-                self.set_variable_parameter_bound(variable, bound, cause);
-            }
-        }
-
-        Ok(Some(substitution))
-    }
-
-    /// Return how many parameters accept written arguments.
-    pub(in crate::check) fn written_parameter_count(
-        &self,
-        parameters: &[GenericParameterId],
-    ) -> usize {
-        parameters
-            .iter()
-            .filter(|parameter| {
-                self.generic_parameter(**parameter)
-                    .is_some_and(dir::GenericParameterBinding::is_writable)
-            })
-            .count()
+        Ok(self)
     }
 }
 
 /// Rule applied to matching leaves of one type graph.
 #[derive(Debug, Clone, Copy)]
 enum SubstitutionRule<'a> {
-    /// Replace generic parameter and receiver references by position.
+    /// Replace generic parameter and receiver references by binding.
     Substitute {
-        /// The declared parameters in declaration order.
-        parameters: &'a [dir::GlobalGenericParameterId],
-        /// The applied arguments in declaration order.
-        arguments: &'a [dir::GlobalTypeId],
+        /// The applied generic arguments in declaration order.
+        bindings: &'a [dir::GenericArgumentBinding],
         /// The qualified receiver replacing `this` references.
         receiver: Option<dir::GlobalTypeId>,
     },
@@ -238,7 +123,7 @@ enum SubstitutionRule<'a> {
         /// The captured types keyed by binder symbol.
         captures: &'a [InferSubstitution],
     },
-    /// Remove inference barriers after candidate inference has closed.
+    /// Remove every inference barrier.
     EraseNoInfer,
 }
 
@@ -246,15 +131,10 @@ impl SubstitutionRule<'_> {
     /// Return the substituted argument for one parameter.
     fn substituted(&self, parameter: dir::GlobalGenericParameterId) -> Option<dir::GlobalTypeId> {
         match self {
-            Self::Substitute {
-                parameters,
-                arguments,
-                ..
-            } => parameters
+            Self::Substitute { bindings, .. } => bindings
                 .iter()
-                .position(|candidate| *candidate == parameter)
-                .and_then(|position| arguments.get(position))
-                .copied(),
+                .find(|binding| binding.parameter == parameter)
+                .map(|binding| binding.argument),
             Self::Replace { .. } | Self::SubstituteInfer { .. } | Self::EraseNoInfer => None,
         }
     }
@@ -310,8 +190,7 @@ impl CheckState<'_> {
             target,
             id,
             SubstitutionRule::Substitute {
-                parameters: &substitution.parameters,
-                arguments: &substitution.arguments,
+                bindings: &substitution.bindings,
                 receiver: substitution.receiver,
             },
         )
@@ -326,44 +205,35 @@ impl CheckState<'_> {
         self.substitute_graph(target, id, SubstitutionRule::EraseNoInfer)
     }
 
-    /// Return whether one type graph contains an inference barrier.
-    pub(in crate::check) fn contains_inference_barrier(
-        &self,
+    /// Return the target directly wrapped by `NoInfer`.
+    pub(in crate::check) fn no_infer_target(
+        &mut self,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-        let mut visited = FxIndexSet::default();
-        pending.push(id);
-
-        // scan each reachable type once
-        while let Some(id) = pending.pop() {
-            let id = self.settled_root(id)?;
-            if !visited.insert(id) {
-                continue;
-            }
-
-            // stop when either operation or stdlib NoInfer appears
-            let ty = self.ty(id)?;
-            if matches!(
-                self.operation_head(id)?,
-                Some(dir::TypeOperation::NoInfer(_))
-            ) {
-                return Ok(true);
-            }
-            if let dir::Type::Application(instance) = ty
-                && self
-                    .global
-                    .language
-                    .item(instance.symbol)
-                    .is_some_and(|item| item == dir::LanguageItem::NoInfer)
-            {
-                return Ok(true);
-            }
-
-            self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let id = self.settled_root(id)?;
+        if let Some(dir::TypeOperation::NoInfer(operation)) = self.operation_head(id)? {
+            return Ok(Some(operation.target));
         }
 
-        Ok(false)
+        // recognize the stdlib application before it reduces to the operation
+        let dir::Type::Application(application) = self.ty(id)? else {
+            return Ok(None);
+        };
+        if self.language_item(application.symbol)? != Some(dir::LanguageItem::NoInfer) {
+            return Ok(None);
+        }
+        let arguments = self.type_ids(id.module_id, application.arguments)?;
+        let [target] = arguments else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "NoInfer application {:?} has {} arguments",
+                    application.symbol,
+                    arguments.len(),
+                ),
+            });
+        };
+
+        Ok(Some(*target))
     }
 
     /// Replace one type id inside another type graph.
@@ -395,7 +265,7 @@ impl CheckState<'_> {
 
     /// Mark whether each reachable id contains an affected leaf.
     fn mark_substitutions(
-        &self,
+        &mut self,
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
         marks: &mut FxIndexMap<dir::GlobalTypeId, bool>,
@@ -433,23 +303,7 @@ impl CheckState<'_> {
                 Some(solution) => self.mark_substitutions(solution, rule, marks)?,
                 None => false,
             },
-            (dir::Type::Operation(operation), SubstitutionRule::EraseNoInfer)
-                if matches!(
-                    self.type_operation(id.module_id, operation)?,
-                    dir::TypeOperation::NoInfer(_)
-                ) =>
-            {
-                true
-            }
-            (dir::Type::Application(instance), SubstitutionRule::EraseNoInfer)
-                if self
-                    .global
-                    .language
-                    .item(instance.symbol)
-                    .is_some_and(|item| item == dir::LanguageItem::NoInfer) =>
-            {
-                true
-            }
+            (_, SubstitutionRule::EraseNoInfer) if self.no_infer_target(id)?.is_some() => true,
             _ => {
                 let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
                 self.for_each_type_child(id.module_id, &ty, |child| children.push(child))?;
@@ -537,32 +391,16 @@ impl CheckState<'_> {
             return Ok(receiver);
         }
 
-        // erase one inference barrier after the owning signature closes inference
-        if matches!(rule, SubstitutionRule::EraseNoInfer) {
-            let unwrapped = match self.ty(id)? {
-                dir::Type::Operation(operation)
-                    if let dir::TypeOperation::NoInfer(unary) =
-                        self.type_operation(id.module_id, operation)? =>
-                {
-                    Some(unary.target)
-                }
-                dir::Type::Application(instance)
-                    if self
-                        .global
-                        .language
-                        .item(instance.symbol)
-                        .is_some_and(|item| item == dir::LanguageItem::NoInfer) =>
-                {
-                    match self.type_ids(id.module_id, instance.arguments)? {
-                        [unwrapped] => Some(*unwrapped),
-                        _ => None,
-                    }
-                }
-                _ => None,
-            };
-            if let Some(unwrapped) = unwrapped {
-                return self.substitute_guarded(target, unwrapped, rule, marks, substituting);
-            }
+        // erase one selected inference barrier
+        if matches!(rule, SubstitutionRule::EraseNoInfer)
+            && let Some(target_id) = self.no_infer_target(id)?
+        {
+            return self.substitute_guarded(target, target_id, rule, marks, substituting);
+        }
+
+        // preserve every graph without a requested substitution
+        if !marks.get(&id).copied().unwrap_or(false) {
+            return Ok(id);
         }
 
         // resolve one solved variable through its root
@@ -583,17 +421,23 @@ impl CheckState<'_> {
             };
         }
 
-        // skip rebuilds for types without affected leaves
-        if !marks.get(&id).copied().unwrap_or(false) {
-            return Ok(id);
-        }
-
-        // read payloads where the type lives, intern the rebuild where we work
+        // read payloads from their owner, intern the rebuilt type in this component
         let ty = self.ty(id)?;
         let substituted =
             self.substitute_children(id.module_id, target, ty, rule, marks, substituting)?;
+        match substituted {
+            dir::Type::Union(union) => {
+                let elements = self.type_ids(target, union.elements)?.to_vec();
 
-        self.intern_type(target, substituted)
+                self.normalized_union_type(target, elements)
+            }
+            dir::Type::Intersection(intersection) => {
+                let elements = self.type_ids(target, intersection.elements)?.to_vec();
+
+                self.normalized_intersection_type(target, elements)
+            }
+            substituted => self.intern_type(target, substituted),
+        }
     }
 
     /// Rebuild one type with substituted children.

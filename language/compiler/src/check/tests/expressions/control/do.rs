@@ -36,7 +36,9 @@ const value = do {
     /// @type.node source="base + 2" type=3
     /// @type.node source=base type=1
     /// @resolution.name source=base target=base
-    /// @resolution.operator source="base + 2" kind=builtin
+    /// @resolution.operator source="base + 2" type=3 operator="+" kind=builtin operands=[base as 1 families=(integer), 2 as 2 families=(integer)]
+    /// @resolution.place source=base placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=base root=base
     /// @type.node source=2 type=2
 
 };
@@ -83,6 +85,8 @@ const value = do {
     scoped
     /// @type.node source=scoped type=2
     /// @resolution.name source=scoped target=scoped
+    /// @resolution.place source=scoped placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=scoped root=scoped
 
 };
 

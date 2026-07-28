@@ -1,14 +1,16 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, FlowSite, PlaceUse, Relation, answer};
+use crate::check::{Answer, BodyState, Origin, Relation, VariableRole, Widening, answer};
 
 /// Inference mode for literal materialization contexts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum InferMode {
     /// Preserve the expression's direct literal precision.
     Exact,
+    /// Preserve scalar precision while widening mutable aggregate contents.
+    Mutable,
     /// Materialize literals through their default widened type.
     Widen,
     /// Infer under `as const` literal-preserving rules.
@@ -20,46 +22,138 @@ impl InferMode {
     pub(in crate::check) fn is_readonly(self) -> bool {
         matches!(self, Self::Const)
     }
+
+    /// Return whether mutable aggregate contents widen in this mode.
+    pub(in crate::check) fn widens_aggregate(self) -> bool {
+        matches!(self, Self::Mutable | Self::Widen)
+    }
+
+    /// Return this mode after entering one aggregate member.
+    pub(in crate::check) fn descend(self, is_readonly: bool) -> Self {
+        match (self, is_readonly) {
+            (Self::Const, _) => Self::Const,
+            (_, true) => Self::Exact,
+            (Self::Exact, false) => Self::Exact,
+            (Self::Mutable | Self::Widen, false) => Self::Widen,
+        }
+    }
 }
 
 impl BodyState<'_, '_> {
-    /// Return the relation carried by one authored literal value.
-    pub(in crate::check) fn literal_relation(&self, mut value: dir::GlobalNodeIdAny) -> Relation {
-        let Ok(mut expression) = value.try_into_typed::<dir::Expression>() else {
-            return Relation::Assignable;
-        };
+    /// Select literal inference at one contextual type position.
+    pub(in crate::check) fn contextual_literal_mode(
+        &self,
+        target: dir::GlobalTypeId,
+        default_mode: InferMode,
+    ) -> CompilerResult<InferMode> {
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(&[target]);
+        let mut visited = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        let mut selected = None;
 
-        // follow transparent expressions to the literal they preserve
-        loop {
-            match self.module(value.module_id).view().get(expression.local_id) {
-                dir::Expression::ObjectExpression { .. }
-                | dir::Expression::StructExpression { .. }
-                | dir::Expression::ArrayExpression { .. }
-                | dir::Expression::TupleExpression { .. } => return Relation::Writable,
-                // function values are fresh constructions
-                dir::Expression::Declaration(declaration) => {
-                    let is_lambda = matches!(
-                        self.module(value.module_id).view().get(*declaration),
-                        dir::Declaration::Function(function)
-                            if function.signature.form == dir::FunctionForm::Lambda
-                                || function.name.is_none()
-                    );
+        // collect one consistent policy across transparent alternatives
+        while let Some(target) = pending.pop() {
+            if visited.contains(&target) {
+                continue;
+            }
+            visited.push(target);
 
-                    return match is_lambda {
-                        true => Relation::Writable,
-                        false => Relation::Assignable,
+            match self.ty(target)? {
+                dir::Type::Variable(variable) => {
+                    let VariableRole::Instantiation { parameter } =
+                        self.solver.variable_role(variable)?
+                    else {
+                        continue;
                     };
+                    let binding = self.require_generic_parameter(parameter)?;
+                    let mode = if binding.is_const {
+                        InferMode::Const
+                    } else {
+                        match self.solver.variable(variable)?.widening {
+                            Widening::Never => InferMode::Exact,
+                            Widening::Aggregate => default_mode,
+                            Widening::Multiple => InferMode::Mutable,
+                            Widening::Always => InferMode::Widen,
+                        }
+                    };
+                    if selected.is_some_and(|selected| selected != mode) {
+                        return Ok(default_mode);
+                    }
+                    selected = Some(mode);
                 }
-                dir::Expression::Satisfies {
-                    expression: child, ..
-                } => {
-                    value = child.into_global_any(value.module_id);
-                    expression = child.into_global(value.module_id);
+                dir::Type::Form(form) => pending.push(form.value),
+                dir::Type::Union(union) => {
+                    pending.extend(
+                        self.type_ids(target.module_id, union.elements)?
+                            .iter()
+                            .copied(),
+                    );
                 }
-                _ => return Relation::Assignable,
+                dir::Type::Intersection(intersection) => {
+                    pending.extend(
+                        self.type_ids(target.module_id, intersection.elements)?
+                            .iter()
+                            .copied(),
+                    );
+                }
+                dir::Type::Operation(_) => match self.operation_head(target)? {
+                    Some(dir::TypeOperation::TemplateLiteral(_)) => {
+                        let mode = InferMode::Mutable;
+                        if selected.is_some_and(|selected| selected != mode) {
+                            return Ok(default_mode);
+                        }
+                        selected = Some(mode);
+                    }
+                    Some(dir::TypeOperation::Conditional(conditional)) => {
+                        pending.push(conditional.then_type);
+                        pending.push(conditional.else_type);
+                    }
+                    _ => {}
+                },
+                _ => {}
             }
         }
+
+        Ok(selected.unwrap_or(default_mode))
     }
+
+    /// Return one value's candidate type under its inference mode.
+    pub(in crate::check) fn inference_candidate_type(
+        &mut self,
+        ty: dir::GlobalTypeId,
+        mode: InferMode,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        match mode {
+            InferMode::Widen => self.widen_type(ty),
+            InferMode::Exact | InferMode::Mutable | InferMode::Const => Ok(ty),
+        }
+    }
+
+    /// Return the literal storage type selected by one contextual target.
+    pub(in crate::check) fn contextual_literal_type(
+        &mut self,
+        origin: Origin,
+        precise: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        mode: InferMode,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let candidate = self.inference_candidate_type(precise, mode)?;
+        if candidate == precise {
+            return Ok(Answer::Ready(precise));
+        }
+
+        let accepts =
+            answer!(
+                self.check
+                    .decide_relation(origin, Relation::Satisfies, candidate, target,)?
+            );
+        let selected = match accepts {
+            true => candidate,
+            false => precise,
+        };
+
+        Ok(Answer::Ready(selected))
+    }
+
     /// Return the type of one scalar literal expression.
     pub(in crate::check) fn scalar_literal_type(
         &mut self,
@@ -74,180 +168,5 @@ impl BodyState<'_, '_> {
             dir::ScalarLiteral::Undefined => self.intern_type(node.module_id, dir::Type::Undefined),
             value => self.intern_type(node.module_id, dir::Type::Literal(value)),
         }
-    }
-
-    /// Return one expression type under const literal materialization.
-    pub(in crate::check) fn const_literal_expression_type(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        ordinary_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let site = self.node_site(source)?;
-        let Ok(expression) = source.try_into_typed::<dir::Expression>() else {
-            return Ok(Answer::Ready(ordinary_type));
-        };
-        let expression = self
-            .module(expression.module_id)
-            .view()
-            .get(expression.local_id)
-            .clone();
-
-        match expression {
-            dir::Expression::ArrayExpression { elements } => {
-                self.const_literal_array_type(site, source.module_id, &elements)
-            }
-            dir::Expression::TupleExpression { elements } => {
-                self.const_literal_tuple_type(source.module_id, &elements)
-            }
-            dir::Expression::ObjectExpression { properties } => {
-                self.const_literal_object_type(site, source.module_id, &properties)
-            }
-            _ => Ok(Answer::Ready(ordinary_type)),
-        }
-    }
-
-    /// Return one array literal type under const literal materialization.
-    fn const_literal_array_type(
-        &mut self,
-        site: FlowSite,
-        module: ModuleId,
-        elements: &[dir::LocalNodeId<dir::Argument>],
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let mut fields = Vec::with_capacity(elements.len());
-
-        // collect positional element types, spreads keep ordinary inference
-        for element in elements {
-            let ty = match self.module(module).view().get(*element) {
-                dir::Argument::Positional { value }
-                | dir::Argument::Named { value, .. }
-                | dir::Argument::Labeled { value, .. } => {
-                    let value_site = self.node_site(value.into_global_any(module))?;
-
-                    answer!(self.infer_node_type(value_site, PlaceUse::Read)?)
-                }
-                dir::Argument::Spread { .. } | dir::Argument::Error => {
-                    return self.infer_node_type(site, PlaceUse::Read);
-                }
-                dir::Argument::Elision => self.intern_type(module, dir::Type::Undefined)?,
-            };
-            fields.push(dir::TypeElement::new(ty));
-        }
-
-        // freeze the literal as a readonly array tuple
-        let fields = self.intern_elements(module, &fields)?;
-        let tuple = self.intern_type(
-            module,
-            dir::Type::Tuple(dir::TupleType {
-                form: dir::TupleForm::Array,
-                elements: fields,
-            }),
-        )?;
-        let readonly = self.intern_type(
-            module,
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Readonly,
-                value: tuple,
-            }),
-        )?;
-
-        Ok(Answer::Ready(readonly))
-    }
-
-    /// Return one tuple literal type under const literal materialization.
-    fn const_literal_tuple_type(
-        &mut self,
-        module: ModuleId,
-        elements: &[dir::LocalNodeId<dir::Argument>],
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let mut fields = Vec::with_capacity(elements.len());
-
-        // collect tuple element types exactly
-        for element in elements {
-            let (label, value, is_rest) = match self.module(module).view().get(*element) {
-                dir::Argument::Positional { value } => (None, Some(*value), false),
-                dir::Argument::Named { value, .. } => (None, Some(*value), false),
-                dir::Argument::Labeled { label, value } => (Some(*label), Some(*value), false),
-                dir::Argument::Spread { value, .. } => (None, Some(*value), true),
-                dir::Argument::Error => continue,
-                dir::Argument::Elision => (None, None, false),
-            };
-            let ty = match value {
-                Some(value) => {
-                    let value_site = self.node_site(value.into_global_any(module))?;
-
-                    answer!(self.infer_node_type(value_site, PlaceUse::Read)?)
-                }
-                None => self.intern_type(module, dir::Type::Undefined)?,
-            };
-            fields.push(dir::TypeElement {
-                label,
-                ty,
-                is_optional: false,
-                is_readonly: false,
-                is_rest,
-            });
-        }
-
-        // freeze the literal as a readonly tuple
-        let fields = self.intern_elements(module, &fields)?;
-        let tuple = self.intern_type(
-            module,
-            dir::Type::Tuple(dir::TupleType {
-                form: dir::TupleForm::Tuple,
-                elements: fields,
-            }),
-        )?;
-        let readonly = self.intern_type(
-            module,
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Readonly,
-                value: tuple,
-            }),
-        )?;
-
-        Ok(Answer::Ready(readonly))
-    }
-
-    /// Return one object literal type under const literal materialization.
-    fn const_literal_object_type(
-        &mut self,
-        site: FlowSite,
-        module: ModuleId,
-        properties: &[dir::LocalNodeId<dir::Property>],
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let mut fields = Vec::new();
-
-        // collect direct fields exactly, spreads keep ordinary inference
-        for property in properties {
-            let dir::Property::Field { key, value, .. } =
-                self.module(module).view().get(*property).clone()
-            else {
-                return self.infer_node_type(site, PlaceUse::Read);
-            };
-            let Some(key) = answer!(self.select_property_key(site, key)?) else {
-                continue;
-            };
-            let value_site = self.node_site(value.into_global_any(module))?;
-            let ty = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-            fields.push(dir::TypeField {
-                key,
-                ty,
-                is_optional: false,
-                is_readonly: true,
-            });
-        }
-
-        let fields = self.intern_fields(module, &fields)?;
-        let shape = self.intern_type(
-            module,
-            dir::Type::Shape(dir::ShapeType {
-                fields,
-                call_signatures: dir::TypeListId::EMPTY,
-                construct_signatures: dir::TypeListId::EMPTY,
-                index_signatures: dir::TypeListId::EMPTY,
-            }),
-        )?;
-
-        Ok(Answer::Ready(shape))
     }
 }

@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DiagnosticControlIndex, ModuleLinted,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ComponentGraphProjection,
+    DiagnosticControlIndex, ModuleLinted,
 };
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
 
-use super::{DirModule, LintSet, Linter, MirModule};
+use super::{Dir, LintSet, Linter, Mir};
 
 impl Linter {
     /// Collect dependencies for one module lint artifact.
@@ -44,11 +45,48 @@ impl Linter {
 
         // require this module's checked DIR
         if lints.has_dir_modules() {
-            let Some(_) = self.collect_global_environment(context, profile, &mut dependencies)?
+            let Some(environment) =
+                self.collect_global_environment(context, profile, &mut dependencies)?
             else {
                 return Ok(dependencies);
             };
-            self.require_dir_modules(revision, &[module], profile, &mut dependencies)?;
+
+            // project the module and global root components
+            let graph_key = ArtifactKey::component_graph(profile);
+            let mut roots = environment.globals.clone();
+            roots.push(module);
+            roots.sort_unstable();
+            roots.dedup();
+            for root in roots.iter().copied() {
+                dependencies.project(graph_key, ComponentGraphProjection::ReferenceComponent(root));
+            }
+
+            // read the component graph
+            let graph = match artifacts.component_graph(profile) {
+                Ok(graph) => graph,
+                Err(ProviderError::Blocked { .. }) => {
+                    dependencies.mark_partial();
+
+                    return Ok(dependencies);
+                }
+                Err(error) => return Err(error),
+            };
+
+            // project the reachable checked DIR modules
+            let components = graph.reachable_components(&roots).map_err(|root| {
+                ProviderError::internal(format!(
+                    "DIR module {root:?} is missing from its component graph"
+                ))
+            })?;
+            let mut modules = Vec::new();
+            for component in components.iter().copied() {
+                dependencies.project(graph_key, ComponentGraphProjection::ReferenceMembers(component));
+                dependencies.project(graph_key, ComponentGraphProjection::ReferenceDependencies(component));
+                modules.extend(graph.reference_members(component).iter().copied());
+            }
+            modules.sort_unstable();
+            modules.dedup();
+            self.require_dir_modules(revision, &modules, profile, &mut dependencies)?;
         }
 
         // require this module's verified MIR
@@ -83,7 +121,7 @@ impl Linter {
         let lints = self.resolve_lints(context, target.package_id(), &controls)?;
 
         // run DIR and MIR module lints
-        self.lint_dir_module(context, &lints, &controls, module, profile, target)?;
+        self.lint_dir_module(context, &lints, &controls, module, profile)?;
         self.lint_mir_module(context, &lints, &controls, module, profile, target)?;
 
         Ok(ModuleLinted.into())
@@ -97,27 +135,46 @@ impl Linter {
         controls: &DiagnosticControlIndex<'_>,
         module: ModuleId,
         profile: ProfileId,
-        target: TargetId,
     ) -> Result<(), ProviderError> {
         if !lints.has_dir_modules() {
             return Ok(());
         }
 
-        // load this module's checked DIR
+        // collect the module and global roots
         let revision = context.revision();
         let artifacts = self.repository.artifact_reader(revision);
         let environment = artifacts.global_environment(profile)?;
-        let repository_module = self.module(revision, module)?;
-        let module = DirModule::load(
+        let graph = artifacts.component_graph(profile)?;
+        let mut roots = environment.globals.clone();
+        roots.push(module);
+        roots.sort_unstable();
+        roots.dedup();
+
+        // collect the reachable checked DIR modules
+        let components = graph.reachable_components(&roots).map_err(|root| {
+            ProviderError::internal(format!(
+                "DIR module {root:?} is missing from its component graph"
+            ))
+        })?;
+        let mut modules = components
+            .iter()
+            .flat_map(|component| graph.reference_members(*component))
+            .copied()
+            .collect::<Vec<_>>();
+        modules.sort_unstable();
+        modules.dedup();
+
+        // load the reachable checked DIR modules
+        let dir = Dir::load(
             self.repository.as_ref(),
             revision,
-            profile,
-            target,
-            environment,
-            repository_module,
             &artifacts,
+            profile,
+            environment,
+            &modules,
         )?;
-        let strings = self.repository.string_pool();
+        let module = dir.module(module)?;
+        let strings = &dir.strings;
 
         // execute enabled DIR lints
         for (lint, severity, check) in lints.dir_modules() {
@@ -152,8 +209,10 @@ impl Linter {
         // load this module's verified MIR and analyses
         let revision = context.revision();
         let artifacts = self.repository.artifact_reader(revision);
-        let module = MirModule::load(&artifacts, profile, target, module)?;
-        let strings = self.repository.string_pool();
+        let strings = self.repository.string_pool().clone();
+        let mir = Mir::load(&artifacts, profile, target, &[module], strings)?;
+        let module = mir.module(module)?;
+        let strings = &mir.strings;
 
         // execute enabled MIR lints
         for (lint, severity, check) in lints.mir_modules() {

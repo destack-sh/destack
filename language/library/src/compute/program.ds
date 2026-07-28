@@ -118,13 +118,13 @@ export newtype Program = intrinsic;
 
 export extension of Program {
     /// Return the device that owns this program.
-    get device(): Device {
+    get device(&readonly this): Device {
         Context.current().compute.program.device(this)
     }
 
     /// Compile `source` for `device`.
     static compile(
-        device: Device,
+        device: &readonly Device,
         source: ProgramSource,
         options?: ProgramOptions,
     ): Result<Program, ComputeError> {
@@ -132,12 +132,16 @@ export extension of Program {
     }
 
     /// Compile `source` for `device` and return diagnostics.
-    static build(device: Device, source: ProgramSource, options?: ProgramOptions): ProgramReport {
+    static build(
+        device: &readonly Device,
+        source: ProgramSource,
+        options?: ProgramOptions,
+    ): ProgramReport {
         Context.current().compute.program.build(device, source, options)
     }
 
     /// Return a kernel entry point by name.
-    kernel(name: string): Result<Kernel, ComputeError> {
+    kernel(&readonly this, name: string): Result<Kernel, ComputeError> {
         Context.current().compute.program.kernel(this, name)
     }
 }
@@ -206,26 +210,27 @@ export newtype Kernel = intrinsic;
 
 export extension of Kernel {
     /// Return the program that owns this kernel.
-    get program(): Program {
+    get program(&readonly this): Program {
         Context.current().compute.program.kernelProgram(this)
     }
 
     /// Return the kernel entry point name.
-    get name(): &readonly string {
+    get name(&readonly this): &readonly string {
         Context.current().compute.program.kernelName(this)
     }
 
     /// Return this kernel's signature metadata.
-    signature(): KernelSignature {
+    signature(&readonly this): KernelSignature {
         Context.current().compute.program.signature(this)
     }
 
     /// Dispatch this kernel on `stream`.
     dispatch(
+        &readonly this,
         arguments: [KernelArgument],
         workgroups: WorkgroupCount,
         workgroupSize?: WorkgroupSize,
-        stream?: Stream,
+        stream?: &Stream,
     ): Event {
         Context.current().compute.program.dispatch(
             this,

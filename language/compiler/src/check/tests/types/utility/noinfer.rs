@@ -27,7 +27,7 @@ ok satisfies "red" | "blue";
 === checked ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
-/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C> | undefined) => C
+/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C> | undefined?) => C
 /// @type.symbol symbol=choose.C source="C: string" type=C
 /// @type.symbol symbol=choose.values source="values: C[]" type=Array<C>
 /// @resolution.name source=C target=choose.C
@@ -40,11 +40,13 @@ const ok = choose(["red", "blue"], "red");
 /// @type.symbol symbol=ok source=ok type="red" | "blue"
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=choose target=choose
-/// @resolution.call source="choose([\"red\", \"blue\"], \"red\")" parameters=(Array<"red" | "blue">, NoInfer<"red" | "blue"> | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("red") as NoInfer<"red" | "blue"> | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
+/// @resolution.call source="choose([\"red\", \"blue\"], \"red\")" parameters=(Array<"red" | "blue">, "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("red") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instance source="choose([\"red\", \"blue\"], \"red\")" id="choose<\"red\" | \"blue\">"
 
 ok satisfies "red" | "blue";
 /// @resolution.name source=ok target=ok
+/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ok root=ok
 
 /// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
 /// @generic.instance id=NoInfer<C> template=types.object.NoInfer arguments=(C)
@@ -106,14 +108,18 @@ const picked = choose(values, "green");
 /// @type.symbol symbol=picked source=picked type="red"
 /// @resolution.pattern source=picked kind=binding target=picked
 /// @resolution.name source=choose target=choose
-/// @resolution.call source="choose(values, \"green\")" parameters=(Array<"red">, NoInfer<"red">) arguments=(provided(values) as Array<"red">, provided("green") as NoInfer<"red">) return="red" kind=symbol target=choose instance="choose<\"red\">"
+/// @resolution.call source="choose(values, \"green\")" parameters=(Array<"red">, "red") arguments=(provided(values) as Array<"red">, provided("green") as "red") return="red" kind=symbol target=choose instance="choose<\"red\">"
 /// @generic.instance source="choose(values, \"green\")" id="choose<\"red\">"
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 
 const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type=Array<"red">
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 
 /// @generic.instance id="choose<\"red\">" template=choose arguments=("red")
 /// @generic.instance id="make<\"red\">" template=make arguments=("red")
@@ -181,14 +187,18 @@ const kept = keep(values, ["green"]);
 /// @type.symbol symbol=kept source=kept type="red"
 /// @resolution.pattern source=kept kind=binding target=kept
 /// @resolution.name source=keep target=keep
-/// @resolution.call source="keep(values, [\"green\"])" parameters=(Array<"red">, NoInfer<Array<"red">>) arguments=(provided(values) as Array<"red">, provided(["green"]) as NoInfer<Array<"red">>) return="red" kind=symbol target=keep instance="keep<\"red\">"
+/// @resolution.call source="keep(values, [\"green\"])" parameters=(Array<"red">, Array<"red">) arguments=(provided(values) as Array<"red">, provided(["green"]) as Array<"red">) return="red" kind=symbol target=keep instance="keep<\"red\">"
 /// @generic.instance source="keep(values, [\"green\"])" id="keep<\"red\">"
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 
 const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type=Array<"red">
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 
 /// @generic.instance id="keep<\"red\">" template=keep arguments=("red")
 /// @generic.instance id="make<\"red\">" template=make arguments=("red")
@@ -197,6 +207,54 @@ const reds: "red"[] = values;
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '\"green\"' is not assignable to parameter of type '\"red\"'"
 /// @diagnostic.label line=6 column=28 span="\"green\"" line_source="const kept = keep(values, [\"green\"]);"
+/// @diagnostic.related line=6 column=14 span="keep(values, [\"green\"])" line_source="const kept = keep(values, [\"green\"]);" message="in this call"
+/// @diagnostic.note message="the mismatch is in element 0"
+"#,
+    );
+}
+
+#[test]
+fn test_noinfer_preserves_sibling_inference() {
+    let session = TestSession::single(
+        r#"
+declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
+
+const value = first((1, "text"));
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
+
+const value: float64 = first<float64, string>((1, "text"));
+
+=== checked ===
+declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
+/// @generic.template symbol=first parameters=(T, U = string)
+/// @type.symbol symbol=first source="declare function first<T, U = string>(value: (T, NoInfer<U>)): T" type=<T, U = string>((T, NoInfer<U>)) => T
+/// @type.symbol symbol=first.T source=T type=T
+/// @type.symbol symbol=first.U source="U = string" type=U
+/// @type.symbol symbol=first.value source="value: (T, NoInfer<U>)" type=(T, NoInfer<U>)
+/// @resolution.name source=T target=first.T
+/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=U target=first.U
+/// @resolution.name source=T target=first.T
+
+const value = first((1, "text"));
+/// @type.symbol symbol=value source=value type=float64
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=first target=first
+/// @resolution.call source="first((1, \"text\"))" parameters=((float64, string)) arguments=(provided((1, "text")) as (float64, string)) return=float64 kind=symbol target=first instance="first<float64, string>"
+/// @generic.instance source="first((1, \"text\"))" id="first<float64, string>"
+
+/// @generic.instance id="first<float64, string>" template=first arguments=(float64, string)
+/// @generic.instance id=NoInfer<U> template=types.object.NoInfer arguments=(U)
+"#,
+        r#"
 "#,
     );
 }
@@ -252,9 +310,11 @@ const seeds = make();
 
 on(seeds, (value) => {});
 /// @resolution.name source=on target=on
-/// @resolution.call source="on(seeds, (value) => {})" parameters=(Array<"red">, NoInfer<Function<("red",), void>>) arguments=(provided(seeds) as Array<"red">, provided((value) => {}) as NoInfer<Function<("red",), void>>) return=void kind=symbol target=on instance="on<\"red\">"
+/// @resolution.call source="on(seeds, (value) => {})" parameters=(Array<"red">, Function<("red",), void>) arguments=(provided(seeds) as Array<"red">, provided((value) => {}) as Function<("red",), void>) return=void kind=symbol target=on instance="on<\"red\">"
 /// @generic.instance source="on(seeds, (value) => {})" id="on<\"red\">"
 /// @resolution.name source=seeds target=seeds
+/// @resolution.place source=seeds placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=seeds root=seeds
 /// @type.symbol symbol=symbol9 source="(value) => {}" type=Function<("red",), void>
 /// @type.symbol symbol=symbol9.value source=value type="red"
 
@@ -262,6 +322,8 @@ const reds: "red"[] = seeds;
 /// @type.symbol symbol=reds source=reds type=Array<"red">
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=seeds target=seeds
+/// @resolution.place source=seeds placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=seeds root=seeds
 
 /// @generic.instance id="NoInfer<Function<(T#1,), void>>" template=types.object.NoInfer arguments=(Function<(T#1,), void>)
 /// @generic.instance id="make<\"red\">" template=make arguments=("red")
@@ -294,7 +356,7 @@ choose<"red" | "blue">(["red" as "red" | "blue", "blue" as "red" | "blue"], "gre
 === checked ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
-/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C> | undefined) => C
+/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C> | undefined?) => C
 /// @type.symbol symbol=choose.C source="C: string" type=C
 /// @type.symbol symbol=choose.values source="values: C[]" type=Array<C>
 /// @resolution.name source=C target=choose.C
@@ -305,7 +367,7 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 
 choose(["red", "blue"], "green");
 /// @resolution.name source=choose target=choose
-/// @resolution.call source="choose([\"red\", \"blue\"], \"green\")" parameters=(Array<"red" | "blue">, NoInfer<"red" | "blue"> | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("green") as NoInfer<"red" | "blue"> | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
+/// @resolution.call source="choose([\"red\", \"blue\"], \"green\")" parameters=(Array<"red" | "blue">, "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as Array<"red" | "blue">, provided("green") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instance source="choose([\"red\", \"blue\"], \"green\")" id="choose<\"red\" | \"blue\">"
 
 /// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")

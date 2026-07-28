@@ -96,22 +96,23 @@ export extension<T> of Atomic<T> {
     }
 
     /// Load the current value.
-    load(order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    load(&readonly this, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
         todo("Atomic.load")
     }
 
     /// Store a new value.
-    store(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): void {
+    store(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): void {
         todo("Atomic.store");
     }
 
     /// Replace the value and return the previous value.
-    exchange(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    exchange(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
         todo("Atomic.exchange")
     }
 
     /// Compare with `expected` and replace with `desired` when equal.
     compareExchange(
+        &this,
         expected: T,
         desired: T,
         order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
@@ -123,6 +124,7 @@ export extension<T> of Atomic<T> {
 export extension<T: Integer> of Atomic<T> {
     /// Wait while the value is equal to `expected`.
     wait(
+        &readonly this,
         expected: T,
         order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
         timeoutNanos?: uint64,
@@ -131,32 +133,32 @@ export extension<T: Integer> of Atomic<T> {
     }
 
     /// Wake workers waiting on this atomic value.
-    wake(count?: usize): usize {
+    wake(&this, count?: usize): usize {
         todo("Atomic.wake")
     }
 
     /// Add `value` and return the previous value.
-    fetchAdd(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    fetchAdd(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
         todo("Atomic.fetchAdd")
     }
 
     /// Subtract `value` and return the previous value.
-    fetchSub(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    fetchSub(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
         todo("Atomic.fetchSub")
     }
 
     /// Apply bitwise and and return the previous value.
-    fetchAnd(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    fetchAnd(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
         todo("Atomic.fetchAnd")
     }
 
     /// Apply bitwise or and return the previous value.
-    fetchOr(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    fetchOr(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
         todo("Atomic.fetchOr")
     }
 
     /// Apply bitwise xor and return the previous value.
-    fetchXor(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+    fetchXor(&this, value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
         todo("Atomic.fetchXor")
     }
 }

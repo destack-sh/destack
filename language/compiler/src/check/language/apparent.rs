@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{CheckState, TypeSubstitution};
+use crate::{CompilerError, CompilerResult};
 
 /// One declaration instance used for apparent member lookup.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,22 +36,19 @@ impl ApparentInstance {
         check: &mut CheckState<'_>,
     ) -> CompilerResult<TypeSubstitution> {
         let Some(template) = check.symbol_template(self.symbol)? else {
-            return Ok(TypeSubstitution::default());
+            if self.arguments.is_empty() {
+                return Ok(TypeSubstitution::default());
+            }
+
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "nongeneric apparent owner {:?} has applied type arguments",
+                    self.symbol
+                ),
+            });
         };
 
-        let parameters = check.generic_template_parameters(template);
-        let arguments = self
-            .arguments
-            .iter()
-            .copied()
-            .take(parameters.len())
-            .collect();
-
-        Ok(TypeSubstitution {
-            parameters,
-            arguments,
-            receiver: None,
-        })
+        check.template_substitution(template, &self.arguments)
     }
 }
 
@@ -76,7 +73,14 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<ApparentInstance>> {
         let instance = match self.ty(receiver)? {
             dir::Type::Form(form) => return self.apparent_instance(form.value),
-            dir::Type::EnumMember(member) => return self.apparent_instance(member.owner),
+            dir::Type::Variant(variant) => {
+                let apparent = match self.tagged_variant_backing(receiver.module_id, &variant)? {
+                    Some(backing) => backing,
+                    None => variant.owner,
+                };
+
+                return self.apparent_instance(apparent);
+            }
             dir::Type::Application(instance) => ApparentInstance {
                 symbol: self.resolve_symbol_alias(instance.symbol)?,
                 arguments: self

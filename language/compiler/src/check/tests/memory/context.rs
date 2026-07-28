@@ -44,6 +44,7 @@ let copy = user;
 /// @type.symbol symbol=copy source=copy type=User
 /// @resolution.pattern source=copy kind=binding target=copy
 /// @resolution.name source=user target=user
+/// @resolution.access source=user root=user
 "#,
         r#"
 "#,
@@ -92,6 +93,8 @@ const user = load();
 
 user satisfies shared User;
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=user root=user
 /// @resolution.name source=User target=User
 "#,
         r#"
@@ -142,6 +145,8 @@ shared const user = load();
 
 user satisfies shared User;
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=user root=user
 /// @resolution.name source=User target=User
 "#,
         r#"
@@ -211,7 +216,7 @@ register({ skip: true });
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -235,7 +240,7 @@ type Argument = Options | (() => void);
 /// @resolution.name source=Options target=Options
 
 declare function register(argument?: Argument): void;
-/// @type.symbol symbol=register source="declare function register(argument?: Argument): void" type=(Argument | undefined) => void
+/// @type.symbol symbol=register source="declare function register(argument?: Argument): void" type=(Argument | undefined?) => void
 /// @type.symbol symbol=register.argument source="argument?: Argument" type=Argument | undefined
 /// @resolution.name source=Argument target=Argument
 
@@ -243,7 +248,6 @@ register({ skip: true });
 /// @resolution.name source=register target=register
 /// @resolution.call source="register({ skip: true })" parameters=(Argument | undefined) arguments=(provided({ skip: true }) as Argument | undefined) return=void kind=symbol target=register
 "#,
-        r#""#,
     );
 }
 
@@ -295,11 +299,19 @@ declare const sharedPoint: shared Point;
 
 localPoint.x satisfies local int32;
 /// @resolution.name source=localPoint target=localPoint
-/// @resolution.member source=localPoint.x receiver=Placed<Point, "local"> kind=symbol target=Point.x
+/// @resolution.member source=localPoint.x receiver=Placed<Point, "local"> type=int32 kind=field target_receiver=Placed<Point, "local"> key=x target=Point.x target_type=int32
+/// @resolution.place source=localPoint placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localPoint root=localPoint
+/// @resolution.place source=localPoint.x placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localPoint.x root=localPoint keys=[x]
 
 sharedPoint.x satisfies shared int32;
 /// @resolution.name source=sharedPoint target=sharedPoint
-/// @resolution.member source=sharedPoint.x receiver=Placed<Point, "shared"> kind=symbol target=Point.x
+/// @resolution.member source=sharedPoint.x receiver=Placed<Point, "shared"> type=int32 kind=field target_receiver=Placed<Point, "shared"> key=x target=Point.x target_type=int32
+/// @resolution.place source=sharedPoint placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedPoint root=sharedPoint
+/// @resolution.place source=sharedPoint.x placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedPoint.x root=sharedPoint keys=[x]
 "#,
         r#"
 
@@ -353,7 +365,11 @@ declare const state: local State;
 
 state.user satisfies shared User;
 /// @resolution.name source=state target=state
-/// @resolution.member source=state.user receiver=Placed<State, "local"> kind=symbol target=State.user
+/// @resolution.member source=state.user receiver=Placed<State, "local"> type=Placed<User, "shared"> kind=field target_receiver=Placed<State, "local"> key=user target=State.user target_type=Placed<User, "shared">
+/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state root=state
+/// @resolution.place source=state.user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=state.user root=state keys=[user]
 /// @resolution.name source=User target=User
 "#,
         r#"
@@ -386,10 +402,14 @@ declare const values: shared [int32; 2];
 
 values[0] satisfies shared int32;
 /// @resolution.name source=values target=values
-/// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=int32 kind=symbol target=collections.array.index#1 receiver=Placed<FixedArray<int32, 2>, "shared"> instance="FixedArray<int32, 2>.<extension#1>.index#1"
-/// @generic.instance source=values[0] id="FixedArray<int32, 2>.<extension#1>.index#1"
+/// @resolution.place source=values placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=values root=values
+/// @resolution.place source=values[0] placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=int32 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=Placed<memory.type.WithAccess<&'static int32, \"mutable\">, \"shared\">)"
+/// @generic.instance source=values[0] id="FixedArray<int32, 2>.<extension#1>.index#1<\"mutable\">"
 
-/// @generic.instance id="FixedArray<int32, 2>.<extension#1>.index#1" template=collections.array.index#1 arguments=(int32, 2, int32, 2)
+/// @generic.instance id="FixedArray<int32, 2>.<extension#1>.index#1<\"mutable\">" template=collections.array.index#1 arguments=(int32, 2, "mutable")
 "#,
         r#"
 
@@ -425,9 +445,12 @@ const value = source;
 /// @type.symbol symbol=value source=value type=Placed<int32, "shared">
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=source target=source
+/// @resolution.access source=source root=source
 
 value satisfies local int32;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=value root=value
 "#,
         r#"
 "#,
@@ -470,6 +493,8 @@ shared const sharedWorld: ^World = world;
 /// @resolution.pattern source=sharedWorld kind=binding target=sharedWorld
 /// @resolution.name source=World target=World
 /// @resolution.name source=world target=world
+/// @resolution.place source=world placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=world root=world
 "#,
         r#"
 
@@ -519,6 +544,8 @@ const transform = (value: User): User => value;
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 /// @resolution.name source=value target=symbol4.value
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol4.value
 "#,
     );
 }
@@ -568,7 +595,8 @@ class Registry {
 
 Registry.current satisfies local User;
 /// @resolution.name source=Registry target=Registry
-/// @resolution.member source=Registry.current receiver=Registry kind=symbol target=Registry.current
+/// @resolution.member source=Registry.current receiver=Registry type=User kind=field target_receiver=Registry key=current target=Registry.current target_type=User
+/// @resolution.place source=Registry.current placement="local" lifetime="frame" access="exclusive"
 /// @resolution.name source=User target=User
 "#,
     );

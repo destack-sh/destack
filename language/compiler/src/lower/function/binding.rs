@@ -66,20 +66,20 @@ impl FunctionLowerer<'_, '_, '_> {
         operator: dir::AssignOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        // the checked resolution names the writable place
-        let dir::AssignPatternResolution::Place(resolution) = self.assign_resolution(left)? else {
+        // the checked pattern identifies a place assignment
+        let dir::AssignPatternResolution::Place = self.assign_resolution(left)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a destructuring assignment".to_string(),
             }
             .into());
         };
-        let dir::AssignPattern::Place { expression: target } = *self.source().tree().get(left)
-        else {
+        let dir::AssignPattern::Place { expression } = *self.source().tree().get(left) else {
             return Err(CompilerError::Internal {
                 message: "checked DIR resolved a non-place pattern as a place".to_string(),
             });
         };
+        let resolution = self.assignment_resolution(expression)?;
         let place = self.place(&resolution)?;
 
         // store the right value directly for plain assignment
@@ -91,21 +91,21 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // apply the checked builtin operation for compound assignment
-        let dir::OperatorResolution::Builtin = self.operator_resolution(statement)? else {
+        let resolution = self.operator_resolution(statement)?;
+        let dir::OperationResolution::One(dir::OperatorApplication::Binary {
+            operator,
+            target: dir::OperatorTarget::Builtin(_),
+            ..
+        }) = resolution
+        else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a protocol compound assignment".to_string(),
             }
             .into());
         };
-        let Some(operator) = operator.binary_operator() else {
-            return Err(CompilerError::Internal {
-                message: "compound assignment has no binary operator".to_string(),
-            });
-        };
-        let carrier = self.coerced_type(target)?;
-        let operator = self.binary_operator(operator, &carrier)?;
         let current = self.read_place(&place)?;
+        let operator = self.binary_value_operator(operator, current)?;
         let value = self.lower_expression(right)?;
         let value = self.builder.binary_op(operator, current, value);
         self.write_place(&place, value)?;

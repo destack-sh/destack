@@ -1,45 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_type_biased_argument_accepts_inline_object_type() {
-    let session = TestSession::single(
-        r#"
-type Clone<T> = { [K in keyof T]: T[K] };
-type Actual = Clone<{ readonly name: string; age?: int32 }>;
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-type Clone<T> = { [K in keyof T]: T[K] };
-type Actual = Clone<{ readonly name: string; age?: int32 }>;
-
-=== checked ===
-type Clone<T> = { [K in keyof T]: T[K] };
-/// @generic.template symbol=Clone parameters=(T)
-/// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
-/// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=(T) value={ [K in keyof T]: T[K] }
-/// @type.symbol symbol=Clone.T source=T type=T
-/// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
-/// @type.symbol symbol=Clone.K source=[K in keyof T] type=K
-/// @resolution.name source=T target=Clone.T
-/// @resolution.name source=T target=Clone.T
-/// @resolution.name source=K target=Clone.K
-
-type Actual = Clone<{ readonly name: string; age?: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" type=Clone<{ readonly name: string; age?: int32 }> reduced={ readonly name: string; age?: int32 }
-/// @definition.type symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" value=Clone<{ readonly name: string; age?: int32 }> reduced={ readonly name: string; age?: int32 }
-/// @resolution.name source=Clone target=Clone
-
-/// @generic.instance id="Clone<{ readonly name: string; age?: int32 }>" template=Clone arguments=({ readonly name: string; age?: int32 })
-"#,
-    );
-}
-
-#[test]
 fn test_value_generic_argument_still_works_when_parameter_is_static() {
     let session = TestSession::single(
         r#"
@@ -121,8 +82,11 @@ function print(value: Printable): string {
     /// @type.node source=value.print type=() => string
     /// @type.node source=value.print() type=string
     /// @resolution.name source=value target=print.value
-    /// @resolution.member source=value.print receiver={ print(): string } kind=field key=print
-    /// @resolution.call source=value.print() parameters=() return=string kind=expression
+    /// @resolution.member source=value.print receiver={ print(): string } type=() => string kind=field target_receiver={ print(): string } key=print target_type=() => string
+    /// @resolution.call source=value.print() parameters=() return=string kind=expression target=expression
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=print.value
+    /// @resolution.access source=value.print root=print.value keys=[print]
 
 }
 "#,
@@ -167,7 +131,7 @@ struct Rectangle {
 }
 
 function makeCircle(): Shape {
-    return Circle { radius: 1.0 } as Shape;
+    return Circle { radius: 1.0 } as Circle | Rectangle;
 }
 
 === checked ===

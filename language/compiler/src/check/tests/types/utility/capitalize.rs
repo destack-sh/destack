@@ -71,6 +71,8 @@ declare const value: Value;
 
 value satisfies "Yes" | "No";
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id="Capitalize<\"yes\" | \"no\">" template=types.string.Capitalize arguments=("yes" | "no")
 "#,

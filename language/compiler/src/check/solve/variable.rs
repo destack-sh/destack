@@ -4,9 +4,7 @@ use std::ops::Range;
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 
-use crate::check::{
-    BoundEntry, BoundIter, BoundList, BoundSide, CauseId, EMPTY, OriginId, TypeBound,
-};
+use crate::check::{BoundEntry, BoundIter, BoundList, BoundSide, EMPTY, OriginId, TypeBound};
 use crate::{CompilerError, CompilerResult};
 
 /// Special behavior attached to one inference variable.
@@ -33,7 +31,7 @@ pub(in crate::check) enum VariableRole {
 }
 
 impl VariableRole {
-    /// Return whether this role solves as ordinary inference.
+    /// Return whether this variable participates in inference.
     pub(in crate::check) fn is_inference(self) -> bool {
         matches!(
             self,
@@ -55,38 +53,51 @@ impl VariableRole {
 pub(in crate::check) enum Widening {
     /// Keep literal solutions exact.
     Never,
-    /// Widen every fresh literal candidate to its base type.
+    /// Keep the solution exact while widening mutable aggregate descendants.
+    Aggregate,
+    /// Widen when several exact literal candidates compete.
+    Multiple,
+    /// Widen every exact literal candidate to its base type.
     Always,
-    /// Widen written literal candidates, keeping read candidates exact.
-    WhenWritten,
 }
 
 /// Variables opened by one task, owned as a dense arena interval.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct InferenceScope {
     /// The first owned variable.
-    first: u32,
+    first_variable: u32,
+    /// The first transactional mutation made by the scope.
+    first_mutation: usize,
 }
 
 impl InferenceScope {
     /// The scope owning every component variable.
-    pub(in crate::check) const ROOT: Self = Self { first: 0 };
+    pub(in crate::check) const ROOT: Self = Self {
+        first_variable: 0,
+        first_mutation: 0,
+    };
 
-    /// Open a scope owning every variable allocated from one count on.
-    pub(in crate::check) fn open(count: usize) -> Self {
+    /// Open a scope at one variable and mutation count.
+    pub(in crate::check) fn open(variable_count: usize, mutation_count: usize) -> Self {
         Self {
-            first: count as u32,
+            first_variable: variable_count as u32,
+            first_mutation: mutation_count,
         }
     }
 
     /// Return whether this scope owns one variable.
     pub(in crate::check) fn owns(self, variable: dir::TypeVariableId) -> bool {
-        variable.0 >= self.first
+        variable.0 >= self.first_variable
     }
 
     /// Return the owned variable indices below one arena length.
     pub(in crate::check) fn indices(self, count: usize) -> Range<usize> {
-        self.first as usize..count
+        self.first_variable as usize..count
+    }
+
+    /// Return the first transactional mutation made by this scope.
+    pub(in crate::check) fn first_mutation(self) -> usize {
+        self.first_mutation
     }
 }
 
@@ -99,10 +110,36 @@ pub(in crate::check) struct Variable {
     pub(in crate::check) lower: BoundList,
     /// Bounds the variable must relate to.
     pub(in crate::check) upper: BoundList,
-    /// The solved type, when solving finished.
-    pub(in crate::check) solution: Option<dir::GlobalTypeId>,
+    /// The variable's inference state.
+    pub(in crate::check) state: VariableState,
     /// The literal widening policy applied when solving.
     pub(in crate::check) widening: Widening,
+}
+
+/// Inference state of one variable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum VariableState {
+    /// The variable is awaiting evidence.
+    Open,
+    /// The variable inferred one type.
+    Resolved(dir::GlobalTypeId),
+    /// Inference failed and produced the compiler error type.
+    Error(dir::GlobalTypeId),
+}
+
+impl VariableState {
+    /// Return the completed type, when inference finished.
+    pub(in crate::check) fn ty(self) -> Option<dir::GlobalTypeId> {
+        match self {
+            Self::Open => None,
+            Self::Resolved(ty) | Self::Error(ty) => Some(ty),
+        }
+    }
+
+    /// Return whether the variable still awaits evidence.
+    pub(in crate::check) fn is_open(self) -> bool {
+        matches!(self, Self::Open)
+    }
 }
 
 /// Variables and their shared bound storage, owned by one solver.
@@ -116,8 +153,6 @@ pub(in crate::check) struct VariableTable {
     bounds: Vec<BoundEntry>,
     /// Declared defaults completing dry variables, present on few variables.
     defaults: FxIndexMap<dir::TypeVariableId, dir::GlobalTypeId>,
-    /// Declared parameter bounds discharged on solutions, present on few variables.
-    parameter_bounds: FxIndexMap<dir::TypeVariableId, (dir::GlobalTypeId, CauseId)>,
 }
 
 impl VariableTable {
@@ -139,7 +174,7 @@ impl VariableTable {
             origin,
             lower: BoundList::new(),
             upper: BoundList::new(),
-            solution: None,
+            state: VariableState::Open,
             widening,
         });
         self.roles.push(role);
@@ -317,29 +352,6 @@ impl VariableTable {
     /// Remove the declared default of one variable, for probe rollback.
     pub(in crate::check) fn remove_default(&mut self, id: dir::TypeVariableId) {
         self.defaults.swap_remove(&id);
-    }
-
-    /// Record the declared parameter bound one variable discharges when solved.
-    pub(in crate::check) fn set_parameter_bound(
-        &mut self,
-        id: dir::TypeVariableId,
-        bound: dir::GlobalTypeId,
-        cause: CauseId,
-    ) {
-        self.parameter_bounds.insert(id, (bound, cause));
-    }
-
-    /// Return the declared parameter bound of one variable.
-    pub(in crate::check) fn parameter_bound(
-        &self,
-        id: dir::TypeVariableId,
-    ) -> Option<(dir::GlobalTypeId, CauseId)> {
-        self.parameter_bounds.get(&id).copied()
-    }
-
-    /// Remove the declared parameter bound of one variable, for probe rollback.
-    pub(in crate::check) fn remove_parameter_bound(&mut self, id: dir::TypeVariableId) {
-        self.parameter_bounds.swap_remove(&id);
     }
 
     /// Return the total number of allocated variables.

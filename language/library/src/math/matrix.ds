@@ -2,7 +2,7 @@ import { todo } from "destack:error";
 import { Add, Multiply, Subtract } from "destack:ops";
 
 import { Vector2, Vector3, Vector4 } from "./linear.ds";
-import { Numeric } from "./scalar.ds";
+import { Numeric } from "./numeric.ds";
 
 /// Two-by-two matrix in row-major field order.
 export struct Matrix2<T: Numeric> {

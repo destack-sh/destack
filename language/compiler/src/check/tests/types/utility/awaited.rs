@@ -34,6 +34,8 @@ const ok: Value = "ready";
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
+/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ok root=ok
 
 /// @generic.instance id=Awaited<string> template=types.object.Awaited arguments=(string)
 "#,
@@ -76,6 +78,8 @@ const ok: Value = "ready";
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
+/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ok root=ok
 
 /// @generic.instance id=Awaited<Promise<Promise<string>>> template=types.object.Awaited arguments=(Promise<Promise<string>>)
 /// @generic.instance id=Promise<Promise<string>> template=async.promise.Promise arguments=(Promise<string>)
@@ -102,8 +106,8 @@ const second: Value = undefined;
 === annotated ===
 type Value = Awaited<null | undefined>;
 
-const first: Value = null as Value;
-const second: Value = undefined as Value;
+const first: Value = null as null | undefined;
+const second: Value = undefined as null | undefined;
 
 === checked ===
 type Value = Awaited<null | undefined>;
@@ -164,6 +168,8 @@ const bad: Value = promise;
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 /// @resolution.name source=promise target=promise
+/// @resolution.place source=promise placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=promise root=promise
 
 /// @generic.instance id=Awaited<Promise<string>> template=types.object.Awaited arguments=(Promise<string>)
 /// @generic.instance id=Promise<string> template=async.promise.Promise arguments=(string)

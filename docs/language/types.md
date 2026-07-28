@@ -355,7 +355,7 @@ const circle = Shape.Circle({ radius: 5 });
 ```
 
 The discriminant field is inferred from the union via the `Tagged` derive macro from the unique common field whose variants carry distinct literal values.
-It behaves essentially just like builtin sugar that is expanded into a constructor function:
+It behaves essentially just like builtin sugar that is expanded into a constructor function, the derive adds one static constructor for each variant:
 
 ```ds
 extension of Shape {
@@ -368,7 +368,7 @@ extension of Shape {
 }
 ```
 
-Explicitly `derive(Tagged)` enums also work in pattern position, and - thanks to some compiler magic that wouldn't work in pure userland - the variant head behaves like a real variant pattern:
+Derived Tagged variants also retain their exact declaration identity in patterns:
 
 ```ds
 match (shape) {

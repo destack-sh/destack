@@ -1,7 +1,11 @@
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
+use smallvec::SmallVec;
 
-use crate::check::{CauseId, CheckState, Relation};
+use crate::check::{
+    Answer, Cause, CauseId, CauseKind, CheckState, GenericTemplateId, Origin, Relation,
+    TypeSubstitution,
+};
 use crate::{CompilerError, CompilerResult};
 
 /// Component-global id of one collected constraint.
@@ -22,16 +26,9 @@ impl ConstraintId {
 
 /// One solver constraint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) enum Constraint {
-    /// Pure relation between two types.
-    Type(TypeConstraint),
-    /// Relation between one source value occurrence and one target type.
-    Value(ValueConstraint),
-}
-
-/// Pure relation between two types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) struct TypeConstraint {
+pub(in crate::check) struct Constraint {
+    /// The type evaluation site.
+    pub(in crate::check) origin: Origin,
     /// The relation to enforce.
     pub(in crate::check) relation: Relation,
     /// The source operand.
@@ -40,31 +37,11 @@ pub(in crate::check) struct TypeConstraint {
     pub(in crate::check) target: dir::GlobalTypeId,
     /// Why this constraint exists.
     pub(in crate::check) cause: CauseId,
-    /// The generic application invalidated when this relation fails.
-    pub(in crate::check) invalidated_application: Option<dir::GlobalTypeId>,
-    /// Whether this constraint derives from a primary constraint.
-    ///
-    /// Derived constraints verify and reject candidates, but their failures
-    /// duplicate the primary constraint and never report.
-    pub(in crate::check) is_derived: bool,
+    /// The generic application this bound guards, when any.
+    pub(in crate::check) application: Option<dir::GlobalTypeId>,
 }
 
-/// Relation between one source value occurrence and one target type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) struct ValueConstraint {
-    /// The relation to enforce.
-    pub(in crate::check) relation: Relation,
-    /// The value node being checked.
-    pub(in crate::check) node: dir::GlobalNodeIdAny,
-    /// The expected target.
-    pub(in crate::check) target: dir::GlobalTypeId,
-    /// Why this constraint exists.
-    pub(in crate::check) cause: CauseId,
-    /// The checked value role.
-    pub(in crate::check) use_: ValueUse,
-}
-
-/// Runtime value use checked by one value constraint.
+/// One contextual value role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum ValueUse {
     /// Value assigned into a storage or pattern target.
@@ -85,6 +62,23 @@ pub(in crate::check) enum ValueUse {
     /// list[index]
     /// ```
     Argument,
+
+    /// Value observed by a compiler-defined operator.
+    ///
+    /// Examples:
+    /// ```ds
+    /// left === right
+    /// value + increment
+    /// ```
+    Operand,
+
+    /// Value evaluated as compile-time decorator data.
+    ///
+    /// Example:
+    /// ```ds
+    /// @repr("C")
+    /// ```
+    Comptime,
 
     /// Function body value assigned into a return or yield result.
     ///
@@ -114,141 +108,75 @@ pub(in crate::check) enum ValueUse {
 }
 
 impl ValueUse {
-    /// Return whether this use stores the value in a runtime destination.
-    pub(in crate::check) fn is_stored(self) -> bool {
+    /// Return whether this use materializes a value in a storage destination.
+    pub(in crate::check) fn requires_storage(self) -> bool {
         matches!(self, Self::Store | Self::Argument | Self::Output)
+    }
+
+    /// Return whether this use requires a runtime coercion.
+    pub(in crate::check) fn requires_runtime_coercion(self) -> bool {
+        matches!(
+            self,
+            Self::Store | Self::Argument | Self::Operand | Self::Output
+        )
     }
 }
 
 impl Constraint {
     /// Create a pure relation between two types.
     pub(in crate::check) fn r#type(
+        origin: Origin,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         cause: CauseId,
     ) -> Self {
-        Self::Type(TypeConstraint {
+        Self {
+            origin,
             relation,
             source,
             target,
             cause,
-            invalidated_application: None,
-            is_derived: false,
-        })
-    }
-
-    /// Create a derived relation forwarding one primary constraint's evidence.
-    pub(in crate::check) fn derived(
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-        cause: CauseId,
-    ) -> Self {
-        Self::Type(TypeConstraint {
-            relation,
-            source,
-            target,
-            cause,
-            invalidated_application: None,
-            is_derived: true,
-        })
+            application: None,
+        }
     }
 
     /// Create a generic argument bound constraint.
     pub(in crate::check) fn generic_bound(
+        origin: Origin,
         argument: dir::GlobalTypeId,
         bound: dir::GlobalTypeId,
         application: dir::GlobalTypeId,
         cause: CauseId,
     ) -> Self {
-        Self::Type(TypeConstraint {
+        Self {
+            origin,
             relation: Relation::Satisfies,
             source: argument,
             target: bound,
             cause,
-            invalidated_application: Some(application),
-            is_derived: false,
-        })
-    }
-
-    /// Create a value constraint.
-    pub(in crate::check) fn value(
-        relation: Relation,
-        node: dir::GlobalNodeIdAny,
-        target: dir::GlobalTypeId,
-        cause: CauseId,
-        use_: ValueUse,
-    ) -> Self {
-        Self::Value(ValueConstraint {
-            relation,
-            node,
-            target,
-            cause,
-            use_,
-        })
+            application: Some(application),
+        }
     }
 
     /// Return the relation to enforce.
     pub(in crate::check) fn relation(&self) -> Relation {
-        match self {
-            Self::Type(constraint) => constraint.relation,
-            Self::Value(constraint) => constraint.relation,
-        }
+        self.relation
     }
 
     /// Return why this constraint exists.
     pub(in crate::check) fn cause(&self) -> CauseId {
-        match self {
-            Self::Type(constraint) => constraint.cause,
-            Self::Value(constraint) => constraint.cause,
-        }
-    }
-
-    /// Return whether this constraint derives from a primary constraint.
-    pub(in crate::check) fn is_derived(&self) -> bool {
-        match self {
-            Self::Type(constraint) => constraint.is_derived,
-            Self::Value(_) => false,
-        }
-    }
-
-    /// Return the checked value use when this relation is a value constraint.
-    pub(in crate::check) fn value_use(&self) -> Option<ValueUse> {
-        match self {
-            Self::Type(_) => None,
-            Self::Value(constraint) => Some(constraint.use_),
-        }
+        self.cause
     }
 }
 
-/// Solved state of one constraint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum ConstraintState {
-    /// The constraint has not finished solving.
-    Pending,
-    /// The constraint relation holds.
-    Holds,
-    /// The constraint relation failed and reported its diagnostic.
-    Fails,
-}
-
-impl ConstraintState {
-    /// Return whether the constraint is done.
-    pub(in crate::check) fn is_done(self) -> bool {
-        !matches!(self, Self::Pending)
-    }
-}
-
-/// Collected constraints with solver state, in allocation order.
+/// Collected constraints and their results, in allocation order.
 #[derive(Debug, Default)]
 pub(in crate::check) struct ConstraintTable {
     /// The collected constraints indexed by constraint id.
     constraints: Vec<Constraint>,
-    /// Constraint states indexed by constraint id.
-    states: Vec<ConstraintState>,
-    /// Runtime coercions produced by completed value checks.
-    coercions: Vec<Option<Box<dir::Coercion>>>,
+    /// Completed results indexed by constraint id.
+    results: Vec<Option<ConstraintResult>>,
     /// Ids of collected constraints by value, so one task collects once.
     interned: FxIndexMap<Constraint, ConstraintId>,
 }
@@ -268,16 +196,14 @@ impl ConstraintTable {
     pub(in crate::check) fn insert(&mut self, id: ConstraintId, constraint: Constraint) {
         debug_assert_eq!(self.constraints.len(), id.index());
         self.constraints.push(constraint);
-        self.states.push(ConstraintState::Pending);
-        self.coercions.push(None);
+        self.results.push(None);
         self.interned.insert(constraint, id);
     }
 
     /// Truncate constraints undone by one probe rollback.
     pub(in crate::check) fn truncate(&mut self, count: usize) {
         self.constraints.truncate(count);
-        self.states.truncate(count);
-        self.coercions.truncate(count);
+        self.results.truncate(count);
         // every id interns one entry in allocation order, so the tables truncate together
         self.interned.truncate(count);
     }
@@ -299,43 +225,56 @@ impl ConstraintTable {
             .map(|(index, constraint)| (ConstraintId::at(index), constraint))
     }
 
-    /// Return one constraint state.
-    pub(in crate::check) fn state(&self, id: ConstraintId) -> CompilerResult<ConstraintState> {
-        self.states
-            .get(id.index())
-            .copied()
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("check constraint {id:?} has no solver state"),
+    /// Iterate over failed constraints at or after one allocation index.
+    pub(in crate::check) fn failures_from(
+        &self,
+        start: usize,
+    ) -> impl Iterator<Item = ConstraintId> + '_ {
+        self.results
+            .iter()
+            .enumerate()
+            .skip(start)
+            .filter_map(|(index, result)| {
+                result
+                    .as_ref()
+                    .is_some_and(|result| matches!(result.outcome, CheckOutcome::Fails(_)))
+                    .then_some(ConstraintId::at(index))
             })
     }
 
-    /// Return the runtime coercion produced by one completed value check.
-    pub(in crate::check) fn coercion(
+    /// Return one completed constraint result.
+    pub(in crate::check) fn result(
         &self,
         id: ConstraintId,
-    ) -> CompilerResult<Option<&dir::Coercion>> {
-        self.coercions
+    ) -> CompilerResult<Option<&ConstraintResult>> {
+        self.results
             .get(id.index())
-            .map(|coercion| coercion.as_deref())
+            .map(Option::as_ref)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("check constraint {id:?} has no coercion slot"),
+                message: format!("check constraint {id:?} has no result slot"),
             })
     }
 
-    /// Set one constraint result.
+    /// Replace one constraint result.
     pub(in crate::check) fn set_result(
         &mut self,
         id: ConstraintId,
-        state: ConstraintState,
-        coercion: Option<Box<dir::Coercion>>,
-    ) {
-        self.states[id.index()] = state;
-        self.coercions[id.index()] = coercion;
+        result: Option<ConstraintResult>,
+    ) -> CompilerResult<()> {
+        let slot = self
+            .results
+            .get_mut(id.index())
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("check constraint {id:?} has no result slot"),
+            })?;
+        *slot = result;
+
+        Ok(())
     }
 
     /// Return whether one constraint finished solving.
     pub(in crate::check) fn is_complete(&self, id: ConstraintId) -> bool {
-        self.state(id).is_ok_and(ConstraintState::is_done)
+        self.result(id).is_ok_and(|result| result.is_some())
     }
 
     /// Return the number of collected constraints.
@@ -344,27 +283,165 @@ impl ConstraintTable {
     }
 }
 
+/// Completed result of one constraint.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::check) struct ConstraintResult {
+    /// The reduced source type.
+    pub(in crate::check) source: dir::GlobalTypeId,
+    /// The reduced target type.
+    pub(in crate::check) target: dir::GlobalTypeId,
+    /// The completed check outcome.
+    pub(in crate::check) outcome: CheckOutcome,
+}
+
+/// One failed check retained until its cause tree is complete.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct FailedCheck {
+    /// The cause that produced the check.
+    pub(in crate::check) cause: CauseId,
+    /// The relation that failed.
+    pub(in crate::check) relation: Relation,
+    /// The checked value use, when the check consumed a value.
+    pub(in crate::check) use_: Option<ValueUse>,
+    /// The checked source type.
+    pub(in crate::check) source: dir::GlobalTypeId,
+    /// The expected target type.
+    pub(in crate::check) target: dir::GlobalTypeId,
+    /// The failure reason.
+    pub(in crate::check) failure: CheckFailure,
+}
+
 impl CheckState<'_> {
-    /// Collect generic applications whose declared argument bounds failed.
-    pub(in crate::check) fn failed_generic_applications(
-        &self,
-    ) -> CompilerResult<FxIndexSet<dir::GlobalTypeId>> {
-        let mut applications = FxIndexSet::default();
-        for (id, constraint) in self.solver.constraints.iter() {
-            if self.solver.constraints.state(id)? != ConstraintState::Fails {
-                continue;
+    /// Decide the bounds and predicates carried by one matched substitution.
+    pub(in crate::check) fn decide_substitution_constraints(
+        &mut self,
+        origin: Origin,
+        template: GenericTemplateId,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<Answer<bool>> {
+        let mut constraints = self.substitute_argument_bounds(origin, substitution)?;
+        constraints.extend(self.substitute_application_predicates(
+            origin,
+            template,
+            substitution,
+        )?);
+
+        // require every substituted declaration constraint
+        let mut decision = Answer::Ready(true);
+        for constraint in constraints {
+            decision = decision.and(self.decide_relation(
+                constraint.origin,
+                constraint.relation,
+                constraint.source,
+                constraint.target,
+            )?);
+            if decision.is_ready_false() {
+                return Ok(decision);
             }
-            let Constraint::Type(TypeConstraint {
-                invalidated_application: Some(application),
-                ..
-            }) = constraint
+        }
+
+        Ok(decision)
+    }
+
+    /// Substitute the constraints enforced by one complete generic application.
+    pub(in crate::check) fn substitute_application_constraints(
+        &mut self,
+        origin: Origin,
+        template: GenericTemplateId,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<SmallVec<[Constraint; 4]>> {
+        let parameters = self.generic_template_parameters(template)?;
+        if let Some(parameter) = parameters
+            .iter()
+            .find(|parameter| substitution.argument(**parameter).is_none())
+        {
+            let template = self.require_generic_template(template)?;
+            let declaration = template
+                .symbol
+                .map(|symbol| self.format_symbol(symbol))
+                .unwrap_or_else(|| self.node_label(template.source));
+            let parameter_type = self.generic_parameter_type(*parameter)?;
+            let parameter = self.format_type(parameter_type);
+
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "generic application for {declaration} does not bind parameter {parameter}"
+                ),
+            });
+        }
+
+        let mut constraints = self.substitute_argument_bounds(origin, substitution)?;
+        constraints.extend(self.substitute_application_predicates(
+            origin,
+            template,
+            substitution,
+        )?);
+
+        Ok(constraints)
+    }
+
+    /// Substitute the declared bounds of every applied argument.
+    fn substitute_argument_bounds(
+        &mut self,
+        origin: Origin,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<SmallVec<[Constraint; 4]>> {
+        let mut constraints = SmallVec::new();
+
+        // substitute bounds for every applied parameter
+        for applied in &substitution.bindings {
+            let parameter = applied.parameter;
+            let argument = applied.argument;
+            let Some(bound) = self
+                .generic_parameter(parameter)
+                .and_then(|binding| binding.constraint)
             else {
                 continue;
             };
-            applications.insert(*application);
+            let bound = self.substitute_type(origin.module(), bound, substitution)?;
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
+            constraints.push(Constraint {
+                origin,
+                relation: Relation::Satisfies,
+                source: argument,
+                target: bound,
+                cause,
+                application: None,
+            });
         }
 
-        Ok(applications)
+        Ok(constraints)
+    }
+
+    /// Substitute predicates enforced by one generic application.
+    pub(in crate::check) fn substitute_application_predicates(
+        &mut self,
+        origin: Origin,
+        template: GenericTemplateId,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<SmallVec<[Constraint; 2]>> {
+        let mut constraints = SmallVec::new();
+        // receiver predicates govern declarations, not their type applications
+        for predicate in self.template_predicates(Some(template)) {
+            let requires_receiver = self.type_flags(predicate.left)?.has_this()
+                || self.type_flags(predicate.right)?.has_this();
+            if requires_receiver {
+                continue;
+            }
+            let source = self.substitute_type(origin.module(), predicate.left, substitution)?;
+            let target = self.substitute_type(origin.module(), predicate.right, substitution)?;
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+            constraints.push(Constraint {
+                origin,
+                relation: predicate.relation.into(),
+                source,
+                target,
+                cause,
+                application: None,
+            });
+        }
+
+        Ok(constraints)
     }
 }
 
@@ -373,8 +450,8 @@ impl CheckState<'_> {
 pub(in crate::check) enum CheckFailure {
     /// The relation itself did not hold.
     Relation,
-    /// The failure was already reported at a finer constraint.
-    Reported,
+    /// A value converts to more than one represented union case.
+    AmbiguousUnionInjection,
     /// Direct property literal missed one required key.
     MissingRequiredProperty {
         /// The missing key.
@@ -401,21 +478,34 @@ pub(in crate::check) enum CheckOutcome {
     Fails(CheckFailure),
 }
 
-/// Result of checking one source node against a contextual target.
+/// Result of checking one value against its contextual target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct ValueCheck {
-    /// Whether the target-directed check held.
+    /// The checked source type at its flow site.
+    pub(in crate::check) source: dir::GlobalTypeId,
+    /// Whether value checking held.
     pub(in crate::check) outcome: CheckOutcome,
-    /// The concrete contextual target checked against the value.
+    /// The concrete contextual target.
     pub(in crate::check) target: dir::GlobalTypeId,
 }
 
-/// Solved relation between one runtime value and its target type.
+/// One checked runtime value and its addressable storage, when present.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) struct Value {
+    /// The checked value type.
+    pub(in crate::check) ty: dir::GlobalTypeId,
+    /// The storage designated by the source expression.
+    pub(in crate::check) place: Option<dir::PlaceResolution>,
+}
+
+/// Result of converting one checked value to its expected type.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct ValueRelation {
-    /// Whether the value relation held.
+pub(in crate::check) struct ValueConversion {
+    /// Whether the conversion held.
     pub(in crate::check) outcome: CheckOutcome,
-    /// The runtime coercion required by the related value.
+    /// The concrete target used after inference completed.
+    pub(in crate::check) target: dir::GlobalTypeId,
+    /// The required runtime coercion.
     pub(in crate::check) coercion: Option<Box<dir::Coercion>>,
 }
 
@@ -428,12 +518,9 @@ impl CheckOutcome {
         }
     }
 
-    /// Return the stored state for this completed check.
-    pub(in crate::check) fn state(self) -> ConstraintState {
-        match self {
-            Self::Holds => ConstraintState::Holds,
-            Self::Fails(_) => ConstraintState::Fails,
-        }
+    /// Return whether this check holds.
+    pub(in crate::check) fn is_holds(self) -> bool {
+        matches!(self, Self::Holds)
     }
 }
 
@@ -444,4 +531,21 @@ pub(in crate::check) enum CheckAttempt {
     NotApplicable,
     /// The expression form checked against this target.
     Checked(ValueCheck),
+}
+
+impl CheckState<'_> {
+    /// Collect generic applications whose declared argument bounds failed.
+    pub(in crate::check) fn failed_generic_applications(
+        &self,
+    ) -> CompilerResult<FxIndexSet<dir::GlobalTypeId>> {
+        let mut applications = FxIndexSet::default();
+        for id in self.solver.constraints.failures_from(0) {
+            let constraint = self.solver.constraints.get(id)?;
+            if let Some(application) = constraint.application {
+                applications.insert(application);
+            }
+        }
+
+        Ok(applications)
+    }
 }

@@ -54,11 +54,19 @@ declare const person: Required<Person>;
 
 person.name satisfies string;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string; age: int32 } kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string; age: int32 } type=string kind=field target_receiver={ name: string; age: int32 } key=name target_type=string
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.place source=person.name placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person.name root=person keys=[name]
 
 person.age satisfies int32;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver={ name: string; age: int32 } kind=field key=age
+/// @resolution.member source=person.age receiver={ name: string; age: int32 } type=int32 kind=field target_receiver={ name: string; age: int32 } key=age target_type=int32
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.place source=person.age placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person.age root=person keys=[age]
 
 /// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
@@ -165,7 +173,11 @@ const person: Required<Person> = { name: undefined };
 
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string | undefined } kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string | undefined } type=string | undefined kind=field target_receiver={ name: string | undefined } key=name target_type=string | undefined
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.place source=person.name placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person.name root=person keys=[name]
 
 /// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
@@ -216,7 +228,10 @@ const person: Required<Person> = { name: "Ada" };
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.pattern.assign source=person.name kind=place place=field(name) type=string
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.pattern.assign source=person.name kind=place
+/// @resolution.assignment source=person.name write="receiver={ readonly name: string }, target=field(receiver={ readonly name: string }, target=name, type=string), type=string" type=string
 
 /// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,

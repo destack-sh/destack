@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AppliedSignature, Formatter, ModuleQueryContext, ProgramQueryContext, QueryError,
-    QueryPosition, QueryResult, argument_binding_contains,
+    QueryPosition, QueryResult,
 };
 
 /// One parameter shown by signature help.
@@ -103,7 +103,7 @@ impl ModuleQueryContext<'_> {
                         (
                             signatures,
                             arguments.as_slice(),
-                            resolution.arguments.as_slice(),
+                            resolution.first().arguments.as_slice(),
                         )
                     }
                 }
@@ -145,54 +145,44 @@ impl ModuleQueryContext<'_> {
         callee_id: dir::LocalNodeId<dir::Expression>,
         resolution: &dir::CallResolution,
     ) -> QueryResult<Option<Vec<SignatureItem>>> {
-        let mut signatures = match &resolution.target {
-            dir::CallTarget::Symbol(candidate) => {
-                let Some(signature) = self.call_signature_item(
+        let mut signatures = Vec::new();
+        for call in resolution.iter() {
+            let signature = match &call.target {
+                dir::CallTarget::Symbol { function, .. } => self.call_signature_item(
                     program,
-                    candidate,
-                    &resolution.arguments,
-                    resolution.return_type,
-                )?
-                else {
-                    return Ok(None);
-                };
-
-                vec![signature]
-            }
-            dir::CallTarget::Universal(candidates) => {
-                let mut signatures = Vec::new();
-                for candidate in candidates {
-                    let Some(signature) = self.call_signature_item(
-                        program,
-                        candidate,
-                        &resolution.arguments,
-                        resolution.return_type,
-                    )?
-                    else {
-                        return Ok(None);
-                    };
-                    signatures.push(signature);
-                }
-
-                signatures
-            }
-            dir::CallTarget::Expression { generic_arguments } => {
-                let Some(signature) = self.expression_signature_item(
-                    program,
-                    callee_id,
+                    function.symbol,
+                    &function.generic_arguments,
+                    &call.arguments,
+                    call.return_type,
+                )?,
+                dir::CallTarget::Dynamic {
+                    function: dir::DynamicFunction::Symbol(symbol),
                     generic_arguments,
-                    &resolution.arguments,
-                    resolution.return_type,
-                )?
-                else {
-                    return Ok(None);
-                };
+                    ..
+                } => self.call_signature_item(
+                    program,
+                    *symbol,
+                    generic_arguments,
+                    &call.arguments,
+                    call.return_type,
+                )?,
+                dir::CallTarget::Dynamic { .. } => None,
+                dir::CallTarget::Expression { generic_arguments } => self
+                    .expression_signature_item(
+                        program,
+                        callee_id,
+                        generic_arguments,
+                        &call.arguments,
+                        call.return_type,
+                    )?,
+            };
+            let Some(signature) = signature else {
+                return Ok(None);
+            };
+            signatures.push(signature);
+        }
 
-                vec![signature]
-            }
-        };
-
-        // retain one signature for repeated universal candidates
+        // retain one signature for repeated arm selections
         signatures.dedup();
 
         Ok((!signatures.is_empty()).then_some(signatures))
@@ -202,11 +192,12 @@ impl ModuleQueryContext<'_> {
     fn call_signature_item(
         &self,
         program: &ProgramQueryContext<'_>,
-        candidate: &dir::CallCandidate,
+        symbol: dir::GlobalSymbolId,
+        generic_arguments: &[dir::GenericArgumentBinding],
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
     ) -> QueryResult<Option<SignatureItem>> {
-        let Some(symbol_id) = program.canonical_symbol(candidate.symbol)? else {
+        let Some(symbol_id) = program.canonical_symbol(symbol)? else {
             return Ok(None);
         };
         let module = program.module(symbol_id.module_id)?;
@@ -226,7 +217,7 @@ impl ModuleQueryContext<'_> {
             symbol_id,
             &name,
             parameters,
-            &candidate.generic_arguments,
+            generic_arguments,
             bindings,
             return_type,
         )
@@ -357,7 +348,7 @@ impl ModuleQueryContext<'_> {
                 item
             }
             dir::ConstructTarget::Variant(candidate) => {
-                let symbol_id = candidate.case.member;
+                let symbol_id = candidate.case.variant;
                 let Some(member) = program
                     .module_index(symbol_id.module_id)?
                     .members
@@ -504,7 +495,7 @@ impl ModuleQueryContext<'_> {
             let global_id = argument_id.into_global_any(self.module_id());
             let parameter = bindings
                 .iter()
-                .find(|binding| argument_binding_contains(binding, global_id))
+                .find(|binding| binding.contains_argument(global_id))
                 .map(|binding| binding.parameter);
             let Some(parameter) = parameter else {
                 return Ok(None);

@@ -34,6 +34,8 @@ const ok: Value = "ready";
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
+/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ok root=ok
 
 /// @generic.instance id="ReturnType<Function<(), string>>" template=types.function.ReturnType arguments=(Function<(), string>)
 "#,
@@ -58,8 +60,8 @@ const second: Value = "b";
 === annotated ===
 type Value = ReturnType<() => "a" | "b">;
 
-const first: Value = "a" as Value;
-const second: Value = "b" as Value;
+const first: Value = "a" as "a" | "b";
+const second: Value = "b" as "a" | "b";
 
 === checked ===
 type Value = ReturnType<() => "a" | "b">;

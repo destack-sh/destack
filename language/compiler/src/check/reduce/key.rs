@@ -148,35 +148,92 @@ impl CheckState<'_> {
                     .lookup_member(origin, origin.module(), owner, space, key)?
             );
 
+        let reduction = self.reduce_member_lookup(origin, owner, key_type, lookup)?;
+
+        Ok(Answer::Ready(reduction))
+    }
+
+    /// Reduce one completed member lookup to its projected value type.
+    fn reduce_member_lookup(
+        &mut self,
+        origin: Origin,
+        owner: dir::GlobalTypeId,
+        key_type: dir::GlobalTypeId,
+        lookup: MemberLookup,
+    ) -> CompilerResult<OperationReduction> {
         match lookup {
             // a field contributes its value type
-            MemberLookup::Field(ty) => Ok(Answer::Ready(OperationReduction::Projected(ty))),
+            MemberLookup::Field(field) => {
+                match field.read_type(origin.module(), &mut self.body())? {
+                    Some(ty) => Ok(OperationReduction::Projected(ty)),
+                    // write-only properties project nothing readable
+                    None => Ok(OperationReduction::Invalid(InvalidOperation::IndexKey {
+                        receiver: owner,
+                        key: key_type,
+                    })),
+                }
+            }
 
             // a matching member contributes its static value or callable value type
             MemberLookup::Found(candidates) => match candidates.as_slice() {
                 [candidate] => {
                     if let Some(written) = candidate.value_type {
-                        return Ok(Answer::Ready(OperationReduction::Projected(written)));
+                        return Ok(OperationReduction::Projected(written));
                     }
                     if let Some(value) = candidate.value {
                         let ty = self.intern_type(origin.module(), dir::Type::Static(value))?;
 
-                        return Ok(Answer::Ready(OperationReduction::Projected(ty)));
+                        return Ok(OperationReduction::Projected(ty));
                     }
 
-                    Ok(Answer::Ready(OperationReduction::Projected(candidate.ty)))
+                    match candidate.read_type(origin.module(), &mut self.body())? {
+                        Some(ty) => Ok(OperationReduction::Projected(ty)),
+                        None => Ok(OperationReduction::Rigid),
+                    }
                 }
                 // overloaded members stay symbolic
-                _ => Ok(Answer::Ready(OperationReduction::Rigid)),
+                _ => Ok(OperationReduction::Rigid),
             },
 
+            // union receivers project every runtime arm
+            MemberLookup::Union(lookups) => {
+                let mut types = Vec::with_capacity(lookups.len());
+                for arm in lookups {
+                    match self.reduce_member_lookup(origin, arm.receiver, key_type, arm.lookup)? {
+                        OperationReduction::Projected(ty) => types.push(ty),
+                        OperationReduction::Rigid => return Ok(OperationReduction::Rigid),
+                        OperationReduction::Invalid(invalid) => {
+                            return Ok(OperationReduction::Invalid(invalid));
+                        }
+                    }
+                }
+                let ty = self.normalized_union_type(origin.module(), types)?;
+
+                Ok(OperationReduction::Projected(ty))
+            }
+
+            // intersection receivers impose every projected member type
+            MemberLookup::Intersection(lookups) => {
+                let mut types = Vec::with_capacity(lookups.len());
+                for lookup in lookups {
+                    match self.reduce_member_lookup(origin, owner, key_type, lookup)? {
+                        OperationReduction::Projected(ty) => types.push(ty),
+                        OperationReduction::Rigid => return Ok(OperationReduction::Rigid),
+                        OperationReduction::Invalid(invalid) => {
+                            return Ok(OperationReduction::Invalid(invalid));
+                        }
+                    }
+                }
+                let ty = self.normalized_intersection_type(origin.module(), types)?;
+
+                Ok(OperationReduction::Projected(ty))
+            }
+
             // missing members reject the key on the closed receiver
-            MemberLookup::Missing => Ok(Answer::Ready(OperationReduction::Invalid(
-                InvalidOperation::IndexKey {
-                    receiver: owner,
-                    key: key_type,
-                },
-            ))),
+            MemberLookup::Missing => Ok(OperationReduction::Invalid(InvalidOperation::IndexKey {
+                receiver: owner,
+                key: key_type,
+            })),
         }
     }
 
@@ -248,7 +305,7 @@ impl CheckState<'_> {
         let projected = match (self.ty(left)?, static_key) {
             (dir::Type::Shape(shape), Some(static_key)) => {
                 let field = self
-                    .shape_fields(left.module_id, shape.fields)?
+                    .shape_properties(left.module_id, shape.properties)?
                     .iter()
                     .find(|field| field.key == static_key)
                     .copied();
@@ -258,10 +315,11 @@ impl CheckState<'_> {
                     Some(field) if field.is_optional => {
                         let module = origin.module();
                         let undefined = self.intern_type(module, dir::Type::Undefined)?;
+                        let read = field.access.store();
 
-                        Some(self.normalized_union_type(module, vec![field.ty, undefined])?)
+                        Some(self.normalized_union_type(module, vec![read, undefined])?)
                     }
-                    Some(field) => Some(field.ty),
+                    Some(field) => Some(field.access.store()),
                     // keyed index signatures cover missing exact fields
                     None => {
                         answer!(self.shape_signature_projection(origin, left, &shape, key)?)
@@ -441,7 +499,7 @@ impl CheckState<'_> {
             // structural object keys come from fields and index signatures
             dir::Type::Shape(shape) => {
                 let mut set = KeySet::default();
-                let fields = self.shape_fields(target.module_id, shape.fields)?.to_vec();
+                let fields = self.shape_properties(target.module_id, shape.properties)?.to_vec();
                 for field in fields {
                     set.insert_key(field.key);
                 }
@@ -549,8 +607,14 @@ impl CheckState<'_> {
             )?));
 
             if let Some(definition) = self.definition(symbol)? {
-                for heritage in definition.bases() {
-                    pending.push(heritage.symbol);
+                let bases = definition
+                    .bases()
+                    .iter()
+                    .map(|heritage| heritage.ty)
+                    .collect::<SmallVec<[_; 2]>>();
+                for heritage in bases {
+                    let (_, base) = self.require_nominal_application(heritage)?;
+                    pending.push(base.symbol);
                 }
             }
         }
@@ -678,37 +742,10 @@ impl CheckState<'_> {
 
                 dir::StaticKey::Index(index)
             }
-            dir::Type::Application(instance) => {
-                if !self.is_unique_symbol_instance(ty, instance.symbol)? {
-                    return Ok(None);
-                }
-
-                dir::StaticKey::Symbol(dir::SymbolKey::Unique(instance.symbol))
-            }
             _ => return Ok(None),
         };
 
         Ok(Some(key))
-    }
-
-    /// Return whether one instance type is a unique-symbol singleton.
-    fn is_unique_symbol_instance(
-        &self,
-        ty: dir::GlobalTypeId,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<bool> {
-        if self.static_value(symbol) == Some(ty) {
-            return Ok(true);
-        }
-
-        let Some(symbol_type) = self.symbol_type_maybe(symbol) else {
-            return Ok(false);
-        };
-
-        Ok(matches!(
-            self.ty(symbol_type)?,
-            dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
-        ))
     }
 
     /// Project one mapped type over its closed key source.
@@ -744,7 +781,7 @@ impl CheckState<'_> {
 
                 match self.ty(target)? {
                     dir::Type::Shape(shape) => {
-                        Some(self.shape_fields(target.module_id, shape.fields)?.to_vec())
+                        Some(self.shape_properties(target.module_id, shape.properties)?.to_vec())
                     }
                     dir::Type::Application(instance) => {
                         answer!(self.interface_instance_fields(
@@ -779,8 +816,7 @@ impl CheckState<'_> {
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for key in keys {
             let mut substitution = TypeSubstitution::default();
-            substitution.parameters.push(mapped.parameter.parameter);
-            substitution.arguments.push(key);
+            substitution.bind(mapped.parameter.parameter, key)?;
 
             let key_field = self.static_key_from_type(key)?;
             let carried = match (&source_fields, key_field) {
@@ -788,9 +824,12 @@ impl CheckState<'_> {
                 _ => None,
             };
 
-            // identity projections carry the declared field type
+            // identity projections carry the declared read type
             let value = match (is_identity, carried) {
-                (true, Some(field)) => field.ty,
+                (true, Some(field)) => field
+                    .access
+                    .read()
+                    .unwrap_or_else(|| field.access.store()),
                 _ => {
                     let value = self.substitute_type(module, mapped.value, &substitution)?;
                     match self.reduce_type_head(origin, value)? {
@@ -828,7 +867,9 @@ impl CheckState<'_> {
             let is_readonly = match mapped.modifiers.readonly {
                 dir::MappedTypeModifier::Present | dir::MappedTypeModifier::Add => true,
                 dir::MappedTypeModifier::Remove => false,
-                dir::MappedTypeModifier::None => carried.is_some_and(|field| field.is_readonly),
+                dir::MappedTypeModifier::None => {
+                    carried.is_some_and(|field| !field.access.is_writable())
+                }
             };
 
             // primitive keys widen the projection to an index signature
@@ -851,21 +892,27 @@ impl CheckState<'_> {
             } else {
                 return Ok(Answer::Ready(None));
             };
-            fields.push(dir::TypeField {
+            let access = match is_readonly {
+                true => dir::PropertyAccess::Read(value),
+                false => dir::PropertyAccess::ReadWrite {
+                    read: value,
+                    write: value,
+                },
+            };
+            fields.push(dir::TypeProperty {
                 key,
-                ty: value,
+                access,
                 is_optional,
-                is_readonly,
             });
         }
         if !blockers.is_empty() {
             return Ok(Answer::pending(blockers));
         }
 
-        let fields = self.intern_fields(module, &fields)?;
+        let fields = self.intern_properties(module, &fields)?;
         let index_signatures = self.intern_index_signatures(module, &index_signatures)?;
         let shape = dir::Type::Shape(dir::ShapeType {
-            fields,
+            properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
             construct_signatures: dir::TypeListId::EMPTY,
             index_signatures,

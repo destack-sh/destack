@@ -20,6 +20,13 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
         let value_node = value.into_global_any(module);
+
+        // select declaration-backed variants from the matched input
+        if let Some(case) = answer!(self.variant_expression_case(module, value)?) {
+            return self.select_variant_pattern(node, origin, flow, scope, case, &[]);
+        }
+
+        // infer ordinary closed pattern expressions
         let ty = answer!(self.infer_node_type(
             FlowSite {
                 node: value_node,
@@ -53,11 +60,6 @@ impl BodyState<'_, '_> {
                 )
             }
             None => {
-                // bare owner.case member paths select payload-less variants
-                if let Some(case) = answer!(self.variant_expression_case(origin, module, value)?) {
-                    return self.select_variant_pattern(node, origin, flow, scope, case, &[]);
-                }
-
                 self.report_expression_pattern_not_literal(module, node.local_id.into_any());
 
                 self.commit_pattern(node, dir::PatternResolution::Ignore)

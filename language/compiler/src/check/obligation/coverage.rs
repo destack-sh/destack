@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckState, ObligationCheck, ObligationFailure, Origin, Relation, UncoveredValue,
-    answer,
+    Answer, CheckState, DecisionKind, ObligationCheck, ObligationFailure, Origin, Relation,
+    UncoveredValue, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -263,41 +263,47 @@ impl CheckState<'_> {
         pattern: dir::GlobalNodeId<dir::Pattern>,
         discriminant: dir::ScalarLiteral,
     ) -> CompilerResult<Answer<bool>> {
-        // patterns decide with their covering value before coverage runs
-        if self.decision_kind(pattern.into_any()).is_none() {
-            return Err(CompilerError::Internal {
-                message: format!("coverage pattern {pattern:?} is undecided"),
-            });
-        }
+        let kind = self.decision_kind(pattern.into_any());
         let resolution = self
             .resolutions(pattern.module_id)
             .pattern_resolution(pattern.into_any())
             .cloned();
+        let resolution = match (kind, resolution) {
+            (Some(DecisionKind::Pattern), Some(resolution)) => resolution,
+            (Some(DecisionKind::Rejected), None) => return Ok(Answer::Ready(false)),
+            (Some(kind), resolution) => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "coverage pattern {pattern:?} decided as {kind:?} with resolution {resolution:?}"
+                    ),
+                });
+            }
+            (None, _) => {
+                return Err(CompilerError::Internal {
+                    message: format!("coverage pattern {pattern:?} is undecided"),
+                });
+            }
+        };
 
         let covers = match &resolution {
             // wildcard shapes cover every discriminant
-            Some(dir::PatternResolution::Ignore)
-            | Some(dir::PatternResolution::Bind(dir::PatternBindingResolution {
-                pattern: None,
-                ..
-            })) => true,
+            dir::PatternResolution::Ignore
+            | dir::PatternResolution::Bind(dir::PatternBindingResolution {
+                pattern: None, ..
+            }) => true,
 
-            // variant destructures cover their selected discriminant
-            Some(dir::PatternResolution::Destructure(resolution)) => match resolution.as_ref() {
-                dir::PatternDestructureResolution::Variant(resolution) => {
-                    match &resolution.projection {
-                        dir::Projection::VariantPayload {
-                            discriminant: selected,
-                            ..
-                        } => *selected == discriminant,
-                        _ => false,
-                    }
-                }
-                _ => false,
-            },
+            // variants cover their selected discriminant
+            dir::PatternResolution::Variant(resolution) => matches!(
+                &resolution.predicate.test,
+                dir::PredicateTest::Unary(test)
+                    if matches!(
+                        test.condition,
+                        dir::PredicateCondition::Literal(selected) if selected == discriminant
+                    )
+            ),
 
             // discriminant tests cover their tested literal
-            Some(dir::PatternResolution::Test(resolution)) => matches!(
+            dir::PatternResolution::Test(resolution) => matches!(
                 &resolution.predicate.test,
                 dir::PredicateTest::Unary(test)
                     if matches!(
@@ -311,14 +317,14 @@ impl CheckState<'_> {
             ),
 
             // defaulted patterns cover through their inner pattern
-            Some(dir::PatternResolution::Default(resolution)) => {
+            dir::PatternResolution::Default(resolution) => {
                 let inner = resolution.pattern.into_typed();
 
                 answer!(self.decide_pattern_covers_variant_case(inner, discriminant)?)
             }
 
             // or patterns cover when any branch covers
-            Some(dir::PatternResolution::Or(or)) => {
+            dir::PatternResolution::Or(or) => {
                 let mut covered = false;
                 for branch in &or.patterns {
                     let branch = branch.into_typed();
@@ -380,7 +386,7 @@ impl CheckState<'_> {
             // expression patterns cover values their type absorbs
             dir::Pattern::Expression { value: expression } => {
                 let expression = *expression;
-                let expected = answer!(self.node_type(expression.into_global_any(module))?);
+                let expected = self.require_node_type(expression.into_global_any(module))?;
 
                 self.decide_relation(origin, Relation::Assignable, value, expected)
             }
@@ -413,23 +419,25 @@ impl CheckState<'_> {
                     .ok_or_else(|| CompilerError::Internal {
                         message: format!("nominal coverage pattern {pattern:?} has no resolution"),
                     })?;
-                let dir::PatternResolution::Destructure(resolution) = resolution else {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "nominal coverage pattern {pattern:?} has non-destructure resolution"
-                        ),
-                    });
-                };
-
                 // tagged variants decide through their selected predicate and payload
-                if let dir::PatternDestructureResolution::Variant(variant) = resolution.as_ref() {
+                if let dir::PatternResolution::Variant(variant) = &resolution {
                     if !answer!(self.decide_predicate_covers(origin, &variant.predicate, value)?) {
                         return Ok(Answer::Ready(false));
                     }
-                    let payload = variant.projection.ty();
+                    let Some(projection) = &variant.predicate.projection else {
+                        return Ok(Answer::Ready(fields.is_empty()));
+                    };
+                    let payload = projection.ty();
 
                     return self.decide_fields_cover(origin, module, &fields, payload);
                 }
+                let dir::PatternResolution::Destructure(resolution) = resolution else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "nominal coverage pattern {pattern:?} has non-nominal resolution"
+                        ),
+                    });
+                };
                 let dir::PatternDestructureResolution::Nominal(nominal) = resolution.as_ref()
                 else {
                     return Err(CompilerError::Internal {
@@ -450,10 +458,15 @@ impl CheckState<'_> {
                                 value_head.module_id,
                                 &value_instance,
                             )?);
-                            let inherits = closure
-                                .applications
-                                .iter()
-                                .any(|application| application.instance.symbol == nominal.symbol);
+                            let mut inherits = false;
+                            for application in &closure.applications {
+                                let (_, instance) =
+                                    self.require_nominal_application(application.ty)?;
+                                if instance.symbol == nominal.symbol {
+                                    inherits = true;
+                                    break;
+                                }
+                            }
                             if !inherits {
                                 return Ok(Answer::Ready(false));
                             }
@@ -497,6 +510,12 @@ impl CheckState<'_> {
 
         match resolution {
             Some(dir::PatternResolution::Test(resolution)) => {
+                let decision =
+                    self.decide_predicate_covers(origin, &resolution.predicate, value)?;
+
+                Ok(Some(decision))
+            }
+            Some(dir::PatternResolution::Variant(resolution)) => {
                 let decision =
                     self.decide_predicate_covers(origin, &resolution.predicate, value)?;
 
@@ -596,7 +615,7 @@ impl CheckState<'_> {
                         dir::MemberSpace::Instance,
                         key
                     )?);
-                    let member = lookup.value_type();
+                    let member = self.body().member_read_type(origin, &lookup)?;
 
                     match member {
                         Some(member) => {
@@ -707,7 +726,7 @@ impl CheckState<'_> {
             }
             // expression patterns cover literal points
             dir::Pattern::Expression { value } => {
-                let ty = answer!(self.node_type(value.into_global_any(module))?);
+                let ty = self.require_node_type(value.into_global_any(module))?;
                 let ty = answer!(self.reduce_type_head(origin, ty)?);
                 self.type_scalar_literal(ty)?.map(|literal| {
                     IntervalCoverage::Intervals(vec![dir::RangeType {
@@ -820,7 +839,7 @@ impl CheckState<'_> {
         let Some(bound) = bound else {
             return Ok(Answer::Ready(Some(StaticRangeBound::Open)));
         };
-        let ty = answer!(self.node_type(bound.into_global_any(module))?);
+        let ty = self.require_node_type(bound.into_global_any(module))?;
 
         let reduced = answer!(self.reduce_type_head(origin, ty)?);
         match self.ty(reduced)? {

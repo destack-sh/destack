@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 
 use crate::check::{
     Answer, BodyState, Decision, DecoratorApplication, FlowSite, NewtypeMatch, NewtypeOverload,
-    NewtypeRejection, Origin, SelectedDecorator, answer,
+    NewtypeRejection, Origin, SelectedDecorator, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -33,18 +33,16 @@ impl BodyState<'_, '_> {
         let mut type_arguments = Vec::with_capacity(application.expression.generic_arguments.len());
         for argument in &application.expression.generic_arguments {
             let source = argument.into_global_any(module);
-            type_arguments.push(answer!(self.node_type(source)?));
+            type_arguments.push(self.require_node_type(source)?);
         }
 
         // type the target as its resolved newtype declaration
         let target = application.expression.target.into_global_any(module);
-        if self.committed_node_type(target).is_none() {
-            let reference = dir::Type::Reference(dir::TypeReference {
-                symbol: application.symbol,
-            });
-            let reference = self.intern_type(module, reference)?;
-            self.commit_node_type(target, reference)?;
-        }
+        let reference = dir::Type::Reference(dir::TypeReference {
+            symbol: application.symbol,
+        });
+        let reference = self.intern_type(module, reference)?;
+        self.commit_node_type(target, reference)?;
 
         // compiler-owned derive dispatch has an intrinsic backing
         if self.global.language.item(application.symbol) == Some(dir::LanguageItem::Derive) {
@@ -59,6 +57,7 @@ impl BodyState<'_, '_> {
             &type_arguments,
             None,
             NewtypeOverload::Unambiguous,
+            ValueUse::Comptime,
         )?);
         let (selection, parameters, return_type) = match matched {
             NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => (
@@ -69,7 +68,6 @@ impl BodyState<'_, '_> {
             NewtypeMatch::Invalid { rejection, .. } => {
                 self.report_decorator_rejection(
                     site.origin(),
-                    &application.expression.arguments,
                     NewtypeRejection::Signature(rejection),
                 )?;
                 self.commit_error_node(site.node)?;
@@ -77,11 +75,7 @@ impl BodyState<'_, '_> {
                 return Ok(Answer::Ready(None));
             }
             NewtypeMatch::Rejected(rejection) => {
-                self.report_decorator_rejection(
-                    site.origin(),
-                    &application.expression.arguments,
-                    rejection,
-                )?;
+                self.report_decorator_rejection(site.origin(), rejection)?;
                 self.commit_error_node(site.node)?;
 
                 return Ok(Answer::Ready(None));
@@ -238,7 +232,7 @@ impl BodyState<'_, '_> {
             // collect written generic arguments
             let mut type_arguments = Vec::with_capacity(generic_arguments.len());
             for argument in &generic_arguments {
-                type_arguments.push(answer!(self.node_type(argument.into_global_any(module))?));
+                type_arguments.push(self.require_node_type(argument.into_global_any(module))?);
             }
 
             // select the only viable provider backing
@@ -249,6 +243,7 @@ impl BodyState<'_, '_> {
                 &type_arguments,
                 None,
                 NewtypeOverload::Unambiguous,
+                ValueUse::Comptime,
             )?);
             let (selection, parameters, return_type) = match matched {
                 NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => (
@@ -259,7 +254,6 @@ impl BodyState<'_, '_> {
                 NewtypeMatch::Invalid { rejection, .. } => {
                     self.report_decorator_rejection(
                         origin,
-                        &arguments,
                         NewtypeRejection::Signature(rejection),
                     )?;
                     self.commit_error_node(expression.into_global_any(module))?;
@@ -267,7 +261,7 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(None));
                 }
                 NewtypeMatch::Rejected(rejection) => {
-                    self.report_decorator_rejection(origin, &arguments, rejection)?;
+                    self.report_decorator_rejection(origin, rejection)?;
                     self.commit_error_node(expression.into_global_any(module))?;
 
                     return Ok(Answer::Ready(None));
@@ -311,6 +305,7 @@ impl BodyState<'_, '_> {
                 &[],
                 None,
                 NewtypeOverload::Unambiguous,
+                ValueUse::Comptime,
             )?);
             let (selection, return_type) = match matched {
                 NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {
@@ -319,7 +314,6 @@ impl BodyState<'_, '_> {
                 NewtypeMatch::Invalid { rejection, .. } => {
                     self.report_decorator_rejection(
                         origin,
-                        &[],
                         NewtypeRejection::Signature(rejection),
                     )?;
                     self.commit_error_node(source)?;
@@ -327,7 +321,7 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(None));
                 }
                 NewtypeMatch::Rejected(rejection) => {
-                    self.report_decorator_rejection(origin, &[], rejection)?;
+                    self.report_decorator_rejection(origin, rejection)?;
                     self.commit_error_node(source)?;
 
                     return Ok(Answer::Ready(None));
@@ -357,12 +351,11 @@ impl BodyState<'_, '_> {
     fn report_decorator_rejection(
         &mut self,
         origin: Origin,
-        arguments: &[dir::LocalNodeId<dir::Argument>],
         rejection: NewtypeRejection,
     ) -> CompilerResult<()> {
         match rejection {
             NewtypeRejection::Signature(rejection) => {
-                self.report_signature_rejection(origin, origin.module(), arguments, rejection)
+                self.report_signature_rejection(origin, rejection)
             }
             NewtypeRejection::NoMatch(notes) => self.report_no_matching_decorator(origin, &notes),
             NewtypeRejection::Ambiguous => self.report_ambiguous_decorator(origin),

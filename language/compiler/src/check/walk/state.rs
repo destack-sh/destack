@@ -1,4 +1,3 @@
-use std::mem::take;
 
 use destack_core::FxIndexMap;
 use destack_dir as dir;
@@ -51,10 +50,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         check: &'check mut CheckState<'state>,
     ) -> Self {
         check.active_walks.insert(module);
-        let state = check.module_mut(module);
-        let flow = FlowState::from_points(take(&mut state.flows));
-        let node_flows = take(&mut state.node_flows);
-        let node_scopes = take(&mut state.node_scopes);
 
         Self {
             check,
@@ -62,9 +57,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
             module,
             borrow_lifetime_elision: BorrowLifetimeElision::Generate,
             return_borrow_lifetimes: Vec::new(),
-            flow,
-            node_flows,
-            node_scopes,
+            flow: FlowState::default(),
+            node_flows: FxIndexMap::default(),
+            node_scopes: FxIndexMap::default(),
         }
     }
 
@@ -79,17 +74,35 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Commit completed walk state back into check state.
-    pub(in crate::check) fn commit(self) {
+    pub(in crate::check) fn commit(self) -> CompilerResult<()> {
         let module = self.module;
-        let flows = self.flow.into_points();
-        let node_flows = self.node_flows;
-        let node_scopes = self.node_scopes;
-
         let state = self.check.module_mut(module);
-        state.flows = flows;
-        state.node_flows = node_flows;
-        state.node_scopes = node_scopes;
+        let offset = self.flow.append_to(&mut state.flows);
+
+        // commit every node at its rebased durable flow point
+        for (node, flow) in self.node_flows {
+            let flow = flow.appended(offset);
+            if let Some(previous) = state.node_flows.insert(node, flow) {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "check node {node:?} was committed at both {previous:?} and {flow:?}"
+                    ),
+                });
+            }
+        }
+
+        // commit every node's lexical generic scope
+        for (node, scope) in self.node_scopes {
+            if state.node_scopes.insert(node, scope).is_some() {
+                return Err(CompilerError::Internal {
+                    message: format!("check node {node:?} received two generic scopes"),
+                });
+            }
+        }
+
         self.check.active_walks.swap_remove(&module);
+
+        Ok(())
     }
 
     /// Enter one source node occurrence at the current flow point.
@@ -174,12 +187,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<()> {
         let site = self.node_site(id)?;
         let cause = self.check.intern_cause(Cause::root(site.origin(), kind));
-        let expectation = Expectation {
-            target,
-            relation: Relation::Assignable,
-            cause,
-            use_,
-        };
+        let expectation = Expectation::assignable(target, cause, use_);
         self.check.queue_check(site, expectation);
 
         Ok(())
@@ -362,7 +370,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) {
         let cause = self.check.intern_cause(Cause::root(origin, kind));
         self.check
-            .push_constraint(Constraint::r#type(relation, source, target, cause));
+            .push_constraint(Constraint::r#type(origin, relation, source, target, cause));
     }
 
     /// Collect one generic argument bound constraint.
@@ -379,6 +387,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .check
             .intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
         self.check.push_constraint(Constraint::generic_bound(
+            origin,
             argument,
             bound,
             application,
@@ -579,12 +588,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.intern_elements(self.module, values)
     }
 
-    /// Intern one shape field list into this module's working segment.
-    pub(in crate::check) fn intern_fields(
+    /// Intern one shape property list into this module's working segment.
+    pub(in crate::check) fn intern_properties(
         &mut self,
-        values: &[dir::TypeField],
+        values: &[dir::TypeProperty],
     ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_fields(self.module, values)
+        self.check.intern_properties(self.module, values)
     }
 
     /// Intern one function parameter list into this module's working segment.

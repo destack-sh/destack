@@ -5,6 +5,7 @@ import { MaybeOwned } from "destack:memory";
 export const Infinity: number = 1.0 / 0.0;
 
 /// The float not-a-number value.
+@languageItem("math.NaN")
 export const NaN: number = 0.0 / 0.0;
 
 /// Number locale formatting options.
@@ -122,6 +123,7 @@ export class Number {
     static readonly NEGATIVE_INFINITY: number = -Infinity;
 
     /// Not-a-number.
+    @languageItem("math.Number.NaN")
     static readonly NaN: number = NaN;
 
     /// Return this number as a string.

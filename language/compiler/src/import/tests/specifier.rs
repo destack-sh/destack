@@ -191,6 +191,7 @@ fn test_import_reports_conditional_file_specifier() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "conditions": {
         "modes": {
             "preview": {}

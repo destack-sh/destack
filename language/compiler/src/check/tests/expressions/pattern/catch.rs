@@ -55,11 +55,15 @@ try {
     /// @type.node source="code satisfies int32" type=int32
     /// @type.node source=code type=int32
     /// @resolution.name source=code target=code
+    /// @resolution.place source=code placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=code root=code
 
     message satisfies string;
     /// @type.node source="message satisfies string" type=string
     /// @type.node source=message type=string
     /// @resolution.name source=message target=message
+    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=message root=message
 
 }
 
@@ -178,7 +182,11 @@ try {
     /// @type.node source=error type={ message: string }
     /// @type.node source=error.message type=string
     /// @resolution.name source=error target=error
-    /// @resolution.member source=error.message receiver={ message: string } kind=field key=message
+    /// @resolution.member source=error.message receiver={ message: string } type=string kind=field target_receiver={ message: string } key=message target_type=string
+    /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=error root=error
+    /// @resolution.place source=error.message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=error.message root=error keys=[message]
 
 }
 

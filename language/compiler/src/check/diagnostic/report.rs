@@ -6,11 +6,10 @@ use destack_source::{
 };
 
 use crate::check::{
-    BoundSide, Cause, CauseId, CauseKind, CheckFailure, CheckState, ObligationFailure,
-    OperatorOperands, Origin, Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse,
-    Variance,
+    BoundSide, CauseId, CauseKind, CheckFailure, CheckState, ObligationFailure, OperatorOperands,
+    Origin, Relation, SignatureRejection, TypeBound, UncoveredValue, ValueUse, Variance,
 };
-use crate::{CheckError, CheckWarning, CompilerResult, DiagnosticAnchor};
+use crate::{CheckError, CheckWarning, CompilerError, CompilerResult, DiagnosticAnchor};
 
 impl CheckState<'_> {
     /// Record one checked error.
@@ -19,14 +18,8 @@ impl CheckState<'_> {
         module: ModuleId,
         diagnostic: impl Into<DiagnosticBuilder<CheckError>>,
     ) {
-        // identical failures report once
         let diagnostic = diagnostic.into();
-        let diagnostics = &mut self.module_mut(module).diagnostics;
-        if diagnostics.contains(&diagnostic) {
-            return;
-        }
-
-        diagnostics.push(diagnostic);
+        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Report one interval type with a missing bound.
@@ -273,7 +266,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         path: &dir::Path,
-    ) -> CompilerResult<()> {
+    ) {
         let anchor = self.diagnostic_anchor(module, source);
         let error = CheckError::AmbiguousReference {
             anchor,
@@ -288,23 +281,19 @@ impl CheckState<'_> {
             .get(&module)
             .and_then(|state| state.resolved.references.get(source.into_global(module)))
         {
-            for target in candidates.iter().take(4) {
-                let candidate = match target {
-                    dir::ImportTarget::Symbol(symbol) => {
-                        let declaration = self.symbol_source(*symbol)?;
-                        let (_, candidate) = self.source_anchor(declaration);
-
-                        candidate
-                    }
-                    dir::ImportTarget::Namespace(module) => DiagnosticAnchor::Module(*module),
+            for target in candidates.clone().iter().take(4) {
+                let dir::ImportTarget::Symbol(symbol) = target else {
+                    continue;
                 };
+                let Ok(declaration) = self.symbol_source(*symbol) else {
+                    continue;
+                };
+                let (_, candidate) = self.source_anchor(declaration);
                 diagnostic = diagnostic.label(candidate, "one candidate is declared here");
             }
         }
 
         self.report(module, diagnostic);
-
-        Ok(())
     }
 
     /// Report a local binding read before assignment.
@@ -622,7 +611,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         access: dir::Access,
-        granted: dir::Access,
+        granted: Option<dir::Access>,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
@@ -632,12 +621,15 @@ impl CheckState<'_> {
             access: access.text().to_string(),
             source: self.format_type_at(module, source),
         };
-        let diagnostic = DiagnosticBuilder::new(error)
-            .note(format!(
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        if let Some(granted) = granted {
+            diagnostic = diagnostic.note(format!(
                 "the source grants at most '{}' access",
                 granted.text()
-            ))
-            .help("request the granted access or use a source that grants more");
+            ));
+        }
+        let diagnostic =
+            diagnostic.help("request the granted access or use a source that grants more");
         self.report(module, diagnostic);
 
         Ok(())
@@ -776,7 +768,7 @@ impl CheckState<'_> {
         module: ModuleId,
         candidate: dir::GlobalTypeId,
         rejection: &SignatureRejection,
-    ) -> String {
+    ) -> CompilerResult<String> {
         let candidate = self.format_type_at(module, candidate);
         let reason = match rejection {
             SignatureRejection::Inapplicable => "does not apply".to_string(),
@@ -790,33 +782,38 @@ impl CheckState<'_> {
 
                 format!("takes {expected}, got {supplied}")
             }
-            SignatureRejection::Argument {
-                index,
+            SignatureRejection::Mismatch {
+                cause,
+                relation,
                 source,
                 target,
                 ..
-            } => format!(
-                "rejects argument {index}: '{}' is not assignable to '{}'",
-                self.format_type_at(module, *source),
-                self.format_type_at(module, *target),
-            ),
-            SignatureRejection::Bound { source, target, .. } => format!(
-                "requires '{}' to satisfy '{}'",
-                self.format_type_at(module, *source),
-                self.format_type_at(module, *target),
-            ),
+            } => {
+                let source = self.format_type_at(module, *source);
+                let target = self.format_type_at(module, *target);
+
+                // describe arguments by their authored position
+                match self.root_cause(*cause).kind {
+                    CauseKind::Argument { index, .. } => format!(
+                        "rejects argument {index}: '{source}' is not assignable to '{target}'"
+                    ),
+                    _ => match relation {
+                        Relation::Equal => format!("requires '{source}' to equal '{target}'"),
+                        Relation::Satisfies => {
+                            format!("requires '{source}' to satisfy '{target}'")
+                        }
+                        _ => format!("rejects '{source}' as '{target}'"),
+                    },
+                }
+            }
             SignatureRejection::Receiver { source, target } => format!(
                 "rejects the receiver: '{}' is not assignable to '{}'",
                 self.format_type_at(module, *source),
                 self.format_type_at(module, *target),
             ),
-            SignatureRejection::WritableIndex { source, .. } => format!(
-                "requires '{}' to support writable index access",
-                self.format_type_at(module, *source),
-            ),
         };
 
-        format!("the candidate '{candidate}' {reason}")
+        Ok(format!("the candidate '{candidate}' {reason}"))
     }
 
     /// Report one construction whose arguments match no constructor.
@@ -887,14 +884,77 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one Tagged backing arm without a string literal discriminant.
+    /// Report one Tagged backing arm outside the constructible record domain.
     pub(in crate::check) fn report_invalid_tagged_variant(
+        &mut self,
+        origin: Origin,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::InvalidTaggedVariant { anchor, module };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report a Tagged backing without an inferable discriminator.
+    pub(in crate::check) fn report_missing_tagged_discriminator(
+        &mut self,
+        origin: Origin,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::MissingTaggedDiscriminator { anchor, module };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report a Tagged backing with multiple inferable discriminators.
+    pub(in crate::check) fn report_ambiguous_tagged_discriminator(
+        &mut self,
+        origin: Origin,
+        discriminators: &[dir::StaticKey],
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let discriminators = discriminators
+            .iter()
+            .map(|key| format!("'{}'", self.format_static_key(key)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let error = CheckError::AmbiguousTaggedDiscriminator {
+            anchor,
+            module,
+            discriminators,
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report an invalid explicitly selected Tagged discriminator.
+    pub(in crate::check) fn report_invalid_tagged_discriminator(
+        &mut self,
+        origin: Origin,
+        discriminator: dir::StaticKey,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::InvalidTaggedDiscriminator {
+            anchor,
+            module,
+            discriminator: self.format_static_key(&discriminator),
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report two Tagged backing arms carrying the same discriminant.
+    pub(in crate::check) fn report_duplicate_tagged_discriminant(
         &mut self,
         origin: Origin,
         discriminant: dir::StringId,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::InvalidTaggedVariant {
+        let error = CheckError::DuplicateTaggedDiscriminant {
             anchor,
             module,
             discriminant: self.strings().get(discriminant).to_string(),
@@ -1042,8 +1102,6 @@ impl CheckState<'_> {
     pub(in crate::check) fn report_signature_rejection(
         &mut self,
         origin: Origin,
-        module: ModuleId,
-        arguments: &[dir::LocalNodeId<dir::Argument>],
         rejection: SignatureRejection,
     ) -> CompilerResult<()> {
         match rejection {
@@ -1061,52 +1119,16 @@ impl CheckState<'_> {
                 self.report_wrong_argument_count(origin, expected, supplied)?;
             }
 
-            // report argument mismatch on the failing value
-            SignatureRejection::Argument {
-                index,
+            // report the selected mismatch at its authored cause
+            SignatureRejection::Mismatch {
+                cause,
                 relation,
+                use_,
                 source,
                 target,
+                failure,
             } => {
-                let argument_origin = arguments
-                    .get(index)
-                    .and_then(|argument| self.body().argument_expression(module, *argument))
-                    .map(|node| self.origin_at(origin, node))
-                    .transpose()?
-                    .unwrap_or(origin);
-                let call = self.origin_source(origin)?;
-                let cause = self.intern_cause(Cause::root(
-                    argument_origin,
-                    CauseKind::Argument {
-                        call,
-                        index: index as u32,
-                    },
-                ));
-                self.report_constraint_failure(
-                    cause,
-                    relation,
-                    Some(ValueUse::Argument),
-                    source,
-                    target,
-                    CheckFailure::Relation,
-                )?;
-            }
-
-            // report generic bound mismatch on the supplied or inferred argument source
-            SignatureRejection::Bound {
-                source_node,
-                source,
-                target,
-            } => {
-                let anchored = self.origin_at(origin, source_node)?;
-                let (module, anchor) = self.origin_diagnostic_anchor(anchored)?;
-                let error = CheckError::ConstraintNotSatisfied {
-                    anchor,
-                    module,
-                    source: self.format_type_at(module, source),
-                    target: self.format_type_at(module, target),
-                };
-                self.report(module, error);
+                self.record_failure(cause, relation, use_, source, target, failure);
             }
 
             // report receiver mismatch on the call itself
@@ -1117,25 +1139,6 @@ impl CheckState<'_> {
                     module,
                     source: self.format_type_at(module, source),
                     target: self.format_type_at(module, target),
-                };
-                self.report(module, error);
-            }
-
-            // report missing writable index support on the supplied or inferred argument source
-            SignatureRejection::WritableIndex {
-                source_node,
-                source,
-                key,
-                value,
-            } => {
-                let anchored = self.origin_at(origin, source_node)?;
-                let (module, anchor) = self.origin_diagnostic_anchor(anchored)?;
-                let error = CheckError::WritableIndexRequiresIndexSet {
-                    anchor,
-                    module,
-                    source: self.format_type_at(module, source),
-                    key: self.format_type_at(module, key),
-                    value: self.format_type_at(module, value),
                 };
                 self.report(module, error);
             }
@@ -1226,38 +1229,6 @@ impl CheckState<'_> {
             anchor,
             module,
             nullish,
-        };
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report one lifetime bound spelled as a union.
-    pub(in crate::check) fn report_disjunctive_lifetime_bound(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<()> {
-        let anchor = self.diagnostic_anchor(source.module_id, source.local_id);
-        let error = CheckError::DisjunctiveLifetimeBound {
-            anchor,
-            module: source.module_id,
-        };
-        self.report(source.module_id, error);
-
-        Ok(())
-    }
-
-    /// Report one interpolated argument without a display representation.
-    pub(in crate::check) fn report_template_argument_not_displayable(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let error = CheckError::TemplateArgumentNotDisplayable {
-            anchor,
-            module,
-            argument: self.format_type(ty),
         };
         self.report(module, error);
 
@@ -1482,23 +1453,6 @@ impl CheckState<'_> {
         self.report(module, error);
     }
 
-    /// Report one repeated definition member.
-    pub(in crate::check) fn report_duplicate_definition_member(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        key: &dir::StaticKey,
-    ) {
-        let (module, anchor) = self.source_anchor(source);
-        let member = self.format_static_key(key);
-        let error = CheckError::DuplicateMember {
-            anchor,
-            module,
-            member,
-        };
-
-        self.report(module, error);
-    }
-
     /// Report one computed pattern key that cannot select a field.
     pub(in crate::check) fn report_computed_pattern_key_not_valid(
         &mut self,
@@ -1621,8 +1575,8 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one failed closed constraint.
-    pub(in crate::check) fn report_constraint_failure(
+    /// Emit one failed closed check.
+    pub(in crate::check) fn emit_failure(
         &mut self,
         cause: CauseId,
         relation: Relation,
@@ -1631,11 +1585,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         failure: CheckFailure,
     ) -> CompilerResult<()> {
-        // a finer constraint already carried the report
-        if failure == CheckFailure::Reported {
-            return Ok(());
-        }
-        // poisoned operands already reported their cause
+        // error operands suppress diagnostics derived from an earlier failure
         if self.type_flags(source)?.has_error() || self.type_flags(target)?.has_error() {
             return Ok(());
         }
@@ -1661,7 +1611,6 @@ impl CheckState<'_> {
 
         // translate the selected failure reason
         let diagnostic = match failure {
-            CheckFailure::Reported => return Ok(()),
             CheckFailure::Relation => {
                 let error = self.constraint_relation_error(
                     anchor.clone(),
@@ -1681,6 +1630,16 @@ impl CheckState<'_> {
                 } else {
                     diagnostic
                 }
+            }
+            CheckFailure::AmbiguousUnionInjection => {
+                let error = CheckError::AmbiguousUnionInjection {
+                    anchor: anchor.clone(),
+                    module,
+                    source,
+                    target,
+                };
+
+                DiagnosticBuilder::new(error)
             }
             CheckFailure::MissingRequiredProperty { key } => {
                 let error = CheckError::MissingRequiredProperty {
@@ -1860,7 +1819,7 @@ impl CheckState<'_> {
             }
             ObligationFailure::CannotAssignReadonlyMember { source, member } => {
                 let (module, anchor) = self.source_anchor(source);
-                let member = self.format_projection_field(member);
+                let member = self.format_readonly_member(&member)?;
                 let error = CheckError::CannotAssignReadonlyMember {
                     anchor,
                     module,
@@ -2200,10 +2159,23 @@ impl CheckState<'_> {
     }
 
     /// Return a display name for one projected field.
-    fn format_projection_field(&self, field: dir::ProjectionField) -> String {
+    fn format_field_target(&self, field: dir::FieldTarget) -> String {
         match field {
-            dir::ProjectionField::Key(key) => self.format_static_key(&key),
-            dir::ProjectionField::Member(symbol) => self.format_symbol(symbol),
+            dir::FieldTarget::Structural { key, .. } => self.format_static_key(&key),
+            dir::FieldTarget::Member { symbol, .. } => self.format_symbol(symbol),
+        }
+    }
+
+    /// Format one selected readonly member.
+    fn format_readonly_member(&self, member: &dir::MemberTarget) -> CompilerResult<String> {
+        match member {
+            dir::MemberTarget::Field(field) => Ok(self.format_field_target(field.target)),
+            dir::MemberTarget::Index(index) => {
+                Ok(format!("[{}]", self.format_type(index.key_type)))
+            }
+            _ => Err(CompilerError::Internal {
+                message: format!("readonly diagnostic has non-storage target {member:?}"),
+            }),
         }
     }
 
@@ -2248,6 +2220,13 @@ impl CheckState<'_> {
         target: String,
     ) -> CheckError {
         match (relation, value_use) {
+            // equality requirements report their normalized operands
+            (Relation::Equal, _) => CheckError::EqualityRequirementNotSatisfied {
+                anchor,
+                module,
+                left: source,
+                right: target,
+            },
             // explicit casts report their own failure shape
             (Relation::Castable, _) => CheckError::InvalidCast {
                 anchor,
@@ -2287,19 +2266,21 @@ impl CheckState<'_> {
                 module,
                 actual: source,
             },
-            (_, Some(ValueUse::Argument)) => CheckError::ArgumentNotAssignable {
-                anchor,
-                module,
-                source,
-                target,
-            },
+            (_, Some(ValueUse::Argument | ValueUse::Comptime)) => {
+                CheckError::ArgumentNotAssignable {
+                    anchor,
+                    module,
+                    source,
+                    target,
+                }
+            }
             (_, Some(ValueUse::Output)) => CheckError::ReturnNotAssignable {
                 anchor,
                 module,
                 source,
                 target,
             },
-            (_, None | Some(ValueUse::Store)) => CheckError::NotAssignable {
+            (_, None | Some(ValueUse::Store | ValueUse::Operand)) => CheckError::NotAssignable {
                 anchor,
                 module,
                 source,
@@ -2340,9 +2321,11 @@ impl CheckState<'_> {
         &mut self,
         declaration: dir::GlobalNodeIdAny,
         reference: dir::GlobalNodeIdAny,
-        symbol: Option<dir::GlobalSymbolId>,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.source_anchor(declaration);
+        let symbol = self
+            .module(declaration.module_id)
+            .declaration_symbol(declaration.local_id);
         let source = match symbol {
             Some(symbol) => self.format_symbol(symbol),
             None => "this declaration".to_string(),
@@ -2557,4 +2540,36 @@ impl CheckState<'_> {
         };
         self.report(module, error);
     }
+    /// Report one lifetime bound spelled as a union.
+    pub(in crate::check) fn report_disjunctive_lifetime_bound(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<()> {
+        let anchor = self.diagnostic_anchor(source.module_id, source.local_id);
+        let error = CheckError::DisjunctiveLifetimeBound {
+            anchor,
+            module: source.module_id,
+        };
+        self.report(source.module_id, error);
+
+        Ok(())
+    }
+
+    /// Report one repeated definition member.
+    pub(in crate::check) fn report_duplicate_definition_member(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        key: &dir::StaticKey,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let member = self.format_static_key(key);
+        let error = CheckError::DuplicateMember {
+            anchor,
+            module,
+            member,
+        };
+
+        self.report(module, error);
+    }
+
 }

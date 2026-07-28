@@ -1,40 +1,8 @@
 use destack_core::FxIndexSet;
-use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::check::{
-    CauseId, CheckFailure, ConstraintId, Expectation, FlowSite, FunctionBody, ObligationFailure,
-    ObligationId, PlaceUse, Relation, ValueUse,
+    ConstraintId, Expectation, FlowSite, FunctionBody, ObligationId, PlaceUse, Value,
 };
-
-/// Failures returned by one solver task run.
-pub(in crate::check) type TaskFailures = SmallVec<[TaskFailure; 1]>;
-
-/// One failure returned by a solver task.
-#[derive(Debug, Clone)]
-pub(in crate::check) enum TaskFailure {
-    /// One value or type constraint does not hold.
-    Constraint(ConstraintFailure),
-    /// One deferred obligation does not hold.
-    Obligation(ObligationFailure),
-}
-
-/// One failed constraint.
-#[derive(Debug, Clone)]
-pub(in crate::check) struct ConstraintFailure {
-    /// The cause that produced the constraint.
-    pub(in crate::check) cause: CauseId,
-    /// The relation that failed.
-    pub(in crate::check) relation: Relation,
-    /// The checked value use, if the constraint checked a value.
-    pub(in crate::check) use_: Option<ValueUse>,
-    /// The constrained source type.
-    pub(in crate::check) source: dir::GlobalTypeId,
-    /// The constraint target type.
-    pub(in crate::check) target: dir::GlobalTypeId,
-    /// The failure reason.
-    pub(in crate::check) failure: CheckFailure,
-}
 
 const TASK_PRIORITY_COUNT: usize = 4;
 
@@ -47,6 +15,15 @@ pub(in crate::check) enum Task {
     Check {
         /// The checked source site.
         site: FlowSite,
+        /// The contextual target applied at the site.
+        expectation: Expectation,
+    },
+    /// Convert one checked value to its contextual target.
+    Convert {
+        /// The checked source site.
+        site: FlowSite,
+        /// The checked source value.
+        source: Value,
         /// The contextual target applied at the site.
         expectation: Expectation,
     },
@@ -68,7 +45,7 @@ impl Task {
     fn priority(&self) -> TaskPriority {
         match self {
             Self::Relate(_) => TaskPriority::Relate,
-            Self::Check { .. } | Self::CheckBody(_) => TaskPriority::Check,
+            Self::Check { .. } | Self::Convert { .. } | Self::CheckBody(_) => TaskPriority::Check,
             Self::Infer { .. } => TaskPriority::Infer,
             Self::Oblige(_) => TaskPriority::Oblige,
         }
@@ -92,9 +69,6 @@ impl TaskPriority {
     /// Priorities that produce checked types and resolutions.
     const CHECKS: [Self; 3] = [Self::Relate, Self::Check, Self::Infer];
 
-    /// Priorities that settle relation constraints.
-    const CONSTRAINTS: [Self; 1] = [Self::Relate];
-
     /// Return the dense array index for this priority.
     fn index(self) -> usize {
         self as usize
@@ -110,7 +84,7 @@ pub(in crate::check) struct WorkQueue {
     heads: [usize; TASK_PRIORITY_COUNT],
     /// Tasks currently queued or running.
     active: FxIndexSet<Task>,
-    /// Tasks that finished successfully.
+    /// Tasks that finished.
     finished: FxIndexSet<Task>,
 }
 
@@ -122,6 +96,20 @@ impl WorkQueue {
             heads: [0; TASK_PRIORITY_COUNT],
             active: FxIndexSet::default(),
             finished: FxIndexSet::default(),
+        }
+    }
+
+    /// Append tasks retained by one committed probe.
+    pub(in crate::check) fn append(&mut self, other: Self) {
+        // retain completed probe tasks and remove matching outer work
+        for task in other.finished {
+            self.active.swap_remove(&task);
+            self.finished.insert(task);
+        }
+
+        // append work that remains ready after the probe settles
+        for task in other.active {
+            self.push(task);
         }
     }
 
@@ -142,13 +130,6 @@ impl WorkQueue {
     /// Pop the next deferred obligation.
     pub(in crate::check) fn pop_obligation(&mut self) -> Option<Task> {
         self.pop_at(TaskPriority::Oblige)
-    }
-
-    /// Pop the next constraint task.
-    pub(in crate::check) fn pop_constraint(&mut self) -> Option<Task> {
-        TaskPriority::CONSTRAINTS
-            .into_iter()
-            .find_map(|priority| self.pop_at(priority))
     }
 
     /// Pop the next live task of one priority class.
@@ -177,7 +158,7 @@ impl WorkQueue {
         self.active.swap_remove(task);
     }
 
-    /// Return whether one task completed successfully.
+    /// Return whether one task completed.
     pub(in crate::check) fn is_finished(&self, task: &Task) -> bool {
         self.finished.contains(task)
     }

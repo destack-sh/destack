@@ -123,6 +123,7 @@ match extracted {
 - We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself. Nothing is final.
 - Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested.
 - As a corollary, failing tests do not _always_ mean that the new code is wrong, the tests might also be wrong. That said, tests and expectations should never be silently changed without explicit prior discussion and agreement.
+- Before proposing / doing a refactoring, we must survey and understand the "Chesterton-fence" of the status quo. It is always possible that some behavior is wrong, underspecified, or just out of date, but we should understand how it got there and why it might be that way before we change it.
 - Every noun, verb, type, variant, field, line, .. must be earned. The final model should capture the essential complexity of the problem in its most pristine form, nothing more, nothing less.
 - Bloat is deadly, and often we only realise something was bloated as we get further along and the true shape of the problem reveals itself (hence, refactor as we go)
 - Never introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between (unless explicitly requested).
@@ -287,7 +288,7 @@ else {
 - Code and actual logic is always useful to show and illustrate ideas, even in pseudocode form, but ideally in a real form that we actually expect to execute on some level. Think like an API designer here, since really, everything is an API in some sense.
 - Bugs are not a natural phenomenon in code, it's just misalignment. "Bugs happen" is a fallacy, and we should try hard to engineer correct systems with clarity, simplicity, and reliability. Usually, this means simplicity, strong invariants, and clear expectations.
 - Relatedly, "fixes" are not a natural activity in a healthy codebase _on their _own_ - instead, we want to treat every issue and every "bug" as a challenge to the model we're implementing, and figure out what the long term shape of the model should be. 
-- Corollary: fixes are rarely _additive_, and certainly not "en masse". It is tempting but wrong to add many "fixes" to robustify some part of a codebase, but true correctness generally requires changing and refining the model. Checking invariants is fine (and inevitable), making bad states impossible is better.
+- Corollary: fixes are rarely _additive_, and certainly not "en masse". It is tempting but wrong to "add fixes" to robustify some part of a codebase, but true correctness generally requires changing and refining the model. Checking invariants is fine (and inevitable), making bad states impossible is better, simplifying the problem is best.
 - When possible, we should first think through what the example use cases would write in code to do the thing that we're trying to implement, where they're coming from, what the limits and expectations and environment is, and so on:
 
 ```

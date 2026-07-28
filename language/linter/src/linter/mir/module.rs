@@ -5,47 +5,46 @@ use destack_mir as mir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderError};
 use destack_source::{ModuleId, Span, TargetId};
 
-/// One module's verified MIR.
-#[derive(Debug)]
-pub struct MirModule {
+use super::Mir;
+
+/// A borrowed verified MIR module.
+#[derive(Debug, Clone, Copy)]
+pub struct MirModule<'a> {
+    /// The indexed verified MIR.
+    pub mir: &'a Mir,
     /// The module id.
     pub id: ModuleId,
-    /// The active profile.
-    pub profile: ProfileId,
-    /// The active target.
-    pub target: TargetId,
     /// The MIR artifact.
-    pub mir: Arc<MirLowered>,
+    pub lowered: &'a MirLowered,
     /// Analyses of the verified MIR tree.
-    pub analyses: mir::TreeAnalysisCache,
+    pub analyses: &'a mir::TreeAnalysisCache,
 }
 
-impl MirModule {
-    /// Load one module's verified MIR.
-    pub(crate) fn load(
-        artifacts: &ArtifactReader<'_>,
-        profile: ProfileId,
-        target: TargetId,
-        module: ModuleId,
-    ) -> Result<Self, ProviderError> {
-        artifacts.mir_verified(module, profile, target)?;
-        let mir = artifacts.mir_lowered(module, profile, target)?;
-        let options = mir::AnalysisOptions::new(mir.target);
-        let analyses =
-            mir::TreeAnalysisCache::with_options(options, &mir.dispatch, &mir.memory, &mir.effects);
+/// Owned verified MIR storage for one module.
+#[derive(Debug)]
+pub(super) struct MirModuleStorage {
+    /// The module id.
+    id: ModuleId,
+    /// The MIR artifact.
+    lowered: Arc<MirLowered>,
+    /// Analyses of the verified MIR tree.
+    analyses: mir::TreeAnalysisCache,
+}
 
-        Ok(Self {
-            id: module,
-            profile,
-            target,
+impl<'a> MirModule<'a> {
+    /// Create a borrowed verified MIR module.
+    pub(super) fn new(mir: &'a Mir, storage: &'a MirModuleStorage) -> Self {
+        Self {
             mir,
-            analyses,
-        })
+            id: storage.id,
+            lowered: &storage.lowered,
+            analyses: &storage.analyses,
+        }
     }
 
     /// Return the required source span for one MIR node.
     pub fn span(&self, node: mir::LocalNodeIdAny) -> Result<Span, ProviderError> {
-        self.mir
+        self.lowered
             .tree
             .source_span_by_id(node.id)
             .ok_or_else(|| ProviderError::Internal {
@@ -61,5 +60,31 @@ impl MirModule {
         let span = self.span(node)?;
 
         Ok(DiagnosticAnchor::Span(span))
+    }
+}
+
+impl MirModuleStorage {
+    /// Load one module's verified MIR.
+    pub(super) fn load(
+        artifacts: &ArtifactReader<'_>,
+        profile: ProfileId,
+        target: TargetId,
+        module: ModuleId,
+    ) -> Result<Self, ProviderError> {
+        artifacts.mir_verified(module, profile, target)?;
+        let lowered = artifacts.mir_lowered(module, profile, target)?;
+        let options = mir::AnalysisOptions::new(lowered.target);
+        let analyses = mir::TreeAnalysisCache::with_options(
+            options,
+            &lowered.dispatch,
+            &lowered.memory,
+            &lowered.effects,
+        );
+
+        Ok(Self {
+            id: module,
+            lowered,
+            analyses,
+        })
     }
 }

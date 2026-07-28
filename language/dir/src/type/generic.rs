@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, StringId, VarianceModifier,
-    WhereRelation,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalScopeId, StringId,
+    VarianceModifier, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -195,10 +195,10 @@ pub enum GenericParameterKey {
 pub struct GenericTemplate {
     /// The source node that declares this template.
     pub source: GlobalNodeIdAny,
+    /// The lexical scope governed by this template.
+    pub scope: LocalScopeId,
     /// The declaration symbol this template belongs to.
     pub symbol: Option<GlobalSymbolId>,
-    /// The immediately enclosing generic template.
-    pub parent: Option<LocalGenericTemplateId>,
     /// The generic parameters in declaration order.
     pub parameters: Vec<LocalGenericParameterId>,
     /// The where-clause predicates declared on this template.
@@ -209,13 +209,13 @@ impl GenericTemplate {
     /// Create an empty generic template for one source node.
     pub fn new(
         source: GlobalNodeIdAny,
+        scope: LocalScopeId,
         symbol: Option<GlobalSymbolId>,
-        parent: Option<LocalGenericTemplateId>,
     ) -> Self {
         Self {
             source,
+            scope,
             symbol,
-            parent,
             parameters: Vec::new(),
             predicates: Vec::new(),
         }
@@ -280,11 +280,23 @@ pub struct GenericParameterBinding {
     pub kind: GenericParameterKind,
     /// Whether the parameter captures remaining arguments.
     pub is_variadic: bool,
-    /// Whether type inference preserves fresh argument precision.
+    /// Whether type inference preserves exact argument literals.
     pub is_const: bool,
 }
 
 impl GenericParameterBinding {
+    /// Apply one mapping to every type id stored in this binding.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.ty = map(self.ty);
+        if let Some(constraint) = &mut self.constraint {
+            *constraint = map(*constraint);
+        }
+
+        if let Some(default) = &mut self.default {
+            *default = map(*default);
+        }
+    }
+
     /// Return whether arguments must solve to singleton values.
     pub fn is_comptime(&self) -> bool {
         !matches!(self.kind, GenericParameterKind::Type)
@@ -360,6 +372,15 @@ pub struct ArgumentBinding {
 }
 
 impl ArgumentBinding {
+    /// Return whether this binding consumes one source argument node.
+    pub fn contains_argument(&self, argument: GlobalNodeIdAny) -> bool {
+        match &self.argument {
+            ArgumentSource::Provided(source) => *source == argument,
+            ArgumentSource::Rest(sources) => sources.contains(&argument),
+            ArgumentSource::Static(_) | ArgumentSource::Write | ArgumentSource::Omitted => false,
+        }
+    }
+
     /// Apply one mapping to every type id stored in this binding.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         self.ty = map(self.ty);
@@ -374,6 +395,8 @@ pub enum ArgumentSource {
     Provided(GlobalNodeIdAny),
     /// One static argument was inserted by checking.
     Static(GlobalTypeId),
+    /// The enclosing place write supplies this argument.
+    Write,
     /// No source argument was supplied.
     Omitted,
     /// Remaining source arguments were supplied to a rest parameter.
@@ -385,7 +408,7 @@ impl ArgumentSource {
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
             Self::Static(ty) => *ty = map(*ty),
-            Self::Provided(_) | Self::Omitted | Self::Rest(_) => {}
+            Self::Provided(_) | Self::Write | Self::Omitted | Self::Rest(_) => {}
         }
     }
 }

@@ -475,7 +475,7 @@ impl ModuleLowerer<'_> {
     fn lower_object_type_field(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-        field: &dir::TypeField,
+        field: &dir::TypeProperty,
     ) -> Result<js::LocalNodeId<js::TypeMember>, EmitError> {
         let mut modifiers = js::BindingModifier::default();
 
@@ -483,7 +483,7 @@ impl ModuleLowerer<'_> {
         if field.is_optional {
             modifiers.kind = Some(js::BindingKind::Maybe);
         }
-        if field.is_readonly {
+        if !field.access.is_writable() {
             modifiers.mutability = Some(js::Mutability::Immutable);
         }
 
@@ -493,10 +493,10 @@ impl ModuleLowerer<'_> {
             Some(modifiers)
         };
         let key = self.lower_static_key(source_id, field.key)?;
-        let field = match self.require_type(field.ty)? {
+        let field = match self.require_type(field.access.store())? {
             dir::Type::FunctionSignature(_) => {
                 let signature =
-                    self.lower_semantic_function_type_declaration(source_id, field.ty)?;
+                    self.lower_semantic_function_type_declaration(source_id, field.access.store())?;
                 js::TypeMember::Method {
                     modifiers,
                     key,
@@ -515,7 +515,7 @@ impl ModuleLowerer<'_> {
                 }
             }
             _ => {
-                let ty = self.lower_type(field.ty, source_id)?;
+                let ty = self.lower_type(field.access.store(), source_id)?;
                 js::TypeMember::Field { modifiers, key, ty }
             }
         };
@@ -940,7 +940,7 @@ impl ModuleLowerer<'_> {
             dir::Type::Shape(object) => {
                 let mut members = self
                     .types
-                    .fields(object.fields)
+                    .properties(object.properties)
                     .to_vec()
                     .iter()
                     .map(|field| self.lower_object_type_field(source_id, field))

@@ -16,7 +16,7 @@ declare_lint_stub! {
 }
 
 /// Check significant-drop-tightening.
-fn check(_module: &MirModule, lint: &Lint) -> LintResult {
+fn check(_module: &MirModule<'_>, lint: &Lint) -> LintResult {
     Err(ProviderError::internal(format!(
         "lint {} is not implemented",
         lint.id

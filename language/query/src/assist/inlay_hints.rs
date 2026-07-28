@@ -179,7 +179,7 @@ impl ModuleQueryContext<'_> {
             }
 
             let names = self.call_parameter_names(program, call, resolution)?;
-            self.collect_argument_hints(call, &resolution.arguments, &names, range, hints)?;
+            self.collect_argument_hints(call, &resolution.first().arguments, &names, range, hints)?;
         }
 
         // collect selected constructions
@@ -203,16 +203,10 @@ impl ModuleQueryContext<'_> {
         call: dir::GlobalNodeIdAny,
         resolution: &dir::CallResolution,
     ) -> QueryResult<Vec<Option<String>>> {
-        let selected_symbols = match &resolution.target {
-            dir::CallTarget::Symbol(candidate) => vec![candidate.symbol],
-            dir::CallTarget::Universal(candidates) => candidates
-                .iter()
-                .map(|candidate| candidate.symbol)
-                .collect(),
-            dir::CallTarget::Expression { .. } => {
-                return self.expression_parameter_names(call);
-            }
-        };
+        let selected_symbols = resolution.target_symbols();
+        if selected_symbols.is_empty() {
+            return self.expression_parameter_names(call);
+        }
         let mut symbols = Vec::new();
         for symbol in selected_symbols {
             symbols.extend(program.canonical_symbols(symbol)?);
@@ -238,8 +232,8 @@ impl ModuleQueryContext<'_> {
 
         // retain a name only when every selected declaration agrees
         let parameter_count = resolution
-            .arguments
             .iter()
+            .flat_map(|call| call.arguments.iter())
             .fold(0, |count, binding| count.max(binding.parameter + 1));
         let first = signatures.first().ok_or(QueryError::missing(format!(
             "inlay hint parameters: {call:?}"
@@ -370,7 +364,9 @@ impl ModuleQueryContext<'_> {
             let arguments = match &binding.argument {
                 dir::ArgumentSource::Provided(argument) => std::slice::from_ref(argument),
                 dir::ArgumentSource::Rest(arguments) => arguments.as_slice(),
-                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Omitted => continue,
+                dir::ArgumentSource::Static(_)
+                | dir::ArgumentSource::Write
+                | dir::ArgumentSource::Omitted => continue,
             };
 
             // annotate every source argument bound to this parameter

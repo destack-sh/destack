@@ -54,7 +54,9 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.operator source="force * 2.0" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force target=force.multiply receiver=force.Force
+/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=force.multiply receiver=force.Force adjustments=(borrow(&'static exclusive force.Force))
+/// @resolution.place source=force placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=force root=force
 "#,
     );
 }
@@ -132,9 +134,9 @@ export struct Force {
 
 extension of Force implements Multiply<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=Force
-/// @definition.implements symbol=<module>#2 source=Multiply<float64> target=ops.multiply.Multiply arguments=(float64)
+/// @definition.implements symbol=<module>#2 source=Multiply<float64> target="Multiply<float64><type Output = Force>"
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=Force
-/// @definition.method symbol=multiply slot=multiply type=(this: this, float64) => Force
+/// @definition.method symbol=multiply slot=multiply type=<multiply.'l0>(this: &multiply.'l0 exclusive this, float64) => Force
 /// @resolution.name source=Force target=Force
 /// @resolution.name source=Multiply target=ops.multiply.Multiply
 
@@ -143,16 +145,23 @@ extension of Force implements Multiply<float64> {
     /// @resolution.name source=Force target=Force
 
     multiply(other: float64): Force {
-    /// @type.symbol symbol=multiply type=(this: this, float64) => Force
+    /// @generic.template symbol=multiply parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=multiply type=<multiply.'l0>(this: &multiply.'l0 exclusive this, float64) => Force
     /// @type.symbol symbol=multiply.other source="other: float64" type=float64
     /// @resolution.name source=Force target=Force
 
         Force { value: this.value * other }
         /// @resolution.name source=Force target=Force
-        /// @resolution.member source=this.value receiver=Force kind=symbol target=Force.value
-        /// @resolution.operator source="this.value * other" kind=builtin
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Force
+        /// @resolution.member source=this.value receiver=&multiply.'l0 exclusive Force type=float64 kind=field target_receiver=&multiply.'l0 exclusive Force key=value target=Force.value target_type=float64
+        /// @resolution.operator source="this.value * other" type=float64 operator="*" kind=builtin operands=[this.value as float64 families=(float), other as float64 families=(float)]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&multiply.'l0 exclusive Force
+        /// @resolution.place source=this placement="local" lifetime=multiply.'l0 access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=multiply.'l0 access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=multiply.other
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=multiply.other
 
     }
 }
@@ -166,7 +175,9 @@ export const doubled = inside * 2.0;
 /// @type.symbol symbol=doubled source=doubled type=Force
 /// @resolution.pattern source=doubled kind=binding target=doubled
 /// @resolution.name source=inside target=inside
-/// @resolution.operator source="inside * 2.0" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force target=multiply receiver=Force
+/// @resolution.operator source="inside * 2.0" type=Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force kind=symbol target=multiply receiver=Force adjustments=(borrow(&'static exclusive Force))
+/// @resolution.place source=inside placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=inside root=inside
 "#,
     );
 
@@ -193,6 +204,8 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=<error>
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
+/// @resolution.place source=force placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=force root=force
 "#,
         r#"
 /// @diagnostic.error id=no-matching-operator message="operator '*' is not defined for 'Force' and '2'"
@@ -258,9 +271,9 @@ import { Force } from "./force.ds";
 
 extension of Force implements Multiply<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=force.Force
-/// @definition.implements symbol=<module>#2 source=Multiply<float64> target=ops.multiply.Multiply arguments=(float64)
+/// @definition.implements symbol=<module>#2 source=Multiply<float64> target="Multiply<float64><type Output = force.Force>"
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=force.Force
-/// @definition.method symbol=multiply slot=multiply type=(this: this, float64) => force.Force
+/// @definition.method symbol=multiply slot=multiply type=<multiply.'l0>(this: &multiply.'l0 exclusive this, float64) => force.Force
 /// @resolution.name source=Force target=force.Force
 /// @resolution.name source=Multiply target=ops.multiply.Multiply
 
@@ -269,16 +282,23 @@ extension of Force implements Multiply<float64> {
     /// @resolution.name source=Force target=force.Force
 
     multiply(other: float64): Force {
-    /// @type.symbol symbol=multiply type=(this: this, float64) => force.Force
+    /// @generic.template symbol=multiply parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=multiply type=<multiply.'l0>(this: &multiply.'l0 exclusive this, float64) => force.Force
     /// @type.symbol symbol=multiply.other source="other: float64" type=float64
     /// @resolution.name source=Force target=force.Force
 
         Force { value: this.value * other }
         /// @resolution.name source=Force target=force.Force
-        /// @resolution.member source=this.value receiver=force.Force kind=symbol target=force.Force.value
-        /// @resolution.operator source="this.value * other" kind=builtin
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=force.Force
+        /// @resolution.member source=this.value receiver=&multiply.'l0 exclusive force.Force type=float64 kind=field target_receiver=&multiply.'l0 exclusive force.Force key=value target=force.Force.value target_type=float64
+        /// @resolution.operator source="this.value * other" type=float64 operator="*" kind=builtin operands=[this.value as float64 families=(float), other as float64 families=(float)]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&multiply.'l0 exclusive force.Force
+        /// @resolution.place source=this placement="local" lifetime=multiply.'l0 access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=multiply.'l0 access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=multiply.other
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=multiply.other
 
     }
 }
@@ -292,7 +312,9 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.operator source="force * 2.0" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force target=multiply receiver=force.Force
+/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=multiply receiver=force.Force adjustments=(borrow(&'static exclusive force.Force))
+/// @resolution.place source=force placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=force root=force
 "#,
     );
 }
@@ -359,7 +381,9 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.operator source="force * 2.0" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force target=scaling.Scaling.multiply receiver=force.Force
+/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=scaling.Scaling.multiply receiver=force.Force adjustments=(borrow(&'static exclusive force.Force))
+/// @resolution.place source=force placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=force root=force
 "#,
     );
 }

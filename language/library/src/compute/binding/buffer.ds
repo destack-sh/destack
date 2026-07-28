@@ -13,7 +13,7 @@ export interface ComputeBufferBinding {
         effect: "deterministic",
         requires: ["host.compute.buffer.read"],
     })
-    device<T>(buffer: Buffer<T>): Device;
+    device<T>(buffer: &readonly Buffer<T>): Device;
 
     /// Return the element count.
     @binding("destack.compute.buffer.length", {
@@ -21,7 +21,7 @@ export interface ComputeBufferBinding {
         effect: "deterministic",
         requires: ["host.compute.buffer.read"],
     })
-    length<T>(buffer: Buffer<T>): usize;
+    length<T>(buffer: &readonly Buffer<T>): usize;
 
     /// Return the byte length.
     @binding("destack.compute.buffer.byteLength", {
@@ -29,7 +29,7 @@ export interface ComputeBufferBinding {
         effect: "deterministic",
         requires: ["host.compute.buffer.read"],
     })
-    byteLength<T>(buffer: Buffer<T>): usize;
+    byteLength<T>(buffer: &readonly Buffer<T>): usize;
 
     /// Allocate a compute buffer.
     @binding("destack.compute.buffer.allocate", {
@@ -38,7 +38,7 @@ export interface ComputeBufferBinding {
         requires: ["host.compute.buffer.allocate"],
     })
     allocate<T>(
-        device: Device,
+        device: &readonly Device,
         length: usize,
         options?: BufferOptions,
     ): Result<Buffer<T>, ComputeError>;
@@ -49,7 +49,11 @@ export interface ComputeBufferBinding {
         effect: "external",
         requires: ["host.compute.buffer.allocate", "host.compute.buffer.write"],
     })
-    from<T>(device: Device, values: [T], options?: BufferOptions): Result<Buffer<T>, ComputeError>;
+    from<T>(
+        device: &readonly Device,
+        values: [T],
+        options?: BufferOptions,
+    ): Result<Buffer<T>, ComputeError>;
 
     /// Copy bytes between compute buffers.
     @binding("destack.compute.buffer.copy", {
@@ -58,10 +62,10 @@ export interface ComputeBufferBinding {
         requires: ["host.compute.buffer.copy"],
     })
     copyTo<T>(
-        source: Buffer<T>,
-        destination: Buffer<T>,
+        source: &readonly Buffer<T>,
+        destination: &Buffer<T>,
         region: BufferCopyRegion,
-        stream?: Stream,
+        stream?: &Stream,
     ): Event;
 
     /// Fill one compute buffer.
@@ -70,7 +74,7 @@ export interface ComputeBufferBinding {
         effect: "external",
         requires: ["host.compute.buffer.write"],
     })
-    fill<T>(buffer: Buffer<T>, value: T, stream?: Stream): Event;
+    fill<T>(buffer: &Buffer<T>, value: T, stream?: &Stream): Event;
 
     /// Read a compute buffer into host memory.
     @binding("destack.compute.buffer.read", {
@@ -78,7 +82,7 @@ export interface ComputeBufferBinding {
         effect: "external",
         requires: ["host.compute.buffer.read"],
     })
-    read<T>(buffer: Buffer<T>, stream?: Stream): Result<[T], ComputeError>;
+    read<T>(buffer: &readonly Buffer<T>, stream?: &Stream): Result<[T], ComputeError>;
 
     /// Write host values into a compute buffer.
     @binding("destack.compute.buffer.write", {
@@ -86,5 +90,5 @@ export interface ComputeBufferBinding {
         effect: "external",
         requires: ["host.compute.buffer.write"],
     })
-    write<T>(buffer: Buffer<T>, values: [T], stream?: Stream): Event;
+    write<T>(buffer: &Buffer<T>, values: [T], stream?: &Stream): Event;
 }

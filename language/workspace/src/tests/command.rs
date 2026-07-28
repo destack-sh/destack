@@ -96,6 +96,7 @@ const second = sibling;
 fn test_check_command_lints_selected_module_and_program() {
     let test = TestWorkspace::new("check-command-lints");
     let config_source = r#"{
+  "name": "test",
   "targets": {
     "default": {
       "entry": ["main.ds"]

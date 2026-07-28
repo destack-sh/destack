@@ -171,45 +171,83 @@ impl ModuleLowerer<'_> {
             let Some(resolution) = state.resolutions.call_resolution(node) else {
                 continue;
             };
-            let dir::CallTarget::Symbol(candidate) = &resolution.target else {
-                continue;
-            };
+            self.collect_call_resolution(resolution, substitution, pending, references)?;
+        }
 
-            // sealed intrinsic and binding callables require no instance
-            match self.callable_implementation(candidate.symbol)? {
-                // sealed bindings declare dotted host externs
-                Some(CallableImplementation::Binding { .. }) => {
-                    references.bindings.insert(candidate.symbol);
-                    continue;
+        Ok(())
+    }
+
+    /// Collect every declaration selected by one call resolution.
+    fn collect_call_resolution(
+        &self,
+        resolution: &dir::CallResolution,
+        substitution: &TypeSubstitution,
+        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GlobalTypeId>)>,
+        references: &mut ExternalCallables,
+    ) -> CompilerResult<()> {
+        match resolution {
+            dir::OperationResolution::One(call) => {
+                self.collect_call(call, substitution, pending, references)
+            }
+            dir::OperationResolution::Union { arms, .. } => {
+                for call in arms {
+                    self.collect_call(call, substitution, pending, references)?;
                 }
-                // sealed intrinsics emit MIR without declarations
-                Some(CallableImplementation::Intrinsic { .. }) => continue,
-                None => {}
+
+                Ok(())
+            }
+        }
+    }
+
+    /// Collect one singular call target.
+    fn collect_call(
+        &self,
+        call: &dir::Call,
+        substitution: &TypeSubstitution,
+        pending: &mut Vec<(dir::GlobalSymbolId, Vec<dir::GlobalTypeId>)>,
+        references: &mut ExternalCallables,
+    ) -> CompilerResult<()> {
+        let function = match &call.target {
+            dir::CallTarget::Expression { .. } | dir::CallTarget::Dynamic { .. } => return Ok(()),
+            dir::CallTarget::Symbol { function, .. } => function,
+        };
+
+        // sealed intrinsic and binding callables require no instance
+        match self.callable_implementation(function.symbol)? {
+            // sealed bindings declare dotted host externs
+            Some(CallableImplementation::Binding { .. }) => {
+                references.bindings.insert(function.symbol);
+
+                return Ok(());
+            }
+            // sealed intrinsics emit MIR without declarations
+            Some(CallableImplementation::Intrinsic { .. }) => return Ok(()),
+            None => {}
+        }
+
+        // only calls binding type parameters select instances
+        let arguments = self.instance_arguments(function, substitution)?;
+        if arguments.is_empty() {
+            // plain calls into other modules resolve through imports
+            if function.symbol.module_id != self.module {
+                references.imports.insert(function.symbol);
             }
 
-            // only calls binding type parameters select instances
-            let arguments = self.instance_arguments(candidate, substitution)?;
-            if arguments.is_empty() {
-                // plain calls into other modules resolve through imports
-                if candidate.symbol.module_id != self.module {
-                    references.imports.insert(candidate.symbol);
-                }
-                continue;
-            }
+            return Ok(());
+        }
 
-            // a scanned body's calls instantiate concretely
-            for argument in &arguments {
-                if matches!(self.ty(*argument)?, dir::Type::Parameter(_)) {
-                    return Err(CompilerError::Internal {
-                        message: "instantiation collection left a generic argument unsubstituted"
-                            .to_string(),
-                    });
-                }
+        // require every generic argument to be concrete under this body instance
+        for argument in &arguments {
+            if matches!(self.ty(*argument)?, dir::Type::Parameter(_)) {
+                return Err(CompilerError::Internal {
+                    message: "instantiation collection left a generic argument unsubstituted"
+                        .to_string(),
+                });
             }
-            let instance = (candidate.symbol, arguments);
-            if !pending.contains(&instance) {
-                pending.push(instance);
-            }
+        }
+        let instance = (function.symbol, arguments);
+        if !pending.contains(&instance) {
+            pending.push(instance);
         }
 
         Ok(())
@@ -218,11 +256,11 @@ impl ModuleLowerer<'_> {
     /// Return the substituted type arguments one candidate binds beyond lifetimes.
     pub(in crate::lower) fn instance_arguments(
         &self,
-        candidate: &dir::CallCandidate,
+        function: &dir::FunctionTarget,
         substitution: &TypeSubstitution,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let mut arguments = Vec::new();
-        for binding in &candidate.generic_arguments {
+        for binding in &function.generic_arguments {
             let parameter = binding.parameter;
             let generics = &self.state(parameter.module_id)?.generics;
             let parameter = generics.get_parameter(parameter.local_id);

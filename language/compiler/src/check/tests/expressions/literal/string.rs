@@ -75,7 +75,7 @@ const value: string = "hello";
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -127,7 +127,7 @@ const value: number = "hello";
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"hello\"' is not assignable to type 'float64'"
@@ -165,12 +165,14 @@ const isEmpty = "".isEmpty;
 /// @resolution.pattern source=isEmpty kind=binding target=isEmpty
 /// @type.node source="\"\"" type=""
 /// @type.node source="\"\".isEmpty" type=boolean
-/// @resolution.member source="\"\".isEmpty" receiver="" kind=symbol target=string.string.isEmpty
+/// @resolution.member source="\"\".isEmpty" receiver="" type=boolean kind=call target="string.string.isEmpty(parameters=(), arguments=(), return=boolean)"
 
 isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean
 /// @type.node source=isEmpty type=boolean
 /// @resolution.name source=isEmpty target=isEmpty
+/// @resolution.place source=isEmpty placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=isEmpty root=isEmpty
 "#,
     );
 }
@@ -211,12 +213,16 @@ const isEmpty = value.isEmpty;
 /// @type.node source=value type=string
 /// @type.node source=value.isEmpty type=boolean
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.isEmpty receiver=string kind=symbol target=string.string.isEmpty
+/// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="string.string.isEmpty(parameters=(), arguments=(), return=boolean)"
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean
 /// @type.node source=isEmpty type=boolean
 /// @resolution.name source=isEmpty target=isEmpty
+/// @resolution.place source=isEmpty placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=isEmpty root=isEmpty
 "#,
     );
 }

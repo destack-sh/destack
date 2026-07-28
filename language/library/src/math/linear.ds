@@ -1,8 +1,7 @@
 import { todo } from "destack:error";
 import { Add, Divide, Multiply, Negate, Subtract } from "destack:ops";
 
-import { sqrt } from "./float.ds";
-import { Numeric } from "./scalar.ds";
+import { Numeric } from "./numeric.ds";
 
 /// Two-dimensional vector.
 export struct Vector2<T: Numeric> {
@@ -159,12 +158,12 @@ export extension<T: Numeric> of Vector2<T>
 export extension<T: Float> of Vector2<T> {
     /// Return the Euclidean length.
     length(): T {
-        sqrt(this.lengthSquared())
+        this.lengthSquared().sqrt()
     }
 
     /// Return the Euclidean distance to `other`.
     distance(other: Vector2<T>): T {
-        sqrt(this.distanceSquared(other))
+        this.distanceSquared(other).sqrt()
     }
 
     /// Return the angle to `other` in radians.
@@ -327,12 +326,12 @@ export extension<T: Numeric> of Vector3<T>
 export extension<T: Float> of Vector3<T> {
     /// Return the Euclidean length.
     length(): T {
-        sqrt(this.lengthSquared())
+        this.lengthSquared().sqrt()
     }
 
     /// Return the Euclidean distance to `other`.
     distance(other: Vector3<T>): T {
-        sqrt(this.distanceSquared(other))
+        this.distanceSquared(other).sqrt()
     }
 
     /// Return the angle to `other` in radians.
@@ -512,12 +511,12 @@ export extension<T: Numeric> of Vector4<T>
 export extension<T: Float> of Vector4<T> {
     /// Return the Euclidean length.
     length(): T {
-        sqrt(this.lengthSquared())
+        this.lengthSquared().sqrt()
     }
 
     /// Return the Euclidean distance to `other`.
     distance(other: Vector4<T>): T {
-        sqrt(this.distanceSquared(other))
+        this.distanceSquared(other).sqrt()
     }
 
     /// Return the angle to `other` in radians.

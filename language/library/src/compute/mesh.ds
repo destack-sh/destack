@@ -23,22 +23,22 @@ export extension of Mesh {
     }
 
     /// Return the mesh axes.
-    get axes(): &readonly [MeshAxis] {
+    get axes(&readonly this): &readonly [MeshAxis] {
         Context.current().compute.mesh.axes(this)
     }
 
     /// Return the devices in row-major mesh order.
-    get devices(): &readonly [Device] {
+    get devices(&readonly this): &readonly [Device] {
         Context.current().compute.mesh.devices(this)
     }
 
     /// Return the number of mesh axes.
-    get rank(): usize {
+    get rank(&readonly this): usize {
         Context.current().compute.mesh.rank(this)
     }
 
     /// Return the total number of devices.
-    get size(): usize {
+    get size(&readonly this): usize {
         Context.current().compute.mesh.size(this)
     }
 }

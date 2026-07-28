@@ -8,7 +8,7 @@ export interface ComputeEventBinding {
         effect: "deterministic",
         requires: ["host.compute.event.read"],
     })
-    stream(event: Event): Stream;
+    stream(event: &readonly Event): Stream;
 
     /// Record an event on `stream`.
     @binding("destack.compute.event.record", {
@@ -16,7 +16,7 @@ export interface ComputeEventBinding {
         effect: "external",
         requires: ["host.compute.event.record"],
     })
-    record(stream: Stream): Event;
+    record(stream: &Stream): Event;
 
     /// Return whether `event` has completed.
     @binding("destack.compute.event.complete", {
@@ -24,7 +24,7 @@ export interface ComputeEventBinding {
         effect: "external",
         requires: ["host.compute.event.read"],
     })
-    isComplete(event: Event): boolean;
+    isComplete(event: &readonly Event): boolean;
 
     /// Wait until `event` completes.
     @binding("destack.compute.event.synchronize", {
@@ -32,7 +32,7 @@ export interface ComputeEventBinding {
         effect: "external",
         requires: ["host.compute.event.synchronize"],
     })
-    synchronize(event: Event): void;
+    synchronize(event: &readonly Event): void;
 
     /// Return milliseconds elapsed from `start` to `end`.
     @binding("destack.compute.event.elapsed", {
@@ -40,5 +40,5 @@ export interface ComputeEventBinding {
         effect: "external",
         requires: ["host.compute.event.read"],
     })
-    elapsedSince(end: Event, start: Event): float64;
+    elapsedSince(end: &readonly Event, start: &readonly Event): float64;
 }

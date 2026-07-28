@@ -8,6 +8,33 @@ use crate::{ConditionSet, EmitFormat, EnvironmentKey, TargetAbi, TargetArch, Tar
 
 const PROFILE_ID_DOMAIN: &[u8] = b"profile";
 
+/// Diagnostic policy selected by a compiler profile.
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum DiagnosticPolicy {
+    /// Allow without diagnostics.
+    #[default]
+    Allow,
+    /// Allow with a warning.
+    Warn,
+    /// Forbid with an error.
+    Deny,
+}
+
 /// Canonical profile key for semantic identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ProfileKey {
@@ -29,26 +56,24 @@ pub struct ProfileKey {
     pub derive: Vec<String>,
     /// Compile-time environment identity for `import.meta.env`.
     pub env: EnvironmentKey,
-    /// Forbid managed memory features.
-    pub no_managed: bool,
-    /// Forbid heap allocation.
-    pub no_heap: bool,
-    /// Forbid runtime features.
-    pub no_runtime: bool,
-    /// Require static dispatch.
-    pub no_dynamic_dispatch: bool,
-    /// Forbid unsafe operations.
-    pub no_unsafe: bool,
-    /// Forbid runtime reflection.
-    pub no_reflection: bool,
-    /// Forbid unwinding.
-    pub no_unwind: bool,
-    /// Forbid aliasing mutable borrows.
-    pub no_aliasing_mutable_borrows: bool,
-    /// Forbid implicit method receivers.
-    pub no_implicit_receivers: bool,
-    /// Emit checked type sidecars.
-    pub emit_checked_types: bool,
+    /// Policy for managed memory features.
+    pub no_managed: DiagnosticPolicy,
+    /// Policy for heap allocation.
+    pub no_heap: DiagnosticPolicy,
+    /// Policy for runtime features.
+    pub no_runtime: DiagnosticPolicy,
+    /// Policy for dynamic dispatch.
+    pub no_dynamic_dispatch: DiagnosticPolicy,
+    /// Policy for unsafe operations.
+    pub no_unsafe: DiagnosticPolicy,
+    /// Policy for runtime reflection.
+    pub no_reflection: DiagnosticPolicy,
+    /// Policy for unwinding.
+    pub no_unwind: DiagnosticPolicy,
+    /// Policy for aliasing mutable borrows.
+    pub no_aliasing_mutable_borrows: DiagnosticPolicy,
+    /// Policy for implicit method receivers.
+    pub no_implicit_receivers: DiagnosticPolicy,
 }
 
 impl ProfileKey {

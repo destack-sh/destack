@@ -80,6 +80,7 @@ impl BodyState<'_, '_> {
                     let cause = self
                         .intern_cause(Cause::root(origin, CauseKind::Pattern { pattern: target }));
                     self.push_constraint(Constraint::r#type(
+                        origin,
                         Relation::Equal,
                         projected_value,
                         hole,
@@ -89,10 +90,15 @@ impl BodyState<'_, '_> {
             }
             projected.push(dir::PatternFieldResolution {
                 source: field.into_global_any(module),
-                projection: dir::Projection::FieldGet {
-                    field: dir::ProjectionField::Key(dir::StaticKey::Index(position)),
+                projection: dir::Projection::Field(dir::FieldResolution {
+                    receiver: dir::MemberReceiver::direct(scrutinee),
+                    target: dir::FieldTarget::Structural {
+                        owner: scrutinee,
+                        key: dir::StaticKey::Index(position),
+                    },
                     ty: projected_value,
-                },
+                })
+                .into(),
                 pattern: target,
             });
             position += 1;
@@ -167,10 +173,15 @@ impl BodyState<'_, '_> {
             )?);
             projected.push(dir::AssignPatternFieldResolution {
                 source: field.into_global_any(module),
-                projection: dir::Projection::FieldGet {
-                    field: dir::ProjectionField::Key(dir::StaticKey::Index(position)),
+                projection: dir::Projection::Field(dir::FieldResolution {
+                    receiver: dir::MemberReceiver::direct(scrutinee),
+                    target: dir::FieldTarget::Structural {
+                        owner: scrutinee,
+                        key: dir::StaticKey::Index(position),
+                    },
                     ty: projected_value,
-                },
+                })
+                .into(),
                 pattern: Some(pattern.into_global_any(module)),
             });
             position += 1;

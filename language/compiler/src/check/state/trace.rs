@@ -18,7 +18,7 @@ pub(in crate::check) struct CheckStats {
     pub(in crate::check) constraints: usize,
     /// The number of collected obligations.
     pub(in crate::check) obligations: usize,
-    /// The number of allocated working types.
+    /// The number of allocated open types.
     pub(in crate::check) types: usize,
     /// The number of solved variables.
     pub(in crate::check) solutions: usize,
@@ -181,7 +181,7 @@ impl CheckState<'_> {
         let bounds = self.solver.variables.bound_count();
         let mut solutions = 0;
         for (_, state) in self.solver.variables() {
-            solutions += usize::from(state.solution.is_some());
+            solutions += usize::from(!state.state.is_open());
         }
         // count the types checking interned beyond the committed tables
         let types = self

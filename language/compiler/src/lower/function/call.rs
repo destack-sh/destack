@@ -11,46 +11,62 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<mir::Value>> {
         let resolution = self.call_resolution(expression)?;
+        let dir::OperationResolution::One(call) = &resolution else {
+            return Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: "a call on a union receiver".to_string(),
+            }
+            .into());
+        };
 
-        match &resolution.target {
+        match &call.target {
             // free(...)
-            dir::CallTarget::Symbol(candidate) => {
+            dir::CallTarget::Symbol {
+                function,
+                dispatch: dir::FunctionDispatch::Direct,
+            } => {
                 // sealed intrinsic and binding callables bypass declared functions
-                match self.lowerer.callable_implementation(candidate.symbol)? {
+                match self.lowerer.callable_implementation(function.symbol)? {
                     Some(CallableImplementation::Intrinsic { name }) => {
-                        return self.lower_intrinsic_call(name, &resolution);
+                        return self.lower_intrinsic_call(name, call);
                     }
                     Some(CallableImplementation::Binding { .. }) => {
-                        return self.lower_binding_call(candidate.symbol, &resolution);
+                        return self.lower_binding_call(function.symbol, call);
                     }
                     None => {}
                 }
 
                 // receiver.method(...)
-                if candidate.receiver.is_some() || !candidate.adjustments.is_empty() {
-                    self.lower_method_call(expression, &resolution, candidate)
+                if function.receiver.is_some() {
+                    self.lower_method_call(expression, call, function)
                 }
                 // generic<T>(...) selects its concrete instance
-                else if candidate.generic_scope.is_some() {
-                    self.lower_generic_call(&resolution)
-                } else if self.has_instance_arguments(candidate)? {
-                    self.lower_instance_call(candidate, &resolution)
+                else if function.generic_scope.is_some() {
+                    self.lower_generic_call(call)
+                } else if self.has_instance_arguments(function)? {
+                    self.lower_instance_call(function, call)
                 }
                 // local or imported (...)
                 else {
-                    self.lower_function_call(candidate.symbol, &resolution)
+                    self.lower_function_call(function.symbol, call)
                 }
             }
             // value(...)
-            dir::CallTarget::Expression { .. } => self.lower_indirect_call(&resolution),
-            // (a | b).method(...)
-            dir::CallTarget::Universal(_) => self.lower_universal_call(&resolution),
+            dir::CallTarget::Expression { .. } => self.lower_indirect_call(call),
+            // virtual and erased calls require their selected dispatch table
+            dir::CallTarget::Symbol { .. } | dir::CallTarget::Dynamic { .. } => {
+                Err(LowerError::Unsupported {
+                    anchor: self.lowerer.module.into(),
+                    construct: "a virtual or dynamic call".to_string(),
+                }
+                .into())
+            }
         }
     }
 
-    /// Return whether one candidate binds generic arguments beyond lifetimes.
-    fn has_instance_arguments(&self, candidate: &dir::CallCandidate) -> CompilerResult<bool> {
-        for binding in &candidate.generic_arguments {
+    /// Return whether one function target binds generic arguments beyond lifetimes.
+    fn has_instance_arguments(&self, function: &dir::FunctionTarget) -> CompilerResult<bool> {
+        for binding in &function.generic_arguments {
             let parameter = binding.parameter;
             let generics = &self.lowerer.state(parameter.module_id)?.generics;
             let declared = generics.get_parameter(parameter.local_id);
@@ -66,7 +82,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_binding_call(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let function = self.function(&GenericInstanceKey::non_generic(symbol))?;
         let values = self.lower_provided_arguments(resolution)?;
@@ -77,10 +93,11 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower the provided arguments of one resolution in parameter order.
     pub(in crate::lower) fn lower_provided_arguments(
         &mut self,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Vec<mir::Value>> {
-        let mut values = Vec::with_capacity(resolution.arguments.len());
-        for binding in &resolution.arguments {
+        let arguments = &resolution.arguments;
+        let mut values = Vec::with_capacity(arguments.len());
+        for binding in arguments {
             let source = match binding.argument {
                 dir::ArgumentSource::Provided(source) => source,
                 // omitted optional parameters receive their undefined slot
@@ -88,6 +105,12 @@ impl FunctionLowerer<'_, '_, '_> {
                     values.push(self.lower_omitted_argument(binding.ty)?);
 
                     continue;
+                }
+                dir::ArgumentSource::Write => {
+                    return Err(CompilerError::Internal {
+                        message: "ordinary call lowering received an implicit write argument"
+                            .to_string(),
+                    });
                 }
                 dir::ArgumentSource::Static(_) | dir::ArgumentSource::Rest(_) => {
                     return Err(LowerError::Unsupported {
@@ -107,7 +130,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_function_call(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        resolution: &dir::CallResolution,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         // resolve the declared MIR function behind the symbol
         let function = self.function(&GenericInstanceKey::non_generic(symbol))?;
@@ -120,8 +143,8 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_method_call(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        resolution: &dir::CallResolution,
-        candidate: &dir::CallCandidate,
+        resolution: &dir::Call,
+        function: &dir::FunctionTarget,
     ) -> CompilerResult<Option<mir::Value>> {
         // the callee member names the receiver expression
         let dir::Expression::Call { left: callee, .. } = *self.source().tree().get(expression)
@@ -139,20 +162,27 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
-        self.lower_candidate_call(receiver, resolution, candidate)
+        self.lower_function_target_call(receiver, resolution, function)
     }
 
-    /// Lower one candidate call over one explicit receiver expression.
-    pub(in crate::lower) fn lower_candidate_call(
+    /// Lower one function target over one explicit receiver expression.
+    pub(in crate::lower) fn lower_function_target_call(
         &mut self,
         receiver: dir::LocalNodeId<dir::Expression>,
-        resolution: &dir::CallResolution,
-        candidate: &dir::CallCandidate,
+        resolution: &dir::Call,
+        function: &dir::FunctionTarget,
     ) -> CompilerResult<Option<mir::Value>> {
-        // sealed adjustments take the receiver through its place
-        let receiver = match candidate.adjustments.as_slice() {
+        let adjusted = function
+            .receiver
+            .as_ref()
+            .ok_or_else(|| CompilerError::Internal {
+                message: "method call has no selected receiver".to_string(),
+            })?;
+
+        // apply the selected receiver adjustments
+        let receiver = match adjusted.adjustments.as_slice() {
             [] => self.lower_expression(receiver)?,
-            [dir::Projection::Borrow { ty, .. }] => {
+            [dir::ReceiverAdjustment::Borrow { ty }] => {
                 let target = self.lower_type(*ty)?;
 
                 self.lower_borrowed_place(receiver, target)?
@@ -167,7 +197,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // resolve the declared MIR function behind the method symbol
-        let function = self.function(&GenericInstanceKey::non_generic(candidate.symbol))?;
+        let function = self.function(&GenericInstanceKey::non_generic(function.symbol))?;
 
         // bind the arguments after the receiver
         let mut values = vec![receiver];
@@ -179,7 +209,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one call instantiating a generic callable.
     fn lower_generic_call(
         &mut self,
-        _resolution: &dir::CallResolution,
+        _resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         Err(LowerError::Unsupported {
             anchor: self.lowerer.module.into(),
@@ -191,16 +221,16 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one call to a concrete generic instance.
     fn lower_instance_call(
         &mut self,
-        candidate: &dir::CallCandidate,
-        resolution: &dir::CallResolution,
+        function: &dir::FunctionTarget,
+        resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         // the substituted arguments select the declared instance
         let arguments = self
             .lowerer
-            .instance_arguments(candidate, &self.type_substitution)?;
+            .instance_arguments(function, &self.type_substitution)?;
         let key = self
             .type_lowerer()
-            .generic_instance_key(candidate.symbol, &arguments)?;
+            .generic_instance_key(function.symbol, &arguments)?;
         let function = self.function(&key)?;
         let values = self.lower_provided_arguments(resolution)?;
 
@@ -222,7 +252,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one call through a function-typed value.
     fn lower_indirect_call(
         &mut self,
-        _resolution: &dir::CallResolution,
+        _resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         Err(LowerError::Unsupported {
             anchor: self.lowerer.module.into(),
@@ -231,19 +261,6 @@ impl FunctionLowerer<'_, '_, '_> {
         .into())
     }
 
-    /// Lower one call selected across every union member.
-    fn lower_universal_call(
-        &mut self,
-        _resolution: &dir::CallResolution,
-    ) -> CompilerResult<Option<mir::Value>> {
-        Err(LowerError::Unsupported {
-            anchor: self.lowerer.module.into(),
-            construct: "a universal call".to_string(),
-        }
-        .into())
-    }
-
-    /// Lower one provided argument source to its value.
     /// Lower one omitted optional argument to its undefined slot value.
     fn lower_omitted_argument(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<mir::Value> {
         let reduced = self.lowerer.reduced_type(ty)?;
@@ -264,6 +281,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.constant(mir::Constant::Undefined, carrier))
     }
 
+    /// Lower one provided argument source to its value.
     pub(in crate::lower) fn lower_argument(
         &mut self,
         source: dir::GlobalNodeIdAny,

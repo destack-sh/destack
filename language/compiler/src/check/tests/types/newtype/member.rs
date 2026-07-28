@@ -20,7 +20,7 @@ extension<T> of Sealed<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -76,9 +76,11 @@ extension<T> of Sealed<T> {
     /// @resolution.name source=T target=T
 
         this.open()
-        /// @resolution.member source=this.open receiver=Sealed<T#3> kind=symbol target=Wrapper.open adjustments=(backing)
-        /// @resolution.call source=this.open() parameters=() return=T#3 kind=symbol target=Wrapper.open receiver=Wrapper<T#3> adjustments=(backing) instance=Wrapper<T#3>.open
+        /// @resolution.member source=this.open receiver=Sealed<T#3> type=(this: Wrapper<T#3>) => T#3 kind=symbol target_receiver=Sealed<T#3> adjustments=(newtype.payload(Sealed, Wrapper<T#3>)) target=Wrapper.open
+        /// @resolution.call source=this.open() parameters=() return=T#3 kind=symbol target=Wrapper.open receiver=Sealed<T#3> adjustments=(newtype.payload(Sealed, Wrapper<T#3>)) instance=Wrapper<T#3>.open
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Sealed<T#3>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
         /// @generic.instance source=this.open() id=Wrapper<T#3>.open
 
     }
@@ -86,7 +88,6 @@ extension<T> of Sealed<T> {
 
 /// @generic.instance id=Wrapper<T#3>.open template=Wrapper.open arguments=(T#3)
 "#,
-        r#""#,
     );
 }
 
@@ -137,13 +138,15 @@ const number = value().open();
 /// @type.symbol symbol=number source=number type=int32
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=value target=value.value
-/// @resolution.member source=value().open receiver=value.Sealed<int32> kind=symbol target=value.Wrapper.open adjustments=(backing)
+/// @resolution.member source=value().open receiver=value.Sealed<int32> type=(this: value.Wrapper<int32>) => int32 kind=symbol target_receiver=value.Sealed<int32> adjustments=(newtype.payload(value.Sealed, value.Wrapper<int32>)) target=value.Wrapper.open
 /// @resolution.call source=value() parameters=() return=value.Sealed<int32> kind=symbol target=value.value
-/// @resolution.call source=value().open() parameters=() return=int32 kind=symbol target=value.Wrapper.open receiver=value.Wrapper<int32> adjustments=(backing) instance=value.Wrapper<int32>.open
+/// @resolution.call source=value().open() parameters=() return=int32 kind=symbol target=value.Wrapper.open receiver=value.Sealed<int32> adjustments=(newtype.payload(value.Sealed, value.Wrapper<int32>)) instance=value.Wrapper<int32>.open
 /// @generic.instance source=value().open() id=value.Wrapper<int32>.open
 
 number satisfies int32;
 /// @resolution.name source=number target=number
+/// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=number root=number
 
 /// @generic.instance id=value.Wrapper<int32>.open template=value.Wrapper.open arguments=(int32)
 "#,

@@ -458,7 +458,7 @@ impl DestackFile {
         compiler_policy: DiagnosticPolicy,
         parent_policy: DiagnosticPolicy,
     ) -> Result<(), serde_json::Error> {
-        if !parent_policy.is_stricter_than(compiler_policy) {
+        if parent_policy <= compiler_policy {
             return Ok(());
         }
 

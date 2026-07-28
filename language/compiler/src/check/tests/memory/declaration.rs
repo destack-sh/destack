@@ -50,10 +50,14 @@ declare const sharedCount: SharedCount;
 
 localCount satisfies local LocalCount;
 /// @resolution.name source=localCount target=localCount
+/// @resolution.place source=localCount placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localCount root=localCount
 /// @resolution.name source=LocalCount target=LocalCount
 
 sharedCount satisfies shared SharedCount;
 /// @resolution.name source=sharedCount target=sharedCount
+/// @resolution.place source=sharedCount placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedCount root=sharedCount
 /// @resolution.name source=SharedCount target=SharedCount
 "#,
         r#"
@@ -118,18 +122,20 @@ declare const sharedBox: SharedBox<int32>;
 
 localBox satisfies local LocalBox<int32>;
 /// @resolution.name source=localBox target=localBox
+/// @resolution.place source=localBox placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localBox root=localBox
 /// @resolution.name source=LocalBox target=LocalBox
 
 sharedBox satisfies shared SharedBox<int32>;
 /// @resolution.name source=sharedBox target=sharedBox
+/// @resolution.place source=sharedBox placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedBox root=sharedBox
 /// @resolution.name source=SharedBox target=SharedBox
 
 /// @generic.instance id=LocalBox<int32> template=LocalBox arguments=(int32)
 /// @generic.instance id=SharedBox<int32> template=SharedBox arguments=(int32)
 "#,
-        r#"
-
-"#,
+        r#""#,
     );
 }
 
@@ -198,8 +204,8 @@ declare const localPoint: LocalPoint;
 declare const sharedPoint: SharedPoint;
 declare const localStatus: LocalStatus;
 declare const sharedStatus: SharedStatus;
-declare const localReadable: LocalReadable;
-declare const sharedReadable: SharedReadable;
+declare const localReadable: Dynamic<LocalReadable>;
+declare const sharedReadable: shared Dynamic<SharedReadable>;
 
 localUser satisfies local LocalUser;
 sharedUser satisfies shared SharedUser;
@@ -286,45 +292,61 @@ declare const sharedStatus: SharedStatus;
 /// @resolution.name source=SharedStatus target=SharedStatus
 
 declare const localReadable: LocalReadable;
-/// @type.symbol symbol=localReadable source=localReadable type=LocalReadable
+/// @type.symbol symbol=localReadable source=localReadable type=Dynamic<LocalReadable>
 /// @resolution.pattern source=localReadable kind=binding target=localReadable
 /// @resolution.name source=LocalReadable target=LocalReadable
 
 declare const sharedReadable: SharedReadable;
-/// @type.symbol symbol=sharedReadable source=sharedReadable type=SharedReadable
+/// @type.symbol symbol=sharedReadable source=sharedReadable type=Placed<Dynamic<SharedReadable>, "shared">
 /// @resolution.pattern source=sharedReadable kind=binding target=sharedReadable
 /// @resolution.name source=SharedReadable target=SharedReadable
 
 localUser satisfies local LocalUser;
 /// @resolution.name source=localUser target=localUser
+/// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localUser root=localUser
 /// @resolution.name source=LocalUser target=LocalUser
 
 sharedUser satisfies shared SharedUser;
 /// @resolution.name source=sharedUser target=sharedUser
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedUser root=sharedUser
 /// @resolution.name source=SharedUser target=SharedUser
 
 localPoint satisfies local LocalPoint;
 /// @resolution.name source=localPoint target=localPoint
+/// @resolution.place source=localPoint placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localPoint root=localPoint
 /// @resolution.name source=LocalPoint target=LocalPoint
 
 sharedPoint satisfies shared SharedPoint;
 /// @resolution.name source=sharedPoint target=sharedPoint
+/// @resolution.place source=sharedPoint placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedPoint root=sharedPoint
 /// @resolution.name source=SharedPoint target=SharedPoint
 
 localStatus satisfies local LocalStatus;
 /// @resolution.name source=localStatus target=localStatus
+/// @resolution.place source=localStatus placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localStatus root=localStatus
 /// @resolution.name source=LocalStatus target=LocalStatus
 
 sharedStatus satisfies shared SharedStatus;
 /// @resolution.name source=sharedStatus target=sharedStatus
+/// @resolution.place source=sharedStatus placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedStatus root=sharedStatus
 /// @resolution.name source=SharedStatus target=SharedStatus
 
 localReadable satisfies local LocalReadable;
 /// @resolution.name source=localReadable target=localReadable
+/// @resolution.place source=localReadable placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localReadable root=localReadable
 /// @resolution.name source=LocalReadable target=LocalReadable
 
 sharedReadable satisfies shared SharedReadable;
 /// @resolution.name source=sharedReadable target=sharedReadable
+/// @resolution.place source=sharedReadable placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedReadable root=sharedReadable
 /// @resolution.name source=SharedReadable target=SharedReadable
 "#,
         r#"
@@ -568,10 +590,14 @@ declare const sharedDerived: SharedDerived;
 
 localDerived satisfies local LocalDerived;
 /// @resolution.name source=localDerived target=localDerived
+/// @resolution.place source=localDerived placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localDerived root=localDerived
 /// @resolution.name source=LocalDerived target=LocalDerived
 
 sharedDerived satisfies shared SharedDerived;
 /// @resolution.name source=sharedDerived target=sharedDerived
+/// @resolution.place source=sharedDerived placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedDerived root=sharedDerived
 /// @resolution.name source=SharedDerived target=SharedDerived
 "#,
         r#"
@@ -650,10 +676,14 @@ declare const sharedService: SharedServiceImpl;
 
 localService satisfies local LocalServiceImpl;
 /// @resolution.name source=localService target=localService
+/// @resolution.place source=localService placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localService root=localService
 /// @resolution.name source=LocalServiceImpl target=LocalServiceImpl
 
 sharedService satisfies shared SharedServiceImpl;
 /// @resolution.name source=sharedService target=sharedService
+/// @resolution.place source=sharedService placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedService root=sharedService
 /// @resolution.name source=SharedServiceImpl target=SharedServiceImpl
 "#,
         r#"
@@ -732,8 +762,8 @@ interface Readable {
     read(): int32;
 }
 
-declare const localReadable: local Readable;
-declare const sharedReadable: shared Readable;
+declare const localReadable: local Dynamic<Readable>;
+declare const sharedReadable: shared Dynamic<Readable>;
 
 === checked ===
 interface Readable { read(): int32; }
@@ -743,12 +773,12 @@ interface Readable { read(): int32; }
 /// @type.symbol symbol=Readable.read source="read(): int32" type=(this: this) => int32
 
 declare const localReadable: local Readable;
-/// @type.symbol symbol=localReadable source=localReadable type=Placed<Readable, "local">
+/// @type.symbol symbol=localReadable source=localReadable type=Placed<Dynamic<Readable>, "local">
 /// @resolution.pattern source=localReadable kind=binding target=localReadable
 /// @resolution.name source=Readable target=Readable
 
 declare const sharedReadable: shared Readable;
-/// @type.symbol symbol=sharedReadable source=sharedReadable type=Placed<Readable, "shared">
+/// @type.symbol symbol=sharedReadable source=sharedReadable type=Placed<Dynamic<Readable>, "shared">
 /// @resolution.pattern source=sharedReadable kind=binding target=sharedReadable
 /// @resolution.name source=Readable target=Readable
 "#,
@@ -806,6 +836,8 @@ local struct Continuation<T> {
 
         return value;
         /// @resolution.name source=value target=Continuation.resume.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Continuation.resume.value
 
     }
 }
@@ -814,7 +846,6 @@ shared newtype interface SharedQueue<T> {
 /// @generic.template symbol=SharedQueue parameters=(in T#2)
 /// @type.symbol symbol=SharedQueue type=SharedQueue
 /// @definition.interface symbol=SharedQueue template=(in T#2) nominal=true
-/// @definition.where symbol=SharedQueue relation=satisfies left=this right=SharedQueue<T#2>
 /// @definition.method symbol=SharedQueue.push source="push(this, value: T): void" slot=push type=(this: this, T#2) => void
 /// @type.symbol symbol=SharedQueue.T source=T type=T#2
 

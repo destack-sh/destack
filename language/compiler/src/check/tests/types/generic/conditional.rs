@@ -47,11 +47,11 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     sink.write(value);
 }
 
-declare const text: TextSink;
-declare const number: NumberSink;
+declare const text: Dynamic<TextSink>;
+declare const number: Dynamic<NumberSink>;
 
-write<"message">("message", text);
-write<1>(1, number);
+write<string>("message", text);
+write<float64>(1, number);
 
 === checked ===
 interface TextSink {
@@ -97,35 +97,41 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 
     sink.write(value);
     /// @resolution.name source=sink target=write.sink
+    /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=sink root=write.sink
     /// @resolution.name source=value target=write.value
 
 }
 
 declare const text: TextSink;
-/// @type.symbol symbol=text source=text type=TextSink
+/// @type.symbol symbol=text source=text type=Dynamic<TextSink>
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=TextSink target=TextSink
 
 declare const number: NumberSink;
-/// @type.symbol symbol=number source=number type=NumberSink
+/// @type.symbol symbol=number source=number type=Dynamic<NumberSink>
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=NumberSink target=NumberSink
 
 write("message", text);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(\"message\", text)" parameters=("message", SinkFor<"message">) arguments=(provided("message") as "message", provided(text) as SinkFor<"message">) return=void kind=symbol target=write instance="write<\"message\">"
-/// @generic.instance source="write(\"message\", text)" id="write<\"message\">"
+/// @resolution.call source="write(\"message\", text)" parameters=(string, SinkFor<string>) arguments=(provided("message") as string, provided(text) as SinkFor<string>) return=void kind=symbol target=write instance=write<string>
+/// @generic.instance source="write(\"message\", text)" id=write<string>
 /// @resolution.name source=text target=text
+/// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=text root=text
 
 write(1, number);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(1, number)" parameters=(1, SinkFor<1>) arguments=(provided(1) as 1, provided(number) as SinkFor<1>) return=void kind=symbol target=write instance=write<1>
-/// @generic.instance source="write(1, number)" id=write<1>
+/// @resolution.call source="write(1, number)" parameters=(float64, SinkFor<float64>) arguments=(provided(1) as float64, provided(number) as SinkFor<float64>) return=void kind=symbol target=write instance=write<float64>
+/// @generic.instance source="write(1, number)" id=write<float64>
 /// @resolution.name source=number target=number
+/// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=number root=number
 
-/// @generic.instance id="write<\"message\">" template=write arguments=("message")
 /// @generic.instance id=SinkFor<T#2> template=SinkFor arguments=(T#2)
-/// @generic.instance id=write<1> template=write arguments=(1)
+/// @generic.instance id=write<float64> template=write arguments=(float64)
+/// @generic.instance id=write<string> template=write arguments=(string)
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'write' does not exist on type 'SinkFor<T>'"
@@ -176,8 +182,8 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     sink.write(value);
 }
 
-declare const number: NumberSink;
-write<"message">("message", number);
+declare const number: Dynamic<NumberSink>;
+write<string>("message", number);
 
 === checked ===
 interface TextSink {
@@ -226,38 +232,42 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     /// @type.node source=sink.write type=<error>
     /// @type.node source=sink.write(value) type=<error>
     /// @resolution.name source=sink target=write.sink
+    /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=sink root=write.sink
     /// @generic.instance source=sink id=SinkFor<T#2>
     /// @resolution.name source=value target=write.value
 
 }
 
 declare const number: NumberSink;
-/// @type.symbol symbol=number source=number type=NumberSink
+/// @type.symbol symbol=number source=number type=Dynamic<NumberSink>
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=NumberSink target=NumberSink
 
 write("message", number);
 /// @type.node source="write(\"message\", number)" type=void
-/// @type.node source=write type=("message", SinkFor<"message">) => void
+/// @type.node source=write type=(string, SinkFor<string>) => void
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(\"message\", number)" parameters=("message", SinkFor<"message">) arguments=(provided("message") as "message", provided(number) as SinkFor<"message">) return=void kind=symbol target=write instance="write<\"message\">"
-/// @generic.instance source="write(\"message\", number)" id="write<\"message\">"
-/// @generic.instance source=write id="SinkFor<\"message\">"
+/// @resolution.call source="write(\"message\", number)" parameters=(string, SinkFor<string>) arguments=(provided("message") as string, provided(number) as SinkFor<string>) return=void kind=symbol target=write instance=write<string>
+/// @generic.instance source="write(\"message\", number)" id=write<string>
+/// @generic.instance source=write id=SinkFor<string>
 /// @type.node source="\"message\"" type="message"
-/// @type.node source=number type=NumberSink
+/// @type.node source=number type=Dynamic<NumberSink>
 /// @resolution.name source=number target=number
+/// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=number root=number
 
-/// @generic.instance id="SinkFor<\"message\">" template=SinkFor arguments=("message")
-/// @generic.instance id="write<\"message\">" template=write arguments=("message")
 /// @generic.instance id=SinkFor<T#2> template=SinkFor arguments=(T#2)
+/// @generic.instance id=SinkFor<string> template=SinkFor arguments=(string)
+/// @generic.instance id=write<string> template=write arguments=(string)
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'write' does not exist on type 'SinkFor<T>'"
 /// @diagnostic.label line=13 column=10 span="write" line_source="sink.write(value);"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'NumberSink' is not assignable to parameter of type 'SinkFor<\"message\">'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'Dynamic<NumberSink>' is not assignable to parameter of type 'SinkFor<string>'"
 /// @diagnostic.label line=17 column=18 span="number" line_source="write(\"message\", number);"
 /// @diagnostic.related line=17 column=1 span="write(\"message\", number)" line_source="write(\"message\", number);" message="in this call"
-/// @diagnostic.note message="'SinkFor<\"message\">' reduces to 'TextSink'"
+/// @diagnostic.note message="'SinkFor<string>' reduces to 'TextSink'"
 "#,
     );
 }

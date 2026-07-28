@@ -89,7 +89,7 @@ type Pick<T> = {
 /// @binding.scope scope=scope8 kind=type parent=Pick@1
 
     [K in keyof T as `get${K}`]: T[K];
-    /// @binding.symbol symbol=K role=local kind=type_alias scope=scope8@0
+    /// @binding.symbol symbol=K role=local kind=generic_type_parameter scope=scope8@0
 
 };
 

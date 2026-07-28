@@ -29,9 +29,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         arms: &[dir::LocalNodeId<dir::MatchArm>],
     ) -> CompilerResult<mir::Value> {
-        // the matched carrier names the case set the arms select from
-        let carrier = self.coerced_type_id(value)?;
-        let carrier = self.lower_type(carrier)?;
+        // evaluate the matched value once before dispatch
         let matched = self.lower_expression(value)?;
 
         // resolve each arm's case through its sealed pattern
@@ -62,7 +60,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 .into());
             }
-            let selected = self.match_arm_case(pattern, carrier)?;
+            let selected = self.match_arm_case(pattern)?;
 
             // route each arm to its own block
             let block = self.builder.block();
@@ -100,7 +98,46 @@ impl FunctionLowerer<'_, '_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         cases: &[dir::LocalNodeId<dir::SwitchCase>],
     ) -> CompilerResult<bool> {
-        let matched = self.lower_operand(value)?;
+        // require one shared checked scrutinee operand across every case
+        let mut matched_operand = None;
+        for case in cases {
+            if !matches!(
+                self.source().tree().get(*case).selector,
+                dir::SwitchSelector::Case(_)
+            ) {
+                continue;
+            }
+            let resolution = self.operator_resolution(*case)?;
+            let dir::OperationResolution::One(dir::OperatorApplication::Binary {
+                operator: dir::BinaryOperator::EqualStrict,
+                target: dir::OperatorTarget::Builtin(operands),
+                ..
+            }) = resolution
+            else {
+                return Err(CompilerError::Internal {
+                    message: "checked switch case has a non-builtin equality resolution"
+                        .to_string(),
+                });
+            };
+            match &matched_operand {
+                Some(selected) if selected != &operands[0] => {
+                    return Err(CompilerError::Internal {
+                        message: "checked switch cases selected different scrutinee operands"
+                            .to_string(),
+                    });
+                }
+                Some(_) => {}
+                None => matched_operand = Some(operands[0].clone()),
+            }
+        }
+        let matched = match &matched_operand {
+            Some(operand) => Some(self.lower_operand(value, operand)?),
+            None => {
+                self.lower_expression(value)?;
+
+                None
+            }
+        };
         let exit = self.builder.block();
         let mut lowered_cases = Vec::with_capacity(cases.len());
         let mut default = None;
@@ -124,7 +161,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // dispatch constant integer selectors through one switch terminator
         let constant = match matched {
-            LoweredOperand::Scalar { value: operand, .. } => self
+            Some(LoweredOperand::Scalar { value: operand, .. }) => self
                 .constant_switch_cases(value, &lowered_cases)?
                 .map(|cases| (operand, cases)),
             _ => None,
@@ -138,15 +175,25 @@ impl FunctionLowerer<'_, '_, '_> {
                 let dir::SwitchSelector::Case(selector) = selector else {
                     continue;
                 };
-                let dir::OperatorResolution::Builtin = self.operator_resolution(case.case)? else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a protocol switch equality".to_string(),
-                    }
-                    .into());
+                let resolution = self.operator_resolution(case.case)?;
+                let dir::OperationResolution::One(dir::OperatorApplication::Binary {
+                    operator: dir::BinaryOperator::EqualStrict,
+                    target: dir::OperatorTarget::Builtin(operands),
+                    ..
+                }) = resolution
+                else {
+                    return Err(CompilerError::Internal {
+                        message: "checked switch case has a non-builtin equality resolution"
+                            .to_string(),
+                    });
                 };
-                let selected = self.lower_operand(selector)?;
-                let equal = self.lower_carrier_equality(matched, selected)?;
+                let selected = self.lower_operand(selector, &operands[1])?;
+                let equal = self.lower_carrier_equality(
+                    matched.ok_or_else(|| CompilerError::Internal {
+                        message: "checked switch case has no scrutinee operand".to_string(),
+                    })?,
+                    selected,
+                )?;
                 let next = self.builder.block();
                 self.builder.branch(equal, case.block, next);
                 self.builder.switch_to_block(next);
@@ -189,9 +236,9 @@ impl FunctionLowerer<'_, '_, '_> {
             let dir::SwitchSelector::Case(selector) = selector else {
                 continue;
             };
-            let dir::OperatorResolution::Builtin = self.operator_resolution(case.case)? else {
+            if !self.operator_resolution(case.case)?.is_builtin() {
                 return Ok(None);
-            };
+            }
             let dir::Type::Literal(dir::ScalarLiteral::Integer(constant)) =
                 self.node_type(selector)?
             else {
@@ -223,7 +270,6 @@ impl FunctionLowerer<'_, '_, '_> {
     fn match_arm_case(
         &mut self,
         pattern: dir::LocalNodeId<dir::Pattern>,
-        carrier: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Option<u32>> {
         match self.pattern_resolution(pattern)? {
             // wildcards and bare bindings take the default arm
@@ -232,39 +278,19 @@ impl FunctionLowerer<'_, '_, '_> {
                 pattern: None, ..
             }) => Ok(None),
 
-            // discriminant tests select their case by tested literal
-            dir::PatternResolution::Test(resolution) => {
-                let dir::PredicateTest::Unary(test) = resolution.predicate.test else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a match arm beyond a variant case test".to_string(),
-                    }
-                    .into());
-                };
-                let (
-                    dir::PredicateOperand::Projected(projection),
-                    dir::PredicateCondition::Literal(literal),
-                ) = (test.input, test.condition)
-                else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a match arm beyond a variant case test".to_string(),
-                    }
-                    .into());
-                };
-                if !matches!(projection.as_ref(), dir::Projection::VariantTag { .. }) {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a match arm beyond a variant case test".to_string(),
-                    }
-                    .into());
-                }
+            // unit variants select their declared carrier position
+            dir::PatternResolution::Variant(resolution)
+                if resolution.payload.is_none() && resolution.fields.is_empty() =>
+            {
+                let index = self
+                    .lowerer
+                    .variant_position(resolution.case.owner, resolution.case.variant)?;
 
-                Ok(Some(self.variant_case_index(carrier, literal)?))
+                Ok(Some(index))
             }
 
-            // payload destructures wait on the tagged payload model
-            dir::PatternResolution::Destructure(_) => Err(LowerError::Unsupported {
+            // payload variants wait on tagged payload lowering
+            dir::PatternResolution::Variant(_) => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "a tagged payload pattern".to_string(),
             }
@@ -276,41 +302,5 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             .into()),
         }
-    }
-
-    /// Return the case index carrying one tested discriminant.
-    fn variant_case_index(
-        &mut self,
-        carrier: mir::LocalNodeId<mir::Type>,
-        literal: dir::ScalarLiteral,
-    ) -> CompilerResult<u32> {
-        let mir::Type::Variant { cases, .. } = self.builder.tree().get(carrier) else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR matched variant cases outside a variant carrier".to_string(),
-            });
-        };
-
-        // find the case sealing this discriminant value
-        let index = cases.iter().position(|case| {
-            match (&case.discriminant, &literal) {
-                // integer discriminants compare by value
-                (mir::Constant::Int { value, .. }, dir::ScalarLiteral::Integer(tested)) => {
-                    *value == *tested as i128
-                }
-                (mir::Constant::UInt { value, .. }, dir::ScalarLiteral::Integer(tested)) => {
-                    *tested >= 0 && *value == *tested as u128
-                }
-                (mir::Constant::Boolean { value }, dir::ScalarLiteral::Boolean(tested)) => {
-                    value == tested
-                }
-                _ => false,
-            }
-        });
-
-        index
-            .map(|index| index as u32)
-            .ok_or_else(|| CompilerError::Internal {
-                message: "checked DIR tested a discriminant missing from its carrier".to_string(),
-            })
     }
 }

@@ -28,11 +28,11 @@ const value: Person = { name: "Ada", extra: true };
 /// @type.symbol symbol=value source=value type=Person reduced={ name: string }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Person target=Person
-/// @type.node source={ name: "Ada", extra: true } type={ name: "Ada"; extra: true }
+/// @type.node source={ name: "Ada", extra: true } type={ name: string }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=1 types=9 constraints=2 obligations=1 solutions=1 bounds=0 decisions=2
+/// @check.stats.solve variables=1 types=8 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type 'Person'"
@@ -72,7 +72,7 @@ type Person = { name: string };
 const source = { name: "Ada", extra: true };
 /// @type.symbol symbol=source source=source type={ name: string; extra: boolean }
 /// @resolution.pattern source=source kind=binding target=source
-/// @type.node source={ name: "Ada", extra: true } type={ name: "Ada"; extra: true }
+/// @type.node source={ name: "Ada", extra: true } type={ name: string; extra: boolean }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 
@@ -82,8 +82,10 @@ const value: Person = source;
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string; extra: boolean }
 /// @resolution.name source=source target=source
+/// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=source root=source
 
-/// @check.stats.solve variables=2 types=11 constraints=1 obligations=2 solutions=2 bounds=2 decisions=4
+/// @check.stats.solve variables=2 types=14 constraints=0 obligations=2 solutions=2 bounds=0 decisions=4
 "#,
     );
 }
@@ -128,6 +130,8 @@ function keep<T: { name: string }>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=keep.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=keep.value
 
 }
 
@@ -139,7 +143,7 @@ const value = keep({ name: "Ada", extra: true });
 /// @resolution.name source=keep target=keep
 /// @resolution.call source="keep({ name: \"Ada\", extra: true })" parameters=({ name: string; extra: boolean }) arguments=(provided({ name: "Ada", extra: true }) as { name: string; extra: boolean }) return={ name: string; extra: boolean } kind=symbol target=keep instance="keep<{ name: string; extra: boolean }>"
 /// @generic.instance source="keep({ name: \"Ada\", extra: true })" id="keep<{ name: string; extra: boolean }>"
-/// @type.node source={ name: "Ada", extra: true } type={ name: "Ada"; extra: true }
+/// @type.node source={ name: "Ada", extra: true } type={ name: string; extra: boolean }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 
@@ -149,7 +153,10 @@ const extra = value.extra;
 /// @type.node source=value type={ name: string; extra: boolean }
 /// @type.node source=value.extra type=boolean
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.extra receiver={ name: string; extra: boolean } kind=field key=extra
+/// @resolution.member source=value.extra receiver={ name: string; extra: boolean } type=boolean kind=field target_receiver={ name: string; extra: boolean } key=extra target_type=boolean
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @resolution.access source=value.extra root=value keys=[extra]
 
 /// @generic.instance id="keep<{ name: string; extra: boolean }>" template=keep arguments=({ name: string; extra: boolean })
 "#,

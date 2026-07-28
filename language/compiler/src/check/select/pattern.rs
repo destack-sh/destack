@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, Constraint, Decision, Expectation, FlowPointId, FlowSite,
-    Obligation, Origin, PlaceUse, Relation, ValueUse, Widening, WritablePlaceObligation,
-    WriteTarget, answer,
+    Answer, AssignmentSelection, BodyState, Cause, CauseKind, Decision, Expectation, FlowPointId,
+    FlowSite, InferMode, Obligation, Origin, PlaceUse, Relation, ValueUse, Widening,
+    WritableTargetObligation, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -67,7 +67,7 @@ impl BodyState<'_, '_> {
         match pattern {
             // x = value, obj.x = value
             dir::AssignPattern::Place { expression: value } => {
-                let Some(place) = answer!(self.select_assign_place(
+                let Some(place) = answer!(self.select_assignment(
                     FlowSite {
                         node: value.into_global_any(module),
                         flow,
@@ -88,13 +88,13 @@ impl BodyState<'_, '_> {
                         pattern: node.into_any(),
                     },
                 ));
-                self.push_constraint(Constraint::value(
-                    Relation::Assignable,
-                    node.into_any(),
-                    target,
-                    pattern_cause,
-                    ValueUse::Store,
-                ));
+                let pattern_site = FlowSite {
+                    node: node.into_any(),
+                    flow,
+                    scope,
+                };
+                let expectation = Expectation::assignable(target, pattern_cause, ValueUse::Store);
+                answer!(self.check_value(pattern_site, input, expectation)?);
 
                 Ok(Answer::Ready(true))
             }
@@ -109,8 +109,7 @@ impl BodyState<'_, '_> {
                     },
                     PlaceUse::Read
                 )?);
-                let input =
-                    answer!(self.defaulted_pattern_input(pattern_origin, input, default)?);
+                let input = answer!(self.defaulted_pattern_type(pattern_origin, input, default)?);
 
                 // flow the defaulted input into the nested target
                 answer!(self.check_pattern_projection(
@@ -163,27 +162,31 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         node: dir::GlobalNodeId<dir::AssignPattern>,
-        place: WriteTarget,
+        place: AssignmentSelection,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         // commit the selected place occurrence
-        let target_type = place.ty;
+        let target_type = place.write.ty();
         let resolution = place.clone().resolution();
-        self.commit_node_type(resolution.source, target_type)?;
+        let source_type = resolution
+            .read
+            .as_ref()
+            .map_or_else(|| resolution.write.ty(), dir::ReadResolution::ty);
+        let source = resolution.target;
+        self.commit_decision(source, Decision::Assignment(resolution))?;
+        self.commit_node_type(source, source_type)?;
 
         // require the written place to be writable
         let scope = self.origin_scope(origin)?;
         self.push_obligation(
-            Obligation::WritablePlace(Box::new(WritablePlaceObligation {
-                place,
+            Obligation::WritableTarget(Box::new(WritableTargetObligation {
+                target: place,
                 ty: target_type,
             })),
             scope,
         );
 
         // commit the assignment pattern resolution
-        let () = answer!(
-            self.commit_assign_pattern(node, dir::AssignPatternResolution::Place(resolution))?
-        );
+        let () = answer!(self.commit_assign_pattern(node, dir::AssignPatternResolution::Place)?);
 
         Ok(Answer::Ready(target_type))
     }
@@ -243,7 +246,7 @@ impl BodyState<'_, '_> {
                     },
                     PlaceUse::Read
                 )?);
-                let input = answer!(self.defaulted_pattern_input(origin, input, default)?);
+                let input = answer!(self.defaulted_pattern_type(origin, input, default)?);
 
                 // flow the defaulted input into the nested pattern
                 answer!(self.check_pattern_projection(
@@ -362,8 +365,10 @@ impl BodyState<'_, '_> {
                         pattern: node.into_any(),
                     },
                 ));
-                let relation = self.pattern_binding_relation(input, binding)?;
-                answer!(self.check.relate(cause, relation, input, binding)?);
+                answer!(
+                    self.check
+                        .relate(origin, cause, Relation::Equal, input, binding,)?
+                );
             } else {
                 self.check.commit_binding_type(symbol, input)?;
             }
@@ -588,43 +593,28 @@ impl BodyState<'_, '_> {
 }
 
 impl BodyState<'_, '_> {
-    /// Return the relation that initializes one pattern binding slot.
-    fn pattern_binding_relation(
-        &mut self,
-        input: dir::GlobalTypeId,
-        mut binding: dir::GlobalTypeId,
-    ) -> CompilerResult<Relation> {
-        while let dir::Type::Form(form) = self.ty(binding)? {
-            binding = form.value;
-        }
-        let Some(variable) = self.check.root_variable(binding)? else {
-            return Ok(Relation::Equal);
-        };
-        let variable = self.check.solver.variable(variable)?;
-
-        if variable.widening == Widening::Never || self.widen_type(input)? == input {
-            Ok(Relation::Equal)
-        } else {
-            Ok(Relation::Writable)
-        }
-    }
-
     /// Return the type bound by one pattern binding.
     pub(in crate::check) fn pattern_binding_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         input: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mutability = {
-            let bindings = self.module(symbol.module_id).binding_table();
-            let binding = bindings.get_symbol(symbol.local_id);
-
-            binding.binding_mutability
+        let mut slot = self.check.binding_type_maybe(symbol);
+        while let Some(ty) = slot
+            && let dir::Type::Form(form) = self.ty(ty)?
+        {
+            slot = Some(form.value);
+        }
+        let widening = match slot {
+            Some(slot) => match self.check.root_variable(slot)? {
+                Some(variable) => self.check.solver.variable(variable)?.widening,
+                None => Widening::Never,
+            },
+            None => Widening::Never,
         };
-        let input = if mutability == Some(dir::Mutability::Immutable) {
-            input
-        } else {
-            self.widen_type(input)?
+        let input = match widening {
+            Widening::Always => self.widen_type(input)?,
+            Widening::Never | Widening::Aggregate | Widening::Multiple => input,
         };
 
         self.check.place_binding_type(symbol, input)
@@ -749,16 +739,15 @@ impl BodyState<'_, '_> {
             if pattern.is_some_and(|pattern| self.is_defaulted_pattern(module, pattern)) {
                 continue;
             }
-            required.push(dir::TypeField {
+            required.push(dir::TypeProperty {
                 key,
-                ty: unknown,
+                access: dir::PropertyAccess::Read(unknown),
                 is_optional: false,
-                is_readonly: true,
             });
         }
-        let fields = self.intern_fields(module, &required)?;
+        let fields = self.intern_properties(module, &required)?;
         let shape = dir::ShapeType {
-            fields,
+            properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
             construct_signatures: dir::TypeListId::EMPTY,
             index_signatures: dir::TypeListId::EMPTY,
@@ -778,7 +767,7 @@ impl BodyState<'_, '_> {
         let key = match field {
             dir::PatternField::Named { name, pattern, .. } => Some((name.static_key(), pattern)),
             dir::PatternField::Computed { key, pattern } => self
-                .static_key_from_expression(module, key)?
+                .evaluate_static_key(module, key)?
                 .map(|key| (key, Some(pattern))),
             dir::PatternField::Positional { .. }
             | dir::PatternField::Rest { .. }
@@ -809,14 +798,15 @@ impl BodyState<'_, '_> {
                 CauseKind::Pattern { pattern },
             )),
             use_: ValueUse::Store,
+            mode: InferMode::Exact,
         };
         answer!(self.attempt_node(site, PlaceUse::Read, Some(expectation))?);
 
         Ok(Answer::Ready(()))
     }
 
-    /// Return the value produced by one defaulted pattern.
-    pub(in crate::check) fn defaulted_pattern_input(
+    /// Return the type produced by one defaulted pattern.
+    pub(in crate::check) fn defaulted_pattern_type(
         &mut self,
         origin: Origin,
         input: dir::GlobalTypeId,

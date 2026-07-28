@@ -151,9 +151,14 @@ class User {
         /// @type.node source=this type=User
         /// @type.node source=this.name type=string
         /// @resolution.receiver source=this kind=this declaration=User type=User
-        /// @resolution.pattern.assign source=this.name kind=place place=field(User.name) type=string
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.name kind=place
+        /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
         /// @type.node source=name type=string
         /// @resolution.name source=name target=User.constructor.name
+        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=name root=User.constructor.name
 
     }
 }
@@ -210,15 +215,22 @@ class User {
         if (enabled) {
         /// @type.node source=enabled type=boolean
         /// @resolution.name source=enabled target=User.constructor.enabled
+        /// @resolution.place source=enabled placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=enabled root=User.constructor.enabled
 
             this.name = name;
             /// @type.node source="this.name = name" type=string
             /// @type.node source=this type=User
             /// @type.node source=this.name type=string
             /// @resolution.receiver source=this kind=this declaration=User type=User
-            /// @resolution.pattern.assign source=this.name kind=place place=field(User.name) type=string
+            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=this root=this
+            /// @resolution.pattern.assign source=this.name kind=place
+            /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
             /// @type.node source=name type=string
             /// @resolution.name source=name target=User.constructor.name
+            /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=name root=User.constructor.name
 
         }
     }

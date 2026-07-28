@@ -35,11 +35,14 @@ let { ["x"]: value } = point;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
+/// @resolution.access source=point root=point
 
 value satisfies int32;
 /// @type.node source="value satisfies int32" type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }
@@ -78,9 +81,12 @@ let { [key]: value } = point;
 /// @resolution.pattern source={ [key]: value } kind=object fields={}
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=key root=key
 /// @type.symbol symbol=value source=value type=<error>
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=computed-pattern-key-not-valid message="computed pattern key is not valid for the source type"
@@ -133,18 +139,23 @@ declare const bag: Bag;
 /// @resolution.name source=Bag target=Bag
 
 let { [key]: value } = bag;
-/// @resolution.pattern source={ [key]: value } kind=object fields={ key: value }
+/// @resolution.pattern source={ [key]: value } kind=object fields={ subscript(member(receiver={ [key: string]: int32 }, target=index(string), type=int32 | undefined), int32 | undefined): value }
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=key root=key
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=bag type=Bag reduced={ [key: string]: int32 }
 /// @resolution.name source=bag target=bag
+/// @resolution.access source=bag root=bag
 
 value satisfies int32 | undefined;
 /// @type.node source="value satisfies int32 | undefined" type=int32 | undefined
 /// @type.node source=value type=int32 | undefined
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }
@@ -176,7 +187,7 @@ type User = {
 };
 
 function get<K: keyof User>(user: User, key: K): User[K] {
-    let { [key]: value } = user;
+    let { [key as "name" | "age"]: value } = user;
     return value;
 }
 
@@ -202,17 +213,22 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 /// @resolution.name source=K target=get.K
 
     let { [key]: value } = user;
-    /// @resolution.pattern source={ [key]: value } kind=object fields={ key: get.value }
+    /// @resolution.pattern source={ [key]: value } kind=object fields={ subscript(member(receiver={ readonly name: string; readonly age: int32 }, target=index(keyof { readonly name: string; readonly age: int32 }), type={ readonly name: string; readonly age: int32 }[K]), { readonly name: string; readonly age: int32 }[K]): get.value }
     /// @type.node source=key type=K
     /// @resolution.name source=key target=get.key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=get.key
     /// @type.symbol symbol=get.value source=value type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.pattern source=value kind=binding target=get.value
     /// @type.node source=user type=User reduced={ readonly name: string; readonly age: int32 }
     /// @resolution.name source=user target=get.user
+    /// @resolution.access source=user root=get.user
 
     return value;
     /// @type.node source=value type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.name source=value target=get.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=get.value
 
 }
 "#,
@@ -254,11 +270,14 @@ let { [1]: value } = pair;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=pair type={ 0: string; 1: int32 }
 /// @resolution.name source=pair target=pair
+/// @resolution.access source=pair root=pair
 
 value satisfies int32;
 /// @type.node source="value satisfies int32" type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }
@@ -301,15 +320,20 @@ let { [token]: value } = box;
 /// @resolution.pattern source={ [token]: value } kind=object fields={ token: value }
 /// @type.node source=token type=token
 /// @resolution.name source=token target=token
+/// @resolution.place source=token placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=token root=token
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=box type={ readonly [token]: string }
 /// @resolution.name source=box target=box
+/// @resolution.access source=box root=box
 
 value satisfies string;
 /// @type.node source="value satisfies string" type=string
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }
@@ -348,18 +372,21 @@ let { [Symbol.for("token")]: value } = box;
 /// @type.node source=Symbol type=Symbol
 /// @type.node source=Symbol.for type=(string) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
-/// @resolution.member source=Symbol.for receiver=Symbol kind=symbol target=types.symbol.Symbol.for
+/// @resolution.member source=Symbol.for receiver=Symbol type=(string) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.for
 /// @resolution.call source="Symbol.for(\"token\")" parameters=(string) arguments=(provided("token") as string) return=Symbol.for("token") kind=symbol target=types.symbol.Symbol.for receiver=Symbol
 /// @type.node source="\"token\"" type="token"
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=box type={ readonly [Symbol.for("token")]: string }
 /// @resolution.name source=box target=box
+/// @resolution.access source=box root=box
 
 value satisfies string;
 /// @type.node source="value satisfies string" type=string
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }

@@ -442,38 +442,38 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
     /// Collect writable place tokens selected during checking.
     fn collect_modifications(&mut self) -> QueryResult<()> {
         // collect each checked writable place
-        for resolution in self.module.writable_places() {
-            self.push_modification(resolution)?;
+        for (target, write) in self.module.writable_places() {
+            self.push_modification(target, write)?;
         }
 
         Ok(())
     }
 
     /// Push one exact writable place token.
-    fn push_modification(&mut self, resolution: &dir::PlaceResolution) -> QueryResult<()> {
-        let Some((token_type, modifiers)) = self.storage_token(&resolution.storage)? else {
+    fn push_modification(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        write: &dir::WriteResolution,
+    ) -> QueryResult<()> {
+        let Some((token_type, modifiers)) = self.write_token(write)? else {
             return Ok(());
         };
-        if resolution.source.module_id != self.module.module_id() {
+        if source.module_id != self.module.module_id() {
             return Err(QueryError::invalid(format!(
                 "semantic token source: {:?}, {:?}",
-                resolution.source,
+                source,
                 self.module.module_id()
             )));
         }
 
         // map the checked node through the visible tree to its authored span
-        let source_id = self
-            .module
-            .view()
-            .get_source_any(resolution.source.local_id);
+        let source_id = self.module.view().get_source_any(source.local_id);
         let span = self
             .module
             .source_index()
             .get_main(source_id)
             .ok_or(QueryError::missing(format!(
-                "semantic token span: {:?}",
-                resolution.source
+                "semantic token span: {source:?}"
             )))?;
         let modifiers = modifiers.union(SemanticTokenModifiers::MODIFICATION);
         self.tokens
@@ -482,22 +482,15 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         Ok(())
     }
 
-    /// Return the semantic token selected by one writable storage location.
-    fn storage_token(
+    /// Return the semantic token selected by one writable place.
+    fn write_token(
         &self,
-        storage: &dir::Storage,
+        write: &dir::WriteResolution,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
-        match storage {
-            dir::Storage::Binding { symbol } => self.symbol_token(*symbol),
-            dir::Storage::Field { field, .. } => match field {
-                dir::ProjectionField::Member(symbol) => self.symbol_token(*symbol),
-                dir::ProjectionField::Key(_) => Ok(Some((
-                    SemanticTokenType::Property,
-                    SemanticTokenModifiers::NONE,
-                ))),
-            },
-            dir::Storage::Property { write, .. } => self.member_resolution_token(write),
-            dir::Storage::Subscript { .. } | dir::Storage::Dereference { .. } => Ok(None),
+        match write {
+            dir::WriteResolution::Binding { symbol, .. } => self.symbol_token(*symbol),
+            dir::WriteResolution::Member(member) => self.member_resolution_token(member),
+            dir::WriteResolution::Subscript(_) | dir::WriteResolution::Dereference(_) => Ok(None),
         }
     }
 
@@ -506,23 +499,29 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         &self,
         resolution: &dir::MemberResolution,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
-        match &resolution.target {
-            dir::MemberTarget::Symbol(candidate) => self.symbol_token(candidate.symbol),
-            dir::MemberTarget::Existential(candidates)
-            | dir::MemberTarget::Universal(candidates) => {
-                let symbols = candidates
-                    .iter()
-                    .map(|candidate| candidate.symbol)
-                    .collect::<Vec<_>>();
+        let mut symbols = Vec::new();
+        for access in resolution.iter() {
+            access.target.collect_symbols(&mut symbols);
+        }
+        if !symbols.is_empty() {
+            return self.symbol_targets_token(&symbols);
+        }
 
-                self.symbol_targets_token(&symbols)
-            }
-            dir::MemberTarget::Field(_) => Ok(Some((
+        // symbol-free selections tokenize structural members as properties
+        let structural = resolution.iter().any(|access| {
+            matches!(
+                access.target,
+                dir::MemberTarget::Field(_) | dir::MemberTarget::Projection { .. }
+            )
+        });
+        if structural {
+            return Ok(Some((
                 SemanticTokenType::Property,
                 SemanticTokenModifiers::NONE,
-            ))),
-            dir::MemberTarget::Element(_) | dir::MemberTarget::Index(_) => Ok(None),
+            )));
         }
+
+        Ok(None)
     }
 
     /// Return the exact token type recorded for one expression reference.

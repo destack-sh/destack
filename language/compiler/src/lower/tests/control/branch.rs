@@ -16,7 +16,7 @@ function max(a: int32, b: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.max(v0: int32, v1: int32): int32 {
+function test.main.max(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: boolean = int.gt.s v0, v1
     branch v2, b1, b2
@@ -48,7 +48,7 @@ function pick(flag: boolean, a: int32, b: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.pick(v0: boolean, v1: int32, v2: int32): int32 {
+function test.main.pick(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
     branch v0, b1, b3
 
@@ -78,7 +78,7 @@ function clamp(value: float32, limit: float32): float32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.clamp(v0: float32, v1: float32): float32 {
+function test.main.clamp(v0: float32, v1: float32): float32 {
     local l0: float32
 
 entry(v0: float32, v1: float32):

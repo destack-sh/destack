@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, ScalarFamily, answer};
+use crate::check::{Answer, CheckState, Origin, answer};
 
 impl CheckState<'_> {
     /// Decide whether one type satisfies a compiler-known auto interface.
@@ -29,8 +29,7 @@ impl CheckState<'_> {
             dir::AutoInterface::SharedSafe => self.satisfies_shared_safe(origin, ty),
             // TODO #Incomplete: the remaining auto interfaces never hold
             dir::AutoInterface::Unpin | dir::AutoInterface::Zeroable => Ok(Answer::Ready(false)),
-            // concreteness checks through the representation obligation
-            dir::AutoInterface::Concrete => Ok(Answer::Ready(false)),
+            dir::AutoInterface::Concrete => self.satisfies_concrete(origin, ty),
             // derivable interfaces hold only through their generated extensions
             dir::AutoInterface::Clone
             | dir::AutoInterface::Debug
@@ -52,23 +51,21 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         domain: dir::ScalarDomain,
     ) -> CompilerResult<Answer<bool>> {
-        // literals widen into the float marker like into float64
         let root = answer!(self.reduce_type_head(origin, ty)?);
-        if domain == dir::ScalarDomain::Float
-            && let dir::Type::Literal(literal) = self.ty(root)?
-        {
-            let float64 = dir::Type::Primitive(dir::PrimitiveType::Float(dir::FloatType::Float64));
+        let holds = match self.ty(root)? {
+            // concrete builtin formats carry their matching marker
+            dir::Type::Primitive(primitive) => primitive.scalar_domain() == domain,
 
-            return Ok(Answer::Ready(literal.widens_to(&float64)));
-        }
+            // rigid parameters carry markers from their declared assumptions
+            dir::Type::Parameter(_) => {
+                let families = answer!(self.builtin_scalar_families(origin, root)?);
 
-        let Some(families) = answer!(self.scalar_families(origin, ty)?) else {
-            return Ok(Answer::Ready(false));
+                families.is_some_and(|families| families.is_only_domain(domain))
+            }
+
+            // literals, ranges, unions, and nominal types are not scalar formats
+            _ => false,
         };
-        let holds = !families.is_empty()
-            && families
-                .iter()
-                .all(|family| matches!(family, ScalarFamily::Domain(held) if *held == domain));
 
         Ok(Answer::Ready(holds))
     }

@@ -26,7 +26,7 @@ function classify(value: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.classify(v0: int32): int32 {
+function test.main.classify(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -87,7 +87,7 @@ function select(value: int32, first: int32, second: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.select(v0: int32, v1: int32, v2: int32): int32 {
+function test.main.select(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
     v3: boolean = int.eq v0, v1
     branch v3, b2, b5
@@ -141,7 +141,7 @@ function isTwo(value: Meters): boolean {
 @copy
 type Meters = newtype<int32>;
 
-function main.isTwo(v0: Meters): boolean {
+function test.main.isTwo(v0: Meters): boolean {
 entry(v0: Meters):
     v1: int32 = field.get v0, 0
     v2: int32 = 2
@@ -186,26 +186,32 @@ function isTwo(value: 1 | 2): boolean {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.isTwo(v0: float64): boolean {
-entry(v0: float64):
-    v1: float64 = 2
-    v2: boolean = float.eq v0, v1
-    branch v2, b2, b4
+function test.main.isTwo(v0: variant<uint8, void> { 0uint8 = void; 1uint8 = void; }): boolean {
+entry(v0: variant<uint8, void> { 0uint8 = void; 1uint8 = void; }):
+    v1: variant<uint8, void> { 0uint8 = void; 1uint8 = void; } = variant.new 1
+    v2: uint8 = variant.tag v0
+    v3: uint8 = variant.tag v1
+    v4: boolean = int.eq v2, v3
+    branch v4, b2, b4
 
 b1:
     return
 
 b2:
-    v3: boolean = true
-    return v3
+    v5: boolean = true
+    return v5
 
 b3:
-    v4: boolean = false
-    return v4
+    v6: boolean = false
+    return v6
 
 b4:
     jump b3
 }
+/// @layout.variant name=type@2 size=1 align=1
+/// @layout.discriminant owner=type@2 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@2 index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=type@2 index=1 discriminant=1 payload_offset=1
 "#,
     );
 }
@@ -237,7 +243,7 @@ type Ready = newtype<void>;
 @copy
 type Pending = newtype<void>;
 
-function main.isReady(v0: variant<uint8, Ready> { 0uint8 = Ready; 1uint8 = Pending; }): boolean {
+function test.main.isReady(v0: variant<uint8, Ready> { 0uint8 = Ready; 1uint8 = Pending; }): boolean {
 entry(v0: variant<uint8, Ready> { 0uint8 = Ready; 1uint8 = Pending; }):
     v1: boolean = true
     v2: Ready = aggregate ()

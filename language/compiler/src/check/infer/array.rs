@@ -1,11 +1,11 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use super::InferMode;
 use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, Constraint, FlowSite, Origin,
-    PlaceUse, Relation, ValueCheck, ValueUse, VariableRole, Widening, answer,
+    Answer, BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, Constraint, Expectation,
+    FlowSite, InferMode, Origin, PlaceUse, Relation, ValueCheck, ValueUse, VariableRole, Widening,
+    answer,
 };
 
 impl BodyState<'_, '_> {
@@ -18,10 +18,10 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let mut values =
-            SmallVec::<[(dir::LocalNodeId<dir::Argument>, dir::GlobalTypeId); 8]>::new();
+        let mut values = SmallVec::<[(Option<dir::GlobalNodeIdAny>, dir::GlobalTypeId); 8]>::new();
         let mut spreads =
             SmallVec::<[(dir::LocalNodeId<dir::Expression>, dir::GlobalTypeId); 2]>::new();
+        let element_mode = mode.descend(false);
 
         // infer explicit elements and spread carriers
         for argument in elements {
@@ -37,13 +37,13 @@ impl BodyState<'_, '_> {
                 | dir::Argument::Labeled { value, .. } => {
                     let value = *value;
                     let value_site = self.node_site(value.into_global_any(module))?;
-                    answer!(self.infer_expression(value_site, PlaceUse::Read, mode)?);
-                    let ty = answer!(self.node_type_at(value_site)?);
-                    values.push((*argument, ty));
+                    let ty = answer!(self.infer_node(value_site, PlaceUse::Read, element_mode,)?);
+                    let ty = answer!(self.flow_type_at(value_site, ty)?);
+                    values.push((Some(value.into_global_any(module)), ty));
                 }
                 dir::Argument::Elision => {
                     let undefined = self.intern_type(module, dir::Type::Undefined)?;
-                    values.push((*argument, undefined));
+                    values.push((None, undefined));
                 }
                 dir::Argument::Error => {}
             }
@@ -95,11 +95,15 @@ impl BodyState<'_, '_> {
             let element = self.variable_type(variable)?;
 
             for (source, value) in &values {
+                let Some(source) = source else {
+                    continue;
+                };
                 let cause = self.intern_cause(Cause::root(
-                    Origin::Node(source.into_global_any(module), site.scope),
+                    Origin::Node(*source, site.scope),
                     CauseKind::Expression,
                 ));
                 self.push_constraint(Constraint::r#type(
+                    Origin::Node(*source, site.scope),
                     Relation::Assignable,
                     *value,
                     element,
@@ -119,6 +123,7 @@ impl BodyState<'_, '_> {
                 CauseKind::Expression,
             ));
             self.push_constraint(Constraint::r#type(
+                Origin::Node(value.into_global_any(module), site.scope),
                 Relation::Assignable,
                 item,
                 element,
@@ -126,11 +131,31 @@ impl BodyState<'_, '_> {
             ));
         }
 
-        let ty = if mode == InferMode::Widen {
+        let ty = if mode.widens_aggregate() {
             self.widen_type(array)?
         } else {
             array
         };
+
+        // convert each authored value into the selected element carrier
+        let dir::Type::Array(array) = self.ty(ty)? else {
+            return Ok(Answer::Ready(ty));
+        };
+        for (source, source_type) in values {
+            let Some(source) = source else {
+                continue;
+            };
+            if source_type == array.element {
+                continue;
+            }
+            let cause = self.intern_cause(Cause::root(
+                Origin::Node(source, site.scope),
+                CauseKind::Expression,
+            ));
+            let source_site = self.node_site(source)?;
+            let expectation = Expectation::assignable(array.element, cause, ValueUse::Store);
+            answer!(self.check_value(source_site, source_type, expectation)?);
+        }
 
         Ok(Answer::Ready(ty))
     }
@@ -141,16 +166,36 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         count: dir::GlobalTypeId,
+        mode: InferMode,
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let value_site = self.node_site(value.into_global_any(module))?;
-        let element = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+        let element_mode = mode.descend(false);
+        let source_element = answer!(self.infer_node(value_site, PlaceUse::Read, element_mode,)?);
+        let source_element = answer!(self.flow_type_at(value_site, source_element)?);
+        let element = if mode.widens_aggregate() {
+            self.widen_type(source_element)?
+        } else {
+            source_element
+        };
         let array = self.intern_type(
             module,
             dir::Type::FixedArray(dir::FixedArrayType { element, count }),
         )?;
         self.commit_node_type(node.into_any(), array)?;
+
+        // convert the repeated value into the selected element carrier
+        if source_element == element {
+            return Ok(Answer::Ready(()));
+        }
+        let source = value.into_global_any(module);
+        let cause = self.intern_cause(Cause::root(
+            Origin::Node(source, site.scope),
+            CauseKind::Expression,
+        ));
+        let expectation = Expectation::assignable(element, cause, ValueUse::Store);
+        answer!(self.check_value(value_site, source_element, expectation)?);
 
         Ok(Answer::Ready(()))
     }
@@ -165,6 +210,8 @@ impl BodyState<'_, '_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let mut fields = Vec::with_capacity(elements.len());
+        let mut sources = Vec::with_capacity(elements.len());
+        let element_mode = mode.descend(false);
 
         // infer each tuple field under the current literal mode
         for element in elements {
@@ -182,6 +229,7 @@ impl BodyState<'_, '_> {
                         is_readonly: false,
                         is_rest: false,
                     });
+                    sources.push(None);
                     continue;
                 }
                 dir::Argument::Error => (None, None, false),
@@ -190,8 +238,8 @@ impl BodyState<'_, '_> {
                 continue;
             };
             let value_site = self.node_site(value.into_global_any(module))?;
-            answer!(self.infer_expression(value_site, PlaceUse::Read, mode)?);
-            let ty = answer!(self.node_type_at(value_site)?);
+            let ty = answer!(self.infer_node(value_site, PlaceUse::Read, element_mode,)?);
+            let ty = answer!(self.flow_type_at(value_site, ty)?);
             fields.push(dir::TypeElement {
                 label,
                 ty,
@@ -199,6 +247,7 @@ impl BodyState<'_, '_> {
                 is_readonly: false,
                 is_rest,
             });
+            sources.push(Some(value.into_global_any(module)));
         }
 
         let fields = self.intern_elements(module, &fields)?;
@@ -211,23 +260,57 @@ impl BodyState<'_, '_> {
         )?;
 
         // const tuple inference freezes the tuple value
-        if mode == InferMode::Const {
-            let readonly = self.intern_type(
+        let ty = if mode == InferMode::Const {
+            self.intern_type(
                 module,
                 dir::Type::Form(dir::FormType {
                     form: dir::Form::Readonly,
                     value: tuple,
                 }),
-            )?;
-
-            Ok(Answer::Ready(readonly))
-        } else if mode == InferMode::Widen {
-            let widened = self.widen_type(tuple)?;
-
-            Ok(Answer::Ready(widened))
+            )?
+        } else if mode.widens_aggregate() {
+            self.widen_type(tuple)?
         } else {
-            Ok(Answer::Ready(tuple))
+            tuple
+        };
+
+        // convert authored fields into the selected tuple slots
+        let target = match self.ty(ty)? {
+            dir::Type::Tuple(tuple) => Some((ty, tuple)),
+            dir::Type::Form(form) if form.form == dir::Form::Readonly => {
+                match self.ty(form.value)? {
+                    dir::Type::Tuple(tuple) => Some((form.value, tuple)),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        if let Some((target_id, target)) = target {
+            let target_fields = self
+                .tuple_elements(target_id.module_id, target.elements)?
+                .to_vec();
+            for (source, target) in sources.into_iter().zip(target_fields) {
+                if target.is_rest {
+                    continue;
+                }
+                let Some(source) = source else {
+                    continue;
+                };
+                let source_type = self.require_node_type(source)?;
+                if source_type == target.ty {
+                    continue;
+                }
+                let cause = self.intern_cause(Cause::root(
+                    Origin::Node(source, site.scope),
+                    CauseKind::Expression,
+                ));
+                let source_site = self.node_site(source)?;
+                let expectation = Expectation::assignable(target.ty, cause, ValueUse::Store);
+                answer!(self.check_value(source_site, source_type, expectation)?);
+            }
         }
+
+        Ok(Answer::Ready(ty))
     }
 
     /// Check one array literal under an expected array or slice type.
@@ -235,13 +318,13 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         elements: &[dir::LocalNodeId<dir::Argument>],
-        target: dir::GlobalTypeId,
-        target_head: dir::GlobalTypeId,
-        relation: Relation,
-        use_: ValueUse,
+        carrier: dir::GlobalTypeId,
+        target_value: dir::GlobalTypeId,
+        expectation: Expectation,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
-        let element = match self.ty(target_head)? {
+        let target = expectation.target;
+        let element = match self.ty(target_value)? {
             dir::Type::Array(array) => Some((array.element, None)),
             dir::Type::Slice(slice) => Some((slice.element, None)),
             dir::Type::FixedArray(array) => Some((array.element, Some(array.count))),
@@ -250,10 +333,11 @@ impl BodyState<'_, '_> {
         let Some((element, count)) = element else {
             return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
+        let mut source_elements = SmallVec::<[(dir::GlobalNodeIdAny, dir::GlobalTypeId); 8]>::new();
         let mut check = CheckOutcome::Holds;
 
         // check every explicit element against the expected element type
-        for argument in elements {
+        for (index, argument) in elements.iter().enumerate() {
             let (dir::Argument::Positional { value }
             | dir::Argument::Named { value, .. }
             | dir::Argument::Labeled { value, .. }) =
@@ -263,35 +347,87 @@ impl BodyState<'_, '_> {
             };
             let child = value.into_global_any(node.module_id);
             let child_site = self.node_site(child)?;
-            let cause = self.intern_cause(Cause::root(
+            let cause = self.intern_cause(Cause::child(
                 Origin::Node(child, site.scope),
-                CauseKind::Expression,
+                CauseKind::Element {
+                    index: index as u32,
+                },
+                expectation.cause,
             ));
-            let child_check =
-                answer!(self.check_node_expected(child_site, element, relation, cause, use_)?);
+            let mode = expectation.mode.descend(false);
+            let mode = self.contextual_literal_mode(element, mode)?;
+            let child_expectation = Expectation {
+                target: element,
+                cause,
+                mode,
+                ..expectation
+            };
+            let child_check = answer!(self.check_node(child_site, child_expectation)?);
+            let source = child_check.source;
+            let element =
+                answer!(self.contextual_literal_type(site.origin(), source, element, mode,)?);
+            source_elements.push((child, element));
             check = check.and(child_check.outcome);
         }
 
-        // publish the source array type represented by this literal
-        let array = if count.is_some() {
+        // preserve the authored carrier for a check-only expression
+        let carrier = if expectation.relation == Relation::Satisfies {
+            let source_element = self.normalized_union_type(
+                node.module_id,
+                source_elements.iter().map(|(_, element)| *element),
+            )?;
+            self.intern_type(
+                node.module_id,
+                dir::Type::Array(dir::ArrayType {
+                    element: source_element,
+                }),
+            )?
+        } else if count.is_some() {
             let actual_count = self.intern_type(
                 node.module_id,
                 dir::Type::Literal(dir::ScalarLiteral::Integer(elements.len() as i64)),
             )?;
-            self.intern_type(
+            let value = self.intern_type(
                 node.module_id,
                 dir::Type::FixedArray(dir::FixedArrayType {
                     element,
                     count: actual_count,
                 }),
-            )?
+            )?;
+
+            answer!(self.replace_form_value(site.origin(), carrier, value)?)
+        } else if matches!(self.ty(target_value)?, dir::Type::Slice(_)) {
+            let value =
+                self.intern_type(node.module_id, dir::Type::Array(dir::ArrayType { element }))?;
+
+            answer!(self.replace_form_value(site.origin(), carrier, value)?)
         } else {
-            self.intern_type(node.module_id, dir::Type::Array(dir::ArrayType { element }))?
+            carrier
         };
-        let array = answer!(self.materialize_fresh_value(site.origin(), array, Some(target))?);
-        self.commit_node_type(node.into_any(), array)?;
+        self.commit_node_type(node.into_any(), carrier)?;
+
+        // materialize check-only elements into their selected source storage
+        if expectation.relation == Relation::Satisfies {
+            for (index, (source, source_element)) in source_elements.into_iter().enumerate() {
+                let source_type = self.require_node_type(source)?;
+                if source_type == source_element {
+                    continue;
+                }
+                let cause = self.intern_cause(Cause::child(
+                    Origin::Node(source, site.scope),
+                    CauseKind::Element {
+                        index: index as u32,
+                    },
+                    expectation.cause,
+                ));
+                let source_site = self.node_site(source)?;
+                let expectation = Expectation::assignable(source_element, cause, ValueUse::Store);
+                answer!(self.check_value(source_site, source_type, expectation)?);
+            }
+        }
 
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            source: carrier,
             outcome: check,
             target,
         })))
@@ -303,45 +439,53 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         length: dir::LocalNodeId<dir::Expression>,
-        target: dir::GlobalTypeId,
-        target_head: dir::GlobalTypeId,
-        relation: Relation,
-        use_: ValueUse,
+        carrier: dir::GlobalTypeId,
+        target_value: dir::GlobalTypeId,
+        expectation: Expectation,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let dir::Type::FixedArray(array) = self.ty(target_head)? else {
+        let target = expectation.target;
+        let dir::Type::FixedArray(array) = self.ty(target_value)? else {
             return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
 
         // check the repeated value against the expected element type
         let child = value.into_global_any(module);
         let child_site = self.node_site(child)?;
-        let element_cause = self.check.intern_cause(Cause::root(
+        let element_cause = self.check.intern_cause(Cause::child(
             Origin::Node(child, site.scope),
-            CauseKind::Expression,
+            CauseKind::Element { index: 0 },
+            expectation.cause,
         ));
-        let check = answer!(self.check_node_expected(
-            child_site,
-            array.element,
-            relation,
-            element_cause,
-            use_
-        )?);
+        let mode = expectation.mode.descend(false);
+        let mode = self.contextual_literal_mode(array.element, mode)?;
+        let child_expectation = Expectation {
+            target: array.element,
+            cause: element_cause,
+            mode,
+            ..expectation
+        };
+        let check = answer!(self.check_node(child_site, child_expectation)?);
 
-        // publish the expected element with the written count
-        let count = answer!(self.node_type(length.into_global_any(module))?);
-        let ty = self.intern_type(
+        // preserve the authored carrier for a check-only expression
+        let count = self.require_node_type(length.into_global_any(module))?;
+        let element = match expectation.relation {
+            Relation::Satisfies => check.source,
+            _ => array.element,
+        };
+        let value = self.intern_type(
             module,
-            dir::Type::FixedArray(dir::FixedArrayType {
-                element: array.element,
-                count,
-            }),
+            dir::Type::FixedArray(dir::FixedArrayType { element, count }),
         )?;
-        let ty = answer!(self.materialize_fresh_value(site.origin(), ty, Some(target))?);
+        let ty = match expectation.relation {
+            Relation::Satisfies => value,
+            _ => answer!(self.replace_form_value(site.origin(), carrier, value)?),
+        };
         self.commit_node_type(node.into_any(), ty)?;
 
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            source: ty,
             outcome: check.outcome,
             target,
         })))
@@ -352,12 +496,12 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         elements: &[dir::LocalNodeId<dir::Argument>],
-        target: dir::GlobalTypeId,
+        carrier: dir::GlobalTypeId,
         target_value: dir::GlobalTypeId,
-        relation: Relation,
-        use_: ValueUse,
+        expectation: Expectation,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
+        let target = expectation.target;
         let dir::Type::Tuple(tuple) = self.ty(target_value)? else {
             return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
@@ -367,36 +511,64 @@ impl BodyState<'_, '_> {
         let tuple_elements = self
             .tuple_elements(target_value.module_id, tuple.elements)?
             .to_vec();
+        let mut source_elements = Vec::with_capacity(elements.len());
         let mut check = CheckOutcome::Holds;
 
         // check each tuple element against its matching expected element type
-        for (argument, element) in elements.iter().zip(tuple_elements.iter()) {
-            let (dir::Argument::Positional { value }
-            | dir::Argument::Named { value, .. }
-            | dir::Argument::Labeled { value, .. }) =
-                self.module(node.module_id).view().get(*argument)
-            else {
-                return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+        for (index, (argument, element)) in elements.iter().zip(tuple_elements.iter()).enumerate() {
+            let (label, value) = match self.module(node.module_id).view().get(*argument) {
+                dir::Argument::Positional { value } | dir::Argument::Named { value, .. } => {
+                    (None, *value)
+                }
+                dir::Argument::Labeled { label, value } => (Some(*label), *value),
+                _ => return Ok(Answer::Ready(CheckAttempt::NotApplicable)),
             };
             let child = value.into_global_any(node.module_id);
             let child_site = self.node_site(child)?;
-            let element_cause = self.check.intern_cause(Cause::root(
+            let element_cause = self.check.intern_cause(Cause::child(
                 Origin::Node(child, site.scope),
-                CauseKind::Expression,
+                CauseKind::Element {
+                    index: index as u32,
+                },
+                expectation.cause,
             ));
-            let child_check = answer!(self.check_node_expected(
-                child_site,
-                element.ty,
-                relation,
-                element_cause,
-                use_
-            )?);
+            let mode = expectation.mode.descend(element.is_readonly);
+            let mode = self.contextual_literal_mode(element.ty, mode)?;
+            let child_expectation = Expectation {
+                target: element.ty,
+                cause: element_cause,
+                mode,
+                ..expectation
+            };
+            let child_check = answer!(self.check_node(child_site, child_expectation)?);
+            source_elements.push(dir::TypeElement {
+                label,
+                ty: child_check.source,
+                is_optional: false,
+                is_readonly: expectation.mode.is_readonly(),
+                is_rest: false,
+            });
             check = check.and(child_check.outcome);
         }
 
-        self.commit_node_type(node.into_any(), target)?;
+        // preserve the authored carrier for a check-only expression
+        let carrier = if expectation.relation == Relation::Satisfies {
+            let elements = self.intern_elements(node.module_id, &source_elements)?;
+
+            self.intern_type(
+                node.module_id,
+                dir::Type::Tuple(dir::TupleType {
+                    form: dir::TupleForm::Tuple,
+                    elements,
+                }),
+            )?
+        } else {
+            carrier
+        };
+        self.commit_node_type(node.into_any(), carrier)?;
 
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            source: carrier,
             outcome: check,
             target,
         })))

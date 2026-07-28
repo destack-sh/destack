@@ -1,7 +1,5 @@
 import { todo } from "destack:error";
 
-export * from "./float.ds";
-
 /// Floating point math functions and constants.
 @languageItem("math.Math")
 export class Math {

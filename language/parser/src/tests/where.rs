@@ -76,7 +76,7 @@ fn test_parse_where_equality_constraint() {
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation, left, right } => {
-        assert_eq!(*relation, WhereRelation::Equals);
+        assert_eq!(*relation, WhereRelation::Equal);
         assert_expression_path!(parser, parser.tree.get(*left), "T.Output");
         assert_expression_path!(parser, parser.tree.get(*right), "U");
     });

@@ -17,16 +17,16 @@ function quad(x: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.double(v0: int32): int32 {
+function test.main.double(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = int.add v0, v0
     return v1
 }
 
-function main.quad(v0: int32): int32 {
+function test.main.quad(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call main.double(v0)
-    v2: int32 = call main.double(v1)
+    v1: int32 = call test.main.double(v0)
+    v2: int32 = call test.main.double(v1)
     return v2
 }
 "#,
@@ -49,14 +49,14 @@ function run(x: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.noop(): void {
+function test.main.noop(): void {
 entry:
     return
 }
 
-function main.run(v0: int32): int32 {
+function test.main.run(v0: int32): int32 {
 entry(v0: int32):
-    call main.noop()
+    call test.main.noop()
     return v0
 }
 "#,

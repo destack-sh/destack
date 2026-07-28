@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::{EnclosingSpan, FileId, Span};
 
-use crate::{ModuleQueryContext, QueryError, QueryResult, argument_binding_contains};
+use crate::{ModuleQueryContext, QueryError, QueryResult};
 
 use super::CompletionContext;
 
@@ -269,9 +269,9 @@ impl ModuleQueryContext<'_> {
         };
         let argument = argument_id.into_global_any(self.module_id());
         let binding = resolution
-            .arguments
             .iter()
-            .find(|binding| argument_binding_contains(binding, argument))
+            .flat_map(|call| call.arguments.iter())
+            .find(|binding| binding.contains_argument(argument))
             .ok_or(QueryError::missing(format!(
                 "completion argument binding: {call_id:?}, {argument:?}"
             )))?;

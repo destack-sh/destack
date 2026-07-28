@@ -199,8 +199,6 @@ impl Compiler {
     /// Named packages namespace their modules as `{package}.{path}` with the
     /// module path relative to the package root; the anonymous root package
     /// contributes its module paths bare.
-    // TODO(lower): version-disambiguate package prefixes once dependency
-    // resolution can hold two versions of one package in a program.
     fn module_symbol_path(
         &self,
         context: &dyn ProviderContext,
@@ -220,10 +218,14 @@ impl Compiler {
         let path = path.strip_suffix(".ds").unwrap_or(path);
         let path = path.trim_matches('/').replace('/', ".");
 
-        Ok(match &package.name {
-            Some(name) if path.is_empty() => name.clone(),
-            Some(name) => format!("{name}.{path}"),
-            None => path,
-        })
+        let name = package.name.as_deref().ok_or_else(|| CompilerError::Internal {
+            message: format!("package {:?} has no name for lowering", package.id),
+        })?;
+
+        if path.is_empty() {
+            Ok(name.to_string())
+        } else {
+            Ok(format!("{name}.{path}"))
+        }
     }
 }

@@ -10,17 +10,10 @@ impl ModuleContext {
 
         // prefer selected member declarations
         if let Some(resolution) = self.resolutions().member_resolution(node) {
-            let symbols = match &resolution.target {
-                dir::MemberTarget::Symbol(candidate) => vec![candidate.symbol],
-                dir::MemberTarget::Existential(candidates)
-                | dir::MemberTarget::Universal(candidates) => candidates
-                    .iter()
-                    .map(|candidate| candidate.symbol)
-                    .collect(),
-                dir::MemberTarget::Field(_)
-                | dir::MemberTarget::Element(_)
-                | dir::MemberTarget::Index(_) => Vec::new(),
-            };
+            let mut symbols = Vec::new();
+            for access in resolution.iter() {
+                access.target.collect_symbols(&mut symbols);
+            }
 
             return symbols;
         }

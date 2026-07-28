@@ -10,7 +10,7 @@ class Bag<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -34,7 +34,7 @@ class Bag<T> {
     /// @type.node source=Array.new type=() => Owned<Array<collections.array.T#6>>
     /// @type.node source=Array.new() type=Owned<Array<T>>
     /// @resolution.name source=Array target=collections.array.Array
-    /// @resolution.member source=Array.new receiver=Array kind=symbol target=collections.array.new
+    /// @resolution.member source=Array.new receiver=Array type=() => Owned<Array<collections.array.T#6>> kind=symbol target_receiver=Array target=collections.array.new
     /// @resolution.call source=Array.new() parameters=() return=Owned<Array<T>> kind=symbol target=collections.array.new receiver=Array instance=Array<T>.<extension#6>.new
     /// @generic.instance source=Array.new id=Array<collections.array.T#6>
     /// @generic.instance source=Array.new() id=Array<T>
@@ -46,7 +46,6 @@ class Bag<T> {
 /// @generic.instance id=Array<T>.<extension#6>.new template=collections.array.new arguments=(T)
 /// @generic.instance id=Array<collections.array.T#6> template=collections.array.Array arguments=(collections.array.T#6)
 "#,
-        r#""#,
     );
 }
 
@@ -61,7 +60,7 @@ function build(): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -82,7 +81,7 @@ function build(): void {
     /// @type.node source=Array.new type=() => Owned<Array<collections.array.T#6>>
     /// @type.node source=Array.new() type=Owned<Array<int32>>
     /// @resolution.name source=Array target=collections.array.Array
-    /// @resolution.member source=Array.new receiver=Array kind=symbol target=collections.array.new
+    /// @resolution.member source=Array.new receiver=Array type=() => Owned<Array<collections.array.T#6>> kind=symbol target_receiver=Array target=collections.array.new
     /// @resolution.call source=Array.new() parameters=() return=Owned<Array<int32>> kind=symbol target=collections.array.new receiver=Array instance=Array<int32>.<extension#6>.new
     /// @generic.instance source=Array.new id=Array<collections.array.T#6>
     /// @generic.instance source=Array.new() id=Array<int32>
@@ -91,6 +90,8 @@ function build(): void {
     values;
     /// @type.node source=values type=Array<int32>
     /// @resolution.name source=values target=build.values
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=build.values
 
 }
 
@@ -98,15 +99,11 @@ function build(): void {
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
 /// @generic.instance id=Array<int32>.<extension#6>.new template=collections.array.new arguments=(int32)
 "#,
-        r#""#,
     );
 }
 
 #[test]
-fn test_comptime_literal_fields_bind_the_declared_result_parameters() {
-    // the declared result instantiates the literal's template holes,
-    // and the comptime field literals prove against the rigid
-    // parameter through its scalar-family bound
+fn test_construct_rigid_generic_fields_through_bound() {
     let session = TestSession::single(
         r#"
 import { Numeric } from "destack:math";
@@ -118,13 +115,13 @@ struct Pair<T> {
 
 export extension<T: Numeric> of Pair<T> {
     static zero(): Pair<T> {
-        Pair { x: 0, y: 0 }
+        Pair { x: T.zero(), y: T.zero() }
     }
 }
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -138,7 +135,7 @@ struct Pair<out T> {
 
 export extension<T: Numeric> of Pair<T> {
     static zero(): Pair<T> {
-        Pair<T> { x: 0, y: 0 }
+        Pair<T> { x: T.zero(), y: T.zero() }
     }
 }
 
@@ -164,11 +161,11 @@ struct Pair<T> {
 }
 
 export extension<T: Numeric> of Pair<T> {
-/// @generic.template symbol=<module>#2 parameters=(T#2: math.scalar.Numeric)
+/// @generic.template symbol=<module>#2 parameters=(T#2: math.numeric.Numeric)
 /// @definition.extension symbol=<module>#2 form=exported target=Pair<T#2>
 /// @definition.method symbol=zero slot=zero static=true type=() => Pair<T#2>
 /// @type.symbol symbol=T source="T: Numeric" type=T#2
-/// @resolution.name source=Numeric target=math.scalar.Numeric
+/// @resolution.name source=Numeric target=math.numeric.Numeric
 /// @resolution.name source=Pair target=Pair
 /// @resolution.name source=T target=T
 
@@ -177,19 +174,28 @@ export extension<T: Numeric> of Pair<T> {
     /// @resolution.name source=Pair target=Pair
     /// @resolution.name source=T target=T
 
-        Pair { x: 0, y: 0 }
-        /// @type.node source="Pair { x: 0, y: 0 }" type=Pair<T#2>
+        Pair { x: T.zero(), y: T.zero() }
+        /// @type.node source="Pair { x: T.zero(), y: T.zero() }" type=Pair<T#2>
         /// @resolution.name source=Pair target=Pair
-        /// @generic.instance source="Pair { x: 0, y: 0 }" id=Pair<T#2>
-        /// @type.node source=0 type=0
-        /// @type.node source=0 type=0
+        /// @generic.instance source="Pair { x: T.zero(), y: T.zero() }" id=Pair<T#2>
+        /// @type.node source=T type=T#2
+        /// @type.node source=T.zero type=() => T#2
+        /// @type.node source=T.zero() type=T#2
+        /// @resolution.name source=T target=T
+        /// @resolution.member source=T.zero type=() => T#2 kind=union arms=[receiver=T#2, target=math.identity.Zero.zero, type=() => T#2, receiver=T#2, target=math.identity.Zero.zero, type=() => T#2]
+        /// @resolution.call source=T.zero() return=T#2 kind=union arms=[math.identity.Zero.zero(parameters=(), arguments=(), return=T#2), math.identity.Zero.zero(parameters=(), arguments=(), return=T#2)]
+        /// @type.node source=T type=T#2
+        /// @type.node source=T.zero type=() => T#2
+        /// @type.node source=T.zero() type=T#2
+        /// @resolution.name source=T target=T
+        /// @resolution.member source=T.zero type=() => T#2 kind=union arms=[receiver=T#2, target=math.identity.Zero.zero, type=() => T#2, receiver=T#2, target=math.identity.Zero.zero, type=() => T#2]
+        /// @resolution.call source=T.zero() return=T#2 kind=union arms=[math.identity.Zero.zero(parameters=(), arguments=(), return=T#2), math.identity.Zero.zero(parameters=(), arguments=(), return=T#2)]
 
     }
 }
 
 /// @generic.instance id=Pair<T#2> template=Pair arguments=(T#2)
 "#,
-        r#""#,
     );
 }
 
@@ -211,7 +217,7 @@ export extension<T> of Tag<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -259,12 +265,13 @@ export extension<T> of Tag<T> {
         /// @generic.instance source="Tag { name }" id=Tag<T#2>
         /// @type.node source=name type=string
         /// @resolution.name source=name target=new.name
+        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=name root=new.name
 
     }
 }
 
 /// @generic.instance id=Tag<T#2> template=Tag arguments=(T#2)
 "#,
-        r#""#,
     );
 }

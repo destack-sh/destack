@@ -35,20 +35,24 @@ pub(in crate::lower) struct Place {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Return the place selected by one checked place resolution.
+    /// Return the place selected by one checked assignment resolution.
     pub(in crate::lower) fn place(
         &mut self,
-        place: &dir::PlaceResolution,
+        assignment: &dir::AssignmentResolution,
     ) -> CompilerResult<Place> {
-        let Ok(source) = place.source.local_id.try_into_typed::<dir::Expression>() else {
+        let Ok(source) = assignment
+            .target
+            .local_id
+            .try_into_typed::<dir::Expression>()
+        else {
             return Err(CompilerError::Internal {
                 message: "checked DIR placed a non-expression node".to_string(),
             });
         };
 
-        match &place.storage {
+        match &assignment.write {
             // value = x
-            dir::Storage::Binding { symbol } => {
+            dir::WriteResolution::Binding { symbol, .. } => {
                 let local = self.place_base(symbol.local_id)?;
 
                 Ok(Place {
@@ -57,21 +61,39 @@ impl FunctionLowerer<'_, '_, '_> {
                 })
             }
             // value.field = x
-            dir::Storage::Field { receiver, field } => {
-                // the final projection comes from the checked storage behind any form
-                let stored = match self.lowerer.peel_reference(*receiver)? {
-                    Some(layer) => layer.stored,
-                    None => self.lowerer.peel_owned(*receiver)?,
-                };
-                let dir::Type::Application(instance) = self.lowerer.ty(stored)? else {
+            dir::WriteResolution::Member(resolution) => {
+                let dir::OperationResolution::One(access) = resolution else {
                     return Err(LowerError::Unsupported {
                         anchor: self.lowerer.module.into(),
-                        construct: "a write into a structural receiver".to_string(),
+                        construct: "a field write on a union receiver".to_string(),
                     }
                     .into());
                 };
-                let index = self.projection_field_index(&instance, field)?;
-                let ty = self.lower_type(place.ty)?;
+                let dir::MemberTarget::Field(field) = &access.target else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a write through non-field member storage".to_string(),
+                    }
+                    .into());
+                };
+                let dir::MemberReceiver::Direct(receiver) = &field.receiver else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a field write through dynamic dispatch".to_string(),
+                    }
+                    .into());
+                };
+                if !receiver.adjustments.is_empty() {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a field write through receiver adjustments".to_string(),
+                    }
+                    .into());
+                }
+
+                // lower the checked storage selection
+                let index = self.member_field_index(field)?;
+                let ty = self.lower_type(field.ty)?;
 
                 // the receiver chain reads through its checked member resolutions
                 let dir::Expression::Member { left, .. } = *self.source().tree().get(source) else {
@@ -98,7 +120,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Place> {
         // reference receivers root the place at their reference value
-        let ty = self.coerced_type_id(expression)?;
+        let ty = self.node_type_id(expression)?;
         if let Some(layer) = self.lowerer.peel_reference(ty)? {
             let value = self.lower_expression(expression)?;
 
@@ -114,7 +136,22 @@ impl FunctionLowerer<'_, '_, '_> {
         match *self.source().tree().get(expression) {
             // base.field keeps projecting
             dir::Expression::Member { left, .. } => {
-                let index = self.member_field_index(expression)?;
+                let resolution = self.member_resolution(expression)?;
+                let dir::OperationResolution::One(access) = &resolution else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a place projection on a union receiver".to_string(),
+                    }
+                    .into());
+                };
+                let dir::MemberTarget::Field(field) = &access.target else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a place projection through non-field storage".to_string(),
+                    }
+                    .into());
+                };
+                let index = self.member_field_index(field)?;
                 let ty = self.lower_type(self.node_type_id(expression)?)?;
                 let mut place = self.receiver_place(left)?;
                 place.path.push(PlaceProjection { field: index, ty });
@@ -152,29 +189,6 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         Ok(local)
-    }
-
-    /// Return the declaration field index behind one checked projection.
-    fn projection_field_index(
-        &self,
-        instance: &dir::GenericApplication,
-        field: &dir::ProjectionField,
-    ) -> CompilerResult<u32> {
-        let fields = self.lowerer.nominal_fields(instance.symbol)?;
-        let index = match field {
-            dir::ProjectionField::Key(key) => fields.iter().position(|field| field.key == *key),
-            dir::ProjectionField::Member(symbol) => {
-                let symbol = symbol.local_id;
-
-                fields.iter().position(|field| field.symbol == symbol)
-            }
-        };
-
-        index
-            .map(|index| index as u32)
-            .ok_or_else(|| CompilerError::Internal {
-                message: "checked DIR projected a field missing from its nominal".to_string(),
-            })
     }
 
     /// Project one field address through an aggregate reference.

@@ -21,7 +21,7 @@ const value = undefined == undefined;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="undefined == undefined" type=boolean
 /// @type.node source=undefined type=undefined
-/// @resolution.operator source="undefined == undefined" kind=builtin
+/// @resolution.operator source="undefined == undefined" type=boolean operator="==" kind=builtin operands=[undefined as undefined families=(undefined), undefined as undefined families=(undefined)]
 /// @type.node source=undefined type=undefined
 "#,
     );
@@ -47,28 +47,32 @@ function use(onValue?: (value: unknown) => void): void {
 === annotated ===
 function use(onValue?: (arg0: unknown) => void): void {
     if (onValue !== (undefined as ((arg0: unknown) => void) | undefined)) {
-        onValue(1 as unknown);
+        onValue(1 as Dynamic<unknown>);
     } else {
     }
 }
 
 === checked ===
 function use(onValue?: (value: unknown) => void): void {
-/// @type.symbol symbol=use type=(Function<(unknown,), void> | undefined) => void
+/// @type.symbol symbol=use type=(Function<(unknown,), void> | undefined?) => void
 /// @type.symbol symbol=use.onValue source="onValue?: (value: unknown) => void" type=Function<(unknown,), void> | undefined
 
     if (onValue !== undefined) {
     /// @type.node source="onValue !== undefined" type=boolean
     /// @type.node source=onValue type=Function<(unknown,), void> | undefined
     /// @resolution.name source=onValue target=use.onValue
-    /// @resolution.operator source="onValue !== undefined" kind=builtin
+    /// @resolution.operator source="onValue !== undefined" type=boolean operator="!==" kind=builtin operands=[onValue as Function<(unknown,), void> | undefined, undefined as Function<(unknown,), void> | undefined]
+    /// @resolution.place source=onValue placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=onValue root=use.onValue
     /// @type.node source=undefined type=undefined
 
         onValue(1);
         /// @type.node source=onValue type=Function<(unknown,), void>
         /// @type.node source=onValue(1) type=void
         /// @resolution.name source=onValue target=use.onValue
-        /// @resolution.call source=onValue(1) parameters=(unknown) arguments=(provided(1) as unknown) return=void kind=expression
+        /// @resolution.call source=onValue(1) parameters=(unknown) arguments=(provided(1) as unknown) return=void kind=expression target=expression
+        /// @resolution.place source=onValue placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=onValue root=use.onValue
         /// @type.node source=1 type=1
 
     } else {
@@ -99,7 +103,7 @@ const isMissing = undefined === undefined;
 /// @resolution.pattern source=isMissing kind=binding target=isMissing
 /// @type.node source="undefined === undefined" type=boolean
 /// @type.node source=undefined type=undefined
-/// @resolution.operator source="undefined === undefined" kind=builtin
+/// @resolution.operator source="undefined === undefined" type=boolean operator="===" kind=builtin operands=[undefined as undefined families=(undefined), undefined as undefined families=(undefined)]
 /// @type.node source=undefined type=undefined
 "#,
     );
@@ -141,9 +145,13 @@ const same = left === right;
 /// @type.node source="left === right" type=boolean
 /// @type.node source=left type=string
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left === right" kind=builtin
+/// @resolution.operator source="left === right" type=boolean operator="===" kind=builtin operands=[left as string families=(string), right as string families=(string)]
+/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=left root=left
 /// @type.node source=right type=string
 /// @resolution.name source=right target=right
+/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=right root=right
 "#,
     );
 }
@@ -184,9 +192,13 @@ const same = left === right;
 /// @type.node source="left === right" type=boolean
 /// @type.node source=left type=bigint
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left === right" kind=builtin
+/// @resolution.operator source="left === right" type=boolean operator="===" kind=builtin operands=[left as bigint families=(bigint), right as bigint families=(bigint)]
+/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=left root=left
 /// @type.node source=right type=bigint
 /// @resolution.name source=right target=right
+/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=right root=right
 "#,
     );
 }
@@ -212,7 +224,7 @@ const same = "ready" === "done";
 /// @resolution.pattern source=same kind=binding target=same
 /// @type.node source="\"ready\" === \"done\"" type=boolean
 /// @type.node source="\"ready\"" type="ready"
-/// @resolution.operator source="\"ready\" === \"done\"" kind=builtin
+/// @resolution.operator source="\"ready\" === \"done\"" type=boolean operator="===" kind=builtin operands=["ready" as "ready" families=(string), "done" as "done" families=(string)]
 /// @type.node source="\"done\"" type="done"
 "#,
         r#"
@@ -276,12 +288,61 @@ const same = left === right;
 /// @type.node source="left === right" type=<error>
 /// @type.node source=left type=Badge
 /// @resolution.name source=left target=left
+/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=left root=left
 /// @type.node source=right type=Badge
 /// @resolution.name source=right target=right
+/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=right root=right
 "#,
         r#"
 /// @diagnostic.error id=no-matching-operator message="operator '===' is not defined for 'Badge' and 'Badge'"
 /// @diagnostic.label line=8 column=19 span="===" line_source="const same = left === right;"
+"#,
+    );
+}
+
+#[test]
+fn test_strict_equality_compares_union_with_disjoint_reference_arm() {
+    let session = TestSession::single(
+        r#"
+class User {}
+
+declare const value: string | User;
+const isReady = value === "ready";
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class User {}
+
+declare const value: string | User;
+const isReady: boolean = value === ("ready" as string | User);
+
+=== checked ===
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=User
+/// @definition.class symbol=User source="class User {}"
+
+declare const value: string | User;
+/// @type.symbol symbol=value source=value type=string | User
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=User target=User
+
+const isReady = value === "ready";
+/// @type.symbol symbol=isReady source=isReady type=boolean
+/// @resolution.pattern source=isReady kind=binding target=isReady
+/// @type.node source="value === \"ready\"" type=boolean
+/// @type.node source=value type=string | User
+/// @resolution.name source=value target=value
+/// @resolution.operator source="value === \"ready\"" type=boolean operator="===" kind=builtin operands=[value as string | User, "ready" as string | User]
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @type.node source="\"ready\"" type="ready"
 "#,
     );
 }
@@ -316,7 +377,9 @@ const isPending = kind == "pending";
 /// @type.node source="kind == \"pending\"" type=boolean
 /// @type.node source=kind type="pending" | "fulfilled"
 /// @resolution.name source=kind target=kind
-/// @resolution.operator source="kind == \"pending\"" kind=builtin
+/// @resolution.operator source="kind == \"pending\"" type=boolean operator="==" kind=builtin operands=[kind as "pending" | "fulfilled" families=(string), "pending" as "pending" families=(string)]
+/// @resolution.place source=kind placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=kind root=kind
 /// @type.node source="\"pending\"" type="pending"
 "#,
     );
@@ -380,23 +443,32 @@ struct Badge {
 
 extension of Badge implements PartialEqual<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
-/// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=ops.equality.PartialEqual arguments=(Badge)
-/// @definition.method symbol=equal slot=equal type=(this: this, Badge) => boolean
+/// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=PartialEqual<Badge>
+/// @definition.method symbol=equal slot=equal type=<equal.'l0>(this: &equal.'l0 exclusive this, Badge) => boolean
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
 /// @resolution.name source=Badge target=Badge
 
     equal(other: Badge): boolean {
-    /// @type.symbol symbol=equal type=(this: this, Badge) => boolean
+    /// @generic.template symbol=equal parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=equal type=<equal.'l0>(this: &equal.'l0 exclusive this, Badge) => boolean
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
 
         this.id == other.id
-        /// @resolution.member source=this.id receiver=Badge kind=symbol target=Badge.id
-        /// @resolution.operator source="this.id == other.id" kind=builtin
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Badge
+        /// @resolution.member source=this.id receiver=&equal.'l0 exclusive Badge type=float64 kind=field target_receiver=&equal.'l0 exclusive Badge key=id target=Badge.id target_type=float64
+        /// @resolution.operator source="this.id == other.id" type=boolean operator="==" kind=builtin operands=[this.id as float64 families=(float), other.id as float64 families=(float)]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'l0 exclusive Badge
+        /// @resolution.place source=this placement="local" lifetime=equal.'l0 access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.id placement="local" lifetime=equal.'l0 access="exclusive"
+        /// @resolution.access source=this.id root=this keys=[id]
         /// @resolution.name source=other target=equal.other
-        /// @resolution.member source=other.id receiver=Badge kind=symbol target=Badge.id
+        /// @resolution.member source=other.id receiver=Badge type=float64 kind=field target_receiver=Badge key=id target=Badge.id target_type=float64
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=equal.other
+        /// @resolution.place source=other.id placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other.id root=equal.other keys=[id]
 
     }
 }
@@ -415,8 +487,12 @@ const same = left == right;
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left == right" kind=call parameters=(Badge) arguments=(provided(right) as Badge) return=boolean target=equal receiver=Badge
+/// @resolution.operator source="left == right" type=boolean operator="==" kind=call parameters=(Badge) arguments=(provided(right) as Badge) return=boolean kind=symbol target=equal receiver=Badge adjustments=(borrow(&'static exclusive Badge))
+/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=left root=left
 /// @resolution.name source=right target=right
+/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=right root=right
 "#,
     );
 }

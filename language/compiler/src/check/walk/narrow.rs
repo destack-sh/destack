@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{FlowPredicate, PathPredicate, WalkState};
+use crate::check::{FlowPredicate, WalkState};
 
 /// The condition branch being entered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,13 +116,11 @@ impl WalkState<'_, '_> {
                 operator,
                 right,
             } if operator.is_equality() => {
-                let branch = if operator.is_negative_equality() {
-                    branch.opposite()
-                } else {
-                    branch
+                let is_equal = match (operator.is_negative_equality(), branch) {
+                    (false, ConditionBranch::True) | (true, ConditionBranch::False) => true,
+                    (false, ConditionBranch::False) | (true, ConditionBranch::True) => false,
                 };
-                self.narrow_by_equality(*left, *right, branch)?;
-                self.narrow_by_equality(*right, *left, branch)?;
+                self.narrow_by_equality(id.into_global_any(self.module), *left, *right, is_equal);
             }
             // key in value
             dir::Expression::Binary {
@@ -130,15 +128,15 @@ impl WalkState<'_, '_> {
                 right,
                 ..
             } => {
-                self.narrow_by_guard(id, *right, branch)?;
+                self.narrow_by_guard(id, *right, branch);
             }
             // value is T
             dir::Expression::Is { value, .. } => {
-                self.narrow_by_guard(id, *value, branch)?;
+                self.narrow_by_guard(id, *value, branch);
             }
             // value instanceof Target
             dir::Expression::InstanceOf { value, .. } => {
-                self.narrow_by_guard(id, *value, branch)?;
+                self.narrow_by_guard(id, *value, branch);
             }
             // expressions without flow effects
             _ => {}
@@ -158,18 +156,16 @@ impl WalkState<'_, '_> {
         guard: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
         branch: ConditionBranch,
-    ) -> CompilerResult<()> {
-        let Some(path) = self.flow_path(value) else {
-            return Ok(());
+    ) {
+        let Some(path) = self.lexical_access_path(value) else {
+            return;
         };
         let predicate = FlowPredicate::Guard {
             guard: guard.into_global(self.module),
             is_positive: branch == ConditionBranch::True,
         };
 
-        self.apply_flow_predicate(path, predicate);
-
-        Ok(())
+        self.flow_mut().apply_narrowing(path, predicate);
     }
 
     /// Narrow flow from one equality expression.
@@ -178,91 +174,31 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// value === undefined
     /// ```
-    fn narrow_by_equality(
+    pub(in crate::check) fn narrow_by_equality(
         &mut self,
-        value: dir::LocalNodeId<dir::Expression>,
-        target: dir::LocalNodeId<dir::Expression>,
-        branch: ConditionBranch,
-    ) -> CompilerResult<()> {
-        let Some(path) = self.flow_path(value) else {
-            return Ok(());
-        };
-        let Some(target) = self.equality_target_type(target)? else {
-            return Ok(());
+        operation: dir::GlobalNodeIdAny,
+        left: dir::LocalNodeId<dir::Expression>,
+        right: dir::LocalNodeId<dir::Expression>,
+        is_equal: bool,
+    ) {
+        let predicate = FlowPredicate::Equality {
+            operation,
+            is_equal,
         };
 
-        let predicate = match branch {
-            ConditionBranch::True => PathPredicate::Is(target),
-            ConditionBranch::False => PathPredicate::IsNot(target),
-        };
-        self.apply_path_predicate(path, predicate);
-        self.narrow_parent_by_member_predicate(value, predicate)?;
-
-        Ok(())
-    }
-
-    /// Narrow a base flow path from a member predicate.
-    ///
-    /// Example:
-    /// ```ds
-    /// if (state.kind == "pending") { state.reactions }
-    /// ```
-    fn narrow_parent_by_member_predicate(
-        &mut self,
-        value: dir::LocalNodeId<dir::Expression>,
-        predicate: PathPredicate,
-    ) -> CompilerResult<()> {
-        // require an existing member flow path
-        let Some(path) = self.flow_path(value) else {
-            return Ok(());
-        };
-        let Some((base_path, key)) = path.split_last() else {
-            return Ok(());
-        };
-        if self.member_base_expression(value).is_none() {
-            return Ok(());
+        // record one directed fact for each stable operand access
+        let mut paths = Vec::new();
+        for operand in [left, right] {
+            let Some(path) = self.lexical_access_path(operand) else {
+                continue;
+            };
+            if !paths.contains(&path) {
+                paths.push(path);
+            }
         }
 
-        // narrow base with a structural member predicate
-        self.apply_member_path_predicate(base_path, key, predicate)
-    }
-
-    /// Return the base expression for one member path expression.
-    fn member_base_expression(
-        &self,
-        value: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::LocalNodeId<dir::Expression>> {
-        match self.tree.get(value) {
-            // value.member
-            dir::Expression::Member { left, .. }
-            // value.#member
-            // value[index]
-            | dir::Expression::Index { left, .. } => Some(*left),
-            // not a member path
-            _ => None,
+        for path in paths {
+            self.flow_mut().apply_narrowing(path, predicate);
         }
-    }
-
-    /// Return the literal type used by one equality test.
-    /// Nullish targets use the canonical nullish types.
-    ///
-    /// Example:
-    /// ```ds
-    /// value === "ready"
-    /// ```
-    fn equality_target_type(
-        &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let ty = match self.tree.get(id) {
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Null) => dir::Type::Null,
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Undefined) => dir::Type::Undefined,
-            // other scalar equality keeps the literal exact
-            dir::Expression::ScalarLiteral(value) => dir::Type::Literal(*value),
-            // not a literal equality target
-            _ => return Ok(None),
-        };
-
-        Ok(Some(self.intern_type(ty)?))
     }
 }

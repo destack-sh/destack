@@ -1,10 +1,9 @@
 import { todo } from "destack:error";
 import { Multiply } from "destack:ops";
 
-import { sqrt } from "./float.ds";
+import { Float } from "./float.ds";
 import { Vector3 } from "./linear.ds";
 import { Matrix3 } from "./matrix.ds";
-import { Float } from "./scalar.ds";
 
 /// Quaternion rotation value.
 export struct Quaternion<T: Float> {
@@ -68,7 +67,7 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
 
     /// Return the length.
     length(): T {
-        sqrt(this.lengthSquared())
+        this.lengthSquared().sqrt()
     }
 
     /// Return the normalized quaternion.

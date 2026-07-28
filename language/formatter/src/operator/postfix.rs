@@ -7,8 +7,6 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, group, soft_block_indent, token};
 use destack_fir::{format_args, write};
 
-use super::binary::expression_precedence;
-
 /// Return whether postfix formatting requires parentheses.
 #[inline]
 pub(crate) fn needs_parens_in_postfix_position(
@@ -24,7 +22,7 @@ pub(crate) fn needs_parens_in_postfix_position(
         return true;
     }
 
-    expression_precedence(tree.get(expr_id)) < OperatorPrecedence::Postfix
+    tree.get(expr_id).precedence() < OperatorPrecedence::Postfix
 }
 
 /// Format one expression as the receiver of a postfix operation.

@@ -2,10 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{
-    Answer, BodyState, CheckState, Decision, FlowPointId, FlowSite, Origin, SignatureMatch,
-    TypeSubstitution, answer,
-};
+use crate::check::{Answer, BodyState, CheckState, FlowPointId, Origin, answer};
 use crate::{CompilerError, CompilerResult};
 
 /// One instantiated tagged owner.
@@ -22,27 +19,21 @@ pub(in crate::check) struct VariantOwner {
 struct TaggedCaseSelection {
     /// The tagged case identity.
     case: dir::VariantCase,
-    /// The matched owner arguments, absent when merged arms mix instantiations.
-    generic_arguments: Option<Vec<dir::GenericArgumentBinding>>,
+    /// The selected discriminator field.
+    discriminator: dir::StaticKey,
     /// The runtime discriminant value.
     discriminant: dir::ScalarLiteral,
-    /// The compact payload type.
-    payload: dir::GlobalTypeId,
-    /// The compact payload fields.
-    fields: Vec<TaggedPayloadField>,
+    /// The selected case payload.
+    payload: Option<TaggedPayload>,
 }
 
-/// One field in a compact tagged payload.
-#[derive(Debug, Clone, Copy)]
-struct TaggedPayloadField {
-    /// The source payload key.
-    key: dir::StaticKey,
-    /// The projected field type.
-    ty: dir::GlobalTypeId,
-    /// Whether the source field is optional.
-    is_optional: bool,
-    /// Whether the source field is readonly.
-    is_readonly: bool,
+/// One instantiated Tagged case payload.
+#[derive(Debug, Clone)]
+struct TaggedPayload {
+    /// The exact case backing projected at runtime.
+    backing: dir::GlobalTypeId,
+    /// The constructor argument fields.
+    fields: Vec<dir::TypeProperty>,
 }
 
 impl BodyState<'_, '_> {
@@ -85,10 +76,10 @@ impl BodyState<'_, '_> {
         let expression = self.module(module).view().get(ty).clone();
         match expression {
             dir::TypeExpression::Member { left, name, .. } => {
-                let owner = answer!(self.node_type(left.into_global_any(module))?);
+                let owner = self.require_node_type(left.into_global_any(module))?;
                 let key = dir::StaticKey::Name(name);
 
-                self.variant_family_from_type(origin, owner, key)
+                self.variant_family(origin, owner, key)
             }
             dir::TypeExpression::Reference { path, .. } => {
                 let reference = self.module(module).resolved.references.get(source).cloned();
@@ -102,21 +93,21 @@ impl BodyState<'_, '_> {
                 let owner = answer!(self.symbol_type(base)?);
                 let key = dir::StaticKey::Name(name);
 
-                self.variant_family_from_type(origin, owner, key)
+                self.variant_family(origin, owner, key)
             }
             _ => {
-                let ty = answer!(self.node_type(source)?);
+                let ty = self.require_node_type(source)?;
                 let Some(member) = self.member_head(ty)? else {
                     return Ok(Answer::Ready(None));
                 };
 
-                self.variant_family_from_type(origin, member.owner, member.key)
+                self.variant_family(origin, member.owner, member.key)
             }
         }
     }
 
     /// Return one variant family from its owner type and selected key.
-    fn variant_family_from_type(
+    fn variant_family(
         &mut self,
         origin: Origin,
         owner: dir::GlobalTypeId,
@@ -144,7 +135,6 @@ impl BodyState<'_, '_> {
     /// Return the variant case named by one expression pattern.
     pub(in crate::check) fn variant_expression_case(
         &mut self,
-        origin: Origin,
         module: ModuleId,
         value: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<Option<dir::VariantCase>>> {
@@ -157,24 +147,18 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(None));
         };
 
-        let owner = answer!(self.node_type(left.into_global_any(module))?);
-        self.variant_case_from_owner(origin, owner, dir::StaticKey::Name(name))
-    }
-
-    /// Return one variant case from its owner type and key.
-    fn variant_case_from_owner(
-        &mut self,
-        origin: Origin,
-        owner: dir::GlobalTypeId,
-        key: dir::StaticKey,
-    ) -> CompilerResult<Answer<Option<dir::VariantCase>>> {
-        let owner = answer!(self.reduce_type_head(origin, owner)?);
-        let symbol = match self.ty(owner)? {
-            dir::Type::Application(instance) => instance.symbol,
-            dir::Type::Reference(reference) => reference.symbol,
-            _ => return Ok(Answer::Ready(None)),
+        // peel explicit application from the owner declaration reference
+        let mut owner = left;
+        while let dir::Expression::Instantiation { left, .. } =
+            self.module(module).view().get(owner)
+        {
+            owner = *left;
+        }
+        let Some(owner) = self.reference_symbol(owner.into_global_any(module)) else {
+            return Ok(Answer::Ready(None));
         };
-        let case = self.variant_case(symbol, key)?;
+        let owner = self.resolve_symbol_alias(owner)?;
+        let case = self.variant_case(owner, dir::StaticKey::Name(name))?;
 
         Ok(Answer::Ready(case))
     }
@@ -194,7 +178,11 @@ impl BodyState<'_, '_> {
                 .map(|variant| variant.symbol),
             _ => None,
         };
-        let case = member.map(|member| dir::VariantCase { owner, key, member });
+        let case = member.map(|variant| dir::VariantCase {
+            owner,
+            key,
+            variant,
+        });
 
         Ok(case)
     }
@@ -209,8 +197,8 @@ impl BodyState<'_, '_> {
         case: dir::VariantCase,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
-        let input = answer!(self.node_type(node.into_any())?);
-        let owners = answer!(self.variant_owners_from_input(origin, input, case.owner)?);
+        let input = self.require_node_type(node.into_any())?;
+        let owners = answer!(self.variant_owners(origin, input, &case)?);
         if owners.is_empty() {
             let owner = self.format_symbol(case.owner);
             let key = self.format_static_key(&case.key);
@@ -235,73 +223,98 @@ impl BodyState<'_, '_> {
         }
 
         // select the requested case from every matched owner arm
-        let Some(selection) =
-            answer!(self.tagged_case_selection_from_owners(origin, &case, &owners)?)
-        else {
+        let Some(selection) = answer!(self.select_tagged_case(origin, &case, &owners)?) else {
             let key = self.format_static_key(&case.key);
             self.report_pattern_variant_missing(origin, key, owners[0].owner)?;
 
             return self.commit_rejected_pattern(node);
         };
 
-        // project written fields out of the compact payload
-        let projected = answer!(self.project_tagged_payload_fields(
-            node,
-            origin,
-            flow,
-            scope,
-            selection.payload,
-            &selection.fields,
-            fields,
-        )?);
-
+        let owner = self.tagged_selection_owner(origin.module(), &owners)?;
         let tag_type =
             self.intern_type(origin.module(), dir::Type::from(&selection.discriminant))?;
-        let projection = dir::Projection::VariantPayload {
-            case: selection.case,
-            generic_arguments: selection.generic_arguments,
-            discriminant: selection.discriminant,
-            ty: selection.payload,
-        };
-        let owner = self.tagged_selection_owner(origin.module(), &owners)?;
+        let narrowed =
+            self.tagged_variant_type(origin.module(), &owners, selection.case.variant)?;
         let predicate = dir::Predicate::unary(
-            dir::PredicateOperand::projected(dir::Projection::VariantTag { ty: tag_type }),
+            dir::PredicateOperand::projected(dir::Projection::VariantTag {
+                carrier: owner,
+                discriminator: selection.discriminator,
+                ty: tag_type,
+            }),
             dir::PredicateCondition::Literal(selection.discriminant),
         )
-        .with_narrowed(owner)
-        .with_projection(projection.clone());
+        .with_narrowed(narrowed);
+
+        // select the optional payload projection
+        let (predicate, projected) = match selection.payload {
+            Some(payload) => {
+                let projected = answer!(self.project_tagged_payload_patterns(
+                    node, origin, flow, scope, &payload, fields,
+                )?);
+                let projection = dir::Projection::VariantPayload {
+                    case: selection.case.clone(),
+                    backing: payload.backing,
+                    discriminator: selection.discriminator,
+                    discriminant: selection.discriminant,
+                    ty: payload.backing,
+                };
+                let predicate = predicate.with_projection(projection.clone());
+
+                (predicate, projected)
+            }
+            None if fields.is_empty() => (predicate, (None, Vec::new())),
+            None => {
+                let key = self.format_static_key(&selection.case.key);
+                self.report_pattern_field_missing(origin, owner, key)?;
+
+                return self.commit_rejected_pattern(node);
+            }
+        };
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Destructure(Box::new(
-                dir::PatternDestructureResolution::Variant(Box::new(
-                    dir::PatternVariantDestructureResolution {
-                        predicate,
-                        projection,
-                        fields: projected,
-                    },
-                )),
-            )),
+            dir::PatternResolution::Variant(Box::new(dir::PatternVariantResolution {
+                case: selection.case,
+                predicate,
+                payload: projected.0,
+                fields: projected.1,
+            })),
         )
     }
 
     /// Return tagged owner instances visible in the matched input.
-    fn variant_owners_from_input(
+    fn variant_owners(
         &mut self,
         origin: Origin,
         input: dir::GlobalTypeId,
-        symbol: dir::GlobalSymbolId,
+        case: &dir::VariantCase,
     ) -> CompilerResult<Answer<Vec<VariantOwner>>> {
         let input = answer!(self.strip_form(origin, input)?);
         let mut owners = Vec::new();
 
         // collect every visible owner instance from the input
         match self.ty(input)? {
-            dir::Type::Application(instance) if instance.symbol == symbol => {
+            dir::Type::Application(instance) if instance.symbol == case.owner => {
                 owners.push(VariantOwner {
                     owner: input,
                     instance,
                 });
+            }
+            dir::Type::Variant(variant) if variant.variant == case.variant => {
+                let dir::Type::Application(instance) = self.ty(variant.owner)? else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "variant type {input:?} has non-application owner {:?}",
+                            variant.owner
+                        ),
+                    });
+                };
+                if instance.symbol == case.owner {
+                    owners.push(VariantOwner {
+                        owner: variant.owner,
+                        instance,
+                    });
+                }
             }
             dir::Type::Union(union) => {
                 let arms =
@@ -310,12 +323,29 @@ impl BodyState<'_, '_> {
                 for arm in arms {
                     let arm = answer!(self.reduce_type_head(origin, arm)?);
                     if let dir::Type::Application(instance) = self.ty(arm)?
-                        && instance.symbol == symbol
+                        && instance.symbol == case.owner
                     {
                         owners.push(VariantOwner {
                             owner: arm,
                             instance,
                         });
+                    } else if let dir::Type::Variant(variant) = self.ty(arm)?
+                        && variant.variant == case.variant
+                    {
+                        let dir::Type::Application(instance) = self.ty(variant.owner)? else {
+                            return Err(CompilerError::Internal {
+                                message: format!(
+                                    "variant type {arm:?} has non-application owner {:?}",
+                                    variant.owner
+                                ),
+                            });
+                        };
+                        if instance.symbol == case.owner {
+                            owners.push(VariantOwner {
+                                owner: variant.owner,
+                                instance,
+                            });
+                        }
                     }
                 }
             }
@@ -326,7 +356,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Return one selected case from every matched tagged owner arm.
-    fn tagged_case_selection_from_owners(
+    fn select_tagged_case(
         &mut self,
         origin: Origin,
         case: &dir::VariantCase,
@@ -334,10 +364,16 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
         let mut selected = Vec::with_capacity(owners.len());
         for owner in owners {
-            let Some(case) = answer!(self.tagged_case_selection(origin, owner, case)?) else {
-                continue;
+            let Some(selected_case) = answer!(self.instantiate_tagged_case(origin, owner, case)?)
+            else {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "tagged owner {:?} does not define resolved case {:?}",
+                        owner.owner, case.variant,
+                    ),
+                });
             };
-            selected.push(case);
+            selected.push(selected_case);
         }
 
         match selected.as_slice() {
@@ -353,40 +389,82 @@ impl BodyState<'_, '_> {
         origin: Origin,
         cases: Vec<TaggedCaseSelection>,
     ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
-        let first = cases[0].clone();
-        let mut payloads = Vec::with_capacity(cases.len());
-        let mut fields = Vec::<TaggedPayloadField>::new();
-        let mut generic_arguments = first.generic_arguments.clone();
+        let mut cases = cases.into_iter();
+        let Some(first) = cases.next() else {
+            return Err(CompilerError::Internal {
+                message: "cannot merge an empty tagged case set".to_string(),
+            });
+        };
+        let case_count = cases.len() + 1;
+        let mut backings = Vec::with_capacity(case_count);
+        let mut fields = Vec::<dir::TypeProperty>::new();
+        let selected_case = first.case;
+        let selected_discriminator = first.discriminator;
+        let discriminant = first.discriminant;
+        if let Some(payload) = first.payload {
+            backings.push(payload.backing);
+            fields.extend(payload.fields);
+        }
 
-        // merge payloads and field types at their projected positions
+        // retain fields available through every runtime payload arm
         for case in cases {
-            payloads.push(case.payload);
-
-            // mixed owner instantiations have no single argument list
-            if generic_arguments != case.generic_arguments {
-                generic_arguments = None;
+            if case.case != selected_case
+                || case.discriminator != selected_discriminator
+                || case.discriminant != discriminant
+            {
+                return Err(CompilerError::Internal {
+                    message: "tagged owner arms selected different cases".to_string(),
+                });
             }
-
-            for field in case.fields {
-                let Some(existing) = fields.iter_mut().find(|existing| existing.key == field.key)
-                else {
-                    fields.push(field);
-                    continue;
-                };
-
-                existing.ty =
-                    self.normalized_union_type(origin.module(), [existing.ty, field.ty])?;
+            if let Some(payload) = case.payload {
+                backings.push(payload.backing);
+                let mut common = Vec::with_capacity(fields.len().min(payload.fields.len()));
+                for existing in fields {
+                    let Some(field) = payload
+                        .fields
+                        .iter()
+                        .find(|field| field.key == existing.key)
+                    else {
+                        continue;
+                    };
+                    // union arm payloads read the union of their reads; writes
+                    //  survive only when every arm accepts them
+                    let read = self.normalized_union_type(
+                        origin.module(),
+                        [existing.access.store(), field.access.store()],
+                    )?;
+                    let access = match existing.access.is_writable() && field.access.is_writable() {
+                        true => dir::PropertyAccess::ReadWrite { read, write: read },
+                        false => dir::PropertyAccess::Read(read),
+                    };
+                    common.push(dir::TypeProperty {
+                        key: existing.key,
+                        access,
+                        is_optional: existing.is_optional || field.is_optional,
+                    });
+                }
+                fields = common;
             }
         }
 
-        let payload = self.normalized_union_type(origin.module(), payloads)?;
+        let payload = if backings.is_empty() {
+            None
+        } else if backings.len() == case_count {
+            Some(TaggedPayload {
+                backing: self.normalized_union_type(origin.module(), backings)?,
+                fields,
+            })
+        } else {
+            return Err(CompilerError::Internal {
+                message: "one tagged case mixed unit and payload-bearing definitions".to_string(),
+            });
+        };
 
         Ok(Answer::Ready(Some(TaggedCaseSelection {
-            case: first.case,
-            generic_arguments,
-            discriminant: first.discriminant,
+            case: selected_case,
+            discriminator: selected_discriminator,
+            discriminant,
             payload,
-            fields,
         })))
     }
 
@@ -402,363 +480,107 @@ impl BodyState<'_, '_> {
         }
     }
 
-    /// Select one tagged variant construction call.
-    ///
-    /// Example:
-    /// ```ds
-    /// Bound.Included({ value: 1 })
-    /// ```
-    pub(in crate::check) fn select_variant_construct(
+    /// Return the case-specific type selected across tagged owner instances.
+    fn tagged_variant_type(
         &mut self,
-        site: FlowSite,
-        node: dir::GlobalNodeIdAny,
-        origin: Origin,
-        member: dir::EnumMemberType,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        type_arguments: &[dir::GlobalTypeId],
-        expected_return: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<()>> {
-        let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-        let arguments = self.callable_arguments(module, argument_nodes)?;
-
-        // name the case from the variant symbol's declared key
-        let owner_head = answer!(self.reduce_type_head(origin, member.owner)?);
-        let dir::Type::Application(owner_instance) = self.ty(owner_head)? else {
-            return self.reject_construct(site, node, origin, argument_nodes, &[]);
-        };
-        let Some(key) = self.tagged_variant_key(owner_instance.symbol, member.member)? else {
-            return self.reject_construct(site, node, origin, argument_nodes, &[]);
-        };
-
-        // open the owner at the call site: the return expectation and
-        //  the payload arguments bind its holes
-        let owner_static = answer!(self.symbol_type(owner_instance.symbol)?);
-        let Some(owner) = answer!(self.tagged_owner_from_type(origin, owner_static)?) else {
-            return self.reject_construct(site, node, origin, argument_nodes, &[]);
-        };
-        let Some(variant) = self.variant_case(owner.instance.symbol, key)? else {
-            return self.reject_construct(site, node, origin, argument_nodes, &[]);
-        };
-        let Some(case) = answer!(self.tagged_case_selection(origin, &owner, &variant)?) else {
-            return self.reject_construct(site, node, origin, argument_nodes, &[]);
-        };
-
-        // explicit type arguments bind the opened owner holes directly
-        let mut type_arguments = type_arguments;
-        if !type_arguments.is_empty() {
-            let dir::Type::Application(owner_open) = self.ty(owner.owner)? else {
-                return self.reject_construct(site, node, origin, argument_nodes, &[]);
-            };
-            let holes = self
-                .type_ids(owner.owner.module_id, owner_open.arguments)?
-                .to_vec();
-            if holes.len() != type_arguments.len() {
-                return self.reject_construct(site, node, origin, argument_nodes, &[]);
-            }
-            for (hole, argument) in holes.iter().zip(type_arguments) {
-                if let Some(variable) = self.check.root_variable(*hole)? {
-                    self.check.commit_solution(variable, *argument)?;
-                }
-            }
-            type_arguments = &[];
+        module: ModuleId,
+        owners: &[VariantOwner],
+        member: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut variants = Vec::with_capacity(owners.len());
+        for owner in owners {
+            let variant = self.intern_type(
+                module,
+                dir::Type::Variant(dir::VariantType {
+                    owner: owner.owner,
+                    variant: member,
+                }),
+            )?;
+            variants.push(variant);
         }
 
-        // model the constructor: (payload) => owner
-        let parameters = if case.fields.is_empty() {
-            Vec::new()
-        } else {
-            vec![dir::FunctionParameterType {
-                ty: case.payload,
-                is_optional: false,
-                is_rest: false,
-            }]
-        };
-        let parameters = self.intern_parameters(module, &parameters)?;
-        let function = dir::FunctionSignatureType {
-            asynchrony: dir::Asynchrony::Sync,
-            template: None,
-            this_parameter: None,
-            parameters,
-            return_type: Some(owner.owner),
-            is_generator: false,
-        };
-        let attempt = self.match_signature(
-            origin,
-            module,
-            module,
-            source,
-            &[],
-            None,
-            &[],
-            type_arguments,
-            &function,
-            function.return_type,
-            None,
-            &arguments,
-            expected_return,
-        )?;
-        let (signature, rejection) = match answer!(attempt) {
-            SignatureMatch::Selected(signature) | SignatureMatch::ReturnMismatch(signature) => {
-                (signature, None)
-            }
-            SignatureMatch::Invalid {
-                selection,
-                rejection,
-                variables,
-            } => (selection, Some((rejection, variables))),
-            SignatureMatch::Inapplicable(_) => {
-                return self.reject_construct(site, node, origin, argument_nodes, &[]);
-            }
-        };
-
-        // construction selects through one written owner instantiation
-        let Some(generic_arguments) = case.generic_arguments else {
-            return Err(CompilerError::Internal {
-                message: format!("variant construction {node:?} merged mixed instantiations"),
-            });
-        };
-
-        // commit the selected variant construction
-        let target = dir::ConstructTarget::Variant(dir::VariantConstructCandidate {
-            case: case.case,
-            generic_arguments,
-            discriminant: case.discriminant,
-        });
-        let resolution = dir::ConstructResolution::new(
-            target,
-            self.argument_bindings(module, argument_nodes, &signature.parameters),
-            signature.return_type,
-        );
-        self.commit_decision(node, Decision::Construct(resolution))?;
-        self.commit_node_type(node, signature.return_type)?;
-        if let Some((rejection, variables)) = rejection {
-            self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
-            self.check.poison_scope(variables)?;
-        }
-
-        Ok(Answer::Ready(()))
-    }
-
-    /// Instantiate one tagged owner type.
-    fn tagged_owner_from_type(
-        &mut self,
-        origin: Origin,
-        owner: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<VariantOwner>>> {
-        let owner = answer!(self.reduce_type_head(origin, owner)?);
-        let (owner, instance) = match self.ty(owner)? {
-            dir::Type::Application(instance) => (owner, instance),
-            dir::Type::Reference(reference) => {
-                // generic owners open inference holes
-                let arguments = if let Some(template) = self.symbol_template(reference.symbol)?
-                    && !self.generic_template_parameters(template).is_empty()
-                {
-                    let parameters = self.generic_template_parameters(template);
-                    let Some(substitution) = self.instantiate_parameter_arguments(
-                        origin,
-                        &parameters,
-                        &[],
-                        TypeSubstitution::default(),
-                    )?
-                    else {
-                        return Ok(Answer::Ready(None));
-                    };
-
-                    self.intern_type_ids(origin.module(), &substitution.arguments)?
-                } else {
-                    dir::TypeListId::EMPTY
-                };
-
-                let instance = dir::GenericApplication {
-                    symbol: reference.symbol,
-                    arguments,
-                };
-                let owner = self.intern_type(origin.module(), dir::Type::Application(instance))?;
-
-                (owner, instance)
-            }
-            _ => return Ok(Answer::Ready(None)),
-        };
-
-        Ok(Answer::Ready(Some(VariantOwner { owner, instance })))
+        self.normalized_union_type(module, variants)
     }
 
     /// Select one tagged variant.
-    fn tagged_case_selection(
+    fn instantiate_tagged_case(
         &mut self,
         origin: Origin,
         owner: &VariantOwner,
         case: &dir::VariantCase,
     ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
-        let Some(variant) = self.tagged_variant(owner.instance.symbol, case.key)? else {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(owner.instance.symbol)?
+        else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "tagged owner {:?} has no newtype definition",
+                    owner.instance.symbol
+                ),
+            });
+        };
+        let Some(discriminator) = definition.discriminator else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "tagged owner {:?} has no discriminator",
+                    owner.instance.symbol
+                ),
+            });
+        };
+        let Some(variant) = definition.tagged_variant_by_key(case.key).cloned() else {
             return Ok(Answer::Ready(None));
         };
-        // instantiate the backing leaf under the selected owner
+
+        // instantiate the exact backing and constructor argument together
         let substitution = self
             .instance_substitution(owner.owner.module_id, &owner.instance)?
             .with_receiver(owner.owner);
-        let leaf = self.substitute_type(origin.module(), variant.backing, &substitution)?;
-        let leaf = answer!(self.reduce_type_head(origin, leaf)?);
+        let payload = match variant.argument {
+            Some(argument) => {
+                let backing =
+                    self.substitute_type(origin.module(), variant.backing, &substitution)?;
+                let argument = self.substitute_type(origin.module(), argument, &substitution)?;
+                let argument = answer!(self.reduce_type_head(origin, argument)?);
+                let dir::Type::Shape(shape) = self.ty(argument)? else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "tagged variant has invalid constructor argument {argument:?}"
+                        ),
+                    });
+                };
+                let fields = self
+                    .shape_properties(argument.module_id, shape.properties)?
+                    .to_vec();
 
-        // project the runtime payload from the selected leaf
-        let definition =
-            self.definition(owner.instance.symbol)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("tagged owner {:?} has no definition", owner.instance.symbol),
-                })?;
-        let dir::Definition::Newtype(definition) = definition else {
-            return Err(CompilerError::Internal {
-                message: format!("tagged owner {:?} is not a newtype", owner.instance.symbol),
-            });
+                Some(TaggedPayload { backing, fields })
+            }
+            None => None,
         };
-        let discriminant = definition
-            .discriminant
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "tagged owner {:?} has no discriminant",
-                    owner.instance.symbol
-                ),
-            })?;
-        let discriminant_key = dir::StaticKey::Name(discriminant);
-        let fields = answer!(self.tagged_payload_fields(origin, leaf, discriminant_key)?);
-        let payload = self.tagged_payload_type(origin, &fields)?;
         let discriminant = dir::ScalarLiteral::String(variant.discriminant);
-        let owner_arguments = self
-            .type_ids(owner.owner.module_id, owner.instance.arguments)?
-            .to_vec();
-        let generic_arguments =
-            self.symbol_generic_argument_bindings(owner.instance.symbol, &owner_arguments)?;
-
         Ok(Answer::Ready(Some(TaggedCaseSelection {
             case: case.clone(),
-            generic_arguments: Some(generic_arguments),
+            discriminator,
             discriminant,
             payload,
-            fields,
         })))
     }
 
-    /// Return the compact payload fields declared by one tagged leaf.
-    fn tagged_payload_fields(
-        &mut self,
-        origin: Origin,
-        leaf: dir::GlobalTypeId,
-        discriminant: dir::StaticKey,
-    ) -> CompilerResult<Answer<Vec<TaggedPayloadField>>> {
-        match self.ty(leaf)? {
-            dir::Type::Application(_) => {
-                self.tagged_instance_payload_fields(origin, leaf, discriminant)
-            }
-            dir::Type::Shape(shape) => {
-                let fields = self
-                    .shape_fields(leaf.module_id, shape.fields)?
-                    .iter()
-                    .filter(|field| field.key != discriminant)
-                    .map(|field| TaggedPayloadField {
-                        key: field.key,
-                        ty: field.ty,
-                        is_optional: field.is_optional,
-                        is_readonly: field.is_readonly,
-                    })
-                    .collect();
-
-                Ok(Answer::Ready(fields))
-            }
-            _ => Err(CompilerError::Internal {
-                message: format!("tagged variant has invalid leaf {leaf:?}"),
-            }),
-        }
-    }
-
-    /// Return the compact payload fields named by one nominal arm.
-    fn tagged_instance_payload_fields(
-        &mut self,
-        origin: Origin,
-        arm: dir::GlobalTypeId,
-        tag_key: dir::StaticKey,
-    ) -> CompilerResult<Answer<Vec<TaggedPayloadField>>> {
-        let dir::Type::Application(instance) = self.ty(arm)? else {
-            return Err(CompilerError::Internal {
-                message: format!("tagged nominal leaf {arm:?} is not an instance"),
-            });
-        };
-        let Some(definition) = self.definition(instance.symbol)? else {
-            return Err(CompilerError::Internal {
-                message: format!("tagged nominal leaf {arm:?} has no definition"),
-            });
-        };
-
-        let fields = definition
-            .instance_fields()
-            .filter(|field| field.key != tag_key)
-            .cloned()
-            .collect::<Vec<_>>();
-        let mut payload = Vec::with_capacity(fields.len());
-        for field in fields {
-            let lookup = answer!(self.lookup_member(
-                origin,
-                origin.module(),
-                arm,
-                dir::MemberSpace::Instance,
-                field.key,
-            )?);
-            let Some(ty) = lookup.value_type() else {
-                return Err(CompilerError::Internal {
-                    message: format!("tagged payload field {:?} has no value type", field.symbol),
-                });
-            };
-
-            payload.push(TaggedPayloadField {
-                key: field.key,
-                ty,
-                is_optional: field.is_optional,
-                is_readonly: field.is_readonly,
-            });
-        }
-
-        Ok(Answer::Ready(payload))
-    }
-
-    /// Return the compact payload object type for named payload fields.
-    fn tagged_payload_type(
-        &mut self,
-        origin: Origin,
-        fields: &[TaggedPayloadField],
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let module = origin.module();
-        let fields = fields
-            .iter()
-            .map(|field| dir::TypeField {
-                key: field.key,
-                ty: field.ty,
-                is_optional: field.is_optional,
-                is_readonly: field.is_readonly,
-            })
-            .collect::<Vec<_>>();
-        let fields = self.intern_fields(module, &fields)?;
-        let shape = dir::ShapeType {
-            fields,
-            call_signatures: dir::TypeListId::EMPTY,
-            construct_signatures: dir::TypeListId::EMPTY,
-            index_signatures: dir::TypeListId::EMPTY,
-        };
-
-        self.intern_type(module, dir::Type::Shape(shape))
-    }
-
-    /// Project written pattern fields from a compact tagged payload.
-    fn project_tagged_payload_fields(
+    /// Project written patterns from one Tagged case payload.
+    fn project_tagged_payload_patterns(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
         scope: Option<dir::GlobalGenericTemplateId>,
-        payload: dir::GlobalTypeId,
-        payload_fields: &[TaggedPayloadField],
+        payload: &TaggedPayload,
         fields: &[dir::LocalNodeId<dir::PatternField>],
-    ) -> CompilerResult<Answer<Vec<dir::PatternFieldResolution>>> {
+    ) -> CompilerResult<
+        Answer<(
+            Option<dir::GlobalNodeIdAny>,
+            Vec<dir::PatternFieldResolution>,
+        )>,
+    > {
         let module = node.module_id;
+        let mut payload_pattern = None;
         let mut projected = Vec::with_capacity(fields.len());
         let mut position = 0usize;
         for field in fields {
@@ -766,20 +588,28 @@ impl BodyState<'_, '_> {
             let field_node = self.module(module).view().get(*field).clone();
             match field_node {
                 dir::PatternField::Positional { pattern } => {
-                    let pattern_type = self.tagged_positional_payload_type(
-                        module,
-                        payload,
-                        payload_fields,
-                        pattern,
-                        position,
-                    )?;
-                    let Some(pattern_type) = pattern_type else {
+                    let pattern_node = self.module(module).view().get(pattern);
+                    if fields.len() == 1 && matches!(pattern_node, dir::Pattern::Object { .. }) {
+                        answer!(self.check_pattern_projection(
+                            flow,
+                            scope,
+                            payload.backing,
+                            pattern.into_global_any(module),
+                        )?);
+                        payload_pattern = Some(pattern.into_global_any(module));
+                        position += 1;
+
+                        continue;
+                    }
+
+                    let Some(payload_field) = payload.fields.get(position) else {
                         let key = position.to_string();
-                        self.report_pattern_field_missing(origin, payload, key)?;
+                        self.report_pattern_field_missing(origin, payload.backing, key)?;
                         position += 1;
 
                         continue;
                     };
+                    let pattern_type = self.tagged_payload_field_type(module, payload_field)?;
 
                     answer!(self.check_pattern_projection(
                         flow,
@@ -789,20 +619,25 @@ impl BodyState<'_, '_> {
                     )?);
                     projected.push(dir::PatternFieldResolution {
                         source,
-                        projection: dir::Projection::FieldGet {
-                            field: dir::ProjectionField::Key(dir::StaticKey::Index(position)),
+                        projection: dir::Projection::Field(dir::FieldResolution {
+                            receiver: dir::MemberReceiver::direct(payload.backing),
+                            target: dir::FieldTarget::Structural {
+                                owner: payload.backing,
+                                key: payload_field.key,
+                            },
                             ty: pattern_type,
-                        },
+                        })
+                        .into(),
                         pattern: Some(pattern.into_global_any(module)),
                     });
                     position += 1;
                 }
                 dir::PatternField::Named { name, pattern, .. } => {
                     let key = name.static_key();
-                    let Some(payload_field) = payload_fields.iter().find(|field| field.key == key)
+                    let Some(payload_field) = payload.fields.iter().find(|field| field.key == key)
                     else {
                         let key = self.format_static_key(&key);
-                        self.report_pattern_field_missing(origin, payload, key)?;
+                        self.report_pattern_field_missing(origin, payload.backing, key)?;
 
                         continue;
                     };
@@ -825,10 +660,15 @@ impl BodyState<'_, '_> {
 
                     projected.push(dir::PatternFieldResolution {
                         source,
-                        projection: dir::Projection::FieldGet {
-                            field: dir::ProjectionField::Key(key),
+                        projection: dir::Projection::Field(dir::FieldResolution {
+                            receiver: dir::MemberReceiver::direct(payload.backing),
+                            target: dir::FieldTarget::Structural {
+                                owner: payload.backing,
+                                key,
+                            },
                             ty: input,
-                        },
+                        })
+                        .into(),
                         pattern: pattern.map(|pattern| pattern.into_global_any(module)),
                     });
                 }
@@ -836,82 +676,31 @@ impl BodyState<'_, '_> {
                     position += 1;
                 }
                 dir::PatternField::Computed { .. } | dir::PatternField::Rest { .. } => {
-                    self.report_pattern_source_not_object_shaped(origin, payload)?;
+                    self.report_pattern_source_not_object_shaped(origin, payload.backing)?;
                 }
             }
         }
 
-        Ok(Answer::Ready(projected))
-    }
-
-    /// Return one positional compact payload type.
-    fn tagged_positional_payload_type(
-        &mut self,
-        module: ModuleId,
-        payload: dir::GlobalTypeId,
-        fields: &[TaggedPayloadField],
-        pattern: dir::LocalNodeId<dir::Pattern>,
-        position: usize,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let pattern = self.module(module).view().get(pattern);
-        if matches!(pattern, dir::Pattern::Object { .. }) {
-            return Ok(Some(payload));
-        }
-
-        let ty = match fields.get(position) {
-            Some(field) => Some(self.tagged_payload_field_type(module, field)?),
-            None => None,
-        };
-
-        Ok(ty)
+        Ok(Answer::Ready((payload_pattern, projected)))
     }
 
     /// Return one tagged payload field's projected value type.
     fn tagged_payload_field_type(
         &mut self,
         module: ModuleId,
-        field: &TaggedPayloadField,
+        field: &dir::TypeProperty,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        let ty = field.access.store();
         if !field.is_optional {
-            return Ok(field.ty);
+            return Ok(ty);
         }
         let undefined = self.intern_type(module, dir::Type::Undefined)?;
 
-        self.normalized_union_type(module, [field.ty, undefined])
+        self.normalized_union_type(module, [ty, undefined])
     }
 }
 
 impl CheckState<'_> {
-    /// Return the case key declared by one Tagged variant symbol.
-    pub(in crate::check) fn tagged_variant_key(
-        &mut self,
-        owner: dir::GlobalSymbolId,
-        member: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::StaticKey>> {
-        let Some(dir::Definition::Newtype(definition)) = self.definition(owner)? else {
-            return Ok(None);
-        };
-        let key = definition
-            .tagged_variant_by_symbol(member)
-            .map(|variant| variant.key);
-
-        Ok(key)
-    }
-
-    /// Return the variant declared by one Tagged owner and case key.
-    pub(in crate::check) fn tagged_variant(
-        &mut self,
-        owner: dir::GlobalSymbolId,
-        key: dir::StaticKey,
-    ) -> CompilerResult<Option<dir::TaggedVariantDefinition>> {
-        let Some(dir::Definition::Newtype(definition)) = self.definition(owner)? else {
-            return Ok(None);
-        };
-        let variant = definition.tagged_variant_by_key(key).cloned();
-
-        Ok(variant)
-    }
-
     /// Return the selected case key for one Tagged discriminant.
     pub(in crate::check) fn tagged_case_key_from_discriminant(
         &self,
@@ -973,15 +762,20 @@ impl CheckState<'_> {
     /// Return the instance represented by one Tagged domain owner type.
     fn tagged_domain_instance(
         &mut self,
-        value: dir::GlobalTypeId,
+        mut value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GenericApplication>> {
+        if let dir::Type::Variant(variant) = self.ty(value)? {
+            value = variant.owner;
+        }
+
         let instance = match self.ty(value)? {
             dir::Type::Application(instance) => instance,
             dir::Type::Reference(reference) => {
-                if let Some(template) = self.symbol_template(reference.symbol)?
-                    && !self.generic_template_parameters(template).is_empty()
-                {
-                    return Ok(None);
+                if let Some(template) = self.symbol_template(reference.symbol)? {
+                    let parameters = self.generic_template_parameters(template)?;
+                    if !parameters.is_empty() {
+                        return Ok(None);
+                    }
                 }
 
                 dir::GenericApplication {

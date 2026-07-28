@@ -94,10 +94,11 @@ impl CheckState<'_> {
         // report graph errors before class member rules
         let mut failures = Vec::new();
         for conflict in closure.conflicts {
+            let (_, current) = self.require_nominal_application(conflict.current)?;
             failures.push(ObligationFailure::ConflictingHeritage {
                 source: conflict.source,
                 symbol,
-                target: conflict.current.symbol,
+                target: current.symbol,
             });
         }
         for cycle in closure.cycles {
@@ -116,21 +117,22 @@ impl CheckState<'_> {
             .and_then(dir::Definition::space)
             .map(|space| (source, symbol, space));
         for application in &closure.applications {
+            let (_, instance) = self.require_nominal_application(application.ty)?;
             let Some(space) = self
-                .definition(application.instance.symbol)?
+                .definition(instance.symbol)?
                 .and_then(dir::Definition::space)
             else {
                 continue;
             };
             match placement {
-                None => placement = Some((application.source, application.instance.symbol, space)),
+                None => placement = Some((application.source, instance.symbol, space)),
                 Some((_, _, current)) if current == space => {}
                 Some((placement_source, placement_symbol, _)) => {
                     let failure = ObligationFailure::ConflictingHeritagePlacement {
                         source: placement_source,
                         symbol: placement_symbol,
                         conflict_source: application.source,
-                        conflict: application.instance.symbol,
+                        conflict: instance.symbol,
                     };
 
                     return Ok(Answer::Ready(ObligationCheck::fail(failure)));
@@ -201,13 +203,13 @@ impl CheckState<'_> {
                         });
                     } else {
                         // overrides must remain assignable to the base member
-                        let assignment = if member.role == MemberRole::Method
-                            && base.role == MemberRole::Method
-                        {
-                            self.decide_method_assignable(origin, member.ty, base.ty)?
-                        } else {
-                            self.decide_relation(origin, Relation::Assignable, member.ty, base.ty)?
-                        };
+                        let assignment = self.decide_member_relation(
+                            origin,
+                            Relation::Assignable,
+                            member.role,
+                            member.ty,
+                            base.ty,
+                        )?;
                         match assignment {
                             Answer::Ready(true) => {}
                             Answer::Ready(false) => {
@@ -299,16 +301,9 @@ impl CheckState<'_> {
         while let Some(heritage) = extends.take() {
             depth += 1;
 
-            // apply the previous base's parameters to this next extends clause
-            let mut arguments = heritage.arguments.clone();
-            for argument in &mut arguments {
-                *argument = self.substitute_type(origin.module(), *argument, &substitution)?;
-            }
-            let arguments = self.intern_type_ids(module, &arguments)?;
-            let instance = dir::GenericApplication {
-                symbol: heritage.symbol,
-                arguments,
-            };
+            // apply the previous base's parameters to this extends clause
+            let ty = self.substitute_type(module, heritage.ty, &substitution)?;
+            let (instance_module, instance) = self.require_nominal_application(ty)?;
 
             let Some(dir::Definition::Class(base)) = self.definition(instance.symbol)? else {
                 break;
@@ -322,7 +317,7 @@ impl CheckState<'_> {
             }
 
             // apply this base's parameters to its inherited member types
-            substitution = self.instance_substitution(module, &instance)?;
+            substitution = self.instance_substitution(instance_module, &instance)?;
             for member in &base_members {
                 let Some(mut member) = answer!(self.class_member(member)?) else {
                     continue;
@@ -344,9 +339,11 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GenericApplication> {
-        let parameters = self
-            .symbol_template(symbol)?
-            .map(|template| self.generic_template_parameters(template))
+        let parameters = match self
+            .symbol_template(symbol)? {
+            Some(template) => Some(self.generic_template_parameters(template)?),
+            None => None,
+        }
             .unwrap_or_default();
         let mut arguments = Vec::with_capacity(parameters.len());
         for parameter in parameters {

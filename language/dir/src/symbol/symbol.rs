@@ -78,6 +78,14 @@ impl SymbolPath {
             .last()
             .unwrap_or_else(|| panic!("symbol path cannot be empty"))
     }
+
+    /// Return the nearest declaration owner of the selected symbol.
+    pub fn owner(&self) -> Option<LocalSymbolId> {
+        self.symbols
+            .len()
+            .checked_sub(2)
+            .map(|index| self.symbols[index])
+    }
 }
 
 /// Result of looking up one binding symbol.

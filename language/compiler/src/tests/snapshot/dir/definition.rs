@@ -39,7 +39,7 @@ fn add_definition_rows(
             let row = declaration_row(builder, symbol, "struct", source, definition.template);
             let row = add_representation_fields(row, definition.representation);
             builder.push(row);
-            add_heritage(builder, symbol, "implements", &definition.implements);
+            add_implementations(builder, symbol, &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Class(definition) => {
@@ -52,7 +52,7 @@ fn add_definition_rows(
             let row = add_representation_fields(row, definition.representation);
             builder.push(row);
             add_optional_heritage(builder, symbol, "extends", definition.extends.as_ref());
-            add_heritage(builder, symbol, "implements", &definition.implements);
+            add_implementations(builder, symbol, &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Interface(definition) => {
@@ -64,7 +64,7 @@ fn add_definition_rows(
         }
         dir::Definition::Enum(definition) => {
             add_enum_row(builder, symbol, source, definition);
-            add_heritage(builder, symbol, "implements", &definition.implements);
+            add_implementations(builder, symbol, &definition.implements);
             add_members(builder, symbol, &definition.members);
         }
         dir::Definition::Newtype(definition) => {
@@ -73,7 +73,7 @@ fn add_definition_rows(
         }
         dir::Definition::Extension(extension) => {
             add_extension_row(builder, symbol, source, extension);
-            add_heritage(builder, symbol, "implements", &extension.implements);
+            add_implementations(builder, symbol, &extension.implements);
             add_template_predicates(builder, symbol, extension.template);
             add_members(builder, symbol, &extension.members);
         }
@@ -147,6 +147,12 @@ fn add_newtype_row(
                 .template
                 .and_then(|template| template_label(builder, symbol, template)),
         )
+        .optional_field(
+            "discriminator",
+            definition
+                .discriminator
+                .map(|discriminator| builder.static_key(discriminator)),
+        )
         .type_field("backing", builder.global_type_label(definition.backing));
     let row = add_representation_fields(row, definition.representation);
 
@@ -214,6 +220,37 @@ fn add_heritage(
     }
 }
 
+/// Add checked interface implementation rows.
+fn add_implementations(
+    builder: &mut DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    implementations: &[dir::InterfaceImplementation],
+) {
+    for implementation in implementations {
+        add_one_heritage(builder, owner, "implements", &implementation.interface);
+
+        // render every selected declaration independently
+        for member in &implementation.members {
+            for selected in &member.declarations {
+                let requirement = builder
+                    .node_symbol_label(member.requirement)
+                    .or_else(|| builder.node_source(member.requirement))
+                    .unwrap_or_else(|| builder.node_label(member.requirement));
+                let selected = builder
+                    .node_symbol_label(*selected)
+                    .or_else(|| builder.node_source(*selected))
+                    .unwrap_or_else(|| builder.node_label(*selected));
+                let row =
+                    SnapshotRow::new(builder.anchor_symbol(owner), "definition", "implementation")
+                        .field("symbol", builder.symbol_path_label(owner))
+                        .field("requirement", requirement)
+                        .field("target", selected);
+                builder.push(row);
+            }
+        }
+    }
+}
+
 /// Add one nominal heritage row.
 fn add_one_heritage(
     builder: &mut DirSnapshotBuilder<'_>,
@@ -221,21 +258,10 @@ fn add_one_heritage(
     relation: &'static str,
     heritage: &dir::NominalHeritage,
 ) {
-    let arguments = (!heritage.arguments.is_empty()).then(|| {
-        let arguments = heritage
-            .arguments
-            .iter()
-            .map(|argument| builder.global_type_label(*argument))
-            .collect::<Vec<_>>()
-            .join(", ");
-
-        format!("({arguments})")
-    });
     let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", relation)
         .field("symbol", builder.symbol_path_label(owner))
         .optional_field("source", builder.node_source(heritage.source))
-        .field("target", builder.symbol_path_label(heritage.symbol))
-        .optional_field("arguments", arguments);
+        .field("target", builder.global_type_label(heritage.ty));
 
     builder.push(row);
 }
@@ -308,7 +334,7 @@ fn add_template_predicates(
                 "relation",
                 match predicate.relation {
                     dir::WhereRelation::Satisfies => "satisfies",
-                    dir::WhereRelation::Equals => "equals",
+                    dir::WhereRelation::Equal => "equal",
                 },
             )
             .type_field("left", builder.global_type_label(predicate.left))
@@ -469,7 +495,13 @@ fn add_tagged_variant(
         .optional_field("source", builder.node_source(variant.source))
         .field("key", builder.static_key(variant.key))
         .field("discriminant", builder.strings.get(variant.discriminant))
-        .type_field("backing", builder.global_type_label(variant.backing));
+        .type_field("backing", builder.global_type_label(variant.backing))
+        .optional_type_field(
+            "argument",
+            variant
+                .argument
+                .map(|argument| builder.global_type_label(argument)),
+        );
 
     builder.push(row);
 }

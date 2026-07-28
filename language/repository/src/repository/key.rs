@@ -65,17 +65,15 @@ pub(crate) fn profile_key_for_target(
 
     // compiler identity
     let restrictions = &compiler_options.restrictions;
-    let no_managed = !restrictions.no_managed.is_allow();
-    let no_heap = !restrictions.no_heap.is_allow();
-    let no_runtime = !restrictions.no_runtime.is_allow();
-    let no_dynamic_dispatch = !restrictions.no_dynamic_dispatch.is_allow();
-    let no_unsafe = !restrictions.no_unsafe.is_allow();
-    let no_reflection = !restrictions.no_reflection.is_allow();
-    let no_unwind = !restrictions.no_unwind.is_allow();
-    let no_aliasing_mutable_borrows = !restrictions.no_aliasing_mutable_borrows.is_allow();
-    let no_implicit_receivers = !restrictions.no_implicit_receivers.is_allow();
-    let emit_checked_types = compiler_options.emit_checked_types;
-
+    let no_managed = restrictions.no_managed;
+    let no_heap = restrictions.no_heap;
+    let no_runtime = restrictions.no_runtime;
+    let no_dynamic_dispatch = restrictions.no_dynamic_dispatch;
+    let no_unsafe = restrictions.no_unsafe;
+    let no_reflection = restrictions.no_reflection;
+    let no_unwind = restrictions.no_unwind;
+    let no_aliasing_mutable_borrows = restrictions.no_aliasing_mutable_borrows;
+    let no_implicit_receivers = restrictions.no_implicit_receivers;
     let globals = normalize_profile_names(profile_globals(&compiler_options));
     let tree = compiler_options.tree.clone();
     let derive = normalize_profile_names(
@@ -105,7 +103,6 @@ pub(crate) fn profile_key_for_target(
         no_unwind,
         no_aliasing_mutable_borrows,
         no_implicit_receivers,
-        emit_checked_types,
     })
 }
 

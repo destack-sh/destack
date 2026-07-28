@@ -173,7 +173,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .to_string(),
             });
         };
-        let Some(index) = definition.tagged_variant_position(candidate.case.member) else {
+        let Some(index) = definition.tagged_variant_position(candidate.case.variant) else {
             return Err(CompilerError::Internal {
                 message: "checked DIR selected a case missing from its tagged owner".to_string(),
             });
@@ -220,7 +220,7 @@ impl FunctionLowerer<'_, '_, '_> {
         properties: &[dir::LocalNodeId<dir::Property>],
     ) -> CompilerResult<mir::Value> {
         // the checked node type names the constructed nominal
-        let ty = self.coerced_type_id(expression)?;
+        let ty = self.node_type_id(expression)?;
         let dir::Type::Application(_) = self.lowerer.ty(ty)? else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -308,7 +308,7 @@ impl FunctionLowerer<'_, '_, '_> {
         elements: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<mir::Value> {
         // the checked node type names the tuple carrier
-        let ty = self.coerced_type_id(expression)?;
+        let ty = self.node_type_id(expression)?;
         let ty = self.lower_type(ty)?;
 
         // lower the element values in order

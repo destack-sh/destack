@@ -247,6 +247,7 @@ fn test_import_records_static_if_active_mode_edge() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "modes": ["preview"]
     }
@@ -289,6 +290,7 @@ fn test_import_omits_static_if_inactive_mode_edge() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "modes": ["preview"]
     }
@@ -330,6 +332,7 @@ fn test_import_records_static_if_active_role_edge() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "roles": ["server"]
     }
@@ -372,6 +375,7 @@ fn test_import_records_static_if_active_label_edge() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "conditions": {
         "modes": {
             "preview": {
@@ -423,6 +427,7 @@ fn test_import_records_static_if_runtime_edge() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "targets": {
         "default": {
             "emit": "js",
@@ -469,6 +474,7 @@ fn test_import_records_static_if_output_edge() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "targets": {
         "default": {
             "emit": "js"
@@ -514,6 +520,7 @@ fn test_import_omits_static_if_platform_edge() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "targets": {
         "default": {
             "emit": "js",
@@ -590,6 +597,7 @@ fn test_import_omits_static_if_target_family_edge() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "targets": {
         "default": {
             "emit": "js",

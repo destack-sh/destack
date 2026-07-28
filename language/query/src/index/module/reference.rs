@@ -56,14 +56,13 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
 
         // record symbol-backed call selections
         for (source, resolution) in self.module.resolutions().call_entries() {
-            let targets = match &resolution.target {
-                dir::CallTarget::Expression { .. } => continue,
-                dir::CallTarget::Symbol(candidate) => vec![candidate.symbol],
-                dir::CallTarget::Universal(candidates) => candidates
-                    .iter()
-                    .map(|candidate| candidate.symbol)
-                    .collect(),
-            };
+            let targets = resolution
+                .iter()
+                .filter_map(|call| call.target.symbol())
+                .collect::<Vec<_>>();
+            if targets.is_empty() {
+                continue;
+            }
             let sources = self.call_sources(source)?;
             self.select(sources, targets)?;
         }
@@ -115,9 +114,33 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
             }
         }
 
-        // collect symbol backed writable places
-        for resolution in self.module.writable_places() {
-            self.push_place(resolution)?;
+        // collect protocol operator targets
+        for (source, resolution) in self.module.resolutions().operator_entries() {
+            for application in resolution.iter() {
+                if let Some(call) = application.call() {
+                    self.push_call(source, call)?;
+                }
+            }
+        }
+
+        // collect subscript read targets
+        for (source, resolution) in self.module.resolutions().subscript_entries() {
+            self.push_subscript(source, resolution)?;
+        }
+
+        // collect assignment read and write targets
+        for (source, resolution) in self.module.resolutions().assignment_entries() {
+            if let Some(read) = &resolution.read {
+                self.push_read(source, read)?;
+            }
+            self.push_write(source, &resolution.write)?;
+        }
+
+        // collect type guard targets
+        for (source, resolution) in self.module.resolutions().guard_entries() {
+            if let dir::GuardResolution::InstanceOf(guard) = resolution {
+                self.push(guard.target, source)?;
+            }
         }
 
         // emit the final selections once per authored occurrence
@@ -144,24 +167,6 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
                     is_import_alias: false,
                 });
             }
-        }
-
-        Ok(())
-    }
-
-    /// Push the symbol targets recorded by one writable place.
-    fn push_place(&mut self, resolution: &dir::PlaceResolution) -> ProviderResult<()> {
-        match &resolution.storage {
-            dir::Storage::Binding { symbol } => self.push(*symbol, resolution.source)?,
-            dir::Storage::Field { field, .. } => {
-                if let dir::ProjectionField::Member(symbol) = field {
-                    self.push(*symbol, resolution.source)?;
-                }
-            }
-            dir::Storage::Property { write, .. } => {
-                self.push_member(resolution.source, write)?;
-            }
-            dir::Storage::Subscript { .. } | dir::Storage::Dereference { .. } => {}
         }
 
         Ok(())
@@ -450,19 +455,112 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
         source: dir::GlobalNodeIdAny,
         resolution: &dir::MemberResolution,
     ) -> ProviderResult<()> {
-        match &resolution.target {
-            dir::MemberTarget::Symbol(candidate) => {
-                self.push(candidate.symbol, source)?;
-            }
-            dir::MemberTarget::Existential(candidates)
-            | dir::MemberTarget::Universal(candidates) => {
-                for candidate in candidates {
-                    self.push(candidate.symbol, source)?;
+        for access in resolution.iter() {
+            self.push_member_target(source, &access.target)?;
+        }
+
+        Ok(())
+    }
+
+    /// Push the symbol targets selected by one member target.
+    fn push_member_target(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        target: &dir::MemberTarget,
+    ) -> ProviderResult<()> {
+        match target {
+            dir::MemberTarget::Symbol(candidate) => self.push(candidate.symbol, source)?,
+            dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
+                for target in targets {
+                    self.push_member_target(source, target)?;
                 }
             }
-            dir::MemberTarget::Field(_)
-            | dir::MemberTarget::Element(_)
-            | dir::MemberTarget::Index(_) => {}
+            dir::MemberTarget::Call(call) => self.push_call(source, call)?,
+            dir::MemberTarget::Field(field) => {
+                if let dir::FieldTarget::Member { symbol, .. } = field.target {
+                    self.push(symbol, source)?;
+                }
+            }
+            dir::MemberTarget::Projection { .. } | dir::MemberTarget::Index(_) => {}
+        }
+
+        Ok(())
+    }
+
+    /// Push the symbol target selected by one protocol call.
+    fn push_call(&mut self, source: dir::GlobalNodeIdAny, call: &dir::Call) -> ProviderResult<()> {
+        if let Some(symbol) = call.target.symbol() {
+            self.push(symbol, source)?;
+        }
+
+        Ok(())
+    }
+
+    /// Push the symbol targets recorded by one subscript resolution.
+    fn push_subscript(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        resolution: &dir::SubscriptResolution,
+    ) -> ProviderResult<()> {
+        for subscript in resolution.iter() {
+            match &subscript.target {
+                dir::SubscriptTarget::Member(member) => {
+                    self.push_member_target(source, &member.target)?;
+                }
+                dir::SubscriptTarget::Call(call) => self.push_call(source, call)?,
+                dir::SubscriptTarget::Index(read) => self.push_call(source, &read.call)?,
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Push the symbol targets recorded by one dereference resolution.
+    fn push_dereference(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        resolution: &dir::DereferenceResolution,
+    ) -> ProviderResult<()> {
+        for dereference in resolution.iter() {
+            if let dir::DereferenceTarget::Call(call) = &dereference.target {
+                self.push_call(source, call)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Push the symbol targets recorded by one place read.
+    fn push_read(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        read: &dir::ReadResolution,
+    ) -> ProviderResult<()> {
+        match read {
+            dir::ReadResolution::Binding { symbol, .. } => self.push(*symbol, source)?,
+            dir::ReadResolution::Member(member) => self.push_member(source, member)?,
+            dir::ReadResolution::Subscript(subscript) => self.push_subscript(source, subscript)?,
+            dir::ReadResolution::Dereference(dereference) => {
+                self.push_dereference(source, dereference)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Push the symbol targets recorded by one place write.
+    fn push_write(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        write: &dir::WriteResolution,
+    ) -> ProviderResult<()> {
+        match write {
+            dir::WriteResolution::Binding { symbol, .. } => self.push(*symbol, source)?,
+            dir::WriteResolution::Member(member) => self.push_member(source, member)?,
+            dir::WriteResolution::Subscript(subscript) => self.push_subscript(source, subscript)?,
+            dir::WriteResolution::Dereference(dereference) => {
+                self.push_dereference(source, dereference)?;
+            }
         }
 
         Ok(())

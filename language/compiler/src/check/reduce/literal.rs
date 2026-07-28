@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin, answer};
+use crate::check::{Answer, CheckState, Origin, answer};
 
 /// Maximum alternatives one template literal expands into.
 const TEMPLATE_EXPANSION_LIMIT: usize = 4096;
@@ -72,15 +72,10 @@ impl CheckState<'_> {
 
         // close every interpolated span to its printable choices
         let mut printed: Vec<Vec<String>> = Vec::with_capacity(spans.len());
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for span in spans {
             let span = match self.reduce_type_head(origin, span)? {
                 Answer::Ready(span) => span,
-                Answer::Pending(dependencies) => {
-                    blockers.extend(dependencies);
-
-                    continue;
-                }
+                Answer::Pending(_) => return Ok(Answer::Ready(None)),
             };
 
             // a never span empties the whole template
@@ -98,11 +93,7 @@ impl CheckState<'_> {
                     for element in elements {
                         let element = match self.reduce_type_head(origin, element)? {
                             Answer::Ready(element) => element,
-                            Answer::Pending(dependencies) => {
-                                blockers.extend(dependencies);
-
-                                continue;
-                            }
+                            Answer::Pending(_) => return Ok(Answer::Ready(None)),
                         };
                         match self.template_piece_text(element)? {
                             Some(text) => choices.push(text),
@@ -118,9 +109,6 @@ impl CheckState<'_> {
                 },
             };
             printed.push(choices);
-        }
-        if !blockers.is_empty() {
-            return Ok(Answer::pending(blockers));
         }
 
         // wide distributions stay symbolic

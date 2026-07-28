@@ -1,20 +1,19 @@
 use std::sync::Arc;
 
 use destack_artifact::ProgramAnalysis;
-use destack_core::FxIndexMap;
 use destack_repository::{ArtifactReader, ProviderError, Repository, Revision};
 use destack_source::ModuleId;
 
 use super::super::LintProgram;
-use super::MirModule;
+use super::{Mir, MirModule};
 
 /// Verified MIR for one target program.
 #[derive(Debug)]
 pub struct MirProgram {
     /// The program.
     pub program: Arc<LintProgram>,
-    /// Verified MIR keyed by module id.
-    pub(crate) modules: FxIndexMap<ModuleId, MirModule>,
+    /// The verified MIR.
+    pub mir: Mir,
     /// The program analysis.
     pub analysis: Arc<ProgramAnalysis>,
 }
@@ -29,10 +28,9 @@ impl MirProgram {
     ) -> Result<Self, ProviderError> {
         let profile = program.profile.id();
         let target = program.target;
-        let mut loaded = FxIndexMap::default();
-        loaded.reserve(program.modules.len());
+        let mut modules = Vec::new();
 
-        // load every code module in the MIR closure
+        // select every reachable code module
         for module in program.modules.iter().copied() {
             let repository_module = repository
                 .module(revision, module)
@@ -44,37 +42,34 @@ impl MirProgram {
                 continue;
             }
 
-            let module = MirModule::load(artifacts, profile, target, module)?;
-            loaded.insert(module.id, module);
+            modules.push(module);
         }
 
+        let strings = repository.string_pool().clone();
+        let mir = Mir::load(artifacts, profile, target, &modules, strings)?;
         let analysis = artifacts.program_analysis(profile, target)?;
 
         Ok(Self {
             program,
-            modules: loaded,
+            mir,
             analysis,
         })
     }
 
     /// Return verified MIR for one module.
-    pub fn module(&self, module: ModuleId) -> Result<&MirModule, ProviderError> {
-        self.modules
-            .get(&module)
-            .ok_or_else(|| ProviderError::Internal {
-                message: format!("MIR module {module:?} is outside the lint program"),
-            })
+    pub fn module(&self, module: ModuleId) -> Result<MirModule<'_>, ProviderError> {
+        self.mir.module(module)
     }
 
     /// Iterate every loaded MIR module.
-    pub fn modules(&self) -> impl Iterator<Item = &MirModule> {
-        self.modules.values()
+    pub fn modules(&self) -> impl Iterator<Item = MirModule<'_>> {
+        self.mir.modules()
     }
 
     /// Iterate package-owned MIR modules.
-    pub fn owned_modules(&self) -> impl Iterator<Item = &MirModule> {
-        self.modules
-            .values()
+    pub fn owned_modules(&self) -> impl Iterator<Item = MirModule<'_>> {
+        self.mir
+            .modules()
             .filter(|module| self.program.owns(module.id))
     }
 }

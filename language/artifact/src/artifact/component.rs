@@ -328,6 +328,35 @@ impl ComponentGraph {
         &self.reference_dependencies[index]
     }
 
+    /// Return components reachable from module roots in stable breadth-first order.
+    pub fn reachable_components(&self, roots: &[ModuleId]) -> Result<Vec<ComponentId>, ModuleId> {
+        let mut components = Vec::new();
+        let mut seen = FxHashSet::default();
+
+        // seed the walk with root components in caller order
+        for root in roots {
+            let component = self.reference_component(*root).ok_or(*root)?;
+            if seen.insert(component) {
+                components.push(component);
+            }
+        }
+
+        // extend the ordered worklist through the condensation graph
+        let mut index = 0;
+        while index < components.len() {
+            let component = components[index];
+            index += 1;
+
+            for dependency in self.reference_dependencies(component) {
+                if seen.insert(*dependency) {
+                    components.push(*dependency);
+                }
+            }
+        }
+
+        Ok(components)
+    }
+
     /// Return every transitive dependency in stable breadth-first order.
     pub fn transitive_reference_dependencies(&self, component: ComponentId) -> Vec<ComponentId> {
         let mut dependencies = Vec::new();
@@ -978,4 +1007,293 @@ fn component_ranks(dependencies: &[Arc<[u32]>]) -> Vec<u32> {
     }
 
     ranks
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use destack_source::PackageId;
+    use std::time::Instant;
+
+    fn profile() -> ProfileId {
+        ProfileId::new(1)
+    }
+
+    fn module(index: u32) -> ModuleId {
+        ModuleId::new(PackageId::new(1), index.into())
+    }
+
+    fn graph_edges(edges: &[(ModuleId, &[ModuleId])]) -> IndexMap<ModuleId, Arc<[ModuleId]>> {
+        edges
+            .iter()
+            .map(|(module, edges)| (*module, Arc::from(*edges)))
+            .collect()
+    }
+
+    fn no_coupling(
+        edges: &IndexMap<ModuleId, Arc<[ModuleId]>>,
+    ) -> IndexMap<ModuleId, Arc<[ModuleId]>> {
+        edges
+            .keys()
+            .map(|module| (*module, Arc::from([])))
+            .collect()
+    }
+
+    #[test]
+    fn test_derive_updates_changed_edges() {
+        let first = module(1);
+        let second = module(2);
+        let third = module(3);
+        let edges = graph_edges(&[(first, &[second]), (second, &[]), (third, &[])]);
+        let graph = ComponentGraph::from_edges(profile(), edges.clone(), no_coupling(&edges), Vec::new());
+
+        let derived = graph.derive(
+            graph_edges(&[(second, &[third])]),
+            Vec::new(),
+            no_coupling(&edges),
+            Vec::new(),
+        );
+
+        assert_eq!(derived.edges(first).as_ref(), &[second]);
+        assert_eq!(derived.edges(second).as_ref(), &[third]);
+    }
+
+    #[test]
+    fn test_return_transitive_component_dependencies() {
+        let first = module(1);
+        let second = module(2);
+        let third = module(3);
+        let fourth = module(4);
+        let edges = graph_edges(&[
+            (first, &[second, third]),
+            (second, &[fourth]),
+            (third, &[fourth]),
+            (fourth, &[]),
+        ]);
+        let graph = ComponentGraph::from_edges(profile(), edges.clone(), no_coupling(&edges), Vec::new());
+        let first = graph
+            .reference_component(first)
+            .expect("first component should exist");
+        let second = graph
+            .reference_component(second)
+            .expect("second component should exist");
+        let third = graph
+            .reference_component(third)
+            .expect("third component should exist");
+        let fourth = graph
+            .reference_component(fourth)
+            .expect("fourth component should exist");
+
+        assert_eq!(
+            graph.transitive_reference_dependencies(first),
+            vec![second, third, fourth]
+        );
+    }
+
+    #[test]
+    fn test_derive_keeps_partition_after_dependency_edge_addition() {
+        let first = module(1);
+        let second = module(2);
+        let third = module(3);
+        let edges = graph_edges(&[(first, &[second]), (second, &[]), (third, &[])]);
+        let graph = ComponentGraph::from_edges(profile(), edges.clone(), no_coupling(&edges), Vec::new());
+        let first_component = graph.reference_component(first);
+        let second_component = graph.reference_component(second);
+        let third_component = graph.reference_component(third);
+
+        let derived = graph.derive(
+            graph_edges(&[(first, &[second, third])]),
+            Vec::new(),
+            no_coupling(&edges),
+            Vec::new(),
+        );
+        let mut dependencies = vec![
+            second_component.expect("second component should exist"),
+            third_component.expect("third component should exist"),
+        ];
+        dependencies.sort_unstable();
+
+        assert_eq!(derived.reference_component(first), first_component);
+        assert_eq!(derived.reference_component(second), second_component);
+        assert_eq!(derived.reference_component(third), third_component);
+        assert_eq!(
+            derived.reference_dependencies(first_component.expect("first component should exist")),
+            dependencies.as_slice()
+        );
+    }
+
+    #[test]
+    fn test_derive_repartitions_after_cycle_edge_addition() {
+        let first = module(1);
+        let second = module(2);
+        let edges = graph_edges(&[(first, &[second]), (second, &[])]);
+        let graph = ComponentGraph::from_edges(profile(), edges.clone(), no_coupling(&edges), Vec::new());
+
+        let derived = graph.derive(
+            graph_edges(&[(second, &[first])]),
+            Vec::new(),
+            no_coupling(&edges),
+            Vec::new(),
+        );
+
+        assert_eq!(derived.reference_component(first), derived.reference_component(second));
+        assert_eq!(
+            derived.reference_members(derived.reference_component(first).expect("component should exist")),
+            &[first, second]
+        );
+    }
+
+    #[test]
+    fn test_derive_removes_deleted_module_from_edges() {
+        let first = module(1);
+        let second = module(2);
+        let third = module(3);
+        let edges = graph_edges(&[(first, &[second, third]), (second, &[]), (third, &[])]);
+        let graph = ComponentGraph::from_edges(profile(), edges.clone(), no_coupling(&edges), Vec::new());
+
+        let derived = graph.derive(IndexMap::new(), vec![second], no_coupling(&edges), Vec::new());
+
+        assert_eq!(derived.edges(first).as_ref(), &[third]);
+        assert!(derived.edges(second).is_empty());
+    }
+
+    #[test]
+    fn test_derive_splits_component_after_edge_removal() {
+        let first = module(1);
+        let second = module(2);
+        let edges = graph_edges(&[(first, &[second]), (second, &[first])]);
+        let graph = ComponentGraph::from_edges(profile(), edges.clone(), no_coupling(&edges), Vec::new());
+
+        let derived = graph.derive(
+            graph_edges(&[(second, &[])]),
+            Vec::new(),
+            no_coupling(&edges),
+            Vec::new(),
+        );
+
+        assert_ne!(derived.reference_component(first), derived.reference_component(second));
+        assert_eq!(
+            derived.reference_dependencies(
+                derived
+                    .reference_component(first)
+                    .expect("first component should exist")
+            ),
+            &[derived
+                .reference_component(second)
+                .expect("second component should exist")]
+        );
+    }
+
+    #[test]
+    fn test_refine_reference_components_into_inference_components() {
+        let first = module(1);
+        let second = module(2);
+
+        // a reference cycle without a coupling cycle splits into two inference components
+        let edges = graph_edges(&[(first, &[second]), (second, &[first])]);
+        let coupling = graph_edges(&[(first, &[second]), (second, &[])]);
+        let graph = ComponentGraph::from_edges(profile(), edges, coupling, Vec::new());
+
+        let component = graph.reference_component(first).expect("component should exist");
+        assert_eq!(graph.reference_component(second), Some(component));
+        assert_ne!(
+            graph.inference_component(first),
+            graph.inference_component(second)
+        );
+        let first_unit = graph.inference_component(first).expect("unit should exist");
+        let second_unit = graph.inference_component(second).expect("unit should exist");
+        assert_eq!(graph.inference_entry(first_unit), Some(first));
+        assert_eq!(graph.inference_entry(second_unit), Some(second));
+    }
+
+    #[test]
+    fn test_inference_components_join_coupling_cycles() {
+        let first = module(1);
+        let second = module(2);
+        let third = module(3);
+
+        // the coupled pair infers together while the third module stands alone
+        let edges = graph_edges(&[(first, &[second]), (second, &[first, third]), (third, &[])]);
+        let coupling = graph_edges(&[(first, &[second]), (second, &[first]), (third, &[])]);
+        let graph = ComponentGraph::from_edges(profile(), edges, coupling, Vec::new());
+
+        let unit = graph
+            .inference_component(first)
+            .expect("settle unit should exist");
+        assert_eq!(graph.inference_component(second), Some(unit));
+        assert_eq!(graph.inference_members(unit), &[first, second]);
+        assert_eq!(graph.inference_entry(unit), Some(first));
+        assert_ne!(graph.inference_component(third), Some(unit));
+    }
+
+    #[test]
+    fn test_derive_repartitions_inference_components_from_coupling_edges() {
+        let first = module(1);
+        let second = module(2);
+
+        // coupling the cycle joins the inference components without touching references
+        let edges = graph_edges(&[(first, &[second]), (second, &[first])]);
+        let graph = ComponentGraph::from_edges(profile(), edges.clone(), no_coupling(&edges), Vec::new());
+        assert_ne!(
+            graph.inference_component(first),
+            graph.inference_component(second)
+        );
+
+        let derived = graph.derive(IndexMap::new(), Vec::new(), edges, Vec::new());
+
+        assert_eq!(derived.reference_component(first), graph.reference_component(first));
+        assert_eq!(
+            derived.inference_component(first),
+            derived.inference_component(second)
+        );
+    }
+
+    #[test]
+    #[ignore = "prints large component graph timings"]
+    fn test_component_graph_perf_large_sparse_edit() {
+        let module_count = 100_000u32;
+        let edges = large_dag_edges(module_count);
+        let coupling = no_coupling(&edges);
+        let graph = timed("full build", || {
+            ComponentGraph::from_edges(profile(), edges.clone(), coupling.clone(), Vec::new())
+        });
+
+        let changed = graph_edges(&[(module(100), &[module(101), module(107), module(50_000)])]);
+        let derived = timed("dependency edit", || {
+            graph.derive(changed, Vec::new(), coupling.clone(), Vec::new())
+        });
+
+        assert_eq!(derived.reference_component(module(100)), graph.reference_component(module(100)));
+    }
+
+    fn large_dag_edges(count: u32) -> IndexMap<ModuleId, Arc<[ModuleId]>> {
+        let mut edges = IndexMap::with_capacity(count as usize);
+
+        for index in 0..count {
+            let current = module(index);
+            let mut targets = Vec::with_capacity(2);
+
+            if index + 1 < count {
+                targets.push(module(index + 1));
+            }
+            if index + 7 < count {
+                targets.push(module(index + 7));
+            }
+
+            edges.insert(current, Arc::from(targets));
+        }
+
+        edges
+    }
+
+    fn timed<T>(name: &str, f: impl FnOnce() -> T) -> T {
+        let started = Instant::now();
+        let value = f();
+        let elapsed = started.elapsed();
+
+        eprintln!("{name}: {elapsed:?}");
+
+        value
+    }
 }

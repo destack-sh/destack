@@ -34,10 +34,11 @@ import { counter } from "./counter.ds";
 counter = 1;
 /// @type.node source="counter = 1" type=1
 /// @type.node source=counter type=int32
-/// @resolution.pattern.assign source=counter kind=place place=binding(counter.counter) type=int32
+/// @resolution.pattern.assign source=counter kind=place
+/// @resolution.assignment source=counter write=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'counter'"
@@ -81,10 +82,11 @@ import { counter as localCounter } from "./counter.ds";
 localCounter = 1;
 /// @type.node source="localCounter = 1" type=1
 /// @type.node source=localCounter type=int32
-/// @resolution.pattern.assign source=localCounter kind=place place=binding(counter.counter) type=int32
+/// @resolution.pattern.assign source=localCounter kind=place
+/// @resolution.assignment source=localCounter write=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'localCounter'"
@@ -173,10 +175,11 @@ import * as namespaceCounter from "./counter.ds";
 namespaceCounter.counter = 1;
 /// @type.node source="namespaceCounter.counter = 1" type=1
 /// @type.node source=namespaceCounter.counter type=int32
-/// @resolution.pattern.assign source=namespaceCounter.counter kind=place place=binding(counter.counter) type=int32
+/// @resolution.pattern.assign source=namespaceCounter.counter kind=place
+/// @resolution.assignment source=namespaceCounter.counter write=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'namespaceCounter.counter'"

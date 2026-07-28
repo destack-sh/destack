@@ -43,7 +43,7 @@ type Element<T> = T extends Array<infer U> ? U : T;
 /// @binding.owner_scope owner=Element scope=Element
 /// @binding.symbol symbol=T#2 role=local kind=generic_type_parameter scope=Element@0
 /// @binding.scope scope=scope5 kind=type_conditional parent=Element@1
-/// @binding.symbol symbol=U role=local kind=type_alias scope=scope5@0
+/// @binding.symbol symbol=U role=local kind=generic_type_parameter scope=scope5@0
 
 type Return<T> = T extends () => infer R ? R : never;
 /// @binding.symbol symbol=Return role=item kind=type_alias scope=<module>@3
@@ -52,7 +52,7 @@ type Return<T> = T extends () => infer R ? R : never;
 /// @binding.symbol symbol=T#3 role=local kind=generic_type_parameter scope=Return@0
 /// @binding.scope scope=scope7 kind=type_conditional parent=Return@1
 /// @binding.scope scope=scope8 kind=type parent=scope7@0
-/// @binding.symbol symbol=R role=local kind=type_alias scope=scope7@0
+/// @binding.symbol symbol=R role=local kind=generic_type_parameter scope=scope7@0
 
 type Hole = Box<infer _>;
 /// @binding.symbol symbol=Hole role=item kind=type_alias scope=<module>@4
@@ -98,7 +98,7 @@ type Repeat<T> = T extends [infer A, infer A] ? A : never;
 /// @binding.owner_scope owner=Repeat scope=Repeat
 /// @binding.symbol symbol=T role=local kind=generic_type_parameter scope=Repeat@0
 /// @binding.scope scope=scope3 kind=type_conditional parent=Repeat@1
-/// @binding.symbol symbol=A role=local kind=type_alias scope=scope3@0
+/// @binding.symbol symbol=A role=local kind=generic_type_parameter scope=scope3@0
 
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>

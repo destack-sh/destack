@@ -8,32 +8,32 @@ export newtype Stream = intrinsic;
 
 export extension of Stream {
     /// Return the device that owns this stream.
-    get device(): Device {
+    get device(&readonly this): Device {
         Context.current().compute.stream.device(this)
     }
 
     /// Return the default stream for `device`.
-    static default(device: Device = Device.default()): Stream {
+    static default(device: &readonly Device = Device.default()): Stream {
         Context.current().compute.stream.default(device)
     }
 
     /// Create a new stream on `device`.
-    static create(device: Device): Stream {
+    static create(device: &readonly Device): Stream {
         Context.current().compute.stream.create(device)
     }
 
     /// Return whether all queued work has completed.
-    isComplete(): boolean {
+    isComplete(&readonly this): boolean {
         Context.current().compute.stream.isComplete(this)
     }
 
     /// Make future work on this stream wait for `event`.
-    wait(event: Event): void {
+    wait(&this, event: &readonly Event): void {
         Context.current().compute.stream.wait(this, event);
     }
 
     /// Wait until all preceding work completes.
-    synchronize(): void {
+    synchronize(&readonly this): void {
         Context.current().compute.stream.synchronize(this);
     }
 }
@@ -44,27 +44,27 @@ export newtype Event = intrinsic;
 
 export extension of Event {
     /// Return the stream that recorded this event.
-    get stream(): Stream {
+    get stream(&readonly this): Stream {
         Context.current().compute.event.stream(this)
     }
 
     /// Record an event on `stream`.
-    static record(stream: Stream): Event {
+    static record(stream: &Stream): Event {
         Context.current().compute.event.record(stream)
     }
 
     /// Return whether this event has completed.
-    isComplete(): boolean {
+    isComplete(&readonly this): boolean {
         Context.current().compute.event.isComplete(this)
     }
 
     /// Wait until this event completes.
-    synchronize(): void {
+    synchronize(&readonly this): void {
         Context.current().compute.event.synchronize(this);
     }
 
     /// Return milliseconds elapsed since `start`.
-    elapsedSince(start: Event): float64 {
+    elapsedSince(&readonly this, start: &readonly Event): float64 {
         Context.current().compute.event.elapsedSince(this, start)
     }
 }

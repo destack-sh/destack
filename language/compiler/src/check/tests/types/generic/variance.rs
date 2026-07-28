@@ -44,6 +44,8 @@ const shapes: Shape[] = circles;
 /// @resolution.pattern source=shapes kind=binding target=shapes
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Array<Circle>' is not assignable to type 'Array<Shape>'"
@@ -98,6 +100,8 @@ const shapes: readonly Shape[] = circles;
 /// @resolution.pattern source=shapes kind=binding target=shapes
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
 "#,
     );
 }
@@ -155,6 +159,8 @@ const widened: readonly (Circle | Square)[] = circles;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Array<Circle>' is not assignable to type 'readonly Array<Circle | Square>'"
@@ -218,6 +224,8 @@ const widened: () => Shape = make;
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=make target=make
+/// @resolution.place source=make placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=make root=make
 
 const either: () => Circle | Square = make;
 /// @type.symbol symbol=either source=either type=Function<(), Circle | Square>
@@ -225,6 +233,8 @@ const either: () => Circle | Square = make;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=make target=make
+/// @resolution.place source=make placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=make root=make
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '() => Circle' is not assignable to type '() => Circle | Square'"
@@ -387,6 +397,8 @@ const copy: Box<Shape> = owned;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=owned target=owned
+/// @resolution.place source=owned placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=owned root=owned
 
 declare const aliased: Managed<Box<Circle>>;
 /// @type.symbol symbol=aliased source=aliased type=Managed<Box<Circle>>
@@ -402,6 +414,8 @@ const widened: Managed<Box<Shape>> = aliased;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=aliased target=aliased
+/// @resolution.place source=aliased placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=aliased root=aliased
 
 /// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
 /// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
@@ -480,6 +494,8 @@ const widened: { x: float64 } = point;
 /// @type.symbol symbol=widened source=widened type={ x: float64 }
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ x: 1 }' is not assignable to type '{ x: float64 }'"
@@ -540,6 +556,8 @@ const widened: { readonly x: Shape } = point;
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 
 declare const scalar: { x: 1 };
 /// @type.symbol symbol=scalar source=scalar type={ x: 1 }
@@ -549,6 +567,8 @@ const converted: { readonly x: float64 } = scalar;
 /// @type.symbol symbol=converted source=converted type={ readonly x: float64 }
 /// @resolution.pattern source=converted kind=binding target=converted
 /// @resolution.name source=scalar target=scalar
+/// @resolution.place source=scalar placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=scalar root=scalar
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ x: 1 }' is not assignable to type '{ x: float64 }'"
@@ -609,6 +629,8 @@ const useCircle: (circle: Circle) => void = useShape;
 /// @resolution.pattern source=useCircle kind=binding target=useCircle
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=useShape target=useShape
+/// @resolution.place source=useShape placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=useShape root=useShape
 
 declare const useCircle2: (circle: Circle) => void;
 /// @type.symbol symbol=useCircle2 source=useCircle2 type=Function<(Circle,), void>
@@ -620,6 +642,8 @@ const useShape2: (shape: Shape) => void = useCircle2;
 /// @resolution.pattern source=useShape2 kind=binding target=useShape2
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=useCircle2 target=useCircle2
+/// @resolution.place source=useCircle2 placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=useCircle2 root=useCircle2
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '(Circle) => void' is not assignable to type '(Shape) => void'"
@@ -668,6 +692,8 @@ const target: Handle<string> = source;
 /// @resolution.name source=Handle target=Handle
 /// @type.node source=source type=Handle<int32>
 /// @resolution.name source=source target=source
+/// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=source root=source
 /// @generic.instance source=source id=Handle<int32>
 
 /// @generic.instance id=Handle<int32> template=Handle arguments=(int32)
@@ -780,7 +806,7 @@ class Holder {
     /// @type.node source=Handle.empty type=() => Handle<Slice<T#3>>
     /// @type.node source=Handle.empty() type=Handle<Slice<uint8>>
     /// @resolution.name source=Handle target=Handle
-    /// @resolution.member source=Handle.empty receiver=Handle kind=symbol target=empty
+    /// @resolution.member source=Handle.empty receiver=Handle type=() => Handle<Slice<T#3>> kind=symbol target_receiver=Handle target=empty
     /// @resolution.call source=Handle.empty() parameters=() return=Handle<Slice<uint8>> kind=symbol target=empty receiver=Handle instance=Handle<Slice<T#3>>.<extension#1>.empty
     /// @generic.instance source=Handle.empty id=Handle<Slice<T#3>>
     /// @generic.instance source=Handle.empty() id=Handle<Slice<T#3>>.<extension#1>.empty

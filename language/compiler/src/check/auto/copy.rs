@@ -59,7 +59,7 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Range(_) => Ok(Answer::Ready(true)),
-            dir::Type::EnumMember(member) => self.satisfies_copy(origin, member.owner, active),
+            dir::Type::Variant(member) => self.satisfies_copy(origin, member.owner, active),
             dir::Type::Any
             | dir::Type::Unknown
             | dir::Type::Object
@@ -132,9 +132,9 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(false));
                 }
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
-                    .shape_fields(ty.module_id, shape.fields)?
+                    .shape_properties(ty.module_id, shape.properties)?
                     .iter()
-                    .map(|field| field.ty)
+                    .flat_map(|field| field.access.types())
                     .collect();
 
                 self.all_copy(origin, ids, active)
@@ -189,16 +189,7 @@ impl CheckState<'_> {
 
                 self.all_applied_copy(origin, instance_module, &instance, fields, active)
             }
-            dir::Definition::Enum(definition) => {
-                let mut payloads = SmallVec::<[_; 8]>::new();
-                for member in &definition.members {
-                    if let Some(ty) = answer!(self.definition_member_type(member)?) {
-                        payloads.push(ty);
-                    }
-                }
-
-                self.all_applied_copy(origin, instance_module, &instance, payloads, active)
-            }
+            dir::Definition::Enum(_) => Ok(Answer::Ready(true)),
             dir::Definition::Newtype(definition) => self.all_applied_copy(
                 origin,
                 instance_module,

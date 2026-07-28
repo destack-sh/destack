@@ -35,6 +35,8 @@ const digit: Digit = value;
 /// @resolution.pattern source=digit kind=binding target=digit
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type 'Digit'"
@@ -81,7 +83,9 @@ const next: Digit = digit + 1;
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=digit target=digit
-/// @resolution.operator source="digit + 1" kind=builtin
+/// @resolution.operator source="digit + 1" type=int32 operator="+" kind=builtin operands=[digit as int32 families=(integer), 1 as int32 families=(integer)]
+/// @resolution.place source=digit placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=digit root=digit
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type 'Digit'"
@@ -111,8 +115,8 @@ const bad: Edge = 128;
 === annotated ===
 type Edge = 0..=3 | 252..=255;
 
-const low: Edge = 2 as Edge;
-const high: Edge = 254 as Edge;
+const low: Edge = 2 as 0..=3 | 252..=255;
+const high: Edge = 254 as 0..=3 | 252..=255;
 const bad: Edge = 128;
 
 === checked ===

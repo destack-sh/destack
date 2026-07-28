@@ -28,6 +28,7 @@ use super::module::{TestModule, parse_module, parsed_dependencies};
 use super::trace::TraceTable;
 
 const DEFAULT_DESTACK_JSON: &str = r#"{
+  "name": "test",
   "compiler": {
     "emitStats": true,
     "emitEvents": true,
@@ -1094,12 +1095,14 @@ impl TestSession {
     /// Require one artifact through the production session.
     fn require_artifact(&self, key: ArtifactKey) -> ArtifactVersion {
         self.require_artifact_result(key).unwrap_or_else(|error| {
-            let diagnostics = self
-                .repository
-                .diagnostics(self.revision, Some(key))
-                .unwrap_or_else(|_| DiagnosticCollection::new());
-
-            panic!("test artifact should be ready: {error}, diagnostics={diagnostics:?}")
+            match self.repository.diagnostics(self.revision, Some(key)) {
+                Ok(diagnostics) => panic!(
+                    "test artifact {key:?} should be ready: {error}, diagnostics={diagnostics:?}"
+                ),
+                Err(diagnostic_error) => panic!(
+                    "test artifact {key:?} should be ready: {error}; reading diagnostics failed: {diagnostic_error}"
+                ),
+            }
         })
     }
 

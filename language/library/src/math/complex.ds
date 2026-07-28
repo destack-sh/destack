@@ -1,8 +1,7 @@
 import { todo } from "destack:error";
 import { Add, Divide, Equal, Multiply, Negate, Power, Subtract } from "destack:ops";
 
-import { atan2, cos, sin, sqrt } from "./float.ds";
-import { Float } from "./scalar.ds";
+import { Float } from "./float.ds";
 
 /// Complex number with floating-point components.
 @languageItem("math.Complex")
@@ -64,8 +63,8 @@ export extension<T: Float> of Complex<T>
     /// Create a complex value from polar components.
     static polar(radius: T, angle: T): Complex<T> {
         Complex {
-            real: radius * cos(angle),
-            imaginary: radius * sin(angle),
+            real: radius * angle.cos(),
+            imaginary: radius * angle.sin(),
         }
     }
 
@@ -76,12 +75,12 @@ export extension<T: Float> of Complex<T>
 
     /// Return the magnitude.
     magnitude(): T {
-        sqrt(this.magnitudeSquared())
+        this.magnitudeSquared().sqrt()
     }
 
     /// Return the phase angle in radians.
     phase(): T {
-        atan2(this.imaginary, this.real)
+        this.imaginary.atan2(this.real)
     }
 
     /// Return the complex conjugate.

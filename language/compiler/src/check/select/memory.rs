@@ -1,45 +1,78 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{Answer, BodyState, FlowPointId, Origin, answer, unary_operator_protocols};
-
-/// Dereference operation selected for one value.
-pub(in crate::check) struct DereferenceSelection {
-    /// The selected dereference operation.
-    pub(in crate::check) operation: dir::DereferenceOperation,
-    /// The projected value type.
-    pub(in crate::check) ty: dir::GlobalTypeId,
-}
+use crate::check::{
+    Answer, BodyState, FlowPointId, Origin, Value, answer, unary_operator_protocols,
+};
+use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
     /// Select one dereference operation.
     pub(in crate::check) fn select_dereference(
         &mut self,
         origin: Origin,
-        input: dir::GlobalTypeId,
+        input: Value,
         access: dir::Access,
-    ) -> CompilerResult<Answer<Option<DereferenceSelection>>> {
-        let input = answer!(self.reduce_type_head(origin, input)?);
+    ) -> CompilerResult<Answer<Option<dir::DereferenceResolution>>> {
+        let input_type = answer!(self.reduce_type_head(origin, input.ty)?);
+        let input = Value {
+            ty: input_type,
+            ..input
+        };
 
         // direct dereference projects physical pointer forms the access grants
-        if let dir::Type::Form(form) = self.ty(input)?
+        if let dir::Type::Form(form) = self.ty(input.ty)?
             && matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw)
         {
             if let dir::Form::Borrowed(borrow) = form.form {
-                // an open access defers to the instantiation's concrete recheck
-                let held = self.check.type_borrow(input.module_id, borrow)?.access;
-                let granted = self
-                    .check
-                    .access_literal(origin, held)?
-                    .is_none_or(|held| held.grants(access));
-                if !granted {
+                // require the requested access from the selected borrow
+                let held = self.check.type_borrow(input.ty.module_id, borrow)?.access;
+                let requested = self.intern_type(
+                    origin.module(),
+                    dir::Type::Memory(dir::MemoryLiteral::Access(access)),
+                )?;
+                if !answer!(
+                    self.check
+                        .constrain_access_assignable(origin, held, requested,)?
+                ) {
                     return Ok(Answer::Ready(None));
                 }
             }
 
-            return Ok(Answer::Ready(Some(DereferenceSelection {
-                operation: dir::DereferenceOperation::Direct,
+            let dereference = dir::Dereference {
+                receiver: input.ty,
+                target: dir::DereferenceTarget::Direct,
                 ty: form.value,
+            };
+
+            return Ok(Answer::Ready(Some(dir::OperationResolution::One(
+                dereference,
+            ))));
+        }
+
+        // union values select one exact dereference operation for every runtime arm
+        if let Some(arms) = answer!(self.union_arms(origin, input.ty)?) {
+            let mut resolutions = Vec::with_capacity(arms.len());
+            let mut types = Vec::with_capacity(arms.len());
+            for arm in arms {
+                let Some(resolution) =
+                    answer!(self.select_dereference(origin, Value { ty: arm, ..input }, access,)?)
+                else {
+                    return Ok(Answer::Ready(None));
+                };
+
+                let dir::OperationResolution::One(dereference) = resolution else {
+                    return Err(CompilerError::Internal {
+                        message: "union dereference contains a nested union".to_string(),
+                    });
+                };
+                types.push(dereference.ty);
+                resolutions.push(dereference);
+            }
+            let ty = self.normalized_union_type(origin.module(), types)?;
+
+            return Ok(Answer::Ready(Some(dir::OperationResolution::Union {
+                arms: resolutions,
+                ty,
             })));
         }
 
@@ -47,15 +80,9 @@ impl BodyState<'_, '_> {
         for operator_protocol in unary_operator_protocols(dir::UnaryOperator::Dereference, access) {
             let key = operator_protocol.method.key(self.strings());
             let protocol = self.operator_protocol(origin, &operator_protocol, &[])?;
-            let Some(call) = answer!(self.select_protocol_call(
-                origin,
-                input,
-                input,
-                key,
-                &protocol,
-                &[],
-                &[],
-            )?) else {
+            let Some(call) =
+                answer!(self.select_protocol_call(origin, input, input.ty, key, &protocol, &[],)?)
+            else {
                 continue;
             };
             let ty = answer!(self.operator_expression_type(
@@ -64,10 +91,20 @@ impl BodyState<'_, '_> {
                 call.return_type,
             )?);
 
-            return Ok(Answer::Ready(Some(DereferenceSelection {
-                operation: dir::DereferenceOperation::Call(Box::new(call.resolution)),
+            let dir::OperationResolution::One(call) = call.resolution else {
+                return Err(CompilerError::Internal {
+                    message: "protocol dereference contains a nested union".to_string(),
+                });
+            };
+            let dereference = dir::Dereference {
+                receiver: input.ty,
+                target: dir::DereferenceTarget::Call(Box::new(call)),
                 ty,
-            })));
+            };
+
+            return Ok(Answer::Ready(Some(dir::OperationResolution::One(
+                dereference,
+            ))));
         }
 
         Ok(Answer::Ready(None))
@@ -114,7 +151,8 @@ impl BodyState<'_, '_> {
                 projection: dir::Projection::Borrow {
                     access: Some(access),
                     ty: projected,
-                },
+                }
+                .into(),
                 pattern: Some(pattern.into_global_any(module)),
             })),
         )
@@ -143,7 +181,7 @@ impl BodyState<'_, '_> {
         self.commit_pattern(
             node,
             dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
-                projection: dir::Projection::Move { access, ty: input },
+                projection: dir::Projection::Move { access, ty: input }.into(),
                 pattern: Some(pattern.into_global_any(module)),
             })),
         )
@@ -160,25 +198,27 @@ impl BodyState<'_, '_> {
         pattern: dir::LocalNodeId<dir::Pattern>,
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
-        let Some(selection) =
-            answer!(self.select_dereference(origin, input, dir::Access::Readonly)?)
-        else {
+        let Some(selection) = answer!(self.select_dereference(
+            origin,
+            Value {
+                ty: input,
+                place: None,
+            },
+            dir::Access::Readonly,
+        )?) else {
             return self.commit_rejected_pattern(node);
         };
         answer!(self.check_pattern_projection(
             flow,
             scope,
-            selection.ty,
+            selection.ty(),
             pattern.into_global_any(module)
         )?);
 
         self.commit_pattern(
             node,
             dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
-                projection: dir::Projection::Dereference {
-                    read: selection.operation,
-                    ty: selection.ty,
-                },
+                projection: selection.into(),
                 pattern: Some(pattern.into_global_any(module)),
             })),
         )

@@ -55,6 +55,8 @@ const ok: Args = ("Ada", 42);
 
 ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
+/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ok root=ok
 
 /// @generic.instance id="ConstructorParameters<typeof User>" template=types.function.ConstructorParameters arguments=(typeof User)
 "#,
@@ -169,7 +171,11 @@ const ok: Value = new User();
 
 ok.name satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.member source=ok.name receiver=User kind=symbol target=User.name
+/// @resolution.member source=ok.name receiver=User type=string kind=field target_receiver=User key=name target=User.name target_type=string
+/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ok root=ok
+/// @resolution.place source=ok.name placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ok.name root=ok keys=[name]
 
 /// @generic.instance id="InstanceType<typeof User>" template=types.function.InstanceType arguments=(typeof User)
 "#,
@@ -232,6 +238,8 @@ const bad: Args = ("Ada", "old");
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"old\"' is not assignable to type 'float64'"
 /// @diagnostic.label line=8 column=27 span="\"old\"" line_source="const bad: Args = (\"Ada\", \"old\");"
+/// @diagnostic.related line=8 column=12 span="Args" line_source="const bad: Args = (\"Ada\", \"old\");" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in element 1"
 "#,
     );
 }

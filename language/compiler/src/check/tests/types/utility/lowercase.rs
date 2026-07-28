@@ -71,6 +71,8 @@ declare const method: Method;
 
 method satisfies "get" | "post";
 /// @resolution.name source=method target=method
+/// @resolution.place source=method placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=method root=method
 
 /// @generic.instance id="Lowercase<\"GET\" | \"POST\">" template=types.string.Lowercase arguments=("GET" | "POST")
 "#,

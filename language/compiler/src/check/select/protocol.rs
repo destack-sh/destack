@@ -1,13 +1,14 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, Cause, CauseKind, CheckState, DeclaredMember, Dependency,
-    MemberCandidate, MemberLookup, Origin, Relation, SignatureMatch, SignatureSelection,
-    TypeSubstitution, answer,
+    Answer, BodyState, CandidateOutcome, CandidateVerdict, CheckState, DeclaredMember, Dependency,
+    InterfaceMember, MemberCandidate, MemberLookup, Origin, Relation, SignatureMatch,
+    TypeArgumentInference, TypeSubstitution, Value, answer,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Interface protocol required by a generated operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,11 +20,8 @@ pub(in crate::check) struct Protocol {
 }
 
 impl Protocol {
-    /// Return one protocol interface instance.
-    pub(in crate::check) fn new(
-        symbol: dir::GlobalSymbolId,
-        arguments: Vec<dir::GlobalTypeId>,
-    ) -> Self {
+    /// Create one complete applied protocol.
+    fn new(symbol: dir::GlobalSymbolId, arguments: Vec<dir::GlobalTypeId>) -> Self {
         Self { symbol, arguments }
     }
 
@@ -33,12 +31,45 @@ impl Protocol {
         check: &mut CheckState<'_>,
         module: ModuleId,
     ) -> CompilerResult<dir::GenericApplication> {
+        match check.symbol_template(self.symbol)? {
+            Some(template) => {
+                check.template_substitution(template, &self.arguments)?;
+            }
+            None if self.arguments.is_empty() => {}
+            None => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "nongeneric protocol {:?} received {} arguments",
+                        self.symbol,
+                        self.arguments.len(),
+                    ),
+                });
+            }
+        }
         let arguments = check.intern_type_ids(module, &self.arguments)?;
 
         Ok(dir::GenericApplication {
             symbol: self.symbol,
             arguments,
         })
+    }
+
+    /// Return matching members from one selected protocol implementation.
+    fn members(
+        &self,
+        check: &mut CheckState<'_>,
+        origin: Origin,
+        implementation: dir::GlobalTypeId,
+        receiver: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Answer<SmallVec<[InterfaceMember; 2]>>> {
+        check.interface_members(
+            origin,
+            implementation,
+            receiver,
+            dir::MemberSpace::Instance,
+            key,
+        )
     }
 }
 
@@ -48,18 +79,6 @@ pub(in crate::check) struct ProtocolMember {
     pub(in crate::check) resolution: dir::MemberResolution,
     /// The member type.
     pub(in crate::check) ty: dir::GlobalTypeId,
-    /// The declaration that exposed the member.
-    pub(in crate::check) owner: dir::GlobalSymbolId,
-    /// The member symbol.
-    pub(in crate::check) symbol: dir::GlobalSymbolId,
-    /// The generic argument bindings.
-    pub(in crate::check) generic_arguments: Vec<dir::GenericArgumentBinding>,
-}
-
-/// Protocol implementation selected for one receiver.
-pub(in crate::check) struct ProtocolImplementation {
-    /// The selected protocol generic arguments.
-    pub(in crate::check) arguments: Vec<dir::GlobalTypeId>,
 }
 
 /// Protocol call accepted for a generated operation.
@@ -71,142 +90,139 @@ pub(in crate::check) struct ProtocolCall {
 }
 
 impl CheckState<'_> {
-    /// Return one protocol backed by a language item.
+    /// Return one complete protocol application backed by a language item.
     pub(in crate::check) fn language_protocol(
-        &self,
+        &mut self,
+        module: ModuleId,
         item: dir::LanguageItem,
-        arguments: Vec<dir::GlobalTypeId>,
+        written: Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<Protocol> {
-        Ok(Protocol::new(self.language_symbol(item)?, arguments))
+        let symbol = self.language_symbol(item)?;
+        let arguments = match self.symbol_template(symbol)? {
+            Some(template) => {
+                let Some(substitution) =
+                    self.bind_explicit_arguments(module, template, &written)?
+                else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "language protocol {symbol:?} cannot bind {} arguments",
+                            written.len(),
+                        ),
+                    });
+                };
+
+                substitution.arguments().collect()
+            }
+            None if written.is_empty() => Vec::new(),
+            None => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "nongeneric language protocol {symbol:?} received {} arguments",
+                        written.len(),
+                    ),
+                });
+            }
+        };
+
+        Ok(Protocol::new(symbol, arguments))
     }
 }
 
 impl BodyState<'_, '_> {
-    /// Select one protocol implementation for a receiver.
-    pub(in crate::check) fn select_protocol_implementation(
+    /// Infer one complete protocol application backed by a language item.
+    fn infer_language_protocol(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        item: dir::LanguageItem,
+        written: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Answer<Protocol>> {
+        let symbol = self.language_symbol(item)?;
+        let Some(template) = self.symbol_template(symbol)? else {
+            if written.is_empty() {
+                return Ok(Answer::Ready(Protocol::new(symbol, Vec::new())));
+            }
+
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "nongeneric language protocol {symbol:?} received {} arguments",
+                    written.len(),
+                ),
+            });
+        };
+        let parameters = self.generic_template_parameters(template)?;
+        let Some(substitution) = answer!(self.instantiate_parameters(
+            origin,
+            &parameters,
+            written,
+            TypeSubstitution::default().with_receiver(receiver),
+            TypeArgumentInference::Exact,
+        )?) else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "language protocol {symbol:?} cannot infer from {} arguments",
+                    written.len(),
+                ),
+            });
+        };
+
+        // retain the protocol declaration's parameter bounds
+        for constraint in
+            self.substitute_application_constraints(origin, template, &substitution)?
+        {
+            self.check.push_constraint(constraint);
+        }
+        let arguments = substitution.arguments().collect();
+
+        Ok(Answer::Ready(Protocol::new(symbol, arguments)))
+    }
+
+    /// Select one call while inferring its complete language protocol application.
+    pub(in crate::check) fn select_language_protocol_call(
+        &mut self,
+        origin: Origin,
+        receiver: Value,
+        lookup_receiver: dir::GlobalTypeId,
+        key: dir::StaticKey,
+        item: dir::LanguageItem,
+        written: &[dir::GlobalTypeId],
+        argument_sources: &[dir::ArgumentSource],
+    ) -> CompilerResult<Answer<Option<(Protocol, ProtocolCall)>>> {
+        let protocol =
+            answer!(self.infer_language_protocol(origin, lookup_receiver, item, written,)?);
+        let selected = answer!(self.select_protocol_call(
+            origin,
+            receiver,
+            lookup_receiver,
+            key,
+            &protocol,
+            argument_sources,
+        )?);
+
+        Ok(Answer::Ready(selected.map(|call| (protocol, call))))
+    }
+
+    /// Select one member while inferring its complete language protocol application.
+    pub(in crate::check) fn select_language_protocol_member(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
-        protocol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<ProtocolImplementation>>> {
-        let module = origin.module();
-        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
-        let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
-        let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
-        let extension = self.select_extension_protocol_implementation(
+        key: dir::StaticKey,
+        item: dir::LanguageItem,
+        written: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Answer<Option<(Protocol, ProtocolMember)>>> {
+        let protocol =
+            answer!(self.infer_language_protocol(origin, lookup_receiver, item, written,)?);
+        let selected = answer!(self.select_protocol_member(
             origin,
-            module,
+            receiver,
             lookup_receiver,
-            protocol,
-        )?;
-        if !matches!(extension, Answer::Ready(None)) {
-            return Ok(extension);
-        }
+            key,
+            &protocol,
+        )?);
 
-        let Some(instance) = self.apparent_instance(lookup_receiver)? else {
-            return Ok(Answer::Ready(None));
-        };
-        let Some(definition) = self.definition(instance.symbol)? else {
-            return Ok(Answer::Ready(None));
-        };
-        let heritages = definition
-            .heritages()
-            .into_iter()
-            .cloned()
-            .collect::<SmallVec<[_; 2]>>();
-        let substitution = instance.substitution(self)?.with_receiver(receiver);
-
-        self.select_heritage_protocol_implementation(
-            origin,
-            module,
-            &substitution,
-            heritages.iter(),
-            protocol,
-        )
-    }
-
-    /// Select one protocol implementation from extension candidates.
-    fn select_extension_protocol_implementation(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        lookup_receiver: dir::GlobalTypeId,
-        protocol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<ProtocolImplementation>>> {
-        let extensions = self.visible_receiver_extensions(module, lookup_receiver)?;
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
-
-        // try each visible extension as a protocol implementation candidate
-        for extension_symbol in extensions {
-            if self.is_absent_symbol(extension_symbol) {
-                continue;
-            }
-            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
-            else {
-                continue;
-            };
-            if !extension.is_visible_from(module) {
-                continue;
-            }
-
-            let target_type = extension.target.r#type();
-            let implements = extension.implements.clone();
-            let template = self.symbol_template(extension_symbol)?;
-            let Some(substitution) = answer!(self.match_extension_target(
-                origin,
-                lookup_receiver,
-                template,
-                target_type,
-            )?) else {
-                continue;
-            };
-            let implementation = self.select_heritage_protocol_implementation(
-                origin,
-                module,
-                &substitution.with_receiver(lookup_receiver),
-                implements.iter(),
-                protocol,
-            )?;
-            match implementation {
-                Answer::Ready(Some(implementation)) => {
-                    return Ok(Answer::Ready(Some(implementation)));
-                }
-                Answer::Ready(None) => {}
-                Answer::Pending(pending) => blockers.extend(pending),
-            }
-        }
-
-        Ok(Answer::ready_unless_blocked(None, blockers))
-    }
-
-    /// Select protocol arguments from heritage clauses.
-    fn select_heritage_protocol_implementation<'a>(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        substitution: &TypeSubstitution,
-        heritages: impl IntoIterator<Item = &'a dir::NominalHeritage>,
-        protocol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<ProtocolImplementation>>> {
-        // compare each implemented interface with the requested protocol
-        for heritage in heritages {
-            let implemented =
-                answer!(self.substituted_heritage(origin, module, substitution, heritage)?);
-            let instance = if implemented.symbol == protocol {
-                Some(implemented)
-            } else {
-                answer!(self.heritage_instance(origin, module, &implemented, protocol)?)
-            };
-
-            if let Some(instance) = instance {
-                let arguments = self.type_ids(module, instance.arguments)?.to_vec();
-
-                return Ok(Answer::Ready(Some(ProtocolImplementation { arguments })));
-            }
-        }
-
-        Ok(Answer::Ready(None))
+        Ok(Answer::Ready(selected.map(|member| (protocol, member))))
     }
 
     /// Select one protocol member by key.
@@ -221,7 +237,12 @@ impl BodyState<'_, '_> {
         let module = origin.module();
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
         let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
+
         let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
+        let interface = protocol.instance(self, module)?;
+        let interface = self.intern_type(module, dir::Type::Application(interface))?;
+        let requirements =
+            answer!(protocol.members(self, origin, interface, lookup_receiver, key)?);
         let extension = self.select_extension_protocol_member(
             origin,
             module,
@@ -241,18 +262,15 @@ impl BodyState<'_, '_> {
             dir::MemberSpace::Instance,
             key,
         )?);
-        let candidates = match lookup {
-            MemberLookup::Found(candidates) => candidates,
-            MemberLookup::Field(_) | MemberLookup::Missing => return Ok(Answer::Ready(None)),
-        };
-
-        self.select_protocol_member_candidate(
+        self.select_protocol_member_lookup(
             origin,
             module,
             receiver,
             lookup_receiver,
+            key,
             protocol,
-            candidates,
+            &requirements,
+            lookup,
         )
     }
 
@@ -260,17 +278,24 @@ impl BodyState<'_, '_> {
     pub(in crate::check) fn select_protocol_call(
         &mut self,
         origin: Origin,
-        receiver: dir::GlobalTypeId,
+        receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         key: dir::StaticKey,
         protocol: &Protocol,
-        argument_types: &[dir::GlobalTypeId],
         argument_sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
         let module = origin.module();
-        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
+        let receiver_type = answer!(self.reduce_type_head(origin, receiver.ty)?);
+        let receiver = Value {
+            ty: receiver_type,
+            ..receiver
+        };
         let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
         let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
+        let interface = protocol.instance(self, module)?;
+        let interface = self.intern_type(module, dir::Type::Application(interface))?;
+        let requirements =
+            answer!(protocol.members(self, origin, interface, lookup_receiver, key)?);
         let extension = self.select_extension_protocol_call(
             origin,
             module,
@@ -278,7 +303,6 @@ impl BodyState<'_, '_> {
             lookup_receiver,
             key,
             protocol,
-            argument_types,
             argument_sources,
         )?;
         if !matches!(extension, Answer::Ready(None)) {
@@ -292,20 +316,16 @@ impl BodyState<'_, '_> {
             dir::MemberSpace::Instance,
             key,
         )?);
-        let candidates = match lookup {
-            MemberLookup::Found(candidates) => candidates,
-            MemberLookup::Field(_) | MemberLookup::Missing => return Ok(Answer::Ready(None)),
-        };
-
-        self.select_protocol_call_candidate(
+        self.select_protocol_call_lookup(
             origin,
             module,
             receiver,
             lookup_receiver,
+            key,
             protocol,
-            argument_types,
+            &requirements,
             argument_sources,
-            candidates,
+            lookup,
         )
     }
 
@@ -314,29 +334,37 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        receiver: dir::GlobalTypeId,
+        receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         key: dir::StaticKey,
         protocol: &Protocol,
-        argument_types: &[dir::GlobalTypeId],
         argument_sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
-        self.select_extension_protocol(
+        self.select_extension_protocol_operation(
             origin,
             module,
             lookup_receiver,
             key,
             protocol,
-            |state, candidates| match state.select_protocol_call_member(
-                origin,
-                receiver,
-                argument_types,
-                argument_sources,
-                candidates,
-            )? {
-                Answer::Ready(Some(call)) => Ok(Answer::Ready(CandidateOutcome::Accepted(call))),
-                Answer::Ready(None) => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
-                Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+            |state, implementation, selected, candidates| {
+                let requirements = answer!(protocol.members(
+                    state,
+                    origin,
+                    implementation,
+                    lookup_receiver,
+                    key,
+                )?);
+                let candidates =
+                    state.select_implementation_candidates(&selected, &requirements, candidates)?;
+                match state.select_protocol_call_member(
+                    origin,
+                    receiver,
+                    argument_sources,
+                    candidates,
+                )? {
+                    Answer::Ready(call) => Ok(Answer::Ready(call)),
+                    Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                }
             },
         )
     }
@@ -351,23 +379,32 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
-        self.select_extension_protocol(
+        self.select_extension_protocol_operation(
             origin,
             module,
             lookup_receiver,
             key,
             protocol,
-            |state, candidates| match state
-                .select_protocol_member_from_candidates(receiver, candidates)
-            {
-                Some(member) => Ok(Answer::Ready(CandidateOutcome::Accepted(member))),
-                None => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
+            |state, implementation, selected, candidates| {
+                let requirements = answer!(protocol.members(
+                    state,
+                    origin,
+                    implementation,
+                    lookup_receiver,
+                    key,
+                )?);
+                let candidates =
+                    state.select_implementation_candidates(&selected, &requirements, candidates)?;
+                match state.select_protocol_member_from_candidates(receiver, candidates)? {
+                    Answer::Ready(member) => Ok(Answer::Ready(member)),
+                    Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                }
             },
         )
     }
 
     /// Select one extension protocol candidate.
-    fn select_extension_protocol<T>(
+    fn select_extension_protocol_operation<T>(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -376,20 +413,29 @@ impl BodyState<'_, '_> {
         protocol: &Protocol,
         mut select: impl FnMut(
             &mut BodyState<'_, '_>,
+            dir::GlobalTypeId,
+            dir::InterfaceImplementation,
             Vec<MemberCandidate>,
-        ) -> CompilerResult<Answer<CandidateOutcome<T, ()>>>,
+        ) -> CompilerResult<Answer<Option<T>>>,
     ) -> CompilerResult<Answer<Option<T>>> {
-        let extensions = self.visible_receiver_extensions(module, lookup_receiver)?;
+        let extensions =
+            answer!(self.visible_implementation_extensions(origin, module, lookup_receiver,)?);
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        let mut viable = None;
+        let mut indeterminate = None;
 
-        // try each extension as one candidate transaction
+        // classify each extension without retaining speculative state
         for extension_symbol in extensions {
             if self.is_absent_symbol(extension_symbol) {
                 continue;
             }
             let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
             else {
-                continue;
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "indexed protocol implementation {extension_symbol:?} has no extension definition"
+                    ),
+                });
             };
             if !extension.is_visible_from(module) {
                 continue;
@@ -403,39 +449,97 @@ impl BodyState<'_, '_> {
                 continue;
             }
 
-            let selected = self.confirm_candidate(|state| {
-                let matched = state.match_extension_protocol_members(
+            let verdict = self.probe_candidate(|state| {
+                state.match_extension_protocol_candidate(
                     origin,
                     module,
                     lookup_receiver,
                     extension_symbol,
                     target_type,
                     &implements,
-                    &members,
                     protocol,
-                )?;
-                let candidates = match matched {
-                    Answer::Ready(Some(candidates)) => candidates,
-                    Answer::Ready(None) => {
-                        return Ok(Answer::Ready(CandidateOutcome::Rejected(())));
-                    }
-                    Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
-                };
-
-                select(state, candidates)
+                )
             })?;
-            match selected {
-                Answer::Ready(Some(selected)) => {
-                    return Ok(Answer::Ready(Some(selected)));
+            let candidate = (
+                extension_symbol,
+                target_type,
+                implements,
+                definition_members,
+                members,
+            );
+            match verdict {
+                Answer::Ready(CandidateVerdict::Viable) => {
+                    viable = Some(candidate);
+
+                    break;
                 }
-                Answer::Ready(None) => {}
+                Answer::Ready(CandidateVerdict::Indeterminate) => {
+                    indeterminate.get_or_insert(candidate);
+                }
+                Answer::Ready(CandidateVerdict::Rejected) => {}
                 Answer::Pending(pending) => {
                     blockers.extend(pending);
                 }
             }
         }
 
-        Ok(Answer::ready_unless_blocked(None, blockers))
+        // apply one selected extension in the enclosing transaction
+        let Some((extension_symbol, target_type, implements, definition_members, members)) =
+            viable.or(indeterminate)
+        else {
+            return Ok(Answer::ready_unless_blocked(None, blockers));
+        };
+        let matched = self.match_extension_protocol_members(
+            origin,
+            module,
+            lookup_receiver,
+            extension_symbol,
+            target_type,
+            &implements,
+            &definition_members,
+            &members,
+            protocol,
+        )?;
+        let (implementation, selected, candidates) = match matched {
+            Answer::Ready(Some(matched)) => matched,
+            Answer::Ready(None) => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "selected extension protocol candidate {extension_symbol:?} was rejected"
+                    ),
+                });
+            }
+            Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
+        };
+
+        select(self, implementation, selected, candidates)
+    }
+
+    /// Classify one extension protocol candidate.
+    fn match_extension_protocol_candidate(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        lookup_receiver: dir::GlobalTypeId,
+        extension_symbol: dir::GlobalSymbolId,
+        target_type: dir::GlobalTypeId,
+        implementations: &[dir::InterfaceImplementation],
+        protocol: &Protocol,
+    ) -> CompilerResult<Answer<CandidateOutcome<(), ()>>> {
+        let matched = self.match_extension_protocol_implementation(
+            origin,
+            module,
+            lookup_receiver,
+            extension_symbol,
+            target_type,
+            implementations,
+            protocol,
+        )?;
+
+        Ok(matched.map(|matched| match matched {
+            Some(_) => CandidateOutcome::Accepted(()),
+            None => CandidateOutcome::Rejected(()),
+        }))
     }
 
     /// Match one extension implementation against a protocol member request.
@@ -446,39 +550,32 @@ impl BodyState<'_, '_> {
         lookup_receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         target_type: dir::GlobalTypeId,
-        implements: &[dir::NominalHeritage],
+        implementations: &[dir::InterfaceImplementation],
+        definition_members: &[dir::DefinitionMember],
         members: &[DeclaredMember],
         protocol: &Protocol,
-    ) -> CompilerResult<Answer<Option<Vec<MemberCandidate>>>> {
-        let template = self.symbol_template(extension_symbol)?;
-        let Some(mut substitution) =
-            answer!(self.match_extension_target(origin, lookup_receiver, template, target_type,)?)
+    ) -> CompilerResult<
+        Answer<
+            Option<(
+                dir::GlobalTypeId,
+                dir::InterfaceImplementation,
+                Vec<MemberCandidate>,
+            )>,
+        >,
+    > {
+        let Some((substitution, implementation, index)) =
+            answer!(self.match_extension_protocol_implementation(
+                origin,
+                module,
+                lookup_receiver,
+                extension_symbol,
+                target_type,
+                implementations,
+                protocol,
+            )?)
         else {
             return Ok(Answer::Ready(None));
         };
-
-        // bind protocol arguments that appear directly in implementation clauses
-        if !answer!(self.bind_extension_protocol_arguments(
-            origin,
-            module,
-            &mut substitution,
-            implements,
-            protocol,
-        )?) {
-            return Ok(Answer::Ready(None));
-        }
-
-        // prove the extension implements the requested protocol
-        if !answer!(self.extension_protocol_holds(
-            origin,
-            module,
-            &substitution,
-            implements,
-            protocol,
-        )?) {
-            return Ok(Answer::Ready(None));
-        }
-
         let candidates = answer!(self.extension_member_candidates(
             origin,
             extension_symbol,
@@ -488,79 +585,64 @@ impl BodyState<'_, '_> {
         if candidates.is_empty() {
             return Ok(Answer::Ready(None));
         }
+        let declared = implementations
+            .get(index)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "selected interface implementation {index} is absent from {extension_symbol:?}"
+                ),
+            })?;
+        let (interface_module, interface) = self.require_nominal_application(implementation)?;
+        let selected = answer!(self.check.select_interface_implementation(
+            origin,
+            extension_symbol,
+            declared.interface.source,
+            implementation,
+            lookup_receiver,
+            definition_members,
+            interface_module,
+            &interface,
+        )?);
+        let Ok(selected) = selected else {
+            return Ok(Answer::Ready(None));
+        };
 
-        Ok(Answer::Ready(Some(candidates)))
+        Ok(Answer::Ready(Some((implementation, selected, candidates))))
     }
 
-    /// Bind extension parameters that occur directly in requested protocol arguments.
-    fn bind_extension_protocol_arguments(
+    /// Match one extension target and implemented protocol.
+    fn match_extension_protocol_implementation(
         &mut self,
         origin: Origin,
         module: ModuleId,
-        substitution: &mut TypeSubstitution,
-        implements: &[dir::NominalHeritage],
+        lookup_receiver: dir::GlobalTypeId,
+        extension_symbol: dir::GlobalSymbolId,
+        target_type: dir::GlobalTypeId,
+        implementations: &[dir::InterfaceImplementation],
         protocol: &Protocol,
-    ) -> CompilerResult<Answer<bool>> {
-        if protocol.arguments.is_empty() {
-            return Ok(Answer::Ready(true));
-        }
+    ) -> CompilerResult<Answer<Option<(TypeSubstitution, dir::GlobalTypeId, usize)>>> {
+        let template = self.symbol_template(extension_symbol)?;
+        let Some(substitution) =
+            answer!(self.instantiate_extension(origin, lookup_receiver, template, target_type,)?)
+        else {
+            return Ok(Answer::Ready(None));
+        };
 
-        let source = self.origin_source_node(origin)?;
-        let previous = substitution.parameters.len();
+        // match the declared implementation to the requested protocol
+        let interface = protocol.instance(self, module)?;
+        let implementation = answer!(self.match_implemented_interface(
+            origin,
+            Relation::Assignable,
+            module,
+            module,
+            &substitution,
+            implementations,
+            &interface,
+        )?);
 
-        // bind missing parameters from direct implemented protocol arguments
-        for heritage in implements {
-            // trailing defaulted interface parameters may stay unrequested
-            if heritage.symbol != protocol.symbol
-                || heritage.arguments.len() < protocol.arguments.len()
-            {
-                continue;
-            }
-
-            for (implemented, requested) in heritage.arguments.iter().zip(&protocol.arguments) {
-                let implemented =
-                    self.substitute_type(origin.module(), *implemented, substitution)?;
-                let dir::Type::Parameter(parameter) = self.ty(implemented)? else {
-                    continue;
-                };
-                if substitution.parameters.contains(&parameter) {
-                    continue;
-                }
-
-                substitution.parameters.push(parameter);
-                substitution.arguments.push(*requested);
-            }
-        }
-
-        // check constraints introduced by protocol argument binding
-        let mut decision = Answer::Ready(true);
-        for index in previous..substitution.parameters.len() {
-            let parameter = substitution.parameters[index];
-            let argument = substitution.arguments[index];
-            let Some(constraint) = self
-                .generic_parameter(parameter)
-                .and_then(|binding| binding.constraint)
-            else {
-                continue;
-            };
-            let constraint = self.substitute_type(origin.module(), constraint, substitution)?;
-            let source_node = source.into_global(module);
-            let source_origin = self.origin_at(origin, source_node)?;
-
-            let cause = self.intern_cause(Cause::root(source_origin, CauseKind::Expression));
-
-            decision = decision.and(self.constrain_type(
-                cause,
-                Relation::Satisfies,
-                argument,
-                constraint,
-            )?);
-            if decision.is_ready_false() {
-                return Ok(decision);
-            }
-        }
-
-        Ok(decision)
+        Ok(Answer::Ready(implementation.map(
+            |(implementation, index)| (substitution, implementation, index),
+        )))
     }
 
     /// Return declared extension members matching one protocol key.
@@ -584,6 +666,194 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(matched))
     }
 
+    /// Retain candidates selected by one checked interface implementation.
+    fn select_implementation_candidates(
+        &self,
+        implementation: &dir::InterfaceImplementation,
+        requirements: &[InterfaceMember],
+        candidates: Vec<MemberCandidate>,
+    ) -> CompilerResult<Vec<MemberCandidate>> {
+        let mut declarations = FxIndexSet::default();
+
+        // accept the interface declaration itself for generic and default dispatch
+        for requirement in requirements {
+            declarations.insert(requirement.source);
+            if let Some(member) = implementation.member(requirement.source) {
+                declarations.extend(member.declarations.iter().copied());
+            }
+        }
+
+        // retain only declarations fixed by the implementation record
+        let mut selected = Vec::new();
+        for candidate in candidates {
+            let source = self.symbol_source(candidate.symbol)?;
+            if declarations.contains(&source) {
+                selected.push(candidate);
+            }
+        }
+
+        Ok(selected)
+    }
+
+    /// Select one protocol member from every receiver alternative.
+    fn select_protocol_member_lookup(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        lookup_receiver: dir::GlobalTypeId,
+        key: dir::StaticKey,
+        protocol: &Protocol,
+        requirements: &[InterfaceMember],
+        lookup: MemberLookup,
+    ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
+        match lookup {
+            MemberLookup::Found(candidates) => self.select_protocol_member_candidate(
+                origin,
+                module,
+                receiver,
+                lookup_receiver,
+                protocol,
+                requirements,
+                candidates,
+            ),
+            MemberLookup::Union(lookups) => {
+                let mut arms = Vec::with_capacity(lookups.len());
+                let mut types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+                for arm in lookups {
+                    let Some(member) = answer!(self.select_protocol_member_lookup(
+                        origin,
+                        module,
+                        arm.receiver,
+                        arm.receiver,
+                        key,
+                        protocol,
+                        requirements,
+                        arm.lookup,
+                    )?) else {
+                        return Ok(Answer::Ready(None));
+                    };
+                    let dir::OperationResolution::One(access) = member.resolution else {
+                        return Err(CompilerError::Internal {
+                            message: "union protocol lookup contains a nested union".to_string(),
+                        });
+                    };
+                    arms.push(access);
+                    types.push(member.ty);
+                }
+                let ty = match types.as_slice() {
+                    [single] => *single,
+                    _ => self.normalized_union_type(module, types)?,
+                };
+                let resolution = dir::OperationResolution::Union { arms, ty };
+
+                Ok(Answer::Ready(Some(ProtocolMember { resolution, ty })))
+            }
+            lookup @ MemberLookup::Intersection(_) => {
+                let Some(candidates) = lookup.into_candidates() else {
+                    return Ok(Answer::Ready(None));
+                };
+
+                self.select_protocol_member_candidate(
+                    origin,
+                    module,
+                    receiver,
+                    lookup_receiver,
+                    protocol,
+                    requirements,
+                    candidates,
+                )
+            }
+            MemberLookup::Missing | MemberLookup::Field(_) => Ok(Answer::Ready(None)),
+        }
+    }
+
+    /// Select one protocol call from every receiver alternative.
+    fn select_protocol_call_lookup(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: Value,
+        lookup_receiver: dir::GlobalTypeId,
+        key: dir::StaticKey,
+        protocol: &Protocol,
+        requirements: &[InterfaceMember],
+        argument_sources: &[dir::ArgumentSource],
+        lookup: MemberLookup,
+    ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
+        match lookup {
+            MemberLookup::Found(candidates) => self.select_protocol_call_candidate(
+                origin,
+                module,
+                receiver,
+                lookup_receiver,
+                protocol,
+                requirements,
+                argument_sources,
+                candidates,
+            ),
+            MemberLookup::Union(lookups) => {
+                let mut calls = Vec::with_capacity(lookups.len());
+                let mut returns = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+                for arm in lookups {
+                    let Some(call) = answer!(self.select_protocol_call_lookup(
+                        origin,
+                        module,
+                        Value {
+                            ty: arm.receiver,
+                            ..receiver
+                        },
+                        arm.receiver,
+                        key,
+                        protocol,
+                        requirements,
+                        argument_sources,
+                        arm.lookup,
+                    )?) else {
+                        return Ok(Answer::Ready(None));
+                    };
+                    let dir::OperationResolution::One(call) = call.resolution else {
+                        return Err(CompilerError::Internal {
+                            message: "union protocol call contains a nested union".to_string(),
+                        });
+                    };
+                    returns.push(call.return_type);
+                    calls.push(call);
+                }
+                let return_type = match returns.as_slice() {
+                    [single] => *single,
+                    _ => self.normalized_union_type(module, returns)?,
+                };
+                let resolution = dir::OperationResolution::Union {
+                    arms: calls,
+                    ty: return_type,
+                };
+
+                Ok(Answer::Ready(Some(ProtocolCall {
+                    resolution,
+                    return_type,
+                })))
+            }
+            lookup @ MemberLookup::Intersection(_) => {
+                let Some(candidates) = lookup.into_candidates() else {
+                    return Ok(Answer::Ready(None));
+                };
+
+                self.select_protocol_call_candidate(
+                    origin,
+                    module,
+                    receiver,
+                    lookup_receiver,
+                    protocol,
+                    requirements,
+                    argument_sources,
+                    candidates,
+                )
+            }
+            MemberLookup::Missing | MemberLookup::Field(_) => Ok(Answer::Ready(None)),
+        }
+    }
+
     /// Select one protocol member from already ordered candidates.
     fn select_protocol_member_candidate(
         &mut self,
@@ -592,40 +862,37 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
         protocol: &Protocol,
+        requirements: &[InterfaceMember],
         candidates: Vec<MemberCandidate>,
     ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
-        for candidate in candidates {
-            let satisfies = self.candidate_satisfies_protocol(
-                origin,
-                module,
-                lookup_receiver,
-                &candidate,
-                protocol,
-            )?;
-            if !answer!(satisfies) {
-                continue;
-            }
-            if let Some(member) = self.protocol_member_from_candidate(receiver, candidate) {
-                return Ok(Answer::Ready(Some(member)));
-            }
-        }
+        let candidates = answer!(self.select_nominal_protocol_candidates(
+            origin,
+            module,
+            lookup_receiver,
+            protocol,
+            requirements,
+            candidates,
+        )?);
+        let member = candidates
+            .into_iter()
+            .next()
+            .map(|candidate| self.protocol_member_from_candidate(receiver, candidate));
 
-        Ok(Answer::Ready(None))
+        Ok(Answer::Ready(member))
     }
 
-    /// Select the first symbol-backed protocol member from ordered candidates.
+    /// Select the first protocol member from ordered candidates.
     fn select_protocol_member_from_candidates(
         &self,
         receiver: dir::GlobalTypeId,
         candidates: Vec<MemberCandidate>,
-    ) -> Option<ProtocolMember> {
-        for candidate in candidates {
-            if let Some(member) = self.protocol_member_from_candidate(receiver, candidate) {
-                return Some(member);
-            }
-        }
+    ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
+        let member = candidates
+            .into_iter()
+            .next()
+            .map(|candidate| self.protocol_member_from_candidate(receiver, candidate));
 
-        None
+        Ok(Answer::Ready(member))
     }
 
     /// Return one durable protocol member resolution.
@@ -633,27 +900,25 @@ impl BodyState<'_, '_> {
         &self,
         receiver: dir::GlobalTypeId,
         candidate: MemberCandidate,
-    ) -> Option<ProtocolMember> {
-        let symbol = candidate.symbol?;
+    ) -> ProtocolMember {
+        let symbol = candidate.symbol;
         let generic_arguments = candidate.generic_arguments;
         let target = dir::MemberTarget::Symbol(dir::MemberCandidate {
-            receiver,
-            adjustments: Vec::new(),
+            receiver: candidate.receiver.resolve(receiver),
             space: candidate.space,
             owner: candidate.owner,
             symbol,
-            ty: candidate.ty,
+            access_type: candidate.access_type,
+            callable_type: candidate.callable,
             generic_arguments: generic_arguments.clone(),
         });
-        let resolution = dir::MemberResolution::new(receiver, target);
+        let access = dir::MemberAccess::new(receiver, target, candidate.access_type);
+        let resolution = dir::OperationResolution::One(access);
 
-        Some(ProtocolMember {
+        ProtocolMember {
             resolution,
-            ty: candidate.ty,
-            owner: candidate.owner,
-            symbol,
-            generic_arguments,
-        })
+            ty: candidate.access_type,
+        }
     }
 
     /// Select one protocol call from already ordered candidates.
@@ -661,28 +926,25 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        receiver: dir::GlobalTypeId,
+        receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         protocol: &Protocol,
-        argument_types: &[dir::GlobalTypeId],
+        requirements: &[InterfaceMember],
         argument_sources: &[dir::ArgumentSource],
         candidates: Vec<MemberCandidate>,
     ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
+        let candidates = answer!(self.select_nominal_protocol_candidates(
+            origin,
+            module,
+            lookup_receiver,
+            protocol,
+            requirements,
+            candidates,
+        )?);
         for candidate in candidates {
-            let satisfies = self.candidate_satisfies_protocol(
-                origin,
-                module,
-                lookup_receiver,
-                &candidate,
-                protocol,
-            )?;
-            if !answer!(satisfies) {
-                continue;
-            }
             let call = self.select_protocol_call_from_candidate(
                 origin,
                 receiver,
-                argument_types,
                 argument_sources,
                 candidate,
             )?;
@@ -694,12 +956,131 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(None))
     }
 
+    /// Retain candidates selected by the receiver's checked implementations.
+    fn select_nominal_protocol_candidates(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        protocol: &Protocol,
+        requirements: &[InterfaceMember],
+        candidates: Vec<MemberCandidate>,
+    ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
+        let mut declarations = requirements
+            .iter()
+            .map(|requirement| requirement.source)
+            .collect::<FxIndexSet<_>>();
+        let Some((receiver_module, receiver_instance)) =
+            self.nominal_application_maybe(receiver)?
+        else {
+            let selected = self.select_protocol_declarations(&declarations, candidates)?;
+
+            return Ok(Answer::Ready(selected));
+        };
+        let mut owners = FxIndexSet::default();
+        owners.insert(receiver_instance.symbol);
+        owners.extend(candidates.iter().map(|candidate| candidate.owner));
+        let interface = protocol.instance(self.check, module)?;
+
+        // collect exact declarations from each relevant nominal implementation
+        for owner in owners {
+            let Some(definition) = self.definition(owner)? else {
+                return Err(CompilerError::Internal {
+                    message: format!("protocol candidate owner {owner:?} has no definition"),
+                });
+            };
+            if matches!(definition, dir::Definition::Interface(_)) {
+                continue;
+            }
+            let definition_members = definition.members().to_vec();
+            let implementations = definition.implementations().to_vec();
+            if implementations.is_empty() {
+                continue;
+            }
+
+            // apply the receiver's concrete arguments to this declaration
+            let application_type = if owner == receiver_instance.symbol {
+                Some(receiver)
+            } else {
+                answer!(self.heritage_instance(
+                    origin,
+                    receiver_module,
+                    &receiver_instance,
+                    owner,
+                )?)
+            };
+            let Some(application_type) = application_type else {
+                continue;
+            };
+            let (application_module, application) =
+                self.require_nominal_application(application_type)?;
+            let substitution = self.instance_substitution(application_module, &application)?;
+            let matched = answer!(self.match_implemented_interface(
+                origin,
+                Relation::Assignable,
+                module,
+                module,
+                &substitution,
+                &implementations,
+                &interface,
+            )?);
+            let Some((implemented, index)) = matched else {
+                continue;
+            };
+            let declared = implementations
+                .get(index)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!(
+                        "selected interface implementation {index} is absent from {owner:?}"
+                    ),
+                })?;
+            let (interface_module, interface) = self.require_nominal_application(implemented)?;
+            let selected = answer!(self.check.select_interface_implementation(
+                origin,
+                owner,
+                declared.interface.source,
+                implemented,
+                application_type,
+                &definition_members,
+                interface_module,
+                &interface,
+            )?);
+            let Ok(implementation) = selected else {
+                continue;
+            };
+            for requirement in requirements {
+                if let Some(member) = implementation.member(requirement.source) {
+                    declarations.extend(member.declarations.iter().copied());
+                }
+            }
+        }
+        let selected = self.select_protocol_declarations(&declarations, candidates)?;
+
+        Ok(Answer::Ready(selected))
+    }
+
+    /// Retain candidates whose declarations are selected by a protocol implementation.
+    fn select_protocol_declarations(
+        &self,
+        declarations: &FxIndexSet<dir::GlobalNodeIdAny>,
+        candidates: Vec<MemberCandidate>,
+    ) -> CompilerResult<Vec<MemberCandidate>> {
+        let mut selected = Vec::new();
+        for candidate in candidates {
+            let source = self.symbol_source(candidate.symbol)?;
+            if declarations.contains(&source) {
+                selected.push(candidate);
+            }
+        }
+
+        Ok(selected)
+    }
+
     /// Select one protocol call after the owner has proved the protocol.
     fn select_protocol_call_member(
         &mut self,
         origin: Origin,
-        receiver: dir::GlobalTypeId,
-        argument_types: &[dir::GlobalTypeId],
+        receiver: Value,
         argument_sources: &[dir::ArgumentSource],
         candidates: Vec<MemberCandidate>,
     ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
@@ -707,7 +1088,6 @@ impl BodyState<'_, '_> {
             let call = self.select_protocol_call_from_candidate(
                 origin,
                 receiver,
-                argument_types,
                 argument_sources,
                 candidate,
             )?;
@@ -723,20 +1103,28 @@ impl BodyState<'_, '_> {
     fn select_protocol_call_from_candidate(
         &mut self,
         origin: Origin,
-        receiver: dir::GlobalTypeId,
-        argument_types: &[dir::GlobalTypeId],
+        receiver: Value,
         argument_sources: &[dir::ArgumentSource],
         candidate: MemberCandidate,
     ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
-        let Some(symbol) = candidate.symbol else {
-            return Ok(Answer::Ready(None));
+        let symbol = candidate.symbol;
+        let resolution = candidate.receiver.resolve(receiver.ty);
+        let selection_type = match &resolution {
+            dir::MemberReceiver::Direct(receiver) => receiver.ty(),
+            dir::MemberReceiver::Dynamic(dispatch) => dispatch.constraint,
         };
-        let arguments = self.source_callable_arguments(origin, argument_types, argument_sources)?;
+        let selection_receiver = Value {
+            ty: selection_type,
+            ..receiver
+        };
+        let arguments = self.source_callable_arguments(origin, argument_sources)?;
         let attempt = self.attempt_callable(
             origin,
-            candidate.ty,
+            candidate.callable.ok_or_else(|| CompilerError::Internal {
+                message: format!("protocol member {symbol:?} has no callable type"),
+            })?,
             Some(candidate.owner),
-            Some(receiver),
+            Some(selection_receiver),
             &candidate.generic_arguments,
             &[],
             &arguments,
@@ -749,142 +1137,13 @@ impl BodyState<'_, '_> {
             | SignatureMatch::Inapplicable(_) => return Ok(Answer::Ready(None)),
         };
 
-        let mut generic_arguments = candidate.generic_arguments.clone();
-        generic_arguments.extend_from_slice(&signature.generic_arguments);
-
-        let resolution = self.protocol_call_resolution(
-            receiver,
-            candidate.owner,
-            symbol,
-            generic_arguments,
-            &signature,
-            argument_sources,
-        );
+        let arguments = Self::source_argument_bindings(argument_sources, &signature.parameters);
+        let call = signature.member_call(resolution, candidate.owner, symbol, arguments);
+        let resolution = dir::OperationResolution::One(call);
 
         Ok(Answer::Ready(Some(ProtocolCall {
             resolution,
             return_type: signature.return_type,
         })))
-    }
-
-    /// Decide whether one protocol call returns a value assignable to a target.
-    pub(in crate::check) fn protocol_call_returns(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-        key: dir::StaticKey,
-        protocol: &Protocol,
-        argument_types: &[dir::GlobalTypeId],
-        argument_sources: &[dir::ArgumentSource],
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let call = answer!(self.select_protocol_call(
-            origin,
-            receiver,
-            receiver,
-            key,
-            protocol,
-            argument_types,
-            argument_sources,
-        )?);
-        let Some(call) = call else {
-            return Ok(Answer::Ready(false));
-        };
-
-        self.decide_relation(origin, Relation::Assignable, call.return_type, target)
-    }
-
-    /// Return whether one member candidate belongs to the protocol.
-    fn candidate_satisfies_protocol(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        receiver: dir::GlobalTypeId,
-        candidate: &MemberCandidate,
-        protocol: &Protocol,
-    ) -> CompilerResult<Answer<bool>> {
-        if protocol.arguments.is_empty() {
-            return self.member_owner_has_protocol(
-                origin,
-                module,
-                receiver,
-                candidate.owner,
-                &candidate.generic_arguments,
-                protocol.symbol,
-            );
-        }
-
-        let interface = protocol.instance(self, module)?;
-
-        self.member_owner_implements_interface(
-            origin,
-            module,
-            module,
-            receiver,
-            candidate.owner,
-            &candidate.generic_arguments,
-            &interface,
-        )
-    }
-
-    /// Decide whether an extension implementation covers one protocol request.
-    fn extension_protocol_holds(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        substitution: &TypeSubstitution,
-        implements: &[dir::NominalHeritage],
-        protocol: &Protocol,
-    ) -> CompilerResult<Answer<bool>> {
-        if protocol.arguments.is_empty() {
-            return self.extension_has_protocol(
-                origin,
-                module,
-                substitution,
-                implements,
-                protocol.symbol,
-            );
-        }
-
-        let interface = protocol.instance(self, module)?;
-
-        self.extension_implements_interface(
-            origin,
-            module,
-            module,
-            substitution,
-            implements,
-            &interface,
-        )
-    }
-
-    /// Return the durable call resolution for one matched protocol method.
-    fn protocol_call_resolution(
-        &self,
-        receiver: dir::GlobalTypeId,
-        owner: dir::GlobalSymbolId,
-        symbol: dir::GlobalSymbolId,
-        generic_arguments: Vec<dir::GenericArgumentBinding>,
-        signature: &SignatureSelection,
-        argument_sources: &[dir::ArgumentSource],
-    ) -> dir::CallResolution {
-        let target = dir::CallTarget::Symbol(dir::CallCandidate {
-            receiver: Some(receiver),
-            adjustments: signature
-                .receiver_steps
-                .as_ref()
-                .map(|steps| steps.to_vec())
-                .unwrap_or_default(),
-            generic_scope: Some(owner),
-            symbol,
-            generic_arguments,
-        });
-
-        dir::CallResolution::new(
-            target,
-            Some(signature.callable),
-            Self::source_argument_bindings(argument_sources, &signature.parameters),
-            signature.return_type,
-        )
     }
 }

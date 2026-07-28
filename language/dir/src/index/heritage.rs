@@ -1,4 +1,4 @@
-use crate::{GlobalSymbolId, Postings};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Postings};
 use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
@@ -114,6 +114,10 @@ pub struct HeritageEntry {
     pub declaration: GlobalSymbolId,
     /// The inherited or implemented nominal symbol.
     pub base: GlobalSymbolId,
+    /// The source heritage node.
+    pub source: GlobalNodeIdAny,
+    /// The applied heritage type.
+    pub ty: GlobalTypeId,
     /// The authored heritage range.
     pub span: Span,
     /// The heritage kind.

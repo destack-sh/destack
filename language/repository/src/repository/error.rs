@@ -54,6 +54,10 @@ pub enum RepositoryError {
     MissingPackage { package: PackageId },
     /// The requested package has no file system path.
     MissingPackagePath { package: PackageId },
+    /// One package root has no `destack.json` declaration.
+    MissingPackageConfig { path: PathBuf },
+    /// One package declaration has no name.
+    MissingPackageName { path: PathBuf },
     /// Multiple packages declare the same package name.
     DuplicatePackageName { name: String },
     /// One builtin module lies outside the canonical source directory.
@@ -172,6 +176,16 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingPackagePath { package } => {
                 write!(formatter, "missing repository package path for '{package}'")
+            }
+            Self::MissingPackageConfig { path } => {
+                write!(formatter, "missing package config '{}'", path.display())
+            }
+            Self::MissingPackageName { path } => {
+                write!(
+                    formatter,
+                    "package config '{}' has no package name",
+                    path.display()
+                )
             }
             Self::DuplicatePackageName { name } => {
                 write!(formatter, "duplicate package name '{name}'")

@@ -1,3 +1,4 @@
+use destack_artifact::DiagnosticPolicy;
 use destack_dir as dir;
 use std::ptr::NonNull;
 
@@ -151,7 +152,7 @@ impl WalkState<'_, '_> {
 
                 // walk the header before building the method type
                 let source = id.into_global_any(self.module);
-                let template = self.open_signature_template(source, None, symbol, signature)?;
+                let template = self.open_signature_template(source, signature)?;
                 let (header, result, tracked) =
                     self.walk_signature_header(id.into_any(), template, signature, body)?;
 
@@ -233,14 +234,8 @@ impl WalkState<'_, '_> {
 
                 // walk generic parameters
                 let source = id.into_global_any(self.module);
-                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let template = match symbol {
-                    Some(symbol) => self.walk_generic_template(
-                        source,
-                        parent,
-                        Some(symbol),
-                        generic_parameters,
-                    )?,
+                    Some(_) => self.walk_generic_template(source, generic_parameters)?,
                     None => None,
                 };
 
@@ -259,6 +254,7 @@ impl WalkState<'_, '_> {
 
                 // write the member symbol type
                 if let (Some(value), Some(symbol)) = (value, symbol) {
+                    let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                     let induction = InducedParameterOwner::new(source, parent, Some(symbol));
                     self.push_induced_parameter_site(induction, value);
                     self.bind_symbol_type(symbol, value)?;
@@ -395,7 +391,11 @@ impl WalkState<'_, '_> {
                 let field_type = match declared_type {
                     Some(declared_type) => {
                         let written = self.walk_type_expression(declared_type)?;
-                        let written = self.check.storage_type(self.module, written)?;
+                        let origin = Origin::Node(
+                            declared_type.into_global_any(self.module),
+                            self.flow().template_scope(),
+                        );
+                        let written = self.check.storage_type(origin, written)?;
 
                         Some(written)
                     }
@@ -496,10 +496,9 @@ impl WalkState<'_, '_> {
                         message: format!("method member {id:?} has no declaration symbol"),
                     });
                 };
-                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let source = id.into_global_any(self.module);
                 let template =
-                    self.open_signature_template(source, parent, Some(symbol), signature)?;
+                    self.open_signature_template(source, signature)?;
                 // open signature parameters under the signature's own scope
                 let _scope = self.enter_template_scope(template);
                 let header = self.walk_function_signature(template, signature)?;
@@ -549,6 +548,7 @@ impl WalkState<'_, '_> {
                     }
                     _ => None,
                 };
+                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let method = self.walk_function_signature_type(
                     id.into_any(),
                     signature,
@@ -791,9 +791,9 @@ impl WalkState<'_, '_> {
                         message: format!("type method member {id:?} has no declaration symbol"),
                     });
                 };
-                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let template =
-                    self.open_signature_template(source, parent, Some(symbol), signature)?;
+                    self.open_signature_template(source, signature)?;
+                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let induction = InducedParameterOwner::new(source, parent, Some(symbol));
 
                 // interface members assume this satisfies their interface
@@ -862,8 +862,7 @@ impl WalkState<'_, '_> {
             }
             // (value: T): U
             dir::TypeMember::CallSignature { signature } => {
-                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
-                let ty = self.walk_function_type(id.into_any(), signature, parent, None)?;
+                let ty = self.walk_function_type(id.into_any(), signature, None)?;
 
                 Ok(Some(dir::DefinitionMember::CallSignature(
                     dir::SignatureDefinition { source, ty },
@@ -871,8 +870,7 @@ impl WalkState<'_, '_> {
             }
             // new (value: T): U
             dir::TypeMember::ConstructSignature { signature } => {
-                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
-                let ty = self.walk_constructor_type(id.into_any(), signature, parent, None)?;
+                let ty = self.walk_constructor_type(id.into_any(), signature, None)?;
 
                 Ok(Some(dir::DefinitionMember::ConstructSignature(
                     dir::SignatureDefinition { source, ty },
@@ -880,19 +878,25 @@ impl WalkState<'_, '_> {
             }
             // [key: K]: V
             dir::TypeMember::IndexSignature {
+                name,
                 key_type,
                 value_type,
-                ..
+                is_optional,
+                is_readonly,
             } => {
-                let (key_type, value_type) = (*key_type, *value_type);
+                let (name, key_type, value_type, is_optional, is_readonly) =
+                    (*name, *key_type, *value_type, *is_optional, *is_readonly);
                 let key_type = self.walk_type_expression(key_type)?;
                 let value_type = self.walk_type_expression(value_type)?;
 
                 Ok(Some(dir::DefinitionMember::IndexSignature(
                     dir::IndexSignatureDefinition {
                         source,
+                        name,
                         key_type,
                         value_type,
+                        is_optional,
+                        is_readonly,
                     },
                 )))
             }
@@ -912,14 +916,8 @@ impl WalkState<'_, '_> {
                     .declaration_symbol(id.into_any());
 
                 // walk generic parameters
-                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let template = match symbol {
-                    Some(symbol) => self.walk_generic_template(
-                        source,
-                        parent,
-                        Some(symbol),
-                        generic_parameters,
-                    )?,
+                    Some(_) => self.walk_generic_template(source, generic_parameters)?,
                     None => None,
                 };
                 for where_clause in where_clauses {
@@ -1047,7 +1045,7 @@ impl WalkState<'_, '_> {
         else {
             return Ok(None);
         };
-        if self.check.module(self.module).profile.no_implicit_receivers {
+        if self.check.module(self.module).profile.no_implicit_receivers != DiagnosticPolicy::Allow {
             self.check
                 .report_missing_explicit_receiver(self.module, id.into_any());
         }

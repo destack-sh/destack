@@ -150,11 +150,6 @@ impl PackageIndex {
         Self { packages, roots }
     }
 
-    /// Return the package count.
-    pub(crate) fn len(&self) -> usize {
-        self.packages.len()
-    }
-
     /// Return one package by id.
     pub(crate) fn package(&self, package_id: PackageId) -> Option<Arc<Package>> {
         self.packages.get(&package_id).cloned()

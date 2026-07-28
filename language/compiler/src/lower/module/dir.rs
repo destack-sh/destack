@@ -376,20 +376,20 @@ impl FunctionLowerer<'_, '_, '_> {
             .cloned()
     }
 
-    /// Return the checked place resolution of one place expression.
-    pub(in crate::lower) fn place_resolution(
+    /// Return the checked assignment resolution of one target expression.
+    pub(in crate::lower) fn assignment_resolution(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<dir::PlaceResolution> {
+    ) -> CompilerResult<dir::AssignmentResolution> {
         let node = expression.into_global_any(self.source);
 
         self.source()
             .resolutions
-            .place_resolution(node)
+            .assignment_resolution(node)
             .cloned()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!(
-                    "checked DIR is missing a place resolution for node {}",
+                    "checked DIR is missing an assignment resolution for node {}",
                     node.local_id.id
                 ),
             })
@@ -433,6 +433,25 @@ impl FunctionLowerer<'_, '_, '_> {
             })
     }
 
+    /// Return the checked subscript resolution of one index expression.
+    pub(in crate::lower) fn subscript_resolution(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<dir::SubscriptResolution> {
+        let node = expression.into_global_any(self.source);
+
+        self.source()
+            .resolutions
+            .subscript_resolution(node)
+            .cloned()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "checked DIR is missing a subscript resolution for node {}",
+                    node.local_id.id
+                ),
+            })
+    }
+
     /// Return the checked resolution of one pattern node.
     pub(in crate::lower) fn pattern_resolution(
         &self,
@@ -471,7 +490,7 @@ impl FunctionLowerer<'_, '_, '_> {
             })
     }
 
-    /// Return the checked coercion on one expression node.
+    /// Return the checked coercion for one expression.
     pub(in crate::lower) fn coercion(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -480,24 +499,5 @@ impl FunctionLowerer<'_, '_, '_> {
             .coercions
             .coercion(expression.into_global_any(self.source))
             .cloned()
-    }
-
-    /// Return one node's type after its checked coercion applies.
-    pub(in crate::lower) fn coerced_type(
-        &self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<dir::Type> {
-        self.lowerer.ty(self.coerced_type_id(expression)?)
-    }
-
-    /// Return one node's type id after its checked coercion applies.
-    pub(in crate::lower) fn coerced_type_id(
-        &self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        match self.coercion(expression) {
-            Some(coercion) => Ok(coercion.target()),
-            None => self.node_type_id(expression),
-        }
     }
 }

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Origin, Relation};
+use crate::check::{Answer, CheckState, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -50,13 +50,22 @@ impl CheckState<'_> {
         for bound in resolved.iter().copied() {
             let mut absorbed = false;
             for other in resolved.iter().copied() {
-                if other != bound
-                    && self
-                        .decide_relation(origin, Relation::Assignable, bound, other)?
-                        .is_ready_true()
-                {
-                    absorbed = true;
+                if other == bound {
+                    continue;
+                }
 
+                match self.decide_relation(origin, Relation::Assignable, bound, other)? {
+                    Answer::Ready(true) => absorbed = true,
+                    Answer::Ready(false) => {}
+                    Answer::Pending(blockers) => {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "closed inference bounds depend on unfinished state {blockers:?}"
+                            ),
+                        });
+                    }
+                }
+                if absorbed {
                     break;
                 }
             }
@@ -152,9 +161,16 @@ impl CheckState<'_> {
             lifetimes.push(borrow.lifetime);
             for (other_bound, other_value, other_borrow) in borrows.iter().copied().skip(index + 1)
             {
-                let payloads_equal = self
-                    .decide_equal(origin, value, other_value)?
-                    .is_ready_true();
+                let payloads_equal = match self.decide_equal(origin, value, other_value)? {
+                    Answer::Ready(equal) => equal,
+                    Answer::Pending(blockers) => {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "closed borrow bounds depend on unfinished state {blockers:?}"
+                            ),
+                        });
+                    }
+                };
                 let accesses_equal = self.ty(borrow.access)? == self.ty(other_borrow.access)?;
                 if payloads_equal && accesses_equal {
                     consumed.push(other_bound);
@@ -295,7 +311,7 @@ impl CheckState<'_> {
                 Ok(Some(self.intern_type(module, widened)?))
             }
             // enum member leaves widen to the owner enum
-            dir::Type::EnumMember(member) => Ok(Some(member.owner)),
+            dir::Type::Variant(member) => Ok(Some(member.owner)),
             // managed forms rebuild around their payloads
             dir::Type::Form(form) if form.form == dir::Form::Managed => {
                 let Some(widened) = self.widen_tree(module, form.value, active)? else {
@@ -403,27 +419,42 @@ impl CheckState<'_> {
             }
             // object literal shapes rebuild with widened field types
             dir::Type::Shape(shape) => {
-                let mut fields = SmallVec::<[dir::TypeField; 8]>::from_slice(
-                    self.shape_fields(module, shape.fields)?,
+                let mut fields = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
+                    self.shape_properties(module, shape.properties)?,
                 );
                 let mut changed = false;
                 for field in &mut fields {
-                    let ty = self.settled_root(field.ty)?;
-                    match self.widen_tree(module, ty, active)? {
-                        Some(widened) => {
-                            field.ty = widened;
-                            changed = true;
+                    field.access = match field.access {
+                        dir::PropertyAccess::Read(ty) => {
+                            let (ty, widened) = self.widen_property_slot(module, ty, active)?;
+                            changed |= widened;
+
+                            dir::PropertyAccess::Read(ty)
                         }
-                        None => field.ty = ty,
-                    }
+                        dir::PropertyAccess::Write(ty) => {
+                            let (ty, widened) = self.widen_property_slot(module, ty, active)?;
+                            changed |= widened;
+
+                            dir::PropertyAccess::Write(ty)
+                        }
+                        dir::PropertyAccess::ReadWrite { read, write } => {
+                            let (read, read_widened) =
+                                self.widen_property_slot(module, read, active)?;
+                            let (write, write_widened) =
+                                self.widen_property_slot(module, write, active)?;
+                            changed |= read_widened | write_widened;
+
+                            dir::PropertyAccess::ReadWrite { read, write }
+                        }
+                    };
                 }
                 if !changed {
                     return Ok(None);
                 }
 
-                let fields = self.intern_fields(module, &fields)?;
+                let fields = self.intern_properties(module, &fields)?;
                 let shape = dir::ShapeType {
-                    fields,
+                    properties: fields,
                     call_signatures: shape.call_signatures,
                     construct_signatures: shape.construct_signatures,
                     index_signatures: shape.index_signatures,
@@ -434,4 +465,19 @@ impl CheckState<'_> {
             _ => Ok(None),
         }
     }
+    /// Widen one property value slot toward its settled root.
+    fn widen_property_slot(
+        &mut self,
+        module: ModuleId,
+        ty: dir::GlobalTypeId,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<(dir::GlobalTypeId, bool)> {
+        let ty = self.settled_root(ty)?;
+
+        match self.widen_tree(module, ty, active)? {
+            Some(widened) => Ok((widened, true)),
+            None => Ok((ty, false)),
+        }
+    }
+
 }

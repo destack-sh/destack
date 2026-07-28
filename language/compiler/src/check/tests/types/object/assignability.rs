@@ -33,7 +33,7 @@ type Person = { name: string };
 const source = { name: "Ada" };
 /// @type.symbol symbol=source source=source type={ name: string }
 /// @resolution.pattern source=source kind=binding target=source
-/// @type.node source={ name: "Ada" } type={ name: "Ada" }
+/// @type.node source={ name: "Ada" } type={ name: string }
 /// @type.node source="\"Ada\"" type="Ada"
 
 const person: Person = source;
@@ -42,13 +42,19 @@ const person: Person = source;
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string }
 /// @resolution.name source=source target=source
+/// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=source root=source
 
 person.name satisfies string;
 /// @type.node source="person.name satisfies string" type=string
 /// @type.node source=person type=Person reduced={ name: string }
 /// @type.node source=person.name type=string
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string } kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string } type=string kind=field target_receiver={ name: string } key=name target_type=string
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.place source=person.name placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person.name root=person keys=[name]
 "#,
     );
 }
@@ -104,6 +110,8 @@ const undecided: Options = { retries: maybe };
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
+/// @resolution.place source=maybe placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=maybe root=maybe
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'int32 | undefined' is not assignable to type 'int32'"
@@ -153,6 +161,8 @@ const undecided: Options = { retries: maybe };
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
+/// @resolution.place source=maybe placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=maybe root=maybe
 
 const cleared: Options = { retries: undefined };
 /// @type.symbol symbol=cleared source=cleared type=Options reduced={ retries?: int32 | undefined }

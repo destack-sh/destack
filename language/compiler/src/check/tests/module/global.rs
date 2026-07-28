@@ -7,6 +7,7 @@ fn test_global_binding_resolves_without_import() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"],
         "emitCheckedTypes": true
@@ -62,6 +63,7 @@ const value = answer;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=answer type=int32
 /// @resolution.name source=answer target=globals.answer
+/// @resolution.access source=answer root=globals.answer
 "#,
     );
 }
@@ -104,6 +106,7 @@ export const first = second;
 /// @resolution.pattern source=first kind=binding target=first
 /// @type.node source=second type=<error>
 /// @resolution.name source=second target=second.second
+/// @resolution.access source=second root=second.second
 "#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"

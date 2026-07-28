@@ -23,7 +23,7 @@ const pair: [int32; 2] = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=6 constraints=3 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -86,7 +86,7 @@ const bytes: [uint8; _] = [1, 2, 3, 4];
 /// @type.node source=3 type=3
 /// @type.node source=4 type=4
 
-/// @check.stats.solve variables=2 types=10 constraints=5 obligations=1 solutions=2 bounds=1 decisions=1
+/// @check.stats.solve variables=2 types=10 constraints=0 obligations=1 solutions=2 bounds=0 decisions=1
 "#,
     );
 }
@@ -143,7 +143,7 @@ const values: [_; 3] = [1, 2, 3];
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=2 types=9 constraints=4 obligations=1 solutions=2 bounds=4 decisions=1
+/// @check.stats.solve variables=2 types=9 constraints=0 obligations=1 solutions=2 bounds=4 decisions=1
 "#,
     );
 }
@@ -310,6 +310,8 @@ matrix satisfies [[int32; 2]; 2];
 /// @type.node source="matrix satisfies [[int32; 2]; 2]" type=FixedArray<FixedArray<int32, 2>, 2>
 /// @type.node source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
 /// @resolution.name source=matrix target=matrix
+/// @resolution.place source=matrix placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=matrix root=matrix
 "#,
     );
 }
@@ -343,7 +345,8 @@ const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
         r#"
 /// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 1>' is not assignable to type 'FixedArray<int32, 2>'"
 /// @diagnostic.label line=2 column=42 span="[3]" line_source="const matrix: [[int32; 2]; 2] = [[1, 2], [3]];"
-/// @diagnostic.note message="the mismatch is in the length: expected '2', found '1'"
+/// @diagnostic.related line=2 column=15 span="[[int32; 2]; 2]" line_source="const matrix: [[int32; 2]; 2] = [[1, 2], [3]];" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in the length of element 1: expected '2', found '1'"
 "#,
     );
 }

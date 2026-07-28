@@ -1,6 +1,42 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_literal_cannot_construct_rigid_generic_return() {
+    let session = TestSession::single(
+        r#"
+function make<T: int8 | int64>(): T {
+    return 1;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function make<T: int8 | int64>(): T {
+    return 1;
+}
+
+=== checked ===
+function make<T: int8 | int64>(): T {
+/// @generic.template symbol=make parameters=(T: int8 | int64)
+/// @type.symbol symbol=make type=<T: int8 | int64>() => T
+/// @type.symbol symbol=make.T source="T: int8 | int64" type=T
+/// @resolution.name source=T target=make.T
+
+    return 1;
+}
+"#,
+        r#"
+/// @diagnostic.error id=return-not-assignable message="type '1' is not assignable to the declared result type 'T'"
+/// @diagnostic.label line=3 column=12 span="1" line_source="return 1;"
+"#,
+    );
+}
+
+#[test]
 fn test_generic_return_contextualizes_empty_array_field() {
     let session = TestSession::single(
         r#"
@@ -34,7 +70,7 @@ function capture<T>(value: T): { reactions: T[] } {
 
 }
 
-/// @check.stats.solve variables=0 types=6 constraints=3 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -79,7 +115,7 @@ interface Done<in out T> {
 type State<T> = Pending<T> | Done<T>;
 
 function pending<T>(): State<T> {
-    return { kind: "pending", reactions: [] } as State<T>;
+    return { kind: "pending", reactions: [] } as Dynamic<Pending<T>> | Dynamic<Done<T>>;
 }
 
 === checked ===
@@ -87,7 +123,6 @@ interface Pending<T> {
 /// @generic.template symbol=Pending parameters=(in out T#1)
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.interface symbol=Pending template=(in out T#1)
-/// @definition.where symbol=Pending relation=satisfies left=this right=Pending<T#1>
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.reactions source="reactions: T[]" key=reactions type=Array<T#1>
 /// @type.symbol symbol=Pending.T source=T type=T#1
@@ -105,7 +140,6 @@ interface Done<T> {
 /// @generic.template symbol=Done parameters=(in out T#2)
 /// @type.symbol symbol=Done type=Done
 /// @definition.interface symbol=Done template=(in out T#2)
-/// @definition.where symbol=Done relation=satisfies left=this right=Done<T#2>
 /// @definition.field symbol=Done.kind source="kind: \"done\"" key=kind type="done"
 /// @definition.field symbol=Done.value source="value: T" key=value type=T#2
 /// @type.symbol symbol=Done.T source=T type=T#2
@@ -137,7 +171,8 @@ function pending<T>(): State<T> {
 /// @resolution.name source=T target=pending.T
 
     return { kind: "pending", reactions: [] };
-    /// @type.node source={ kind: "pending", reactions: [] } type={ kind: "pending"; reactions: Array<T#4> }
+    /// @type.node source={ kind: "pending", reactions: [] } type=Pending<T#4>
+    /// @generic.instance source={ kind: "pending", reactions: [] } id=Pending<T#4>
     /// @type.node source="\"pending\"" type="pending"
     /// @type.node source=[] type=Array<T#4>
 
@@ -145,9 +180,10 @@ function pending<T>(): State<T> {
 
 /// @generic.instance id=Done<T#3> template=Done arguments=(T#3)
 /// @generic.instance id=Pending<T#3> template=Pending arguments=(T#3)
+/// @generic.instance id=Pending<T#4> template=Pending arguments=(T#4)
 /// @generic.instance id=State<T#4> template=State arguments=(T#4)
 
-/// @check.stats.solve variables=0 types=24 constraints=4 obligations=4 solutions=0 bounds=0 decisions=8
+/// @check.stats.solve variables=0 types=25 constraints=0 obligations=4 solutions=0 bounds=0 decisions=8
 "#,
     );
 }
@@ -300,11 +336,11 @@ struct Err<E> {
 newtype Result<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Result parameters=(out T#5, out E#2)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" type=Result
-/// @type.symbol symbol=Result.Err type=Result.Err
-/// @type.symbol symbol=Result.Ok type=Result.Ok
-/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#5, out E#2) backing=Ok<T#5> | Err<E#2>
-/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err discriminant=Err backing=Err<E#2>
-/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok discriminant=Ok backing=Ok<T#5>
+/// @type.symbol symbol=Result.Err type=<T#5, E#2>({ error: E#2 }) => Result.Err<T#5, E#2>
+/// @type.symbol symbol=Result.Ok type=<T#5, E#2>({ value: T#5 }) => Result.Ok<T#5, E#2>
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#5, out E#2) discriminator=kind backing=Ok<T#5> | Err<E#2>
+/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err discriminant=Err backing=Err<E#2> argument={ error: E#2 }
+/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok discriminant=Ok backing=Ok<T#5> argument={ value: T#5 }
 /// @type.symbol symbol=Result.T source=T type=T#5
 /// @type.symbol symbol=Result.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -331,12 +367,12 @@ extension<T, E> of Result<T, E> {
     /// @resolution.name source=E target=E
 
         Result.Ok<T, E>({ value })
-        /// @type.node source="Result.Ok<T, E>({ value })" type=Result<T#6, E#3>
+        /// @type.node source="Result.Ok<T, E>({ value })" type=Result.Ok<T#6, E#3>
         /// @type.node source=Result type=Result
-        /// @type.node source=Result.Ok type=Result.Ok
+        /// @type.node source=Result.Ok type=<T#5, E#2>({ value: T#5 }) => Result.Ok<T#5, E#2>
         /// @resolution.name source=Result target=Result
-        /// @resolution.member source=Result.Ok receiver=Result kind=symbol target=Result.Ok
-        /// @resolution.construct source="Result.Ok<T, E>({ value })" parameters=({ value: T#6 }) arguments=(provided({ value }) as { value: T#6 }) return=Result<T#6, E#3> kind=variant owner=Result variant=Ok instance="Result<T#6, E#3>" discriminant=Ok
+        /// @resolution.member source=Result.Ok receiver=Result type=<T#5, E#2>({ value: T#5 }) => Result.Ok<T#5, E#2> kind=symbol target_receiver=Result target=Result.Ok
+        /// @resolution.construct source="Result.Ok<T, E>({ value })" parameters=({ value: T#6 }) arguments=(provided({ value }) as { value: T#6 }) return=Result.Ok<T#6, E#3> kind=variant owner=Result variant=Ok instance="Result<T#6, E#3>" backing=Ok<T#6> argument={ value: T#6 } discriminant=Ok
         /// @generic.instance source="Result.Ok<T, E>({ value })" id="Result<T#6, E#3>"
         /// @generic.instance source=Result.Ok id="Result<T#5, E#2>"
         /// @resolution.name source=T target=T
@@ -344,6 +380,8 @@ extension<T, E> of Result<T, E> {
         /// @type.node source={ value } type={ value: T#6 }
         /// @type.node source=value type=T#6
         /// @resolution.name source=value target=ok.value#1
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=ok.value#1
 
     }
 }
@@ -377,10 +415,10 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
     /// @resolution.construct source=AsyncResult(Promise.resolve(Result.ok(value))) parameters=(Promise<Result<T#8, E#5>>) arguments=(provided(Promise.resolve(Result.ok(value))) as Promise<Result<T#8, E#5>>) return=AsyncResult<T#8, E#5> kind=newtype target=AsyncResult backing=Promise<Result<T#8, E#5>> instance="AsyncResult<T#8, E#5>"
     /// @generic.instance source=AsyncResult(Promise.resolve(Result.ok(value))) id="AsyncResult<T#8, E#5>"
     /// @type.node source=Promise type=Promise
-    /// @type.node source=Promise.resolve type=<T#2>(Promise<T#2>) => Promise<T#2> | <T#3>(T#3) => Promise<T#3>
+    /// @type.node source=Promise.resolve type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3>
     /// @type.node source=Promise.resolve(Result.ok(value)) type=Promise<Result<T#8, E#5>>
     /// @resolution.name source=Promise target=Promise
-    /// @resolution.member source=Promise.resolve receiver=Promise kind=existential targets=[Promise.resolve#1, Promise.resolve#2]
+    /// @resolution.member source=Promise.resolve receiver=Promise type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3> kind=existential targets=[Promise.resolve#1, Promise.resolve#2]
     /// @resolution.call source=Promise.resolve(Result.ok(value)) parameters=(Result<T#8, E#5>) arguments=(provided(Result.ok(value)) as Result<T#8, E#5>) return=Promise<Result<T#8, E#5>> kind=symbol target=Promise.resolve#2 receiver=Promise instance="Promise.resolve#2<Result<T#8, E#5>>"
     /// @generic.instance source=Promise.resolve id=Promise<T#2>
     /// @generic.instance source=Promise.resolve id=Promise<T#3>
@@ -391,13 +429,15 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
     /// @type.node source=Result.ok type=(T#6) => Result<T#6, E#3>
     /// @type.node source=Result.ok(value) type=Result<T#8, E#5>
     /// @resolution.name source=Result target=Result
-    /// @resolution.member source=Result.ok receiver=Result kind=symbol target=ok#1
+    /// @resolution.member source=Result.ok receiver=Result type=(T#6) => Result<T#6, E#3> kind=symbol target_receiver=Result target=ok#1
     /// @resolution.call source=Result.ok(value) parameters=(T#8) arguments=(provided(value) as T#8) return=Result<T#8, E#5> kind=symbol target=ok#1 receiver=Result instance="Result<T#8, E#5>.<extension#1>.ok#1"
     /// @generic.instance source=Result.ok id="Result<T#6, E#3>"
     /// @generic.instance source=Result.ok(value) id="Result<T#8, E#5>"
     /// @generic.instance source=Result.ok(value) id="Result<T#8, E#5>.<extension#1>.ok#1"
     /// @type.node source=value type=T#8
     /// @resolution.name source=value target=ok.value#2
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=ok.value#2
 
 }
 
@@ -411,7 +451,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
 /// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
 /// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
 
-/// @check.stats.solve variables=7 types=71 constraints=15 obligations=11 solutions=7 bounds=3 decisions=45
+/// @check.stats.solve variables=3 types=71 constraints=1 obligations=11 solutions=3 bounds=3 decisions=45
 "#,
     );
 }
@@ -511,11 +551,11 @@ struct Err<E> {
 newtype Result<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Result parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" type=Result
-/// @type.symbol symbol=Result.Err type=Result.Err
-/// @type.symbol symbol=Result.Ok type=Result.Ok
-/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2>
-/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err discriminant=Err backing=Err<E#2>
-/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok discriminant=Ok backing=Ok<T#2>
+/// @type.symbol symbol=Result.Err type=<T#2, E#2>({ error: E#2 }) => Result.Err<T#2, E#2>
+/// @type.symbol symbol=Result.Ok type=<T#2, E#2>({ value: T#2 }) => Result.Ok<T#2, E#2>
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) discriminator=kind backing=Ok<T#2> | Err<E#2>
+/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err discriminant=Err backing=Err<E#2> argument={ error: E#2 }
+/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok discriminant=Ok backing=Ok<T#2> argument={ value: T#2 }
 /// @type.symbol symbol=Result.T source=T type=T#2
 /// @type.symbol symbol=Result.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -542,17 +582,19 @@ extension<T, E> of Result<T, E> {
     /// @resolution.name source=E target=E
 
         Result.Ok({ value })
-        /// @type.node source="Result.Ok({ value })" type=Result<T#3, E#3>
+        /// @type.node source="Result.Ok({ value })" type=Result.Ok<T#3, E#3>
         /// @type.node source=Result type=Result
-        /// @type.node source=Result.Ok type=Result.Ok
+        /// @type.node source=Result.Ok type=<T#2, E#2>({ value: T#2 }) => Result.Ok<T#2, E#2>
         /// @resolution.name source=Result target=Result
-        /// @resolution.member source=Result.Ok receiver=Result kind=symbol target=Result.Ok
-        /// @resolution.construct source="Result.Ok({ value })" parameters=({ value: T#3 }) arguments=(provided({ value }) as { value: T#3 }) return=Result<T#3, E#3> kind=variant owner=Result variant=Ok instance="Result<T#3, E#3>" discriminant=Ok
+        /// @resolution.member source=Result.Ok receiver=Result type=<T#2, E#2>({ value: T#2 }) => Result.Ok<T#2, E#2> kind=symbol target_receiver=Result target=Result.Ok
+        /// @resolution.construct source="Result.Ok({ value })" parameters=({ value: T#3 }) arguments=(provided({ value }) as { value: T#3 }) return=Result.Ok<T#3, E#3> kind=variant owner=Result variant=Ok instance="Result<T#3, E#3>" backing=Ok<T#3> argument={ value: T#3 } discriminant=Ok
         /// @generic.instance source="Result.Ok({ value })" id="Result<T#3, E#3>"
         /// @generic.instance source=Result.Ok id="Result<T#2, E#2>"
         /// @type.node source={ value } type={ value: T#3 }
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=ok.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=ok.value
 
     }
 }
@@ -560,7 +602,7 @@ extension<T, E> of Result<T, E> {
 /// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @generic.instance id="Result<T#3, E#3>" template=Result arguments=(T#3, E#3)
 
-/// @check.stats.solve variables=4 types=38 constraints=7 obligations=8 solutions=4 bounds=3 decisions=19
+/// @check.stats.solve variables=2 types=42 constraints=1 obligations=8 solutions=2 bounds=3 decisions=19
 "#,
     );
 }
@@ -575,11 +617,43 @@ function countdown(n: float64) {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
+        DirRows::checked(),
         r#"
-/// @diagnostic.error id=circular-type message="type is circular"
+=== annotated ===
+function countdown(n: float64) {
+    return n > 0 ? countdown(n - 1) : n;
+}
+
+=== checked ===
+function countdown(n: float64) {
+/// @type.symbol symbol=countdown type=(float64) => <error>
+/// @type.symbol symbol=countdown.n source="n: float64" type=float64
+
+    return n > 0 ? countdown(n - 1) : n;
+    /// @resolution.name source=n target=countdown.n
+    /// @resolution.operator source="n > 0" type=boolean operator=">" kind=builtin operands=[n as float64 families=(float), 0 as float64 families=(float)]
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=n root=countdown.n
+    /// @resolution.name source=countdown target=countdown
+    /// @resolution.call source="countdown(n - 1)" parameters=(float64) arguments=(provided(n - 1) as float64) return=<error> kind=symbol target=countdown
+    /// @resolution.name source=n target=countdown.n
+    /// @resolution.operator source="n - 1" type=float64 operator="-" kind=builtin operands=[n as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=n root=countdown.n
+    /// @resolution.name source=n target=countdown.n
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=n root=countdown.n
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=2 column=10 span="countdown" line_source="function countdown(n: float64) {"
+/// @diagnostic.related line=3 column=12 span="n > 0 ? countdown(n - 1) : n" line_source="return n > 0 ? countdown(n - 1) : n;" message="'_ | float64' flows into it here"
+/// @diagnostic.related line=2 column=32 span="{\n    return n > 0 ? countdown(n - 1) : n;\n}" line_source="function countdown(n: float64) {" message="'never' flows into it here"
+/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }
@@ -597,8 +671,62 @@ function pong(n: float64) {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function ping(n: float64) {
+    return n > 0 ? pong(n - 1) : n;
+}
+
+function pong(n: float64) {
+    return n > 0 ? ping(n - 1) : n;
+}
+
+=== checked ===
+function ping(n: float64) {
+/// @type.symbol symbol=ping type=(float64) => <error>
+/// @type.symbol symbol=ping.n source="n: float64" type=float64
+
+    return n > 0 ? pong(n - 1) : n;
+    /// @resolution.name source=n target=ping.n
+    /// @resolution.operator source="n > 0" type=boolean operator=">" kind=builtin operands=[n as float64 families=(float), 0 as float64 families=(float)]
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=n root=ping.n
+    /// @resolution.name source=pong target=pong
+    /// @resolution.call source="pong(n - 1)" parameters=(float64) arguments=(provided(n - 1) as float64) return=<error> kind=symbol target=pong
+    /// @resolution.name source=n target=ping.n
+    /// @resolution.operator source="n - 1" type=float64 operator="-" kind=builtin operands=[n as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=n root=ping.n
+    /// @resolution.name source=n target=ping.n
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=n root=ping.n
+
+}
+
+function pong(n: float64) {
+/// @type.symbol symbol=pong type=(float64) => <error>
+/// @type.symbol symbol=pong.n source="n: float64" type=float64
+
+    return n > 0 ? ping(n - 1) : n;
+    /// @resolution.name source=n target=pong.n
+    /// @resolution.operator source="n > 0" type=boolean operator=">" kind=builtin operands=[n as float64 families=(float), 0 as float64 families=(float)]
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=n root=pong.n
+    /// @resolution.name source=ping target=ping
+    /// @resolution.call source="ping(n - 1)" parameters=(float64) arguments=(provided(n - 1) as float64) return=<error> kind=symbol target=ping
+    /// @resolution.name source=n target=pong.n
+    /// @resolution.operator source="n - 1" type=float64 operator="-" kind=builtin operands=[n as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=n root=pong.n
+    /// @resolution.name source=n target=pong.n
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=n root=pong.n
+
+}
+"#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=2 column=10 span="ping" line_source="function ping(n: float64) {"

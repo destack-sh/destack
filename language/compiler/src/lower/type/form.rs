@@ -248,34 +248,6 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the default ownership of one base type family.
-    /// Return whether one sealed type is carried by a reference at runtime.
-    pub(in crate::lower) fn type_is_reference(
-        &self,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        match self.ty(id)? {
-            // form layers answer by their outermost constructor
-            dir::Type::Form(form) => match form.form {
-                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => Ok(true),
-                // owned values hold their storage directly
-                dir::Form::Owned => Ok(false),
-                // views and placement answer for the layer beneath
-                dir::Form::Readonly | dir::Form::Placed { .. } => {
-                    self.type_is_reference(form.value)
-                }
-            },
-
-            // nullable unions ride their reference carrier; tagged unions are values
-            dir::Type::Union(union) => match self.decompose_nullish_union(id.module_id, &union)? {
-                Some((_, carrier)) => self.type_is_reference(carrier),
-                None => Ok(false),
-            },
-
-            // bare bases answer by their family default
-            other => Ok(self.base_default_ownership(&other)? == dir::Ownership::Managed),
-        }
-    }
-
     fn base_default_ownership(&self, base: &dir::Type) -> CompilerResult<dir::Ownership> {
         Ok(match base {
             // reference families default to managed values
@@ -300,46 +272,23 @@ impl ModuleLowerer<'_> {
             | dir::Type::Null
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
-            | dir::Type::EnumMember(_)
             | dir::Type::Tuple(_)
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::FunctionPointer(_) => dir::Ownership::Owned,
+
+            // precise variants share their owner's representation
+            dir::Type::Variant(variant) => {
+                let owner = self.ty(variant.owner)?;
+
+                return self.base_default_ownership(&owner);
+            }
 
             other => Err(LowerError::Unsupported {
                 anchor: self.module.into(),
                 construct: format!("a default form for the '{}' type", other.variant_name()),
             })?,
         })
-    }
-
-    /// Return the carrier storing one union of scalar literals.
-    ///
-    /// Each member widens through the language's literal widening; the union
-    /// stores at the shared widened carrier. Returns None when the members
-    /// disagree or are not all literals.
-    pub(in crate::lower) fn literal_union_carrier(
-        &self,
-        module: ModuleId,
-        union: &dir::UnionType,
-    ) -> CompilerResult<Option<mir::Type>> {
-        let mut carrier: Option<dir::Type> = None;
-        for id in self.types(module)?.type_ids(union.elements) {
-            let dir::Type::Literal(literal) = self.ty(*id)? else {
-                return Ok(None);
-            };
-            let widened = literal.widen();
-            match carrier {
-                None => carrier = Some(widened),
-                Some(agreed) if agreed == widened => {}
-                Some(_) => return Ok(None),
-            }
-        }
-        let Some(carrier) = carrier else {
-            return Ok(None);
-        };
-
-        Ok(Some(self.scalar_type(&carrier)?))
     }
 
     /// Split one union into its nullish bits and single reference carrier.

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+pub use destack_artifact::DiagnosticPolicy;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -118,13 +119,7 @@ impl CompilerOptions {
 
     /// Enable heap-free restrictions.
     pub fn apply_no_heap_restrictions(&mut self) {
-        if self
-            .restrictions
-            .no_heap
-            .is_stricter_than(self.restrictions.no_managed)
-        {
-            self.restrictions.no_managed = self.restrictions.no_heap;
-        }
+        self.restrictions.no_managed = self.restrictions.no_managed.max(self.restrictions.no_heap);
     }
 
     /// Enable runtime-free restrictions for compile-time only targets.
@@ -137,7 +132,7 @@ impl CompilerOptions {
 }
 
 /// Static semantic restrictions enforced by the compiler.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -162,91 +157,19 @@ pub struct CompilerRestrictions {
     pub no_implicit_receivers: DiagnosticPolicy,
 }
 
-impl Default for CompilerRestrictions {
-    fn default() -> Self {
-        Self {
-            no_managed: DiagnosticPolicy::Allow,
-            no_heap: DiagnosticPolicy::Allow,
-            no_runtime: DiagnosticPolicy::Allow,
-            no_unsafe: DiagnosticPolicy::Allow,
-            no_dynamic_dispatch: DiagnosticPolicy::Allow,
-            no_reflection: DiagnosticPolicy::Allow,
-            no_unwind: DiagnosticPolicy::Allow,
-            no_aliasing_mutable_borrows: DiagnosticPolicy::Allow,
-            no_implicit_receivers: DiagnosticPolicy::Allow,
-        }
-    }
-}
-
 impl CompilerRestrictions {
     /// Tighten this set with stricter policies from another set.
     pub fn tighten_with(&mut self, other: &Self) {
-        self.no_managed = stricter_policy(self.no_managed, other.no_managed);
-        self.no_heap = stricter_policy(self.no_heap, other.no_heap);
-        self.no_runtime = stricter_policy(self.no_runtime, other.no_runtime);
-        self.no_unsafe = stricter_policy(self.no_unsafe, other.no_unsafe);
-        self.no_dynamic_dispatch =
-            stricter_policy(self.no_dynamic_dispatch, other.no_dynamic_dispatch);
-        self.no_reflection = stricter_policy(self.no_reflection, other.no_reflection);
-        self.no_unwind = stricter_policy(self.no_unwind, other.no_unwind);
-        self.no_aliasing_mutable_borrows = stricter_policy(
-            self.no_aliasing_mutable_borrows,
-            other.no_aliasing_mutable_borrows,
-        );
-        self.no_implicit_receivers =
-            stricter_policy(self.no_implicit_receivers, other.no_implicit_receivers);
-    }
-}
-
-/// Diagnostic policy for allow/warn/deny enforcement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum DiagnosticPolicy {
-    /// Allow without diagnostics.
-    Allow,
-    /// Allow with a warning.
-    Warn,
-    /// Forbid with an error.
-    Deny,
-}
-
-impl DiagnosticPolicy {
-    /// Return whether this policy is stricter than another.
-    pub fn is_stricter_than(self, other: Self) -> bool {
-        self.rank() > other.rank()
-    }
-
-    /// Return whether this policy is Allow.
-    pub fn is_allow(self) -> bool {
-        matches!(self, DiagnosticPolicy::Allow)
-    }
-
-    /// Return whether this policy is Warn.
-    pub fn is_warn(self) -> bool {
-        matches!(self, DiagnosticPolicy::Warn)
-    }
-
-    /// Return whether this policy is Deny.
-    pub fn is_deny(self) -> bool {
-        matches!(self, DiagnosticPolicy::Deny)
-    }
-
-    /// Return a stable numeric rank for ordering.
-    pub fn rank(self) -> u8 {
-        match self {
-            DiagnosticPolicy::Allow => 0,
-            DiagnosticPolicy::Warn => 1,
-            DiagnosticPolicy::Deny => 2,
-        }
-    }
-}
-
-/// Return the stricter diagnostic policy.
-fn stricter_policy(left: DiagnosticPolicy, right: DiagnosticPolicy) -> DiagnosticPolicy {
-    if right.is_stricter_than(left) {
-        right
-    } else {
-        left
+        self.no_managed = self.no_managed.max(other.no_managed);
+        self.no_heap = self.no_heap.max(other.no_heap);
+        self.no_runtime = self.no_runtime.max(other.no_runtime);
+        self.no_unsafe = self.no_unsafe.max(other.no_unsafe);
+        self.no_dynamic_dispatch = self.no_dynamic_dispatch.max(other.no_dynamic_dispatch);
+        self.no_reflection = self.no_reflection.max(other.no_reflection);
+        self.no_unwind = self.no_unwind.max(other.no_unwind);
+        self.no_aliasing_mutable_borrows = self
+            .no_aliasing_mutable_borrows
+            .max(other.no_aliasing_mutable_borrows);
+        self.no_implicit_receivers = self.no_implicit_receivers.max(other.no_implicit_receivers);
     }
 }

@@ -207,6 +207,8 @@ const value = parse("1e3");
 
 value satisfies number;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id=parse<1000> template=parse arguments=(1000)
 "#,
@@ -295,6 +297,8 @@ const value = parse("-1");
 
 value satisfies -1n;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id=parse<-1n> template=parse arguments=(-1n)
 "#,
@@ -302,7 +306,7 @@ value satisfies -1n;
 }
 
 #[test]
-fn test_number_template_accepts_value_spelling_at_store() {
+fn test_number_template_typed_binding_accepts_equivalent_spelling() {
     // a closed numeric span admits every spelling of its value
     let session = TestSession::single(
         r#"
@@ -311,22 +315,46 @@ const exponent: `${1000}` = "1e3";
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
-        "main.ds", r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const canonical: `${1000}` = "1000";
+const exponent: `${1000}` = "1e3";
+
+=== checked ===
+const canonical: `${1000}` = "1000";
+/// @type.symbol symbol=canonical source=canonical type=`${1000}`
+/// @resolution.pattern source=canonical kind=binding target=canonical
+
+const exponent: `${1000}` = "1e3";
+/// @type.symbol symbol=exponent source=exponent type=`${1000}`
+/// @resolution.pattern source=exponent kind=binding target=exponent
 "#,
     );
 }
 
 #[test]
-fn test_number_template_rejects_other_value_at_store() {
+fn test_number_template_typed_binding_rejects_other_value() {
     let session = TestSession::single(
         r#"
 const wrong: `${1000}` = "1001";
 "#,
     );
 
-    session.assert_dir_checked_diagnostics(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const wrong: `${1000}` = "1001";
+
+=== checked ===
+const wrong: `${1000}` = "1001";
+/// @type.symbol symbol=wrong source=wrong type=`${1000}`
+/// @resolution.pattern source=wrong kind=binding target=wrong
+"#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"1001\"' is not assignable to type '`${1000}`'"
 /// @diagnostic.label line=2 column=26 span="\"1001\"" line_source="const wrong: `${1000}` = \"1001\";"

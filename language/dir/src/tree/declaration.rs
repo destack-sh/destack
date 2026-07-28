@@ -410,6 +410,21 @@ impl Declaration {
         }
     }
 
+    /// Return the where clauses of the declaration.
+    #[inline]
+    pub fn where_clauses(&self) -> Option<&[LocalNodeId<WhereClause>]> {
+        match self {
+            Declaration::Type(declaration) => Some(&declaration.where_clauses),
+            Declaration::Struct(declaration) => Some(&declaration.where_clauses),
+            Declaration::Class(declaration) => Some(&declaration.where_clauses),
+            Declaration::Enum(declaration) => Some(&declaration.where_clauses),
+            Declaration::Interface(declaration) => Some(&declaration.where_clauses),
+            Declaration::Extension(declaration) => Some(&declaration.where_clauses),
+            Declaration::Function(declaration) => Some(&declaration.signature.where_clauses),
+            Declaration::Global(_) | Declaration::Module(_) => None,
+        }
+    }
+
     /// Get the implemented interface types of the declaration.
     #[inline]
     pub fn implements_types(&self) -> Option<&[LocalNodeId<TypeExpression>]> {

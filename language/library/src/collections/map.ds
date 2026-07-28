@@ -113,7 +113,10 @@ export extension<K: Hash, V> of Map<K, V>
         Iterable<MapEntry<&readonly K, &exclusive V>>,
         Extend<(K, V), "exclusive"> where K: Equal<K> {
     /// The indexed output type.
-    type Output = V | undefined;
+    type Output = V;
+
+    /// The missing index result.
+    type Missing = undefined;
 
     /// Create a map from entries.
     static from(entries: Iterable<(K, V)>): ^Map<K, V> {
@@ -129,7 +132,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Create a map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): ^Map<K, V> {
+    static fromIterator<R>(entries: Iterator<(K, V), R>): ^Map<K, V> {
         todo("Map.fromIterator")
     }
 
@@ -169,8 +172,11 @@ export extension<K: Hash, V> of Map<K, V>
         todo("Map.entry")
     }
 
-    /// Return a value by key through the index operator.
-    index(key: K): V | undefined {
+    /// Borrow a value by key through the index operator.
+    index<comptime A: Access = "readonly">(
+        this: WithAccess<&Map<K, V>, A>,
+        key: K,
+    ): WithAccess<&V, A> | undefined {
         todo("Map.index")
     }
 
@@ -313,7 +319,7 @@ export extension<K: Hash, V> of ^Map<K, V> implements From<Iterable<(K, V)>>, Fr
     }
 
     /// Create an owned map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): ^Map<K, V> {
+    static fromIterator<R>(entries: Iterator<(K, V), R>): ^Map<K, V> {
         Map.fromIterator(entries)
     }
 }

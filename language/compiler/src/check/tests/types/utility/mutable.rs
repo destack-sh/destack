@@ -54,11 +54,18 @@ let person: MutableFields<Person> = { name: "Ada", age: 42 };
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.pattern.assign source=person.name kind=place place=field(name) type=string
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.pattern.assign source=person.name kind=place
+/// @resolution.assignment source=person.name write="receiver={ name: string; age: int32 }, target=field(receiver={ name: string; age: int32 }, target=name, type=string), type=string" type=string
 
 person.name satisfies string;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string; age: int32 } kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string; age: int32 } type=string kind=field target_receiver={ name: string; age: int32 } key=name target_type=string
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.place source=person.name placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person.name root=person keys=[name]
 
 /// @generic.instance id=MutableFields<Person> template=types.object.MutableFields arguments=(Person)
 "#,
@@ -121,11 +128,15 @@ const named: MutableFields<Person> = { name: "Ada" };
 
 empty satisfies MutableFields<Person>;
 /// @resolution.name source=empty target=empty
+/// @resolution.place source=empty placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=empty root=empty
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
 
 named satisfies MutableFields<Person>;
 /// @resolution.name source=named target=named
+/// @resolution.place source=named placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=named root=named
 /// @resolution.name source=MutableFields target=types.object.MutableFields
 /// @resolution.name source=Person target=Person
 
@@ -186,8 +197,13 @@ let person: MutableFields<Person> = { profile: { name: "Ada" } };
 
 person.profile.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.profile receiver={ profile: Readonly<{ name: string }> } kind=field key=profile
-/// @resolution.pattern.assign source=person.profile.name kind=place place=field(name) type=string
+/// @resolution.member source=person.profile receiver={ profile: Readonly<{ name: string }> } type=Readonly<{ name: string }> kind=field target_receiver={ profile: Readonly<{ name: string }> } key=profile target_type=Readonly<{ name: string }>
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.place source=person.profile placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=person.profile root=person keys=[profile]
+/// @resolution.pattern.assign source=person.profile.name kind=place
+/// @resolution.assignment source=person.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=string), type=string" type=string
 
 /// @generic.instance id=MutableFields<Person> template=types.object.MutableFields arguments=(Person)
 "#,

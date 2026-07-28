@@ -7,7 +7,7 @@ import { Arc, ArcInner } from "./arc.ds";
 @languageItem("memory.arc.Weak")
 export struct Weak<T> {
     /// The inner block.
-    inner?: *ArcInner<Owned<T>>;
+    inner: *ArcInner<Owned<T>> | undefined;
 }
 
 export extension<T> of Weak<T> {

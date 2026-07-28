@@ -92,7 +92,7 @@ impl CheckState<'_> {
         }
 
         let mut fields = Vec::new();
-        let mut shape_fields = Vec::new();
+        let mut shape_properties = Vec::new();
 
         // write one frame field per captured binding
         for (symbol, key) in frame_bindings {
@@ -104,18 +104,20 @@ impl CheckState<'_> {
             let ty = self.capture_symbol_type(symbol)?;
 
             fields.push(dir::CaptureFrameField { symbol, ty });
-            shape_fields.push(dir::TypeField {
+            shape_properties.push(dir::TypeProperty {
                 key,
-                ty,
+                access: dir::PropertyAccess::ReadWrite {
+                    read: ty,
+                    write: ty,
+                },
                 is_optional: false,
-                is_readonly: false,
             });
         }
 
         // build the managed frame object type
-        let shape_fields = self.intern_fields(module, &shape_fields)?;
+        let shape_properties = self.intern_properties(module, &shape_properties)?;
         let shape = dir::ShapeType {
-            fields: shape_fields,
+            properties: shape_properties,
             call_signatures: dir::TypeListId::EMPTY,
             construct_signatures: dir::TypeListId::EMPTY,
             index_signatures: dir::TypeListId::EMPTY,

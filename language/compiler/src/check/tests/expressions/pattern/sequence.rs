@@ -38,16 +38,21 @@ let [first, second] = values;
 /// @resolution.pattern source=second kind=binding target=second
 /// @type.node source=values type=FixedArray<int32, 2>
 /// @resolution.name source=values target=values
+/// @resolution.access source=values root=values
 
 first satisfies int32;
 /// @type.node source="first satisfies int32" type=int32
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
+/// @resolution.place source=first placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=first root=first
 
 second satisfies int32;
 /// @type.node source="second satisfies int32" type=int32
 /// @type.node source=second type=int32
 /// @resolution.name source=second target=second
+/// @resolution.place source=second placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=second root=second
 "#,
     );
 }
@@ -81,6 +86,7 @@ let [x, y] = point;
 /// @type.symbol symbol=y#2 source=y type=<error>
 /// @type.node source=point type={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=pattern-source-not-sequence-shaped message="type '{ x: int32; y: int32 }' cannot be destructured as a sequence pattern"

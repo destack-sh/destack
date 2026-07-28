@@ -45,14 +45,16 @@ impl BodyState<'_, '_> {
             Some(return_type) => return_type,
             None => self.intern_type(module, dir::Type::Void)?,
         };
-        let resolution = dir::CallResolution::new(
-            dir::CallTarget::Expression {
+        let call = dir::Call {
+            target: dir::CallTarget::Expression {
                 generic_arguments: Vec::new(),
             },
-            Some(signature),
-            Vec::new(),
-            result,
-        );
+            callable_type: signature,
+            arguments: Vec::new(),
+            return_type: result,
+        };
+        let resolution = dir::OperationResolution::One(call);
+
         self.commit_decision(node, Decision::Call(resolution))?;
         self.commit_node_type(node, result)?;
 

@@ -24,7 +24,7 @@ type Point {
     y: int32;
 }
 
-function main.origin(): Point {
+function test.main.origin(): Point {
 entry:
     v0: int32 = 0
     v1: int32 = 0
@@ -62,7 +62,7 @@ type Point {
     y: int32;
 }
 
-function main.abscissa(v0: Point): int32 {
+function test.main.abscissa(v0: Point): int32 {
 entry(v0: Point):
     v1: int32 = field.get v0, 0
     return v1
@@ -109,7 +109,7 @@ type Segment {
     end: Point;
 }
 
-function main.diagonal(v0: int32): Segment {
+function test.main.diagonal(v0: int32): Segment {
 entry(v0: int32):
     v1: int32 = 0
     v2: int32 = 0

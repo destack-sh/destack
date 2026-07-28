@@ -10,16 +10,8 @@ impl Constraint {
         finished: bool,
         context: &DumpContext<'_, '_>,
     ) -> ArtifactEvent {
-        let (source, target) = match self {
-            Self::Type(constraint) => (
-                context.type_label(constraint.source),
-                context.type_label(constraint.target),
-            ),
-            Self::Value(constraint) => (
-                context.node_label(constraint.node),
-                context.type_label(constraint.target),
-            ),
-        };
+        let source = context.type_label(self.source);
+        let target = context.type_label(self.target);
 
         ArtifactEvent::new("relation.checked")
             .debug()
@@ -35,7 +27,6 @@ impl Constraint {
                 "at",
                 context.origin_source_label(context.check.solver.cause(self.cause()).origin),
             )
-            .text("use", context.value_use_label(self.value_use()))
             .bool("finished", finished)
     }
 }

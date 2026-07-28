@@ -26,10 +26,11 @@ const value: int32 = 1;
 value = 2;
 /// @type.node source="value = 2" type=2
 /// @type.node source=value type=int32
-/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
+/// @resolution.pattern.assign source=value kind=place
+/// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=5 constraints=2 obligations=2 solutions=1 bounds=0 decisions=2
+/// @check.stats.solve variables=1 types=5 constraints=0 obligations=2 solutions=1 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
@@ -66,11 +67,13 @@ const value: int32 = 1;
 value += 2;
 /// @type.node source="value += 2" type=int32
 /// @type.node source=value type=int32
-/// @resolution.operator source="value += 2" kind=builtin
-/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
+/// @resolution.operator source="value += 2" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
+/// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=5 constraints=3 obligations=2 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=1 types=8 constraints=0 obligations=2 solutions=1 bounds=0 decisions=4
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-immutable-binding message="cannot assign to immutable binding 'value'"
@@ -102,7 +105,7 @@ state.count = 1;
 const state: { count: int32 } = { count: 0 };
 /// @type.symbol symbol=state source=state type={ count: int32 }
 /// @resolution.pattern source=state kind=binding target=state
-/// @type.node source={ count: 0 } type={ count: 0 }
+/// @type.node source={ count: 0 } type={ count: int32 }
 /// @type.node source=0 type=0
 
 state.count = 1;
@@ -110,10 +113,13 @@ state.count = 1;
 /// @type.node source=state type={ count: int32 }
 /// @type.node source=state.count type=int32
 /// @resolution.name source=state target=state
-/// @resolution.pattern.assign source=state.count kind=place place=field(count) type=int32
+/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state root=state
+/// @resolution.pattern.assign source=state.count kind=place
+/// @resolution.assignment source=state.count write="receiver={ count: int32 }, target=field(receiver={ count: int32 }, target=count, type=int32), type=int32" type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=1 types=7 constraints=3 obligations=2 solutions=1 bounds=0 decisions=3
+/// @check.stats.solve variables=1 types=9 constraints=0 obligations=2 solutions=1 bounds=0 decisions=4
 "#,
     );
 }

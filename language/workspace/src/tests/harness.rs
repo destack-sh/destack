@@ -58,6 +58,19 @@ impl TestWorkspace {
         let root = roots[0].clone();
         let file_system = file_system(&roots);
 
+        // name every package before opening the repository
+        for (index, root) in roots.iter().enumerate() {
+            let name = if roots.len() == 1 {
+                "test".to_string()
+            } else {
+                format!("test-{index}")
+            };
+            let config = format!("{{ \"name\": \"{name}\" }}\n");
+            let path = root.join("destack.json");
+            fs.write_text(&path, &config)
+                .unwrap_or_else(|error| panic!("failed to write {}: {error}", path.display()));
+        }
+
         // create a repository with an overlay over physical fs
         let overlay = Arc::new(OverlayFileSystem::with_inner(file_system));
         let repository = Arc::new(

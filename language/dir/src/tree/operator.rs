@@ -402,6 +402,19 @@ impl BinaryOperator {
         )
     }
 
+    /// Return whether this operator compares two values.
+    #[inline]
+    pub fn is_comparison(self) -> bool {
+        self.is_equality()
+            || matches!(
+                self,
+                BinaryOperator::LessThan
+                    | BinaryOperator::LessThanOrEqual
+                    | BinaryOperator::GreaterThan
+                    | BinaryOperator::GreaterThanOrEqual
+            )
+    }
+
     /// Return whether this operator tests overloadable value equality.
     #[inline]
     pub fn is_value_equality(self) -> bool {

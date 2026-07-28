@@ -142,7 +142,7 @@ impl CheckState<'_> {
         let mut keys = Vec::new();
         match self.ty(current)? {
             dir::Type::Shape(shape) => {
-                for field in self.shape_fields(current.module_id, shape.fields)? {
+                for field in self.shape_properties(current.module_id, shape.properties)? {
                     keys.push(self.format_static_key(&field.key));
                 }
             }

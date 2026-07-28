@@ -5,24 +5,27 @@ use crate::lower::{ModuleLowerer, NominalField, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
-    /// Return one enum member's declaration position.
-    pub(in crate::lower) fn enum_case_index(
+    /// Return one enum or Tagged variant's declaration position.
+    pub(in crate::lower) fn variant_position(
         &self,
-        member: &dir::EnumMemberType,
+        owner: dir::GlobalSymbolId,
+        variant: dir::GlobalSymbolId,
     ) -> CompilerResult<u32> {
-        let dir::Type::Application(instance) = self.ty(member.owner)? else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR typed an enum member without its owner instance".to_string(),
-            });
+        // select the declaration order owned by the variant family
+        let index = match self.definition(owner)? {
+            Some(dir::Definition::Enum(definition)) => definition.variant_position(variant),
+            Some(dir::Definition::Newtype(definition)) if definition.is_tagged() => {
+                definition.tagged_variant_position(variant)
+            }
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR variant owner has no variant definition".to_string(),
+                });
+            }
         };
-        let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {
+        let Some(index) = index else {
             return Err(CompilerError::Internal {
-                message: "checked DIR typed an enum member outside an enum definition".to_string(),
-            });
-        };
-        let Some(index) = definition.variant_position(member.member) else {
-            return Err(CompilerError::Internal {
-                message: "checked DIR selected a case missing from its enum".to_string(),
+                message: "checked DIR variant is missing from its owner definition".to_string(),
             });
         };
 

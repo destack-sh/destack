@@ -1077,7 +1077,7 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
         // format relation with its canonical spacing
         match self.relation {
             WhereRelation::Satisfies => write!(f, [self.left, token(":"), space(), self.right])?,
-            WhereRelation::Equals => {
+            WhereRelation::Equal => {
                 write!(f, [self.left, space(), token("=="), space(), self.right])?;
             }
         }

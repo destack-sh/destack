@@ -2,13 +2,19 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerResult;
 use crate::check::{CheckState, CheckWarning};
-use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Report runtime conditions whose checked type is one boolean literal.
     pub(in crate::check) fn report_constant_conditions(&mut self) -> CompilerResult<()> {
-        let modules: Vec<ModuleId> = self.modules.keys().copied().collect();
+        // report inferred members only; interface members report in their own component
+        let modules: Vec<ModuleId> = self
+            .modules
+            .keys()
+            .copied()
+            .filter(|module| self.infers_module(*module))
+            .collect();
 
         // report each checked module
         for module in modules {
@@ -25,11 +31,7 @@ impl CheckState<'_> {
         // settle each checked condition before inspecting its canonical type
         for condition in conditions {
             let global = condition.into_global_any(module);
-            let Some(ty) = self.committed_node_type(global) else {
-                return Err(CompilerError::Internal {
-                    message: format!("runtime condition {global:?} has no checked type"),
-                });
-            };
+            let ty = self.require_node_type(global)?;
             let ty = self.settled_root(ty)?;
             let dir::Type::Literal(dir::ScalarLiteral::Boolean(value)) = self.ty(ty)? else {
                 continue;

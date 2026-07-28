@@ -3,9 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{
-    Answer, Cause, CauseId, CauseKind, CheckState, Origin, Relation, TypeSubstitution, answer,
-};
+use crate::check::{Answer, CheckState, Origin, Relation, TypeSubstitution, answer};
 
 impl CheckState<'_> {
     /// Return whether one type can be used as a property key.
@@ -32,7 +30,6 @@ impl CheckState<'_> {
                 )
             }
             dir::Type::Key(_) => true,
-            dir::Type::Application(_) => self.static_key_from_type(ty)?.is_some(),
             dir::Type::Union(union) => {
                 let elements = SmallVec::<[dir::GlobalTypeId; 8]>::from_slice(
                     self.type_ids(ty.module_id, union.elements)?,
@@ -196,7 +193,7 @@ impl CheckState<'_> {
             };
 
             // equal shapes need identical member counts
-            if source_shape.fields.len() != target_shape.fields.len()
+            if source_shape.properties.len() != target_shape.properties.len()
                 || source_shape.call_signatures.len() != target_shape.call_signatures.len()
                 || source_shape.construct_signatures.len()
                     != target_shape.construct_signatures.len()
@@ -206,16 +203,36 @@ impl CheckState<'_> {
             }
 
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
-            let source_fields = self.shape_fields(source.module_id, source_shape.fields)?;
-            let target_fields = self.shape_fields(target.module_id, target_shape.fields)?;
+            let source_fields = self.shape_properties(source.module_id, source_shape.properties)?;
+            let target_fields = self.shape_properties(target.module_id, target_shape.properties)?;
             for (source, target) in source_fields.iter().zip(target_fields) {
-                if source.key != target.key
-                    || source.is_optional != target.is_optional
-                    || source.is_readonly != target.is_readonly
-                {
+                if source.key != target.key || source.is_optional != target.is_optional {
                     return Ok(Answer::Ready(false));
                 }
-                pairs.push((source.ty, target.ty));
+                match (source.access, target.access) {
+                    (
+                        dir::PropertyAccess::Read(source_ty),
+                        dir::PropertyAccess::Read(target_ty),
+                    )
+                    | (
+                        dir::PropertyAccess::Write(source_ty),
+                        dir::PropertyAccess::Write(target_ty),
+                    ) => pairs.push((source_ty, target_ty)),
+                    (
+                        dir::PropertyAccess::ReadWrite {
+                            read: source_read,
+                            write: source_write,
+                        },
+                        dir::PropertyAccess::ReadWrite {
+                            read: target_read,
+                            write: target_write,
+                        },
+                    ) => {
+                        pairs.push((source_read, target_read));
+                        pairs.push((source_write, target_write));
+                    }
+                    _ => return Ok(Answer::Ready(false)),
+                }
             }
 
             let source_calls = self.type_ids(source.module_id, source_shape.call_signatures)?;
@@ -279,8 +296,8 @@ impl CheckState<'_> {
             };
 
             // require each target field from the source shape
-            let source_fields = self.shape_fields(source.module_id, source_shape.fields)?;
-            let target_fields = self.shape_fields(target.module_id, target_shape.fields)?;
+            let source_fields = self.shape_properties(source.module_id, source_shape.properties)?;
+            let target_fields = self.shape_properties(target.module_id, target_shape.properties)?;
             let mut pairs =
                 SmallVec::<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
             for target_field in target_fields {
@@ -296,28 +313,12 @@ impl CheckState<'_> {
                         }
                     }
                     Some(source_field) => {
-                        // check-only relations read every field covariantly
-                        let field_relation = match relation {
-                            Relation::Assignable | Relation::Widens => {
-                                // readonly targets are reads, mutable targets write back
-                                let Some(field_relation) =
-                                    self.shape_field_relation(source_field, target_field)
-                                else {
-                                    return Ok(Answer::Ready(false));
-                                };
-
-                                field_relation
-                            }
-                            _ => {
-                                if source_field.is_optional && !target_field.is_optional {
-                                    return Ok(Answer::Ready(false));
-                                }
-
-                                relation
-                            }
+                        let Some(relations) =
+                            self.shape_property_relations(relation, source_field, target_field)
+                        else {
+                            return Ok(Answer::Ready(false));
                         };
-
-                        pairs.push((field_relation, source_field.ty, target_field.ty));
+                        pairs.extend(relations);
                     }
                 }
             }
@@ -358,7 +359,7 @@ impl CheckState<'_> {
             for candidate in candidates {
                 satisfied = satisfied.or(self.decide_relation(
                     origin,
-                    Relation::Assignable,
+                    relation,
                     candidate,
                     target_signature,
                 )?);
@@ -375,8 +376,8 @@ impl CheckState<'_> {
 
         // require each target index signature from the source
         for signature in index_signatures {
-            decision =
-                decision.and(self.decide_index_signature_satisfied(origin, source, &signature)?);
+            decision = decision
+                .and(self.decide_index_signature_satisfied(origin, relation, source, &signature)?);
             if decision.is_ready_false() {
                 return Ok(decision);
             }
@@ -385,203 +386,49 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Decide whether one fresh shape writes into one shape place.
-    pub(in crate::check) fn decide_fresh_shape_writable(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let (dir::Type::Shape(source_shape), dir::Type::Shape(target_shape)) =
-            (self.ty(source)?, self.ty(target)?)
-        else {
-            return Ok(Answer::Ready(false));
-        };
-
-        let source_fields = self
-            .shape_fields(source.module_id, source_shape.fields)?
-            .to_vec();
-        let target_fields = self
-            .shape_fields(target.module_id, target_shape.fields)?
-            .to_vec();
-        let target_indexes = self
-            .shape_index_signatures(target.module_id, target_shape.index_signatures)?
-            .to_vec();
-
-        // require each target field, filling omissions from optionality
-        let mut decision = Answer::Ready(true);
-        for target_field in &target_fields {
-            let source_field = source_fields
-                .iter()
-                .find(|source| source.key == target_field.key);
-
-            match source_field {
-                None => {
-                    if !target_field.is_optional {
-                        return Ok(Answer::Ready(false));
-                    }
-                }
-                Some(source_field) => {
-                    if source_field.is_optional && !target_field.is_optional {
-                        return Ok(Answer::Ready(false));
-                    }
-                    decision = decision.and(self.decide_relation(
-                        origin,
-                        Relation::Writable,
-                        source_field.ty,
-                        target_field.ty,
-                    )?);
-                    if decision.is_ready_false() {
-                        return Ok(decision);
-                    }
-                }
-            }
-        }
-
-        // require every extra field through a declared index signature
-        for source_field in &source_fields {
-            let declared = target_fields
-                .iter()
-                .any(|target| target.key == source_field.key);
-            if declared {
-                continue;
-            }
-
-            let indexed = self.decide_indexed_field_write(origin, source_field, &target_indexes)?;
-            decision = decision.and(indexed);
-            if decision.is_ready_false() {
-                return Ok(decision);
-            }
-        }
-
-        Ok(decision)
-    }
-
-    /// Constrain one fresh shape write whose composites still hold open leaves.
-    pub(in crate::check) fn constrain_fresh_shape_writable(
-        &mut self,
-        cause: CauseId,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let origin = self.cause_origin(cause);
-        let (dir::Type::Shape(source_shape), dir::Type::Shape(target_shape)) =
-            (self.ty(source)?, self.ty(target)?)
-        else {
-            return Ok(Answer::Ready(false));
-        };
-
-        let source_fields = self
-            .shape_fields(source.module_id, source_shape.fields)?
-            .to_vec();
-        let target_fields = self
-            .shape_fields(target.module_id, target_shape.fields)?
-            .to_vec();
-        let target_indexes = self
-            .shape_index_signatures(target.module_id, target_shape.index_signatures)?
-            .to_vec();
-
-        // require each target field, filling omissions from optionality
-        let mut decision = Answer::Ready(true);
-        for target_field in &target_fields {
-            let source_field = source_fields
-                .iter()
-                .find(|source| source.key == target_field.key);
-
-            match source_field {
-                None => {
-                    if !target_field.is_optional {
-                        return Ok(Answer::Ready(false));
-                    }
-                }
-                Some(source_field) => {
-                    if source_field.is_optional && !target_field.is_optional {
-                        return Ok(Answer::Ready(false));
-                    }
-                    let kind = CauseKind::Field {
-                        key: target_field.key,
-                    };
-                    let field_cause = self.intern_cause(Cause::slot(origin, kind, cause));
-                    decision = decision.and(self.constrain_type(
-                        field_cause,
-                        Relation::Writable,
-                        source_field.ty,
-                        target_field.ty,
-                    )?);
-                    if decision.is_ready_false() {
-                        return Ok(decision);
-                    }
-                }
-            }
-        }
-
-        // require every extra field through a declared index signature
-        for source_field in &source_fields {
-            let declared = target_fields
-                .iter()
-                .any(|target| target.key == source_field.key);
-            if declared {
-                continue;
-            }
-
-            let indexed = self.decide_indexed_field_write(origin, source_field, &target_indexes)?;
-            decision = decision.and(indexed);
-            if decision.is_ready_false() {
-                return Ok(decision);
-            }
-        }
-
-        Ok(decision)
-    }
-
-    /// Decide whether one field writes through any target index signature.
-    fn decide_indexed_field_write(
-        &mut self,
-        origin: Origin,
-        field: &dir::TypeField,
-        indexes: &[dir::TypeIndexSignature],
-    ) -> CompilerResult<Answer<bool>> {
-        let key = self.static_key_type(origin.module(), field.key)?;
-        let mut decision = Answer::Ready(false);
-
-        // accept the field through the first compatible index signature
-        for index in indexes {
-            let key_matches =
-                self.decide_relation(origin, Relation::Assignable, key, index.key_type)?;
-            let value_matches =
-                self.decide_relation(origin, Relation::Writable, field.ty, index.value_type)?;
-            decision = decision.or(key_matches.and(value_matches));
-            if decision.is_ready_true() {
-                break;
-            }
-        }
-
-        Ok(decision)
-    }
-
-    /// Return the relation needed for one matched structural field.
-    pub(in crate::check) fn shape_field_relation(
+    /// Return the value relations one matched structural property demands.
+    pub(in crate::check) fn shape_property_relations(
         &self,
-        source: &dir::TypeField,
-        target: &dir::TypeField,
-    ) -> Option<Relation> {
-        // readonly sources cannot satisfy writeable targets
-        if source.is_readonly && !target.is_readonly {
-            return None;
-        }
-
+        relation: Relation,
+        source: &dir::TypeProperty,
+        target: &dir::TypeProperty,
+    ) -> Option<SmallVec<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 2]>> {
         // optional sources cannot satisfy required targets
         if source.is_optional && !target.is_optional {
             return None;
         }
 
-        // readonly targets view aliased storage and only widen,
-        //  writeable targets need exact storage type
-        if target.is_readonly {
-            Some(Relation::Widens)
-        } else {
-            Some(Relation::Equal)
+        let mut relations = SmallVec::new();
+        match relation {
+            // reads widen out and writes narrow back
+            Relation::Assignable | Relation::Widens => {
+                if let Some(target_read) = target.access.read() {
+                    relations.push((Relation::Widens, source.access.read()?, target_read));
+                }
+                if let Some(target_write) = target.access.write() {
+                    relations.push((Relation::Widens, target_write, source.access.write()?));
+                }
+            }
+            // exact relations pair each supported operation
+            _ => {
+                match (source.access.read(), target.access.read()) {
+                    (Some(source_read), Some(target_read)) => {
+                        relations.push((relation, source_read, target_read));
+                    }
+                    (None, None) => {}
+                    _ => return None,
+                }
+                match (source.access.write(), target.access.write()) {
+                    (Some(source_write), Some(target_write)) => {
+                        relations.push((relation, source_write, target_write));
+                    }
+                    (None, None) => {}
+                    _ => return None,
+                }
+            }
         }
+
+        Some(relations)
     }
 
     /// Decide each matched structural field with its required relation.
@@ -601,106 +448,15 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Return the first excess key in a direct property literal relation.
-    pub(in crate::check) fn property_literal_excess_key(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::StaticKey>> {
-        let Some(keys) = self.property_literal_keys(origin, source)? else {
-            return Ok(None);
-        };
-
-        // compare against the target's finite property set
-        let Some(target) = self.reduce_type_head(origin, target)?.ready() else {
-            return Ok(None);
-        };
-        let Some(accepted) = self.accepted_property_keys(origin, target)? else {
-            return Ok(None);
-        };
-
-        for key in keys {
-            if !accepted.contains(&key) {
-                return Ok(Some(key));
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Return the first missing key in a direct property literal relation.
-    pub(in crate::check) fn property_literal_missing_key(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::StaticKey>> {
-        let Some(source_keys) = self.property_literal_keys(origin, source)? else {
-            return Ok(None);
-        };
-
-        // compare against the target's required property set
-        let Some(required) = self.required_property_keys(origin, target)? else {
-            return Ok(None);
-        };
-
-        for key in required {
-            if source_keys.contains(&key) {
-                continue;
-            }
-
-            return Ok(Some(key));
-        }
-
-        Ok(None)
-    }
-
-    /// Return the explicit keys supplied by a direct property literal relation.
-    fn property_literal_keys(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<SmallVec<[dir::StaticKey; 8]>>> {
-        let Some(expression) = origin.expression() else {
-            return Ok(None);
-        };
-        if !self.is_property_literal_expression(expression) {
-            return Ok(None);
-        }
-
-        // collect the literal's explicit keys
-        let source = self.settled_root(source)?;
-        let source = match self.ty(source)? {
-            dir::Type::Form(form) if form.form == dir::Form::Managed => {
-                self.settled_root(form.value)?
-            }
-            _ => source,
-        };
-        let dir::Type::Shape(shape) = self.ty(source)? else {
-            return Ok(None);
-        };
-
-        let keys = self
-            .shape_fields(source.module_id, shape.fields)?
-            .iter()
-            .map(|field| field.key)
-            .collect::<SmallVec<[_; 8]>>();
-
-        Ok(Some(keys))
-    }
-
     /// Return the first writable index signature required by one target type.
     pub(in crate::check) fn first_writable_index_signature(
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::TypeIndexSignature>> {
-        let Some(target) = self.reduce_type_head(origin, target)?.ready() else {
-            return Ok(None);
-        };
+    ) -> CompilerResult<Answer<Option<dir::TypeIndexSignature>>> {
+        let target = answer!(self.reduce_type_head(origin, target)?);
         let dir::Type::Shape(shape) = self.ty(target)? else {
-            return Ok(None);
+            return Ok(Answer::Ready(None));
         };
 
         let signature = self
@@ -709,108 +465,7 @@ impl CheckState<'_> {
             .find(|signature| !signature.is_readonly)
             .copied();
 
-        Ok(signature)
-    }
-
-    /// Return whether one expression supplies literal properties.
-    fn is_property_literal_expression(
-        &self,
-        mut expression: dir::GlobalNodeId<dir::Expression>,
-    ) -> bool {
-        // follow transparent expressions to the literal they preserve
-        loop {
-            match self
-                .module(expression.module_id)
-                .view()
-                .get(expression.local_id)
-            {
-                dir::Expression::ObjectExpression { .. }
-                | dir::Expression::StructExpression { .. } => return true,
-                dir::Expression::Satisfies {
-                    expression: child, ..
-                } => {
-                    expression = child.into_global(expression.module_id);
-                }
-                _ => return false,
-            }
-        }
-    }
-
-    /// Collect the property keys one target requires, none when not statically enumerable.
-    fn required_property_keys(
-        &mut self,
-        origin: Origin,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<SmallVec<[dir::StaticKey; 8]>>> {
-        let Some(target) = self.reduce_type_head(origin, target)?.ready() else {
-            return Ok(None);
-        };
-
-        match self.ty(target)? {
-            dir::Type::Shape(shape) => Ok(Some(
-                self.shape_fields(target.module_id, shape.fields)?
-                    .iter()
-                    .filter(|field| !field.is_optional)
-                    .map(|field| field.key)
-                    .collect(),
-            )),
-            dir::Type::Form(form) => {
-                let value = self.settled_root(form.value)?;
-
-                self.required_property_keys(origin, value)
-            }
-            _ => Ok(None),
-        }
-    }
-
-    /// Collect the property keys one target accepts, none when it accepts any.
-    fn accepted_property_keys(
-        &mut self,
-        origin: Origin,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<SmallVec<[dir::StaticKey; 8]>>> {
-        match self.ty(target)? {
-            dir::Type::Shape(shape) => {
-                if !shape.index_signatures.is_empty() {
-                    return Ok(None);
-                }
-
-                Ok(Some(
-                    self.shape_fields(target.module_id, shape.fields)?
-                        .iter()
-                        .map(|field| field.key)
-                        .collect(),
-                ))
-            }
-            dir::Type::Application(instance) => match self.definition(instance.symbol)? {
-                Some(dir::Definition::Interface(interface)) if !interface.is_nominal => {
-                    Ok(Some(self.nominal_member_keys(instance.symbol)?))
-                }
-                _ => Ok(None),
-            },
-            dir::Type::Union(union) => {
-                let elements: SmallVec<[_; 4]> =
-                    SmallVec::from_slice(self.type_ids(target.module_id, union.elements)?);
-                let mut keys = SmallVec::new();
-                for element in elements {
-                    let Some(element) = self.reduce_type_head(origin, element)?.ready() else {
-                        return Ok(None);
-                    };
-                    match self.accepted_property_keys(origin, element)? {
-                        None => return Ok(None),
-                        Some(element_keys) => keys.extend(element_keys),
-                    }
-                }
-
-                Ok(Some(keys))
-            }
-            dir::Type::Form(form) => {
-                let value = self.settled_root(form.value)?;
-
-                self.accepted_property_keys(origin, value)
-            }
-            _ => Ok(None),
-        }
+        Ok(Answer::Ready(signature))
     }
 
     /// Decide assignability of a static declaration reference to a shape.
@@ -828,8 +483,8 @@ impl CheckState<'_> {
             dir::Type::Shape(target_shape) => target_shape,
             _ => return Ok(Answer::Ready(false)),
         };
-        let target_fields = SmallVec::<[dir::TypeField; 8]>::from_slice(
-            self.shape_fields(target.module_id, target_shape.fields)?,
+        let target_fields = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
+            self.shape_properties(target.module_id, target_shape.properties)?,
         );
         let target_constructs = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(
             self.type_ids(target.module_id, target_shape.construct_signatures)?,
@@ -846,7 +501,7 @@ impl CheckState<'_> {
                 dir::MemberSpace::Static,
                 field.key
             )?);
-            let found = lookup.value_type();
+            let found = self.body().member_read_type(origin, &lookup)?;
             let Some(found) = found else {
                 if field.is_optional {
                     continue;
@@ -859,7 +514,7 @@ impl CheckState<'_> {
                 origin,
                 Relation::Assignable,
                 found,
-                field.ty,
+                field.access.store(),
             )?);
             if decision.is_ready_false() {
                 return Ok(decision);
@@ -927,18 +582,23 @@ impl CheckState<'_> {
     pub(in crate::check) fn decide_index_signature_satisfied(
         &mut self,
         origin: Origin,
+        relation: Relation,
         source: dir::GlobalTypeId,
         target: &dir::TypeIndexSignature,
     ) -> CompilerResult<Answer<bool>> {
         let source = answer!(self.reduce_type_head(origin, source)?);
 
         match self.ty(source)? {
-            dir::Type::Shape(shape) => {
-                self.decide_shape_index_signature_satisfied(origin, source.module_id, shape, target)
-            }
+            dir::Type::Shape(shape) => self.decide_shape_index_signature_satisfied(
+                origin,
+                relation,
+                source.module_id,
+                shape,
+                target,
+            ),
             _ => self
                 .body()
-                .decide_subscript_index_signature_satisfied(origin, source, target),
+                .decide_subscript_index_signature_satisfied(origin, relation, source, target),
         }
     }
 
@@ -946,6 +606,7 @@ impl CheckState<'_> {
     fn decide_shape_index_signature_satisfied(
         &mut self,
         origin: Origin,
+        relation: Relation,
         module: ModuleId,
         source: dir::ShapeType,
         target: &dir::TypeIndexSignature,
@@ -962,21 +623,13 @@ impl CheckState<'_> {
             if source.is_readonly && !target.is_readonly {
                 continue;
             }
-            if !answer!(self.decide_relation(
-                origin,
-                Relation::Assignable,
-                target.key_type,
-                source.key_type,
-            )?) {
+            if !answer!(self.decide_relation(origin, relation, target.key_type, source.key_type,)?)
+            {
                 continue;
             }
 
-            let value = self.decide_relation(
-                origin,
-                Relation::Assignable,
-                source.value_type,
-                target.value_type,
-            )?;
+            let value =
+                self.decide_relation(origin, relation, source.value_type, target.value_type)?;
             decision = decision.or(value);
             if decision.is_ready_true() {
                 return Ok(decision);
@@ -989,19 +642,20 @@ impl CheckState<'_> {
         // prove each finite field covered by the readonly key domain
         let key_module = origin.module();
         let source_fields =
-            SmallVec::<[dir::TypeField; 8]>::from_slice(self.shape_fields(module, source.fields)?);
+            SmallVec::<[dir::TypeProperty; 8]>::from_slice(
+                self.shape_properties(module, source.properties)?,
+            );
         let mut decision = Answer::Ready(true);
         for field in source_fields {
             let key = self.static_key_type(key_module, field.key)?;
-            if !answer!(self.decide_relation(origin, Relation::Assignable, key, target.key_type,)?)
-            {
+            if !answer!(self.decide_relation(origin, relation, key, target.key_type)?) {
                 continue;
             }
 
             decision = decision.and(self.decide_relation(
                 origin,
-                Relation::Assignable,
-                field.ty,
+                relation,
+                field.access.store(),
                 target.value_type,
             )?);
             if decision.is_ready_false() {
@@ -1031,10 +685,11 @@ impl CheckState<'_> {
         self.decide_each(origin, relation.interior(), &pairs)
     }
 
-    /// Decide assignability of two method signatures.
-    pub(in crate::check) fn decide_method_assignable(
+    /// Decide one relation between receiver-bound method signatures.
+    pub(in crate::check) fn decide_method_relation(
         &mut self,
         origin: Origin,
+        relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
@@ -1050,10 +705,12 @@ impl CheckState<'_> {
                 dir::Type::FunctionSignature(_)
             )
         ) {
-            return self.decide_relation(origin, Relation::Assignable, source, target);
+            return self.decide_relation(origin, relation, source, target);
         }
-        if let Some(signature) = self.signature_head(source)? {
-            let parameters = self.signature_generic_parameters(&signature)?;
+        if let Some(signature) = self.signature_head(source)?
+            && let Some(template) = signature.template
+        {
+            let parameters = self.generic_template_parameters(template)?;
             if !parameters.is_empty() {
                 let Some(pairs) = self.signature_match_pairs(source, target)? else {
                     return Ok(Answer::Ready(false));
@@ -1063,6 +720,13 @@ impl CheckState<'_> {
                 let Some(substitution) = substitution else {
                     return Ok(Answer::Ready(false));
                 };
+                if !answer!(self.decide_substitution_constraints(
+                    origin,
+                    template,
+                    &substitution,
+                )?) {
+                    return Ok(Answer::Ready(false));
+                }
                 source = self.substitute_type(origin.module(), source, &substitution)?;
             }
         }
@@ -1074,10 +738,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(false));
         };
 
-        // conformance dispatches statically today, so each call site
-        //  materializes its own conversions; dynamic-safe conformance
-        //  will restrict these interiors with the Dynamic wiring
-        self.decide_each(origin, Relation::Assignable, &pairs)
+        self.decide_each(origin, relation, &pairs)
     }
 
     /// Return positional signature pairs for generic parameter matching.

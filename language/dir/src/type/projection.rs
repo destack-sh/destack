@@ -2,19 +2,21 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Access, CallResolution, GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId,
-    MemberResolution, ScalarLiteral, StaticKey,
+    Access, Call, CallResolution, Dereference, DereferenceResolution, FieldResolution,
+    GenericArgumentBinding, GlobalSymbolId, GlobalTypeId, MemberAccess, MemberResolution,
+    OperationResolution, ScalarLiteral, StaticKey, Subscript, SubscriptResolution, VariantCase,
 };
 
 /// Value projection selected during checking.
 ///
 /// Examples:
 /// ```ds
-/// point.x               // FieldGet
-/// user.name             // PropertyGet, when backed by a getter
-/// bag[key]              // SubscriptGet
+/// point.x               // Field
+/// user.name             // Call, when backed by a getter
+/// bag[key]              // Subscript
 /// values[0]             // Call, when selected through Sequence.index
 /// values[start..]       // Call, when selected through Sequence.rest
+/// { missing = value }   // Absent, when the source has no such field
 /// { ...rest }           // ObjectRest
 /// values.length         // SliceLength
 /// dynamic.payload       // DynamicPayload
@@ -27,6 +29,16 @@ use crate::{
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Projection {
+    /// Produce `undefined` for one statically absent destructuring field.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const { missing = fallback } = {};
+    /// ```
+    Absent {
+        /// The projected `undefined` type.
+        ty: GlobalTypeId,
+    },
     /// Extract one static layout field from an aggregate value.
     ///
     /// Examples:
@@ -35,38 +47,14 @@ pub enum Projection {
     /// tuple[0]
     /// user[uniqueName]
     /// ```
-    FieldGet {
-        /// The selected field.
-        field: ProjectionField,
-        /// The projected value type.
-        ty: GlobalTypeId,
-    },
-    /// Read one accessor-backed property value.
-    ///
-    /// Examples:
-    /// ```ds
-    /// user.name // selects get name()
-    /// ```
-    PropertyGet {
-        /// The selected getter member.
-        read: Box<MemberResolution>,
-        /// The projected value type.
-        ty: GlobalTypeId,
-    },
+    Field(FieldResolution),
     /// Read one dynamically selected subscript value.
     ///
     /// Examples:
     /// ```ds
     /// const { [key]: value } = object;
     /// ```
-    SubscriptGet {
-        /// The source node providing the subscript key.
-        index: GlobalNodeIdAny,
-        /// The selected subscript operation.
-        read: Box<SubscriptOperation>,
-        /// The projected value type.
-        ty: GlobalTypeId,
-    },
+    Subscript(Box<Subscript>),
     /// Read one value through a selected call.
     ///
     /// Examples:
@@ -74,7 +62,15 @@ pub enum Projection {
     /// const [head] = values; // selected Sequence.index call
     /// const [head, ...tail] = values; // selected Sequence.rest call
     /// ```
-    Call(Box<CallResolution>),
+    Call(Box<Call>),
+    /// Read through one selected member access.
+    ///
+    /// Examples:
+    /// ```ds
+    /// declare const value: { item: Readable } & { item: Writable };
+    /// const { item } = value;
+    /// ```
+    Member(Box<MemberAccess>),
     /// Materialize one object rest value from selected fields.
     ///
     /// Examples:
@@ -125,6 +121,10 @@ pub enum Projection {
     /// match shape { Shape.Circle(radius) => radius }
     /// ```
     VariantTag {
+        /// The checked variant carrier type.
+        carrier: GlobalTypeId,
+        /// The selected discriminator field.
+        discriminator: StaticKey,
         /// The projected tag type.
         ty: GlobalTypeId,
     },
@@ -139,8 +139,10 @@ pub enum Projection {
     VariantPayload {
         /// The selected tagged case.
         case: VariantCase,
-        /// The selected owner arguments, absent when matched arms mix instantiations.
-        generic_arguments: Option<Vec<GenericArgumentBinding>>,
+        /// The instantiated backing arm.
+        backing: GlobalTypeId,
+        /// The selected discriminator field.
+        discriminator: StaticKey,
         /// The discriminant value tested at runtime.
         discriminant: ScalarLiteral,
         /// The projected payload type.
@@ -191,12 +193,7 @@ pub enum Projection {
     /// ```ds
     /// match *box { Point { x, y } => ... }
     /// ```
-    Dereference {
-        /// The selected dereference operation.
-        read: DereferenceOperation,
-        /// The projected pointee type.
-        ty: GlobalTypeId,
-    },
+    Dereference(Dereference),
     /// Duplicate one copyable value out of a place or view.
     ///
     /// Examples:
@@ -210,42 +207,50 @@ pub enum Projection {
     },
 }
 
+/// Projection selected for one value or every runtime union arm.
+///
+/// Examples:
+/// ```ds
+/// const { x } = value; // Union when value is a union
+/// ```
+pub type ProjectionResolution = OperationResolution<Projection>;
+
 impl Projection {
     /// Return the projected value type.
     pub fn ty(&self) -> GlobalTypeId {
         match self {
-            Self::FieldGet { ty, .. }
-            | Self::PropertyGet { ty, .. }
-            | Self::SubscriptGet { ty, .. }
+            Self::Field(field) => field.ty,
+            Self::Absent { ty }
             | Self::ObjectRest { ty, .. }
             | Self::SliceLength { ty }
             | Self::DynamicPayload { ty }
             | Self::DynamicType { ty }
-            | Self::VariantTag { ty }
+            | Self::VariantTag { ty, .. }
             | Self::VariantPayload { ty, .. }
             | Self::NewtypePayload { ty, .. }
             | Self::Borrow { ty, .. }
             | Self::Move { ty, .. }
-            | Self::Dereference { ty, .. }
             | Self::Copy { ty } => *ty,
+            Self::Subscript(read) => read.ty,
             Self::Call(call) => call.return_type,
+            Self::Member(access) => access.ty,
+            Self::Dereference(read) => read.ty,
         }
     }
 
     /// Apply one mapping to every type id stored in this projection.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
-            Self::FieldGet { ty, .. } => *ty = map(*ty),
-            Self::PropertyGet { read, ty } => {
+            Self::Field(field) => field.map_type_ids(map),
+            Self::Absent { ty } => *ty = map(*ty),
+            Self::Subscript(read) => {
                 read.map_type_ids(map);
-                *ty = map(*ty);
-            }
-            Self::SubscriptGet { read, ty, .. } => {
-                read.map_type_ids(map);
-                *ty = map(*ty);
             }
             Self::Call(call) => {
                 call.map_type_ids(map);
+            }
+            Self::Member(access) => {
+                access.map_type_ids(map);
             }
             Self::ObjectRest { fields, ty } => {
                 for field in fields {
@@ -253,18 +258,15 @@ impl Projection {
                 }
                 *ty = map(*ty);
             }
-            Self::SliceLength { ty }
-            | Self::DynamicPayload { ty }
-            | Self::DynamicType { ty }
-            | Self::VariantTag { ty } => *ty = map(*ty),
-            Self::VariantPayload {
-                generic_arguments,
-                ty,
-                ..
-            } => {
-                for argument in generic_arguments.iter_mut().flatten() {
-                    argument.map_type_ids(map);
-                }
+            Self::SliceLength { ty } | Self::DynamicPayload { ty } | Self::DynamicType { ty } => {
+                *ty = map(*ty)
+            }
+            Self::VariantTag { carrier, ty, .. } => {
+                *carrier = map(*carrier);
+                *ty = map(*ty);
+            }
+            Self::VariantPayload { backing, ty, .. } => {
+                *backing = map(*backing);
                 *ty = map(*ty);
             }
             Self::NewtypePayload {
@@ -278,10 +280,98 @@ impl Projection {
                 *ty = map(*ty);
             }
             Self::Borrow { ty, .. } | Self::Move { ty, .. } | Self::Copy { ty } => *ty = map(*ty),
-            Self::Dereference { read, ty } => {
-                read.map_type_ids(map);
+            Self::Dereference(read) => read.map_type_ids(map),
+        }
+    }
+}
+
+impl OperationResolution<Projection> {
+    /// Return the projected value type.
+    pub fn ty(&self) -> GlobalTypeId {
+        match self {
+            Self::One(projection) => projection.ty(),
+            Self::Union { ty, .. } => *ty,
+        }
+    }
+
+    /// Apply one mapping to every type id stored in this resolution.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::One(projection) => projection.map_type_ids(map),
+            Self::Union { arms, ty } => {
+                for projection in arms {
+                    projection.map_type_ids(map);
+                }
                 *ty = map(*ty);
             }
+        }
+    }
+}
+
+impl From<CallResolution> for ProjectionResolution {
+    /// Convert one call resolution into the corresponding projection resolution.
+    fn from(resolution: CallResolution) -> Self {
+        match resolution {
+            OperationResolution::One(call) => Self::One(Projection::Call(Box::new(call))),
+            OperationResolution::Union { arms, ty } => {
+                let arms = arms
+                    .into_iter()
+                    .map(|call| Projection::Call(Box::new(call)))
+                    .collect();
+
+                Self::Union { arms, ty }
+            }
+        }
+    }
+}
+
+impl From<SubscriptResolution> for ProjectionResolution {
+    /// Convert one subscript resolution into the corresponding projection resolution.
+    fn from(resolution: SubscriptResolution) -> Self {
+        match resolution {
+            OperationResolution::One(subscript) => {
+                Self::One(Projection::Subscript(Box::new(subscript)))
+            }
+            OperationResolution::Union { arms, ty } => {
+                let arms = arms
+                    .into_iter()
+                    .map(|subscript| Projection::Subscript(Box::new(subscript)))
+                    .collect();
+
+                Self::Union { arms, ty }
+            }
+        }
+    }
+}
+
+impl From<DereferenceResolution> for ProjectionResolution {
+    /// Convert one dereference resolution into the corresponding projection resolution.
+    fn from(resolution: DereferenceResolution) -> Self {
+        match resolution {
+            OperationResolution::One(dereference) => {
+                Self::One(Projection::Dereference(dereference))
+            }
+            OperationResolution::Union { arms, ty } => {
+                let arms = arms.into_iter().map(Projection::Dereference).collect();
+
+                Self::Union { arms, ty }
+            }
+        }
+    }
+}
+
+impl From<MemberResolution> for ProjectionResolution {
+    /// Convert one member resolution into the corresponding projection resolution.
+    fn from(resolution: MemberResolution) -> Self {
+        match resolution {
+            OperationResolution::One(access) => Self::One(Projection::Member(Box::new(access))),
+            OperationResolution::Union { arms, ty } => Self::Union {
+                arms: arms
+                    .into_iter()
+                    .map(|access| Projection::Member(Box::new(access)))
+                    .collect(),
+                ty,
+            },
         }
     }
 }
@@ -293,91 +383,4 @@ pub struct ObjectRestField {
     pub key: StaticKey,
     /// The selected source projection.
     pub projection: Projection,
-}
-
-/// Subscript operation selected by one projection or place.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum SubscriptOperation {
-    /// Structural tuple, field, or index-signature selection.
-    Member(MemberResolution),
-    /// Protocol-backed subscript call.
-    Call(CallResolution),
-}
-
-impl SubscriptOperation {
-    /// Apply one mapping to every type id stored in this subscript operation.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Member(member) => member.map_type_ids(map),
-            Self::Call(call) => call.map_type_ids(map),
-        }
-    }
-}
-
-/// Dereference operation selected by one projection or place.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum DereferenceOperation {
-    /// Direct dereference of a physical reference or pointer form.
-    Direct,
-    /// Protocol-backed dereference call.
-    Call(Box<CallResolution>),
-}
-
-impl DereferenceOperation {
-    /// Apply one mapping to every type id stored in this dereference operation.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        match self {
-            Self::Direct => {}
-            Self::Call(call) => call.map_type_ids(map),
-        }
-    }
-}
-
-/// Static field selected by one projection.
-///
-/// Examples:
-/// ```ds
-/// point.x                 // Key("x") for structural objects
-/// tuple[0]                // Key(0) for tuple-like layout
-/// user.name               // Member(User.name) for nominal stored fields
-/// object[Symbol.for("x")] // Key(Symbol.for("x")) for structural symbol keys
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum ProjectionField {
-    /// Structural field key.
-    ///
-    /// Examples:
-    /// ```ds
-    /// declare const point: { x: int32 };
-    /// point.x
-    ///
-    /// declare const object: { [Symbol.for("tag")]: string };
-    /// object[Symbol.for("tag")]
-    /// ```
-    Key(StaticKey),
-    /// Declaration-backed nominal stored member.
-    ///
-    /// Examples:
-    /// ```ds
-    /// struct Point { x: int32; y: int32 }
-    /// point.x // selects the Point.x field symbol, not only the key "x"
-    /// ```
-    Member(GlobalSymbolId),
-}
-
-/// One tagged union case selected during checking.
-///
-/// Examples:
-/// ```ds
-/// Result.Ok(value)        // member: Ok, key: Ok
-/// Event.Click({ x, y })  // member: Click, key: Click
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct VariantCase {
-    /// The selected variant family symbol.
-    pub owner: GlobalSymbolId,
-    /// The source-level case key.
-    pub key: StaticKey,
-    /// The selected variant declaration.
-    pub member: GlobalSymbolId,
 }

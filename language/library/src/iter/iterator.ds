@@ -3,7 +3,7 @@ import { Access, WithAccess } from "destack:memory";
 /// The union of iterator yield and completion results.
 @languageItem("iter.IteratorResult")
 @derive(Tagged)
-export newtype IteratorResult<Y, R = unknown> = IteratorYield<Y> | IteratorReturn<R>;
+export newtype IteratorResult<Y, R = void> = IteratorYield<Y> | IteratorReturn<R>;
 
 /// A yielded iterator value.
 @languageItem("iter.IteratorYield")
@@ -17,7 +17,7 @@ export struct IteratorYield<Y> {
 
 /// A completed iterator value.
 @languageItem("iter.IteratorReturn")
-export struct IteratorReturn<R = unknown> {
+export struct IteratorReturn<R = void> {
     /// The result tag.
     kind: "return" = "return";
 
@@ -27,20 +27,20 @@ export struct IteratorReturn<R = unknown> {
 
 /// A protocol for producing a sequence of values.
 @languageItem("iter.Iterator")
-export newtype interface Iterator<T, R = unknown> {
+export newtype interface Iterator<T, R = void> {
     /// Advance and return the next yield or completion.
     next(): IteratorResult<T, R>;
 }
 
 /// A value that can produce an iterator.
 @languageItem("iter.Iterable")
-export newtype interface Iterable<T> {
+export newtype interface Iterable<T, R = void> {
     /// Return a new iterator for this receiver form.
-    iterator(): Iterator<T>;
+    iterator(): Iterator<T, R>;
 }
 
 /// Every iterator is trivially iterable as itself.
-export extension<T, R, I: Iterator<T, R>> of I implements Iterable<T> {
+export extension<T, R, I: Iterator<T, R>> of I implements Iterable<T, R> {
     /// Return this iterator.
     iterator(): I {
         this
@@ -51,7 +51,7 @@ export extension<T, R, I: Iterator<T, R>> of I implements Iterable<T> {
 @languageItem("iter.FromIterator")
 export newtype interface FromIterator<T> {
     /// Build this value from `values`.
-    static fromIterator(values: Iterator<T>): this;
+    static fromIterator<R>(values: Iterator<T, R>): this;
 }
 
 /// Collection extended from an iterable sequence.

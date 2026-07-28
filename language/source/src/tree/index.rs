@@ -514,6 +514,41 @@ impl SourceIndex {
         self.invalidate_position_index();
     }
 
+    /// Append a copy of one node's complete source ranges.
+    pub fn append_from(&mut self, source_id: u32) {
+        let target_id = self.enclosing_ranges.len() as u32;
+        let file = self.file_for_node(source_id);
+        let enclosing = self.enclosing_ranges[source_id as usize];
+        self.begin_file_run(file);
+        self.enclosing_ranges.push(enclosing);
+
+        // copy the common source range columns
+        for ranges in &mut self.range_columns {
+            if let Some(range) = Self::get_node_range(ranges, source_id) {
+                ranges.push(NodeRange {
+                    node_id: target_id,
+                    range,
+                });
+            }
+        }
+
+        // copy uncommon source ranges in their existing span-type order
+        let start = self
+            .sparse_ranges
+            .partition_point(|entry| entry.key.source_id < source_id);
+        let end = self
+            .sparse_ranges
+            .partition_point(|entry| entry.key.source_id <= source_id);
+        let source_ranges = self.sparse_ranges[start..end].to_vec();
+        self.sparse_ranges
+            .extend(source_ranges.into_iter().map(|entry| SparseNodeRange {
+                key: NodeSpanKey::new(target_id, entry.key.span_type),
+                range: entry.range,
+            }));
+
+        self.invalidate_position_index();
+    }
+
     /// Begin appending parsed nodes from one source file.
     #[inline]
     pub fn begin_source_file(&mut self, file: FileId) {

@@ -9,5 +9,5 @@ export newtype interface Dereference<comptime A: Access = "readonly"> {
     type Output;
 
     /// Borrow the projected place under the requested access form.
-    dereference(): WithAccess<&this.Output, A>;
+    dereference(this: WithAccess<&this, A>): WithAccess<&this.Output, A>;
 }

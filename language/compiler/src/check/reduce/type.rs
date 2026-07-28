@@ -3,21 +3,89 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin, answer};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Return the storage type for one checked annotation.
+    /// Return the storage representation of one checked type.
     pub(in crate::check) fn storage_type(
         &mut self,
-        module: ModuleId,
+        origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut aliases = FxIndexSet::default();
+
+        self.normalize_storage_type(origin, ty, &mut aliases)
+    }
+
+    /// Normalize storage while expanding transparent aliases once per active chain.
+    fn normalize_storage_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        aliases: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let ty = self.settled_root(ty)?;
+        let module = origin.module();
+
+        // expand aliases only when their bodies require storage adaptation
+        if self.is_alias_instance(ty)? {
+            if !aliases.insert(ty) {
+                self.report_circular_type(origin)?;
+
+                return self.intern_type(module, dir::Type::Error);
+            }
+            let dir::Type::Application(instance) = self.ty(ty)? else {
+                return Err(CompilerError::Internal {
+                    message: format!("transparent storage alias {ty:?} is not an application"),
+                });
+            };
+            let body = match self.type_alias_body(origin, ty.module_id, &instance)? {
+                Answer::Ready(Some(body)) => body,
+                Answer::Ready(None) => {
+                    return Err(CompilerError::Internal {
+                        message: format!("storage alias {ty:?} has no transparent body"),
+                    });
+                }
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "storage alias {ty:?} depends on open inference state {blockers:?}"
+                        ),
+                    });
+                }
+            };
+            let storage = self.normalize_storage_type(origin, body, aliases)?;
+            aliases.swap_remove(&ty);
+
+            return Ok(if storage == body { ty } else { storage });
+        }
+
         if self.is_dynamic_storage_constraint(ty)? {
-            return self.intern_type(
+            let dynamic = self.intern_type(
                 module,
                 dir::Type::Dynamic(dir::DynamicType { constraint: ty }),
-            );
+            )?;
+
+            // preserve non-default nominal placement across erased storage
+            let symbol = match self.ty(ty)? {
+                dir::Type::Application(instance) => Some(instance.symbol),
+                _ => None,
+            };
+            if let Some(symbol) = symbol
+                && self.nominal_space(symbol)? == Some(dir::Space::Shared)
+            {
+                let place = self.intern_type(
+                    module,
+                    dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(
+                        dir::Space::Shared,
+                    ))),
+                )?;
+
+                return self.placed_type(Origin::Symbol(symbol), dynamic, place);
+            }
+
+            return Ok(dynamic);
         }
 
         match self.ty(ty)? {
@@ -25,13 +93,13 @@ impl CheckState<'_> {
                 let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
                 let mut normalized = Vec::with_capacity(elements.len());
                 for element in elements {
-                    normalized.push(self.storage_type(module, element)?);
+                    normalized.push(self.normalize_storage_type(origin, element, aliases)?);
                 }
 
                 self.normalized_union_type(module, normalized)
             }
             dir::Type::Form(form) => {
-                let value = self.storage_type(module, form.value)?;
+                let value = self.normalize_storage_type(origin, form.value, aliases)?;
                 if value == form.value {
                     return Ok(ty);
                 }
@@ -78,7 +146,7 @@ impl CheckState<'_> {
             true => self.origin_scope(origin)?,
             false => None,
         };
-        if let Some(reduced) = self.reduced_type_graphs.get(&(id, scope)) {
+        if let Some(reduced) = self.reduced_graphs.get(&(id, scope)) {
             return Ok(Answer::Ready(*reduced));
         }
 
@@ -94,7 +162,7 @@ impl CheckState<'_> {
             && self.type_variables(id)?.is_empty()
             && self.type_variables(reduced)?.is_empty()
         {
-            self.reduced_type_graphs.insert((id, scope), reduced);
+            self.reduced_graphs.insert((id, scope), reduced);
         }
 
         Ok(answer)
@@ -187,7 +255,7 @@ impl CheckState<'_> {
         };
 
         // replay memoized closed reductions
-        if let Some(reduced) = self.reduced_types.get(&(id, scope)) {
+        if let Some(reduced) = self.reduced_heads.get(&(id, scope)) {
             return Ok(Answer::Ready(*reduced));
         }
 
@@ -199,7 +267,7 @@ impl CheckState<'_> {
             && self.type_variables(id)?.is_empty()
             && self.type_variables(reduced)?.is_empty()
         {
-            self.reduced_types.insert((id, scope), reduced);
+            self.reduced_heads.insert((id, scope), reduced);
         }
 
         Ok(answer)
@@ -222,13 +290,13 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         expanding: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        // report circular expansions once and poison the chain
+        // report circular expansions and complete the chain with the error type
         if !expanding.insert(id) {
             self.report_circular_type(origin)?;
             let module = origin.module();
-            let poisoned = self.intern_type(module, dir::Type::Error)?;
+            let error = self.intern_type(module, dir::Type::Error)?;
 
-            return Ok(Answer::Ready(poisoned));
+            return Ok(Answer::Ready(error));
         }
 
         match self.ty(id)? {
@@ -267,14 +335,12 @@ impl CheckState<'_> {
                 let member = self.type_member(id.module_id, member)?;
                 // members live beneath memory forms, so owners shed them
                 let owner = answer!(self.strip_form(origin, member.owner)?);
-                // parameter owners qualify through their unique bound
+                // unqualified projections select one declaring interface
                 let mut qualifier = member.qualifier;
-                if qualifier.is_none()
-                    && let dir::Type::Parameter(parameter) = self.ty(owner)?
-                {
+                if qualifier.is_none() {
                     qualifier = answer!(
                         self.body()
-                            .projection_qualifier(origin, parameter, member.key)?
+                            .projection_qualifier(origin, owner, member.key,)?
                     );
                 }
                 if owner != member.owner || qualifier != member.qualifier {
@@ -524,7 +590,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(id));
         }
 
-        // read payloads where the type lives, intern the rebuild where we work
+        // read payloads from their owner, intern the rebuilt type in this component
         let ty = self.ty(id)?;
         let ty = self.map_type_children(id.module_id, target, ty, &mut |_state, child| {
             Ok(replacements.get(&child).copied().unwrap_or(child))
@@ -582,31 +648,7 @@ impl CheckState<'_> {
             definition.value
         };
 
-        // reject invalid applications before expanding the alias body
-        let source = self.origin_source_node(origin)?;
         let substitution = self.instance_substitution(instance_module, instance)?;
-        let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
-        if let Some(template) = self.symbol_template(instance.symbol)? {
-            let parameters = self.generic_template_parameters(template);
-            let sources = SmallVec::<[dir::GlobalNodeIdAny; 4]>::from_iter(std::iter::repeat_n(
-                source.into_global(origin.module()),
-                arguments.len(),
-            ));
-
-            if answer!(self.check_generic_arguments(
-                origin,
-                &parameters,
-                &arguments,
-                &sources,
-                &substitution,
-            )?)
-            .is_some()
-            {
-                let error = self.intern_type(origin.module(), dir::Type::Error)?;
-
-                return Ok(Answer::Ready(Some(error)));
-            }
-        }
 
         // substitute applied arguments through the body
         let substituted = self.substitute_type(origin.module(), value, &substitution)?;

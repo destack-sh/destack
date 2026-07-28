@@ -429,6 +429,22 @@ impl Tree {
         node_id
     }
 
+    /// Allocate one node with the complete source ranges of another node.
+    pub fn insert_from<T, U>(&mut self, node: T, source: LocalNodeId<U>) -> LocalNodeId<T>
+    where
+        T: Node,
+        U: Node,
+        Self: TreeStore<T>,
+    {
+        let node_id = self.allocate_node(node);
+        self.source_index.append_from(source.id);
+        if let Some(span) = self.source_span_by_node_id.get(source.id) {
+            self.source_span_by_node_id.insert(node_id.id, span);
+        }
+
+        node_id
+    }
+
     /// Fill in the node data for a previously reserved slot.
     pub fn insert_reserved<T>(&mut self, node_id: LocalNodeIdAny, node: T) -> LocalNodeId<T>
     where
@@ -776,18 +792,26 @@ impl Tree {
     where
         T: Node,
     {
-        let span = self.source_index.get(node_id.id);
-        let parentheses_span = self.source_index.get_side(
-            node_id.id,
-            NodeSpanType::Region(NodeSpanRegion::Parentheses),
-        );
-        let tree_container_span = self.source_index.get_side(
-            node_id.id,
-            NodeSpanType::Region(NodeSpanRegion::TreeContainer),
-        );
+        self.get_source_extent_by_id(node_id.id)
+            .unwrap_or_else(|| panic!("DIR node {node_id:?} has no source extent"))
+    }
+
+    /// Return the concrete source extent owned by one DIR node when known.
+    pub fn get_source_extent_by_id(&self, node_id: u32) -> Option<Span> {
+        let span = self.get_span_by_id(node_id)?;
+        if !self.source_index.contains_node(node_id) {
+            return Some(span);
+        }
+
+        let parentheses_span = self
+            .source_index
+            .get_side(node_id, NodeSpanType::Region(NodeSpanRegion::Parentheses));
+        let tree_container_span = self
+            .source_index
+            .get_side(node_id, NodeSpanType::Region(NodeSpanRegion::TreeContainer));
         let span = parentheses_span.map_or(span, |parentheses| span.merge(parentheses));
 
-        tree_container_span.map_or(span, |container| span.merge(container))
+        Some(tree_container_span.map_or(span, |container| span.merge(container)))
     }
 
     /// Set the enclosing source span for one parsed node.

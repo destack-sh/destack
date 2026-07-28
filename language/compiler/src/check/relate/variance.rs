@@ -60,17 +60,17 @@ impl Variance {
 
     /// Return the argument relation and operand order this variance demands.
     ///
-    /// The edge is `Widens` when the arguments name storage inside an
+    /// The relation is `Widens` when the arguments name storage inside an
     /// existing value, and `Assignable` when a conformance query encodes
     /// call edges that convert at each use.
     pub(in crate::check) fn argument_relation(
         self,
-        edge: Relation,
+        relation: Relation,
     ) -> Option<(Relation, OperandOrder)> {
         match self {
             Variance::Bivariant => None,
-            Variance::Covariant => Some((edge, OperandOrder::Forward)),
-            Variance::Contravariant => Some((edge, OperandOrder::Reversed)),
+            Variance::Covariant => Some((relation, OperandOrder::Forward)),
+            Variance::Contravariant => Some((relation, OperandOrder::Reversed)),
             Variance::Invariant => Some((Relation::Equal, OperandOrder::Forward)),
         }
     }
@@ -106,37 +106,31 @@ impl From<dir::VarianceModifier> for Variance {
     }
 }
 
-/// The handle context one nominal argument relation runs under.
+/// The handle form through which a generic value is related.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) enum VarianceContext {
-    /// A writable aliased handle: the managed class default.
-    Aliased,
-    /// An owned or copied value position.
+pub(in crate::check) enum VarianceForm {
+    /// A managed reference to the value.
+    Managed,
+    /// Exclusive ownership of the value.
     Owned,
-    /// A readonly view or readonly borrow.
-    View,
+    /// A deeply readonly view of the value.
+    Readonly,
 }
 
-impl VarianceContext {
-    /// Return the position one mutable storage slot measures at.
-    fn storage_position(self) -> Variance {
+impl VarianceForm {
+    /// Return one direct storage field's variance.
+    fn field(self) -> Variance {
         match self {
-            // writable aliases read and write the slot
-            Self::Aliased => Variance::Invariant,
-            // owned copies and readonly views only read it
-            Self::Owned | Self::View => Variance::Covariant,
+            Self::Managed => Variance::Invariant,
+            Self::Owned | Self::Readonly => Variance::Covariant,
         }
     }
 
-    /// Return the position one aliased mutable slot measures at.
-    ///
-    /// Container elements and managed payloads stay reachable through
-    /// other aliases even from owned copies; only a readonly view strips
-    /// every write path deeply.
-    fn aliased_slot(self, position: Variance) -> Variance {
+    /// Return one independently aliased storage position's variance.
+    fn aliased(self, position: Variance) -> Variance {
         match self {
-            Self::View => position,
-            Self::Aliased | Self::Owned => Variance::Invariant,
+            Self::Readonly => position,
+            Self::Managed | Self::Owned => Variance::Invariant,
         }
     }
 }
@@ -151,14 +145,14 @@ pub(in crate::check) enum VarianceState {
 }
 
 impl CheckState<'_> {
-    /// Return one generic parameter's variance under one handle context.
+    /// Return one generic parameter's variance through a handle form.
     pub(in crate::check) fn parameter_variance(
         &mut self,
         parameter: dir::GlobalGenericParameterId,
-        context: VarianceContext,
+        form: VarianceForm,
     ) -> CompilerResult<Variance> {
         // replay derived variances, recursive uses start optimistic
-        match self.variances.get(&(parameter, context)) {
+        match self.variances.get(&(parameter, form)) {
             Some(VarianceState::Derived(variance)) => return Ok(*variance),
             Some(VarianceState::Deriving) => return Ok(Variance::Bivariant),
             None => {}
@@ -166,10 +160,10 @@ impl CheckState<'_> {
 
         // derive once with the entry marking the active derivation
         self.variances
-            .insert((parameter, context), VarianceState::Deriving);
-        let derived = self.declared_or_derived_variance(parameter, context)?;
+            .insert((parameter, form), VarianceState::Deriving);
+        let derived = self.declared_or_derived_variance(parameter, form)?;
         self.variances
-            .insert((parameter, context), VarianceState::Derived(derived));
+            .insert((parameter, form), VarianceState::Derived(derived));
 
         Ok(derived)
     }
@@ -178,52 +172,60 @@ impl CheckState<'_> {
     fn declared_or_derived_variance(
         &mut self,
         parameter: dir::GlobalGenericParameterId,
-        context: VarianceContext,
+        form: VarianceForm,
     ) -> CompilerResult<Variance> {
         let Some(binding) = self.generic_parameter(parameter) else {
             return Ok(Variance::Invariant);
         };
         let declared = binding.variance.map(Variance::from);
 
-        // intrinsic storage assertions compose with the handle context:
-        //  the compiler cannot derive an opaque payload, so the modifier
-        //  is trusted as the storage direction and aliasing still caps it
+        // intrinsic backings trust their declared storage direction
         if self.parameter_owner_is_intrinsic(parameter)? {
-            return Ok(match declared {
-                Some(declared) => context.storage_position().compose(declared),
-                None => Variance::Invariant,
-            });
+            return Ok(declared
+                .map(|declared| form.field().compose(declared))
+                .unwrap_or(Variance::Invariant));
         }
 
-        let Some(declared) = declared else {
-            return self.derive_variance(parameter, context);
+        let derived = self.derive_variance(parameter, form)?;
+        let variance = match declared {
+            Some(declared) if self.parameter_variance_form(parameter)? == form => declared,
+            Some(declared) => derived.join(declared),
+            None => derived,
         };
 
-        // a declared modifier binds the declaration's own handle context,
-        //  where the parameter-use obligation checks it against usage;
-        //  every other context derives as usual and the modifier only caps
-        match self.parameter_owner_context(parameter)? {
-            Some(default) if default == context => Ok(declared),
-            _ => Ok(self.derive_variance(parameter, context)?.join(declared)),
-        }
+        Ok(variance)
     }
 
-    /// Return the default handle context of one parameter's declaration.
-    pub(in crate::check) fn parameter_owner_context(
-        &mut self,
+    /// Return the default handle form of one parameter's declaration.
+    pub(in crate::check) fn parameter_variance_form(
+        &self,
         parameter: dir::GlobalGenericParameterId,
-    ) -> CompilerResult<Option<VarianceContext>> {
+    ) -> CompilerResult<VarianceForm> {
         let Some(binding) = self.generic_parameter(parameter) else {
-            return Ok(None);
+            return Ok(VarianceForm::Owned);
         };
         let template = binding.template.into_global(parameter.module_id);
         let Some(template) = self.generic_template(template) else {
-            return Ok(None);
+            return Ok(VarianceForm::Owned);
         };
 
         Ok(template
             .symbol
-            .map(|symbol| self.default_symbol_context(symbol)))
+            .map(|symbol| self.default_variance_form(symbol))
+            .unwrap_or(VarianceForm::Owned))
+    }
+
+    /// Return the default handle form of one nominal declaration.
+    pub(in crate::check) fn default_variance_form(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> VarianceForm {
+        match self.symbol_kind(symbol) {
+            dir::SymbolKind::Class
+            | dir::SymbolKind::Interface
+            | dir::SymbolKind::NewtypeInterface => VarianceForm::Managed,
+            _ => VarianceForm::Owned,
+        }
     }
 
     /// Return whether one parameter's declaration derives a variance.
@@ -277,26 +279,11 @@ impl CheckState<'_> {
         Ok(matches!(self.ty(value)?, dir::Type::Intrinsic))
     }
 
-    /// Return the handle context one symbol's bare instances relate under.
-    pub(in crate::check) fn default_symbol_context(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> VarianceContext {
-        match self.symbol_kind(symbol) {
-            // class and interface instances are managed handles by default
-            dir::SymbolKind::Class
-            | dir::SymbolKind::Interface
-            | dir::SymbolKind::NewtypeInterface => VarianceContext::Aliased,
-            // value instances copy or move
-            _ => VarianceContext::Owned,
-        }
-    }
-
     /// Derive one parameter's variance from its uses in the declaration.
     pub(in crate::check) fn derive_variance(
         &mut self,
         parameter: dir::GlobalGenericParameterId,
-        context: VarianceContext,
+        form: VarianceForm,
     ) -> CompilerResult<Variance> {
         // find the definition that owns the parameter's template
         let Some(binding) = self.generic_parameter(parameter) else {
@@ -321,6 +308,7 @@ impl CheckState<'_> {
             definition,
             dir::Definition::Class(_) | dir::Definition::Interface(_)
         );
+        let storage = form.field();
 
         // collect the measured member types before walking type graphs
         let mut members = SmallVec::<[_; 8]>::new();
@@ -328,10 +316,9 @@ impl CheckState<'_> {
             let measured = match member {
                 // storage slots measure by the handle's write capability
                 dir::DefinitionMember::Field(field) => {
-                    let position = if field.is_readonly {
-                        Variance::Covariant
-                    } else {
-                        context.storage_position()
+                    let position = match field.is_readonly {
+                        true => Variance::Covariant,
+                        false => storage,
                     };
 
                     self.require_definition_member_type(member)?
@@ -361,7 +348,7 @@ impl CheckState<'_> {
                 dir::DefinitionMember::IndexSignature(signature) => {
                     members.push((signature.key_type, Variance::Contravariant));
 
-                    Some((signature.value_type, context.storage_position()))
+                    Some((signature.value_type, storage))
                 }
                 dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
                     None
@@ -374,30 +361,25 @@ impl CheckState<'_> {
 
         // newtype backings measure like stored values
         if let dir::Definition::Newtype(newtype) = &definition {
-            members.push((newtype.backing, context.storage_position()));
+            members.push((newtype.backing, storage));
         }
 
         let heritages = definition
             .heritages()
             .iter()
-            .map(|heritage| (heritage.symbol, heritage.arguments.clone()))
+            .map(|heritage| heritage.ty)
             .collect::<SmallVec<[_; 2]>>();
 
         // measure every member occurrence
         let mut measured = Variance::Bivariant;
         for (ty, position) in members {
-            measured = measured.join(self.measure_type(ty, position, context, parameter)?);
+            measured = measured.join(self.measure_type(ty, position, form, parameter)?);
         }
 
-        // measure heritage arguments under the base parameter positions
-        for (base, arguments) in heritages {
-            measured = measured.join(self.measure_application(
-                base,
-                &arguments,
-                Variance::Covariant,
-                context,
-                parameter,
-            )?);
+        // measure complete heritage types covariantly
+        for heritage in heritages {
+            measured =
+                measured.join(self.measure_type(heritage, Variance::Covariant, form, parameter)?);
         }
 
         Ok(measured)
@@ -438,7 +420,7 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
         position: Variance,
-        context: VarianceContext,
+        form: VarianceForm,
         parameter: dir::GlobalGenericParameterId,
     ) -> CompilerResult<Variance> {
         // unused positions cannot contribute occurrences
@@ -458,7 +440,7 @@ impl CheckState<'_> {
                     measured = measured.join(self.measure_type(
                         this_parameter,
                         position.flip(),
-                        context,
+                        form,
                         parameter,
                     )?);
                 }
@@ -469,17 +451,13 @@ impl CheckState<'_> {
                     measured = measured.join(self.measure_type(
                         input.ty,
                         position.flip(),
-                        context,
+                        form,
                         parameter,
                     )?);
                 }
                 if let Some(return_type) = function.return_type {
-                    measured = measured.join(self.measure_type(
-                        return_type,
-                        position,
-                        context,
-                        parameter,
-                    )?);
+                    measured =
+                        measured.join(self.measure_type(return_type, position, form, parameter)?);
                 }
 
                 measured
@@ -487,74 +465,63 @@ impl CheckState<'_> {
 
             // function carriers measure through their wrapped signatures
             dir::Type::Function(function) => {
-                let signature =
-                    self.measure_type(function.signature, position, context, parameter)?;
-                let environment = self.measure_type(
-                    function.environment,
-                    Variance::Invariant,
-                    context,
-                    parameter,
-                )?;
+                let signature = self.measure_type(function.signature, position, form, parameter)?;
+                let environment =
+                    self.measure_type(function.environment, Variance::Invariant, form, parameter)?;
 
                 signature.join(environment)
             }
             dir::Type::FunctionPointer(pointer) => {
-                self.measure_type(pointer.signature, position, context, parameter)?
+                self.measure_type(pointer.signature, position, form, parameter)?
             }
 
             // applications compose with the base parameter variances
             dir::Type::Application(instance) => {
                 let arguments = self.type_ids(ty.module_id, instance.arguments)?.to_vec();
 
-                self.measure_application(instance.symbol, &arguments, position, context, parameter)?
+                self.measure_application(instance.symbol, &arguments, position, form, parameter)?
             }
 
-            // mutable container storage follows the handle: readonly views
-            //  read elements covariantly, every other handle writes them
-            dir::Type::Array(array) => self.measure_type(
-                array.element,
-                context.aliased_slot(position),
-                context,
-                parameter,
-            )?,
-            dir::Type::Slice(slice) => self.measure_type(
-                slice.element,
-                context.aliased_slot(position),
-                context,
-                parameter,
-            )?,
+            // independently aliased storage remains writable outside owned values
+            dir::Type::Array(array) => {
+                self.measure_type(array.element, form.aliased(position), form, parameter)?
+            }
+            dir::Type::Slice(slice) => {
+                self.measure_type(slice.element, form.aliased(position), form, parameter)?
+            }
 
             // value containers keep their position
             dir::Type::FixedArray(array) => {
-                self.measure_type(array.element, position, context, parameter)?
+                self.measure_type(array.element, position, form, parameter)?
             }
             dir::Type::Tuple(tuple) => {
                 let elements = self.tuple_elements(ty.module_id, tuple.elements)?.to_vec();
                 let mut measured = Variance::Bivariant;
                 for element in elements {
                     measured =
-                        measured.join(self.measure_type(element.ty, position, context, parameter)?);
+                        measured.join(self.measure_type(element.ty, position, form, parameter)?);
                 }
 
                 measured
             }
 
-            // structural shapes measure mutable fields both ways
+            // structural shapes measure reads forward and writes backward
             dir::Type::Shape(shape) => {
-                let fields = self.shape_fields(ty.module_id, shape.fields)?.to_vec();
+                let fields = self.shape_properties(ty.module_id, shape.properties)?.to_vec();
                 let mut measured = Variance::Bivariant;
                 for field in fields {
-                    let field_position = if field.is_readonly {
-                        position
-                    } else {
-                        Variance::Invariant
-                    };
-                    measured = measured.join(self.measure_type(
-                        field.ty,
-                        field_position,
-                        context,
-                        parameter,
-                    )?);
+                    if let Some(read) = field.access.read() {
+                        measured =
+                            measured.join(self.measure_type(read, position, form, parameter)?);
+                    }
+                    if let Some(write) = field.access.write() {
+                        measured = measured.join(self.measure_type(
+                            write,
+                            position.flip(),
+                            form,
+                            parameter,
+                        )?);
+                    }
                 }
                 let signatures = self
                     .type_ids(ty.module_id, shape.call_signatures)?
@@ -564,7 +531,7 @@ impl CheckState<'_> {
                     .collect::<SmallVec<[_; 4]>>();
                 for signature in signatures {
                     measured =
-                        measured.join(self.measure_type(signature, position, context, parameter)?);
+                        measured.join(self.measure_type(signature, position, form, parameter)?);
                 }
                 let index_signatures = self
                     .shape_index_signatures(ty.module_id, shape.index_signatures)?
@@ -572,8 +539,8 @@ impl CheckState<'_> {
                 for signature in index_signatures {
                     measured = measured.join(self.measure_type(
                         signature.value_type,
-                        context.aliased_slot(position),
-                        context,
+                        form.aliased(position),
+                        form,
                         parameter,
                     )?);
                 }
@@ -581,22 +548,15 @@ impl CheckState<'_> {
                 measured
             }
 
-            // memory forms follow their aliasing behavior
-            dir::Type::Form(form) => match form.form {
-                // readonly views and owned payloads keep their position
+            // nested memory forms contribute their own access capability
+            dir::Type::Form(type_form) => match type_form.form {
+                // transparent value forms keep the surrounding capability
                 dir::Form::Readonly | dir::Form::Owned | dir::Form::Placed { .. } => {
-                    self.measure_type(form.value, position, context, parameter)?
+                    self.measure_type(type_form.value, position, form, parameter)?
                 }
-                // managed payloads are storage the handle reaches
-                dir::Form::Managed => self.measure_type(
-                    form.value,
-                    context.aliased_slot(position),
-                    context,
-                    parameter,
-                )?,
-                // borrows and raw pointers alias mutably in every context
-                dir::Form::Borrowed(_) | dir::Form::Raw => {
-                    self.measure_type(form.value, Variance::Invariant, context, parameter)?
+                // independently writable references stay invariant unless deeply readonly
+                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => {
+                    self.measure_type(type_form.value, form.aliased(position), form, parameter)?
                 }
             },
 
@@ -607,7 +567,7 @@ impl CheckState<'_> {
                 let mut measured = Variance::Bivariant;
                 for element in elements {
                     measured =
-                        measured.join(self.measure_type(element, position, context, parameter)?);
+                        measured.join(self.measure_type(element, position, form, parameter)?);
                 }
 
                 measured
@@ -617,13 +577,13 @@ impl CheckState<'_> {
             dir::Type::Member(member) => {
                 let member = self.type_member(ty.module_id, member)?;
                 let mut measured =
-                    self.measure_type(member.owner, Variance::Invariant, context, parameter)?;
+                    self.measure_type(member.owner, Variance::Invariant, form, parameter)?;
                 let arguments = self.type_ids(ty.module_id, member.arguments)?.to_vec();
                 for argument in arguments {
                     measured = measured.join(self.measure_type(
                         argument,
                         Variance::Invariant,
-                        context,
+                        form,
                         parameter,
                     )?);
                 }
@@ -638,7 +598,7 @@ impl CheckState<'_> {
                     measured = measured.join(self.measure_type(
                         child,
                         Variance::Invariant,
-                        context,
+                        form,
                         parameter,
                     )?);
                 }
@@ -653,12 +613,12 @@ impl CheckState<'_> {
         Ok(measured)
     }
 
-    /// Decide same-template type arguments under one handle context.
+    /// Decide same-template type arguments by their parameter variances.
     pub(in crate::check) fn decide_type_arguments(
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
-        context: VarianceContext,
+        form: VarianceForm,
         edge: Relation,
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
@@ -666,13 +626,18 @@ impl CheckState<'_> {
         if source.len() != target.len() {
             return Ok(Answer::Ready(false));
         }
-        let edge = self.instance_argument_edge(symbol, edge);
+        let relation = self.instance_argument_relation(symbol, edge);
         let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
+            // erased target arguments admit every instantiation of their parameter
+            if matches!(self.ty(*target)?, dir::Type::Erased(_)) {
+                continue;
+            }
+
             // bivariant arguments relate freely under a closed relation
             let Some((relation, order)) = self
-                .argument_variance(symbol, index, context)?
-                .argument_relation(edge)
+                .argument_variance(symbol, index, form)?
+                .argument_relation(relation)
             else {
                 continue;
             };
@@ -687,20 +652,29 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Relate same-template type arguments under one handle context.
+    /// Relate same-template type arguments by their parameter variances.
     pub(in crate::check) fn relate_type_arguments(
         &mut self,
+        origin: Origin,
         cause: CauseId,
         symbol: dir::GlobalSymbolId,
-        context: VarianceContext,
-        edge: Relation,
+        form: VarianceForm,
+        relation: Relation,
         source: &[dir::GlobalTypeId],
         target: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<bool>> {
-        let origin = self.cause_origin(cause);
-        let edge = self.instance_argument_edge(symbol, edge);
+        if source.len() != target.len() {
+            return Ok(Answer::Ready(false));
+        }
+
+        let relation = self.instance_argument_relation(symbol, relation);
         let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
+            // erased target arguments admit every instantiation of their parameter
+            if matches!(self.ty(*target)?, dir::Type::Erased(_)) {
+                continue;
+            }
+
             // skip closed lifetime slots for Verify, still linking open ones
             if !self.type_flags(*source)?.has_variable()
                 && !self.type_flags(*target)?.has_variable()
@@ -709,20 +683,20 @@ impl CheckState<'_> {
             {
                 continue;
             }
-            let variance = self.argument_variance(symbol, index, context)?;
+            let variance = self.argument_variance(symbol, index, form)?;
             let slot = CauseKind::TypeArgument {
                 symbol,
                 index: index as u32,
                 variance,
             };
-            let child = self.intern_cause(Cause::slot(origin, slot, cause));
-            let answer = match variance.argument_relation(edge) {
+            let child = self.intern_cause(Cause::child(origin, slot, cause));
+            let answer = match variance.argument_relation(relation) {
                 // bivariant arguments still constrain open holes so inference closes
                 None => {
                     if self.type_flags(*source)?.has_variable()
                         || self.type_flags(*target)?.has_variable()
                     {
-                        self.constrain_type(child, Relation::Equal, *source, *target)?
+                        self.constrain_type(origin, child, Relation::Equal, *source, *target)?
                     } else {
                         Answer::Ready(true)
                     }
@@ -730,7 +704,7 @@ impl CheckState<'_> {
                 Some((relation, order)) => {
                     let (source, target) = order.orient(*source, *target);
 
-                    self.constrain_type(child, relation, source, target)?
+                    self.constrain_type(origin, child, relation, source, target)?
                 }
             };
             decision = decision.and(answer);
@@ -742,23 +716,20 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Return the argument edge one instance symbol relates by.
-    ///
-    /// Interface instances are dynamic carriers pending the dynamic-safe
-    /// wiring, so their arguments keep conformance edges until vtable
-    /// construction enforces identity there.
-    pub(in crate::check) fn instance_argument_edge(
+    /// Return the relation used by one instance symbol's arguments.
+    pub(in crate::check) fn instance_argument_relation(
         &self,
         symbol: dir::GlobalSymbolId,
-        edge: Relation,
+        relation: Relation,
     ) -> Relation {
         match self.symbol_kind(symbol) {
+            // interface applications share the uniform Dynamic carrier
             dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
-                if edge == Relation::Widens =>
+                if relation == Relation::Widens =>
             {
                 Relation::Assignable
             }
-            _ => edge,
+            _ => relation,
         }
     }
 
@@ -767,15 +738,18 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
         index: usize,
-        context: VarianceContext,
+        form: VarianceForm,
     ) -> CompilerResult<Variance> {
-        let parameter = self
-            .symbol_template(symbol)?
-            .map(|template| self.generic_template_parameters(template))
+        let parameters = match self.symbol_template(symbol)? {
+            Some(template) => Some(self.generic_template_parameters(template)?),
+            None => None,
+        };
+        let parameter = parameters
+            .as_ref()
             .and_then(|parameters| parameters.get(index).copied());
 
         match parameter {
-            Some(parameter) => self.parameter_variance(parameter, context),
+            Some(parameter) => self.parameter_variance(parameter, form),
             None => Ok(Variance::Invariant),
         }
     }
@@ -786,17 +760,12 @@ impl CheckState<'_> {
         base: dir::GlobalSymbolId,
         arguments: &[dir::GlobalTypeId],
         position: Variance,
-        context: VarianceContext,
+        form: VarianceForm,
         parameter: dir::GlobalGenericParameterId,
     ) -> CompilerResult<Variance> {
-        let parameters = self
-            .symbol_template(base)?
-            .map(|template| self.generic_template_parameters(template));
-
-        // readonly views stay views deeply, other handles reset per symbol
-        let base_context = match context {
-            VarianceContext::View => VarianceContext::View,
-            _ => self.default_symbol_context(base),
+        let parameters = match self.symbol_template(base)? {
+            Some(template) => Some(self.generic_template_parameters(template)?),
+            None => None,
         };
 
         let mut measured = Variance::Bivariant;
@@ -805,9 +774,8 @@ impl CheckState<'_> {
             let argument_position = match &parameters {
                 Some(parameters) => match parameters.get(index) {
                     Some(base_parameter) => {
-                        // occurrences compose under the base's handle
-                        let base_variance =
-                            self.parameter_variance(*base_parameter, base_context)?;
+                        // occurrences compose through the applied constructor
+                        let base_variance = self.parameter_variance(*base_parameter, form)?;
 
                         position.compose(base_variance)
                     }
@@ -815,12 +783,8 @@ impl CheckState<'_> {
                 },
                 None => Variance::Invariant,
             };
-            measured = measured.join(self.measure_type(
-                *argument,
-                argument_position,
-                base_context,
-                parameter,
-            )?);
+            measured =
+                measured.join(self.measure_type(*argument, argument_position, form, parameter)?);
         }
 
         Ok(measured)

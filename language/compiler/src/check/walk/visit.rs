@@ -48,7 +48,7 @@ impl CheckState<'_> {
         for root in &expanded.roots {
             walk.visit_expression_templates(*root, tree.get(*root), pass)?;
         }
-        walk.commit();
+        walk.commit()?;
 
         Ok(())
     }
@@ -74,7 +74,7 @@ impl CheckState<'_> {
 
         let mut walk = WalkState::new(symbol.module_id, tree, self);
         walk.demand_symbol_declaration(symbol)?;
-        walk.commit();
+        walk.commit()?;
 
         Ok(())
     }
@@ -101,7 +101,7 @@ impl CheckState<'_> {
             walk.queue_module_expression(*root)?;
             walk.check.propagate_induced_parameters()?;
         }
-        walk.commit();
+        walk.commit()?;
 
         Ok(())
     }

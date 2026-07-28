@@ -24,7 +24,7 @@ type Point {
     y: int32;
 }
 
-function main.diagonal(v0: int32, v1: int32): Point {
+function test.main.diagonal(v0: int32, v1: int32): Point {
 entry(v0: int32, v1: int32):
     v2: Point = aggregate (v0, v1)
     return v2
@@ -62,7 +62,7 @@ type Sample {
     count: int32;
 }
 
-function main.sample(v0: boolean, v1: float64, v2: int32): Sample {
+function test.main.sample(v0: boolean, v1: float64, v2: int32): Sample {
 entry(v0: boolean, v1: float64, v2: int32):
     v3: Sample = aggregate (v0, v1, v2)
     return v3
@@ -97,7 +97,7 @@ type Metadata {
     value: int32;
 }
 
-function main.identity(v0: int32): int32 {
+function test.main.identity(v0: int32): int32 {
 entry(v0: int32):
     return v0
 }

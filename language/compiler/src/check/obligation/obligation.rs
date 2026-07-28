@@ -3,8 +3,8 @@ use destack_dir as dir;
 use crate::{CompilerError, CompilerResult};
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, ExpectedType, FlowBranch, GenericTemplateId, MoveSite, Origin,
-    Task, TaskFailure, TaskFailures, Variance, WriteTarget, answer,
+    Answer, AssignmentSelection, CheckEvent, CheckState, ExpectedType, FlowBranch,
+    GenericTemplateId, MoveSite, Origin, Task, Variance, answer,
 };
 
 /// Component-global id of one collected obligation.
@@ -52,16 +52,16 @@ pub(in crate::check) enum Obligation {
     PatternCoverage(PatternCoverageObligation),
     /// A moved place must be copyable to stay readable.
     UseAfterMove(UseAfterMoveObligation),
-    /// A place assignment must target writable storage.
-    WritablePlace(Box<WritablePlaceObligation>),
+    /// An assignment must select a writable target.
+    WritableTarget(Box<WritableTargetObligation>),
     /// A type at a representation slot must have a computed representation.
     Representation(RepresentationObligation),
     /// A runtime predicate must have valid operands.
     RuntimePredicate(Box<RuntimePredicateObligation>),
     /// A for-in source must be enumerable.
     ForInSource(ForInSourceObligation),
-    /// An extension must provide members required by its implemented interfaces.
-    ExtensionConformance(ExtensionConformanceObligation),
+    /// A declaration must implement every member of its declared interfaces.
+    InterfaceConformance(InterfaceConformanceObligation),
     /// An implementation must not overlap a conflicting implementation.
     ImplementationCoherence(ImplementationCoherenceObligation),
     /// A declaration must satisfy its heritage graph rules.
@@ -80,11 +80,11 @@ impl Obligation {
         match self {
             Self::PatternCoverage(obligation) => obligation.source,
             Self::UseAfterMove(obligation) => obligation.source,
-            Self::WritablePlace(obligation) => obligation.place.source,
+            Self::WritableTarget(obligation) => obligation.target.source,
             Self::Representation(obligation) => obligation.source,
             Self::RuntimePredicate(obligation) => obligation.source,
             Self::ForInSource(obligation) => obligation.source,
-            Self::ExtensionConformance(obligation) => obligation.source,
+            Self::InterfaceConformance(obligation) => obligation.source,
             Self::ImplementationCoherence(obligation) => obligation.source,
             Self::DeclarationHeritage(obligation) => obligation.source,
             Self::ClassInitialization(obligation) => obligation.source,
@@ -241,7 +241,7 @@ pub(in crate::check) enum ObligationFailure {
         /// The assignment target expression.
         source: dir::GlobalNodeIdAny,
         /// The selected member.
-        member: dir::ProjectionField,
+        member: dir::MemberTarget,
     },
     /// A non-exclusive overwrite requires overwrite-stable values.
     OverwriteStabilityNotSatisfied {
@@ -476,9 +476,9 @@ pub(in crate::check) enum PatternCoverage {
 /// value = 2;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct WritablePlaceObligation {
-    /// The place being written.
-    pub(in crate::check) place: WriteTarget,
+pub(in crate::check) struct WritableTargetObligation {
+    /// The selected assignment target.
+    pub(in crate::check) target: AssignmentSelection,
     /// The type being overwritten.
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
@@ -584,16 +584,16 @@ pub(in crate::check) struct ForInSourceObligation {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
-/// Obliges an extension to provide members required by its implemented interfaces.
+/// Obliges a declaration to implement every member of its declared interfaces.
 ///
 /// ```ds
-/// extension of User implements Display {}
+/// struct Point implements Display { toString(): string }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct ExtensionConformanceObligation {
-    /// The extension declaration node.
+pub(in crate::check) struct InterfaceConformanceObligation {
+    /// The implementing declaration node.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The checked extension symbol.
+    /// The implementing declaration symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
 }
 
@@ -691,7 +691,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn run_obligation(
         &mut self,
         id: ObligationId,
-    ) -> CompilerResult<Answer<TaskFailures>> {
+    ) -> CompilerResult<Answer<()>> {
         // copy the obligation for the borrow-free check
         let entry = self.solver.obligations.get(id)?.clone();
         let origin = Origin::Node(entry.obligation.source(), entry.scope);
@@ -700,17 +700,15 @@ impl CheckState<'_> {
 
         match check {
             Answer::Ready(check) => {
-                let failures = check
-                    .into_failures()
-                    .into_iter()
-                    .map(TaskFailure::Obligation)
-                    .collect();
+                for failure in check.into_failures() {
+                    self.report_obligation_failure(failure)?;
+                }
                 self.record_event(CheckEvent::ObligationChecked {
                     obligation: id,
                     is_finished: true,
                 });
 
-                Ok(Answer::Ready(failures))
+                Ok(Answer::Ready(()))
             }
             Answer::Pending(blockers) => {
                 self.record_event(CheckEvent::ObligationChecked {
@@ -734,7 +732,9 @@ impl CheckState<'_> {
                 self.check_pattern_coverage(origin, obligation)
             }
             Obligation::UseAfterMove(obligation) => self.check_use_after_move(origin, *obligation),
-            Obligation::WritablePlace(obligation) => self.check_writable_place(origin, obligation),
+            Obligation::WritableTarget(obligation) => {
+                self.check_writable_assignment(origin, obligation)
+            }
             Obligation::Representation(obligation) => {
                 self.check_representation(origin, obligation.ty)
             }
@@ -742,8 +742,8 @@ impl CheckState<'_> {
                 self.check_runtime_predicate(origin, obligation)
             }
             Obligation::ForInSource(obligation) => self.check_for_in_source(origin, obligation),
-            Obligation::ExtensionConformance(obligation) => {
-                self.check_extension_conformance(origin, obligation.symbol)
+            Obligation::InterfaceConformance(obligation) => {
+                self.check_interface_conformance(origin, obligation.symbol)
             }
             Obligation::ImplementationCoherence(obligation) => {
                 self.check_implementation_coherence(origin, obligation.symbol)
@@ -767,15 +767,13 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: UseAfterMoveObligation,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        // positions that lend or receive through a borrow never consume
+        // positions that preserve their source never consume
         if answer!(self.move_site_borrows(origin, &obligation.site)?) {
             return Ok(Answer::Ready(ObligationCheck::Holds));
         }
 
         // only owned values vacate their source; managed handles copy freely
-        let Some(ty) = self.symbol_type_maybe(obligation.symbol) else {
-            return Ok(Answer::Ready(ObligationCheck::Holds));
-        };
+        let ty = answer!(self.symbol_type(obligation.symbol)?);
         let ownership = answer!(self.default_ownership(origin, ty)?);
         if ownership != Some(dir::Ownership::Owned) {
             return Ok(Answer::Ready(ObligationCheck::Holds));
@@ -794,58 +792,110 @@ impl CheckState<'_> {
         Ok(Answer::Ready(check))
     }
 
-    /// Return whether one marked move position lends through a borrow.
+    /// Return whether one marked move position borrows its source.
     fn move_site_borrows(
         &mut self,
         origin: Origin,
         site: &MoveSite,
     ) -> CompilerResult<Answer<bool>> {
-        // argument and receiver positions read the sealed selection
+        // argument and receiver positions read the selected call
         if let Some(call) = site.call {
             let resolutions = self.resolutions(call.module_id);
-            let (arguments, receiver_borrows) = match resolutions.call_resolution(call) {
-                Some(resolution) => {
-                    let receiver_borrows = match &resolution.target {
-                        dir::CallTarget::Symbol(candidate) => {
-                            Some(!candidate.adjustments.is_empty())
-                        }
-                        _ => None,
-                    };
+            if let Some(resolution) = resolutions.call_resolution(call).cloned() {
+                return self.call_position_borrows(origin, &resolution, site.node);
+            }
+            if let Some(resolution) = resolutions.construct_resolution(call) {
+                // constructor arguments lend through borrowing parameters
+                let binding = resolution.arguments.iter().find(|binding| {
+                    matches!(
+                        binding.argument,
+                        dir::ArgumentSource::Provided(provided) if provided == site.node
+                    )
+                });
+                let Some(binding) = binding else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "construct resolution {call:?} has no binding for move site {:?}",
+                            site.node
+                        ),
+                    });
+                };
 
-                    (resolution.arguments.clone(), receiver_borrows)
-                }
-                None => match resolutions.construct_resolution(call) {
-                    Some(resolution) => (resolution.arguments.clone(), None),
-                    // unresolved calls stay charitable
-                    None => return Ok(Answer::Ready(true)),
-                },
-            };
-
-            // an argument position lends when its bound parameter borrows
-            let bound = arguments.iter().find(|binding| {
-                matches!(
-                    binding.argument,
-                    dir::ArgumentSource::Provided(provided) if provided == site.node
-                )
-            });
-            if let Some(binding) = bound {
                 return self.type_head_borrows(origin, binding.ty);
             }
 
-            // a receiver position lends when the candidate adjusts by borrow
-            let borrows = receiver_borrows.unwrap_or(true);
-
-            return Ok(Answer::Ready(borrows));
+            return Err(CompilerError::Internal {
+                message: format!("move site {:?} has no resolution for {call:?}", site.node),
+            });
         }
 
         // initializer and assignment positions lend into borrow bindings
-        if let Some(target) = site.target
-            && let Some(ty) = self.symbol_type_maybe(target)
-        {
+        if let Some(target) = site.target {
+            let ty = answer!(self.symbol_type(target)?);
+
             return self.type_head_borrows(origin, ty);
         }
 
         Ok(Answer::Ready(false))
+    }
+
+    /// Return whether one call position borrows its source in every runtime alternative.
+    fn call_position_borrows(
+        &mut self,
+        origin: Origin,
+        resolution: &dir::CallResolution,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Answer<bool>> {
+        match resolution {
+            dir::OperationResolution::One(call) => {
+                self.call_arm_position_borrows(origin, call, source)
+            }
+            dir::OperationResolution::Union { arms, .. } => {
+                for call in arms {
+                    if !answer!(self.call_arm_position_borrows(origin, call, source)?) {
+                        return Ok(Answer::Ready(false));
+                    }
+                }
+
+                Ok(Answer::Ready(true))
+            }
+        }
+    }
+
+    /// Return whether one singular call position borrows its source.
+    fn call_arm_position_borrows(
+        &mut self,
+        origin: Origin,
+        call: &dir::Call,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Answer<bool>> {
+        // argument positions borrow according to their selected parameter
+        if let Some(binding) = call.arguments.iter().find(|binding| {
+            matches!(
+                binding.argument,
+                dir::ArgumentSource::Provided(provided) if provided == source
+            )
+        }) {
+            return self.type_head_borrows(origin, binding.ty);
+        }
+
+        // the remaining marked position is the selected receiver
+        let receiver = match &call.target {
+            dir::CallTarget::Expression { .. } => return Ok(Answer::Ready(true)),
+            dir::CallTarget::Symbol { function, .. } => function.receiver.as_ref(),
+            dir::CallTarget::Dynamic { dispatch, .. } => Some(&dispatch.receiver),
+        };
+        let Some(receiver) = receiver else {
+            return Err(CompilerError::Internal {
+                message: format!("static call has no binding for move site {source:?}"),
+            });
+        };
+        let borrows = receiver
+            .adjustments
+            .iter()
+            .any(|adjustment| matches!(adjustment, dir::ReceiverAdjustment::Borrow { .. }));
+
+        Ok(Answer::Ready(borrows))
     }
 
     /// Return whether one type lends by default beneath its placement.
@@ -865,12 +915,12 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: &PatternCoverageObligation,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        // bodies commit their nodes before obligations read them
+        // wait for authored values still undergoing contextual checking
         let value = match obligation.value {
             ExpectedType::Type(ty) => ty,
             ExpectedType::Node(node) => {
+                let ty = answer!(self.node_type(node)?);
                 let site = self.node_site(node)?;
-                let ty = self.require_node_type(node)?;
 
                 answer!(self.flow_type_at(site, ty)?)
             }

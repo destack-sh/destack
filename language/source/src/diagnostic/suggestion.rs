@@ -6,11 +6,11 @@ use crate::{DiagnosticLabel, PatchSet};
 /// Whether a suggestion can be applied automatically.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Applicability {
-    /// The suggestion is machine-applicable.
+    /// The suggestion can be applied automatically without changing behavior.
     Automatic,
-    /// The suggestion is machine-applicable but may change behavior.
+    /// The suggestion can be applied automatically but may change behavior.
     Unsafe,
-    /// The suggestion is maybe incorrect.
+    /// The suggestion may be incorrect and requires review.
     Dangerous,
 }
 

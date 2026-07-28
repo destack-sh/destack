@@ -65,7 +65,7 @@ impl Formatter<'_, '_, '_> {
 
                 format!("{base}<type {key} = {value}>")
             }
-            dir::Type::EnumMember(member) => return self.symbol(member.member),
+            dir::Type::Variant(variant) => return self.symbol(variant.variant),
             dir::Type::Form(form) => return self.form(*form),
             dir::Type::Dynamic(dynamic) => {
                 let constraint = formatted!(self.global_type(dynamic.constraint));
@@ -322,8 +322,8 @@ impl Formatter<'_, '_, '_> {
     fn shape(&self, shape: dir::ShapeType) -> QueryResult<Option<String>> {
         let mut members = Vec::new();
 
-        for field in self.module.types().fields(shape.fields) {
-            members.push(formatted!(self.field(field)));
+        for property in self.module.types().properties(shape.properties) {
+            members.push(formatted!(self.property(property)));
         }
         for signature in self.module.types().index_signatures(shape.index_signatures) {
             members.push(formatted!(self.index_signature(signature)));
@@ -336,14 +336,36 @@ impl Formatter<'_, '_, '_> {
         }
     }
 
-    /// Format one structural field.
-    fn field(&self, field: &dir::TypeField) -> QueryResult<Option<String>> {
-        let readonly = if field.is_readonly { "readonly " } else { "" };
-        let optional = if field.is_optional { "?" } else { "" };
-        let key = formatted!(self.property_key(field.key));
-        let type_text = formatted!(self.global_type(field.ty));
+    /// Format one structural property.
+    fn property(&self, property: &dir::TypeProperty) -> QueryResult<Option<String>> {
+        let optional = if property.is_optional { "?" } else { "" };
+        let key = formatted!(self.property_key(property.key));
 
-        Ok(Some(format!("{readonly}{key}{optional}: {type_text}")))
+        match property.access {
+            dir::PropertyAccess::Read(ty) => {
+                let ty = formatted!(self.global_type(ty));
+
+                Ok(Some(format!("readonly {key}{optional}: {ty}")))
+            }
+            dir::PropertyAccess::Write(ty) => {
+                let ty = formatted!(self.global_type(ty));
+
+                Ok(Some(format!("set {key}(value: {ty})")))
+            }
+            dir::PropertyAccess::ReadWrite { read, write } if read == write => {
+                let ty = formatted!(self.global_type(read));
+
+                Ok(Some(format!("{key}{optional}: {ty}")))
+            }
+            dir::PropertyAccess::ReadWrite { read, write } => {
+                let read = formatted!(self.global_type(read));
+                let write = formatted!(self.global_type(write));
+
+                Ok(Some(format!(
+                    "get {key}(): {read}; set {key}(value: {write})"
+                )))
+            }
+        }
     }
 
     /// Format one index signature.

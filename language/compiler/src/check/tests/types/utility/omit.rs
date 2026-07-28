@@ -60,11 +60,19 @@ declare const person: Omit<Person, "age">;
 
 person.name satisfies string;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string; active: boolean } kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string; active: boolean } type=string kind=field target_receiver={ name: string; active: boolean } key=name target_type=string
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.place source=person.name placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person.name root=person keys=[name]
 
 person.active satisfies boolean;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.active receiver={ name: string; active: boolean } kind=field key=active
+/// @resolution.member source=person.active receiver={ name: string; active: boolean } type=boolean kind=field target_receiver={ name: string; active: boolean } key=active target_type=boolean
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.place source=person.active placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person.active root=person keys=[active]
 
 /// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
@@ -129,6 +137,8 @@ const age = person.age;
 /// @type.symbol symbol=age source=age type=<error>
 /// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
 
 /// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
@@ -198,6 +208,8 @@ const person: WithoutAge = { name: "Ada" };
 
 person satisfies WithoutAge;
 /// @resolution.name source=person target=person
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
 /// @resolution.name source=WithoutAge target=WithoutAge
 
 /// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
@@ -390,6 +402,8 @@ const person: Same = { name: "Ada", age: 42 };
 
 person satisfies Person;
 /// @resolution.name source=person target=person
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
 /// @resolution.name source=Person target=Person
 
 /// @generic.instance id="Omit<Person, \"missing\">" template=types.object.Omit arguments=(Person, "missing")
@@ -456,7 +470,10 @@ const person: NameOnly = { name: "Ada" };
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.pattern.assign source=person.name kind=place place=field(name) type=string
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.pattern.assign source=person.name kind=place
+/// @resolution.assignment source=person.name write="receiver={ readonly name: string }, target=field(receiver={ readonly name: string }, target=name, type=string), type=string" type=string
 
 /// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,

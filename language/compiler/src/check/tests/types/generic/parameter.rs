@@ -81,7 +81,10 @@ const first = values[0];
 /// @type.symbol symbol=first source=first type=1
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
-/// @resolution.member source=values[0] receiver=[1, 2] kind=element index=0
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=1 kind=member target="receiver=[1, 2], target=field(receiver=[1, 2], target=0, type=1), type=1"
 
 /// @generic.instance id="id<[1, 2]>" template=id arguments=([1, 2])
 "#,
@@ -129,10 +132,13 @@ const first = values[0];
 /// @type.symbol symbol=first source=first type=float64
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
-/// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=float64 kind=symbol target=collections.array.index#4 receiver=Array<float64> instance=Array<float64>.<extension#6>.index#4
-/// @generic.instance source=values[0] id=Array<float64>.<extension#6>.index#4
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
+/// @generic.instance source=values[0] id="Array<float64>.<extension#6>.index#3<\"exclusive\">"
 
-/// @generic.instance id=Array<float64>.<extension#6>.index#4 template=collections.array.index#4 arguments=(float64, float64)
+/// @generic.instance id="Array<float64>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(float64, "exclusive")
 /// @generic.instance id=id<Array<float64>> template=id arguments=(Array<float64>)
 "#,
     );
@@ -172,6 +178,8 @@ take(values);
 /// @resolution.name source=take target=take
 /// @resolution.call source=take(values) parameters=(Array<float64>) arguments=(provided(values) as Array<float64>) return=void kind=symbol target=take
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'Array<1 | 2>' is not assignable to parameter of type 'Array<float64>'"
@@ -183,7 +191,7 @@ take(values);
 }
 
 #[test]
-fn test_fresh_array_materializes_as_slice_parameter() {
+fn test_array_literal_materializes_as_slice_parameter() {
     let session = TestSession::single(
         r#"
 declare function take(values: Slice<float64>): void;
@@ -199,7 +207,7 @@ take([1, 2]);
 === annotated ===
 declare function take(values: Slice<float64>): void;
 
-take([1, 2] as Slice<float64>);
+take([1, 2] as [float64]);
 
 === checked ===
 declare function take(values: Slice<float64>): void;
@@ -217,7 +225,7 @@ take([1, 2]);
 }
 
 #[test]
-fn test_fresh_array_materializes_as_fixed_array_parameter() {
+fn test_array_literal_materializes_as_fixed_array_parameter() {
     let session = TestSession::single(
         r#"
 declare function take(values: [float64; 2]): void;
@@ -248,7 +256,7 @@ take([1, 2]);
 }
 
 #[test]
-fn test_fresh_array_rejects_mismatched_fixed_array_parameter_length() {
+fn test_array_literal_rejects_mismatched_fixed_array_parameter_length() {
     let session = TestSession::single(
         r#"
 declare function take(values: [float64; 2]): void;
@@ -325,6 +333,102 @@ const value = id((1, "x"));
 }
 
 #[test]
+fn test_const_type_parameter_preserves_nested_object_literal_precision() {
+    let session = TestSession::single(
+        r#"
+declare function collect<const T>(values: T[]): T[];
+
+const values = collect([{ kind: "ready" }]);
+const kind = values[0].kind;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function collect<const T>(values: T[]): T[];
+
+const values: { readonly kind: "ready" }[] = collect<{ readonly kind: "ready" }>([
+    { kind: "ready" },
+]);
+const kind: "ready" = values[0].kind;
+
+=== checked ===
+declare function collect<const T>(values: T[]): T[];
+/// @generic.template symbol=collect parameters=(const T)
+/// @type.symbol symbol=collect source="declare function collect<const T>(values: T[]): T[]" type=<const T>(Array<T>) => Array<T>
+/// @type.symbol symbol=collect.T source="const T" type=T
+/// @type.symbol symbol=collect.values source="values: T[]" type=Array<T>
+/// @resolution.name source=T target=collect.T
+/// @resolution.name source=T target=collect.T
+
+const values = collect([{ kind: "ready" }]);
+/// @type.symbol symbol=values source=values type=Array<{ readonly kind: "ready" }>
+/// @resolution.pattern source=values kind=binding target=values
+/// @resolution.name source=collect target=collect
+/// @resolution.call source="collect([{ kind: \"ready\" }])" parameters=(Array<{ readonly kind: "ready" }>) arguments=(provided([{ kind: "ready" }]) as Array<{ readonly kind: "ready" }>) return=Array<{ readonly kind: "ready" }> kind=symbol target=collect instance="collect<{ readonly kind: \"ready\" }>"
+/// @generic.instance source="collect([{ kind: \"ready\" }])" id="collect<{ readonly kind: \"ready\" }>"
+
+const kind = values[0].kind;
+/// @type.symbol symbol=kind source=kind type="ready"
+/// @resolution.pattern source=kind kind=binding target=kind
+/// @resolution.name source=values target=values
+/// @resolution.member source=values[0].kind receiver={ readonly kind: "ready" } type="ready" kind=field target_receiver={ readonly kind: "ready" } key=kind target_type="ready"
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @resolution.place source=values[0] placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
+/// @resolution.access source=values[0].kind root=values keys=[0, kind]
+/// @generic.instance source=values[0] id="Array<{ readonly kind: \"ready\" }>.<extension#6>.index#3<\"exclusive\">"
+
+/// @generic.instance id="Array<{ readonly kind: \"ready\" }>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=({ readonly kind: "ready" }, "exclusive")
+/// @generic.instance id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
+"#,
+    );
+}
+
+#[test]
+fn test_const_type_parameter_preserves_literal_precision_through_union() {
+    let session = TestSession::single(
+        r#"
+declare function maybe<const T>(value: T | undefined): T | undefined;
+
+const value = maybe({ kind: "ready" });
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+declare function maybe<const T>(value: T | undefined): T | undefined;
+
+const value: { readonly kind: "ready" } | undefined = maybe<{ readonly kind: "ready" }>({
+    kind: "ready",
+} as { readonly kind: "ready" } | undefined);
+
+=== checked ===
+declare function maybe<const T>(value: T | undefined): T | undefined;
+/// @generic.template symbol=maybe parameters=(const T)
+/// @type.symbol symbol=maybe source="declare function maybe<const T>(value: T | undefined): T | undefined" type=<const T>(T | undefined) => T | undefined
+/// @type.symbol symbol=maybe.T source="const T" type=T
+/// @type.symbol symbol=maybe.value source="value: T | undefined" type=T | undefined
+/// @resolution.name source=T target=maybe.T
+/// @resolution.name source=T target=maybe.T
+
+const value = maybe({ kind: "ready" });
+/// @type.symbol symbol=value source=value type={ readonly kind: "ready" } | undefined
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=maybe target=maybe
+/// @resolution.call source="maybe({ kind: \"ready\" })" parameters=({ readonly kind: "ready" } | undefined) arguments=(provided({ kind: "ready" }) as { readonly kind: "ready" } | undefined) return={ readonly kind: "ready" } | undefined kind=symbol target=maybe instance="maybe<{ readonly kind: \"ready\" }>"
+/// @generic.instance source="maybe({ kind: \"ready\" })" id="maybe<{ readonly kind: \"ready\" }>"
+
+/// @generic.instance id="maybe<{ readonly kind: \"ready\" }>" template=maybe arguments=({ readonly kind: "ready" })
+"#);
+}
+
+#[test]
 fn test_const_type_parameter_preserves_object_literal_precision() {
     let session = TestSession::single(
         r#"
@@ -370,13 +474,19 @@ const kind = value.kind;
 /// @type.symbol symbol=kind source=kind type="ready"
 /// @resolution.pattern source=kind kind=binding target=kind
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.kind receiver={ readonly kind: "ready"; readonly level: 1 } kind=field key=kind
+/// @resolution.member source=value.kind receiver={ readonly kind: "ready"; readonly level: 1 } type="ready" kind=field target_receiver={ readonly kind: "ready"; readonly level: 1 } key=kind target_type="ready"
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @resolution.access source=value.kind root=value keys=[kind]
 
 const level = value.level;
 /// @type.symbol symbol=level source=level type=1
 /// @resolution.pattern source=level kind=binding target=level
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.level receiver={ readonly kind: "ready"; readonly level: 1 } kind=field key=level
+/// @resolution.member source=value.level receiver={ readonly kind: "ready"; readonly level: 1 } type=1 kind=field target_receiver={ readonly kind: "ready"; readonly level: 1 } key=level target_type=1
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @resolution.access source=value.level root=value keys=[level]
 
 /// @generic.instance id="id<{ readonly kind: \"ready\"; readonly level: 1 }>" template=id arguments=({ readonly kind: "ready"; readonly level: 1 })
 "#,
@@ -429,13 +539,19 @@ const kind = value.kind;
 /// @type.symbol symbol=kind source=kind type=string
 /// @resolution.pattern source=kind kind=binding target=kind
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.kind receiver={ kind: string; level: float64 } kind=field key=kind
+/// @resolution.member source=value.kind receiver={ kind: string; level: float64 } type=string kind=field target_receiver={ kind: string; level: float64 } key=kind target_type=string
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @resolution.access source=value.kind root=value keys=[kind]
 
 const level = value.level;
 /// @type.symbol symbol=level source=level type=float64
 /// @resolution.pattern source=level kind=binding target=level
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.level receiver={ kind: string; level: float64 } kind=field key=level
+/// @resolution.member source=value.level receiver={ kind: string; level: float64 } type=float64 kind=field target_receiver={ kind: string; level: float64 } key=level target_type=float64
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @resolution.access source=value.level root=value keys=[level]
 
 /// @generic.instance id="id<{ kind: string; level: float64 }>" template=id arguments=({ kind: string; level: float64 })
 "#,
@@ -472,6 +588,8 @@ function read<T: T | { name: string }>(value: T): string {
 
     return value.name;
     /// @resolution.name source=value target=read.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=read.value
 
 }
 "#,
@@ -527,7 +645,6 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T)
-/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T
 
@@ -560,8 +677,13 @@ class Bucket<K: Equal<K>> {
 
         this.key = key;
         /// @resolution.receiver source=this kind=this declaration=Bucket type=Bucket<K>
-        /// @resolution.pattern.assign source=this.key kind=place place=field(Bucket.key) type=K
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.key kind=place
+        /// @resolution.assignment source=this.key write="receiver=Bucket<K>, target=field(receiver=Bucket<K>, target=Bucket.key, type=K), type=K" type=K
         /// @resolution.name source=key target=Bucket.constructor.key
+        /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=key root=Bucket.constructor.key
 
     }
 
@@ -575,8 +697,12 @@ class Bucket<K: Equal<K>> {
         /// @generic.instance source="new Bucket<K>(this.key)" id=Bucket<K>
         /// @resolution.name source=Bucket target=Bucket
         /// @resolution.name source=K target=Bucket.K
-        /// @resolution.member source=this.key receiver=Bucket<K> kind=symbol target=Bucket.key
+        /// @resolution.member source=this.key receiver=Bucket<K> type=K kind=field target_receiver=Bucket<K> key=key target=Bucket.key target_type=K
         /// @resolution.receiver source=this kind=this declaration=Bucket type=Bucket<K>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.key root=this keys=[key]
 
     }
 }
@@ -638,7 +764,6 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1)
-/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -677,8 +802,13 @@ class Box<K> {
 
         this.key = key;
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<K#1>
-        /// @resolution.pattern.assign source=this.key kind=place place=field(Box.key) type=K#1
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.key kind=place
+        /// @resolution.assignment source=this.key write="receiver=Box<K#1>, target=field(receiver=Box<K#1>, target=Box.key, type=K#1), type=K#1" type=K#1
         /// @resolution.name source=key target=Box.constructor.key
+        /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=key root=Box.constructor.key
 
     }
 }
@@ -702,8 +832,12 @@ extension<K> of Box<K> where K: Equal<K> {
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
         /// @generic.instance source=probe(this.key) id=probe<K#2>
-        /// @resolution.member source=this.key receiver=Box<K#2> kind=symbol target=Box.key
+        /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.key root=this keys=[key]
 
     }
 }
@@ -761,7 +895,6 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1)
-/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -801,8 +934,13 @@ class Box<K> {
 
         this.key = key;
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<K>
-        /// @resolution.pattern.assign source=this.key kind=place place=field(Box.key) type=K
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.key kind=place
+        /// @resolution.assignment source=this.key write="receiver=Box<K>, target=field(receiver=Box<K>, target=Box.key, type=K), type=K" type=K
         /// @resolution.name source=key target=Box.constructor.key
+        /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=key root=Box.constructor.key
 
     }
 
@@ -816,8 +954,12 @@ class Box<K> {
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K) arguments=(provided(this.key) as K) return=boolean kind=symbol target=probe instance=probe<K>
         /// @generic.instance source=probe(this.key) id=probe<K>
-        /// @resolution.member source=this.key receiver=Box<K> kind=symbol target=Box.key
+        /// @resolution.member source=this.key receiver=Box<K> type=K kind=field target_receiver=Box<K> key=key target=Box.key target_type=K
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<K>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.key root=this keys=[key]
 
     }
 }
@@ -893,8 +1035,13 @@ class Box<K> {
 
         this.key = key;
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<K#1>
-        /// @resolution.pattern.assign source=this.key kind=place place=field(Box.key) type=K#1
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.key kind=place
+        /// @resolution.assignment source=this.key write="receiver=Box<K#1>, target=field(receiver=Box<K#1>, target=Box.key, type=K#1), type=K#1" type=K#1
         /// @resolution.name source=key target=Box.constructor.key
+        /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=key root=Box.constructor.key
 
     }
 }
@@ -914,8 +1061,12 @@ extension<K> of Box<K> {
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
         /// @generic.instance source=probe(this.key) id=probe<K#2>
-        /// @resolution.member source=this.key receiver=Box<K#2> kind=symbol target=Box.key
+        /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.key root=this keys=[key]
 
     }
 }
@@ -995,7 +1146,6 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1)
-/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -1034,8 +1184,13 @@ class Box<K> {
 
         this.key = key;
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<K#1>
-        /// @resolution.pattern.assign source=this.key kind=place place=field(Box.key) type=K#1
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.key kind=place
+        /// @resolution.assignment source=this.key write="receiver=Box<K#1>, target=field(receiver=Box<K#1>, target=Box.key, type=K#1), type=K#1" type=K#1
         /// @resolution.name source=key target=Box.constructor.key
+        /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=key root=Box.constructor.key
 
     }
 }
@@ -1060,8 +1215,12 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
         /// @resolution.name source=probe target=probe
         /// @resolution.call source=probe(this.key) parameters=(K#2) arguments=(provided(this.key) as K#2) return=boolean kind=symbol target=probe instance=probe<K#2>
         /// @generic.instance source=probe(this.key) id=probe<K#2>
-        /// @resolution.member source=this.key receiver=Box<K#2> kind=symbol target=Box.key
+        /// @resolution.member source=this.key receiver=Box<K#2> type=K#2 kind=field target_receiver=Box<K#2> key=key target=Box.key target_type=K#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<K#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.key root=this keys=[key]
 
     }
 }
@@ -1119,8 +1278,10 @@ function twice<T>(value: T): int32 where T: Doubling {
 
     return value.double();
     /// @resolution.name source=value target=twice.value
-    /// @resolution.member source=value.double receiver=T kind=symbol target=Doubling.double
+    /// @resolution.member source=value.double receiver=T type=(this: T) => int32 kind=symbol target_receiver=T target=Doubling.double
     /// @resolution.call source=value.double() parameters=() return=int32 kind=symbol target=Doubling.double receiver=T
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=twice.value
 
 }
 "#,
@@ -1153,7 +1314,7 @@ export extension<T> of Cell<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
 === annotated ===
 declare function todo(message: string): never;
 
@@ -1240,10 +1401,12 @@ export extension<T> of Cell<T> {
         Cell { storage: Inner.new(value) }
         /// @resolution.name source=Cell target=Cell
         /// @resolution.name source=Inner target=Inner
-        /// @resolution.member source=Inner.new receiver=Inner kind=symbol target=new#1
+        /// @resolution.member source=Inner.new receiver=Inner type=(T#2) => Inner<T#2> kind=symbol target_receiver=Inner target=new#1
         /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 receiver=Inner instance=Inner<T#4>.<extension#1>.new#1
         /// @generic.instance source=Inner.new(value) id=Inner<T#4>.<extension#1>.new#1
         /// @resolution.name source=value target=new.value#2
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=new.value#2
 
     }
 }
@@ -1252,7 +1415,131 @@ export extension<T> of Cell<T> {
 /// @generic.instance id=Inner<T#2> template=Inner arguments=(T#2)
 /// @generic.instance id=Inner<T#3> template=Inner arguments=(T#3)
 /// @generic.instance id=Inner<T#4>.<extension#1>.new#1 template=new#1 arguments=(T#4)
-"#, r#""#);
+"#);
+}
+
+#[test]
+fn test_where_equality_rejects_one_way_assignability() {
+    let session = TestSession::single(
+        r#"
+function requireEqual<T, U>(left: T, right: U): void where T == U {}
+
+declare const wider: { x: int32; y: string };
+declare const narrower: { x: int32 };
+
+requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function requireEqual<T, U>(left: T, right: U): void where T == U {}
+
+declare const wider: { x: int32; y: string };
+declare const narrower: { x: int32 };
+
+requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);
+
+=== checked ===
+function requireEqual<T, U>(left: T, right: U): void where T == U {}
+/// @generic.template symbol=requireEqual parameters=(T, U)
+/// @type.symbol symbol=requireEqual source="function requireEqual<T, U>(left: T, right: U): void where T == U {}" type=<T, U>(T, U) => void
+/// @type.symbol symbol=requireEqual.T source=T type=T
+/// @type.symbol symbol=requireEqual.U source=U type=U
+/// @type.symbol symbol=requireEqual.left source="left: T" type=T
+/// @resolution.name source=T target=requireEqual.T
+/// @type.symbol symbol=requireEqual.right source="right: U" type=U
+/// @resolution.name source=U target=requireEqual.U
+/// @resolution.name source=T target=requireEqual.T
+/// @resolution.name source=U target=requireEqual.U
+
+declare const wider: { x: int32; y: string };
+/// @type.symbol symbol=wider source=wider type={ x: int32; y: string }
+/// @resolution.pattern source=wider kind=binding target=wider
+
+declare const narrower: { x: int32 };
+/// @type.symbol symbol=narrower source=narrower type={ x: int32 }
+/// @resolution.pattern source=narrower kind=binding target=narrower
+
+requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);
+/// @resolution.name source=requireEqual target=requireEqual
+/// @resolution.call source="requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower)" parameters=({ x: int32; y: string }, { x: int32 }) arguments=(provided(wider) as { x: int32; y: string }, provided(narrower) as { x: int32 }) return=void kind=symbol target=requireEqual instance="requireEqual<{ x: int32; y: string }, { x: int32 }>"
+/// @generic.instance source="requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower)" id="requireEqual<{ x: int32; y: string }, { x: int32 }>"
+/// @resolution.name source=wider target=wider
+/// @resolution.name source=narrower target=narrower
+
+/// @generic.instance id="requireEqual<{ x: int32; y: string }, { x: int32 }>" template=requireEqual arguments=({ x: int32; y: string }, { x: int32 })
+"#,
+        r#"
+/// @diagnostic.error id=equality-requirement-not-satisfied message="equality requirement '{ x: int32; y: string } == { x: int32 }' is not satisfied"
+/// @diagnostic.label line=7 column=1 span="requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower)" line_source="requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);"
+"#,
+    );
+}
+
+#[test]
+fn test_where_equality_infers_common_type() {
+    let session = TestSession::single(
+        r#"
+function requireEqual<T, U>(left: T, right: U): void where T == U {}
+
+declare const wider: { x: int32; y: string };
+declare const narrower: { x: int32 };
+
+requireEqual(wider, narrower);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function requireEqual<T, U>(left: T, right: U): void where T == U {}
+
+declare const wider: { x: int32; y: string };
+declare const narrower: { x: int32 };
+
+requireEqual<{ x: int32 }, { x: int32 }>(wider, narrower);
+
+=== checked ===
+function requireEqual<T, U>(left: T, right: U): void where T == U {}
+/// @generic.template symbol=requireEqual parameters=(T, U)
+/// @type.symbol symbol=requireEqual source="function requireEqual<T, U>(left: T, right: U): void where T == U {}" type=<T, U>(T, U) => void
+/// @type.symbol symbol=requireEqual.T source=T type=T
+/// @type.symbol symbol=requireEqual.U source=U type=U
+/// @type.symbol symbol=requireEqual.left source="left: T" type=T
+/// @resolution.name source=T target=requireEqual.T
+/// @type.symbol symbol=requireEqual.right source="right: U" type=U
+/// @resolution.name source=U target=requireEqual.U
+/// @resolution.name source=T target=requireEqual.T
+/// @resolution.name source=U target=requireEqual.U
+
+declare const wider: { x: int32; y: string };
+/// @type.symbol symbol=wider source=wider type={ x: int32; y: string }
+/// @resolution.pattern source=wider kind=binding target=wider
+
+declare const narrower: { x: int32 };
+/// @type.symbol symbol=narrower source=narrower type={ x: int32 }
+/// @resolution.pattern source=narrower kind=binding target=narrower
+
+requireEqual(wider, narrower);
+/// @resolution.name source=requireEqual target=requireEqual
+/// @resolution.call source="requireEqual(wider, narrower)" parameters=({ x: int32 }, { x: int32 }) arguments=(provided(wider) as { x: int32 }, provided(narrower) as { x: int32 }) return=void kind=symbol target=requireEqual instance="requireEqual<{ x: int32 }, { x: int32 }>"
+/// @generic.instance source="requireEqual(wider, narrower)" id="requireEqual<{ x: int32 }, { x: int32 }>"
+/// @resolution.name source=wider target=wider
+/// @resolution.place source=wider placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=wider root=wider
+/// @resolution.name source=narrower target=narrower
+/// @resolution.place source=narrower placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=narrower root=narrower
+
+/// @generic.instance id="requireEqual<{ x: int32 }, { x: int32 }>" template=requireEqual arguments=({ x: int32 }, { x: int32 })
+"#,
+    );
 }
 
 #[test]
@@ -1269,7 +1556,7 @@ function build<T: Makeable>(): T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
 === annotated ===
 interface Makeable {
     static make(): this;
@@ -1299,11 +1586,11 @@ function build<T: Makeable>(): T {
 
     T.make()
     /// @resolution.name source=T target=build.T
-    /// @resolution.member source=T.make receiver=T kind=symbol target=Makeable.make
+    /// @resolution.member source=T.make receiver=T type=() => T kind=symbol target_receiver=T target=Makeable.make
     /// @resolution.call source=T.make() parameters=() return=T kind=symbol target=Makeable.make receiver=T
 
 }
-"#, r#""#);
+"#);
 }
 
 #[test]
@@ -1324,7 +1611,7 @@ function zero<T: Numeric>(): T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -1379,12 +1666,11 @@ function zero<T: Numeric>(): T {
 
     T.zero()
     /// @resolution.name source=T target=zero.T
-    /// @resolution.member source=T.zero receiver=T kind=symbol target=Zero.zero
-    /// @resolution.call source=T.zero() parameters=() return=T kind=symbol target=Zero.zero receiver=T
+    /// @resolution.member source=T.zero type=() => T kind=union arms=[receiver=T, target=Zero.zero, type=() => T, receiver=T, target=Zero.zero, type=() => T]
+    /// @resolution.call source=T.zero() return=T kind=union arms=[Zero.zero(parameters=(), arguments=(), return=T), Zero.zero(parameters=(), arguments=(), return=T)]
 
 }
 "#,
-        r#""#,
     );
 }
 
@@ -1421,28 +1707,28 @@ function asinh<T: Float>(x: T): T {
 import { Float } from "destack:math";
 
 declare function log<T: Float>(value: T): T;
-/// @generic.template symbol=log parameters=(T#1: math.scalar.Float)
-/// @type.symbol symbol=log source="declare function log<T: Float>(value: T): T" type=<T#1: math.scalar.Float>(T#1) => T#1
+/// @generic.template symbol=log parameters=(T#1: math.float.Float)
+/// @type.symbol symbol=log source="declare function log<T: Float>(value: T): T" type=<T#1: math.float.Float>(T#1) => T#1
 /// @type.symbol symbol=log.T source="T: Float" type=T#1
-/// @resolution.name source=Float target=math.scalar.Float
+/// @resolution.name source=Float target=math.float.Float
 /// @type.symbol symbol=log.value source="value: T" type=T#1
 /// @resolution.name source=T target=log.T
 /// @resolution.name source=T target=log.T
 
 declare function sqrt<T: Float>(value: T): T;
-/// @generic.template symbol=sqrt parameters=(T#2: math.scalar.Float)
-/// @type.symbol symbol=sqrt source="declare function sqrt<T: Float>(value: T): T" type=<T#2: math.scalar.Float>(T#2) => T#2
+/// @generic.template symbol=sqrt parameters=(T#2: math.float.Float)
+/// @type.symbol symbol=sqrt source="declare function sqrt<T: Float>(value: T): T" type=<T#2: math.float.Float>(T#2) => T#2
 /// @type.symbol symbol=sqrt.T source="T: Float" type=T#2
-/// @resolution.name source=Float target=math.scalar.Float
+/// @resolution.name source=Float target=math.float.Float
 /// @type.symbol symbol=sqrt.value source="value: T" type=T#2
 /// @resolution.name source=T target=sqrt.T
 /// @resolution.name source=T target=sqrt.T
 
 function asinh<T: Float>(x: T): T {
-/// @generic.template symbol=asinh parameters=(T#3: math.scalar.Float)
-/// @type.symbol symbol=asinh type=<T#3: math.scalar.Float>(T#3) => T#3
+/// @generic.template symbol=asinh parameters=(T#3: math.float.Float)
+/// @type.symbol symbol=asinh type=<T#3: math.float.Float>(T#3) => T#3
 /// @type.symbol symbol=asinh.T source="T: Float" type=T#3
-/// @resolution.name source=Float target=math.scalar.Float
+/// @resolution.name source=Float target=math.float.Float
 /// @type.symbol symbol=asinh.x source="x: T" type=T#3
 /// @resolution.name source=T target=asinh.T
 /// @resolution.name source=T target=asinh.T
@@ -1452,14 +1738,20 @@ function asinh<T: Float>(x: T): T {
     /// @resolution.call source="log(x + sqrt(x * x + 1))" parameters=(T#3) arguments=(provided(x + sqrt(x * x + 1)) as T#3) return=T#3 kind=symbol target=log instance=log<T#3>
     /// @generic.instance source="log(x + sqrt(x * x + 1))" id=log<T#3>
     /// @resolution.name source=x target=asinh.x
-    /// @resolution.operator source="x + sqrt(x * x + 1)" kind=builtin
+    /// @resolution.operator source="x + sqrt(x * x + 1)" type=T#3 operator="+" kind=builtin operands=[x as T#3 families=(float), sqrt(x * x + 1) as T#3 families=(float)]
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=asinh.x
     /// @resolution.name source=sqrt target=sqrt
     /// @resolution.call source="sqrt(x * x + 1)" parameters=(T#3) arguments=(provided(x * x + 1) as T#3) return=T#3 kind=symbol target=sqrt instance=sqrt<T#3>
     /// @generic.instance source="sqrt(x * x + 1)" id=sqrt<T#3>
     /// @resolution.name source=x target=asinh.x
-    /// @resolution.operator source="x * x + 1" kind=builtin
-    /// @resolution.operator source="x * x" kind=builtin
+    /// @resolution.operator source="x * x + 1" type=T#3 operator="+" kind=builtin operands=[x * x as T#3 families=(float), 1 as T#3 families=(float)]
+    /// @resolution.operator source="x * x" type=T#3 operator="*" kind=builtin operands=[x as T#3 families=(float), x as T#3 families=(float)]
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=asinh.x
     /// @resolution.name source=x target=asinh.x
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=asinh.x
 
 }
 
@@ -1495,7 +1787,7 @@ extension<T> of Box<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
 === annotated ===
 class Box<in out T> {
     value: T;
@@ -1537,8 +1829,13 @@ class Box<T> {
 
         this.value = value;
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<T#1>
-        /// @resolution.pattern.assign source=this.value kind=place place=field(Box.value) type=T#1
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value write="receiver=Box<T#1>, target=field(receiver=Box<T#1>, target=Box.value, type=T#1), type=T#1" type=T#1
         /// @resolution.name source=value target=Box.constructor.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Box.constructor.value
 
     }
 }
@@ -1564,6 +1861,8 @@ extension<T> of Box<T> {
         /// @resolution.name source=Box target=Box
         /// @resolution.name source=T target=T#1
         /// @resolution.name source=value target=make.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=make.value
 
     }
 }
@@ -1585,10 +1884,12 @@ extension<T> of Box<T> {
 
         Box.make(value)
         /// @resolution.name source=Box target=Box
-        /// @resolution.member source=Box.make receiver=Box kind=symbol target=make
+        /// @resolution.member source=Box.make receiver=Box type=(T#2) => Box<T#2> kind=symbol target_receiver=Box target=make
         /// @resolution.call source=Box.make(value) parameters=(T#3) arguments=(provided(value) as T#3) return=Box<T#3> kind=symbol target=make receiver=Box instance=Box<T#3>.<extension#1>.make
         /// @generic.instance source=Box.make(value) id=Box<T#3>.<extension#1>.make
         /// @resolution.name source=value target=wrap.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=wrap.value
 
     }
 }
@@ -1596,7 +1897,7 @@ extension<T> of Box<T> {
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 /// @generic.instance id=Box<T#3> template=Box arguments=(T#3)
 /// @generic.instance id=Box<T#3>.<extension#1>.make template=make arguments=(T#3)
-"#, r#""#);
+"#);
 }
 
 #[test]
@@ -1625,7 +1926,7 @@ extension<T> of Outer<T> {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
 === annotated ===
 struct Inner<out T> {
     value: T;
@@ -1679,6 +1980,8 @@ extension<T> of Inner<T> {
         Inner { value }
         /// @resolution.name source=Inner target=Inner
         /// @resolution.name source=value target=new.value#1
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=new.value#1
 
     }
 }
@@ -1715,10 +2018,12 @@ extension<T> of Outer<T> {
         Outer { inner: Inner.new(value) }
         /// @resolution.name source=Outer target=Outer
         /// @resolution.name source=Inner target=Inner
-        /// @resolution.member source=Inner.new receiver=Inner kind=symbol target=new#1
+        /// @resolution.member source=Inner.new receiver=Inner type=(T#2) => Inner<T#2> kind=symbol target_receiver=Inner target=new#1
         /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 receiver=Inner instance=Inner<T#4>.<extension#1>.new#1
         /// @generic.instance source=Inner.new(value) id=Inner<T#4>.<extension#1>.new#1
         /// @resolution.name source=value target=new.value#2
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=new.value#2
 
     }
 }
@@ -1727,7 +2032,7 @@ extension<T> of Outer<T> {
 /// @generic.instance id=Inner<T#3> template=Inner arguments=(T#3)
 /// @generic.instance id=Inner<T#4>.<extension#1>.new#1 template=new#1 arguments=(T#4)
 /// @generic.instance id=Outer<T#4> template=Outer arguments=(T#4)
-"#, r#""#);
+"#);
 }
 
 #[test]
@@ -1750,7 +2055,7 @@ function check<T>(a: T): T | undefined {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
 === annotated ===
 function pair<T>(a: T): (T, boolean) {
     (a, true)
@@ -1777,6 +2082,8 @@ function pair<T>(a: T): (T, boolean) {
 
     (a, true)
     /// @resolution.name source=a target=pair.a
+    /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=a root=pair.a
 
 }
 
@@ -1798,18 +2105,119 @@ function check<T>(a: T): T | undefined {
     /// @resolution.call source=pair(a) parameters=(T#2) arguments=(provided(a) as T#2) return=(T#2, boolean) kind=symbol target=pair instance=pair<T#2>
     /// @generic.instance source=pair(a) id=pair<T#2>
     /// @resolution.name source=a target=check.a
+    /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=a root=check.a
 
     if (overflow) {
     /// @resolution.name source=overflow target=check.overflow
+    /// @resolution.place source=overflow placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=overflow root=check.overflow
 
         return undefined;
     }
 
     result
     /// @resolution.name source=result target=check.result
+    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=result root=check.result
 
 }
 
 /// @generic.instance id=pair<T#2> template=pair arguments=(T#2)
-"#, r#""#);
+"#);
+}
+#[test]
+fn test_static_bound_member_infers_method_type_argument() {
+    let session = TestSession::single(
+        r#"
+interface Iterator<out T, out R = void> {}
+
+interface FromIterator<T> {
+    static fromIterator<R>(values: Iterator<T, R>): this;
+}
+
+extension<T, R, I: Iterator<T, R>> of I {
+    collect<C>(): C where C: FromIterator<T> {
+        C.fromIterator(this)
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+interface Iterator<out T, out R = void> {}
+
+interface FromIterator<in out T> {
+    static fromIterator<R>(values: Dynamic<Iterator<T, R>>): this;
+}
+
+extension<T, R, I: Iterator<T, R>> of I {
+    collect<C>(): C where C: FromIterator<T> {
+        C.fromIterator<T, R>(this as Dynamic<Iterator<T, R>>)
+    }
+}
+
+=== checked ===
+interface Iterator<out T, out R = void> {}
+/// @generic.template symbol=Iterator parameters=(out T#1, out R#1 = void)
+/// @type.symbol symbol=Iterator source="interface Iterator<out T, out R = void> {}" type=Iterator
+/// @definition.interface symbol=Iterator source="interface Iterator<out T, out R = void> {}" template=(out T#1, out R#1 = void)
+/// @type.symbol symbol=Iterator.T source="out T" type=T#1
+/// @type.symbol symbol=Iterator.R source="out R = void" type=R#1
+
+interface FromIterator<T> {
+/// @generic.template symbol=FromIterator parameters=(in out T#2)
+/// @type.symbol symbol=FromIterator type=FromIterator
+/// @definition.interface symbol=FromIterator template=(in out T#2)
+/// @definition.method symbol=FromIterator.fromIterator source="static fromIterator<R>(values: Iterator<T, R>): this" slot=fromIterator static=true type=<R#2>(Dynamic<Iterator<T#2, R#2>>) => this
+/// @type.symbol symbol=FromIterator.T source=T type=T#2
+
+    static fromIterator<R>(values: Iterator<T, R>): this;
+    /// @generic.template symbol=FromIterator.fromIterator parent=template#1 parameters=(R#2)
+    /// @type.symbol symbol=FromIterator.fromIterator source="static fromIterator<R>(values: Iterator<T, R>): this" type=<R#2>(Dynamic<Iterator<T#2, R#2>>) => this
+    /// @type.symbol symbol=FromIterator.fromIterator.R source=R type=R#2
+    /// @type.symbol symbol=FromIterator.fromIterator.values source="values: Iterator<T, R>" type=Dynamic<Iterator<T#2, R#2>>
+    /// @resolution.name source=Iterator target=Iterator
+    /// @resolution.name source=T target=FromIterator.T
+    /// @resolution.name source=R target=FromIterator.fromIterator.R
+
+}
+
+extension<T, R, I: Iterator<T, R>> of I {
+/// @generic.template symbol=<module>#2 parameters=(T#3, R#3, I: Iterator<T#3, R#3>)
+/// @definition.extension symbol=<module>#2 form=local target=I
+/// @definition.method symbol=collect slot=collect type=<C>(this: this) => C
+/// @type.symbol symbol=T source=T type=T#3
+/// @type.symbol symbol=R source=R type=R#3
+/// @type.symbol symbol=I source="I: Iterator<T, R>" type=I
+/// @resolution.name source=Iterator target=Iterator
+/// @resolution.name source=T target=T
+/// @resolution.name source=R target=R
+/// @resolution.name source=I target=I
+
+    collect<C>(): C where C: FromIterator<T> {
+    /// @generic.template symbol=collect parent=template#2 parameters=(C)
+    /// @type.symbol symbol=collect type=<C>(this: this) => C
+    /// @type.symbol symbol=collect.C source=C type=C
+    /// @resolution.name source=C target=collect.C
+    /// @resolution.name source=C target=collect.C
+    /// @resolution.name source=FromIterator target=FromIterator
+    /// @resolution.name source=T target=T
+
+        C.fromIterator(this)
+        /// @resolution.name source=C target=collect.C
+        /// @resolution.member source=C.fromIterator receiver=C type=<R#2>(Dynamic<Iterator<T#3, R#2>>) => C kind=symbol target_receiver=C target=FromIterator.fromIterator
+        /// @resolution.call source=C.fromIterator(this) parameters=(Dynamic<Iterator<T#3, R#3>>) arguments=(provided(this) as Dynamic<Iterator<T#3, R#3>>) return=C kind=symbol target=FromIterator.fromIterator receiver=C instance=FromIterator.fromIterator<R#3>
+        /// @generic.instance source=C.fromIterator(this) id=FromIterator.fromIterator<R#3>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+
+    }
+}
+
+/// @generic.instance id="Iterator<T#2, R#2>" template=Iterator arguments=(T#2, R#2)
+/// @generic.instance id=FromIterator.fromIterator<R#3> template=FromIterator.fromIterator arguments=(T#3, R#3)
+"#);
 }

@@ -9,7 +9,7 @@ export interface ComputeStreamBinding {
         effect: "deterministic",
         requires: ["host.compute.stream.read"],
     })
-    device(stream: Stream): Device;
+    device(stream: &readonly Stream): Device;
 
     /// Return the default stream for `device`.
     @binding("destack.compute.stream.default", {
@@ -17,7 +17,7 @@ export interface ComputeStreamBinding {
         effect: "external",
         requires: ["host.compute.stream.read"],
     })
-    default(device: Device): Stream;
+    default(device: &readonly Device): Stream;
 
     /// Create a new stream on `device`.
     @binding("destack.compute.stream.create", {
@@ -25,7 +25,7 @@ export interface ComputeStreamBinding {
         effect: "external",
         requires: ["host.compute.stream.create"],
     })
-    create(device: Device): Stream;
+    create(device: &readonly Device): Stream;
 
     /// Return whether all queued stream work has completed.
     @binding("destack.compute.stream.complete", {
@@ -33,7 +33,7 @@ export interface ComputeStreamBinding {
         effect: "external",
         requires: ["host.compute.stream.read"],
     })
-    isComplete(stream: Stream): boolean;
+    isComplete(stream: &readonly Stream): boolean;
 
     /// Make future work on `stream` wait for `event`.
     @binding("destack.compute.stream.wait", {
@@ -41,7 +41,7 @@ export interface ComputeStreamBinding {
         effect: "external",
         requires: ["host.compute.stream.synchronize"],
     })
-    wait(stream: Stream, event: Event): void;
+    wait(stream: &Stream, event: &readonly Event): void;
 
     /// Wait until all preceding stream work completes.
     @binding("destack.compute.stream.synchronize", {
@@ -49,5 +49,5 @@ export interface ComputeStreamBinding {
         effect: "external",
         requires: ["host.compute.stream.synchronize"],
     })
-    synchronize(stream: Stream): void;
+    synchronize(stream: &readonly Stream): void;
 }

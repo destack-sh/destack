@@ -36,6 +36,8 @@ declare const matched: Match;
 
 matched satisfies "a" | "c";
 /// @resolution.name source=matched target=matched
+/// @resolution.place source=matched placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=matched root=matched
 
 /// @generic.instance id="Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" template=types.object.Extract arguments=("a" | "b" | "c", "a" | "c")
 "#,

@@ -1,7 +1,8 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation};
+use crate::check::{Answer, CauseId, CheckState, Dependency, Origin, Relation, answer};
 
 impl CheckState<'_> {
     /// Decide exact equality of two reduced types.
@@ -67,6 +68,30 @@ impl CheckState<'_> {
                 Answer::Ready(source == target)
             }
             (dir::Type::Range(source), dir::Type::Range(target)) => Answer::Ready(source == target),
+            // unions and intersections compare as unordered type sets
+            (dir::Type::Union(source_union), dir::Type::Union(target_union)) => {
+                let source = self
+                    .type_ids(source.module_id, source_union.elements)?
+                    .to_vec();
+                let target = self
+                    .type_ids(target.module_id, target_union.elements)?
+                    .to_vec();
+
+                self.decide_type_sets_equal(origin, &source, &target)?
+            }
+            (
+                dir::Type::Intersection(source_intersection),
+                dir::Type::Intersection(target_intersection),
+            ) => {
+                let source = self
+                    .type_ids(source.module_id, source_intersection.elements)?
+                    .to_vec();
+                let target = self
+                    .type_ids(target.module_id, target_intersection.elements)?
+                    .to_vec();
+
+                self.decide_type_sets_equal(origin, &source, &target)?
+            }
             // memory forms compare constructor and payload
             (dir::Type::Form(source_form), dir::Type::Form(target_form)) => {
                 let constructor = self.decide_form_equal(
@@ -99,5 +124,115 @@ impl CheckState<'_> {
         };
 
         Ok(decision)
+    }
+
+    /// Decide equality between two unordered type sets.
+    fn decide_type_sets_equal(
+        &mut self,
+        origin: Origin,
+        source: &[dir::GlobalTypeId],
+        target: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Answer<bool>> {
+        if source.len() != target.len() {
+            return Ok(Answer::Ready(false));
+        }
+        let mut unmatched = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(target);
+
+        // consume one equal target for each source element
+        for source in source.iter().copied() {
+            let mut matched = None;
+            let mut blockers = SmallVec::<[Dependency; 2]>::new();
+            for (index, target) in unmatched.iter().copied().enumerate() {
+                match self.decide_relation(origin, Relation::Equal, source, target)? {
+                    Answer::Ready(true) => {
+                        matched = Some(index);
+
+                        break;
+                    }
+                    Answer::Ready(false) => {}
+                    Answer::Pending(dependencies) => blockers.extend(dependencies),
+                }
+            }
+            if let Some(index) = matched {
+                unmatched.remove(index);
+            } else if !blockers.is_empty() {
+                return Ok(Answer::Pending(blockers));
+            } else {
+                return Ok(Answer::Ready(false));
+            }
+        }
+
+        Ok(Answer::Ready(true))
+    }
+
+    /// Constrain equality between two unordered type sets.
+    pub(in crate::check) fn constrain_type_sets_equal(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        source: &[dir::GlobalTypeId],
+        target: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Answer<bool>> {
+        if source.len() != target.len() {
+            return Ok(Answer::Ready(false));
+        }
+        let mut source = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(source);
+        let mut target = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(target);
+
+        // remove established equal elements before constraining open elements
+        let mut source_index = 0;
+        while source_index < source.len() {
+            let source_type = source[source_index];
+            let is_source_open = !self.type_variables(source_type)?.is_empty();
+            let mut matched = None;
+            for (target_index, target_type) in target.iter().copied().enumerate() {
+                let is_target_open = !self.type_variables(target_type)?.is_empty();
+                if is_source_open || is_target_open {
+                    if self.settled_root(source_type)? == self.settled_root(target_type)? {
+                        matched = Some(target_index);
+                    }
+                } else if answer!(self.decide_relation(
+                    origin,
+                    Relation::Equal,
+                    source_type,
+                    target_type,
+                )?) {
+                    matched = Some(target_index);
+                }
+                if matched.is_some() {
+                    break;
+                }
+            }
+            if let Some(target_index) = matched {
+                source.remove(source_index);
+                target.remove(target_index);
+            } else {
+                source_index += 1;
+            }
+        }
+
+        // one residual pair gives an unambiguous equation
+        if let ([source], [target]) = (source.as_slice(), target.as_slice()) {
+            return self.constrain_type(origin, cause, Relation::Equal, *source, *target);
+        }
+        if source.is_empty() {
+            return Ok(Answer::Ready(true));
+        }
+
+        // unresolved permutations wait for independent evidence
+        let mut blockers = SmallVec::<[Dependency; 2]>::new();
+        for ty in source.into_iter().chain(target) {
+            for variable in self.type_variables(ty)? {
+                let dependency = Dependency::Variable(variable);
+                if !blockers.contains(&dependency) {
+                    blockers.push(dependency);
+                }
+            }
+        }
+        if blockers.is_empty() {
+            Ok(Answer::Ready(false))
+        } else {
+            Ok(Answer::Pending(blockers))
+        }
     }
 }

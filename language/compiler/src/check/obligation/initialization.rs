@@ -1,11 +1,11 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
     Answer, AssignedPlace, CheckState, ClassInitializationObligation, Dependency, ObligationCheck,
     ObligationFailure, Origin, Relation,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Check one class's required field initialization.
@@ -55,7 +55,9 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::FieldDefinition>> {
         let Some(dir::Definition::Class(class)) = self.definition(symbol)? else {
-            return Ok(Vec::new());
+            return Err(CompilerError::Internal {
+                message: format!("class initialization has no class definition: {symbol:?}"),
+            });
         };
 
         // collect instance fields without direct initializers,

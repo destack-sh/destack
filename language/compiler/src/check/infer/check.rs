@@ -2,9 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CandidateOutcome, CandidateVerdict, CauseId, CheckAttempt, CheckFailure,
-    CheckOutcome, Constraint, ConstructResult, Dependency, Expectation, FlowSite, PlaceUse,
-    Relation, ValueCheck, ValueUse, answer,
+    Answer, BodyState, CandidateOutcome, CandidateVerdict, CheckAttempt, CheckOutcome,
+    ConstructResult, Dependency, Expectation, FlowSite, PlaceUse, Relation, ValueCheck, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -15,7 +14,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         expectation: Expectation,
     ) -> CompilerResult<Answer<ValueCheck>> {
-        let origin = self.cause_origin(expectation.cause);
+        let origin = site.origin();
         let is_resolved = match self.reduce_type_head(origin, expectation.target)? {
             Answer::Ready(_) => true,
             Answer::Pending(blockers)
@@ -44,9 +43,10 @@ impl BodyState<'_, '_> {
         }
 
         // infer expressions without a target-directed rule
-        answer!(self.infer_node(site, PlaceUse::Read)?);
+        let source = answer!(self.infer_node(site, PlaceUse::Read, expectation.mode)?);
 
         Ok(Answer::Ready(ValueCheck {
+            source,
             outcome: CheckOutcome::Holds,
             target: expectation.target,
         }))
@@ -58,7 +58,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         expectation: Expectation,
     ) -> CompilerResult<Answer<Option<ValueCheck>>> {
-        let origin = self.cause_origin(expectation.cause);
+        let origin = site.origin();
         let Some(targets) = answer!(self.check.union_arms(origin, expectation.target)?) else {
             return Ok(Answer::Ready(None));
         };
@@ -69,24 +69,32 @@ impl BodyState<'_, '_> {
 
         // classify every member without retaining speculative state
         for target in targets {
+            let mode = self.contextual_literal_mode(target, expectation.mode)?;
             let candidate = Expectation {
                 target,
+                mode,
                 ..expectation
             };
             let verdict = answer!(self.probe_candidate(|state| {
                 let checked = answer!(state.try_check_expression(site, candidate)?);
                 let outcome = match checked {
                     CheckAttempt::Checked(check) if check.outcome == CheckOutcome::Holds => {
-                        let constraint = Constraint::value(
-                            candidate.relation,
-                            site.node,
-                            candidate.target,
+                        let source = answer!(state.flow_type_at(site, check.source)?);
+                        let value = answer!(state.expression_value(site, source)?);
+                        let conversion = answer!(state.convert_value(
+                            site,
                             candidate.cause,
+                            candidate.relation,
+                            value,
+                            candidate.target,
                             candidate.use_,
-                        );
-                        state.check.push_constraint(constraint);
+                            candidate.mode,
+                        )?);
 
-                        CandidateOutcome::Accepted(())
+                        match conversion.outcome {
+                            CheckOutcome::Holds => CandidateOutcome::Accepted(()),
+                            CheckOutcome::Fails(_) => CandidateOutcome::Rejected(()),
+                        }
                     }
                     CheckAttempt::Checked(_) | CheckAttempt::NotApplicable => {
                         CandidateOutcome::Rejected(())
@@ -125,8 +133,10 @@ impl BodyState<'_, '_> {
         };
 
         // confirm the selected member in the owning state
+        let mode = self.contextual_literal_mode(target, expectation.mode)?;
         let candidate = Expectation {
             target,
+            mode,
             ..expectation
         };
         let checked = answer!(self.try_check_expression(site, candidate)?);
@@ -136,6 +146,7 @@ impl BodyState<'_, '_> {
             });
         };
         let check = ValueCheck {
+            source: check.source,
             outcome: check.outcome,
             target: expectation.target,
         };
@@ -149,13 +160,8 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         expectation: Expectation,
     ) -> CompilerResult<Answer<CheckAttempt>> {
-        let Expectation {
-            target,
-            relation,
-            cause,
-            use_,
-        } = expectation;
-        let origin = self.cause_origin(cause);
+        let target = expectation.target;
+        let origin = site.origin();
         let node = site.node.into_typed::<dir::Expression>();
         let expression = self
             .module(node.module_id)
@@ -165,18 +171,7 @@ impl BodyState<'_, '_> {
 
         // function values deduce their parameters from a callable target
         if self.check.lambdas.contains_key(&site.node) {
-            let target = answer!(self.fresh_value_target(origin, target)?);
-            let holds = answer!(self.check_function_value(site.node, Some(target))?);
-            if !holds {
-                return Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
-                    outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                    target,
-                })));
-            }
-            let check = ValueCheck {
-                outcome: CheckOutcome::Holds,
-                target,
-            };
+            let check = answer!(self.check_function_value(site, Some(expectation))?);
 
             return Ok(Answer::Ready(CheckAttempt::Checked(check)));
         }
@@ -184,9 +179,9 @@ impl BodyState<'_, '_> {
         match expression {
             dir::Expression::ScalarLiteral(value) => {
                 let source = self.scalar_literal_type(node, value)?;
-                let source = answer!(self.materialize_fresh_value(origin, source, Some(target))?);
                 self.commit_node_type(site.node, source)?;
                 let check = ValueCheck {
+                    source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -195,9 +190,9 @@ impl BodyState<'_, '_> {
             }
             dir::Expression::TemplateExpression { value } => {
                 let source = answer!(self.template_expression_type(site, value)?);
-                let source = answer!(self.materialize_fresh_value(origin, source, Some(target))?);
                 self.commit_node_type(site.node, source)?;
                 let check = ValueCheck {
+                    source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -205,15 +200,15 @@ impl BodyState<'_, '_> {
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }
             dir::Expression::Block(block) => {
-                let check = answer!(self.check_block(site, block, target, relation, cause, use_)?);
+                let check = answer!(self.check_block(site, block, expectation)?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }
             dir::Expression::Comptime { body } => {
-                self.check_transparent_expression(site, body, target, relation, cause, use_)
+                self.check_transparent_expression(site, body, expectation)
             }
             dir::Expression::Satisfies { expression, .. } => {
-                self.check_transparent_expression(site, expression, target, relation, cause, use_)
+                self.check_transparent_expression(site, expression, expectation)
             }
             dir::Expression::If {
                 condition,
@@ -223,32 +218,21 @@ impl BodyState<'_, '_> {
             } => {
                 answer!(self.check_condition_operands(site.node.module_id, &condition)?);
 
-                self.check_if_expression(
-                    site,
-                    then_expression,
-                    else_expression,
-                    target,
-                    relation,
-                    cause,
-                    use_,
-                )
+                self.check_if_expression(site, then_expression, else_expression, expectation)
             }
             dir::Expression::Match { value, arms } => self.check_match_expression(
                 site,
                 value,
                 &arms.into_iter().collect::<SmallVec<[_; 4]>>(),
-                target,
-                relation,
-                cause,
-                use_,
+                expectation,
             ),
             expression @ (dir::Expression::ArrayExpression { .. }
             | dir::Expression::FixedArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }
             | dir::Expression::ObjectExpression { .. }) => {
                 // open expectations provide no structural guidance
-                let target_value = match self.check.reduce_type_head(origin, target)? {
-                    Answer::Ready(target) => answer!(self.check.strip_form(origin, target)?),
+                let target = match self.check.reduce_type_head(origin, target)? {
+                    Answer::Ready(target) => target,
                     Answer::Pending(blockers)
                         if blockers
                             .iter()
@@ -258,6 +242,9 @@ impl BodyState<'_, '_> {
                     }
                     Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                 };
+                let Some(target_value) = answer!(self.construction_value(origin, target)?) else {
+                    return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+                };
 
                 match expression {
                     dir::Expression::ArrayExpression { elements } => self.check_array_expression(
@@ -265,8 +252,7 @@ impl BodyState<'_, '_> {
                         &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
                         target,
                         target_value,
-                        relation,
-                        use_,
+                        expectation,
                     ),
                     dir::Expression::FixedArrayExpression { value, length } => self
                         .check_fixed_array_expression(
@@ -275,16 +261,14 @@ impl BodyState<'_, '_> {
                             length,
                             target,
                             target_value,
-                            relation,
-                            use_,
+                            expectation,
                         ),
                     dir::Expression::TupleExpression { elements } => self.check_tuple_expression(
                         site,
                         &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
                         target,
                         target_value,
-                        relation,
-                        use_,
+                        expectation,
                     ),
                     dir::Expression::ObjectExpression { properties } => self
                         .check_object_expression(
@@ -292,29 +276,30 @@ impl BodyState<'_, '_> {
                             &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
                             target,
                             target_value,
-                            relation,
-                            cause,
-                            use_,
+                            expectation,
                         ),
                     _ => Ok(Answer::Ready(CheckAttempt::NotApplicable)),
                 }
             }
             dir::Expression::StructExpression { ty, properties } => {
-                let construct_target =
-                    answer!(self.select_construct_target(site, ty, Some(target))?);
-                let construct_target = answer!(self.materialize_fresh_value(
-                    origin,
-                    construct_target,
-                    Some(target),
-                )?);
-                let field_check = answer!(self.select_property_merge(
+                let target = answer!(self.reduce_type_head(origin, target)?);
+                let contextual = answer!(self.construction_value(origin, target)?);
+                let construct_target = answer!(self.select_construct_target(site, ty, contextual)?);
+                let carrier = match (expectation.relation, contextual) {
+                    (Relation::Satisfies, _) | (_, None) => construct_target,
+                    (_, Some(_)) => {
+                        answer!(self.replace_form_value(origin, target, construct_target)?)
+                    }
+                };
+                let check = answer!(self.select_property_merge(
                     site,
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    Some(construct_target),
+                    Some(carrier),
                 )?);
 
                 Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
-                    outcome: field_check,
+                    source: check.source,
+                    outcome: check.outcome,
                     target,
                 })))
             }
@@ -324,29 +309,29 @@ impl BodyState<'_, '_> {
                 arguments,
                 ..
             } => {
-                // fresh call results materialize at owned expected forms
-                let target = answer!(self.owned_value_target(origin, target)?);
-                let selected = answer!(self.select_call(
+                let check = answer!(self.select_call(
                     site,
                     left,
                     &generic_arguments.into_iter().collect::<SmallVec<[_; 2]>>(),
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    Some(target),
+                    Some(expectation),
                 )?);
                 Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
-                    outcome: selected,
+                    source: check.source,
+                    outcome: check.outcome,
                     target,
                 })))
             }
             dir::Expression::New { ty, arguments } => {
-                answer!(self.select_construct(
+                let source = answer!(self.select_construct(
                     site,
                     ty,
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
                     ConstructResult::Direct,
-                    Some(target),
+                    Some(expectation),
                 )?);
                 let check = ValueCheck {
+                    source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -354,14 +339,15 @@ impl BodyState<'_, '_> {
                 Ok(Answer::Ready(CheckAttempt::Checked(check)))
             }
             dir::Expression::NewMaybe { ty, arguments } => {
-                answer!(self.select_construct(
+                let source = answer!(self.select_construct(
                     site,
                     ty,
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
                     ConstructResult::Fallible,
-                    Some(target),
+                    Some(expectation),
                 )?);
                 let check = ValueCheck {
+                    source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -378,16 +364,17 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         child: dir::LocalNodeId<dir::Expression>,
-        target: dir::GlobalTypeId,
-        relation: Relation,
-        cause: CauseId,
-        use_: ValueUse,
+        expectation: Expectation,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let module = site.node.module_id;
         let child_site = self.node_site(child.into_global_any(module))?;
-        let check = answer!(self.check_node_expected(child_site, target, relation, cause, use_)?);
-        let child_type = answer!(self.node_type_at(child_site)?);
-        self.commit_node_type(site.node, child_type)?;
+        let check = answer!(self.check_node(child_site, expectation)?);
+        self.commit_node_type(site.node, check.source)?;
+        let check = ValueCheck {
+            source: check.source,
+            outcome: check.outcome,
+            target: check.target,
+        };
 
         Ok(Answer::Ready(CheckAttempt::Checked(check)))
     }

@@ -17,7 +17,7 @@ const ok = value instanceof User;
         r#"
 === annotated ===
 class User {}
-declare const value: unknown;
+declare const value: Dynamic<unknown>;
 
 const ok: boolean = value instanceof User;
 
@@ -27,16 +27,18 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare const value: unknown;
-/// @type.symbol symbol=value source=value type=unknown
+/// @type.symbol symbol=value source=value type=Dynamic<unknown>
 /// @resolution.pattern source=value kind=binding target=value
 
 const ok = value instanceof User;
 /// @type.symbol symbol=ok source=ok type=boolean
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @type.node source="value instanceof User" type=boolean
-/// @type.node source=value type=unknown
+/// @type.node source=value type=Dynamic<unknown>
 /// @resolution.name source=value target=value
-/// @resolution.guard source="value instanceof User" kind=instanceof value=unknown target=User target_type=User predicate="unknown is subtype(User)" narrowed=User
+/// @resolution.guard source="value instanceof User" kind=instanceof value=Dynamic<unknown> target=User target_type=User predicate="dynamic.type(reflect.type.Type<unknown>) is subtype(User)" narrowed=User projection=dynamic.payload(User)
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
 "#,
@@ -114,6 +116,8 @@ if (value instanceof User) {
 /// @type.node source=value type=User | Team
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value instanceof User" kind=instanceof value=User | Team target=User target_type=User predicate="User | Team is subtype(User)" narrowed=User
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
 
@@ -122,7 +126,11 @@ if (value instanceof User) {
     /// @type.node source=value type=User
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
-    /// @resolution.member source=value.name receiver=User kind=symbol target=User.name
+    /// @resolution.member source=value.name receiver=User type=string kind=field target_receiver=User key=name target=User.name target_type=string
+    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value root=value
+    /// @resolution.place source=value.name placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value.name root=value keys=[name]
 
 }
 "#,
@@ -202,6 +210,8 @@ if (value instanceof User) {
 /// @type.node source=value type=User | Team
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value instanceof User" kind=instanceof value=User | Team target=User target_type=User predicate="User | Team is subtype(User)" narrowed=User
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
 
@@ -211,7 +221,11 @@ if (value instanceof User) {
     /// @type.node source=value type=Team
     /// @type.node source=value.title type=string
     /// @resolution.name source=value target=value
-    /// @resolution.member source=value.title receiver=Team kind=symbol target=Team.title
+    /// @resolution.member source=value.title receiver=Team type=string kind=field target_receiver=Team key=title target=Team.title target_type=string
+    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value root=value
+    /// @resolution.place source=value.title placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value.title root=value keys=[title]
 
 }
 "#,
@@ -241,7 +255,7 @@ interface Named {
     name: string;
 }
 
-declare const value: unknown;
+declare const value: Dynamic<unknown>;
 
 const ok = value instanceof Named;
 
@@ -257,15 +271,17 @@ interface Named {
 }
 
 declare const value: unknown;
-/// @type.symbol symbol=value source=value type=unknown
+/// @type.symbol symbol=value source=value type=Dynamic<unknown>
 /// @resolution.pattern source=value kind=binding target=value
 
 const ok = value instanceof Named;
 /// @type.symbol symbol=ok source=ok type=<error>
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @type.node source="value instanceof Named" type=<error>
-/// @type.node source=value type=unknown
+/// @type.node source=value type=Dynamic<unknown>
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 /// @type.node source=Named type=Named
 /// @resolution.name source=Named target=Named
 "#,
@@ -312,7 +328,9 @@ const ok = value instanceof User;
 /// @type.node source="value instanceof User" type=boolean
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
-/// @resolution.guard source="value instanceof User" kind=instanceof value=string target=User target_type=User predicate="string is subtype(User)" narrowed=User
+/// @resolution.guard source="value instanceof User" kind=instanceof value=string target=User target_type=User predicate="string is subtype(User)" narrowed=never
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
 "#,
@@ -380,7 +398,9 @@ function adopt<T>(value: T): void {
     /// @type.node source="value instanceof Deferred" type=boolean
     /// @type.node source=value type=T#2
     /// @resolution.name source=value target=adopt.value
-    /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 target=Deferred target_type=Deferred<*> predicate="T#2 is subtype(Deferred<*>)" narrowed=Deferred<*>
+    /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 target=Deferred target_type=Deferred<*> predicate="T#2 is subtype(Deferred<*>)" narrowed=T#2 & Deferred<*>
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=adopt.value
     /// @type.node source=Deferred type=Deferred
     /// @resolution.name source=Deferred target=Deferred
 
@@ -389,8 +409,10 @@ function adopt<T>(value: T): void {
         /// @type.node source=value type=T#2 & Deferred<*>
         /// @type.node source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void
         /// @resolution.name source=value target=adopt.value
-        /// @resolution.member source=value.then receiver=T#2 & Deferred<*> kind=symbol target=Deferred.then
+        /// @resolution.member source=value.then receiver=T#2 & Deferred<*> type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void kind=symbol target_receiver=T#2 & Deferred<*> target=Deferred.then
         /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=T#2 & Deferred<*> instance=Deferred<*>.then
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=adopt.value
         /// @generic.instance source="value.then((value) => {})" id=Deferred<*>.then
         /// @generic.instance source=value id=Deferred<*>
         /// @generic.instance source=value.then id=Deferred<*>
@@ -408,7 +430,7 @@ function adopt<T>(value: T): void {
 }
 
 #[test]
-fn test_instanceof_narrows_generic_union_arm() {
+fn test_instanceof_rejects_inferred_callback_for_overlapping_generic_arms() {
     let session = TestSession::single(
         r#"
 class Deferred<T> {
@@ -423,7 +445,7 @@ function adopt<T>(value: T | Deferred<T>): void {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -466,24 +488,129 @@ function adopt<T>(value: T | Deferred<T>): void {
     /// @type.node source="value instanceof Deferred" type=boolean
     /// @type.node source=value type=T#2 | Deferred<T#2>
     /// @resolution.name source=value target=adopt.value
-    /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 | Deferred<T#2> target=Deferred target_type=Deferred<*> predicate="T#2 | Deferred<T#2> is subtype(Deferred<*>)" narrowed=Deferred<*>
+    /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 | Deferred<T#2> target=Deferred target_type=Deferred<*> predicate="T#2 | Deferred<T#2> is subtype(Deferred<*>)" narrowed=T#2 & Deferred<*> | Deferred<T#2>
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=adopt.value
     /// @generic.instance source=value id=Deferred<T#2>
     /// @type.node source=Deferred type=Deferred
     /// @resolution.name source=Deferred target=Deferred
 
         value.then((value) => {});
-        /// @type.node source="value.then((value) => {})" type=void
-        /// @type.node source=value type=T#2 & Deferred<*>
-        /// @type.node source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void
+        /// @type.node source="value.then((value) => {})" type=<error>
+        /// @type.node source=value type=T#2 & Deferred<*> | Deferred<T#2>
+        /// @type.node source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void | (this: Deferred<T#2>, Function<(T#2,), void>) => void
         /// @resolution.name source=value target=adopt.value
-        /// @resolution.member source=value.then receiver=T#2 & Deferred<*> kind=symbol target=Deferred.then
-        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=T#2 & Deferred<*> instance=Deferred<*>.then
-        /// @generic.instance source="value.then((value) => {})" id=Deferred<*>.then
+        /// @resolution.member source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void | (this: Deferred<T#2>, Function<(T#2,), void>) => void kind=union arms=[receiver=T#2 & Deferred<*>, target=Deferred.then, type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void, receiver=Deferred<T#2>, target=Deferred.then, type=(this: Deferred<T#2>, Function<(T#2,), void>) => void]
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=adopt.value
         /// @generic.instance source=value id=Deferred<*>
+        /// @generic.instance source=value id=Deferred<T#2>
         /// @generic.instance source=value.then id=Deferred<*>
-        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(*,), void>
-        /// @type.node source="(value) => {}" type=Function<(*,), void>
-        /// @type.symbol symbol=adopt.symbol10.value source=value type=*
+        /// @generic.instance source=value.then id=Deferred<T#2>
+        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(<error>,), void>
+        /// @type.node source="(value) => {}" type=Function<(<error>,), void>
+        /// @type.symbol symbol=adopt.symbol10.value source=value type=<error>
+
+    }
+}
+
+/// @generic.instance id=Deferred<*> template=Deferred arguments=(*)
+/// @generic.instance id=Deferred<T#2> template=Deferred arguments=(T#2)
+"#,
+        r#"
+/// @diagnostic.error id=no-matching-call message="no overload matches arguments ('(_) => _')"
+/// @diagnostic.label line=8 column=9 span="value.then((value) => {})" line_source="value.then((value) => {});"
+/// @diagnostic.note message="the candidate '((T) => void) => void' rejects argument 0: '(*) => void' is not assignable to '(T) => void'"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=8 column=21 span="value" line_source="value.then((value) => {});"
+/// @diagnostic.help message="annotate the type explicitly"
+"#,
+    );
+}
+
+#[test]
+fn test_instanceof_accepts_parameterless_callback_for_overlapping_generic_arms() {
+    let session = TestSession::single(
+        r#"
+class Deferred<T> {
+    then(callback: (value: T) => void): void {}
+}
+
+function adopt<T>(value: T | Deferred<T>): void {
+    if (value instanceof Deferred) {
+        value.then(() => {});
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class Deferred<out T> {
+    then(callback: (arg0: T) => void): void {}
+}
+
+function adopt<T>(value: T | Deferred<T>): void {
+    if (value instanceof Deferred) {
+        value.then((): void => {});
+    }
+}
+
+=== checked ===
+class Deferred<T> {
+/// @generic.template symbol=Deferred parameters=(out T#1)
+/// @type.symbol symbol=Deferred type=Deferred
+/// @definition.class symbol=Deferred template=(out T#1)
+/// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=(this: this, Function<(T#1,), void>) => void
+/// @type.symbol symbol=Deferred.T source=T type=T#1
+
+    then(callback: (value: T) => void): void {}
+    /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=(this: this, Function<(T#1,), void>) => void
+    /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
+    /// @resolution.name source=T target=Deferred.T
+
+}
+
+function adopt<T>(value: T | Deferred<T>): void {
+/// @generic.template symbol=adopt parameters=(T#2)
+/// @type.symbol symbol=adopt type=<T#2>(T#2 | Deferred<T#2>) => void
+/// @type.symbol symbol=adopt.T source=T type=T#2
+/// @type.symbol symbol=adopt.value source="value: T | Deferred<T>" type=T#2 | Deferred<T#2>
+/// @resolution.name source=T target=adopt.T
+/// @resolution.name source=Deferred target=Deferred
+/// @resolution.name source=T target=adopt.T
+
+    if (value instanceof Deferred) {
+    /// @type.node source="value instanceof Deferred" type=boolean
+    /// @type.node source=value type=T#2 | Deferred<T#2>
+    /// @resolution.name source=value target=adopt.value
+    /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 | Deferred<T#2> target=Deferred target_type=Deferred<*> predicate="T#2 | Deferred<T#2> is subtype(Deferred<*>)" narrowed=T#2 & Deferred<*> | Deferred<T#2>
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=adopt.value
+    /// @generic.instance source=value id=Deferred<T#2>
+    /// @type.node source=Deferred type=Deferred
+    /// @resolution.name source=Deferred target=Deferred
+
+        value.then(() => {});
+        /// @type.node source="value.then(() => {})" type=void
+        /// @type.node source=value type=T#2 & Deferred<*> | Deferred<T#2>
+        /// @type.node source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void | (this: Deferred<T#2>, Function<(T#2,), void>) => void
+        /// @resolution.name source=value target=adopt.value
+        /// @resolution.member source=value.then type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void | (this: Deferred<T#2>, Function<(T#2,), void>) => void kind=union arms=[receiver=T#2 & Deferred<*>, target=Deferred.then, type=(this: T#2 & Deferred<*>, Function<(*,), void>) => void, receiver=Deferred<T#2>, target=Deferred.then, type=(this: Deferred<T#2>, Function<(T#2,), void>) => void]
+        /// @resolution.call source="value.then(() => {})" return=void kind=union arms=[Deferred.then(parameters=(Function<(*,), void>), arguments=(provided(() => {}) as Function<(*,), void>), return=void), Deferred.then(parameters=(Function<(T#2,), void>), arguments=(provided(() => {}) as Function<(T#2,), void>), return=void)]
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=adopt.value
+        /// @generic.instance source="value.then(() => {})" id=Deferred<*>.then
+        /// @generic.instance source="value.then(() => {})" id=Deferred<T#2>.then
+        /// @generic.instance source=value id=Deferred<*>
+        /// @generic.instance source=value id=Deferred<T#2>
+        /// @generic.instance source=value.then id=Deferred<*>
+        /// @generic.instance source=value.then id=Deferred<T#2>
+        /// @type.symbol symbol=adopt.symbol10 source="() => {}" type=Function<(), void>
+        /// @type.node source="() => {}" type=Function<(), void>
 
     }
 }
@@ -491,6 +618,7 @@ function adopt<T>(value: T | Deferred<T>): void {
 /// @generic.instance id=Deferred<*> template=Deferred arguments=(*)
 /// @generic.instance id=Deferred<*>.then template=Deferred.then arguments=(*)
 /// @generic.instance id=Deferred<T#2> template=Deferred arguments=(T#2)
+/// @generic.instance id=Deferred<T#2>.then template=Deferred.then arguments=(T#2)
 "#,
     );
 }

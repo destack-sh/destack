@@ -15,6 +15,7 @@ fn test_resolve_stats_dedupe_repeated_global_references() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"]
     }

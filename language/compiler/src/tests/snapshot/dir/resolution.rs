@@ -1,3 +1,5 @@
+use std::slice;
+
 use destack_dir as dir;
 
 use super::{DirSnapshotBuilder, SnapshotTable};
@@ -21,6 +23,10 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_receiver_resolution_row(builder, node_id, *resolution);
         }
 
+        for (node_id, resolution) in self.access_entries() {
+            add_access_resolution_row(builder, node_id, resolution);
+        }
+
         for (node_id, resolution) in self.member_entries() {
             add_member_resolution_row(builder, node_id, resolution);
         }
@@ -33,8 +39,16 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_call_resolution_row(builder, node_id, resolution);
         }
 
+        for (node_id, resolution) in self.subscript_entries() {
+            add_subscript_resolution_row(builder, node_id, resolution);
+        }
+
         for (node_id, resolution) in self.place_entries() {
             add_place_resolution_row(builder, node_id, resolution);
+        }
+
+        for (node_id, resolution) in self.assignment_entries() {
+            add_assignment_resolution_row(builder, node_id, resolution);
         }
 
         for (node_id, resolution) in self.guard_entries() {
@@ -57,10 +71,13 @@ impl SnapshotTable for dir::ResolutionSegment {
         let instantiation_count = self.instantiation_entries().count();
         let label_count = self.label_entries().count();
         let receiver_count = self.receiver_entries().count();
+        let access_count = self.access_entries().count();
         let member_count = self.member_entries().count();
         let operator_count = self.operator_entries().count();
         let call_count = self.call_entries().count();
+        let subscript_count = self.subscript_entries().count();
         let place_count = self.place_entries().count();
+        let assignment_count = self.assignment_entries().count();
         let guard_count = self.guard_entries().count();
         let construct_count = self.construct_entries().count();
         let pattern_count = self.pattern_entries().count();
@@ -69,10 +86,13 @@ impl SnapshotTable for dir::ResolutionSegment {
             && instantiation_count == 0
             && label_count == 0
             && receiver_count == 0
+            && access_count == 0
             && member_count == 0
             && operator_count == 0
             && call_count == 0
+            && subscript_count == 0
             && place_count == 0
+            && assignment_count == 0
             && guard_count == 0
             && construct_count == 0
             && pattern_count == 0
@@ -86,9 +106,11 @@ impl SnapshotTable for dir::ResolutionSegment {
             .count_field("instantiations", instantiation_count)
             .count_field("labels", label_count)
             .count_field("receivers", receiver_count)
+            .count_field("accesses", access_count)
             .count_field("members", member_count)
             .count_field("operators", operator_count)
             .count_field("calls", call_count)
+            .count_field("subscripts", subscript_count)
             .count_field("places", place_count)
             .count_field("guards", guard_count)
             .count_field("constructs", construct_count)
@@ -105,36 +127,142 @@ fn add_operator_resolution_row(
     resolution: &dir::OperatorResolution,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "operator")
-        .optional_field("source", builder.node_source(node_id));
+        .optional_field("source", builder.node_source(node_id))
+        .type_field("type", builder.global_type_label(resolution.ty()));
     let row = match resolution {
-        dir::OperatorResolution::Builtin => row.field("kind", "builtin"),
-        dir::OperatorResolution::Call(call) => {
-            let row = add_call_resolution_fields(builder, row.field("kind", "call"), call);
-
-            match &call.target {
-                dir::CallTarget::Expression { generic_arguments } => {
-                    row.field("target", "expression").optional_field(
-                        "generic_arguments",
-                        builder.generic_arguments_label(generic_arguments),
-                    )
+        dir::OperationResolution::One(dir::OperatorApplication::Unary {
+            operator, target, ..
+        }) => {
+            let row = row.verbatim_field("operator", format!("{:?}", operator.text()));
+            match target {
+                dir::OperatorTarget::Builtin(operand) => {
+                    add_builtin_operator_fields(builder, row, slice::from_ref(operand))
                 }
-                dir::CallTarget::Symbol(candidate) => {
-                    add_call_candidate_fields(builder, row, candidate)
-                }
-                dir::CallTarget::Universal(candidates) => row.list_field(
-                    "targets",
-                    candidates
-                        .iter()
-                        .map(|candidate| builder.call_candidate_label(candidate)),
-                ),
+                dir::OperatorTarget::Call(call) => add_operator_call_fields(builder, row, call),
             }
         }
+        dir::OperationResolution::One(dir::OperatorApplication::Binary {
+            operator,
+            target,
+            ..
+        }) => {
+            let row = row.verbatim_field("operator", format!("{:?}", operator.text()));
+            match target {
+                dir::OperatorTarget::Builtin(operands) => {
+                    add_builtin_operator_fields(builder, row, operands)
+                }
+                dir::OperatorTarget::Call(call) => add_operator_call_fields(builder, row, call),
+            }
+        }
+        dir::OperationResolution::Union { arms, .. } => row.field("kind", "union").list_field(
+            "arms",
+            arms.iter()
+                .map(|application| operator_application_label(builder, application)),
+        ),
     };
 
     builder.push(row);
-    if let dir::OperatorResolution::Call(call) = resolution {
-        add_call_target_generic_instances(builder, node_id, &call.target);
+    add_operator_resolution_generic_instances(builder, node_id, resolution);
+}
+
+/// Return one singular operator application snapshot label.
+fn operator_application_label(
+    builder: &DirSnapshotBuilder<'_>,
+    application: &dir::OperatorApplication,
+) -> String {
+    match application {
+        dir::OperatorApplication::Unary {
+            operator,
+            target,
+            ty,
+        } => {
+            let target = match target {
+                dir::OperatorTarget::Builtin(operand) => {
+                    format!("builtin({})", builtin_operand_label(builder, operand))
+                }
+                dir::OperatorTarget::Call(call) => call_label(builder, call),
+            };
+
+            format!(
+                "{} {target} -> {}",
+                operator.text(),
+                builder.global_type_label(*ty)
+            )
+        }
+        dir::OperatorApplication::Binary {
+            operator,
+            target,
+            ty,
+        } => {
+            let target = match target {
+                dir::OperatorTarget::Builtin(operands) => format!(
+                    "builtin({})",
+                    operands
+                        .iter()
+                        .map(|operand| builtin_operand_label(builder, operand))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+                dir::OperatorTarget::Call(call) => call_label(builder, call),
+            };
+
+            format!(
+                "{} {target} -> {}",
+                operator.text(),
+                builder.global_type_label(*ty)
+            )
+        }
     }
+}
+
+/// Add checked builtin operator fields.
+fn add_builtin_operator_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    operands: &[dir::BuiltinOperand],
+) -> SnapshotRow {
+    row.field("kind", "builtin").list_field(
+        "operands",
+        operands
+            .iter()
+            .map(|operand| builtin_operand_label(builder, operand)),
+    )
+}
+
+/// Add one protocol operator call.
+fn add_operator_call_fields(
+    builder: &mut DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    call: &dir::Call,
+) -> SnapshotRow {
+    let row = add_call_fields(builder, row.field("kind", "call"), call);
+
+    add_call_target_fields(builder, row, &call.target)
+}
+
+/// Render one checked builtin operand.
+fn builtin_operand_label(
+    builder: &DirSnapshotBuilder<'_>,
+    operand: &dir::BuiltinOperand,
+) -> String {
+    let source = builder
+        .node_source(operand.source)
+        .unwrap_or_else(|| builder.node_label(operand.source));
+    let ty = builder.global_type_label(operand.ty);
+    let Some(families) = &operand.scalar_families else {
+        return format!("{source} as {ty}");
+    };
+
+    let families = families
+        .iter()
+        .map(|family| match family {
+            dir::ScalarFamily::Domain(domain) => format!("{domain:?}").to_lowercase(),
+            dir::ScalarFamily::Enum(symbol) => builder.symbol_path_label(*symbol),
+        })
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    format!("{source} as {ty} families=({families})")
 }
 
 /// Add one name resolution row.
@@ -227,6 +355,35 @@ fn add_receiver_resolution_row(
     builder.push(row);
 }
 
+/// Add one repeatable access resolution row.
+fn add_access_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::AccessResolution,
+) {
+    let path = resolution.path();
+    let root = match path.root() {
+        dir::AccessRoot::Symbol(symbol) => builder.symbol_path_label(symbol),
+        dir::AccessRoot::Receiver(receiver) => receiver_kind_label(receiver).to_string(),
+    };
+    let keys = (!path.keys().is_empty()).then(|| {
+        let keys = path
+            .keys()
+            .iter()
+            .map(|key| builder.static_key(*key))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        format!("[{keys}]")
+    });
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "access")
+        .optional_field("source", builder.node_source(node_id))
+        .field("root", root)
+        .optional_field("keys", keys);
+
+    builder.push(row);
+}
+
 /// Add one member resolution row.
 fn add_member_resolution_row(
     builder: &mut DirSnapshotBuilder<'_>,
@@ -234,43 +391,94 @@ fn add_member_resolution_row(
     resolution: &dir::MemberResolution,
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "member")
-        .optional_field("source", builder.node_source(node_id))
-        .type_field("receiver", builder.global_type_label(resolution.receiver));
+        .optional_field("source", builder.node_source(node_id));
 
-    let row = match &resolution.target {
-        dir::MemberTarget::Field(key) => row
-            .field("kind", "field")
-            .field("key", builder.static_key(*key)),
-        dir::MemberTarget::Element(index) => row
-            .field("kind", "element")
-            .field("index", index.to_string()),
-        dir::MemberTarget::Index(key) => row
-            .field("kind", "index")
-            .type_field("key", builder.global_type_label(*key)),
-        dir::MemberTarget::Symbol(candidate) => row
-            .field("kind", "symbol")
-            .field("target", builder.member_candidate_label(candidate))
-            .optional_field("adjustments", adjustments_label(&candidate.adjustments))
-            .optional_field(
-                "instance",
-                generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
+    let row = match resolution {
+        dir::OperationResolution::One(access) => {
+            let row = row
+                .type_field("receiver", builder.global_type_label(access.receiver))
+                .type_field("type", builder.global_type_label(access.ty));
+
+            add_member_access_fields(builder, row, access)
+        }
+        dir::OperationResolution::Union { arms, ty } => row
+            .type_field("type", builder.global_type_label(*ty))
+            .field("kind", "union")
+            .list_field(
+                "arms",
+                arms.iter()
+                    .map(|access| member_access_label(builder, access)),
             ),
+    };
+
+    builder.push(row);
+    add_member_resolution_generic_instances(builder, node_id, resolution);
+}
+
+/// Add fields for one singular member access.
+fn add_member_access_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    access: &dir::MemberAccess,
+) -> SnapshotRow {
+    match &access.target {
+        dir::MemberTarget::Projection { projection, .. } => row
+            .field("kind", "projection")
+            .field("target", projection_label(builder, projection)),
+        dir::MemberTarget::Field(field) => {
+            let row =
+                add_member_receiver_fields(builder, row.field("kind", "field"), &field.receiver);
+            let target = match field.target {
+                dir::FieldTarget::Structural { .. } => None,
+                dir::FieldTarget::Member { symbol, .. } => Some(builder.symbol_path_label(symbol)),
+            };
+
+            row.field("key", builder.static_key(field.target.key()))
+                .optional_field("target", target)
+                .type_field("target_type", builder.global_type_label(field.ty))
+        }
+        dir::MemberTarget::Call(call) => row
+            .field("kind", "call")
+            .field("target", call_label(builder, call)),
+        dir::MemberTarget::Index(index) => {
+            let row =
+                add_member_receiver_fields(builder, row.field("kind", "index"), &index.receiver)
+                    .type_field("key", builder.global_type_label(index.key_type));
+            match &index.target {
+                dir::IndexTarget::Signature(position) => {
+                    row.field("target", format!("signature({position})"))
+                }
+                dir::IndexTarget::Fields(keys) => {
+                    row.list_field("target", keys.iter().map(|key| builder.static_key(*key)))
+                }
+            }
+        }
+        dir::MemberTarget::Symbol(candidate) => {
+            let row = add_member_receiver_fields(
+                builder,
+                row.field("kind", "symbol"),
+                &candidate.receiver,
+            );
+
+            row.field("target", builder.member_candidate_label(candidate))
+                .optional_field(
+                    "instance",
+                    generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
+                )
+        }
         dir::MemberTarget::Existential(candidates) => row.field("kind", "existential").list_field(
             "targets",
             candidates
                 .iter()
-                .map(|candidate| builder.member_candidate_label(candidate)),
+                .map(|target| member_target_label(builder, target)),
         ),
-        dir::MemberTarget::Universal(candidates) => row.field("kind", "universal").list_field(
+        dir::MemberTarget::Intersection(targets) => row.field("kind", "intersection").list_field(
             "targets",
-            candidates
+            targets
                 .iter()
-                .map(|candidate| builder.member_candidate_label(candidate)),
+                .map(|target| member_target_label(builder, target)),
         ),
-    };
-
-    builder.push(row);
-    add_member_target_generic_instances(builder, node_id, &resolution.target);
+    }
 }
 
 /// Add one call resolution row.
@@ -282,27 +490,37 @@ fn add_call_resolution_row(
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "call")
         .optional_field("source", builder.node_source(node_id));
     let row = add_call_resolution_fields(builder, row, resolution);
+    let row = match resolution {
+        dir::OperationResolution::One(call) => add_call_target_fields(builder, row, &call.target),
+        dir::OperationResolution::Union { arms, .. } => row
+            .field("kind", "union")
+            .list_field("arms", arms.iter().map(|call| call_label(builder, call))),
+    };
 
-    let row = match &resolution.target {
-        dir::CallTarget::Expression { generic_arguments } => {
-            row.field("kind", "expression").optional_field(
-                "generic_arguments",
-                builder.generic_arguments_label(generic_arguments),
-            )
-        }
-        dir::CallTarget::Symbol(candidate) => {
-            add_call_candidate_fields(builder, row.field("kind", "symbol"), candidate)
-        }
-        dir::CallTarget::Universal(candidates) => row.field("kind", "universal").list_field(
-            "targets",
-            candidates
-                .iter()
-                .map(|candidate| builder.call_candidate_label(candidate)),
+    builder.push(row);
+    add_call_resolution_generic_instances(builder, node_id, resolution);
+}
+
+/// Add one subscript resolution row.
+fn add_subscript_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::SubscriptResolution,
+) {
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "subscript")
+        .optional_field("source", builder.node_source(node_id))
+        .type_field("type", builder.global_type_label(resolution.ty()));
+    let row = match resolution {
+        dir::OperationResolution::One(subscript) => add_subscript_fields(builder, row, subscript),
+        dir::OperationResolution::Union { arms, .. } => row.field("kind", "union").list_field(
+            "arms",
+            arms.iter()
+                .map(|subscript| subscript_label(builder, subscript)),
         ),
     };
 
     builder.push(row);
-    add_call_target_generic_instances(builder, node_id, &resolution.target);
+    add_subscript_resolution_generic_instances(builder, node_id, resolution);
 }
 
 /// Add fields shared by call and operator resolutions.
@@ -311,18 +529,79 @@ fn add_call_resolution_fields(
     row: SnapshotRow,
     resolution: &dir::CallResolution,
 ) -> SnapshotRow {
+    match resolution {
+        dir::OperationResolution::One(call) => add_call_fields(builder, row, call),
+        dir::OperationResolution::Union { ty, .. } => {
+            row.type_field("return", builder.global_type_label(*ty))
+        }
+    }
+}
+
+/// Add fields for one singular call.
+fn add_call_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    call: &dir::Call,
+) -> SnapshotRow {
     row.type_tuple_field(
         "parameters",
-        resolution
-            .arguments
+        call.arguments
             .iter()
             .map(|argument| builder.global_type_label(argument.ty)),
     )
     .optional_field(
         "arguments",
-        builder.argument_bindings_label(&resolution.arguments),
+        builder.argument_bindings_label(&call.arguments),
     )
-    .type_field("return", builder.global_type_label(resolution.return_type))
+    .type_field("return", builder.global_type_label(call.return_type))
+}
+
+/// Add fields for one selected call target.
+fn add_call_target_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    target: &dir::CallTarget,
+) -> SnapshotRow {
+    match target {
+        dir::CallTarget::Expression { generic_arguments } => row
+            .field("kind", "expression")
+            .field("target", "expression")
+            .optional_field(
+                "generic_arguments",
+                builder.generic_arguments_label(generic_arguments),
+            ),
+        dir::CallTarget::Symbol { function, dispatch } => {
+            let row = add_function_target_fields(builder, row.field("kind", "symbol"), function);
+            let dispatch = match dispatch {
+                dir::FunctionDispatch::Direct => None,
+                dir::FunctionDispatch::Virtual { class } => {
+                    Some(format!("virtual({})", builder.global_type_label(*class)))
+                }
+            };
+
+            row.optional_field("dispatch", dispatch)
+        }
+        dir::CallTarget::Dynamic {
+            dispatch,
+            function,
+            generic_arguments,
+        } => row
+            .field("kind", "dynamic")
+            .field("target", dynamic_function_label(builder, function))
+            .type_field(
+                "receiver",
+                builder.global_type_label(dispatch.receiver.source),
+            )
+            .type_field("constraint", builder.global_type_label(dispatch.constraint))
+            .optional_field(
+                "adjustments",
+                receiver_adjustments_label(builder, &dispatch.receiver.adjustments),
+            )
+            .optional_field(
+                "generic_arguments",
+                builder.generic_arguments_label(generic_arguments),
+            ),
+    }
 }
 
 /// Add one place resolution row.
@@ -333,8 +612,30 @@ fn add_place_resolution_row(
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "place")
         .optional_field("source", builder.node_source(node_id))
-        .field("place", storage_label(builder, &resolution.storage))
-        .type_field("type", builder.global_type_label(resolution.ty));
+        .type_field("placement", builder.global_type_label(resolution.placement))
+        .type_field("lifetime", builder.global_type_label(resolution.lifetime))
+        .type_field("access", builder.global_type_label(resolution.access));
+
+    builder.push(row);
+}
+
+/// Add one assignment resolution row.
+fn add_assignment_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::AssignmentResolution,
+) {
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "assignment")
+        .optional_field("source", builder.node_source(node_id))
+        .optional_field(
+            "read",
+            resolution
+                .read
+                .as_ref()
+                .map(|read| read_resolution_label(builder, read)),
+        )
+        .field("write", write_resolution_label(builder, &resolution.write))
+        .type_field("type", builder.global_type_label(resolution.write.ty()));
 
     builder.push(row);
 }
@@ -415,29 +716,25 @@ fn add_predicate_fields(
 /// Return one projection snapshot label.
 fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projection) -> String {
     match projection {
-        dir::Projection::FieldGet { field, ty } => format!(
-            "field.get({}, {})",
-            projection_field_label(builder, field),
-            builder.global_type_label(*ty)
-        ),
-        dir::Projection::PropertyGet { read, ty } => format!(
-            "property.get({}, {})",
-            getter_label(builder, read),
-            builder.global_type_label(*ty)
-        ),
-        dir::Projection::SubscriptGet { index, read, ty } => format!(
-            "subscript.get({}, {}, {})",
-            builder
-                .node_source(*index)
-                .unwrap_or_else(|| builder.node_label(*index)),
-            subscript_operation_label(builder, read),
-            builder.global_type_label(*ty)
+        dir::Projection::Absent { ty } => {
+            format!("absent({})", builder.global_type_label(*ty))
+        }
+        dir::Projection::Field(field) => {
+            format!("field.get({})", field_resolution_label(builder, field))
+        }
+        dir::Projection::Subscript(read) => format!(
+            "subscript({}, {})",
+            subscript_label(builder, read),
+            builder.global_type_label(read.ty)
         ),
         dir::Projection::Call(call) => format!(
             "call({}, {})",
-            call_target_label(builder, &call.target),
+            call_label(builder, call),
             builder.global_type_label(call.return_type)
         ),
+        dir::Projection::Member(access) => {
+            format!("member({})", member_access_label(builder, access))
+        }
         dir::Projection::ObjectRest { fields, ty } => {
             let fields = fields
                 .iter()
@@ -465,24 +762,31 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
         dir::Projection::DynamicType { ty } => {
             format!("dynamic.type({})", builder.global_type_label(*ty))
         }
-        dir::Projection::VariantTag { ty } => {
-            format!("variant.tag({})", builder.global_type_label(*ty))
+        dir::Projection::VariantTag {
+            carrier,
+            discriminator,
+            ty,
+        } => {
+            format!(
+                "variant.tag({}, {}, {})",
+                builder.global_type_label(*carrier),
+                builder.static_key(*discriminator),
+                builder.global_type_label(*ty)
+            )
         }
         dir::Projection::VariantPayload {
             case,
-            generic_arguments,
+            backing,
+            discriminator,
+            discriminant,
             ty,
-            ..
         } => {
-            let arguments = generic_arguments
-                .as_deref()
-                .map(|arguments| projection_generic_arguments_label(builder, arguments))
-                .unwrap_or_default();
-
             format!(
-                "variant.payload({}.{}{arguments}, {})",
+                "variant.payload({}.{}, backing={}, discriminator={}, value={discriminant:?}, type={})",
                 builder.symbol_path_label(case.owner),
                 builder.static_key(case.key),
+                builder.global_type_label(*backing),
+                builder.static_key(*discriminator),
                 builder.global_type_label(*ty)
             )
         }
@@ -514,12 +818,8 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
 
             format!("move({access}, {})", builder.global_type_label(*ty))
         }
-        dir::Projection::Dereference { read, ty } => {
-            format!(
-                "dereference({}, {})",
-                dereference_operation_label(builder, read),
-                builder.global_type_label(*ty)
-            )
+        dir::Projection::Dereference(resolution) => {
+            format!("dereference({})", dereference_label(builder, resolution))
         }
         dir::Projection::Copy { ty } => {
             format!("copy({})", builder.global_type_label(*ty))
@@ -527,112 +827,240 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
     }
 }
 
-/// Return one subscript operation snapshot label.
-fn subscript_operation_label(
+/// Return one projection resolution snapshot label.
+fn projection_resolution_label(
     builder: &DirSnapshotBuilder<'_>,
-    operation: &dir::SubscriptOperation,
+    resolution: &dir::ProjectionResolution,
 ) -> String {
-    match operation {
-        dir::SubscriptOperation::Member(member) => {
-            format!("member({})", member_target_label(builder, &member.target))
+    match resolution {
+        dir::OperationResolution::One(projection) => projection_label(builder, projection),
+        dir::OperationResolution::Union { arms, ty } => {
+            let arms = arms
+                .iter()
+                .map(|projection| projection_label(builder, projection))
+                .collect::<Vec<_>>();
+
+            format!(
+                "union(({}), {})",
+                arms.join(", "),
+                builder.global_type_label(*ty)
+            )
         }
-        dir::SubscriptOperation::Call(call) => call_target_label(builder, &call.target),
     }
 }
 
-/// Return one storage snapshot label.
-fn storage_label(builder: &DirSnapshotBuilder<'_>, storage: &dir::Storage) -> String {
-    match storage {
-        dir::Storage::Binding { symbol } => {
+/// Return one subscript resolution snapshot label.
+fn subscript_resolution_label(
+    builder: &DirSnapshotBuilder<'_>,
+    resolution: &dir::SubscriptResolution,
+) -> String {
+    match resolution {
+        dir::OperationResolution::One(subscript) => subscript_label(builder, subscript),
+        dir::OperationResolution::Union { arms, .. } => {
+            let arms = arms
+                .iter()
+                .map(|subscript| subscript_label(builder, subscript))
+                .collect::<Vec<_>>();
+
+            format!("union({})", arms.join(", "))
+        }
+    }
+}
+
+/// Return one singular subscript snapshot label.
+fn subscript_label(builder: &DirSnapshotBuilder<'_>, subscript: &dir::Subscript) -> String {
+    match &subscript.target {
+        dir::SubscriptTarget::Member(member) => {
+            format!("member({})", member_access_label(builder, member))
+        }
+        dir::SubscriptTarget::Call(call) => call_label(builder, call),
+        dir::SubscriptTarget::Index(read) => call_label(builder, &read.call),
+    }
+}
+
+/// Add fields for one singular subscript.
+fn add_subscript_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    subscript: &dir::Subscript,
+) -> SnapshotRow {
+    match &subscript.target {
+        dir::SubscriptTarget::Member(member) => row
+            .field("kind", "member")
+            .field("target", member_access_label(builder, member)),
+        dir::SubscriptTarget::Call(call) => row
+            .field("kind", "call")
+            .field("target", call_label(builder, call)),
+        dir::SubscriptTarget::Index(read) => row
+            .field("kind", "call")
+            .field("target", call_label(builder, &read.call)),
+    }
+}
+
+/// Return one place read snapshot label.
+fn read_resolution_label(
+    builder: &DirSnapshotBuilder<'_>,
+    resolution: &dir::ReadResolution,
+) -> String {
+    match resolution {
+        dir::ReadResolution::Binding { symbol, .. } => {
             format!("binding({})", builder.symbol_path_label(*symbol))
         }
-        dir::Storage::Field { field, .. } => {
-            format!("field({})", projection_field_label(builder, field))
-        }
-        dir::Storage::Property { read, write } => {
-            let write = setter_label(builder, write);
-            match read {
-                Some(read) => format!("property({}, {write})", getter_label(builder, read)),
-                None => format!("property({write})"),
-            }
-        }
-        dir::Storage::Subscript { read, write, .. } => {
-            let write = subscript_operation_label(builder, write);
-            match read {
-                Some(read) => format!(
-                    "subscript({}, {write})",
-                    subscript_operation_label(builder, read)
-                ),
-                None => format!("subscript({write})"),
-            }
-        }
-        dir::Storage::Dereference { read, write } => {
-            let write = dereference_operation_label(builder, write);
-            match read {
-                Some(read) => {
-                    format!(
-                        "dereference({}, {write})",
-                        dereference_operation_label(builder, read)
-                    )
-                }
-                None => format!("dereference({write})"),
-            }
+        dir::ReadResolution::Member(member) => member_resolution_label(builder, member),
+        dir::ReadResolution::Subscript(subscript) => subscript_resolution_label(builder, subscript),
+        dir::ReadResolution::Dereference(dereference) => {
+            dereference_resolution_label(builder, dereference)
         }
     }
 }
 
-/// Return one getter snapshot label.
-fn getter_label(builder: &DirSnapshotBuilder<'_>, member: &dir::MemberResolution) -> String {
-    format!("getter({})", member_target_label(builder, &member.target))
-}
-
-/// Return one setter snapshot label.
-fn setter_label(builder: &DirSnapshotBuilder<'_>, member: &dir::MemberResolution) -> String {
-    format!("setter({})", member_target_label(builder, &member.target))
-}
-
-/// Return one dereference operation snapshot label.
-fn dereference_operation_label(
+/// Return one place write snapshot label.
+fn write_resolution_label(
     builder: &DirSnapshotBuilder<'_>,
-    operation: &dir::DereferenceOperation,
+    resolution: &dir::WriteResolution,
 ) -> String {
-    match operation {
-        dir::DereferenceOperation::Direct => "direct".to_string(),
-        dir::DereferenceOperation::Call(call) => call_target_label(builder, &call.target),
+    match resolution {
+        dir::WriteResolution::Binding { symbol, .. } => {
+            format!("binding({})", builder.symbol_path_label(*symbol))
+        }
+        dir::WriteResolution::Member(member) => member_resolution_label(builder, member),
+        dir::WriteResolution::Subscript(subscript) => {
+            subscript_resolution_label(builder, subscript)
+        }
+        dir::WriteResolution::Dereference(dereference) => {
+            dereference_resolution_label(builder, dereference)
+        }
     }
+}
+
+/// Return one dereference resolution snapshot label.
+fn dereference_resolution_label(
+    builder: &DirSnapshotBuilder<'_>,
+    resolution: &dir::DereferenceResolution,
+) -> String {
+    match resolution {
+        dir::OperationResolution::One(dereference) => dereference_label(builder, dereference),
+        dir::OperationResolution::Union { arms, .. } => {
+            let arms = arms
+                .iter()
+                .map(|dereference| dereference_label(builder, dereference))
+                .collect::<Vec<_>>();
+
+            format!("union({})", arms.join(", "))
+        }
+    }
+}
+
+/// Return one singular dereference snapshot label.
+fn dereference_label(builder: &DirSnapshotBuilder<'_>, dereference: &dir::Dereference) -> String {
+    let target = match &dereference.target {
+        dir::DereferenceTarget::Direct => "direct".to_string(),
+        dir::DereferenceTarget::Call(call) => call_label(builder, call),
+    };
+
+    format!(
+        "{} => {target} -> {}",
+        builder.global_type_label(dereference.receiver),
+        builder.global_type_label(dereference.ty),
+    )
 }
 
 /// Return one member target snapshot label.
 fn member_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::MemberTarget) -> String {
     match target {
-        dir::MemberTarget::Field(key) => format!("field({})", builder.static_key(*key)),
-        dir::MemberTarget::Element(index) => format!("element({index})"),
-        dir::MemberTarget::Index(key) => {
-            format!("index({})", builder.global_type_label(*key))
+        dir::MemberTarget::Projection { projection, .. } => projection_label(builder, projection),
+        dir::MemberTarget::Field(field) => field_resolution_label(builder, field),
+        dir::MemberTarget::Call(call) => call_label(builder, call),
+        dir::MemberTarget::Index(index) => {
+            format!("index({})", builder.global_type_label(index.key_type))
         }
         dir::MemberTarget::Symbol(candidate) => builder.member_candidate_label(candidate),
         dir::MemberTarget::Existential(candidates) => candidates
             .iter()
-            .map(|candidate| builder.member_candidate_label(candidate))
+            .map(|target| member_target_label(builder, target))
             .collect::<Vec<_>>()
             .join(" | "),
-        dir::MemberTarget::Universal(candidates) => candidates
+        dir::MemberTarget::Intersection(targets) => targets
             .iter()
-            .map(|candidate| builder.member_candidate_label(candidate))
+            .map(|target| member_target_label(builder, target))
             .collect::<Vec<_>>()
             .join(" & "),
     }
 }
 
-/// Return one projected field snapshot label.
-fn projection_field_label(
+/// Return one member resolution snapshot label.
+fn member_resolution_label(
     builder: &DirSnapshotBuilder<'_>,
-    field: &dir::ProjectionField,
+    resolution: &dir::MemberResolution,
 ) -> String {
-    match field {
-        dir::ProjectionField::Key(key) => builder.static_key(*key),
-        dir::ProjectionField::Member(symbol) => builder.symbol_path_label(*symbol),
+    match resolution {
+        dir::OperationResolution::One(access) => member_access_label(builder, access),
+        dir::OperationResolution::Union { arms, .. } => {
+            let arms = arms
+                .iter()
+                .map(|access| member_access_label(builder, access))
+                .collect::<Vec<_>>();
+
+            format!("union({})", arms.join(", "))
+        }
     }
+}
+
+/// Return one singular member access snapshot label.
+fn member_access_label(builder: &DirSnapshotBuilder<'_>, access: &dir::MemberAccess) -> String {
+    let receiver = builder.global_type_label(access.receiver);
+    let target = member_target_label(builder, &access.target);
+    let ty = builder.global_type_label(access.ty);
+
+    format!("receiver={receiver}, target={target}, type={ty}")
+}
+
+/// Return one projected field snapshot label.
+fn field_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::FieldTarget) -> String {
+    match target {
+        dir::FieldTarget::Structural { key, .. } => builder.static_key(*key),
+        dir::FieldTarget::Member { symbol, .. } => builder.symbol_path_label(*symbol),
+    }
+}
+
+/// Return one field resolution snapshot label.
+fn field_resolution_label(
+    builder: &DirSnapshotBuilder<'_>,
+    resolution: &dir::FieldResolution,
+) -> String {
+    let receiver = member_receiver_label(builder, &resolution.receiver);
+    let target = field_target_label(builder, &resolution.target);
+    let ty = builder.global_type_label(resolution.ty);
+
+    format!("field(receiver={receiver}, target={target}, type={ty})")
+}
+
+/// Return one member receiver snapshot label.
+fn member_receiver_label(
+    builder: &DirSnapshotBuilder<'_>,
+    receiver: &dir::MemberReceiver,
+) -> String {
+    match receiver {
+        dir::MemberReceiver::Direct(receiver) => adjusted_receiver_label(builder, receiver),
+        dir::MemberReceiver::Dynamic(dispatch) => format!(
+            "dynamic({}, constraint={})",
+            adjusted_receiver_label(builder, &dispatch.receiver),
+            builder.global_type_label(dispatch.constraint)
+        ),
+    }
+}
+
+/// Return one adjusted receiver snapshot label.
+fn adjusted_receiver_label(
+    builder: &DirSnapshotBuilder<'_>,
+    receiver: &dir::AdjustedReceiver,
+) -> String {
+    let source = builder.global_type_label(receiver.source);
+    let Some(adjustments) = receiver_adjustments_label(builder, &receiver.adjustments) else {
+        return source;
+    };
+
+    format!("{source} adjustments={adjustments}")
 }
 
 /// Return generic arguments for one projection label.
@@ -711,17 +1139,57 @@ fn predicate_operand_label(
     }
 }
 
+/// Return one singular call snapshot label.
+fn call_label(builder: &DirSnapshotBuilder<'_>, call: &dir::Call) -> String {
+    direct_call_label(
+        builder,
+        call_target_label(builder, &call.target),
+        &call.arguments,
+        call.return_type,
+    )
+}
+
 /// Return one call target snapshot label.
 fn call_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::CallTarget) -> String {
     match target {
         dir::CallTarget::Expression { .. } => "expression".to_string(),
-        dir::CallTarget::Symbol(candidate) => builder.call_candidate_label(candidate),
-        dir::CallTarget::Universal(candidates) => candidates
-            .iter()
-            .map(|candidate| builder.call_candidate_label(candidate))
-            .collect::<Vec<_>>()
-            .join(" | "),
+        dir::CallTarget::Symbol { function, dispatch } => match dispatch {
+            dir::FunctionDispatch::Direct => builder.function_target_label(function),
+            dir::FunctionDispatch::Virtual { class } => format!(
+                "virtual({}.{})",
+                builder.global_type_label(*class),
+                builder.function_target_label(function)
+            ),
+        },
+        dir::CallTarget::Dynamic {
+            dispatch, function, ..
+        } => format!(
+            "dynamic({} as {}, {})",
+            builder.global_type_label(dispatch.receiver.source),
+            builder.global_type_label(dispatch.constraint),
+            dynamic_function_label(builder, function)
+        ),
     }
+}
+
+/// Return one direct call snapshot label.
+fn direct_call_label(
+    builder: &DirSnapshotBuilder<'_>,
+    target: String,
+    arguments: &[dir::ArgumentBinding],
+    return_type: dir::GlobalTypeId,
+) -> String {
+    let parameters = arguments
+        .iter()
+        .map(|argument| builder.global_type_label(argument.ty))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let arguments = builder
+        .argument_bindings_label(arguments)
+        .unwrap_or_else(|| "()".to_string());
+    let return_type = builder.global_type_label(return_type);
+
+    format!("{target}(parameters=({parameters}), arguments={arguments}, return={return_type})")
 }
 
 /// Return one range condition snapshot label.
@@ -802,6 +1270,13 @@ fn add_construct_resolution_row(
                 "instance",
                 generic_instance_label(builder, candidate.case.owner, &candidate.generic_arguments),
             )
+            .type_field("backing", builder.global_type_label(candidate.backing))
+            .optional_field(
+                "argument",
+                candidate
+                    .argument
+                    .map(|argument| builder.global_type_label(argument)),
+            )
             .field(
                 "discriminant",
                 builder.scalar_literal_value_label(&candidate.discriminant),
@@ -845,8 +1320,14 @@ fn add_pattern_resolution_row(
         dir::PatternResolution::Test(test) => {
             add_pattern_test_fields(builder, row, &test.predicate)
         }
+        dir::PatternResolution::Variant(variant) => {
+            add_pattern_variant_resolution_fields(builder, segment, row, variant)
+        }
         dir::PatternResolution::Project(project) => row
-            .field("projection", projection_label(builder, &project.projection))
+            .field(
+                "projection",
+                projection_resolution_label(builder, &project.projection),
+            )
             .optional_field(
                 "pattern",
                 project.pattern.map(|node| builder.node_label(node)),
@@ -883,6 +1364,7 @@ fn pattern_resolution_label(resolution: &dir::PatternResolution) -> &'static str
         dir::PatternResolution::Must(_) => "must",
         dir::PatternResolution::Default(_) => "default",
         dir::PatternResolution::Test(test) => pattern_predicate_label(&test.predicate),
+        dir::PatternResolution::Variant(_) => "variant",
         dir::PatternResolution::Project(project) => pattern_projection_label(&project.projection),
         dir::PatternResolution::Destructure(destructure) => pattern_destructure_label(destructure),
         dir::PatternResolution::Or(_) => "union",
@@ -899,13 +1381,14 @@ fn pattern_predicate_label(predicate: &dir::Predicate) -> &'static str {
 }
 
 /// Return one pattern projection label.
-fn pattern_projection_label(projection: &dir::Projection) -> &'static str {
+fn pattern_projection_label(projection: &dir::ProjectionResolution) -> &'static str {
     match projection {
-        dir::Projection::Borrow { .. } => "borrow",
-        dir::Projection::Move { .. } => "move",
-        dir::Projection::Dereference { .. } => "dereference",
-        dir::Projection::NewtypePayload { .. } => "newtype",
-        _ => "project",
+        dir::OperationResolution::One(dir::Projection::Borrow { .. }) => "borrow",
+        dir::OperationResolution::One(dir::Projection::Move { .. }) => "move",
+        dir::OperationResolution::One(dir::Projection::Dereference { .. }) => "dereference",
+        dir::OperationResolution::One(dir::Projection::NewtypePayload { .. }) => "newtype",
+        dir::OperationResolution::One(_) => "project",
+        dir::OperationResolution::Union { .. } => "union",
     }
 }
 
@@ -916,7 +1399,6 @@ fn pattern_destructure_label(destructure: &dir::PatternDestructureResolution) ->
         dir::PatternDestructureResolution::Object(_) => "object",
         dir::PatternDestructureResolution::Nominal(_) => "nominal_object",
         dir::PatternDestructureResolution::Sequence(_) => "sequence",
-        dir::PatternDestructureResolution::Variant(_) => "variant",
     }
 }
 
@@ -1012,18 +1494,35 @@ fn add_pattern_destructure_fields(
             &sequence.fields,
             sequence.rest.as_deref(),
         ),
-        dir::PatternDestructureResolution::Variant(variant) => {
-            let row = row
-                .field("predicate", predicate_label(builder, &variant.predicate))
-                .field("projection", projection_label(builder, &variant.projection))
-                .optional_field(
-                    "payload",
-                    pattern_variant_payload_label(&variant.fields).map(str::to_string),
-                );
-
-            add_pattern_variant_fields(builder, segment, row, &variant.fields)
-        }
     }
+}
+
+/// Add fields for one selected variant pattern.
+fn add_pattern_variant_resolution_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    segment: &dir::ResolutionSegment,
+    row: SnapshotRow,
+    variant: &dir::PatternVariantResolution,
+) -> SnapshotRow {
+    let row = row
+        .field("predicate", predicate_label(builder, &variant.predicate))
+        .optional_field(
+            "projection",
+            variant
+                .predicate
+                .projection
+                .as_ref()
+                .map(|projection| projection_label(builder, projection)),
+        )
+        .optional_field(
+            "payload",
+            match variant.payload {
+                Some(_) => Some("pattern".to_string()),
+                None => pattern_variant_payload_label(builder, &variant.fields).map(str::to_string),
+            },
+        );
+
+    add_pattern_variant_fields(builder, segment, row, &variant.fields)
 }
 
 /// Add one assignment pattern resolution row.
@@ -1038,9 +1537,7 @@ fn add_assign_pattern_resolution_row(
         .field("kind", assign_pattern_resolution_label(resolution));
 
     let row = match resolution {
-        dir::AssignPatternResolution::Place(place) => row
-            .field("place", storage_label(builder, &place.storage))
-            .type_field("type", builder.global_type_label(place.ty)),
+        dir::AssignPatternResolution::Place => row,
         dir::AssignPatternResolution::Default(default) => row
             .field(
                 "pattern",
@@ -1087,7 +1584,7 @@ fn add_assign_pattern_resolution_row(
 /// Return one assignment pattern resolution label.
 fn assign_pattern_resolution_label(resolution: &dir::AssignPatternResolution) -> &'static str {
     match resolution {
-        dir::AssignPatternResolution::Place(_) => "place",
+        dir::AssignPatternResolution::Place => "place",
         dir::AssignPatternResolution::Default(_) => "default",
         dir::AssignPatternResolution::Sequence(_) => "sequence",
         dir::AssignPatternResolution::Tuple(_) => "tuple",
@@ -1095,42 +1592,113 @@ fn assign_pattern_resolution_label(resolution: &dir::AssignPatternResolution) ->
     }
 }
 
-/// Add direct call candidate fields.
-fn add_call_candidate_fields(
+/// Add direct function target fields.
+fn add_function_target_fields(
     builder: &DirSnapshotBuilder<'_>,
     row: SnapshotRow,
-    candidate: &dir::CallCandidate,
+    function: &dir::FunctionTarget,
 ) -> SnapshotRow {
-    row.field("target", builder.call_candidate_label(candidate))
+    row.field("target", builder.function_target_label(function))
         .optional_type_field(
             "receiver",
-            candidate.receiver.map(|ty| builder.global_type_label(ty)),
+            function
+                .receiver
+                .as_ref()
+                .map(|receiver| builder.global_type_label(receiver.source)),
         )
-        .optional_field("adjustments", adjustments_label(&candidate.adjustments))
+        .optional_field(
+            "adjustments",
+            function
+                .receiver
+                .as_ref()
+                .and_then(|receiver| receiver_adjustments_label(builder, &receiver.adjustments)),
+        )
         .optional_field(
             "instance",
-            call_candidate_instance_label(builder, candidate),
+            function_target_instance_label(builder, function),
         )
 }
 
-/// Render one receiver projection step list, or none when empty.
-fn adjustments_label(adjustments: &[dir::Projection]) -> Option<String> {
+/// Add one selected member receiver.
+fn add_member_receiver_fields(
+    builder: &DirSnapshotBuilder<'_>,
+    row: SnapshotRow,
+    receiver: &dir::MemberReceiver,
+) -> SnapshotRow {
+    let row = row
+        .type_field(
+            "target_receiver",
+            builder.global_type_label(receiver.source()),
+        )
+        .optional_field(
+            "adjustments",
+            receiver_adjustments_label(builder, &receiver.adjusted().adjustments),
+        );
+
+    match receiver {
+        dir::MemberReceiver::Direct(_) => row,
+        dir::MemberReceiver::Dynamic(dispatch) => row
+            .field("dispatch", "dynamic")
+            .type_field("constraint", builder.global_type_label(dispatch.constraint)),
+    }
+}
+
+/// Render one receiver adjustment list, or none when empty.
+fn receiver_adjustments_label(
+    builder: &DirSnapshotBuilder<'_>,
+    adjustments: &[dir::ReceiverAdjustment],
+) -> Option<String> {
     if adjustments.is_empty() {
         return None;
     }
 
     let labels = adjustments
         .iter()
-        .map(|projection| match projection {
-            dir::Projection::Dereference { .. } => "dereference",
-            dir::Projection::NewtypePayload { .. } => "backing",
-            dir::Projection::DynamicPayload { .. } => "dynamic",
-            dir::Projection::Borrow { .. } => "borrow",
-            other => panic!("receiver adjustments never project {other:?}"),
-        })
+        .map(|adjustment| receiver_adjustment_label(builder, adjustment))
         .collect::<Vec<_>>();
 
     Some(format!("({})", labels.join(", ")))
+}
+
+/// Render one receiver adjustment.
+fn receiver_adjustment_label(
+    builder: &DirSnapshotBuilder<'_>,
+    adjustment: &dir::ReceiverAdjustment,
+) -> String {
+    match adjustment {
+        dir::ReceiverAdjustment::Borrow { ty } => {
+            format!("borrow({})", builder.global_type_label(*ty))
+        }
+        dir::ReceiverAdjustment::Dereference(resolution) => dereference_label(builder, resolution),
+        dir::ReceiverAdjustment::NewtypePayload { symbol, ty, .. } => format!(
+            "newtype.payload({}, {})",
+            builder.symbol_path_label(*symbol),
+            builder.global_type_label(*ty)
+        ),
+        dir::ReceiverAdjustment::VariantPayload { case, ty, .. } => format!(
+            "variant.payload({}, {})",
+            builder.symbol_path_label(case.variant),
+            builder.global_type_label(*ty)
+        ),
+    }
+}
+
+/// Render one dynamic function target.
+fn dynamic_function_label(
+    builder: &DirSnapshotBuilder<'_>,
+    function: &dir::DynamicFunction,
+) -> String {
+    let (operation, source) = match function {
+        dir::DynamicFunction::Symbol(symbol) => return builder.symbol_path_label(*symbol),
+        dir::DynamicFunction::CallSignature(source) => ("call", source),
+        dir::DynamicFunction::IndexRead(source) => ("index.read", source),
+        dir::DynamicFunction::IndexWrite(source) => ("index.write", source),
+    };
+    let source = builder
+        .node_source(*source)
+        .unwrap_or_else(|| builder.node_label(*source));
+
+    format!("{operation}({source})")
 }
 
 /// Add direct class construct candidate fields.
@@ -1201,42 +1769,159 @@ fn add_member_target_generic_instances(
                 &candidate.generic_arguments,
             );
         }
-        dir::MemberTarget::Existential(candidates) | dir::MemberTarget::Universal(candidates) => {
-            for candidate in candidates {
-                add_generic_instance(
-                    builder,
-                    anchor,
-                    source.clone(),
-                    candidate.symbol,
-                    &candidate.generic_arguments,
-                );
+        dir::MemberTarget::Existential(targets) | dir::MemberTarget::Intersection(targets) => {
+            for target in targets {
+                add_member_target_generic_instances(builder, node_id, target);
             }
         }
-        dir::MemberTarget::Field(_)
-        | dir::MemberTarget::Element(_)
+        dir::MemberTarget::Call(call) => {
+            add_call_generic_instances(builder, node_id, call);
+        }
+        dir::MemberTarget::Projection { .. }
+        | dir::MemberTarget::Field(_)
         | dir::MemberTarget::Index(_) => {}
     }
 }
 
-/// Add generic instance rows from one call target.
-fn add_call_target_generic_instances(
+/// Add generic instance rows from one member resolution.
+fn add_member_resolution_generic_instances(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    target: &dir::CallTarget,
+    resolution: &dir::MemberResolution,
+) {
+    match resolution {
+        dir::OperationResolution::One(access) => {
+            add_member_target_generic_instances(builder, node_id, &access.target);
+        }
+        dir::OperationResolution::Union { arms, .. } => {
+            for access in arms {
+                add_member_target_generic_instances(builder, node_id, &access.target);
+            }
+        }
+    }
+}
+
+/// Add generic instance rows from one operator resolution.
+fn add_operator_resolution_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::OperatorResolution,
+) {
+    match resolution {
+        dir::OperationResolution::One(application) => {
+            add_operator_application_generic_instances(builder, node_id, application);
+        }
+        dir::OperationResolution::Union { arms, .. } => {
+            for application in arms {
+                add_operator_application_generic_instances(builder, node_id, application);
+            }
+        }
+    }
+}
+
+/// Add generic instance rows from one operator application.
+fn add_operator_application_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    application: &dir::OperatorApplication,
+) {
+    match application {
+        dir::OperatorApplication::Unary {
+            target: dir::OperatorTarget::Call(call),
+            ..
+        }
+        | dir::OperatorApplication::Binary {
+            target: dir::OperatorTarget::Call(call),
+            ..
+        } => add_call_generic_instances(builder, node_id, call),
+        dir::OperatorApplication::Unary {
+            target: dir::OperatorTarget::Builtin(_),
+            ..
+        }
+        | dir::OperatorApplication::Binary {
+            target: dir::OperatorTarget::Builtin(_),
+            ..
+        } => {}
+    }
+}
+
+/// Add generic instance rows from one call resolution.
+fn add_call_resolution_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::CallResolution,
+) {
+    match resolution {
+        dir::OperationResolution::One(call) => add_call_generic_instances(builder, node_id, call),
+        dir::OperationResolution::Union { arms, .. } => {
+            for call in arms {
+                add_call_generic_instances(builder, node_id, call);
+            }
+        }
+    }
+}
+
+/// Add generic instance rows from one singular call.
+fn add_call_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    call: &dir::Call,
 ) {
     let anchor = builder.anchor_node(node_id);
     let source = builder.node_source(node_id);
 
-    match target {
-        dir::CallTarget::Symbol(candidate) => {
-            add_call_candidate_generic_instance(builder, anchor, source, candidate);
+    match &call.target {
+        dir::CallTarget::Symbol { function, .. } => {
+            add_function_target_generic_instance(builder, anchor, source, function);
         }
-        dir::CallTarget::Universal(candidates) => {
-            for candidate in candidates {
-                add_call_candidate_generic_instance(builder, anchor, source.clone(), candidate);
+        dir::CallTarget::Dynamic {
+            function: dir::DynamicFunction::Symbol(symbol),
+            generic_arguments,
+            ..
+        } => add_generic_instance(builder, anchor, source, *symbol, generic_arguments),
+        dir::CallTarget::Expression { .. }
+        | dir::CallTarget::Dynamic {
+            function:
+                dir::DynamicFunction::CallSignature(_)
+                | dir::DynamicFunction::IndexRead(_)
+                | dir::DynamicFunction::IndexWrite(_),
+            ..
+        } => {}
+    }
+}
+
+/// Add generic instance rows from one subscript resolution.
+fn add_subscript_resolution_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::SubscriptResolution,
+) {
+    match resolution {
+        dir::OperationResolution::One(subscript) => {
+            add_subscript_generic_instances(builder, node_id, subscript);
+        }
+        dir::OperationResolution::Union { arms, .. } => {
+            for subscript in arms {
+                add_subscript_generic_instances(builder, node_id, subscript);
             }
         }
-        dir::CallTarget::Expression { .. } => {}
+    }
+}
+
+/// Add generic instance rows from one singular subscript.
+fn add_subscript_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    subscript: &dir::Subscript,
+) {
+    match &subscript.target {
+        dir::SubscriptTarget::Member(member) => {
+            add_member_target_generic_instances(builder, node_id, &member.target);
+        }
+        dir::SubscriptTarget::Call(call) => add_call_generic_instances(builder, node_id, call),
+        dir::SubscriptTarget::Index(read) => {
+            add_call_generic_instances(builder, node_id, &read.call)
+        }
     }
 }
 
@@ -1291,10 +1976,18 @@ fn add_pattern_generic_instances(
 
     match resolution {
         dir::PatternResolution::Project(project) => {
-            add_projection_generic_instance(builder, anchor, source, &project.projection);
+            add_projection_resolution_generic_instances(
+                builder,
+                anchor,
+                source,
+                &project.projection,
+            );
         }
         dir::PatternResolution::Test(test) => {
             add_predicate_generic_instances(builder, node_id, &test.predicate);
+        }
+        dir::PatternResolution::Variant(variant) => {
+            add_predicate_generic_instances(builder, node_id, &variant.predicate);
         }
         dir::PatternResolution::Destructure(destructure) => {
             add_destructure_generic_instance(builder, anchor, source, destructure);
@@ -1304,6 +1997,25 @@ fn add_pattern_generic_instances(
         | dir::PatternResolution::Must(_)
         | dir::PatternResolution::Default(_)
         | dir::PatternResolution::Or(_) => {}
+    }
+}
+
+/// Add generic instance rows from one projection resolution.
+fn add_projection_resolution_generic_instances(
+    builder: &mut DirSnapshotBuilder<'_>,
+    anchor: SnapshotAnchor,
+    source: Option<String>,
+    resolution: &dir::ProjectionResolution,
+) {
+    match resolution {
+        dir::OperationResolution::One(projection) => {
+            add_projection_generic_instance(builder, anchor, source, projection);
+        }
+        dir::OperationResolution::Union { arms, .. } => {
+            for projection in arms {
+                add_projection_generic_instance(builder, anchor, source.clone(), projection);
+            }
+        }
     }
 }
 
@@ -1365,14 +2077,21 @@ fn add_projection_generic_instance(
         } => {
             add_generic_instance(builder, anchor, source, *symbol, generic_arguments);
         }
-        dir::Projection::VariantPayload {
-            case,
-            generic_arguments: Some(generic_arguments),
-            ..
-        } => {
-            add_generic_instance(builder, anchor, source, case.owner, generic_arguments);
-        }
-        _ => {}
+        dir::Projection::Absent { .. }
+        | dir::Projection::Field(_)
+        | dir::Projection::Subscript(_)
+        | dir::Projection::Call(_)
+        | dir::Projection::Member(_)
+        | dir::Projection::ObjectRest { .. }
+        | dir::Projection::SliceLength { .. }
+        | dir::Projection::DynamicPayload { .. }
+        | dir::Projection::DynamicType { .. }
+        | dir::Projection::VariantTag { .. }
+        | dir::Projection::VariantPayload { .. }
+        | dir::Projection::Borrow { .. }
+        | dir::Projection::Move { .. }
+        | dir::Projection::Dereference(_)
+        | dir::Projection::Copy { .. } => {}
     }
 }
 
@@ -1392,9 +2111,6 @@ fn add_destructure_generic_instance(
                 nominal.symbol,
                 &nominal.generic_arguments,
             );
-        }
-        dir::PatternDestructureResolution::Variant(variant) => {
-            add_projection_generic_instance(builder, anchor, source, &variant.projection);
         }
         dir::PatternDestructureResolution::Tuple(_)
         | dir::PatternDestructureResolution::Object(_)
@@ -1430,28 +2146,28 @@ fn add_generic_instance(
 }
 
 /// Render one selected callable instance.
-fn call_candidate_instance_label(
+fn function_target_instance_label(
     builder: &DirSnapshotBuilder<'_>,
-    candidate: &dir::CallCandidate,
+    function: &dir::FunctionTarget,
 ) -> Option<String> {
-    let Some(owner) = candidate.generic_scope else {
-        return generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments);
+    let Some(owner) = function.generic_scope else {
+        return generic_instance_label(builder, function.symbol, &function.generic_arguments);
     };
 
-    let owner_arguments = generic_instance_arguments(builder, owner, &candidate.generic_arguments);
+    let owner_arguments = generic_instance_arguments(builder, owner, &function.generic_arguments);
     let member_arguments =
-        generic_instance_arguments(builder, candidate.symbol, &candidate.generic_arguments);
+        generic_instance_arguments(builder, function.symbol, &function.generic_arguments);
     if owner_arguments.is_empty() && member_arguments.is_empty() {
         return None;
     }
 
-    let owner_label = call_candidate_owner_label(
+    let owner_label = function_target_owner_label(
         builder,
         owner,
         &owner_arguments,
-        &candidate.generic_arguments,
+        &function.generic_arguments,
     );
-    let member_label = call_candidate_member_label(builder, owner, candidate.symbol);
+    let member_label = function_target_member_label(builder, owner, function.symbol);
     let member_label = match member_arguments.as_slice() {
         [] => member_label,
         _ => format!(
@@ -1469,7 +2185,7 @@ fn call_candidate_instance_label(
 }
 
 /// Render the generic scope selected by one call.
-fn call_candidate_owner_label(
+fn function_target_owner_label(
     builder: &DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,
     arguments: &[dir::GlobalTypeId],
@@ -1565,18 +2281,18 @@ fn type_table<'a>(
 }
 
 /// Add one selected callable instance row.
-fn add_call_candidate_generic_instance(
+fn add_function_target_generic_instance(
     builder: &mut DirSnapshotBuilder<'_>,
     anchor: SnapshotAnchor,
     source: Option<String>,
-    candidate: &dir::CallCandidate,
+    function: &dir::FunctionTarget,
 ) {
-    let Some(label) = call_candidate_instance_label(builder, candidate) else {
+    let Some(label) = function_target_instance_label(builder, function) else {
         return;
     };
-    let arguments = generic_argument_values(&candidate.generic_arguments);
+    let arguments = generic_argument_values(&function.generic_arguments);
     let arguments = builder.generic_instance_arguments_label(&arguments);
-    let template = builder.symbol_path_label(candidate.symbol);
+    let template = builder.symbol_path_label(function.symbol);
 
     builder.add_generic_instance_row(
         anchor,
@@ -1588,7 +2304,7 @@ fn add_call_candidate_generic_instance(
 }
 
 /// Render one member name relative to its owner.
-fn call_candidate_member_label(
+fn function_target_member_label(
     builder: &DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,
     symbol: dir::GlobalSymbolId,
@@ -1644,7 +2360,11 @@ fn add_pattern_variant_fields(
     row: SnapshotRow,
     fields: &[dir::PatternFieldResolution],
 ) -> SnapshotRow {
-    if pattern_fields_are_positional(fields) {
+    if fields.is_empty() {
+        return row;
+    }
+
+    if is_positional_variant_payload(builder, fields) {
         row.tuple_field(
             "fields",
             pattern_positional_field_labels(builder, segment, fields),
@@ -1729,27 +2449,32 @@ fn pattern_positional_field_label(
 }
 
 /// Return one variant payload label.
-fn pattern_variant_payload_label(fields: &[dir::PatternFieldResolution]) -> Option<&'static str> {
+fn pattern_variant_payload_label(
+    builder: &DirSnapshotBuilder<'_>,
+    fields: &[dir::PatternFieldResolution],
+) -> Option<&'static str> {
     if fields.is_empty() {
         return None;
     }
 
-    if pattern_fields_are_positional(fields) {
+    if is_positional_variant_payload(builder, fields) {
         Some("tuple")
     } else {
         Some("object")
     }
 }
 
-/// Return whether all fields are positional.
-fn pattern_fields_are_positional(fields: &[dir::PatternFieldResolution]) -> bool {
+/// Return whether one variant payload uses positional fields.
+fn is_positional_variant_payload(
+    builder: &DirSnapshotBuilder<'_>,
+    fields: &[dir::PatternFieldResolution],
+) -> bool {
     fields.iter().all(|field| {
+        let field = field.source.local_id.into_typed::<dir::PatternField>();
+
         matches!(
-            field.projection,
-            dir::Projection::FieldGet {
-                field: dir::ProjectionField::Key(dir::StaticKey::Index(_)),
-                ..
-            }
+            builder.tree.get(field),
+            dir::PatternField::Positional { .. }
         )
     })
 }
@@ -1757,14 +2482,13 @@ fn pattern_fields_are_positional(fields: &[dir::PatternFieldResolution]) -> bool
 /// Return the source-facing target label for one pattern field projection.
 fn pattern_field_target_label(
     builder: &DirSnapshotBuilder<'_>,
-    projection: &dir::Projection,
+    projection: &dir::ProjectionResolution,
 ) -> String {
     match projection {
-        dir::Projection::FieldGet { field, .. } => projection_field_label(builder, field),
-        dir::Projection::SubscriptGet { index, .. } => builder
-            .node_source(*index)
-            .unwrap_or_else(|| builder.node_label(*index)),
-        _ => projection_label(builder, projection),
+        dir::OperationResolution::One(dir::Projection::Field(field)) => {
+            field_target_label(builder, &field.target)
+        }
+        _ => projection_resolution_label(builder, projection),
     }
 }
 
@@ -1872,8 +2596,19 @@ fn assign_pattern_child_label(
     pattern: dir::GlobalNodeIdAny,
 ) -> String {
     match segment.assign_pattern_resolution(pattern) {
-        Some(dir::AssignPatternResolution::Place(place)) => {
-            place_source_label(builder, segment, place)
+        Some(dir::AssignPatternResolution::Place) => {
+            let pattern = pattern.local_id.into_typed::<dir::AssignPattern>();
+            let dir::AssignPattern::Place { expression } = builder.tree.get(pattern) else {
+                panic!("place resolution belongs to a non-place assignment pattern");
+            };
+            let expression = expression.into_global_any(builder.tree.module_id);
+            let assignment = segment
+                .assignment_resolution(expression)
+                .unwrap_or_else(|| {
+                    panic!("assignment target is missing its assignment resolution")
+                });
+
+            assignment_source_label(builder, segment, assignment)
         }
         Some(dir::AssignPatternResolution::Default(default)) => {
             assign_pattern_child_label(builder, segment, default.pattern)
@@ -1882,15 +2617,15 @@ fn assign_pattern_child_label(
     }
 }
 
-/// Return one place source snapshot label.
-fn place_source_label(
+/// Return one assignment source snapshot label.
+fn assignment_source_label(
     builder: &DirSnapshotBuilder<'_>,
     segment: &dir::ResolutionSegment,
-    place: &dir::PlaceResolution,
+    assignment: &dir::AssignmentResolution,
 ) -> String {
     builder
-        .node_source(place.source)
-        .unwrap_or_else(|| assign_pattern_place_label(builder, segment, place.source))
+        .node_source(assignment.target)
+        .unwrap_or_else(|| assign_pattern_place_label(builder, segment, assignment.target))
 }
 
 /// Return one assignment place snapshot label.
@@ -2028,6 +2763,7 @@ fn argument_binding_label(
         dir::ArgumentSource::Static(ty) => {
             format!("static({})", builder.global_type_label(*ty))
         }
+        dir::ArgumentSource::Write => "write".to_string(),
         dir::ArgumentSource::Omitted => "omitted".to_string(),
         dir::ArgumentSource::Rest(nodes) => {
             let sources = nodes

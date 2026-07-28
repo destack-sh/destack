@@ -1,0 +1,5 @@
+import { Float } from "./float.ds";
+import { Integer } from "./integer.ds";
+
+/// Any sized machine scalar, excluding `bigint`.
+export type Numeric = Integer | Float;

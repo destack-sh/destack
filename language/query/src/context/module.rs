@@ -10,7 +10,7 @@ use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderResult, Repository, Revision};
 use destack_source::{File, FileId, ModuleId, ProfileId, SourceIndex, Span};
 
-use crate::{Module, QueryError, QueryResult};
+use crate::{Module, ProgramQueryContext, QueryError, QueryResult};
 
 /// Query context anchored to one module profile.
 #[derive(Debug)]
@@ -323,5 +323,24 @@ impl<'a> ModuleQueryContext<'a> {
         let global_node_id = node_id.into_global(self.module_id);
 
         self.types().get_node_type_id(global_node_id)
+    }
+
+    /// Read one checked global type through its owning module context.
+    pub(crate) fn read_global_type<R>(
+        &self,
+        program: &ProgramQueryContext<'_>,
+        type_id: dir::GlobalTypeId,
+        read: impl FnOnce(&dir::Type, &ModuleQueryContext<'_>) -> R,
+    ) -> QueryResult<R> {
+        if type_id.module_id == self.module_id {
+            let checked_type = self.types().get_type(type_id.local_id);
+
+            return Ok(read(&checked_type, self));
+        }
+
+        let type_module = program.module(type_id.module_id)?;
+        let checked_type = type_module.types().get_type(type_id.local_id);
+
+        Ok(read(&checked_type, type_module))
     }
 }

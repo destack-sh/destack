@@ -336,21 +336,6 @@ struct TaskSpec {
     cwd: Option<PathBuf>,
 }
 
-/// Load task specifications for one project path.
-fn load_tasks(
-    repository: &Repository,
-    revision: Revision,
-    destack_config_path: Option<&Path>,
-) -> CommandResult<Vec<TaskSpec>> {
-    let tasks = if let Some(destack_config_path) = destack_config_path {
-        load_destack_tasks(repository, revision, destack_config_path)?
-    } else {
-        Vec::new()
-    };
-
-    Ok(tasks)
-}
-
 /// Load one task project from one project path.
 fn load_task_project(
     repository: &Repository,
@@ -359,26 +344,20 @@ fn load_task_project(
     project_path: &Path,
 ) -> CommandResult<TaskProject> {
     let project = relative_project_path(project_path, workspace_root);
-    let destack_config_path = exact_destack_config_path(repository, revision, project_path);
-    let declaration = if let Some(destack_config_path) = destack_config_path.as_ref() {
-        repository
-            .inherited_destack_for_path(revision, destack_config_path)
-            .map_err(|error| error.to_string())?
-    } else {
-        None
-    };
-    let package_name = if let Some(declaration) = declaration.as_ref() {
-        let options = declaration;
+    let destack_config_path = exact_destack_config_path(repository, revision, project_path)?;
 
-        if let Some(name) = options.name.clone() {
-            Some(name)
-        } else {
-            load_package_name(repository, revision, project_path)?
-        }
+    // resolve the canonical package alias when this project is a package
+    let package_name = repository
+        .nearest_package(revision, project_path)
+        .map_err(|error| error.to_string())?
+        .and_then(|package| package.name.clone());
+
+    // load tasks declared directly by this project
+    let tasks = if let Some(destack_config_path) = destack_config_path.as_deref() {
+        load_destack_tasks(repository, revision, destack_config_path)?
     } else {
-        load_package_name(repository, revision, project_path)?
+        Vec::new()
     };
-    let tasks = load_tasks(repository, revision, destack_config_path.as_deref())?;
 
     Ok(TaskProject {
         project,
@@ -445,22 +424,6 @@ fn load_destack_tasks(
     }
 
     Ok(tasks)
-}
-
-/// Load the package name for one project path.
-fn load_package_name(
-    repository: &Repository,
-    revision: Revision,
-    project_path: &Path,
-) -> CommandResult<Option<String>> {
-    let package = repository
-        .nearest_package(revision, project_path)
-        .map_err(|error| error.to_string())?;
-    let Some(package) = package else {
-        return Ok(None);
-    };
-
-    Ok(package.name.clone())
 }
 
 /// Build one normalized project path relative to the root.
@@ -706,18 +669,17 @@ fn exact_destack_config_path(
     repository: &Repository,
     revision: Revision,
     project_path: &Path,
-) -> Option<PathBuf> {
+) -> CommandResult<Option<PathBuf>> {
     let candidate = project_path.join("destack.json");
-    if repository
+    let metadata = repository
         .file_metadata(revision, &candidate)
-        .ok()
-        .flatten()
-        .is_some_and(|metadata| metadata.is_file)
-    {
-        return Some(candidate);
-    }
+        .map_err(|error| error.to_string())?;
 
-    None
+    if metadata.is_some_and(|metadata| metadata.is_file) {
+        Ok(Some(candidate))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Build a shell command for script execution.

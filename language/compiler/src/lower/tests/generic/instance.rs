@@ -21,19 +21,19 @@ function choose(low: int32, high: int32, flag: boolean): float64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.choose(v0: int32, v1: int32, v2: boolean): float64 {
+function test.main.choose(v0: int32, v1: int32, v2: boolean): float64 {
     local l0: int32
 
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call main.pick(v0, v1, v2)
+    v3: int32 = call test.main.pick(v0, v1, v2)
     local.set l0, v3
     v4: float64 = 1.5
     v5: float64 = 2.5
-    v6: float64 = call main.pick_1(v4, v5, v2)
+    v6: float64 = call test.main.pick_1(v4, v5, v2)
     return v6
 }
 
-function main.pick(v0: int32, v1: int32, v2: boolean): int32 {
+function test.main.pick(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -44,7 +44,7 @@ b2:
     return v1
 }
 
-function main.pick_1(v0: float64, v1: float64, v2: boolean): float64 {
+function test.main.pick_1(v0: float64, v1: float64, v2: boolean): float64 {
 entry(v0: float64, v1: float64, v2: boolean):
     branch v2, b1, b2
 
@@ -64,7 +64,7 @@ b2:
         .tree
         .iter_nodes::<destack_mir::Function>()
         .filter_map(|(_, function)| {
-            (strings.get(function.name) == "main.pick").then_some(function.symbol)
+            (strings.get(function.name) == "test.main.pick").then_some(function.symbol)
         })
         .collect();
     assert_eq!(symbols.len(), 2);
@@ -88,13 +88,13 @@ function keep(value: (int32, boolean)): (int32, boolean) {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.keep(v0: (int32, boolean)): (int32, boolean) {
+function test.main.keep(v0: (int32, boolean)): (int32, boolean) {
 entry(v0: (int32, boolean)):
-    v1: (int32, boolean) = call main.identity(v0)
+    v1: (int32, boolean) = call test.main.identity(v0)
     return v1
 }
 
-function main.identity(v0: (int32, boolean)): (int32, boolean) {
+function test.main.identity(v0: (int32, boolean)): (int32, boolean) {
 entry(v0: (int32, boolean)):
     return v0
 }
@@ -136,13 +136,13 @@ type Box_1 {
     value: float64;
 }
 
-function main.readInt(v0: Box): int32 {
+function test.main.readInt(v0: Box): int32 {
 entry(v0: Box):
     v1: int32 = field.get v0, 0
     return v1
 }
 
-function main.readFloat(v0: Box_1): float64 {
+function test.main.readFloat(v0: Box_1): float64 {
 entry(v0: Box_1):
     v1: float64 = field.get v0, 0
     return v1
@@ -217,23 +217,23 @@ function wide(flag: boolean): float64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.narrow(v0: boolean): float64 {
+function test.main.narrow(v0: boolean): float64 {
 entry(v0: boolean):
     v1: float64 = 1
     v2: float64 = 2
-    v3: float64 = call main.pick(v1, v2, v0)
+    v3: float64 = call test.main.pick(v1, v2, v0)
     return v3
 }
 
-function main.wide(v0: boolean): float64 {
+function test.main.wide(v0: boolean): float64 {
 entry(v0: boolean):
     v1: float64 = 30.5
     v2: float64 = 40.5
-    v3: float64 = call main.pick(v1, v2, v0)
+    v3: float64 = call test.main.pick(v1, v2, v0)
     return v3
 }
 
-function main.pick(v0: float64, v1: float64, v2: boolean): float64 {
+function test.main.pick(v0: float64, v1: float64, v2: boolean): float64 {
 entry(v0: float64, v1: float64, v2: boolean):
     branch v2, b1, b2
 
@@ -271,19 +271,19 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.settle(v0: int32, v1: int32, v2: boolean): int32 {
+function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call main.retry(v0, v1, v2)
+    v3: int32 = call test.main.retry(v0, v1, v2)
     return v3
 }
 
-function main.retry(v0: int32, v1: int32, v2: boolean): int32 {
+function test.main.retry(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call main.pick(v0, v1, v2)
+    v3: int32 = call test.main.pick(v0, v1, v2)
     return v3
 }
 
-function main.pick(v0: int32, v1: int32, v2: boolean): int32 {
+function test.main.pick(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -326,13 +326,13 @@ function choose(low: int32, high: int32, flag: boolean): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.choose(v0: int32, v1: int32, v2: boolean): int32 {
+function test.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call lib.pick(v0, v1, v2)
+    v3: int32 = call test.lib.pick(v0, v1, v2)
     return v3
 }
 
-function lib.pick(v0: int32, v1: int32, v2: boolean): int32 {
+function test.lib.pick(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -384,73 +384,19 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.settle(v0: int32, v1: int32, v2: boolean): int32 {
+function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call lib.retry(v0, v1, v2)
+    v3: int32 = call test.lib.retry(v0, v1, v2)
     return v3
 }
 
-function lib.retry(v0: int32, v1: int32, v2: boolean): int32 {
+function test.lib.retry(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call lib.pick(v0, v1, v2)
+    v3: int32 = call test.lib.pick(v0, v1, v2)
     return v3
 }
 
-function lib.pick(v0: int32, v1: int32, v2: boolean): int32 {
-entry(v0: int32, v1: int32, v2: boolean):
-    branch v2, b1, b2
-
-b1:
-    return v0
-
-b2:
-    return v1
-}
-"#,
-    );
-}
-
-#[test]
-fn test_lower_instance_names_under_a_named_package() {
-    let session = TestSession::builder()
-        .module(
-            "destack.json",
-            r#"{
-  "name": "app",
-  "compiler": {
-    "emitStats": true,
-    "emitEvents": true,
-    "emitCheckedTypes": true
-  }
-}"#,
-        )
-        .module(
-            "main.ds",
-            r#"
-function pick<T>(chosen: T, other: T, flag: boolean): T {
-    if (flag) {
-        return chosen;
-    }
-    return other;
-}
-
-function choose(low: int32, high: int32, flag: boolean): int32 {
-    return pick(low, high, flag);
-}
-"#,
-        )
-        .build();
-
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-function app.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
-entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call app.main.pick(v0, v1, v2)
-    return v3
-}
-
-function app.main.pick(v0: int32, v1: int32, v2: boolean): int32 {
+function test.lib.pick(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 

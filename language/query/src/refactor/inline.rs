@@ -157,10 +157,10 @@ impl ModuleQueryContext<'_> {
 
     /// Return whether assignment targets write one symbol.
     fn symbol_is_assigned(&self, symbol: dir::GlobalSymbolId) -> bool {
-        self.writable_places().any(|place| {
+        self.writable_places().any(|(_, write)| {
             matches!(
-                &place.storage,
-                dir::Storage::Binding { symbol: written } if *written == symbol
+                write,
+                dir::WriteResolution::Binding { symbol: written, .. } if *written == symbol
             )
         })
     }
@@ -482,12 +482,17 @@ impl InlineTarget {
                 "inline pattern: {field_source:?}"
             )));
         };
-        let dir::Projection::FieldGet { field, .. } = field_resolution.projection else {
+        let dir::OperationResolution::One(dir::Projection::Field(field)) =
+            &field_resolution.projection
+        else {
             return Ok(None);
         };
 
-        let access = match field {
-            dir::ProjectionField::Key(dir::StaticKey::Name(name)) => {
+        let access = match field.target {
+            dir::FieldTarget::Structural {
+                key: dir::StaticKey::Name(name),
+                ..
+            } => {
                 let name = module.strings().get(name);
                 if !is_simple_identifier(name) {
                     return Ok(None);
@@ -495,9 +500,15 @@ impl InlineTarget {
 
                 format!(".{name}")
             }
-            dir::ProjectionField::Key(dir::StaticKey::Index(index)) => format!("[{index}]"),
-            dir::ProjectionField::Key(dir::StaticKey::Symbol(_)) => return Ok(None),
-            dir::ProjectionField::Member(symbol) => {
+            dir::FieldTarget::Structural {
+                key: dir::StaticKey::Index(index),
+                ..
+            } => format!("[{index}]"),
+            dir::FieldTarget::Structural {
+                key: dir::StaticKey::Symbol(_),
+                ..
+            } => return Ok(None),
+            dir::FieldTarget::Member { symbol, .. } => {
                 let Some(name) = program.symbol_name(symbol)? else {
                     return Err(QueryError::missing(format!(
                         "inline projection: {field_source:?}"
@@ -755,10 +766,9 @@ fn expression_repeatability(
             };
             let left = expression_repeatability(*left, module)?;
             let right = expression_repeatability(*right, module)?;
-            match (resolution, left, right) {
-                (dir::OperatorResolution::Builtin, Some(true), Some(true)) => Some(true),
-                (dir::OperatorResolution::Builtin, Some(_), Some(_)) => Some(false),
-                (dir::OperatorResolution::Call(_), Some(_), Some(_)) => Some(false),
+            match (resolution.is_builtin(), left, right) {
+                (true, Some(true), Some(true)) => Some(true),
+                (_, Some(_), Some(_)) => Some(false),
                 (_, None, _) | (_, _, None) => None,
             }
         }
@@ -770,9 +780,9 @@ fn expression_repeatability(
                 return Err(QueryError::missing(format!("inline operator: {source:?}")));
             };
             let right = expression_repeatability(*right, module)?;
-            match (resolution, right) {
-                (dir::OperatorResolution::Builtin, Some(is_repeatable)) => Some(is_repeatable),
-                (dir::OperatorResolution::Call(_), Some(_)) => Some(false),
+            match (resolution.is_builtin(), right) {
+                (true, Some(is_repeatable)) => Some(is_repeatable),
+                (false, Some(_)) => Some(false),
                 (_, None) => None,
             }
         }

@@ -97,9 +97,11 @@ struct InlineBuffer<T, comptime N: 0..=4096> {
 }
 
 type TooLarge = InlineBuffer<uint8, 4097>;
-/// @type.symbol symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" type=<error>
-/// @definition.type symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" value=<error>
+/// @type.symbol symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" type=InlineBuffer<uint8, 4097>
+/// @definition.type symbol=TooLarge source="type TooLarge = InlineBuffer<uint8, 4097>" value=InlineBuffer<uint8, 4097>
 /// @resolution.name source=InlineBuffer target=InlineBuffer
+
+/// @generic.instance id="InlineBuffer<uint8, 4097>" template=InlineBuffer arguments=(uint8, 4097)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '4097' does not satisfy '0..=4096'"

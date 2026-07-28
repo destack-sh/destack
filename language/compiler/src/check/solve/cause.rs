@@ -27,8 +27,8 @@ impl Cause {
         }
     }
 
-    /// Create one child cause descending from a parent constraint.
-    pub(in crate::check) fn slot(origin: Origin, kind: CauseKind, parent: CauseId) -> Self {
+    /// Create one cause descending from a parent constraint.
+    pub(in crate::check) fn child(origin: Origin, kind: CauseKind, parent: CauseId) -> Self {
         Self {
             origin,
             kind,
@@ -158,17 +158,5 @@ impl CauseArena {
     /// Return one interned cause.
     pub(in crate::check) fn get(&self, id: CauseId) -> Cause {
         self.causes[id.index()]
-    }
-
-    /// Return whether one cause is a strict ancestor of another.
-    pub(in crate::check) fn is_ancestor(&self, ancestor: CauseId, mut cause: CauseId) -> bool {
-        while let Some(parent) = self.get(cause).parent {
-            if parent == ancestor {
-                return true;
-            }
-            cause = parent;
-        }
-
-        false
     }
 }

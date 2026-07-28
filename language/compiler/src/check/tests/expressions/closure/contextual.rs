@@ -23,7 +23,7 @@ function capture<T>(): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -69,6 +69,8 @@ class Cell<T> {
         executor;
         /// @type.node source=executor type=Function<(Consume<T#2>,), void>
         /// @resolution.name source=executor target=Cell.constructor.executor
+        /// @resolution.place source=executor placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=executor root=Cell.constructor.executor
         /// @generic.instance source=executor id=Consume<T#2>
 
     }
@@ -100,22 +102,29 @@ function capture<T>(): void {
         seen = inner;
         /// @type.node source="seen = inner" type=Consume<T#3> reduced=Function<(T#3,), void>
         /// @type.node source=seen type=Consume<T#3> | undefined
-        /// @resolution.pattern.assign source=seen kind=place place=binding(capture.seen) type=Consume<T#3> | undefined
+        /// @resolution.pattern.assign source=seen kind=place
+        /// @resolution.assignment source=seen write=binding(capture.seen) type=Consume<T#3> | undefined
         /// @generic.instance source="seen = inner" id=Consume<T#3>
         /// @generic.instance source=seen id=Consume<T#3>
         /// @type.node source=inner type=Consume<T#3> reduced=Function<(T#3,), void>
         /// @resolution.name source=inner target=capture.symbol13.inner
+        /// @resolution.place source=inner placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=inner root=capture.symbol13.inner
         /// @generic.instance source=inner id=Consume<T#3>
 
     });
     cell;
     /// @type.node source=cell type=Cell<T#3>
     /// @resolution.name source=cell target=capture.cell
+    /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=cell root=capture.cell
     /// @generic.instance source=cell id=Cell<T#3>
 
     seen;
     /// @type.node source=seen type=Consume<T#3> | undefined
     /// @resolution.name source=seen target=capture.seen
+    /// @resolution.place source=seen placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=seen root=capture.seen
     /// @generic.instance source=seen id=Consume<T#3>
 
 }
@@ -124,7 +133,6 @@ function capture<T>(): void {
 /// @generic.instance id=Consume<T#2> template=Consume arguments=(T#2)
 /// @generic.instance id=Consume<T#3> template=Consume arguments=(T#3)
 "#,
-        r#""#,
     );
 }
 
@@ -149,7 +157,7 @@ function capture(): void {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -185,6 +193,8 @@ class Cell<T> {
         executor;
         /// @type.node source=executor type=Function<(T,), void>
         /// @resolution.name source=executor target=Cell.constructor.executor
+        /// @resolution.place source=executor placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=executor root=Cell.constructor.executor
 
     }
 }
@@ -210,24 +220,30 @@ function capture(): void {
         seen = inner;
         /// @type.node source="seen = inner" type=int32
         /// @type.node source=seen type=int32 | undefined
-        /// @resolution.pattern.assign source=seen kind=place place=binding(capture.seen) type=int32 | undefined
+        /// @resolution.pattern.assign source=seen kind=place
+        /// @resolution.assignment source=seen write=binding(capture.seen) type=int32 | undefined
         /// @type.node source=inner type=int32
         /// @resolution.name source=inner target=capture.symbol9.inner
+        /// @resolution.place source=inner placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=inner root=capture.symbol9.inner
 
     });
     cell;
     /// @type.node source=cell type=Cell<int32>
     /// @resolution.name source=cell target=capture.cell
+    /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=cell root=capture.cell
     /// @generic.instance source=cell id=Cell<int32>
 
     seen;
     /// @type.node source=seen type=int32 | undefined
     /// @resolution.name source=seen target=capture.seen
+    /// @resolution.place source=seen placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=seen root=capture.seen
 
 }
 
 /// @generic.instance id=Cell<int32> template=Cell arguments=(int32)
 "#,
-        r#""#,
     );
 }

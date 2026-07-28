@@ -13,7 +13,7 @@ impl CheckState<'_> {
         let Some(template) = self.symbol_template(symbol)? else {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         };
-        let parameters = self.generic_template_parameters(template);
+        let parameters = self.generic_template_parameters(template)?;
         if parameters.is_empty() {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         }
@@ -30,8 +30,8 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
-        // check declared parameters against the collected surface
-        let surface = answer!(self.definition_type_surface(symbol)?);
+        // check declared parameters against every exposed type
+        let types = answer!(self.definition_parameter_types(symbol)?);
         let mut failures = Vec::new();
         for parameter in parameters {
             let Some(binding) = self.generic_parameter(parameter) else {
@@ -49,12 +49,10 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // declared modifiers keep an unused marker parameter, but must
-            //  admit the derived use under the declaration's own handle
-            //  context; other contexts derive and the modifier only caps
+            // declared modifiers must admit the variance derived from usage
+            let form = self.parameter_variance_form(parameter)?;
             if let Some(declared) = binding.variance {
-                let context = self.default_symbol_context(symbol);
-                let derived = self.derive_variance(parameter, context)?;
+                let derived = self.derive_variance(parameter, form)?;
                 if !Variance::from(declared).admits(derived) {
                     failures.push(ObligationFailure::VarianceConflict {
                         source: self.symbol_source(parameter_symbol)?,
@@ -68,12 +66,11 @@ impl CheckState<'_> {
             }
 
             // derive and cache the variance the reifier annotates
-            let context = self.default_symbol_context(symbol);
-            self.parameter_variance(parameter, context)?;
+            self.parameter_variance(parameter, form)?;
 
-            // require one occurrence anywhere in the surface
+            // require one occurrence in the exposed types
             let mut occurs = false;
-            for ty in &surface {
+            for ty in &types {
                 if self.parameter_occurs(*ty, parameter)? {
                     occurs = true;
 
@@ -91,15 +88,15 @@ impl CheckState<'_> {
         Ok(Answer::Ready(ObligationCheck::from_failures(failures)))
     }
 
-    /// Collect the types one declaration exposes for parameter occurrence.
-    fn definition_type_surface(
+    /// Collect the declaration types inspected for parameter occurrence.
+    fn definition_parameter_types(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Vec<dir::GlobalTypeId>>> {
         let Some(definition) = self.definition(symbol)?.cloned() else {
             return Ok(Answer::Ready(Vec::new()));
         };
-        let mut surface = Vec::new();
+        let mut types = Vec::new();
 
         // collect member types, skipping synthetic self applications
         for member in definition.members() {
@@ -110,14 +107,14 @@ impl CheckState<'_> {
                         continue;
                     };
                     let Some(signature) = self.signature_head(ty)? else {
-                        surface.push(ty);
+                        types.push(ty);
 
                         continue;
                     };
                     let parameters = self
                         .signature_parameters(ty.module_id, signature.parameters)?
                         .to_vec();
-                    surface.extend(parameters.iter().map(|parameter| parameter.ty));
+                    types.extend(parameters.iter().map(|parameter| parameter.ty));
 
                     // constructor returns restate the receiver instance
                     let constructs = matches!(
@@ -125,18 +122,18 @@ impl CheckState<'_> {
                         dir::MemberSlot::Constructor | dir::MemberSlot::New
                     );
                     if !constructs {
-                        surface.extend(signature.return_type);
+                        types.extend(signature.return_type);
                     }
                 }
                 // associated types expose their value and constraint
                 dir::DefinitionMember::AssociatedType(associated) => {
-                    surface.extend(associated.value);
-                    surface.extend(associated.constraint);
+                    types.extend(associated.value);
+                    types.extend(associated.constraint);
                 }
                 // index signatures expose their key domain and value
                 dir::DefinitionMember::IndexSignature(signature) => {
-                    surface.push(signature.key_type);
-                    surface.push(signature.value_type);
+                    types.push(signature.key_type);
+                    types.push(signature.value_type);
                 }
                 // variant singletons restate the receiver instance
                 dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
@@ -145,22 +142,20 @@ impl CheckState<'_> {
                 | dir::DefinitionMember::AssociatedConst(_)
                 | dir::DefinitionMember::CallSignature(_)
                 | dir::DefinitionMember::ConstructSignature(_) => {
-                    surface.extend(answer!(self.definition_member_type(member)?));
+                    types.extend(answer!(self.definition_member_type(member)?));
                 }
             }
         }
 
-        // newtype backings and heritage arguments are declaration usage
+        // include newtype backings and complete heritage types
         if let dir::Definition::Newtype(newtype) = &definition {
-            surface.push(newtype.backing);
+            types.push(newtype.backing);
         }
-        let bases = definition.bases();
-        let heritages = definition.heritages();
-        for heritage in bases.iter().chain(heritages.iter()) {
-            surface.extend(heritage.arguments.iter().copied());
+        for heritage in definition.heritages() {
+            types.push(heritage.ty);
         }
 
-        Ok(Answer::Ready(surface))
+        Ok(Answer::Ready(types))
     }
 
     /// Return whether one generic parameter occurs in one type graph.

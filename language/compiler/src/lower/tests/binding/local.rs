@@ -14,7 +14,7 @@ function twice(x: float64): float64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.twice(v0: float64): float64 {
+function test.main.twice(v0: float64): float64 {
 entry(v0: float64):
     v1: float64 = float.add v0, v0
     return v1
@@ -37,7 +37,7 @@ function bump(x: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.bump(v0: int32): int32 {
+function test.main.bump(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -79,7 +79,7 @@ type Point {
     y: int32;
 }
 
-function main.relay(): int32 {
+function test.main.relay(): int32 {
     local l0: Point
 
 entry:

@@ -1,11 +1,11 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
     Answer, BodyState, Decision, DecisionKind, FlowSite, Obligation, Origin, PlaceUse, Relation,
     RuntimePredicateObligation, answer,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl BodyState<'_, '_> {
     /// Select one `value is T` predicate.
@@ -25,7 +25,7 @@ impl BodyState<'_, '_> {
         // reduce the tested value and target types
         let value_site = self.node_site(value_node)?;
         let value = answer!(self.predicate_operand_type(origin, value_site)?);
-        let target = answer!(self.node_type(target_node)?);
+        let target = self.require_node_type(target_node)?;
         let target = answer!(self.reduce_type_head(origin, target)?);
         let predicate = answer!(self.select_guard_predicate(origin, value, target, target_node)?);
 
@@ -107,23 +107,32 @@ impl BodyState<'_, '_> {
         // read the selected target symbol and written arguments
         let resolutions = self.resolutions(target.module_id);
         let target = match kind {
-            DecisionKind::Name => match resolutions.name_resolution(target) {
-                Some(resolution) => match resolution.symbols() {
+            DecisionKind::Name => {
+                let Some(resolution) = resolutions.name_resolution(target) else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "instanceof target {target:?} has a name decision without a resolution"
+                        ),
+                    });
+                };
+
+                match resolution.symbols() {
                     [symbol] => Some((*symbol, None)),
                     _ => None,
-                },
-                None => None,
-            },
+                }
+            }
             DecisionKind::Instantiation => {
-                resolutions
-                    .instantiation_resolution(target)
-                    .map(|resolution| {
-                        let arguments =
-                            dir::GenericArgumentBinding::values(&resolution.generic_arguments)
-                                .collect::<Vec<_>>();
+                let Some(resolution) = resolutions.instantiation_resolution(target) else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "instanceof target {target:?} has an instantiation decision without a resolution"
+                        ),
+                    });
+                };
+                let arguments =
+                    dir::GenericArgumentBinding::values(&resolution.generic_arguments).collect();
 
-                        (resolution.symbol, Some(arguments))
-                    })
+                Some((resolution.symbol, Some(arguments)))
             }
             DecisionKind::Rejected => return Ok(Answer::Ready(None)),
             _ => None,
@@ -133,11 +142,9 @@ impl BodyState<'_, '_> {
         };
 
         // guard targets read as their declaration reference
-        if self.committed_node_type(target_node).is_none() {
-            let reference =
-                self.intern_type(module, dir::Type::Reference(dir::TypeReference { symbol }))?;
-            self.commit_node_type(target_node, reference)?;
-        }
+        let reference =
+            self.intern_type(module, dir::Type::Reference(dir::TypeReference { symbol }))?;
+        self.commit_node_type(target_node, reference)?;
         if self.symbol_kind(symbol) != dir::SymbolKind::Class {
             return Ok(Answer::Ready(None));
         }
@@ -165,7 +172,7 @@ impl BodyState<'_, '_> {
         let Some(template) = self.symbol_template(symbol)? else {
             return Ok(Vec::new());
         };
-        let parameters = self.generic_template_parameters(template);
+        let parameters = self.generic_template_parameters(template)?;
         let mut arguments = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             let argument = self.intern_type(module, dir::Type::Erased(parameter))?;
@@ -267,7 +274,7 @@ impl BodyState<'_, '_> {
             dir::Type::Undefined => dir::PredicateCondition::Literal(dir::ScalarLiteral::Undefined),
             dir::Type::Primitive(primitive) => dir::PredicateCondition::Primitive(primitive),
             dir::Type::Literal(literal) => dir::PredicateCondition::Literal(literal),
-            dir::Type::EnumMember(_) => dir::PredicateCondition::Type(target),
+            dir::Type::Variant(_) => dir::PredicateCondition::Type(target),
             dir::Type::Range(range) => dir::PredicateCondition::Range(dir::PredicateRange {
                 domain: target,
                 start: range.start,
@@ -308,11 +315,12 @@ impl BodyState<'_, '_> {
                     alternatives.push(predicate);
                 }
 
-                let predicate = self.predicate_with_narrowing(
+                let predicate = answer!(self.predicate_with_narrowing(
+                    origin,
                     dir::Predicate::new(dir::PredicateTest::Any(alternatives)),
                     value,
                     target,
-                )?;
+                )?);
 
                 return Ok(Answer::Ready(Some(predicate)));
             }
@@ -377,11 +385,12 @@ impl BodyState<'_, '_> {
                         dir::PredicateCondition::Never,
                     )?),
                     1 => alternatives.remove(0),
-                    _ => self.predicate_with_narrowing(
+                    _ => answer!(self.predicate_with_narrowing(
+                        origin,
                         dir::Predicate::new(dir::PredicateTest::Any(alternatives)),
                         value,
                         target,
-                    )?,
+                    )?),
                 };
 
                 Ok(Answer::Ready(Some(predicate)))
@@ -448,29 +457,9 @@ impl BodyState<'_, '_> {
         let Some(key) = static_key else {
             return Ok(Answer::Ready(predicate));
         };
-        let narrowed = answer!(self.narrowed_membership_receiver(origin, receiver_type, key)?);
+        let narrowed = answer!(self.narrow_membership_receiver(origin, receiver_type, key)?);
 
         Ok(Answer::Ready(predicate.with_narrowed(narrowed)))
-    }
-
-    /// Return the receiver type after a successful static membership test.
-    fn narrowed_membership_receiver(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-        key: dir::StaticKey,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let module = origin.module();
-        let unknown = self.intern_type(module, dir::Type::Unknown)?;
-        let target = self.member_shape_type(module, key, unknown)?;
-        let operation = dir::TypeOperation::Narrow(dir::NarrowType {
-            source: receiver,
-            target,
-            is_positive: true,
-        });
-        let narrowed = self.intern_operation(module, operation)?;
-
-        self.reduce_type_head(origin, narrowed)
     }
 
     /// Select one unary predicate and its successful branch value.
@@ -483,11 +472,11 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<dir::Predicate>> {
         let value = answer!(self.reduce_type_head(origin, value)?);
         let target = answer!(self.reduce_type_head(origin, target)?);
-        let input = answer!(self.predicate_input(origin, value, &condition)?);
-        let predicate = dir::Predicate::unary(input, condition);
+        let operand = answer!(self.predicate_operand(origin, value, &condition)?);
+        let predicate = dir::Predicate::unary(operand, condition);
         let predicate = match predicate.is_never() {
             true => predicate,
-            false => self.predicate_with_narrowing(predicate, value, target)?,
+            false => answer!(self.predicate_with_narrowing(origin, predicate, value, target)?),
         };
 
         Ok(Answer::Ready(predicate))
@@ -495,22 +484,32 @@ impl BodyState<'_, '_> {
 
     /// Return one predicate with its successful branch narrowing.
     fn predicate_with_narrowing(
-        &self,
+        &mut self,
+        origin: Origin,
         predicate: dir::Predicate,
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::Predicate> {
-        let predicate = predicate.with_narrowed(target);
+    ) -> CompilerResult<Answer<dir::Predicate>> {
+        let operation = self.intern_operation(
+            origin.module(),
+            dir::TypeOperation::Narrow(dir::NarrowType {
+                source: value,
+                target,
+                is_positive: true,
+            }),
+        )?;
+        let narrowed = answer!(self.reduce_type_head(origin, operation)?);
+        let predicate = predicate.with_narrowed(narrowed);
         let predicate = match self.predicate_projection(value, target)? {
             Some(projection) => predicate.with_projection(projection),
             None => predicate,
         };
 
-        Ok(predicate)
+        Ok(Answer::Ready(predicate))
     }
 
-    /// Select the input read by one unary predicate.
-    fn predicate_input(
+    /// Select the operand read by one unary predicate.
+    fn predicate_operand(
         &mut self,
         origin: Origin,
         value: dir::GlobalTypeId,

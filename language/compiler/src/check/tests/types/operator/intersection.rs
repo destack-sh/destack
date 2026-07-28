@@ -51,13 +51,91 @@ const name = person.name;
 /// @type.symbol symbol=name source=name type=string
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string; age: int32 } kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string; age: int32 } type=string kind=field target_receiver={ name: string; age: int32 } key=name target_type=string
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.access source=person.name root=person keys=[name]
 
 const age = person.age;
 /// @type.symbol symbol=age source=age type=int32
 /// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver={ name: string; age: int32 } kind=field key=age
+/// @resolution.member source=person.age receiver={ name: string; age: int32 } type=int32 kind=field target_receiver={ name: string; age: int32 } key=age target_type=int32
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=person root=person
+/// @resolution.access source=person.age root=person keys=[age]
+"#,
+    );
+}
+
+#[test]
+fn test_intersection_member_preserves_each_interface_requirement() {
+    let session = TestSession::single(
+        r#"
+interface Left {
+    value: string;
+}
+
+interface Right {
+    value: string;
+}
+
+declare const both: Left & Right;
+const value = both.value;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Left {
+    value: string;
+}
+
+interface Right {
+    value: string;
+}
+
+declare const both: Left & Right;
+const value: string = both.value;
+
+=== checked ===
+interface Left {
+/// @type.symbol symbol=Left type=Left
+/// @definition.interface symbol=Left
+/// @definition.field symbol=Left.value source="value: string" key=value type=string
+
+    value: string;
+    /// @type.symbol symbol=Left.value source="value: string" type=string
+
+}
+
+interface Right {
+/// @type.symbol symbol=Right type=Right
+/// @definition.interface symbol=Right
+/// @definition.field symbol=Right.value source="value: string" key=value type=string
+
+    value: string;
+    /// @type.symbol symbol=Right.value source="value: string" type=string
+
+}
+
+declare const both: Left & Right;
+/// @type.symbol symbol=both source=both type=Left & Right
+/// @resolution.pattern source=both kind=binding target=both
+/// @resolution.name source=Left target=Left
+/// @resolution.name source=Right target=Right
+
+const value = both.value;
+/// @type.symbol symbol=value source=value type=string
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=both target=both
+/// @resolution.member source=both.value receiver=Left & Right type=string kind=intersection targets=[field(receiver=Left & Right, target=Left.value, type=string), field(receiver=Left & Right, target=Right.value, type=string)]
+/// @resolution.place source=both placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=both root=both
+/// @resolution.access source=both.value root=both keys=[value]
 "#,
     );
 }
@@ -214,11 +292,19 @@ const value: Value = { value: "ok", extra: "yes" };
 
 value.value satisfies string;
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.value receiver={ value: string | int32 & string; extra: string } kind=field key=value
+/// @resolution.member source=value.value receiver={ value: string | int32 & string; extra: string } type=string | int32 & string kind=field target_receiver={ value: string | int32 & string; extra: string } key=value target_type=string | int32 & string
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @resolution.place source=value.value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value.value root=value keys=[value]
 
 value.extra satisfies string;
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.extra receiver={ value: string | int32 & string; extra: string } kind=field key=extra
+/// @resolution.member source=value.extra receiver={ value: string | int32 & string; extra: string } type=string kind=field target_receiver={ value: string | int32 & string; extra: string } key=extra target_type=string
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @resolution.place source=value.extra placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value.extra root=value keys=[extra]
 "#,
     );
 }

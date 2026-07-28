@@ -145,19 +145,6 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Import the inherent extension modules once, on the first extension lookup.
-    pub(in crate::check) fn import_inherent_externals(&mut self) -> CompilerResult<()> {
-        let Some(inherent) = self.inherent_externals.take() else {
-            return Ok(());
-        };
-
-        for module in inherent {
-            self.import_external_module(module)?;
-        }
-
-        Ok(())
-    }
-
     /// Return external modules that can be named from one component module.
     fn external_module_ids(&self, module: ModuleId) -> FxIndexSet<ModuleId> {
         let mut external_modules = FxIndexSet::default();

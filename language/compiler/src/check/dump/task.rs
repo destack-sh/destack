@@ -18,6 +18,15 @@ impl Task {
                 .text("site", context.flow_site_label(*site))
                 .text("relation", context.relation_label(expectation.relation))
                 .text("target", context.type_label(expectation.target)),
+            Self::Convert {
+                site,
+                source,
+                expectation,
+            } => event
+                .text("task", "convert")
+                .text("site", context.flow_site_label(*site))
+                .text("source", context.type_label(source.ty))
+                .text("target", context.type_label(expectation.target)),
             Self::Infer { site, use_ } => event
                 .text("task", "infer")
                 .text("site", context.flow_site_label(*site))

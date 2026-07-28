@@ -1,22 +1,76 @@
+use std::slice;
+
 use destack_dir as dir;
-use destack_source::{ModuleId, Span};
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CheckState, Decision, FlowSite, Origin, PlaceUse, ReceiverSteps, Relation,
-    TypeSubstitution, answer,
+    Answer, BodyState, CallableArgument, CheckState, Decision, FlowSite, Origin, PlaceUse,
+    ReceiverSteps, Relation, SignatureMatch, TypeSubstitution, Value, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
+/// One structural property found by member lookup.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct FieldLookup {
+    /// The receiver that exposes the field.
+    pub(in crate::check) receiver: dir::MemberReceiver,
+    /// The structural aggregate that declares the field.
+    pub(in crate::check) owner: dir::GlobalTypeId,
+    /// The projected property operations.
+    pub(in crate::check) access: dir::PropertyAccess,
+    /// Whether the property may be absent.
+    pub(in crate::check) is_optional: bool,
+}
+
 /// Result of looking up one member on a receiver type.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub(in crate::check) enum MemberLookup {
     /// No member exists.
     Missing,
     /// One structural field exists.
-    Field(dir::GlobalTypeId),
+    Field(FieldLookup),
     /// One or more declaration-backed members exist.
     Found(Vec<MemberCandidate>),
+    /// Every union receiver arm exposes one member lookup.
+    Union(Vec<MemberArmLookup>),
+    /// One intersection receiver imposes every constituent lookup.
+    Intersection(Vec<MemberLookup>),
+}
+
+/// One member lookup selected for a runtime union arm.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct MemberArmLookup {
+    /// The runtime receiver arm.
+    pub(in crate::check) receiver: dir::GlobalTypeId,
+    /// The member selected on that arm.
+    pub(in crate::check) lookup: MemberLookup,
+}
+
+impl FieldLookup {
+    /// Return the type produced by reading this property.
+    pub(in crate::check) fn read_type(
+        &self,
+        module: ModuleId,
+        body: &mut BodyState<'_, '_>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(read) = self.access.read() else {
+            return Ok(None);
+        };
+        if !self.is_optional {
+            return Ok(Some(read));
+        }
+        let undefined = body.intern_type(module, dir::Type::Undefined)?;
+        let read = body.normalized_union_type(module, [read, undefined])?;
+
+        Ok(Some(read))
+    }
+
+    /// Return the type accepted by writing this property.
+    pub(in crate::check) fn write_type(&self) -> Option<dir::GlobalTypeId> {
+        self.access.write()
+    }
 }
 
 /// How one declaration member behaves at a use site.
@@ -32,15 +86,17 @@ pub(in crate::check) enum MemberRole {
     Setter,
     /// Associated members use regular assignability.
     Associated,
-    /// Variant members carry a static constructor value.
-    Variant,
+    /// Variant values select one unit case.
+    VariantValue,
+    /// Variant constructors accept one payload value.
+    VariantConstructor,
 }
 
 /// One declaration member visible to member lookup.
 #[derive(Debug, Clone, Copy)]
 pub(in crate::check) struct DeclaredMember {
     /// The declaring member symbol.
-    pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The member space.
     pub(in crate::check) space: dir::MemberSpace,
     /// The member key.
@@ -51,6 +107,10 @@ pub(in crate::check) struct DeclaredMember {
     pub(in crate::check) value: Option<dir::GlobalStaticId>,
     /// How the member behaves at a use site.
     pub(in crate::check) role: MemberRole,
+    /// Whether the member may be absent.
+    pub(in crate::check) is_optional: bool,
+    /// Whether the member rejects writes.
+    pub(in crate::check) is_readonly: bool,
 }
 
 impl MemberLookup {
@@ -63,24 +123,19 @@ impl MemberLookup {
         }
     }
 
-    /// Return one field type when the lookup names exactly one field.
-    pub(in crate::check) fn field_type(&self) -> Option<dir::GlobalTypeId> {
+    /// Consume declaration candidates from a lookup without runtime alternatives.
+    pub(in crate::check) fn into_candidates(self) -> Option<Vec<MemberCandidate>> {
         match self {
-            Self::Field(ty) => Some(*ty),
-            Self::Found(candidates) => match candidates.as_slice() {
-                [candidate] if candidate.role == MemberRole::Field => Some(candidate.ty),
-                _ => None,
-            },
-            Self::Missing => None,
-        }
-    }
+            Self::Found(candidates) => Some(candidates),
+            Self::Intersection(lookups) => {
+                let mut candidates = Vec::new();
+                for lookup in lookups {
+                    candidates.extend(lookup.into_candidates()?);
+                }
 
-    /// Return the first type exposed by this lookup.
-    pub(in crate::check) fn value_type(&self) -> Option<dir::GlobalTypeId> {
-        match self {
-            Self::Field(ty) => Some(*ty),
-            Self::Found(candidates) => candidates.first().map(|candidate| candidate.ty),
-            Self::Missing => None,
+                Some(candidates)
+            }
+            Self::Missing | Self::Field { .. } | Self::Union(_) => None,
         }
     }
 
@@ -88,9 +143,77 @@ impl MemberLookup {
     pub(in crate::check) fn is_found(&self) -> bool {
         !matches!(self, Self::Missing)
     }
+
+    /// Return whether any selected declaration is write-only.
+    fn has_setter(&self) -> bool {
+        match self {
+            Self::Missing | Self::Field { .. } => false,
+            Self::Found(candidates) => candidates
+                .iter()
+                .any(|candidate| candidate.role == MemberRole::Setter),
+            Self::Union(lookups) => lookups.iter().any(|arm| arm.lookup.has_setter()),
+            Self::Intersection(lookups) => lookups.iter().any(Self::has_setter),
+        }
+    }
+
+    /// Prepend one implicit adjustment to every selected receiver.
+    pub(in crate::check) fn prepend_adjustment(&mut self, adjustment: dir::ReceiverAdjustment) {
+        match self {
+            Self::Missing => {}
+            Self::Field(field) => field.receiver.prepend(adjustment),
+            Self::Found(candidates) => {
+                for candidate in candidates {
+                    candidate.receiver.prepend(adjustment.clone());
+                }
+            }
+            Self::Union(lookups) => {
+                for arm in lookups {
+                    arm.lookup.prepend_adjustment(adjustment.clone());
+                }
+            }
+            Self::Intersection(lookups) => {
+                for lookup in lookups {
+                    lookup.prepend_adjustment(adjustment.clone());
+                }
+            }
+        }
+    }
+
+    /// Select every found member through one erased receiver.
+    pub(in crate::check) fn select_dynamic(&mut self, dispatch: dir::DynamicDispatch) {
+        match self {
+            Self::Missing => {}
+            Self::Field(field) => {
+                field.receiver = dir::MemberReceiver::Dynamic(dispatch);
+            }
+            Self::Found(candidates) => {
+                for candidate in candidates {
+                    candidate.receiver = LookupReceiver::Dynamic(dispatch.clone());
+                }
+            }
+            Self::Union(lookups) => {
+                for arm in lookups {
+                    arm.lookup.select_dynamic(dispatch.clone());
+                }
+            }
+            Self::Intersection(lookups) => {
+                for lookup in lookups {
+                    lookup.select_dynamic(dispatch.clone());
+                }
+            }
+        }
+    }
 }
 
 impl MemberRole {
+    /// Return whether this role selects a callable declaration.
+    pub(in crate::check) fn is_callable(self) -> bool {
+        matches!(
+            self,
+            Self::Method | Self::Getter | Self::Setter | Self::VariantConstructor
+        )
+    }
+
     /// Return the use-site role of one definition member.
     pub(in crate::check) fn from_definition(member: &dir::DefinitionMember) -> Option<Self> {
         match member {
@@ -108,20 +231,14 @@ impl MemberRole {
             dir::DefinitionMember::Method(_) => Some(Self::Method),
             dir::DefinitionMember::AssociatedType(_)
             | dir::DefinitionMember::AssociatedConst(_) => Some(Self::Associated),
-            dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
-                Some(Self::Variant)
+            dir::DefinitionMember::EnumVariant(_) => Some(Self::VariantValue),
+            dir::DefinitionMember::TaggedVariant(variant) if variant.argument.is_some() => {
+                Some(Self::VariantConstructor)
             }
+            dir::DefinitionMember::TaggedVariant(_) => Some(Self::VariantValue),
             dir::DefinitionMember::CallSignature(_)
             | dir::DefinitionMember::ConstructSignature(_)
             | dir::DefinitionMember::IndexSignature(_) => None,
-        }
-    }
-
-    /// Return the relation one implementing member must hold against its requirement.
-    pub(in crate::check) fn conformance_relation(self) -> Relation {
-        match self {
-            Self::Method | Self::Getter | Self::Setter => Relation::MethodAssignable,
-            _ => Relation::Assignable,
         }
     }
 
@@ -138,27 +255,85 @@ impl DeclaredMember {
     }
 
     /// Return the value type exposed by this member at a use site.
-    pub(in crate::check) fn value_type(
+    pub(in crate::check) fn access_type(
         &self,
         check: &CheckState<'_>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        match (self.role, check.ty(ty)?) {
-            (MemberRole::Getter, dir::Type::FunctionSignature(function)) => {
-                let function = check.type_signature(ty.module_id, function)?;
-
-                Ok(function.return_type.unwrap_or(ty))
-            }
-            (MemberRole::Setter, dir::Type::FunctionSignature(function)) => {
-                let function = check.type_signature(ty.module_id, function)?;
-
-                Ok(check
-                    .signature_parameters(ty.module_id, function.parameters)?
-                    .first()
-                    .map_or(ty, |parameter| parameter.ty))
-            }
-            _ => Ok(ty),
+        if !matches!(self.role, MemberRole::Getter | MemberRole::Setter) {
+            return Ok(ty);
         }
+        let dir::Type::FunctionSignature(function) = check.ty(ty)? else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "accessor member {:?} has non-signature type {ty:?}",
+                    self.symbol
+                ),
+            });
+        };
+        let function = check.type_signature(ty.module_id, function)?;
+
+        if self.role == MemberRole::Getter {
+            return function.return_type.ok_or_else(|| CompilerError::Internal {
+                message: format!("getter member {:?} has no result type", self.symbol),
+            });
+        }
+
+        // setters expose their one written parameter as the property type
+        let parameters = check.signature_parameters(ty.module_id, function.parameters)?;
+        let [parameter] = parameters else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "setter member {:?} has {} value parameters",
+                    self.symbol,
+                    parameters.len(),
+                ),
+            });
+        };
+
+        Ok(parameter.ty)
+    }
+
+    /// Return the callable type exposed by this declaration member.
+    pub(in crate::check) fn callable_type(
+        &self,
+        module: ModuleId,
+        owner: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+        body: &mut BodyState<'_, '_>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        if self.role.is_callable() {
+            return Ok(Some(ty));
+        }
+        if self.role != MemberRole::VariantValue {
+            return Ok(None);
+        }
+
+        // tagged unit variants also admit the explicit zero argument form
+        let is_unit_variant = match body.definition(owner)? {
+            Some(dir::Definition::Newtype(definition)) => definition
+                .tagged_variant_by_symbol(self.symbol)
+                .is_some_and(|variant| variant.argument.is_none()),
+            _ => false,
+        };
+        if !is_unit_variant {
+            return Ok(None);
+        }
+
+        let parameters = body.intern_parameters(module, &[])?;
+        let callable = body.intern_signature(
+            module,
+            dir::FunctionSignatureType {
+                asynchrony: dir::Asynchrony::Sync,
+                template: None,
+                this_parameter: None,
+                parameters,
+                return_type: Some(ty),
+                is_generator: false,
+            },
+        )?;
+
+        Ok(Some(callable))
     }
 }
 
@@ -166,106 +341,177 @@ impl DeclaredMember {
 #[derive(Debug, Clone)]
 pub(in crate::check) struct MemberCandidate {
     /// The declaring member symbol.
-    pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The declaration that exposed the member.
     pub(in crate::check) owner: dir::GlobalSymbolId,
     /// The member space that selected this candidate.
     pub(in crate::check) space: dir::MemberSpace,
     /// How the member behaves at a use site.
     pub(in crate::check) role: MemberRole,
-    /// The substituted member type.
-    pub(in crate::check) ty: dir::GlobalTypeId,
+    /// The substituted type before optional read widening.
+    pub(in crate::check) access_type: dir::GlobalTypeId,
+    /// The substituted callable type for methods and accessors.
+    pub(in crate::check) callable: Option<dir::GlobalTypeId>,
+    /// Whether the member may be absent.
+    pub(in crate::check) is_optional: bool,
+    /// Whether the member rejects writes.
+    pub(in crate::check) is_readonly: bool,
     /// The generic arguments matched through the owner.
     pub(in crate::check) generic_arguments: Vec<dir::GenericArgumentBinding>,
     /// The member static value when it carries one.
     pub(in crate::check) value: Option<dir::GlobalStaticId>,
     /// The substituted static value of the member, when it has one.
     pub(in crate::check) value_type: Option<dir::GlobalTypeId>,
-    /// The projection steps lookup applied to the use site receiver.
-    pub(in crate::check) steps: ReceiverSteps,
-    /// The narrowed runtime receiver binding this candidate, like one union arm.
-    pub(in crate::check) receiver: Option<dir::GlobalTypeId>,
+    /// The receiver adjustments selected during lookup.
+    pub(in crate::check) receiver: LookupReceiver,
+}
+
+/// Receiver state retained by one member lookup candidate.
+#[derive(Debug, Clone)]
+pub(in crate::check) enum LookupReceiver {
+    /// Direct adjustments attached to the use-site receiver on resolution.
+    Direct(ReceiverSteps),
+    /// Erased receiver already selected for dynamic dispatch.
+    Dynamic(dir::DynamicDispatch),
+}
+
+impl LookupReceiver {
+    /// Prepend one adjustment performed before the existing adjustments.
+    fn prepend(&mut self, adjustment: dir::ReceiverAdjustment) {
+        match self {
+            Self::Direct(steps) => steps.insert(0, adjustment),
+            Self::Dynamic(dispatch) => dispatch.receiver.prepend(adjustment),
+        }
+    }
+
+    /// Attach this lookup state to its use-site receiver.
+    pub(in crate::check) fn resolve(&self, source: dir::GlobalTypeId) -> dir::MemberReceiver {
+        match self {
+            Self::Direct(steps) => dir::MemberReceiver::Direct(dir::AdjustedReceiver {
+                source,
+                adjustments: steps.clone(),
+            }),
+            Self::Dynamic(dispatch) => dir::MemberReceiver::Dynamic(dispatch.clone()),
+        }
+    }
 }
 
 impl MemberCandidate {
+    /// Return the type produced by reading this candidate.
+    pub(in crate::check) fn read_type(
+        &self,
+        module: ModuleId,
+        body: &mut BodyState<'_, '_>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        if !self.role.is_readable() {
+            return Ok(None);
+        }
+        if !self.is_optional {
+            return Ok(Some(self.access_type));
+        }
+        let undefined = body.intern_type(module, dir::Type::Undefined)?;
+        let ty = body.normalized_union_type(module, [self.access_type, undefined])?;
+
+        Ok(Some(ty))
+    }
+
     /// Return the durable member candidate for this lookup candidate.
     pub(in crate::check) fn resolution_candidate(
         &self,
         receiver: dir::GlobalTypeId,
-    ) -> Option<dir::MemberCandidate> {
-        // dereferenced members expect the receiver their steps reach
-        let receiver = self
-            .steps
-            .last()
-            .map(dir::Projection::ty)
-            .unwrap_or(self.receiver.unwrap_or(receiver));
-
-        Some(dir::MemberCandidate {
-            receiver,
-            adjustments: self.steps.to_vec(),
+        ty: dir::GlobalTypeId,
+    ) -> dir::MemberCandidate {
+        dir::MemberCandidate {
+            receiver: self.receiver.resolve(receiver),
             space: self.space,
             owner: self.owner,
-            symbol: self.symbol?,
-            ty: self.ty,
+            symbol: self.symbol,
+            access_type: ty,
+            callable_type: self.callable,
             generic_arguments: self.generic_arguments.clone(),
-        })
+        }
     }
 
-    /// Return the durable member resolution for this lookup candidate.
-    pub(in crate::check) fn resolution(
+    /// Return the durable member access for this lookup candidate.
+    pub(in crate::check) fn access(
         &self,
         receiver: dir::GlobalTypeId,
         key: dir::StaticKey,
-    ) -> dir::MemberResolution {
-        let target = match self.resolution_candidate(receiver) {
-            Some(candidate) => dir::MemberTarget::Symbol(candidate),
-            None => dir::MemberTarget::Field(key),
+        ty: dir::GlobalTypeId,
+    ) -> dir::MemberAccess {
+        let target = match self.field(key) {
+            Some(target) => dir::MemberTarget::Field(dir::FieldResolution {
+                receiver: self.receiver.resolve(receiver),
+                target,
+                ty,
+            }),
+            None => dir::MemberTarget::Symbol(self.resolution_candidate(receiver, ty)),
         };
 
-        dir::MemberResolution::new(receiver, target)
+        dir::MemberAccess::new(receiver, target, ty)
     }
 
     /// Return the stored field selected by this candidate.
-    pub(in crate::check) fn field(&self, key: dir::StaticKey) -> Option<dir::ProjectionField> {
+    pub(in crate::check) fn field(&self, key: dir::StaticKey) -> Option<dir::FieldTarget> {
         if self.role != MemberRole::Field {
             return None;
         }
 
-        Some(
-            self.symbol
-                .map(dir::ProjectionField::Member)
-                .unwrap_or(dir::ProjectionField::Key(key)),
-        )
-    }
-
-    /// Return the getter selected by this candidate.
-    pub(in crate::check) fn getter(
-        &self,
-        receiver: dir::GlobalTypeId,
-        key: dir::StaticKey,
-    ) -> Option<dir::MemberResolution> {
-        if self.role != MemberRole::Getter {
-            return None;
-        }
-
-        Some(self.resolution(receiver, key))
-    }
-
-    /// Return the setter selected by this candidate.
-    pub(in crate::check) fn setter(
-        &self,
-        receiver: dir::GlobalTypeId,
-        key: dir::StaticKey,
-    ) -> Option<dir::MemberResolution> {
-        if self.role != MemberRole::Setter {
-            return None;
-        }
-
-        Some(self.resolution(receiver, key))
+        Some(dir::FieldTarget::Member {
+            symbol: self.symbol,
+            key,
+        })
     }
 }
 
 impl BodyState<'_, '_> {
+    /// Return the readable type exposed by one member lookup.
+    pub(in crate::check) fn member_read_type(
+        &mut self,
+        origin: Origin,
+        lookup: &MemberLookup,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        match lookup {
+            MemberLookup::Missing => Ok(None),
+            MemberLookup::Field(field) => field.read_type(origin.module(), self),
+            MemberLookup::Found(candidates) => {
+                let mut types = Vec::with_capacity(candidates.len());
+                for candidate in candidates {
+                    types.extend(candidate.read_type(origin.module(), self)?);
+                }
+                if types.is_empty() {
+                    return Ok(None);
+                }
+
+                self.normalized_intersection_type(origin.module(), types)
+                    .map(Some)
+            }
+            MemberLookup::Union(arms) => {
+                let mut types = Vec::with_capacity(arms.len());
+                for arm in arms {
+                    let Some(ty) = self.member_read_type(origin, &arm.lookup)? else {
+                        return Ok(None);
+                    };
+                    types.push(ty);
+                }
+
+                self.normalized_union_type(origin.module(), types).map(Some)
+            }
+            MemberLookup::Intersection(lookups) => {
+                let mut types = Vec::with_capacity(lookups.len());
+                for lookup in lookups {
+                    types.extend(self.member_read_type(origin, lookup)?);
+                }
+                if types.is_empty() {
+                    return Ok(None);
+                }
+
+                self.normalized_intersection_type(origin.module(), types)
+                    .map(Some)
+            }
+        }
+    }
+
     /// Return the lookup member represented by one definition member.
     pub(in crate::check) fn declared_member(
         &mut self,
@@ -274,16 +520,304 @@ impl BodyState<'_, '_> {
         let Some(role) = MemberRole::from_definition(member) else {
             return Ok(Answer::Ready(None));
         };
+        let Some(symbol) = member.symbol() else {
+            return Err(CompilerError::Internal {
+                message: format!("keyed definition member {member:?} has no symbol"),
+            });
+        };
         let ty = answer!(self.definition_member_type(member)?);
 
         Ok(Answer::Ready(Some(DeclaredMember {
-            symbol: member.symbol(),
+            symbol,
             space: member.space(),
             key: member.key(),
             ty,
             value: member.static_value(),
             role,
+            is_optional: matches!(
+                member,
+                dir::DefinitionMember::Field(field) if field.is_optional
+            ),
+            is_readonly: matches!(
+                member,
+                dir::DefinitionMember::Field(field) if field.is_readonly
+            ),
         })))
+    }
+
+    /// Select the readable resolution exposed by one member lookup.
+    pub(in crate::check) fn select_member_read(
+        &mut self,
+        origin: Origin,
+        receiver: Value,
+        key: dir::StaticKey,
+        lookup: &MemberLookup,
+    ) -> CompilerResult<Answer<Option<dir::MemberResolution>>> {
+        match lookup {
+            MemberLookup::Missing => Ok(Answer::Ready(None)),
+            MemberLookup::Field(field) => {
+                // write-only properties expose nothing to a read selection
+                let Some(ty) = field.read_type(origin.module(), self)? else {
+                    return Ok(Answer::Ready(None));
+                };
+                let target = dir::MemberTarget::Field(dir::FieldResolution {
+                    receiver: field.receiver.clone(),
+                    target: dir::FieldTarget::Structural {
+                        owner: field.owner,
+                        key,
+                    },
+                    ty,
+                });
+
+                let access = dir::MemberAccess::new(receiver.ty, target, ty);
+
+                Ok(Answer::Ready(Some(dir::OperationResolution::One(access))))
+            }
+            MemberLookup::Found(candidates) => {
+                let mut targets = Vec::new();
+                let mut types = Vec::new();
+                for candidate in candidates {
+                    let Some(ty) = candidate.read_type(origin.module(), self)? else {
+                        continue;
+                    };
+                    let access = if candidate.role == MemberRole::Getter {
+                        let call = answer!(self.select_getter_call(origin, receiver, candidate)?);
+
+                        dir::MemberAccess::new(
+                            receiver.ty,
+                            dir::MemberTarget::Call(Box::new(call)),
+                            ty,
+                        )
+                    } else {
+                        candidate.access(receiver.ty, key, ty)
+                    };
+
+                    targets.push(access.target);
+                    types.push(access.ty);
+                }
+                let target = match targets.as_slice() {
+                    [] => return Ok(Answer::Ready(None)),
+                    [target] => target.clone(),
+                    _ => dir::MemberTarget::Existential(targets),
+                };
+                let ty = self.normalized_intersection_type(origin.module(), types)?;
+
+                let access = dir::MemberAccess::new(receiver.ty, target, ty);
+
+                Ok(Answer::Ready(Some(dir::OperationResolution::One(access))))
+            }
+            MemberLookup::Union(lookups) => {
+                let mut accesses = Vec::with_capacity(lookups.len());
+                let mut types = Vec::with_capacity(lookups.len());
+                for arm in lookups {
+                    let arm_receiver = Value {
+                        ty: arm.receiver,
+                        ..receiver
+                    };
+                    let Some(resolution) =
+                        answer!(self.select_member_read(origin, arm_receiver, key, &arm.lookup,)?)
+                    else {
+                        return Ok(Answer::Ready(None));
+                    };
+
+                    let dir::OperationResolution::One(access) = resolution else {
+                        return Err(CompilerError::Internal {
+                            message: "union member lookup contains a nested union".to_string(),
+                        });
+                    };
+
+                    types.push(access.ty);
+                    accesses.push(access);
+                }
+                let ty = self.normalized_union_type(origin.module(), types)?;
+
+                Ok(Answer::Ready(Some(dir::OperationResolution::Union {
+                    arms: accesses,
+                    ty,
+                })))
+            }
+            MemberLookup::Intersection(lookups) => {
+                let mut resolutions = Vec::with_capacity(lookups.len());
+                for lookup in lookups {
+                    let Some(resolution) =
+                        answer!(self.select_member_read(origin, receiver, key, lookup)?)
+                    else {
+                        return Ok(Answer::Ready(None));
+                    };
+                    resolutions.push(resolution);
+                }
+                let resolution = self.intersect_member_resolutions(origin, resolutions)?;
+
+                Ok(Answer::Ready(Some(resolution)))
+            }
+        }
+    }
+
+    /// Intersect simultaneous member resolutions, distributing runtime union arms.
+    pub(in crate::check) fn intersect_member_resolutions(
+        &mut self,
+        origin: Origin,
+        resolutions: Vec<dir::MemberResolution>,
+    ) -> CompilerResult<dir::MemberResolution> {
+        let has_union = resolutions
+            .iter()
+            .any(|resolution| matches!(resolution, dir::OperationResolution::Union { .. }));
+        let mut combinations = vec![Vec::new()];
+        for resolution in resolutions {
+            let accesses = match &resolution {
+                dir::OperationResolution::One(access) => slice::from_ref(access),
+                dir::OperationResolution::Union { arms, .. } => arms.as_slice(),
+            };
+            let mut next = Vec::with_capacity(combinations.len() * accesses.len());
+            for combination in combinations {
+                for access in accesses {
+                    let mut combined = combination.clone();
+                    combined.push(access.clone());
+                    next.push(combined);
+                }
+            }
+            combinations = next;
+        }
+
+        let mut arms = Vec::with_capacity(combinations.len());
+        for accesses in combinations {
+            arms.push(self.intersect_member_accesses(origin, accesses)?);
+        }
+        if !has_union && arms.len() == 1 {
+            return Ok(dir::OperationResolution::One(arms.remove(0)));
+        }
+        let types = arms.iter().map(|access| access.ty).collect::<Vec<_>>();
+        let ty = self.normalized_union_type(origin.module(), types)?;
+
+        Ok(dir::OperationResolution::Union { arms, ty })
+    }
+
+    /// Intersect simultaneous member accesses into one runtime access.
+    fn intersect_member_accesses(
+        &mut self,
+        origin: Origin,
+        accesses: Vec<dir::MemberAccess>,
+    ) -> CompilerResult<dir::MemberAccess> {
+        if accesses.len() == 1 {
+            let mut accesses = accesses;
+
+            return Ok(accesses.remove(0));
+        }
+
+        let mut receivers = Vec::with_capacity(accesses.len());
+        let mut targets = Vec::with_capacity(accesses.len());
+        let mut types = Vec::with_capacity(accesses.len());
+        for access in accesses {
+            receivers.push(access.receiver);
+            types.push(access.ty);
+            match access.target {
+                dir::MemberTarget::Intersection(nested) => targets.extend(nested),
+                target => targets.push(target),
+            }
+        }
+        let receiver = self.normalized_intersection_type(origin.module(), receivers)?;
+        let ty = self.normalized_intersection_type(origin.module(), types)?;
+        let target = dir::MemberTarget::Intersection(targets);
+
+        Ok(dir::MemberAccess::new(receiver, target, ty))
+    }
+
+    /// Select one getter invocation from a readable member candidate.
+    pub(in crate::check) fn select_getter_call(
+        &mut self,
+        origin: Origin,
+        receiver: Value,
+        candidate: &MemberCandidate,
+    ) -> CompilerResult<Answer<dir::Call>> {
+        let symbol = candidate.symbol;
+        let resolution = candidate.receiver.resolve(receiver.ty);
+        let selection_type = match &resolution {
+            dir::MemberReceiver::Direct(receiver) => receiver.ty(),
+            dir::MemberReceiver::Dynamic(dispatch) => dispatch.constraint,
+        };
+        let selection_receiver = Value {
+            ty: selection_type,
+            ..receiver
+        };
+        let arguments = SmallVec::<[CallableArgument; 4]>::new();
+        let callable = candidate.callable.ok_or_else(|| CompilerError::Internal {
+            message: format!("getter {symbol:?} has no callable type"),
+        })?;
+        let selected = answer!(self.attempt_callable(
+            origin,
+            callable,
+            Some(candidate.owner),
+            Some(selection_receiver),
+            &candidate.generic_arguments,
+            &[],
+            &arguments,
+            None,
+        )?);
+        let SignatureMatch::Selected(signature) = selected else {
+            let name = self.format_symbol_path(symbol);
+            let receiver = self.format_type(selection_receiver.ty);
+            let callable = self.format_type(callable);
+
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "selected getter '{name}' with type '{callable}' rejects receiver '{receiver}'",
+                ),
+            });
+        };
+        let arguments = Self::source_argument_bindings(&[], &signature.parameters);
+        let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
+
+        Ok(Answer::Ready(resolution))
+    }
+
+    /// Select one setter invocation from a writable member candidate.
+    pub(in crate::check) fn select_setter_call(
+        &mut self,
+        origin: Origin,
+        receiver: Value,
+        candidate: &MemberCandidate,
+    ) -> CompilerResult<Answer<dir::Call>> {
+        let symbol = candidate.symbol;
+        let resolution = candidate.receiver.resolve(receiver.ty);
+        let selection_type = match &resolution {
+            dir::MemberReceiver::Direct(receiver) => receiver.ty(),
+            dir::MemberReceiver::Dynamic(dispatch) => dispatch.constraint,
+        };
+        let selection_receiver = Value {
+            ty: selection_type,
+            ..receiver
+        };
+        let sources = [dir::ArgumentSource::Write];
+        let source = self
+            .origin_source_node(origin)?
+            .into_global(origin.module());
+        let arguments = [CallableArgument {
+            source,
+            ty: Some(candidate.access_type),
+            relation: Relation::Assignable,
+            use_: ValueUse::Argument,
+        }];
+        let selected = answer!(self.attempt_callable(
+            origin,
+            candidate.callable.ok_or_else(|| CompilerError::Internal {
+                message: format!("setter {symbol:?} has no callable type"),
+            })?,
+            Some(candidate.owner),
+            Some(selection_receiver),
+            &candidate.generic_arguments,
+            &[],
+            &arguments,
+            None,
+        )?);
+        let SignatureMatch::Selected(signature) = selected else {
+            return Err(CompilerError::Internal {
+                message: format!("selected setter {symbol:?} rejects its declared value type"),
+            });
+        };
+        let arguments = Self::source_argument_bindings(&sources, &signature.parameters);
+        let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
+
+        Ok(Answer::Ready(resolution))
     }
 
     /// Select the member meaning of one member access node.
@@ -323,6 +857,13 @@ impl BodyState<'_, '_> {
         // choose static or instance member space from the receiver expression
         let mut space = self.member_receiver_space(receiver_node, receiver)?;
 
+        // select compiler-defined member projections before declaration lookup
+        if space == dir::MemberSpace::Instance
+            && let Some(projection) = self.tagged_discriminator_projection(module, receiver, key)?
+        {
+            return self.commit_projection_member(node, receiver_node, receiver, key, projection);
+        }
+
         // static access names a declaration
         let mut lookup_receiver = receiver;
         let receiver_name = self
@@ -342,30 +883,32 @@ impl BodyState<'_, '_> {
         let lookup = answer!(self.lookup_member(origin, module, lookup_receiver, space, key)?);
 
         match lookup {
-            MemberLookup::Field(ty) => self.commit_field_member(node, receiver, key, ty),
-            MemberLookup::Found(candidates) => {
-                self.commit_member_candidates(node, origin, module, receiver, key, name, candidates)
-            }
             MemberLookup::Missing => {
                 let key = self.strings().get(name).to_string();
 
                 self.reject_member(node, origin, written_receiver, key)
             }
+            lookup => {
+                self.commit_member_lookup(node, receiver_node, origin, receiver, key, name, lookup)
+            }
         }
     }
 
-    /// Commit one structural field member access.
-    fn commit_field_member(
+    /// Commit one compiler-defined member projection.
+    fn commit_projection_member(
         &mut self,
         node: dir::GlobalNodeIdAny,
+        receiver_node: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
         key: dir::StaticKey,
-        ty: dir::GlobalTypeId,
+        projection: dir::Projection,
     ) -> CompilerResult<Answer<()>> {
-        // commit structural field target
-        let target = dir::MemberTarget::Field(key);
-        let resolution = dir::MemberResolution::new(receiver, target);
+        let ty = projection.ty();
+        let target = dir::MemberTarget::Projection { key, projection };
+        let access = dir::MemberAccess::new(receiver, target, ty);
+        let resolution = dir::OperationResolution::One(access);
         self.commit_decision(node, Decision::Member(resolution))?;
+        self.commit_projected_access(node, receiver_node, key)?;
         let site = self.node_site(node)?;
         let ty = answer!(self.flow_type_at(site, ty)?);
         self.commit_node_type(node, ty)?;
@@ -373,143 +916,47 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(()))
     }
 
-    /// Commit one declaration-backed member access.
-    fn commit_member_candidates(
+    /// Commit one member lookup.
+    fn commit_member_lookup(
         &mut self,
         node: dir::GlobalNodeIdAny,
+        receiver_node: dir::GlobalNodeIdAny,
         origin: Origin,
-        module: ModuleId,
         receiver: dir::GlobalTypeId,
         key: dir::StaticKey,
         name: dir::StringId,
-        candidates: Vec<MemberCandidate>,
+        lookup: MemberLookup,
     ) -> CompilerResult<Answer<()>> {
-        let candidates = candidates
-            .into_iter()
-            .collect::<SmallVec<[MemberCandidate; 2]>>();
-
-        match candidates.as_slice() {
-            // reject empty candidate sets
-            [] => {
-                let key = self.strings().get(name).to_string();
-
-                self.reject_member(node, origin, receiver, key)
-            }
-
-            // commit one readable declaration member
-            [candidate] if candidate.role.is_readable() => {
-                let resolution = candidate.resolution(receiver, key);
-                self.commit_decision(node, Decision::Member(resolution))?;
-                let site = self.node_site(node)?;
-                let ty = answer!(self.flow_type_at(site, candidate.ty)?);
-                self.commit_node_type(node, ty)?;
-
-                Ok(Answer::Ready(()))
-            }
-
-            // report single write-only declaration member
-            [candidate] if candidate.role == MemberRole::Setter => {
+        let receiver_site = self.node_site(receiver_node)?;
+        let receiver = answer!(self.expression_value(receiver_site, receiver)?);
+        let Some(resolution) = answer!(self.select_member_read(origin, receiver, key, &lookup)?)
+        else {
+            if lookup.has_setter() {
                 let key = self.strings().get(name).to_string();
                 self.report_write_only_member(origin, key)?;
                 self.commit_decision(node, Decision::Rejected)?;
                 self.commit_error_node(node)?;
 
-                Ok(Answer::Ready(()))
+                return Ok(Answer::Ready(()));
             }
 
-            // reject single unreadable declaration member
-            [_candidate] => {
-                let key = self.strings().get(name).to_string();
-
-                self.reject_member(node, origin, receiver, key)
-            }
-
-            // commit overload or union candidate set
-            many => self.commit_member_candidate_set(node, origin, module, receiver, name, many),
-        }
-    }
-
-    /// Commit one multi-candidate member access.
-    fn commit_member_candidate_set(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        origin: Origin,
-        module: ModuleId,
-        receiver: dir::GlobalTypeId,
-        name: dir::StringId,
-        candidates: &[MemberCandidate],
-    ) -> CompilerResult<Answer<()>> {
-        // collect readable declaration candidates
-        let is_union = matches!(self.ty(receiver)?, dir::Type::Union(_));
-        let mut resolution_candidates = Vec::new();
-        let mut types = Vec::with_capacity(candidates.len());
-        for candidate in candidates {
-            if !candidate.role.is_readable() {
-                continue;
-            }
-            types.push(candidate.ty);
-            let Some(candidate) = candidate.resolution_candidate(receiver) else {
-                continue;
-            };
-            resolution_candidates.push(candidate);
-        }
-
-        // report sets that only expose write-only members
-        let has_setter = candidates
-            .iter()
-            .any(|candidate| candidate.role == MemberRole::Setter);
-        if resolution_candidates.is_empty() && has_setter {
-            let key = self.strings().get(name).to_string();
-            self.report_write_only_member(origin, key)?;
-            self.commit_decision(node, Decision::Rejected)?;
-            self.commit_error_node(node)?;
-
-            return Ok(Answer::Ready(()));
-        }
-
-        // reject sets with no readable member
-        if resolution_candidates.is_empty() {
             let key = self.strings().get(name).to_string();
 
-            return self.reject_member(node, origin, receiver, key);
-        }
-
-        // commit the member candidate set
-        let target = if is_union {
-            dir::MemberTarget::Universal(resolution_candidates)
-        } else {
-            dir::MemberTarget::Existential(resolution_candidates)
+            return self.reject_member(node, origin, receiver.ty, key);
         };
-        let ty = self.normalized_union_type(module, types)?;
-        let resolution = dir::MemberResolution::new(receiver, target);
+
+        // commit the exact runtime target tree and joined value type
+        let ty = resolution.ty();
+        let stored_key = resolution.stored_key();
         self.commit_decision(node, Decision::Member(resolution))?;
+        if let Some(key) = stored_key {
+            self.commit_projected_access(node, receiver_node, key)?;
+        }
         let site = self.node_site(node)?;
         let ty = answer!(self.flow_type_at(site, ty)?);
         self.commit_node_type(node, ty)?;
 
         Ok(Answer::Ready(()))
-    }
-
-    /// Return the span of one member access key, when it is exact.
-    fn member_key_span(&self, node: dir::GlobalNodeIdAny) -> Option<Span> {
-        let state = self.module(node.module_id);
-        if node.local_id.ty != dir::NodeType::Expression {
-            return None;
-        }
-        let expression = node.local_id.into_typed::<dir::Expression>();
-        let dir::Expression::Member {
-            left, is_optional, ..
-        } = *state.view().get(expression)
-        else {
-            return None;
-        };
-        let node_span = state.diagnostic_span(node.local_id)?;
-        let left_span = state.diagnostic_span(left.into_any())?;
-        if node_span.file != left_span.file {
-            return None;
-        }
-        let start = left_span.end + if is_optional { 2 } else { 1 };
-        (start < node_span.end).then(|| Span::new(node_span.file, start, node_span.end))
     }
 
     /// Reject one member access with a diagnostic.
@@ -526,7 +973,7 @@ impl BodyState<'_, '_> {
 
             return Ok(Answer::Ready(()));
         }
-        let key_span = self.member_key_span(node);
+        let key_span = self.module(node.module_id).diagnostic_span(node.local_id);
         self.report_missing_member(origin, receiver, key, key_span)?;
         self.commit_decision(node, Decision::Rejected)?;
         self.commit_error_node(node)?;
@@ -645,7 +1092,7 @@ impl BodyState<'_, '_> {
                     kept.retain(|candidate| candidate.owner != scope);
                 }
 
-                MemberLookup::Found(kept)
+                MemberLookup::from_candidates(kept)
             }
             (lookup, _) => lookup,
         };
@@ -655,9 +1102,11 @@ impl BodyState<'_, '_> {
             MemberLookup::Found(candidates) if candidates.len() > 1 => {
                 let mut kept = Vec::with_capacity(candidates.len());
                 for candidate in candidates {
-                    let is_abstract = self.member_head(candidate.ty)?.is_some_and(|projected| {
-                        projected.owner == member.owner && projected.key == member.key
-                    });
+                    let is_abstract =
+                        self.member_head(candidate.access_type)?
+                            .is_some_and(|projected| {
+                                projected.owner == member.owner && projected.key == member.key
+                            });
                     if !is_abstract {
                         kept.push(candidate);
                     }
@@ -668,111 +1117,186 @@ impl BodyState<'_, '_> {
             lookup => lookup,
         };
 
+        let projected = match lookup {
+            MemberLookup::Missing => answer!(self.project_default_member(origin, member)?),
+            lookup => self.project_member_lookup(module, member, lookup)?,
+        };
+
+        Ok(Answer::Ready(projected))
+    }
+
+    /// Return the type projected by one selected member lookup.
+    fn project_member_lookup(
+        &mut self,
+        module: ModuleId,
+        member: &dir::MemberType,
+        lookup: MemberLookup,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         match lookup {
-            // single projections substitute member arguments
-            MemberLookup::Field(ty) => Ok(Answer::Ready(Some(ty))),
+            MemberLookup::Field(field) => field.read_type(module, self),
             MemberLookup::Found(candidates) => match candidates.as_slice() {
                 [candidate] => {
-                    // comptime const projections yield their static values
                     if let Some(written) = candidate.value_type {
-                        return Ok(Answer::Ready(Some(written)));
+                        return Ok(Some(written));
                     }
                     if let Some(value) = candidate.value {
                         let ty = self.intern_type(module, dir::Type::Static(value))?;
 
-                        return Ok(Answer::Ready(Some(ty)));
+                        return Ok(Some(ty));
                     }
 
-                    // projections over abstract owners are rigid
-                    if let Some(projected) = self.member_head(candidate.ty)?
+                    if let Some(projected) = self.member_head(candidate.access_type)?
                         && projected.owner == member.owner
                         && projected.key == member.key
                     {
-                        return Ok(Answer::Ready(None));
+                        return Ok(None);
                     }
 
-                    Ok(Answer::Ready(Some(candidate.ty)))
+                    candidate.read_type(module, self)
                 }
-                _ => Ok(Answer::Ready(None)),
+                _ => Ok(None),
             },
-            MemberLookup::Missing => self.project_heritage_default(origin, member),
+            MemberLookup::Union(lookups) => {
+                let mut types = Vec::with_capacity(lookups.len());
+                for arm in lookups {
+                    let Some(ty) = self.project_member_lookup(module, member, arm.lookup)? else {
+                        return Ok(None);
+                    };
+                    types.push(ty);
+                }
+
+                self.normalized_union_type(module, types).map(Some)
+            }
+            MemberLookup::Intersection(lookups) => {
+                let mut types = Vec::with_capacity(lookups.len());
+                for lookup in lookups {
+                    let Some(ty) = self.project_member_lookup(module, member, lookup)? else {
+                        return Ok(None);
+                    };
+                    types.push(ty);
+                }
+
+                self.normalized_intersection_type(module, types).map(Some)
+            }
+            MemberLookup::Missing => Ok(None),
         }
     }
 
-    /// Project one defaulted interface member through the owner's heritage.
-    fn project_heritage_default(
+    /// Project one interface default through a qualified owner.
+    fn project_default_member(
         &mut self,
         origin: Origin,
         member: &dir::MemberType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let owner = self.settled_root(member.owner)?;
-        let dir::Type::Application(instance) = self.ty(owner)? else {
+        if self.is_rigid_projection_owner(member.owner)? {
+            return Ok(Answer::Ready(None));
+        }
+        let Some(qualifier) = member.qualifier else {
             return Ok(Answer::Ready(None));
         };
-        let implements = match self.definition(instance.symbol)? {
-            Some(dir::Definition::Class(definition)) => definition.implements.clone(),
-            Some(dir::Definition::Struct(definition)) => definition.implements.clone(),
-            _ => return Ok(Answer::Ready(None)),
+        let Some((interface_module, interface)) = self.nominal_application_maybe(qualifier)? else {
+            return Ok(Answer::Ready(None));
         };
-
-        // instantiate each implemented interface with the owner's arguments
-        let owner_substitution = self.instance_substitution(owner.module_id, &instance)?;
-        for heritage in implements {
-            let applied = answer!(self.substituted_heritage(
-                origin,
-                owner.module_id,
-                &owner_substitution,
-                &heritage
-            )?);
-            let requirements =
-                answer!(self.interface_requirements(origin, origin.module(), &applied, owner,)?);
-            for required in requirements.members {
-                if !required.has_default || required.key != member.key {
-                    continue;
-                }
-                if let Some(ty) = required.ty {
-                    return Ok(Answer::Ready(Some(ty)));
-                }
-            }
+        // explicit qualifier refinements select the associated value
+        let (_, bindings) = self.refinement_bindings(qualifier)?;
+        if let Some((_, value)) = bindings.iter().find(|(key, _)| *key == member.key) {
+            return Ok(Answer::Ready(Some(*value)));
         }
 
-        Ok(Answer::Ready(None))
+        // otherwise select the declared interface default
+        let value = match self.definition(interface.symbol)? {
+            Some(dir::Definition::Interface(definition)) => {
+                definition
+                    .members
+                    .iter()
+                    .find_map(|declared| match declared {
+                        dir::DefinitionMember::AssociatedType(associated)
+                            if associated.key == member.key =>
+                        {
+                            associated.value
+                        }
+                        _ => None,
+                    })
+            }
+            _ => None,
+        };
+        let Some(value) = value else {
+            return Ok(Answer::Ready(None));
+        };
+        let substitution =
+            self.qualified_instance_substitution(interface_module, &interface, member.owner)?;
+        let value = self.substitute_type(origin.module(), value, &substitution)?;
+
+        Ok(Answer::Ready(Some(value)))
     }
 
-    /// Return the unique bound application declaring one projected member.
+    /// Return whether associated defaults remain overridable beneath one owner.
+    pub(in crate::check) fn is_rigid_projection_owner(
+        &self,
+        owner: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let owner = self.settled_root(owner)?;
+        let is_rigid = matches!(self.ty(owner)?, dir::Type::Parameter(_) | dir::Type::This);
+
+        Ok(is_rigid)
+    }
+
+    /// Return the unique interface application declaring one projected member.
     pub(in crate::check) fn projection_qualifier(
         &mut self,
         origin: Origin,
-        parameter: dir::GlobalGenericParameterId,
+        owner: dir::GlobalTypeId,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let mut interfaces = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+
+        // parameter projections select from their declared bounds
+        if let dir::Type::Parameter(parameter) = self.ty(owner)? {
+            interfaces.extend(self.parameter_bounds(origin, parameter)?);
+        }
+        // nominal projections select from their checked heritage
+        else if let Some((module, instance)) = self.nominal_application_maybe(owner)? {
+            let closure = answer!(self.heritage_closure(origin, module, &instance)?);
+            interfaces.extend(
+                closure
+                    .applications
+                    .into_iter()
+                    .map(|application| application.ty),
+            );
+        }
+        // other owners cannot expose associated declarations
+        else {
+            return Ok(Answer::Ready(None));
+        }
+
+        // retain only interfaces declaring this associated member
         let mut qualifier = None;
-        for bound in self.parameter_bounds(origin, parameter)? {
-            // only interface bounds can declare projected members
-            let bound = answer!(self.reduce_type_head(origin, bound)?);
-            let dir::Type::Application(instance) = self.ty(bound)? else {
+        for interface in interfaces {
+            let interface = answer!(self.reduce_type_head(origin, interface)?);
+            let Some((_, instance)) = self.nominal_application_maybe(interface)? else {
                 continue;
             };
-            let members = match self.definition(instance.symbol)? {
-                Some(dir::Definition::Interface(definition)) => definition.members.clone(),
-                _ => continue,
+            let Some(dir::Definition::Interface(definition)) = self.definition(instance.symbol)?
+            else {
+                continue;
             };
-
-            // remember the declaring interface, rejecting ambiguity
-            for member in &members {
-                let declared = match self.declared_member(member)? {
-                    Answer::Ready(Some(declared)) => declared,
-                    Answer::Ready(None) => continue,
-                    Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
-                };
-                if !declared.matches(dir::MemberSpace::Static, key) {
-                    continue;
-                }
-                if qualifier.is_some_and(|previous| previous != bound) {
-                    return Ok(Answer::Ready(None));
-                }
-                qualifier = Some(bound);
+            let declares = definition.members.iter().any(|member| {
+                matches!(
+                    member,
+                    dir::DefinitionMember::AssociatedType(associated)
+                        if associated.key == key
+                )
+            });
+            if !declares || qualifier == Some(interface) {
+                continue;
             }
+            if qualifier.is_some() {
+                let key = self.format_static_key(&key);
+                self.report_ambiguous_member(origin, key)?;
+
+                return Ok(Answer::Ready(None));
+            }
+            qualifier = Some(interface);
         }
 
         Ok(Answer::Ready(qualifier))
@@ -849,7 +1373,6 @@ impl BodyState<'_, '_> {
             Some(definition) => definition
                 .heritages()
                 .into_iter()
-                .filter(|heritage| heritage.symbol == instance.symbol)
                 .cloned()
                 .collect::<Vec<_>>(),
             None => return Ok(Answer::Ready(false)),
@@ -858,25 +1381,19 @@ impl BodyState<'_, '_> {
         // match any implemented application against the applied scope,
         //  binding the implementer's own parameters as pattern holes
         let module = origin.module();
-        let parameters = self
-            .symbol_template(candidate.owner)?
-            .map(|template| self.generic_template_parameters(template))
-            .unwrap_or_default();
+        let parameters = match self.symbol_template(candidate.owner)? {
+            Some(template) => self.generic_template_parameters(template)?,
+            None => SmallVec::new(),
+        };
         let receiver_only = TypeSubstitution::default().with_receiver(receiver);
         for heritage in heritages {
-            // resolve receiver-relative heritage arguments at this application
-            let mut arguments = heritage.arguments.clone();
-            for argument in arguments.iter_mut() {
-                *argument = self.substitute_type(module, *argument, &receiver_only)?;
+            let (_, heritage_instance) = self.require_nominal_application(heritage.ty)?;
+            if heritage_instance.symbol != instance.symbol {
+                continue;
             }
-            let arguments = self.intern_type_ids(module, &arguments)?;
-            let pattern = self.intern_type(
-                module,
-                dir::Type::Application(dir::GenericApplication {
-                    symbol: heritage.symbol,
-                    arguments,
-                }),
-            )?;
+
+            // resolve receiver-relative heritage at this application
+            let pattern = self.substitute_type(module, heritage.ty, &receiver_only)?;
             let matched =
                 answer!(self.match_generic_pattern(origin, &parameters, pattern, qualifier)?);
             if matched.is_some() {
@@ -897,7 +1414,7 @@ impl BodyState<'_, '_> {
         let Some(place) = answer!(self.receiver_projected_place(origin, receiver)?) else {
             return Ok(Answer::Ready(ty));
         };
-        let ty = self.place_relative_type(origin, place, ty)?;
+        let ty = answer!(self.place_relative_type(origin, place, ty)?);
 
         self.reduce_type_head(origin, ty)
     }
@@ -908,11 +1425,11 @@ impl BodyState<'_, '_> {
         origin: Origin,
         place: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         // bare members of local receivers stay bare
-        let root = self.settled_root(place)?;
+        let root = answer!(self.reduce_type_head(origin, place)?);
         if self.check.place_space(root)? == Some(dir::Space::Local) {
-            return Ok(ty);
+            return Ok(Answer::Ready(ty));
         }
 
         self.resolve_relative_place(origin, ty, place)
@@ -995,7 +1512,7 @@ impl BodyState<'_, '_> {
             | dir::Type::Reference(_)
             | dir::Type::Application(_)
             | dir::Type::Member(_)
-            | dir::Type::EnumMember(_)
+            | dir::Type::Variant(_)
             | dir::Type::Form(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Operation(_)

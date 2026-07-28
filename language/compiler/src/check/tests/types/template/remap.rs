@@ -47,7 +47,7 @@ type Handlers<T> = {
 /// @type.symbol symbol=Handlers.T source=T type=T
 
     [K in keyof T as `on-${K}`]: (value: T[K]) => void;
-    /// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
+    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=Handlers.K source=[K in keyof T as `on-${K}`] type=K
     /// @resolution.name source=T target=Handlers.T
     /// @resolution.name source=K target=Handlers.K
@@ -72,11 +72,19 @@ declare const handlers: Handlers<Events>;
 
 handlers["on-ready"] satisfies (value: boolean) => void;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.member source="handlers[\"on-ready\"]" receiver={ on-ready: Function<(Events["ready"],), void>; on-message: Function<(Events["message"],), void> } kind=field key=on-ready
+/// @resolution.place source="handlers[\"on-ready\"]" placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source="handlers[\"on-ready\"]" root=handlers keys=[on-ready]
+/// @resolution.subscript source="handlers[\"on-ready\"]" type=Function<(Events["ready"],), void> kind=member target="receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=field(receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=on-ready, type=Function<(Events[\"ready\"],), void>), type=Function<(Events[\"ready\"],), void>"
+/// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handlers root=handlers
 
 handlers["on-message"] satisfies (value: string) => void;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.member source="handlers[\"on-message\"]" receiver={ on-ready: Function<(Events["ready"],), void>; on-message: Function<(Events["message"],), void> } kind=field key=on-message
+/// @resolution.place source="handlers[\"on-message\"]" placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source="handlers[\"on-message\"]" root=handlers keys=[on-message]
+/// @resolution.subscript source="handlers[\"on-message\"]" type=Function<(Events["message"],), void> kind=member target="receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=field(receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=on-message, type=Function<(Events[\"message\"],), void>), type=Function<(Events[\"message\"],), void>"
+/// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handlers root=handlers
 
 /// @generic.instance id=Handlers<Events> template=Handlers arguments=(Events)
 "#,
@@ -130,7 +138,7 @@ type Getters<T> = {
 /// @type.symbol symbol=Getters.T source=T type=T
 
     [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
-    /// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
+    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=Getters.K source=[K in keyof T as `get${Capitalize<string & K>}`] type=K
     /// @resolution.name source=T target=Getters.T
     /// @resolution.name source=Capitalize target=types.string.Capitalize
@@ -156,11 +164,19 @@ declare const getters: Getters<Person>;
 
 getters.getName satisfies () => string;
 /// @resolution.name source=getters target=getters
-/// @resolution.member source=getters.getName receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } kind=field key=getName
+/// @resolution.member source=getters.getName receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } type=Function<(), Person["name"]> kind=field target_receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } key=getName target_type=Function<(), Person["name"]>
+/// @resolution.place source=getters placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=getters root=getters
+/// @resolution.place source=getters.getName placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=getters.getName root=getters keys=[getName]
 
 getters.getAge satisfies () => int32;
 /// @resolution.name source=getters target=getters
-/// @resolution.member source=getters.getAge receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } kind=field key=getAge
+/// @resolution.member source=getters.getAge receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } type=Function<(), Person["age"]> kind=field target_receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } key=getAge target_type=Function<(), Person["age"]>
+/// @resolution.place source=getters placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=getters root=getters
+/// @resolution.place source=getters.getAge placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=getters.getAge root=getters keys=[getAge]
 
 /// @generic.instance id="Capitalize<string & K>" template=types.string.Capitalize arguments=(string & K)
 /// @generic.instance id=Getters<Person> template=Getters arguments=(Person)
@@ -205,7 +221,7 @@ type Handlers<T> = {
 /// @type.symbol symbol=Handlers.T source=T type=T
 
     [K in keyof T as `on-${K}`]: T[K];
-    /// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
+    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=Handlers.K source=[K in keyof T as `on-${K}`] type=K
     /// @resolution.name source=T target=Handlers.T
     /// @resolution.name source=K target=Handlers.K
@@ -226,6 +242,8 @@ declare const value: Value;
 
 value satisfies string;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id="Handlers<{ name: string }>" template=Handlers arguments=({ name: string })
 "#,
@@ -285,7 +303,7 @@ type Names<T> = {
 /// @type.symbol symbol=Names.T source=T type=T
 
     [K in keyof T as K extends `${infer Name}Created` ? Name : never]: T[K];
-    /// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
+    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=Names.K source=[K in keyof T as K extends `${infer Name}Created` ? Name : never] type=K
     /// @resolution.name source=T target=Names.T
     /// @resolution.name source=K target=Names.K
@@ -303,7 +321,11 @@ declare const names: Names<Events>;
 
 names.user satisfies string;
 /// @resolution.name source=names target=names
-/// @resolution.member source=names.user receiver={ user: string } kind=field key=user
+/// @resolution.member source=names.user receiver={ user: string } type=string kind=field target_receiver={ user: string } key=user target_type=string
+/// @resolution.place source=names placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=names root=names
+/// @resolution.place source=names.user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=names.user root=names keys=[user]
 
 /// @generic.instance id=Names<Events> template=Names arguments=(Events)
 "#,
@@ -361,7 +383,7 @@ type Names<T> = {
 /// @type.symbol symbol=Names.T source=T type=T
 
     [K in keyof T as K extends `${infer Name}Created` ? Name : never]: T[K];
-    /// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
+    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=Names.K source=[K in keyof T as K extends `${infer Name}Created` ? Name : never] type=K
     /// @resolution.name source=T target=Names.T
     /// @resolution.name source=K target=Names.K
@@ -381,6 +403,8 @@ const missing = names.orderPaid;
 /// @type.symbol symbol=missing source=missing type=<error>
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=names target=names
+/// @resolution.place source=names placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=names root=names
 
 /// @generic.instance id=Names<Events> template=Names arguments=(Events)
 "#,
@@ -417,7 +441,7 @@ type HandlerMap<T> = {
     [K in keyof T as `on-${K}`]: T[K];
 };
 
-const handlers: { on-open: true; on-close: false } = {
+const handlers: { on-open: boolean; on-close: boolean } = {
     "on-open": true,
     "on-close": false,
 } satisfies HandlerMap<{ open: boolean; close: boolean }>;
@@ -432,7 +456,7 @@ type HandlerMap<T> = {
 /// @type.symbol symbol=HandlerMap.T source=T type=T
 
     [K in keyof T as `on-${K}`]: T[K];
-    /// @generic.template source=mapped_type_parameter parameters=(K: keyof T)
+    /// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
     /// @type.symbol symbol=HandlerMap.K source=[K in keyof T as `on-${K}`] type=K
     /// @resolution.name source=T target=HandlerMap.T
     /// @resolution.name source=K target=HandlerMap.K
@@ -442,7 +466,7 @@ type HandlerMap<T> = {
 };
 
 const handlers = {
-/// @type.symbol symbol=handlers source=handlers type={ on-open: true; on-close: false }
+/// @type.symbol symbol=handlers source=handlers type={ on-open: boolean; on-close: boolean }
 /// @resolution.pattern source=handlers kind=binding target=handlers
 
     "on-open": true,
@@ -452,7 +476,11 @@ const handlers = {
 
 handlers["on-open"] satisfies boolean;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.member source="handlers[\"on-open\"]" receiver={ on-open: true; on-close: false } kind=field key=on-open
+/// @resolution.place source="handlers[\"on-open\"]" placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source="handlers[\"on-open\"]" root=handlers keys=[on-open]
+/// @resolution.subscript source="handlers[\"on-open\"]" type=boolean kind=member target="receiver={ on-open: boolean; on-close: boolean }, target=field(receiver={ on-open: boolean; on-close: boolean }, target=on-open, type=boolean), type=boolean"
+/// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handlers root=handlers
 "#,
     );
 }

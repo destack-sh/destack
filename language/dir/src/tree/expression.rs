@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyForm, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
-    InferForm, Keyword, LocalNodeId, MatchArm, Mutability, Node, NodeType, Pattern, PlaceModifier,
-    Property, RangeEnd, ScalarLiteral, StaticKey, SwitchCase, TemplateLiteral, TreeAttribute,
-    TreeChild, TypeExpression, UnaryOperator,
+    InferForm, Keyword, LocalNodeId, MatchArm, Mutability, Node, NodeType, OperatorPrecedence,
+    Pattern, PlaceModifier, Property, RangeEnd, ScalarLiteral, StaticKey, SwitchCase,
+    TemplateLiteral, TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
 };
 
 /// A catch branch.
@@ -25,8 +25,7 @@ impl Node for Catch {
     const TYPE: NodeType = NodeType::Catch;
 }
 
-/// An Expression is a generic container for all constructs.
-/// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
+/// One source expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Expression {
     /// Declaration (with a name or anonymous).
@@ -799,6 +798,61 @@ impl Node for Expression {
 }
 
 impl Expression {
+    /// Return this expression's scalar literal.
+    pub fn as_scalar(&self) -> Option<ScalarLiteral> {
+        match self {
+            Self::ScalarLiteral(value) => Some(*value),
+            _ => None,
+        }
+    }
+
+    /// Return this expression's boolean literal.
+    pub fn as_boolean(&self) -> Option<bool> {
+        self.as_scalar()?.as_boolean()
+    }
+
+    /// Return this expression's operator precedence.
+    pub fn precedence(&self) -> OperatorPrecedence {
+        match self {
+            // postfix expressions
+            Self::Call { .. }
+            | Self::Member { .. }
+            | Self::Index { .. }
+            | Self::Instantiation { .. }
+            | Self::Maybe { .. }
+            | Self::Must { .. } => OperatorPrecedence::Postfix,
+
+            // unary expressions
+            Self::Unary { operator, .. } if operator.is_postfix() => OperatorPrecedence::Postfix,
+            Self::Unary { .. }
+            | Self::Await { .. }
+            | Self::AwaitMaybe { .. }
+            | Self::AwaitMust { .. }
+            | Self::Comptime { .. }
+            | Self::Yield { .. }
+            | Self::BorrowOf { .. }
+            | Self::Throw { .. }
+            | Self::Return { .. } => OperatorPrecedence::Prefix,
+
+            // binary and comparison expressions
+            Self::Binary { operator, .. } => operator.precedence(),
+            Self::As { .. }
+            | Self::Satisfies { .. }
+            | Self::Is { .. }
+            | Self::InstanceOf { .. } => OperatorPrecedence::Comparison,
+
+            // assignment and conditional expressions
+            Self::Assign { operator, .. } => operator.precedence(),
+            Self::If {
+                form: IfForm::Ternary,
+                ..
+            } => OperatorPrecedence::Conditional,
+
+            // primary expressions
+            _ => OperatorPrecedence::Primary,
+        }
+    }
+
     /// Return this expression's variant name.
     pub fn variant_name(&self) -> &'static str {
         match self {
@@ -1215,7 +1269,7 @@ pub enum WhereRelation {
     /// The left type must satisfy the right type.
     Satisfies,
     /// The left static term must equal the right static term after normalization.
-    Equals,
+    Equal,
 }
 
 /// A WhereClause is a single clause in a where type declaration.

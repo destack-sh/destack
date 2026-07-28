@@ -18,6 +18,14 @@ impl ResolveState<'_> {
         expression: &dir::Expression,
     ) {
         match expression {
+            dir::Expression::ScalarLiteral(value) => {
+                if let Some(item) = value.representation_item() {
+                    self.use_language_item(item);
+                }
+                if matches!(value, dir::ScalarLiteral::RegexString { .. }) {
+                    self.use_language_item(dir::LanguageItem::RegExp);
+                }
+            }
             dir::Expression::Identifier { name } => {
                 self.collect_path_reference(PathReference {
                     source: id.into_global_any(self.module),
@@ -67,9 +75,6 @@ impl ResolveState<'_> {
             }
             dir::Expression::ImportMeta => {
                 self.use_language_item(dir::LanguageItem::ImportMeta);
-            }
-            dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { .. }) => {
-                self.use_language_item(dir::LanguageItem::RegExp);
             }
             dir::Expression::Type { .. } => {
                 self.use_language_item(dir::LanguageItem::Type);

@@ -4,8 +4,10 @@ import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import {
     Access,
     AllocationError,
+    Borrowed,
     Clone,
     Default,
+    Lifetime,
     MaybeUninit,
     Unique,
     WithAccess,
@@ -52,11 +54,6 @@ export extension<T, comptime N: number> of FixedArray<T, N>
     /// Return whether this fixed array has no elements.
     get isEmpty(): boolean {
         N == 0
-    }
-
-    /// Return the element at `index` by value.
-    index(index: usize): T {
-        todo("FixedArray.index")
     }
 
     /// Borrow a view over `start..end`.
@@ -142,10 +139,13 @@ export extension<T, comptime N: number, R: RangeBounds<usize>, comptime A: Acces
     FixedArray<T, N>
     implements Index<R, A> {
     /// The indexed output type.
-    type Output = WithAccess<&[T], A>;
+    type Output = [T];
 
     /// Borrow the selected range as a view.
-    index(this: WithAccess<&[T; N], A>, range: R): WithAccess<&[T], A> {
+    index<comptime L: Lifetime>(
+        this: Borrowed<FixedArray<T, N>, L, A>,
+        range: R,
+    ): Borrowed<[T], L, A> {
         todo("FixedArray.indexRange")
     }
 }
@@ -224,7 +224,7 @@ export extension<T> of Array<T>
     }
 
     /// Create an array from `values`.
-    static fromIterator(values: Iterator<T>): ^Array<T> {
+    static fromIterator<R>(values: Iterator<T, R>): ^Array<T> {
         todo("Array.fromIterator")
     }
 
@@ -251,11 +251,6 @@ export extension<T> of Array<T>
     /// Return whether this array has no elements.
     get isEmpty(): boolean {
         this.count == 0
-    }
-
-    /// Return the element at `index` by value.
-    index(index: usize): T {
-        todo("Array.index")
     }
 
     /// Borrow a view over `start..end`.
@@ -583,7 +578,7 @@ export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly"> of A
     implements
         Index<R, A> {
     /// The indexed output type.
-    type Output = WithAccess<&[T], A>;
+    type Output = [T];
 
     /// Borrow the selected range as a view.
     index(this: WithAccess<&Array<T>, A>, range: R): WithAccess<&[T], A> {
@@ -610,7 +605,7 @@ export extension<T> of ^Array<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create an owned array from `values`.
-    static fromIterator(values: Iterator<T>): ^Array<T> {
+    static fromIterator<R>(values: Iterator<T, R>): ^Array<T> {
         Array.fromIterator(values)
     }
 }

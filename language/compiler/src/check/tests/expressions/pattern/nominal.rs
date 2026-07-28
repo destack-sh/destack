@@ -44,11 +44,14 @@ if (let UserId(value) = id) {
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=id type=UserId
 /// @resolution.name source=id target=id
+/// @resolution.access source=id root=id
 
     value satisfies int64;
     /// @type.node source="value satisfies int64" type=int64
     /// @type.node source=value type=int64
     /// @resolution.name source=value target=value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=value
 
 }
 "#,
@@ -112,6 +115,8 @@ match (point) {
 /// @type.node type=int32
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 
     Point { x, y } => x + y
     /// @resolution.name source=Point target=Point
@@ -121,9 +126,13 @@ match (point) {
     /// @type.node source="x + y" type=int32
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
-    /// @resolution.operator source="x + y" kind=builtin
+    /// @resolution.operator source="x + y" type=int32 operator="+" kind=builtin operands=[x as int32 families=(integer), y as int32 families=(integer)]
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=x
     /// @type.node source=y type=int32
     /// @resolution.name source=y target=y
+    /// @resolution.place source=y placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=y root=y
 
 }
 "#,
@@ -171,6 +180,8 @@ match (point) {
 /// @type.node type=<error>
 /// @type.node source=point type=Point reduced={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 
     Point { x, y } => x + y
     /// @resolution.name source=Point target=Point
@@ -179,8 +190,12 @@ match (point) {
     /// @type.node source="x + y" type=<error>
     /// @type.node source=x type=<error>
     /// @resolution.name source=x target=x
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=x
     /// @type.node source=y type=<error>
     /// @resolution.name source=y target=y
+    /// @resolution.place source=y placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=y root=y
 
 }
 "#,
@@ -245,8 +260,12 @@ class User {
         return this.name;
         /// @type.node source=this type=User
         /// @type.node source=this.name type=string
-        /// @resolution.member source=this.name receiver=User kind=symbol target=User.name
+        /// @resolution.member source=this.name receiver=User type=string kind=field target_receiver=User key=name target=User.name target_type=string
         /// @resolution.receiver source=this kind=this declaration=User type=User
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.name root=this keys=[name]
 
     }
 }
@@ -260,6 +279,8 @@ match (user) {
 /// @type.node type=<error>
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 
     User { displayName } => displayName
     /// @resolution.name source=User target=User
@@ -267,6 +288,8 @@ match (user) {
     /// @type.symbol symbol=displayName source=displayName type=<error>
     /// @type.node source=displayName type=<error>
     /// @resolution.name source=displayName target=displayName
+    /// @resolution.place source=displayName placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=displayName root=displayName
 
 }
 "#,

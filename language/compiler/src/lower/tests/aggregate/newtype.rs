@@ -18,7 +18,7 @@ function span(distance: Meters): Meters {
 @copy
 type Meters = newtype<int32>;
 
-function main.span(v0: Meters): Meters {
+function test.main.span(v0: Meters): Meters {
 entry(v0: Meters):
     return v0
 }
@@ -44,7 +44,7 @@ function total(base: int32): Meters {
 @copy
 type Meters = newtype<int32>;
 
-function main.total(v0: int32): Meters {
+function test.main.total(v0: int32): Meters {
 entry(v0: int32):
     v1: Meters = aggregate (v0)
     return v1

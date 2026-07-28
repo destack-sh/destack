@@ -73,7 +73,7 @@ const value: boolean = false;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=false type=false
 
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -125,7 +125,7 @@ const value: string = true;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'string'"
@@ -156,7 +156,7 @@ const value: number = false;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=false type=false
 
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'false' is not assignable to type 'float64'"

@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use crate::{Diagnostic, DiagnosticSeverity};
+use crate::{Diagnostic, DiagnosticSeverity, DiagnosticTarget, FileId};
 
 /// A collection of diagnostics.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -62,6 +62,33 @@ impl DiagnosticCollection {
         self.diagnostics.extend(other.diagnostics.iter().cloned());
     }
 
+    /// Sort diagnostics by canonical file order and primary source location.
+    pub fn sort_by_source(&mut self, files: &[FileId]) {
+        // index each file's canonical position
+        let mut file_order = BTreeMap::new();
+        for (index, file) in files.iter().copied().enumerate() {
+            file_order.entry(file).or_insert(index);
+        }
+
+        // order completed diagnostics by their primary targets
+        self.diagnostics.sort_by(|left, right| {
+            let left_file = left.primary.target.file();
+            let right_file = right.primary.target.file();
+            let left_rank = file_order.get(&left_file).copied().unwrap_or(usize::MAX);
+            let right_rank = file_order.get(&right_file).copied().unwrap_or(usize::MAX);
+            let left_location = diagnostic_location(left.primary.target);
+            let right_location = diagnostic_location(right.primary.target);
+
+            left_rank
+                .cmp(&right_rank)
+                .then_with(|| left_file.cmp(&right_file))
+                .then_with(|| left_location.cmp(&right_location))
+                .then_with(|| right.severity.cmp(&left.severity))
+                .then_with(|| left.id.cmp(&right.id))
+                .then_with(|| left.message.cmp(&right.message))
+        });
+    }
+
     /// Whether this collection has any diagnostics of the given DiagnosticSeverity.
     pub fn has_diagnostics_of_severity(&self, severity: DiagnosticSeverity) -> bool {
         self.diagnostics.iter().any(|d| d.severity == severity)
@@ -90,6 +117,14 @@ impl DiagnosticCollection {
             return 2;
         }
         0
+    }
+}
+
+/// Return the source-local ordering key for one diagnostic target.
+fn diagnostic_location(target: DiagnosticTarget) -> (u8, u32, u32) {
+    match target {
+        DiagnosticTarget::File(_) => (0, 0, 0),
+        DiagnosticTarget::Span(span) => (1, span.start, span.end),
     }
 }
 

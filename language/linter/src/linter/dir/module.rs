@@ -1,68 +1,153 @@
 use std::slice;
 use std::sync::Arc;
 
-use destack_artifact::{
-    DiagnosticAnchor, DirExpanded, DirExported, DirParsed, DirResolved, GlobalEnvironment,
-};
-use destack_core::StringPool;
+use destack_artifact::{DiagnosticAnchor, DirExpanded, DirExported, DirParsed, DirResolved};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Module, ProfileId, ProviderError, Repository, Revision};
-use destack_source::{File, FileId, ModuleId, NodeSpanBoundary, NodeSpanType, Span, TargetId};
+use destack_source::{
+    File, FileId, ModuleId, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span,
+};
 
-/// One module's checked DIR.
-#[derive(Debug)]
-pub struct DirModule {
+use super::Dir;
+
+/// A borrowed checked DIR module.
+#[derive(Debug, Clone, Copy)]
+pub struct DirModule<'a> {
+    /// The indexed checked DIR.
+    pub dir: &'a Dir,
     /// The module id.
     pub id: ModuleId,
-    /// The active profile.
-    pub profile: ProfileId,
-    /// The active target.
-    pub target: TargetId,
-    /// The global language environment.
-    pub environment: Arc<GlobalEnvironment>,
     /// The contributing source files in parsed order.
-    pub files: Box<[Arc<File>]>,
+    pub files: &'a [Arc<File>],
     /// The parsed DIR artifact.
-    pub parsed: Arc<DirParsed>,
+    pub parsed: &'a DirParsed,
     /// The expanded DIR artifact.
-    pub expanded: Arc<DirExpanded>,
+    pub expanded: &'a DirExpanded,
     /// The resolved import and source-reference artifact.
-    pub resolved: Arc<DirResolved>,
+    pub resolved: &'a DirResolved,
     /// The resolved export artifact.
-    pub exported: Arc<DirExported>,
-    /// The DIR string pool.
-    pub strings: Arc<StringPool>,
+    pub exported: &'a DirExported,
     /// The binding table.
-    pub bindings: dir::BindingTable<'static>,
+    pub bindings: &'a dir::BindingTable<'static>,
     /// The module dependency table.
-    pub modules: dir::ModuleTable<'static>,
+    pub modules: &'a dir::ModuleTable<'static>,
     /// The type table.
-    pub types: dir::TypeTable<'static>,
+    pub types: &'a dir::TypeTable<'static>,
     /// The static table.
-    pub statics: dir::StaticTable<'static>,
+    pub statics: &'a dir::StaticTable<'static>,
     /// The checked decorator table.
-    pub decorators: dir::DecoratorTable<'static>,
+    pub decorators: &'a dir::DecoratorTable<'static>,
     /// The auto implementation table.
-    pub auto: dir::AutoTable<'static>,
+    pub auto: &'a dir::AutoTable<'static>,
     /// The resolution table.
-    pub resolutions: dir::ResolutionTable<'static>,
+    pub resolutions: &'a dir::ResolutionTable<'static>,
     /// The generic table.
-    pub generics: dir::GenericTable<'static>,
+    pub generics: &'a dir::GenericTable<'static>,
     /// The definition table.
-    pub definitions: dir::DefinitionTable<'static>,
+    pub definitions: &'a dir::DefinitionTable<'static>,
     /// The coercion table.
-    pub coercions: dir::CoercionTable<'static>,
+    pub coercions: &'a dir::CoercionTable<'static>,
     /// The capture table.
-    pub captures: dir::CaptureTable<'static>,
+    pub captures: &'a dir::CaptureTable<'static>,
     /// The top-level expression roots.
-    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+    pub roots: &'a [dir::LocalNodeId<dir::Expression>],
     /// The stable module node.
     pub module_node: dir::LocalNodeIdAny,
     /// The module namespace scope.
     pub namespace_scope: dir::LocalScopeId,
 }
 
-impl DirModule {
+/// Owned checked DIR storage for one module.
+#[derive(Debug)]
+pub(super) struct DirModuleStorage {
+    /// The module id.
+    pub(super) id: ModuleId,
+    /// The contributing source files in parsed order.
+    files: Box<[Arc<File>]>,
+    /// The parsed DIR artifact.
+    parsed: Arc<DirParsed>,
+    /// The expanded DIR artifact.
+    expanded: Arc<DirExpanded>,
+    /// The resolved import and source-reference artifact.
+    resolved: Arc<DirResolved>,
+    /// The resolved export artifact.
+    exported: Arc<DirExported>,
+    /// The binding table.
+    pub(super) bindings: dir::BindingTable<'static>,
+    /// The module dependency table.
+    modules: dir::ModuleTable<'static>,
+    /// The type table.
+    pub(super) types: dir::TypeTable<'static>,
+    /// The static table.
+    pub(super) statics: dir::StaticTable<'static>,
+    /// The checked decorator table.
+    decorators: dir::DecoratorTable<'static>,
+    /// The auto implementation table.
+    auto: dir::AutoTable<'static>,
+    /// The resolution table.
+    resolutions: dir::ResolutionTable<'static>,
+    /// The generic table.
+    pub(super) generics: dir::GenericTable<'static>,
+    /// The definition table.
+    pub(super) definitions: dir::DefinitionTable<'static>,
+    /// The coercion table.
+    coercions: dir::CoercionTable<'static>,
+    /// The capture table.
+    captures: dir::CaptureTable<'static>,
+    /// The top-level expression roots.
+    roots: Vec<dir::LocalNodeId<dir::Expression>>,
+    /// The stable module node.
+    module_node: dir::LocalNodeIdAny,
+    /// The module namespace scope.
+    namespace_scope: dir::LocalScopeId,
+}
+
+impl<'a> DirModule<'a> {
+    /// Create a borrowed checked DIR module.
+    pub(super) fn new(dir: &'a Dir, storage: &'a DirModuleStorage) -> Self {
+        Self {
+            dir,
+            id: storage.id,
+            files: &storage.files,
+            parsed: &storage.parsed,
+            expanded: &storage.expanded,
+            resolved: &storage.resolved,
+            exported: &storage.exported,
+            bindings: &storage.bindings,
+            modules: &storage.modules,
+            types: &storage.types,
+            statics: &storage.statics,
+            decorators: &storage.decorators,
+            auto: &storage.auto,
+            resolutions: &storage.resolutions,
+            generics: &storage.generics,
+            definitions: &storage.definitions,
+            coercions: &storage.coercions,
+            captures: &storage.captures,
+            roots: &storage.roots,
+            module_node: storage.module_node,
+            namespace_scope: storage.namespace_scope,
+        }
+    }
+
+    /// Return the reduced checked type of one local node.
+    pub fn node_type(&self, node: dir::LocalNodeIdAny) -> Result<dir::Type, ProviderError> {
+        let type_id = self.node_type_id(node)?;
+
+        self.dir.get_type(type_id)
+    }
+
+    /// Return the reduced checked type id of one local node.
+    pub fn node_type_id(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Result<dir::GlobalTypeId, ProviderError> {
+        let node = node.into_global(self.id);
+        self.types.get_reduced_node_type_id(node).ok_or_else(|| {
+            ProviderError::internal(format!("checked DIR node {node:?} has no reduced type"))
+        })
+    }
+
     /// Return the required source span for one DIR node.
     pub fn span(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
         self.view()
@@ -73,6 +158,68 @@ impl DirModule {
                     node.id, self.id
                 ),
             })
+    }
+
+    /// Return the main source span for one DIR node.
+    pub fn main_span(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
+        self.view()
+            .get_side_span_by_id(node.id, NodeSpanType::Main)
+            .ok_or_else(|| ProviderError::Internal {
+                message: format!(
+                    "DIR node {} in module {:?} has no main source span",
+                    node.id, self.id
+                ),
+            })
+    }
+
+    /// Return the complete authored source span for one DIR node.
+    pub fn source_extent(&self, node: dir::LocalNodeIdAny) -> Result<Span, ProviderError> {
+        self.view()
+            .get_source_extent_by_id(node.id)
+            .ok_or_else(|| ProviderError::Internal {
+                message: format!(
+                    "DIR node {} in module {:?} has no source extent",
+                    node.id, self.id
+                ),
+            })
+    }
+
+    /// Return the authored parentheses around one DIR node.
+    pub fn source_parentheses(&self, node: dir::LocalNodeIdAny) -> Option<Span> {
+        self.view()
+            .get_side_span_by_id(node.id, NodeSpanType::Region(NodeSpanRegion::Parentheses))
+    }
+
+    /// Return the source text covered by one span.
+    pub fn source(&self, span: Span) -> Result<&str, ProviderError> {
+        let source = self.file(span.file)?.text();
+        let range = span.start as usize..span.end as usize;
+
+        source.get(range).ok_or_else(|| ProviderError::Internal {
+            message: format!("source span {span:?} is not a valid UTF-8 range"),
+        })
+    }
+
+    /// Return whether an extent contains a comment outside the retained spans.
+    pub fn has_unretained_comment(
+        &self,
+        extent: Span,
+        retained: &[Span],
+    ) -> Result<bool, ProviderError> {
+        let parsed_file = self.parsed.file(extent.file).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "source file {:?} is absent from parsed lint module {:?}",
+                extent.file, self.id
+            ))
+        })?;
+        let has_comment = parsed_file.comments.iter().any(|comment| {
+            extent.contains_span(comment.span)
+                && !retained
+                    .iter()
+                    .any(|retained| retained.contains_span(comment.span))
+        });
+
+        Ok(has_comment)
     }
 
     /// Return the source span and trailing boundary for one DIR statement.
@@ -129,14 +276,14 @@ impl DirModule {
                 message: format!("file {file_id:?} is outside lint module {:?}", self.id),
             })
     }
+}
 
+impl DirModuleStorage {
     /// Load one module's checked DIR.
-    pub(crate) fn load(
+    pub(super) fn load(
         repository: &Repository,
         revision: Revision,
         profile: ProfileId,
-        target: TargetId,
-        environment: Arc<GlobalEnvironment>,
         module: Arc<Module>,
         artifacts: &ArtifactReader<'_>,
     ) -> Result<Self, ProviderError> {
@@ -200,15 +347,11 @@ impl DirModule {
 
         Ok(Self {
             id: module_id,
-            profile,
-            target,
-            environment,
             files: files.into_boxed_slice(),
             parsed,
             expanded,
             resolved,
             exported,
-            strings: repository.string_pool().clone(),
             bindings,
             modules,
             types,

@@ -1,13 +1,26 @@
-use destack_repository::ProviderError;
+use destack_dir as dir;
 
-use crate::rules::declare_lint_stub;
-use crate::{DirModule, Lint, LintResult};
+use crate::rules::declare_lint;
+use crate::{DirModule, Lint, LintOutput, LintResult};
 
-declare_lint_stub! {
-    /// Disallow comparisons of a value with itself.
+declare_lint! {
+    /// Disallow comparisons of a repeatable value with itself.
     pub NO_SELF_COMPARE {
         id: "no-self-compare",
-        summary: "Disallow comparisons of a value with itself",
+        summary: "Disallow comparisons of a repeatable value with itself",
+        explanation: "Comparing a repeatable value with itself has a fixed or misleading result. Compare it with the intended second value, or use an explicit predicate when testing exceptional values such as floating-point NaN.",
+        example: {
+            reported: r#"
+function changed(value: int32): boolean {
+    return value !== value;
+}
+"#,
+            accepted: r#"
+function changed(left: int32, right: int32): boolean {
+    return left !== right;
+}
+"#,
+        },
         category: Correctness,
         level: Warning,
         fixable: None,
@@ -15,10 +28,394 @@ declare_lint_stub! {
     }
 }
 
-/// Check no-self-compare.
-fn check(_module: &DirModule, lint: &Lint) -> LintResult {
-    Err(ProviderError::internal(format!(
-        "lint {} is not implemented",
-        lint.id
-    )))
+/// Report comparisons whose operands repeat the same checked value.
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
+    let view = module.view();
+    let mut output = LintOutput::default();
+
+    // inspect checked comparison expressions
+    for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+        let dir::Expression::Binary {
+            left,
+            operator,
+            right,
+        } = expression
+        else {
+            continue;
+        };
+        if !operator.is_comparison() {
+            continue;
+        }
+
+        // require the compiler's builtin comparison selection
+        let resolution = module.operator_resolution(expression_id.into_any())?;
+        let Some([left_operand, right_operand]) = resolution.builtin_operands() else {
+            continue;
+        };
+
+        // require both operands to repeat one checked value
+        if !module.is_repeated_operand(*left, left_operand, *right, right_operand)? {
+            continue;
+        }
+
+        // report the complete comparison
+        let span = module.span(expression_id.into_any())?;
+        let mut diagnostic = lint.diagnostic("comparison has identical operands", span);
+        if operator.is_equality() {
+            let operand = module.builtin_operand(expression_id.into_any(), *left)?;
+            let has_float_family = operand.scalar_families.as_ref().is_some_and(|families| {
+                families.contains(dir::ScalarFamily::Domain(dir::ScalarDomain::Float))
+            });
+            let can_be_nan = has_float_family
+                && module
+                    .scalar_constant(*left)?
+                    .is_none_or(|constant| constant.is_nan());
+            if can_be_nan {
+                let help = if operator.is_negative_equality() {
+                    "use a NaN predicate to test for NaN"
+                } else {
+                    "use a negated NaN predicate to test for non-NaN"
+                };
+                diagnostic = diagnostic.help(help);
+            }
+        }
+        output.report(diagnostic);
+    }
+
+    Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::TestSession;
+
+    /// Report a binding compared with itself.
+    #[test]
+    fn test_reports_binding_self_comparison() {
+        let session = TestSession::new(&NO_SELF_COMPARE, NO_SELF_COMPARE.example.reported());
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-compare]: comparison has identical operands
+ ──▶ main.ds:2:12
+  │
+1 │ function changed(value: int32): boolean {
+2 │     return value !== value;
+  │            ^^^^^^^^^^^^^^^
+3 │ }
+  │
+"#,
+        );
+    }
+
+    /// Ignore parentheses when comparing stable value paths.
+    #[test]
+    fn test_reports_parenthesized_binding_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+function changed(value: int32): boolean {
+    return (value) !== (value);
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-compare]: comparison has identical operands
+ ──▶ main.ds:2:12
+  │
+1 │ function changed(value: int32): boolean {
+2 │     return (value) !== (value);
+  │            ^^^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+"#,
+        );
+    }
+
+    /// Report the same direct field read on one stable receiver.
+    #[test]
+    fn test_reports_field_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+struct Point {
+    x: int32;
+}
+function unchanged(point: Point): boolean {
+    return point.x === point.x;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-compare]: comparison has identical operands
+ ──▶ main.ds:5:12
+  │
+3 │ }
+4 │ function unchanged(point: Point): boolean {
+5 │     return point.x === point.x;
+  │            ^^^^^^^^^^^^^^^^^^^
+6 │ }
+  │
+"#,
+        );
+    }
+
+    /// Report identical builtin operations over repeatable operands.
+    #[test]
+    fn test_reports_builtin_operation_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+function unchanged(value: int32): boolean {
+    return value + 1 === value + 1;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-compare]: comparison has identical operands
+ ──▶ main.ds:2:12
+  │
+1 │ function unchanged(value: int32): boolean {
+2 │     return value + 1 === value + 1;
+  │            ^^^^^^^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+"#,
+        );
+    }
+
+    /// Report identical builtin unary operations over repeatable operands.
+    #[test]
+    fn test_reports_builtin_unary_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+function unchanged(value: int32): boolean {
+    return -value === -value;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-compare]: comparison has identical operands
+ ──▶ main.ds:2:12
+  │
+1 │ function unchanged(value: int32): boolean {
+2 │     return -value === -value;
+  │            ^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+"#,
+        );
+    }
+
+    /// Recommend a NaN predicate for the traditional float self-inequality idiom.
+    #[test]
+    fn test_reports_float_nan_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+function isNaN(value: float64): boolean {
+    return value !== value;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-compare]: comparison has identical operands
+ ──▶ main.ds:2:12
+  │
+1 │ function isNaN(value: float64): boolean {
+2 │     return value !== value;
+  │            ^^^^^^^^^^^^^^^
+3 │ }
+  │
+
+ = help: use a NaN predicate to test for NaN
+"#,
+        );
+    }
+
+    /// Recommend a negated NaN predicate for float self-equality.
+    #[test]
+    fn test_reports_float_non_nan_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+function isPresent(value: float64): boolean {
+    return value === value;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-compare]: comparison has identical operands
+ ──▶ main.ds:2:12
+  │
+1 │ function isPresent(value: float64): boolean {
+2 │     return value === value;
+  │            ^^^^^^^^^^^^^^^
+3 │ }
+  │
+
+ = help: use a negated NaN predicate to test for non-NaN
+"#,
+        );
+    }
+
+    /// Keep comparisons between distinct bindings.
+    #[test]
+    fn test_accepts_distinct_bindings() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+function changed(left: int32, right: int32): boolean {
+    return left !== right;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Keep equal field names selected from distinct receivers.
+    #[test]
+    fn test_accepts_fields_on_distinct_receivers() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+struct Point {
+    x: int32;
+}
+
+function aligned(left: Point, right: Point): boolean {
+    return left.x === right.x;
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Keep repeated calls because each evaluation can produce another value.
+    #[test]
+    fn test_accepts_repeated_calls() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+declare function next(): int32;
+
+const unchanged = next() === next();
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Keep repeated overloaded operations because each evaluation invokes user code.
+    #[test]
+    fn test_accepts_repeated_overloaded_operations() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+import { Multiply } from "destack:ops";
+
+newtype Force = float64;
+
+extension of Force implements Multiply<float64> {
+    type Output = float64;
+
+    multiply(other: float64): float64 {
+        return this as float64 * other;
+    }
+}
+
+declare const force: Force;
+const unchanged = force * 2.0 === force * 2.0;
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Keep repeated accessor reads because each evaluation invokes the getter.
+    #[test]
+    fn test_accepts_repeated_getter_reads() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+class Counter {
+    get value(): int32 {
+        return 1;
+    }
+}
+
+declare const counter: Counter;
+const unchanged = counter.value === counter.value;
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Keep repeated dynamic subscripts because key lookup is not a stable field path.
+    #[test]
+    fn test_accepts_repeated_dynamic_subscripts() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+declare const values: int32[];
+declare const index: usize;
+
+const unchanged = values[index] === values[index];
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Keep repeated array allocations because they create distinct identities.
+    #[test]
+    fn test_accepts_repeated_array_allocations() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+const unchanged = [1] === [1];
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Report a literal compared with itself.
+    #[test]
+    fn test_reports_literal_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+const unchanged = 1 === 1;
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-compare]: comparison has identical operands
+ ──▶ main.ds:1:19
+  │
+1 │ const unchanged = 1 === 1;
+  │                   ^^^^^^^
+  │
+"#,
+        );
+    }
 }

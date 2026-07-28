@@ -29,8 +29,8 @@ export type TaggedNames = {
 export newtype Tagged =
     | ()
     | {
-          /// The discriminant property, defaulting to `kind`.
-          discriminant?: string;
+          /// The explicitly selected discriminator property.
+          discriminator?: string;
           /// The constructor naming policy.
           case?: TaggedCase;
           /// Explicit constructor names keyed by discriminant value.

@@ -1,8 +1,7 @@
 use crate::context::with_following_span_start;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Argument, BinaryOperator, Expression, IfForm, LocalNodeId, Member, NodeType,
-    OperatorPrecedence, Property,
+    Argument, BinaryOperator, Expression, IfForm, LocalNodeId, Member, NodeType, Property,
 };
 use destack_fir::format::{Format, FormatResult, Formatter as FirFormatter};
 use destack_fir::prelude::{
@@ -166,55 +165,6 @@ fn expression_is_same_binary_kind(expression: &Expression, operator: BinaryOpera
             ..
         } if is_logical_binary_operator(*other_operator) == is_logical_binary_operator(operator)
     )
-}
-
-/// Return the precedence of one expression.
-#[inline]
-pub(crate) fn expression_precedence(expr: &Expression) -> OperatorPrecedence {
-    match expr {
-        // postfix operators
-        Expression::Call { .. }
-        | Expression::Member { .. }
-        | Expression::Index { .. }
-        | Expression::Instantiation { .. }
-        | Expression::Maybe { .. }
-        | Expression::Must { .. } => OperatorPrecedence::Postfix,
-
-        // postfix unary
-        Expression::Unary { operator, .. } if operator.is_postfix() => OperatorPrecedence::Postfix,
-
-        // prefix unary
-        Expression::Unary { .. } => OperatorPrecedence::Prefix,
-
-        // prefix expressions
-        Expression::Await { .. }
-        | Expression::AwaitMaybe { .. }
-        | Expression::AwaitMust { .. }
-        | Expression::Comptime { .. }
-        | Expression::Yield { .. }
-        | Expression::BorrowOf { .. }
-        | Expression::Throw { .. }
-        | Expression::Return { .. } => OperatorPrecedence::Prefix,
-
-        // binary
-        Expression::Binary { operator, .. } => operator.precedence(),
-        Expression::As { .. }
-        | Expression::Satisfies { .. }
-        | Expression::Is { .. }
-        | Expression::InstanceOf { .. } => OperatorPrecedence::Comparison,
-
-        // assignment
-        Expression::Assign { operator, .. } => operator.precedence(),
-
-        // ternary
-        Expression::If {
-            form: IfForm::Ternary,
-            ..
-        } => OperatorPrecedence::Conditional,
-
-        // primary expressions
-        _ => OperatorPrecedence::Primary,
-    }
 }
 
 /// Write one separating space after the left operand when no postfix trivia exists.

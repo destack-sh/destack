@@ -47,7 +47,7 @@ impl CheckState<'_> {
             | dir::Type::Range(_)
             | dir::Type::Literal(_)
             | dir::Type::Primitive(_) => Ok(Answer::Ready(true)),
-            dir::Type::EnumMember(member) => self.type_is_immutable(origin, member.owner, active),
+            dir::Type::Variant(member) => self.type_is_immutable(origin, member.owner, active),
             // readonly forms grant reads alone, transitively
             dir::Type::Form(form) => match form.form {
                 dir::Form::Readonly => Ok(Answer::Ready(true)),
@@ -99,8 +99,8 @@ impl CheckState<'_> {
                 {
                     return Ok(Answer::Ready(false));
                 }
-                let fields = self.shape_fields(ty.module_id, shape.fields)?.to_vec();
-                if fields.iter().any(|field| !field.is_readonly) {
+                let fields = self.shape_properties(ty.module_id, shape.properties)?.to_vec();
+                if fields.iter().any(|field| field.access.is_writable()) {
                     return Ok(Answer::Ready(false));
                 }
                 let signatures = self
@@ -111,7 +111,7 @@ impl CheckState<'_> {
                 }
 
                 let mut ids: SmallVec<[dir::GlobalTypeId; 8]> =
-                    fields.iter().map(|field| field.ty).collect();
+                    fields.iter().flat_map(|field| field.access.types()).collect();
                 ids.extend(signatures.iter().map(|signature| signature.value_type));
 
                 self.all_immutable(origin, ids, active)

@@ -107,6 +107,14 @@ impl<'a> View<'a> {
         tree.get_span_by_id(node_id.id)
     }
 
+    /// Get the visible concrete source extent by local node id.
+    pub fn get_source_extent_by_id(&self, node_id: u32) -> Option<Span> {
+        let node_id = self.node_id_any(node_id);
+        let (tree, node_id) = self.visible_node(node_id)?;
+
+        tree.get_source_extent_by_id(node_id.id)
+    }
+
     /// Return a visible node span extended across attached decorators.
     pub fn get_decorated_span(&self, root: LocalNodeIdAny) -> Option<Span> {
         let mut span = self.get_span_by_id(root.id)?;
@@ -191,6 +199,20 @@ impl<'a> View<'a> {
     /// Get the visible parent id for one erased node id.
     pub fn get_parent_id_any(&self, node_id: LocalNodeIdAny) -> Option<u32> {
         self.get_parent_any(node_id).map(|parent| parent.id)
+    }
+
+    /// Return whether one visible node is a strict descendant of another.
+    pub fn is_descendant(&self, node: LocalNodeIdAny, ancestor: LocalNodeIdAny) -> bool {
+        let mut parent = self.get_parent_any(node);
+        while let Some(current) = parent {
+            if current == ancestor {
+                return true;
+            }
+
+            parent = self.get_parent_any(current);
+        }
+
+        false
     }
 
     /// Get the source id for one visible typed node.

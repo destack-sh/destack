@@ -44,7 +44,7 @@ impl DirSnapshotBuilder<'_> {
 
                 format!("{base}<type {key} = {value}>")
             }
-            dir::Type::EnumMember(member) => self.symbol_path_label(member.member),
+            dir::Type::Variant(variant) => self.variant_type_label(variant),
             dir::Type::Form(form) => self.form_type_label(types, form),
             dir::Type::Dynamic(any) => {
                 let constraint = self.type_id_label(types, any.constraint);
@@ -77,6 +77,56 @@ impl DirSnapshotBuilder<'_> {
                 self.type_id_list_label(types, types.type_ids(intersection.elements), " & ")
             }
         }
+    }
+
+    /// Return one precise variant type label.
+    fn variant_type_label(&self, variant: &dir::VariantType) -> String {
+        let types = if variant.owner.module_id == self.tree.module_id {
+            self.types
+                .as_ref()
+                .unwrap_or_else(|| panic!("dir snapshot is missing its local type table"))
+        } else {
+            self.foreign_types
+                .get(&variant.owner.module_id)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "variant owner module {:?} is not loaded for snapshots",
+                        variant.owner.module_id
+                    )
+                })
+        };
+        let dir::Type::Application(owner) = types.get_type(variant.owner.local_id) else {
+            panic!("variant type must point to an application owner");
+        };
+        let definition = self
+            .definition(owner.symbol)
+            .unwrap_or_else(|| panic!("variant owner {:?} has no definition", owner.symbol));
+        let key = match definition {
+            dir::Definition::Enum(definition) => definition
+                .variants()
+                .find(|member| member.symbol == variant.variant)
+                .map(|member| member.key),
+            dir::Definition::Newtype(definition) if definition.is_tagged() => definition
+                .tagged_variant_by_symbol(variant.variant)
+                .map(|member| member.key),
+            _ => None,
+        }
+        .unwrap_or_else(|| {
+            panic!(
+                "variant {:?} is missing from owner {:?}",
+                variant.variant, owner.symbol
+            )
+        });
+        let owner_label = self.reference_symbol_label(owner.symbol);
+        let key = self.static_key(key);
+        let symbol = format!("{owner_label}.{key}");
+        if owner.arguments.is_empty() {
+            return symbol;
+        }
+
+        let arguments = self.type_id_list_label(types, types.type_ids(owner.arguments), ", ");
+
+        format!("{symbol}<{arguments}>")
     }
 
     /// Return one exact property key type label.
@@ -639,7 +689,7 @@ impl DirSnapshotBuilder<'_> {
     fn shape_type_label(&self, types: &dir::TypeTable<'_>, shape: &dir::ShapeType) -> String {
         // render fields first, then signatures
         let mut fields = types
-            .fields(shape.fields)
+            .properties(shape.properties)
             .iter()
             .map(|field| self.type_field_label(types, field))
             .collect::<Vec<_>>();
@@ -667,25 +717,43 @@ impl DirSnapshotBuilder<'_> {
         format!("{{ {fields} }}")
     }
 
-    /// Return one type field label.
-    fn type_field_label(&self, types: &dir::TypeTable<'_>, field: &dir::TypeField) -> String {
-        // render common field modifiers
+    /// Return one type property label.
+    fn type_field_label(&self, types: &dir::TypeTable<'_>, field: &dir::TypeProperty) -> String {
+        // render common property modifiers
         let key = self.type_field_key_label(field.key);
-        let readonly = if field.is_readonly { "readonly " } else { "" };
         let optional = if field.is_optional { "?" } else { "" };
 
-        if field.ty.module_id == types.module_id
-            && let dir::Type::FunctionSignature(function) = types.get_type(field.ty.local_id)
-        {
-            let signature = self.method_signature_label(types, types.signature(function));
+        match field.access {
+            dir::PropertyAccess::Read(ty) => {
+                if ty.module_id == types.module_id
+                    && let dir::Type::FunctionSignature(function) = types.get_type(ty.local_id)
+                {
+                    let signature = self.method_signature_label(types, types.signature(function));
 
-            format!("{readonly}{key}{optional}{signature}")
-        }
-        // otherwise print the field as a property
-        else {
-            let ty = self.type_id_label(types, field.ty);
+                    return format!("get {key}(){signature}");
+                }
 
-            format!("{readonly}{key}{optional}: {ty}")
+                format!("readonly {key}{optional}: {}", self.type_id_label(types, ty))
+            }
+            dir::PropertyAccess::Write(ty) => {
+                format!("set {key}(value: {})", self.type_id_label(types, ty))
+            }
+            dir::PropertyAccess::ReadWrite { read, write } if read == write => {
+                if read.module_id == types.module_id
+                    && let dir::Type::FunctionSignature(function) = types.get_type(read.local_id)
+                {
+                    let signature = self.method_signature_label(types, types.signature(function));
+
+                    return format!("{key}{optional}{signature}");
+                }
+
+                format!("{key}{optional}: {}", self.type_id_label(types, read))
+            }
+            dir::PropertyAccess::ReadWrite { read, write } => format!(
+                "get {key}(): {}; set {key}(value: {})",
+                self.type_id_label(types, read),
+                self.type_id_label(types, write)
+            ),
         }
     }
 
@@ -819,6 +887,9 @@ impl DirSnapshotBuilder<'_> {
             self.type_id_label(types, parameter.ty)
         };
         label.push_str(&ty);
+        if parameter.is_optional {
+            label.push('?');
+        }
 
         label
     }

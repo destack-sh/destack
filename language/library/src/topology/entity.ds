@@ -11,7 +11,7 @@ export struct EntityKindRecord {
     /// Entity kind.
     kind: EntityKind;
     /// Kind labels.
-    labels?: LabelSet;
+    labels?: LabelSet | undefined;
 }
 
 /// Concrete topology entity record.
@@ -21,9 +21,9 @@ export struct EntityRecord {
     /// Entity kind.
     kind: EntityKind;
     /// Optional entity name.
-    name?: string;
+    name?: string | undefined;
     /// Entity labels.
-    labels?: LabelSet;
+    labels?: LabelSet | undefined;
 }
 
 /// Selector that matches every entity.

@@ -35,6 +35,7 @@ struct BlameLeaf {
 }
 
 impl CheckState<'_> {
+
     /// Decorate one failure with its cause chain.
     pub(in crate::check) fn explain_cause<T>(
         &self,
@@ -122,6 +123,9 @@ impl CheckState<'_> {
         let module = origin.module();
         let mut notes = Vec::new();
         for (written, reduced) in [(source, leaf.source), (target, leaf.target)] {
+            if self.type_flags(reduced)?.has_error() {
+                continue;
+            }
             let written = self.format_type_at(module, written);
             let reduced = self.format_type_at(module, reduced);
             if written != reduced {
@@ -208,10 +212,10 @@ impl CheckState<'_> {
             // shapes blame matching fields under their storage relations
             (dir::Type::Shape(source_shape), dir::Type::Shape(target_shape)) => {
                 let source_fields = self
-                    .shape_fields(source.module_id, source_shape.fields)?
+                    .shape_properties(source.module_id, source_shape.properties)?
                     .to_vec();
                 let target_fields = self
-                    .shape_fields(target.module_id, target_shape.fields)?
+                    .shape_properties(target.module_id, target_shape.properties)?
                     .to_vec();
                 for target_field in target_fields {
                     let source_field = source_fields
@@ -220,23 +224,21 @@ impl CheckState<'_> {
                     let Some(source_field) = source_field else {
                         continue;
                     };
-                    let field_relation =
-                        if matches!(relation, Relation::Assignable | Relation::Widens) {
-                            match self.shape_field_relation(source_field, &target_field) {
-                                Some(field_relation) => field_relation,
-                                None => continue,
-                            }
-                        } else {
-                            relation
-                        };
-                    pairs.push((
-                        self.describe_slot(CauseKind::Field {
-                            key: target_field.key,
-                        }),
-                        field_relation,
-                        source_field.ty,
-                        target_field.ty,
-                    ));
+                    let Some(relations) =
+                        self.shape_property_relations(relation, source_field, &target_field)
+                    else {
+                        continue;
+                    };
+                    for (field_relation, source_ty, target_ty) in relations {
+                        pairs.push((
+                            self.describe_slot(CauseKind::Field {
+                                key: target_field.key,
+                            }),
+                            field_relation,
+                            source_ty,
+                            target_ty,
+                        ));
+                    }
                 }
             }
 
@@ -367,15 +369,16 @@ impl CheckState<'_> {
                 let target_arguments = self
                     .type_ids(target.module_id, target_instance.arguments)?
                     .to_vec();
-                let context = self.default_symbol_context(symbol);
-                let edge = self.instance_argument_edge(symbol, Relation::Widens);
+                let relation = self.instance_argument_relation(symbol, Relation::Widens);
+                let form = self.default_variance_form(symbol);
                 for (index, (source_argument, target_argument)) in source_arguments
                     .iter()
                     .zip(target_arguments.iter())
                     .enumerate()
                 {
-                    let variance = self.argument_variance(symbol, index, context)?;
-                    let Some((argument_relation, order)) = variance.argument_relation(edge) else {
+                    let variance = self.argument_variance(symbol, index, form)?;
+                    let Some((argument_relation, order)) = variance.argument_relation(relation)
+                    else {
                         continue;
                     };
                     let (argument_source, argument_target) =

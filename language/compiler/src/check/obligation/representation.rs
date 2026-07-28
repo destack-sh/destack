@@ -3,12 +3,19 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
-use crate::check::{Answer, CheckState, ObligationCheck, ObligationFailure, Origin, answer};
+use crate::check::{
+    Answer, CheckState, ObligationCheck, ObligationFailure, Origin, Relation, answer,
+};
+use crate::{CompilerError, CompilerResult};
 
 /// The representation property being checked.
 #[derive(Debug, Clone, Copy)]
 enum RepresentationCheck {
+    /// Every stored value must have a fixed representation.
+    Concrete {
+        /// The `Concrete` interface used to prove generic slots.
+        interface: dir::GlobalTypeId,
+    },
     /// Inline storage must terminate.
     Finite,
     /// Safe references reachable from shared storage must remain shared.
@@ -22,6 +29,8 @@ enum RepresentationCheck {
 
 /// One invalid representation found while walking stored children.
 enum RepresentationFailure {
+    /// One stored value has no fixed representation.
+    Abstract,
     /// Inline storage contains itself.
     Circular(dir::GlobalNodeIdAny),
     /// Shared storage retains a safe local reference.
@@ -29,6 +38,26 @@ enum RepresentationFailure {
 }
 
 impl CheckState<'_> {
+    /// Decide whether one type has a fixed storage representation.
+    pub(in crate::check) fn satisfies_concrete(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let source = self.origin_source(origin)?;
+        let interface = self.language_type(origin.module(), dir::LanguageItem::Concrete, &[])?;
+        let mut visited = FxIndexSet::default();
+        let failure = answer!(self.representation_failure(
+            origin,
+            ty,
+            source,
+            RepresentationCheck::Concrete { interface },
+            &mut visited,
+        )?);
+
+        Ok(Answer::Ready(failure.is_none()))
+    }
+
     /// Decide whether one type's values may live in shared space.
     pub(in crate::check) fn satisfies_shared_safe(
         &mut self,
@@ -122,6 +151,11 @@ impl CheckState<'_> {
             }
         };
         let failure = match failure {
+            Some(RepresentationFailure::Abstract) => {
+                return Err(CompilerError::Internal {
+                    message: "representation validation entered a concrete marker check".into(),
+                });
+            }
             Some(RepresentationFailure::Circular(source)) => {
                 ObligationFailure::CircularType { source }
             }
@@ -145,9 +179,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<RepresentationFailure>>> {
         let mut ty = answer!(self.reduce_type_head(origin, ty)?);
         let check = match check {
+            RepresentationCheck::Concrete { interface } => {
+                RepresentationCheck::Concrete { interface }
+            }
             RepresentationCheck::Finite => RepresentationCheck::Finite,
             RepresentationCheck::Shared { place, use_fields } => {
-                ty = self.resolve_relative_place(origin, ty, place)?;
+                ty = answer!(self.resolve_relative_place(origin, ty, place)?);
                 let chain = self.form_chain(origin, ty)?;
                 let place = chain.place().unwrap_or(place);
                 let ownership = answer!(self.form_ownership(origin, &chain)?);
@@ -171,6 +208,7 @@ impl CheckState<'_> {
         // cycles fail inline storage and terminate shared graph traversal
         if !visited.insert(ty) {
             let failure = match check {
+                RepresentationCheck::Concrete { .. } => None,
                 RepresentationCheck::Finite => Some(RepresentationFailure::Circular(source)),
                 RepresentationCheck::Shared { .. } => None,
             };
@@ -196,6 +234,31 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<RepresentationFailure>>> {
         let owner = ty.module_id;
         let slots: SmallVec<[(dir::GlobalTypeId, dir::GlobalNodeIdAny); 4]> = match self.ty(ty)? {
+            // generic slots require an explicit concrete bound
+            dir::Type::Parameter(_) => {
+                let RepresentationCheck::Concrete { interface } = check else {
+                    return Ok(Answer::Ready(None));
+                };
+                let holds = self.decide_relation(origin, Relation::Satisfies, ty, interface)?;
+
+                return Ok(holds.map(|holds| (!holds).then_some(RepresentationFailure::Abstract)));
+            }
+            // abstract type expressions do not select one runtime representation
+            dir::Type::Any
+            | dir::Type::Unknown
+            | dir::Type::Object
+            | dir::Type::Intrinsic
+            | dir::Type::Erased(_)
+            | dir::Type::Reference(_)
+            | dir::Type::This
+            | dir::Type::Member(_)
+            | dir::Type::Operation(_)
+            | dir::Type::FunctionSignature(_)
+            | dir::Type::Intersection(_)
+                if matches!(check, RepresentationCheck::Concrete { .. }) =>
+            {
+                return Ok(Answer::Ready(Some(RepresentationFailure::Abstract)));
+            }
             // follow direct forms, which shared checking already stripped
             dir::Type::Form(form) => match form.form {
                 dir::Form::Owned | dir::Form::Placed { .. } | dir::Form::Readonly => {
@@ -218,16 +281,16 @@ impl CheckState<'_> {
                 .map(|element| (element.ty, source))
                 .collect(),
             dir::Type::Shape(shape) => self
-                .shape_fields(owner, shape.fields)?
+                .shape_properties(owner, shape.properties)?
                 .iter()
-                .map(|field| (field.ty, source))
+                .flat_map(|field| field.access.types().map(move |ty| (ty, source)))
                 .collect(),
             dir::Type::Union(union) => self
                 .type_ids(owner, union.elements)?
                 .iter()
                 .map(|element| (*element, source))
                 .collect(),
-            dir::Type::EnumMember(member) => SmallVec::from_slice(&[(member.owner, source)]),
+            dir::Type::Variant(member) => SmallVec::from_slice(&[(member.owner, source)]),
             dir::Type::Application(instance) => {
                 return self.representation_instance_failure(
                     origin, owner, &instance, source, check, visited,
@@ -264,6 +327,11 @@ impl CheckState<'_> {
             Some(dir::Definition::Newtype(definition)) => {
                 SmallVec::<[_; 4]>::from_slice(&[(definition.backing, source)])
             }
+            Some(dir::Definition::Interface(_))
+                if matches!(check, RepresentationCheck::Concrete { .. }) =>
+            {
+                return Ok(Answer::Ready(Some(RepresentationFailure::Abstract)));
+            }
             // collect struct fields always and class fields only for reachability
             Some(definition @ (dir::Definition::Struct(_) | dir::Definition::Class(_)))
                 if matches!(definition, dir::Definition::Struct(_))
@@ -282,6 +350,7 @@ impl CheckState<'_> {
                         continue;
                     };
                     let field_source = match check {
+                        RepresentationCheck::Concrete { .. } => source,
                         RepresentationCheck::Finite if !use_source => field.source,
                         RepresentationCheck::Shared {
                             use_fields: true, ..

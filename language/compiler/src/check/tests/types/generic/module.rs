@@ -1,6 +1,183 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_induce_lifetimes_through_a_forward_generic_bound() {
+    let session = TestSession::single(
+        r#"
+interface Holder<T: View> {
+    value: T;
+}
+
+struct View {
+    user: &readonly User;
+}
+
+struct User {}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+interface Holder<in out T: View, 'l1> {
+    value: T;
+}
+
+struct View<'l0> {
+    user: &'l0 readonly User;
+}
+
+struct User {}
+
+=== checked ===
+interface Holder<T: View> {
+/// @generic.template symbol=Holder parameters=(in out T: View<Holder.'l1>, 'l1)
+/// @type.symbol symbol=Holder type=Holder
+/// @definition.interface symbol=Holder template=(in out T: View<Holder.'l1>, 'l1)
+/// @definition.field symbol=Holder.value source="value: T" key=value type=T
+/// @type.symbol symbol=Holder.T source="T: View" type=T
+/// @resolution.name source=View target=View
+
+    value: T;
+    /// @type.symbol symbol=Holder.value source="value: T" type=T
+    /// @resolution.name source=T target=Holder.T
+
+}
+
+struct View {
+/// @generic.template symbol=View parameters=('l0)
+/// @type.symbol symbol=View type=View
+/// @definition.struct symbol=View template=('l0)
+/// @definition.field symbol=View.user source="user: &readonly User" key=user type=&View.'l0 readonly User
+
+    user: &readonly User;
+    /// @type.symbol symbol=View.user source="user: &readonly User" type=&View.'l0 readonly User
+    /// @resolution.name source=User target=User
+
+}
+
+struct User {}
+/// @type.symbol symbol=User source="struct User {}" type=User
+/// @definition.struct symbol=User source="struct User {}"
+"#,
+    );
+}
+
+#[test]
+fn test_induce_lifetimes_through_a_cross_module_declaration_cycle() {
+    let compiler = TestSession::builder()
+        .module(
+            "b.ds",
+            r#"
+import { Foo } from "./a.ds";
+
+export struct Bar {
+    foo: Foo;
+}
+
+export struct Baz {
+    user: &readonly User;
+}
+
+export struct User {}
+"#,
+        )
+        .module(
+            "a.ds",
+            r#"
+import { Baz } from "./b.ds";
+
+export struct Foo {
+    baz: Baz;
+}
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_checked_many(
+        &["a.ds", "b.ds"],
+        DirRows::checked().with_reference_types(),
+        r#"
+=== a.ds ===
+
+=== annotated ===
+import { Baz } from "./b.ds";
+
+export struct Foo<'l0> {
+    baz: Baz<'l0>;
+}
+
+=== checked ===
+import { Baz } from "./b.ds";
+
+export struct Foo {
+/// @generic.template symbol=Foo parameters=('l0)
+/// @type.symbol symbol=Foo type=Foo
+/// @definition.struct symbol=Foo template=('l0)
+/// @definition.field symbol=Foo.baz source="baz: Baz" key=baz type=b.Baz<Foo.'l0>
+
+    baz: Baz;
+    /// @type.symbol symbol=Foo.baz source="baz: Baz" type=b.Baz<Foo.'l0>
+    /// @resolution.name source=Baz target=b.Baz
+
+}
+
+/// @generic.instance id=b.Baz<Foo.'l0> template=b.Baz arguments=(Foo.'l0)
+
+=== b.ds ===
+
+=== annotated ===
+import { Foo } from "./a.ds";
+
+export struct Bar<'l0> {
+    foo: Foo<'l0>;
+}
+
+export struct Baz<'l0> {
+    user: &'l0 readonly User;
+}
+
+export struct User {}
+
+=== checked ===
+import { Foo } from "./a.ds";
+
+export struct Bar {
+/// @generic.template symbol=Bar parameters=('l0)
+/// @type.symbol symbol=Bar type=Bar
+/// @definition.struct symbol=Bar template=('l0)
+/// @definition.field symbol=Bar.foo source="foo: Foo" key=foo type=a.Foo<Bar.'l0>
+
+    foo: Foo;
+    /// @type.symbol symbol=Bar.foo source="foo: Foo" type=a.Foo<Bar.'l0>
+    /// @resolution.name source=Foo target=a.Foo
+
+}
+
+export struct Baz {
+/// @generic.template symbol=Baz parameters=('l0)
+/// @type.symbol symbol=Baz type=Baz
+/// @definition.struct symbol=Baz template=('l0)
+/// @definition.field symbol=Baz.user source="user: &readonly User" key=user type=&Baz.'l0 readonly User
+
+    user: &readonly User;
+    /// @type.symbol symbol=Baz.user source="user: &readonly User" type=&Baz.'l0 readonly User
+    /// @resolution.name source=User target=User
+
+}
+
+export struct User {}
+/// @type.symbol symbol=User source="export struct User {}" type=User
+/// @definition.struct symbol=User source="export struct User {}"
+
+/// @generic.instance id=a.Foo<Bar.'l0> template=a.Foo arguments=(Bar.'l0)
+"#,
+    );
+}
+
+#[test]
 fn test_imported_generic_type_accepts_local_type_argument() {
     let compiler = TestSession::builder()
         .module(
@@ -37,7 +214,6 @@ export interface Box<T> {
 /// @generic.template symbol=Box parameters=(in out T)
 /// @type.symbol symbol=Box type=Box
 /// @definition.interface symbol=Box template=(in out T)
-/// @definition.where symbol=Box relation=satisfies left=this right=Box<T>
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @type.symbol symbol=Box.T source=T type=T
 
@@ -111,7 +287,6 @@ export newtype interface PartialEqual<T = this> {
 /// @generic.template symbol=PartialEqual parameters=(in T#1 = this)
 /// @type.symbol symbol=PartialEqual type=PartialEqual
 /// @definition.interface symbol=PartialEqual template=(in T#1 = this) nominal=true
-/// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
 /// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: this, T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
 
@@ -126,8 +301,7 @@ export newtype interface Equal<T = this> extends PartialEqual<T> {}
 /// @generic.template symbol=Equal parameters=(in T#2 = this)
 /// @type.symbol symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" type=Equal
 /// @definition.interface symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" template=(in T#2 = this) nominal=true
-/// @definition.where symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" relation=satisfies left=this right=Equal<T#2>
-/// @definition.extends symbol=Equal source=PartialEqual<T> target=PartialEqual arguments=(T#2)
+/// @definition.extends symbol=Equal source=PartialEqual<T> target=PartialEqual<T#2>
 /// @type.symbol symbol=Equal.T source="T = this" type=T#2
 /// @resolution.name source=PartialEqual target=PartialEqual
 /// @resolution.name source=T target=Equal.T
@@ -197,6 +371,8 @@ export function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=identity.value
 
 }
 
@@ -280,6 +456,8 @@ export function identity<T>(value: T) {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=identity.value
 
 }
 
@@ -338,7 +516,6 @@ interface Iter<T, in out R = unknown> {
 /// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown)
-/// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
@@ -412,7 +589,6 @@ export newtype interface Iter<T, in out R = unknown> {
 /// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown) nominal=true
-/// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
@@ -519,19 +695,19 @@ export interface Marker {
 }
 
 declare function probe(values: Iter<int32>): boolean;
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<b.Iter<int32, b.ds.type3>>) => boolean reduced=(Dynamic<b.Iter<int32, unknown>>) => boolean
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<b.Iter<int32, b.ds.type3>> reduced=Dynamic<b.Iter<int32, unknown>>
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<b.Iter<int32, b.ds.type4>>) => boolean reduced=(Dynamic<b.Iter<int32, unknown>>) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<b.Iter<int32, b.ds.type4>> reduced=Dynamic<b.Iter<int32, unknown>>
 /// @resolution.name source=Iter target=b.Iter
 
 const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=probe target=probe
-/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<b.Iter<int32, b.ds.type3>>) arguments=(provided(todo("iter")) as Dynamic<b.Iter<int32, b.ds.type3>>) return=boolean kind=symbol target=probe
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<b.Iter<int32, b.ds.type4>>) arguments=(provided(todo("iter")) as Dynamic<b.Iter<int32, b.ds.type4>>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
-/// @generic.instance id="b.Iter<int32, b.ds.type3>" template=b.Iter arguments=(int32, b.ds.type3)
+/// @generic.instance id="b.Iter<int32, b.ds.type4>" template=b.Iter arguments=(int32, b.ds.type4)
 
 === b.ds ===
 
@@ -550,7 +726,6 @@ export interface Iter<T, in out R = unknown> {
 /// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown)
-/// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: this) => a.Marker
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
@@ -627,6 +802,8 @@ function unwrap(wrapped: Wrap<float64>): float64 {
 
     match (wrapped) {
     /// @resolution.name source=wrapped target=unwrap.wrapped
+    /// @resolution.place source=wrapped placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=wrapped root=unwrap.wrapped
 
         Wrap { value } => value
         /// @resolution.name source=Wrap target=Wrap
@@ -634,6 +811,8 @@ function unwrap(wrapped: Wrap<float64>): float64 {
         /// @generic.instance source="Wrap { value }" id=Wrap<float64>
         /// @type.symbol symbol=unwrap.value source=value type=float64
         /// @resolution.name source=value target=unwrap.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=unwrap.value
 
     }
 }
@@ -649,6 +828,8 @@ const out = unwrap(built);
 /// @resolution.name source=unwrap target=unwrap
 /// @resolution.call source=unwrap(built) parameters=(Wrap<float64>) arguments=(provided(built) as Wrap<float64>) return=float64 kind=symbol target=unwrap
 /// @resolution.name source=built target=built
+/// @resolution.place source=built placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=built root=built
 
 /// @generic.instance id=Wrap<float64> template=Wrap arguments=(float64)
 "#,

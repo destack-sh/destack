@@ -10,7 +10,7 @@ if (true) {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -32,7 +32,6 @@ if (true) {}
 /// @type.node source="if (true) {}" type=void
 /// @type.node source=true type=true
 "#,
-        r#""#,
     );
 }
 
@@ -85,7 +84,7 @@ if (true) {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -107,7 +106,6 @@ if (true) {}
 /// @type.node source="if (true) {}" type=void
 /// @type.node source=true type=true
 "#,
-        r#""#,
     );
 }
 
@@ -137,7 +135,7 @@ const value: 1 = 1;
 /// @type.node source=expect type=expect
 /// @resolution.name source=expect target=decorator.diagnostic.expect
 /// @type.node source="\"constant-condition\"" type="constant-condition"
-/// @type.node source={ reason: "intentional assertion" } type={ reason: "intentional assertion" }
+/// @type.node source={ reason: "intentional assertion" } type={ reason: string; if?: never; otherwise?: never }
 /// @type.node source="\"intentional assertion\"" type="intentional assertion"
 
 const value = 1;
@@ -163,7 +161,7 @@ if (true) {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked()
             .with_reference_types()
@@ -180,7 +178,7 @@ if (true) {
 /// @type.node source=deny type=deny
 /// @resolution.name source=deny target=decorator.diagnostic.deny
 /// @type.node source="\"constant-condition\"" type="constant-condition"
-/// @type.node source={ if: false, otherwise: "allow" } type={ if: false; otherwise: "allow" }
+/// @type.node source={ if: false, otherwise: "allow" } type={ reason?: string; if: boolean; otherwise?: "allow" | "warn" | "deny" | "forbid" }
 /// @type.node source=false type=false
 /// @type.node source="\"allow\"" type="allow"
 
@@ -188,7 +186,6 @@ if (true) {}
 /// @type.node source="if (true) {}" type=void
 /// @type.node source=true type=true
 "#,
-        r#""#,
     );
 }
 

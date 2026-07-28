@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::check::{
-    ExpectedType, FlowPath, FlowPredicate, Obligation, PatternCoverage, PatternCoverageObligation,
+    ExpectedType, FlowPredicate, Obligation, Origin, PatternCoverage, PatternCoverageObligation,
     WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
@@ -24,7 +24,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        let widening = self.declarator_widening(declarator, binding_kind);
+        let widening = declarator_widening(self.tree, declarator, binding_kind);
         self.walk_pattern(
             declarator.pattern,
             self.tree.get(declarator.pattern),
@@ -32,13 +32,19 @@ impl WalkState<'_, '_> {
         )?;
 
         // walk the declared pattern type
-        let matched = declarator
-            .ty
-            .map(|ty| match is_ambient {
-                true => self.walk_static_type_expression(ty),
-                false => self.walk_type_expression(ty),
-            })
-            .transpose()?;
+        let matched = match declarator.ty {
+            Some(annotation) => {
+                let ty = match is_ambient {
+                    true => self.walk_static_type_expression(annotation)?,
+                    false => self.walk_type_expression(annotation)?,
+                };
+                let source = annotation.into_global_any(self.module);
+                let origin = Origin::Node(source, self.flow().template_scope());
+
+                Some(self.check.storage_type(origin, ty)?)
+            }
+            None => None,
+        };
 
         // create declaration identity for const unique symbols
         if binding_kind == Some(dir::LetKind::Const)
@@ -59,11 +65,8 @@ impl WalkState<'_, '_> {
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("declaration pattern {:?} has no symbol", declarator.pattern),
                 })?;
-            let arguments = self.intern_type_ids(&[])?;
-            let value = self.intern_type(dir::Type::Application(dir::GenericApplication {
-                symbol,
-                arguments,
-            }))?;
+            let key = dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol));
+            let value = self.intern_type(dir::Type::Key(key))?;
             self.commit_static_value(symbol, value)?;
         }
 
@@ -124,39 +127,6 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Return the widening policy for one inferred declarator initializer.
-    fn declarator_widening(
-        &self,
-        declarator: &dir::Declarator,
-        binding_kind: Option<dir::LetKind>,
-    ) -> Widening {
-        if declarator.ty.is_some() {
-            return Widening::Never;
-        }
-        let Some(value) = declarator.value else {
-            return Widening::Never;
-        };
-
-        match self.tree.get(value) {
-            // value satisfies T
-            dir::Expression::Satisfies { .. } => Widening::Never,
-            // value as const
-            dir::Expression::As { target_type, .. }
-                if matches!(self.tree.get(*target_type), dir::TypeExpression::Const) =>
-            {
-                Widening::Never
-            }
-            // mutable bindings widen initializers
-            _ if binding_kind != Some(dir::LetKind::Const) => Widening::Always,
-            // immutable aggregate bindings keep mutable contents usable
-            dir::Expression::ArrayExpression { .. }
-            | dir::Expression::TupleExpression { .. }
-            | dir::Expression::ObjectExpression { .. } => Widening::Always,
-            // immutable scalar bindings stay literal
-            _ => Widening::Never,
-        }
-    }
-
     /// Return whether one declarator is outside a matching context.
     fn is_irrefutable_declarator_pattern_required(
         &self,
@@ -213,7 +183,7 @@ impl WalkState<'_, '_> {
         let Some(value) = declarator.value else {
             return Ok(());
         };
-        let Some(path) = self.flow_path(value) else {
+        let Some(path) = self.lexical_access_path(value) else {
             return Ok(());
         };
 
@@ -228,7 +198,7 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn narrow_pattern(
         &mut self,
-        path: FlowPath,
+        path: dir::AccessPath,
         pattern: dir::LocalNodeId<dir::Pattern>,
         is_positive: bool,
     ) -> CompilerResult<()> {
@@ -260,7 +230,7 @@ impl WalkState<'_, '_> {
                     is_positive,
                 };
 
-                self.apply_flow_predicate(path, predicate);
+                self.flow_mut().apply_narrowing(path, predicate);
             }
             // T(a, b), T { name }
             dir::Pattern::NominalTuple { fields, .. }
@@ -272,10 +242,10 @@ impl WalkState<'_, '_> {
                 };
 
                 if is_positive {
-                    self.apply_flow_predicate(path.clone(), predicate);
+                    self.flow_mut().apply_narrowing(path.clone(), predicate);
                     self.narrow_pattern_field_match(path, &fields)?;
                 } else {
-                    self.apply_flow_predicate(path, predicate);
+                    self.flow_mut().apply_narrowing(path, predicate);
                 }
             }
             // { name }
@@ -303,7 +273,7 @@ impl WalkState<'_, '_> {
     /// ```
     fn narrow_pattern_field_match(
         &mut self,
-        path: FlowPath,
+        path: dir::AccessPath,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<()> {
         for field in fields {
@@ -316,7 +286,7 @@ impl WalkState<'_, '_> {
                 } => {
                     let (name, pattern) = (*name, *pattern);
                     let mut field_path = path.clone();
-                    field_path.push_segment(name.static_key());
+                    field_path.push(name.static_key());
 
                     self.narrow_pattern(field_path, pattern, true)?;
                 }
@@ -334,5 +304,38 @@ impl WalkState<'_, '_> {
         }
 
         Ok(())
+    }
+}
+
+/// Return the widening policy for one inferred declarator initializer.
+pub(in crate::check) fn declarator_widening(
+    tree: dir::View<'_>,
+    declarator: &dir::Declarator,
+    binding_kind: Option<dir::LetKind>,
+) -> Widening {
+    if declarator.ty.is_some() {
+        return Widening::Never;
+    }
+    let Some(value) = declarator.value else {
+        return Widening::Never;
+    };
+
+    match tree.get(value) {
+        // value satisfies T
+        dir::Expression::Satisfies { .. } => Widening::Never,
+        // value as const
+        dir::Expression::As { target_type, .. }
+            if matches!(tree.get(*target_type), dir::TypeExpression::Const) =>
+        {
+            Widening::Never
+        }
+        // mutable bindings widen their initialized value
+        _ if binding_kind != Some(dir::LetKind::Const) => Widening::Always,
+        // immutable aggregate bindings keep mutable contents usable
+        dir::Expression::ArrayExpression { .. }
+        | dir::Expression::TupleExpression { .. }
+        | dir::Expression::ObjectExpression { .. } => Widening::Always,
+        // immutable scalar bindings stay literal
+        _ => Widening::Never,
     }
 }

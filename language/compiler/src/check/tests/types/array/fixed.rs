@@ -26,10 +26,13 @@ const byte = bytes[1];
 /// @type.symbol symbol=byte source=byte type=uint8
 /// @resolution.pattern source=byte kind=binding target=byte
 /// @resolution.name source=bytes target=bytes
-/// @resolution.call source=bytes[1] parameters=(usize) arguments=(provided(1) as usize) return=uint8 kind=symbol target=collections.array.index#1 receiver=FixedArray<uint8, 4> instance="FixedArray<uint8, 4>.<extension#1>.index#1"
-/// @generic.instance source=bytes[1] id="FixedArray<uint8, 4>.<extension#1>.index#1"
+/// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bytes root=bytes
+/// @resolution.access source=bytes[1] root=bytes keys=[1]
+/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(1) as usize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
+/// @generic.instance source=bytes[1] id="FixedArray<uint8, 4>.<extension#1>.index#1<\"exclusive\">"
 
-/// @generic.instance id="FixedArray<uint8, 4>.<extension#1>.index#1" template=collections.array.index#1 arguments=(uint8, 4, uint8, 4)
+/// @generic.instance id="FixedArray<uint8, 4>.<extension#1>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(uint8, 4, "exclusive")
 "#,
     );
 }
@@ -62,11 +65,15 @@ const grown: int32[] = fixed;
 /// @type.symbol symbol=grown source=grown type=Array<int32>
 /// @resolution.pattern source=grown kind=binding target=grown
 /// @resolution.name source=fixed target=fixed
+/// @resolution.place source=fixed placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=fixed root=fixed
 
 const copied: int32[] = [...fixed];
 /// @type.symbol symbol=copied source=copied type=Array<int32>
 /// @resolution.pattern source=copied kind=binding target=copied
 /// @resolution.name source=fixed target=fixed
+/// @resolution.place source=fixed placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=fixed root=fixed
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'FixedArray<int32, 3>' is not assignable to type 'Array<int32>'"
@@ -106,7 +113,12 @@ const size = bytes.size;
 /// @type.node source=bytes type=FixedArray<uint8, 4>
 /// @type.node source=bytes.size type=usize
 /// @resolution.name source=bytes target=bytes
-/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> kind=symbol target=collections.array.size#1
+/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=usize kind=call target="collections.array.size#1(parameters=(), arguments=(), return=usize)"
+/// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bytes root=bytes
+/// @generic.instance source=bytes.size id="FixedArray<uint8, 4>.<extension#1>.size#1"
+
+/// @generic.instance id="FixedArray<uint8, 4>.<extension#1>.size#1" template=collections.array.size#1 arguments=(uint8, 4)
 "#,
     );
 }

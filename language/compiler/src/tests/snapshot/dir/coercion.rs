@@ -47,14 +47,13 @@ fn coercion_adjustment_label(
     builder: &DirSnapshotBuilder<'_>,
     adjustment: &dir::CoercionAdjustment,
 ) -> String {
-    let kind = adjustment.kind.as_str();
-    let target = builder.global_type_label(adjustment.target);
-    if adjustment.cases.is_empty() {
+    let kind = adjustment.as_str();
+    let target = builder.global_type_label(adjustment.target());
+    let dir::CoercionAdjustment::Union { cases, .. } = adjustment else {
         return format!("{{ kind: {kind}, target: {target} }}");
-    }
+    };
 
-    let cases = adjustment
-        .cases
+    let cases = cases
         .iter()
         .map(|case| coercion_case_label(builder, case))
         .collect::<Vec<_>>()
@@ -65,15 +64,14 @@ fn coercion_adjustment_label(
 
 /// Return one union coercion case label.
 fn coercion_case_label(builder: &DirSnapshotBuilder<'_>, case: &dir::CoercionCase) -> String {
-    let target = case
-        .target
-        .map_or_else(|| "value".to_string(), |target| target.to_string());
+    let source = builder.global_type_label(case.source);
+    let target = builder.global_type_label(case.target);
     if case.adjustments.is_empty() {
-        return target;
+        return format!("{{ source: {source}, target: {target} }}");
     }
     let adjustments = coercion_adjustments_label(builder, &case.adjustments);
 
-    format!("{{ target: {target}, adjustments: {adjustments} }}")
+    format!("{{ source: {source}, target: {target}, adjustments: {adjustments} }}")
 }
 
 /// Return the snapshot label for one cast origin.

@@ -771,8 +771,14 @@ define_language_items! {
 
         /// `destack:math/number`.
         number {
+            /// The global `NaN` constant.
+            NaN => (Variable, "math/number", "NaN"),
+
             /// Number class.
             Number => (Class, "math/number", "Number"),
+
+            /// The `Number.NaN` constant.
+            NumberNaN => (Variable, "math/number", "NaN", "math.Number.NaN"),
         }
 
         /// `destack:math/scalar`.
@@ -1571,6 +1577,9 @@ define_language_items! {
         symbol {
             /// Symbol value.
             Symbol => (Class, "types/symbol", "Symbol"),
+
+            /// Shared symbol registry lookup.
+            SymbolFor => (Function, "types/symbol", "for", "types.Symbol.for"),
         }
     }
 }

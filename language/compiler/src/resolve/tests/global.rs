@@ -7,6 +7,7 @@ fn test_resolve_ignores_unreferenced_profile_global_symbols() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"]
     }
@@ -48,6 +49,7 @@ fn test_resolve_records_profile_global_symbol_names() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"]
     }
@@ -93,6 +95,7 @@ fn test_resolve_records_profile_global_references() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"]
     }
@@ -149,6 +152,7 @@ fn test_resolve_records_profile_global_namespace_reexports() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"]
     }
@@ -200,6 +204,7 @@ fn test_resolve_records_profile_global_namespace_paths() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"]
     }
@@ -258,6 +263,7 @@ fn test_resolve_records_referenced_type_profile_globals() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"]
     }
@@ -453,6 +459,7 @@ fn test_resolve_does_not_import_shadowed_profile_globals() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"]
     }
@@ -498,6 +505,7 @@ fn test_resolve_does_not_import_nested_shadowed_profile_globals() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"]
     }
@@ -548,6 +556,7 @@ fn test_resolve_does_not_resolve_shadowed_profile_global_namespace_paths() {
             "destack.json",
             r#"
 {
+    "name": "test",
     "compiler": {
         "globals": ["globals.ds"]
     }

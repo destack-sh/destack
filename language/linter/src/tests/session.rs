@@ -4,13 +4,13 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use destack_artifact::{ArtifactKey, MemoryBlobStore, NullArtifactStore};
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository, Revision,
-    Settings,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
+    Revision, Settings,
 };
 use destack_session::Session;
 use destack_source::{
-    Applicability, Content, DiagnosticCollection, File, FileId, FilePatch, MemoryFileSystem,
-    PrintOptions, TargetId, apply_file_patch, print_diagnostics,
+    Applicability, Content, DiagnosticCollection, DiffOptions, File, FileId, FilePatch,
+    MemoryFileSystem, PrintOptions, TargetId, apply_file_patch, format_diff, print_diagnostics,
 };
 use serde_json::{Map, Value, json};
 
@@ -46,7 +46,7 @@ impl TestSession {
             Edit::AddFile {
                 logical_path: SOURCE_PATH.to_string(),
                 content: Content::Text {
-                    content: source.to_string(),
+                    content: trim_source_frame(source).to_string(),
                 },
             },
         ];
@@ -102,7 +102,7 @@ impl TestSession {
     pub(crate) fn assert_diagnostics(&self, expected: &str) -> &Self {
         let actual = self.render_diagnostics();
 
-        assert_eq!(actual.trim_matches('\n'), expected.trim_matches('\n'));
+        assert_snapshot(actual, expected);
 
         self
     }
@@ -122,12 +122,24 @@ impl TestSession {
     /// Assert the source produced by all automatic fixes.
     #[track_caller]
     pub(crate) fn assert_fixes(&self, expected: &str) -> &Self {
+        self.assert_edits(expected, Applicability::Automatic)
+    }
+
+    /// Assert the source produced by all review suggestions.
+    #[track_caller]
+    pub(crate) fn assert_suggestions(&self, expected: &str) -> &Self {
+        self.assert_edits(expected, Applicability::Dangerous)
+    }
+
+    /// Assert the source produced by suggestions at one applicability.
+    #[track_caller]
+    fn assert_edits(&self, expected: &str, applicability: Applicability) -> &Self {
         let mut file_patch = FilePatch::new(self.file);
 
-        // collect automatic suggestions for the source file
+        // collect matching suggestions for the source file
         for diagnostic in self.diagnostics.iter() {
             for suggestion in &diagnostic.suggestions {
-                if suggestion.applicability != Applicability::Automatic {
+                if suggestion.applicability != applicability {
                     continue;
                 }
                 for suggested_file in &suggestion.patches.files {
@@ -143,41 +155,21 @@ impl TestSession {
         }
         assert!(
             !file_patch.is_empty(),
-            "lint test emitted no automatic fixes"
+            "lint test emitted no {applicability:?} edits"
         );
 
         // apply the exact emitted patches
         let file = self.file(self.file);
         let actual = apply_file_patch(&file, &file_patch).expect("lint test fixes should apply");
 
-        assert_eq!(actual, expected);
+        assert_snapshot(actual, expected);
 
         self
     }
 
     /// Render all diagnostics in stable source order.
     fn render_diagnostics(&self) -> String {
-        let lines = Arc::new(Mutex::new(Vec::new()));
-        let output = lines.clone();
-        let writer = Arc::new(move |line: &str| {
-            output
-                .lock()
-                .expect("lint diagnostic output should lock")
-                .push(line.to_string());
-        });
-        let options = PrintOptions::new()
-            .with_color(false)
-            .with_skip_summary(true)
-            .with_line_writer(writer);
-        let file = |file| self.repository.file(self.revision, file).ok().flatten();
-
-        print_diagnostics(&file, &self.diagnostics, options)
-            .expect("lint diagnostics should render");
-
-        lines
-            .lock()
-            .expect("lint diagnostic output should lock")
-            .join("\n")
+        render_diagnostics(&self.repository, self.revision, &self.diagnostics)
     }
 
     /// Return one source file in the test revision.
@@ -187,6 +179,38 @@ impl TestSession {
             .expect("lint test source should be readable")
             .expect("lint test source should exist")
     }
+}
+
+/// Render diagnostics through the production source printer.
+pub(super) fn render_diagnostics(
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: &DiagnosticCollection,
+) -> String {
+    let lines = Arc::new(Mutex::new(Vec::new()));
+    let output = lines.clone();
+    let writer = Arc::new(move |line: &str| {
+        output
+            .lock()
+            .expect("lint diagnostic output should lock")
+            .push(line.to_string());
+    });
+    let options = PrintOptions::new()
+        .with_color(false)
+        .with_skip_summary(true)
+        .with_line_writer(writer);
+    let file = |file| {
+        repository
+            .file(revision, file)
+            .expect("lint diagnostic source should be readable")
+    };
+
+    print_diagnostics(&file, diagnostics, options).expect("lint diagnostics should render");
+
+    lines
+        .lock()
+        .expect("lint diagnostic output should lock")
+        .join("\n")
 }
 
 /// Build a configuration that enables only the selected lint.
@@ -214,7 +238,7 @@ fn lint_configuration(selected: &Lint) -> String {
 }
 
 /// Return the shared linter test repository and its empty revision.
-fn shared_repository() -> &'static (Arc<Repository>, Revision) {
+pub(super) fn shared_repository() -> &'static (Arc<Repository>, Revision) {
     static REPOSITORY: OnceLock<(Arc<Repository>, Revision)> = OnceLock::new();
 
     REPOSITORY.get_or_init(|| {
@@ -233,7 +257,8 @@ fn shared_repository() -> &'static (Arc<Repository>, Revision) {
             environment,
             Arc::new(MemoryFileSystem::new()),
             Arc::new(MemoryBlobStore::new()),
-        );
+        )
+        .with_execution(Execution::Inline);
         let repository = Repository::new(root, host, settings, layout)
             .with_artifact_store(Arc::new(NullArtifactStore::new()));
         let repository = Arc::new(repository);
@@ -253,4 +278,25 @@ fn next_reference() -> Ref {
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
 
     Ref::new(format!("linter-test:{id}"))
+}
+
+/// Remove one framing newline from each edge of multiline source.
+fn trim_source_frame(source: &str) -> &str {
+    let source = source.strip_prefix('\n').unwrap_or(source);
+
+    source.strip_suffix('\n').unwrap_or(source)
+}
+
+/// Assert one complete lint test snapshot.
+#[track_caller]
+fn assert_snapshot(actual: impl AsRef<str>, expected: &str) {
+    let actual = trim_source_frame(actual.as_ref());
+    let expected = trim_source_frame(expected);
+    if actual == expected {
+        return;
+    }
+
+    let diff = format_diff(expected, actual, &DiffOptions::new());
+
+    panic!("snapshot mismatch\n\n{diff}");
 }

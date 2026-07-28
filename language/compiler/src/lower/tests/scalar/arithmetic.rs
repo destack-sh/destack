@@ -13,7 +13,7 @@ function add(a: int32, b: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.add(v0: int32, v1: int32): int32 {
+function test.main.add(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = int.add v0, v1
     return v2
@@ -35,7 +35,7 @@ function calc(a: int32, b: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.calc(v0: int32, v1: int32): int32 {
+function test.main.calc(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
     v2: int32 = int.mul v0, v1
     v3: int32 = int.rem.s v0, v1
@@ -61,7 +61,7 @@ function split(x: uint32, d: uint32): uint32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.split(v0: uint32, v1: uint32): uint32 {
+function test.main.split(v0: uint32, v1: uint32): uint32 {
 entry(v0: uint32, v1: uint32):
     v2: uint32 = int.div.u v0, v1
     v3: uint32 = int.rem.u v0, v1
@@ -85,7 +85,7 @@ function flip(x: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.flip(v0: int32): int32 {
+function test.main.flip(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = int.negate v0
     return v1
@@ -107,7 +107,7 @@ function three(): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.three(): int32 {
+function test.main.three(): int32 {
 entry:
     v0: int32 = 3
     return v0

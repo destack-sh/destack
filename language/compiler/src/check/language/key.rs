@@ -1,10 +1,142 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, FlowSite, PlaceUse, answer};
+use crate::check::{Answer, CheckState, FlowSite, Origin, PlaceUse, Relation, answer};
 
 impl CheckState<'_> {
+    /// Return whether values of one type may contain an additional member.
+    pub(in crate::check) fn may_have_additional_member(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Answer<bool>> {
+        let mut active = FxIndexSet::default();
+
+        self.type_may_have_additional_member(origin, ty, key, &mut active)
+    }
+
+    /// Test possible additional membership through recursive type definitions.
+    fn type_may_have_additional_member(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        key: dir::StaticKey,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<bool>> {
+        let ty = answer!(self.reduce_type_head(origin, ty)?);
+        if !active.insert(ty) {
+            return Ok(Answer::Ready(false));
+        }
+
+        let answer = self.constructor_may_have_additional_member(origin, ty, key, active);
+        active.swap_remove(&ty);
+
+        answer
+    }
+
+    /// Return whether one type constructor may contain an additional member.
+    fn constructor_may_have_additional_member(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        key: dir::StaticKey,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<bool>> {
+        match self.ty(ty)? {
+            // open constraints may be inhabited by values with additional members
+            dir::Type::Any
+            | dir::Type::Unknown
+            | dir::Type::Object
+            | dir::Type::Error
+            | dir::Type::Variable(_)
+            | dir::Type::Parameter(_)
+            | dir::Type::Erased(_)
+            | dir::Type::This
+            | dir::Type::Dynamic(_)
+            | dir::Type::Member(_)
+            | dir::Type::Operation(_) => Ok(Answer::Ready(true)),
+
+            // index signatures open only the keys admitted by their domains
+            dir::Type::Shape(shape) => {
+                let key_type = self.static_key_type(origin.module(), key)?;
+                let signatures = self
+                    .shape_index_signatures(ty.module_id, shape.index_signatures)?
+                    .to_vec();
+                for signature in signatures {
+                    if answer!(self.decide_relation(
+                        origin,
+                        Relation::Assignable,
+                        key_type,
+                        signature.key_type,
+                    )?) {
+                        return Ok(Answer::Ready(true));
+                    }
+                }
+
+                Ok(Answer::Ready(false))
+            }
+
+            // accept when any union alternative may supply the member
+            dir::Type::Union(union) => {
+                let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
+                for element in elements {
+                    if answer!(self.type_may_have_additional_member(origin, element, key, active,)?)
+                    {
+                        return Ok(Answer::Ready(true));
+                    }
+                }
+
+                Ok(Answer::Ready(false))
+            }
+
+            // any open conjunct may contribute another member
+            dir::Type::Intersection(intersection) => {
+                let elements = self.type_ids(ty.module_id, intersection.elements)?.to_vec();
+                for element in elements {
+                    if answer!(self.type_may_have_additional_member(origin, element, key, active,)?)
+                    {
+                        return Ok(Answer::Ready(true));
+                    }
+                }
+
+                Ok(Answer::Ready(false))
+            }
+
+            // wrappers preserve their payload's possible member set
+            dir::Type::Form(form) => {
+                self.type_may_have_additional_member(origin, form.value, key, active)
+            }
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(ty.module_id, refined)?;
+
+                self.type_may_have_additional_member(origin, refined.base, key, active)
+            }
+            dir::Type::Variant(variant) => {
+                self.type_may_have_additional_member(origin, variant.owner, key, active)
+            }
+
+            // nominal member sets follow the declaration's extensibility
+            dir::Type::Application(instance) => match self.definition(instance.symbol)?.cloned() {
+                Some(dir::Definition::Interface(_)) => Ok(Answer::Ready(true)),
+                Some(dir::Definition::Class(definition)) => Ok(Answer::Ready(!definition.is_final)),
+                Some(dir::Definition::Newtype(_)) => {
+                    let Some(instance) = self.decompose_newtype(origin, ty)? else {
+                        return Ok(Answer::Ready(false));
+                    };
+
+                    self.type_may_have_additional_member(origin, instance.backing, key, active)
+                }
+                _ => Ok(Answer::Ready(false)),
+            },
+
+            // remaining represented types have closed member sets
+            _ => Ok(Answer::Ready(false)),
+        }
+    }
+
     /// Select the exact static key named by one property key.
     pub(in crate::check) fn select_property_key(
         &mut self,
@@ -16,7 +148,7 @@ impl CheckState<'_> {
             dir::Key::Expression(expression) => {
                 let expression_site =
                     self.node_site(expression.into_global_any(site.node.module_id))?;
-                answer!(self.select_static_key(expression_site, expression)?)
+                answer!(self.select_static_key(expression_site)?)
             }
         };
 
@@ -27,42 +159,15 @@ impl CheckState<'_> {
     pub(in crate::check) fn select_static_key(
         &mut self,
         site: FlowSite,
-        expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<Option<dir::StaticKey>>> {
-        let module = site.node.module_id;
-        answer!(self.body().infer_node_type(site, PlaceUse::Read)?);
+        let ty = answer!(self.body().infer_node_type(site, PlaceUse::Read)?);
+        let key = self.static_key_from_type(ty)?;
 
-        self.select_expression_static_key(module, expression)
+        Ok(Answer::Ready(key))
     }
 
-    /// Select the exact static key named by one checked expression.
-    fn select_expression_static_key(
-        &mut self,
-        module: ModuleId,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<Option<dir::StaticKey>>> {
-        let input = self.module(module);
-        let view = input.view();
-
-        if let Some(key) = view.get(expression).static_key() {
-            return Ok(Answer::Ready(Some(key)));
-        }
-
-        match view.get(expression) {
-            // token
-            dir::Expression::Identifier { .. } => self.select_unique_symbol_key(module, expression),
-            // Symbol.for("token")
-            dir::Expression::Call {
-                left, arguments, ..
-            } => Ok(Answer::Ready(
-                self.registry_symbol_key_from_call(module, *left, arguments)?,
-            )),
-            _ => Ok(Answer::Ready(None)),
-        }
-    }
-
-    /// Return the immediate static key named by one expression.
-    pub(in crate::check) fn static_key_from_expression(
+    /// Evaluate the static key named by one expression before body checking.
+    pub(in crate::check) fn evaluate_static_key(
         &self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -75,69 +180,20 @@ impl CheckState<'_> {
         }
 
         match view.get(expression) {
-            // token
-            dir::Expression::Identifier { .. } => {
-                self.unique_symbol_key_from_expression(module, expression)
-            }
-            // Symbol.for("token")
+            dir::Expression::Identifier { .. } => self.identifier_static_key(module, expression),
             dir::Expression::Call {
-                left, arguments, ..
-            } => self.registry_symbol_key_from_call(module, *left, arguments),
+                position: dir::PostfixPosition::Direct,
+                left,
+                generic_arguments,
+                arguments,
+                is_optional: false,
+            } if generic_arguments.is_empty() => self.registry_symbol_key(module, *left, arguments),
             _ => Ok(None),
         }
     }
 
-    /// Return the exact key type named by one expression, when it has one.
-    pub(in crate::check) fn static_key_expression_type(
-        &mut self,
-        site: FlowSite,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let expression = site.node.into_typed::<dir::Expression>();
-        let Some(key) =
-            self.static_key_from_expression(expression.module_id, expression.local_id)?
-        else {
-            return Ok(None);
-        };
-
-        let ty = self.static_key_type(expression.module_id, key)?;
-
-        Ok(Some(ty))
-    }
-
-    /// Select the unique-symbol key named by one identifier expression.
-    fn select_unique_symbol_key(
-        &mut self,
-        module: ModuleId,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Answer<Option<dir::StaticKey>>> {
-        let source = expression.into_global_any(module);
-        let Some(symbol) = self.reference_symbol(source) else {
-            return Ok(Answer::Ready(None));
-        };
-
-        // prefer static singleton values recorded before solve
-        if let Some(value) = self.static_value(symbol) {
-            return Ok(Answer::Ready(self.static_key_from_type(value)?));
-        }
-
-        // ambient unique-symbol declarations key by their binding identity
-        let Some(ty) = self.symbol_type_maybe(symbol) else {
-            return Ok(Answer::pending([Dependency::SymbolType(symbol)]));
-        };
-        if matches!(
-            self.ty(ty)?,
-            dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
-        ) {
-            Ok(Answer::Ready(Some(dir::StaticKey::Symbol(
-                dir::SymbolKey::Unique(symbol),
-            ))))
-        } else {
-            Ok(Answer::Ready(None))
-        }
-    }
-
-    /// Return the unique-symbol key named by one identifier expression.
-    fn unique_symbol_key_from_expression(
+    /// Return the static key named by one identifier expression.
+    fn identifier_static_key(
         &self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -147,15 +203,24 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // prefer static singleton values recorded before solve
+        self.symbol_static_key(symbol)
+    }
+
+    /// Return the exact property key denoted by one static symbol.
+    pub(in crate::check) fn symbol_static_key(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        // use singleton values recorded while walking this component
         if let Some(value) = self.static_value(symbol) {
             return self.static_key_from_type(value);
         }
 
-        // ambient unique-symbol declarations key by their binding identity
-        let Some(ty) = self.symbol_type_maybe(symbol) else {
+        // unique symbol variables key by their declaration identity
+        if self.symbol_kind(symbol) != dir::SymbolKind::Variable {
             return Ok(None);
-        };
+        }
+        let ty = self.require_symbol_type(symbol)?;
         if matches!(
             self.ty(ty)?,
             dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
@@ -166,8 +231,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return the registry-symbol key named by one `Symbol.for` call.
-    fn registry_symbol_key_from_call(
+    /// Evaluate one canonical `Symbol.for` registry key.
+    fn registry_symbol_key(
         &self,
         module: ModuleId,
         callee: dir::LocalNodeId<dir::Expression>,
@@ -175,50 +240,38 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::StaticKey>> {
         let input = self.module(module);
         let view = input.view();
-
         let dir::Expression::Member {
             left,
             name: Some(name),
-            ..
+            is_optional: false,
         } = view.get(callee)
         else {
             return Ok(None);
         };
-        if self.strings().get(*name) != "for" {
+
+        // require the canonical registry owner and member declarations
+        let target = self.language_symbol(dir::LanguageItem::SymbolFor)?;
+        let bindings = self.binding_table(target.module_id);
+        if bindings.get_symbol(target.local_id).key != Some(dir::StaticKey::Name(*name)) {
+            return Ok(None);
+        }
+        let owner = left.into_global_any(module);
+        if self.reference_symbol(owner) != Some(self.language_symbol(dir::LanguageItem::Symbol)?) {
             return Ok(None);
         }
 
-        if !self.is_symbol_constructor_expression(module, *left)? {
-            return Ok(None);
-        }
-
+        // registry keys require one statically known string argument
         let [argument] = arguments else {
             return Ok(None);
         };
         let dir::Argument::Positional { value } = view.get(*argument) else {
             return Ok(None);
         };
-        let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) = view.get(*value)
-        else {
+        let Some(dir::StaticKey::Name(name)) = self.evaluate_static_key(module, *value)? else {
             return Ok(None);
         };
+        let key = dir::StaticKey::Symbol(dir::SymbolKey::Registry(name));
 
-        Ok(Some(dir::StaticKey::Symbol(dir::SymbolKey::Registry(
-            *name,
-        ))))
-    }
-
-    /// Return whether one expression names the intrinsic `Symbol` value.
-    fn is_symbol_constructor_expression(
-        &self,
-        module: ModuleId,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<bool> {
-        let source = expression.into_global_any(module);
-        let Some(symbol) = self.reference_symbol(source) else {
-            return Ok(false);
-        };
-
-        Ok(symbol == self.language_symbol(dir::LanguageItem::Symbol)?)
+        Ok(Some(key))
     }
 }

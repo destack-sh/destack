@@ -38,16 +38,21 @@ let [head, ...tail] = values;
 /// @resolution.pattern source=tail kind=binding target=tail
 /// @type.node source=values type=Array<int32>
 /// @resolution.name source=values target=values
+/// @resolution.access source=values root=values
 
 head satisfies int32;
 /// @type.node source="head satisfies int32" type=int32
 /// @type.node source=head type=int32
 /// @resolution.name source=head target=head
+/// @resolution.place source=head placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=head root=head
 
 tail satisfies int32[];
 /// @type.node source="tail satisfies int32[]" type=Array<int32>
 /// @type.node source=tail type=Array<int32>
 /// @resolution.name source=tail target=tail
+/// @resolution.place source=tail placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=tail root=tail
 "#,
     );
 }
@@ -71,7 +76,7 @@ let [...middle, last] = [1, 2, 3];
 let [...middle, last] = [1, 2, 3];
 /// @type.symbol symbol=middle source=middle type=<error>
 /// @type.symbol symbol=last source=last type=<error>
-/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
+/// @type.node source=[1, 2, 3] type=Array<float64>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
@@ -103,7 +108,7 @@ let [head, ...middle, ...tail] = [1, 2, 3];
 /// @type.symbol symbol=head source=head type=<error>
 /// @type.symbol symbol=middle source=middle type=<error>
 /// @type.symbol symbol=tail source=tail type=<error>
-/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
+/// @type.node source=[1, 2, 3] type=Array<float64>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3

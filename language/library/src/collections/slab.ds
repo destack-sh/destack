@@ -55,7 +55,10 @@ export extension<T> of Slab<T>
         Extend<T, "exclusive">,
         Default {
     /// The indexed output type.
-    type Output = T | undefined;
+    type Output = T;
+
+    /// The missing index result.
+    type Missing = undefined;
 
     /// Create an empty slab.
     static new(): Slab<T> {
@@ -73,7 +76,7 @@ export extension<T> of Slab<T>
     }
 
     /// Create a slab from `values`.
-    static fromIterator(values: Iterator<T>): Slab<T> {
+    static fromIterator<R>(values: Iterator<T, R>): Slab<T> {
         todo("Slab.fromIterator")
     }
 
@@ -130,8 +133,11 @@ export extension<T> of Slab<T>
         todo("Slab.get")
     }
 
-    /// Return the value for `key` through the index operator.
-    index(key: SlabKey): T | undefined {
+    /// Borrow the value for `key` through the index operator.
+    index<comptime A: Access = "readonly">(
+        this: WithAccess<&Slab<T>, A>,
+        key: SlabKey,
+    ): WithAccess<&T, A> | undefined {
         this.get(key)
     }
 

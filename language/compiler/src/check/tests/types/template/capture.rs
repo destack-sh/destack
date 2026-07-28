@@ -40,6 +40,8 @@ const segment = parse("row-row");
 
 segment satisfies "row";
 /// @resolution.name source=segment target=segment
+/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=segment root=segment
 
 /// @generic.instance id="parse<\"row\">" template=parse arguments=("row")
 "#,
@@ -136,9 +138,13 @@ const segment = withParsed("id:users", (segment) => segment);
 /// @type.symbol symbol=symbol7 source="(segment) => segment" type=Function<("users",), "users">
 /// @type.symbol symbol=symbol7.segment source=segment type="users"
 /// @resolution.name source=segment target=symbol7.segment
+/// @resolution.place source=segment placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=segment root=symbol7.segment
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
+/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=segment root=segment
 
 /// @generic.instance id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users")
 "#,
@@ -190,9 +196,13 @@ const segment = parse(input);
 /// @resolution.call source=parse(input) parameters=(`id:${"users" | "posts"}`) arguments=(provided(input) as `id:${"users" | "posts"}`) return="users" | "posts" kind=symbol target=parse instance="parse<\"users\" | \"posts\">"
 /// @generic.instance source=parse(input) id="parse<\"users\" | \"posts\">"
 /// @resolution.name source=input target=input
+/// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=input root=input
 
 segment satisfies "users" | "posts";
 /// @resolution.name source=segment target=segment
+/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=segment root=segment
 
 /// @generic.instance id="parse<\"users\" | \"posts\">" template=parse arguments=("users" | "posts")
 "#,

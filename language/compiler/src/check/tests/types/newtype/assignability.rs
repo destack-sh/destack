@@ -113,9 +113,13 @@ const raw = id as int64;
 /// @type.symbol symbol=raw source=raw type=int64
 /// @resolution.pattern source=raw kind=binding target=raw
 /// @resolution.name source=id target=id
+/// @resolution.place source=id placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=id root=id
 
 raw satisfies int64;
 /// @resolution.name source=raw target=raw
+/// @resolution.place source=raw placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=raw root=raw
 "#,
     );
 }
@@ -159,9 +163,13 @@ const target: UserId = source;
 /// @resolution.pattern source=target kind=binding target=target
 /// @resolution.name source=UserId target=UserId
 /// @resolution.name source=source target=source
+/// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=source root=source
 
 target satisfies UserId;
 /// @resolution.name source=target target=target
+/// @resolution.place source=target placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=target root=target
 /// @resolution.name source=UserId target=UserId
 "#,
     );
@@ -210,6 +218,8 @@ const order: OrderId = user;
 /// @resolution.pattern source=order kind=binding target=order
 /// @resolution.name source=OrderId target=OrderId
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'UserId' is not assignable to type 'OrderId'"

@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
+use super::equality::LoweredOperand;
 use crate::lower::FunctionLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -30,10 +31,10 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_operator_method(
         &mut self,
         receiver: dir::LocalNodeId<dir::Expression>,
-        resolution: &dir::CallResolution,
-        candidate: &dir::CallCandidate,
+        resolution: &dir::Call,
+        function: &dir::FunctionTarget,
     ) -> CompilerResult<mir::Value> {
-        let Some(value) = self.lower_candidate_call(receiver, resolution, candidate)? else {
+        let Some(value) = self.lower_function_target_call(receiver, resolution, function)? else {
             return Err(CompilerError::Internal {
                 message: "checked DIR selected a void operator method".to_string(),
             });
@@ -47,16 +48,33 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         operator: dir::UnaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
+        operand: &dir::BuiltinOperand,
     ) -> CompilerResult<mir::Value> {
-        let value = self.lower_expression(right)?;
+        let operand = self.lower_operand(right, operand)?;
+        let LoweredOperand::Scalar { value, domain } = operand else {
+            return Err(LowerError::Unsupported {
+                anchor: self.lowerer.module.into(),
+                construct: format!("the '{}' operator on this carrier", operator.text()),
+            }
+            .into());
+        };
 
         match operator {
             // +value
             dir::UnaryOperator::Plus => Ok(value),
             // -value
-            dir::UnaryOperator::Negate => Ok(self.builder.ineg(value)),
+            dir::UnaryOperator::Negate => {
+                let operator = match domain {
+                    dir::ScalarDomain::Float => mir::UnaryOperator::FloatNegate,
+                    _ => mir::UnaryOperator::Negate,
+                };
+
+                Ok(self.builder.unary_op(operator, value))
+            }
             // !value
-            dir::UnaryOperator::Not => Ok(self.builder.bnot(value)),
+            dir::UnaryOperator::Not | dir::UnaryOperator::ElementwiseNot => {
+                Ok(self.builder.bnot(value))
+            }
             other => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("the '{}' operator", other.text()),
@@ -75,7 +93,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // reject non-boolean logical joins: they produce union values
         if !matches!(
-            self.coerced_type(expression)?,
+            self.node_type(expression)?,
             dir::Type::Primitive(dir::PrimitiveType::Boolean)
         ) {
             return Err(LowerError::Unsupported {
@@ -111,16 +129,34 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one statement-position update operator through its checked place.
     pub(in crate::lower) fn lower_update(
         &mut self,
-        operator: dir::UnaryOperator,
+        expression: dir::LocalNodeId<dir::Expression>,
         target: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        let resolution = self.operator_resolution(expression)?;
+        let dir::OperationResolution::One(dir::OperatorApplication::Unary {
+            operator,
+            target: dir::OperatorTarget::Builtin(_),
+            ..
+        }) = resolution
+        else {
+            return Err(CompilerError::Internal {
+                message: "checked update has a non-builtin unary resolution".to_string(),
+            });
+        };
+
         // the checked resolution names the updated place
-        let resolution = self.place_resolution(target)?;
+        let resolution = self.assignment_resolution(target)?;
         let place = self.place(&resolution)?;
 
         // rewrite the place by one over its checked carrier
-        let carrier = self.coerced_type(target)?;
-        let one_type = self.lowerer.scalar_type(&carrier)?;
+        let current = self.read_place(&place)?;
+        let one_type = self
+            .builder
+            .value_type(current)
+            .ok_or_else(|| CompilerError::Internal {
+                message: "lowered update operand has no MIR type".to_string(),
+            })?;
+        let one_type = self.builder.tree().get(one_type).clone();
         let one = self.lower_constant(dir::ScalarLiteral::Integer(1), one_type)?;
         let operator = match operator {
             dir::UnaryOperator::PostIncrement | dir::UnaryOperator::PreIncrement => {
@@ -128,23 +164,11 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             _ => dir::BinaryOperator::Subtract,
         };
-        let operator = self.binary_operator(operator, &carrier)?;
-        let current = self.read_place(&place)?;
+        let operator = self.binary_value_operator(operator, current)?;
         let value = self.builder.binary_op(operator, current, one);
         self.write_place(&place, value)?;
 
         Ok(())
-    }
-
-    /// Map one DIR binary operator over one checked operand type.
-    pub(in crate::lower) fn binary_operator(
-        &self,
-        operator: dir::BinaryOperator,
-        operand: &dir::Type,
-    ) -> CompilerResult<mir::BinaryOperator> {
-        let class = self.operand_class(operand)?;
-
-        self.binary_operator_class(operator, class)
     }
 
     /// Map one DIR binary operator over one lowered scalar value.
@@ -290,18 +314,6 @@ impl FunctionLowerer<'_, '_, '_> {
                 .into());
             }
         })
-    }
-
-    /// Classify one checked operand type for operator selection.
-    fn operand_class(&self, operand: &dir::Type) -> CompilerResult<OperandClass> {
-        // value enums operate at their integer discriminant
-        if self.is_enum_operand(operand)? {
-            return Ok(OperandClass::Int { signed: true });
-        }
-
-        let ty = self.lowerer.scalar_type(operand)?;
-
-        self.mir_operand_class(&ty)
     }
 
     /// Classify one lowered scalar type for operator selection.

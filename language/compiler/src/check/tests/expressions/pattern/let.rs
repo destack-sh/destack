@@ -37,6 +37,7 @@ function parse(status: "ready" | "error"): "ready" {
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source=status type="ready" | "error"
     /// @resolution.name source=status target=parse.status
+    /// @resolution.access source=status root=parse.status
 
         return "ready";
         /// @type.node source="\"ready\"" type="ready"
@@ -46,6 +47,8 @@ function parse(status: "ready" | "error"): "ready" {
     status
     /// @type.node source=status type="ready"
     /// @resolution.name source=status target=parse.status
+    /// @resolution.place source=status placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=status root=parse.status
 
 }
 "#,
@@ -83,6 +86,7 @@ function parse(status: "ready" | "error"): int32 {
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source=status type="ready" | "error"
     /// @resolution.name source=status target=parse.status
+    /// @resolution.access source=status root=parse.status
 
     1
     /// @type.node source=1 type=1
@@ -134,6 +138,7 @@ function parse(status: "ready" | "error"): int32 {
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.node source=status type="ready" | "error"
     /// @resolution.name source=status target=parse.status
+    /// @resolution.access source=status root=parse.status
 
         0;
         /// @type.node source=0 type=0

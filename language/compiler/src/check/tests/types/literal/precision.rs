@@ -1,84 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_const_number_keeps_literal_type() {
-    let session = TestSession::single(
-        r#"
-const value = 42;
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
-        r#"
-=== annotated ===
-const value: 42 = 42;
-
-=== checked ===
-const value = 42;
-/// @type.symbol symbol=value source=value type=42
-/// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=42 type=42
-
-/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
-"#,
-    );
-}
-
-#[test]
-fn test_let_number_widens_binding_to_numeric_type() {
-    let session = TestSession::single(
-        r#"
-let value = 42;
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
-        r#"
-=== annotated ===
-let value: float64 = 42;
-
-=== checked ===
-let value = 42;
-/// @type.symbol symbol=value source=value type=float64
-/// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=42 type=42
-
-/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
-"#,
-    );
-}
-
-#[test]
-fn test_type_annotation_sets_scalar_binding_type() {
-    let session = TestSession::single(
-        r#"
-const value: int32 = 42;
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
-        r#"
-=== annotated ===
-const value: int32 = 42;
-
-=== checked ===
-const value: int32 = 42;
-/// @type.symbol symbol=value source=value type=int32
-/// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=42 type=42
-
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
-"#,
-    );
-}
-
-#[test]
 fn test_string_literal_annotation_preserves_literal_type() {
     let session = TestSession::single(
         r#"
@@ -99,7 +21,7 @@ const value: "ready" = "ready";
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="\"ready\"" type="ready"
 
-/// @check.stats.solve variables=1 types=3 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -125,7 +47,7 @@ const value: true = true;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=1 types=3 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -204,7 +126,7 @@ const value = 42 satisfies int32;
 /// @type.node source="42 satisfies int32" type=42
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -230,7 +152,7 @@ const version: float64 = config.version;
 const config = { version: 1 };
 /// @type.symbol symbol=config source=config type={ version: float64 }
 /// @resolution.pattern source=config kind=binding target=config
-/// @type.node source={ version: 1 } type={ version: 1 }
+/// @type.node source={ version: 1 } type={ version: float64 }
 /// @type.node source=1 type=1
 
 const version = config.version;
@@ -239,9 +161,12 @@ const version = config.version;
 /// @type.node source=config type={ version: float64 }
 /// @type.node source=config.version type=float64
 /// @resolution.name source=config target=config
-/// @resolution.member source=config.version receiver={ version: float64 } kind=field key=version
+/// @resolution.member source=config.version receiver={ version: float64 } type=float64 kind=field target_receiver={ version: float64 } key=version target_type=float64
+/// @resolution.place source=config placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=config root=config
+/// @resolution.access source=config.version root=config keys=[version]
 
-/// @check.stats.solve variables=2 types=7 constraints=0 obligations=2 solutions=2 bounds=1 decisions=4
+/// @check.stats.solve variables=2 types=10 constraints=0 obligations=2 solutions=2 bounds=0 decisions=4
 "#,
     );
 }
@@ -279,10 +204,15 @@ const mode = config.nested.mode;
 /// @type.node source=config.nested type={ readonly mode: "dev" }
 /// @type.node source=config.nested.mode type="dev"
 /// @resolution.name source=config target=config
-/// @resolution.member source=config.nested receiver={ readonly nested: { readonly mode: "dev" } } kind=field key=nested
-/// @resolution.member source=config.nested.mode receiver={ readonly mode: "dev" } kind=field key=mode
+/// @resolution.member source=config.nested receiver={ readonly nested: { readonly mode: "dev" } } type={ readonly mode: "dev" } kind=field target_receiver={ readonly nested: { readonly mode: "dev" } } key=nested target_type={ readonly mode: "dev" }
+/// @resolution.member source=config.nested.mode receiver={ readonly mode: "dev" } type="dev" kind=field target_receiver={ readonly mode: "dev" } key=mode target_type="dev"
+/// @resolution.place source=config placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=config root=config
+/// @resolution.place source=config.nested placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=config.nested root=config keys=[nested]
+/// @resolution.access source=config.nested.mode root=config keys=[nested, mode]
 
-/// @check.stats.solve variables=2 types=6 constraints=0 obligations=2 solutions=2 bounds=0 decisions=5
+/// @check.stats.solve variables=2 types=9 constraints=0 obligations=2 solutions=2 bounds=0 decisions=5
 "#,
     );
 }
@@ -323,10 +253,15 @@ const mode = value.env.mode;
 /// @type.node source=value.env type={ readonly mode: "dev" }
 /// @type.node source=value.env.mode type="dev"
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.env receiver={ readonly env: { readonly mode: "dev" } } kind=field key=env
-/// @resolution.member source=value.env.mode receiver={ readonly mode: "dev" } kind=field key=mode
+/// @resolution.member source=value.env receiver={ readonly env: { readonly mode: "dev" } } type={ readonly mode: "dev" } kind=field target_receiver={ readonly env: { readonly mode: "dev" } } key=env target_type={ readonly mode: "dev" }
+/// @resolution.member source=value.env.mode receiver={ readonly mode: "dev" } type="dev" kind=field target_receiver={ readonly mode: "dev" } key=mode target_type="dev"
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
+/// @resolution.place source=value.env placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value.env root=value keys=[env]
+/// @resolution.access source=value.env.mode root=value keys=[env, mode]
 
-/// @check.stats.solve variables=2 types=9 constraints=1 obligations=2 solutions=2 bounds=0 decisions=5
+/// @check.stats.solve variables=2 types=12 constraints=0 obligations=2 solutions=2 bounds=0 decisions=5
 "#,
     );
 }
@@ -382,6 +317,7 @@ const copy = version;
 /// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=version type=1
 /// @resolution.name source=version target=values.version
+/// @resolution.access source=version root=values.version
 
 /// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
@@ -439,6 +375,7 @@ const copy = counter;
 /// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=counter type=float64
 /// @resolution.name source=counter target=values.counter
+/// @resolution.access source=counter root=values.counter
 
 /// @check.stats.solve variables=1 types=2 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,

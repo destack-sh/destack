@@ -1,11 +1,12 @@
-use destack_serde::Reflect;
+use std::mem;
 use std::sync::Arc;
 
+use destack_serde::Reflect;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{CastOrigin, Form, GlobalNodeIdAny, GlobalTypeId, ScalarLiteral, SegmentView, Type};
+use crate::{CastOrigin, GlobalNodeIdAny, GlobalTypeId, ScalarLiteral, SegmentView, Type};
 
 /// Cumulative checked coercions for one DIR module.
 #[derive(Debug, Clone)]
@@ -57,7 +58,7 @@ impl<'a> CoercionTable<'a> {
         CoercionTable::from_view(self.segments.with_tail(tail))
     }
 
-    /// Get the effective coercion for one node.
+    /// Get the effective coercion for one value node.
     pub fn coercion(&self, node_id: GlobalNodeIdAny) -> Option<&Coercion> {
         for segment in self.segments.iter().rev() {
             if let Some(coercion) = segment.coercion(node_id) {
@@ -95,41 +96,7 @@ impl<'a> CoercionTable<'a> {
     }
 }
 
-/// One adjustment in an implicit coercion path.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum CoercionKind {
-    /// Change the semantic type without changing its runtime representation.
-    Direct,
-    /// Borrow one value with the target lifetime and access.
-    Borrow,
-    /// Tag the value into or out of a union carrier.
-    Union,
-    /// Box the value into or out of an existential carrier, like `Dynamic<T>`.
-    Existential,
-    /// Convert between scalar carriers, like `int32` into `float64`.
-    Scalar,
-    /// Materialize one comptime scalar at its selected carrier, like `42` into `int32`.
-    Widen,
-    /// Change the value carrier, like `^T` into `&T` or `T[]` into `[T]`.
-    Carrier,
-}
-
-impl CoercionKind {
-    /// Return the stable textual name of this adjustment.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Direct => "direct",
-            Self::Borrow => "borrow",
-            Self::Union => "union",
-            Self::Existential => "existential",
-            Self::Scalar => "scalar",
-            Self::Widen => "widen",
-            Self::Carrier => "carrier",
-        }
-    }
-}
-
-/// One type coercion attached to a value node.
+/// One checked coercion from a source type to a target type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Coercion {
     /// The source type before coercion.
@@ -140,23 +107,61 @@ pub struct Coercion {
     pub origin: CastOrigin,
 }
 
-/// One typed adjustment in an implicit coercion path.
+/// One adjustment in a checked coercion path.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct CoercionAdjustment {
-    /// The adjustment performed.
-    pub kind: CoercionKind,
-    /// The type after this adjustment.
-    pub target: GlobalTypeId,
-    /// The source cases entering a union carrier.
-    pub cases: Vec<CoercionCase>,
+pub enum CoercionAdjustment {
+    /// Borrow one value with the target lifetime and access.
+    Borrow {
+        /// The borrowed type.
+        target: GlobalTypeId,
+    },
+    /// Read one copyable value through a reference.
+    Read {
+        /// The value type after the read.
+        target: GlobalTypeId,
+    },
+    /// Convert a value whose source or target is a union.
+    Union {
+        /// The type after this adjustment.
+        target: GlobalTypeId,
+        /// The selected conversion for each possible source type.
+        cases: Vec<CoercionCase>,
+    },
+    /// Box the value into or out of an existential carrier, like `Dynamic<T>`.
+    Existential {
+        /// The existential type after this adjustment.
+        target: GlobalTypeId,
+    },
+    /// Convert between scalar carriers, like `int32` into `float64`.
+    Scalar {
+        /// The scalar type after this adjustment.
+        target: GlobalTypeId,
+    },
+    /// Materialize one comptime scalar at its selected carrier, like `42` into `int32`.
+    Widen {
+        /// The scalar type after this adjustment.
+        target: GlobalTypeId,
+    },
+    /// Convert one tuple value into another tuple type.
+    Tuple {
+        /// The tuple type after this adjustment.
+        target: GlobalTypeId,
+    },
+    /// Change the value carrier, like `^T` into `&T` or `T[]` into `[T]`.
+    Carrier {
+        /// The carrier type after this adjustment.
+        target: GlobalTypeId,
+    },
 }
 
-/// One source case entering a union carrier.
+/// One selected conversion for a possible union source type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CoercionCase {
-    /// The target union case index, absent when leaving a union carrier.
-    pub target: Option<u32>,
-    /// The adjustments applied to the source case payload.
+    /// The source type entering this case.
+    pub source: GlobalTypeId,
+    /// The selected target type.
+    pub target: GlobalTypeId,
+    /// The ordered adjustments converting the source to the target.
     pub adjustments: Vec<CoercionAdjustment>,
 }
 
@@ -179,25 +184,23 @@ impl Coercion {
         }
     }
 
-    /// Create one union coercion from its complete source-case map.
+    /// Create one union coercion from its complete source mapping.
     pub fn union(
         source: GlobalTypeId,
         target: GlobalTypeId,
         cases: Vec<CoercionCase>,
         origin: CastOrigin,
     ) -> Self {
-        let adjustment = CoercionAdjustment {
-            kind: CoercionKind::Union,
-            target,
-            cases,
-        };
+        assert!(!cases.is_empty(), "a union coercion requires source cases");
+
+        let adjustment = CoercionAdjustment::Union { target, cases };
 
         Self::new(source, vec![adjustment], origin)
     }
 
     /// Return the final target type.
     pub fn target(&self) -> GlobalTypeId {
-        self.adjustments[self.adjustments.len() - 1].target
+        self.adjustments[self.adjustments.len() - 1].target()
     }
 
     /// Map every type id in this coercion.
@@ -210,76 +213,79 @@ impl Coercion {
 }
 
 impl CoercionAdjustment {
+    /// Return the type after this adjustment.
+    pub const fn target(&self) -> GlobalTypeId {
+        match self {
+            Self::Borrow { target }
+            | Self::Read { target }
+            | Self::Union { target, .. }
+            | Self::Existential { target }
+            | Self::Scalar { target }
+            | Self::Widen { target }
+            | Self::Tuple { target }
+            | Self::Carrier { target } => *target,
+        }
+    }
+
+    /// Return the stable textual name of this adjustment.
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Borrow { .. } => "borrow",
+            Self::Read { .. } => "read",
+            Self::Union { .. } => "union",
+            Self::Existential { .. } => "existential",
+            Self::Scalar { .. } => "scalar",
+            Self::Widen { .. } => "widen",
+            Self::Tuple { .. } => "tuple",
+            Self::Carrier { .. } => "carrier",
+        }
+    }
+
     /// Map every type id in this adjustment.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.target = map(self.target);
-        for case in &mut self.cases {
-            case.map_type_ids(map);
+        match self {
+            Self::Borrow { target }
+            | Self::Read { target }
+            | Self::Existential { target }
+            | Self::Scalar { target }
+            | Self::Widen { target }
+            | Self::Tuple { target }
+            | Self::Carrier { target } => *target = map(*target),
+            Self::Union { target, cases } => {
+                *target = map(*target);
+                for case in cases {
+                    case.map_type_ids(map);
+                }
+            }
         }
     }
-}
 
-impl CoercionCase {
-    /// Map every type id in this source case.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for adjustment in &mut self.adjustments {
-            adjustment.map_type_ids(map);
-        }
-    }
-}
-
-impl CoercionKind {
-    /// Classify the adjustment between two settled, distinct type heads, or
-    /// nothing when the value stores directly.
-    pub fn classify(source: &Type, target: &Type) -> Option<Self> {
+    /// Classify one adjustment between settled, unqualified type heads.
+    pub fn classify(source: &Type, target: &Type, target_id: GlobalTypeId) -> Option<Self> {
         // unreachable sources store nothing
         if matches!(source, Type::Never) {
             return None;
         }
 
-        // union carriers tag their values on entry and exit
+        // unions require their complete case map from the checker
         if matches!(source, Type::Union(_)) || matches!(target, Type::Union(_)) {
-            return Some(Self::Union);
+            return None;
+        }
+
+        // tuple conversions preserve their aggregate operation explicitly
+        if matches!((source, target), (Type::Tuple(_), Type::Tuple(_))) {
+            return Some(Self::Tuple { target: target_id });
         }
 
         // existential carriers box their values on entry and exit
-        let existential = |ty: &Type| {
-            matches!(
-                ty,
-                Type::Any | Type::Unknown | Type::Object | Type::Dynamic(_)
-            )
-        };
-        if existential(source) || existential(target) {
-            return Some(Self::Existential);
-        }
-
-        // memory forms convert when their runtime carriers differ
-        if let (Type::Form(source), Type::Form(target)) = (source, target) {
-            return match Self::carriers_differ(source.form, target.form) {
-                true => Some(Self::Carrier),
-                false => None,
-            };
-        }
-        // placement and readonly views store as their payloads
-        if let Type::Form(form) = source
-            && matches!(
-                form.form,
-                Form::Placed { .. } | Form::Readonly | Form::Managed
-            )
-        {
-            return None;
-        }
-        if let Type::Form(form) = target
-            && matches!(
-                form.form,
-                Form::Placed { .. } | Form::Readonly | Form::Managed
-            )
-        {
-            return None;
-        }
-        // owned, borrowed, and raw values convert against bare payloads
-        if matches!(source, Type::Form(_)) || matches!(target, Type::Form(_)) {
-            return Some(Self::Carrier);
+        if matches!(
+            source,
+            Type::Any | Type::Unknown | Type::Object | Type::Dynamic(_)
+        ) || matches!(
+            target,
+            Type::Any | Type::Unknown | Type::Object | Type::Dynamic(_)
+        ) {
+            return Some(Self::Existential { target: target_id });
         }
 
         // sized sequences and thin pointers convert into their fat carriers
@@ -289,65 +295,36 @@ impl CoercionKind {
                 | (Type::FixedArray(_), Type::Slice(_))
                 | (Type::FunctionPointer(_), Type::Function(_))
         ) {
-            return Some(Self::Carrier);
+            return Some(Self::Carrier { target: target_id });
         }
 
-        // scalar singletons widen naturally into their base scalars
-        let stores_directly = match source {
-            // integer and float literals record their selected carrier
-            Type::Literal(literal) => {
-                if matches!(literal, ScalarLiteral::Integer(_) | ScalarLiteral::Float(_))
-                    && matches!(target, Type::Primitive(_))
-                    && literal.widens_to(target)
-                {
-                    return Some(Self::Widen);
-                }
-
-                literal.widens_to(target)
-            }
-            Type::Range(range) => range.widens_to(target),
-            // exact keys store as their key-domain carrier
-            Type::Key(key) => {
-                matches!(target, Type::Primitive(primitive) if key.widens_to_primitive(*primitive))
-            }
-            _ => false,
-        };
-        if stores_directly {
-            return None;
-        }
-
-        // identical scalar carriers require no runtime conversion
-        if let (Type::Primitive(source), Type::Primitive(target)) = (source, target)
-            && source == target
+        // scalar singletons with distinct carriers select their conversion
+        if let Type::Literal(literal) = source
+            && matches!(literal, ScalarLiteral::Integer(_) | ScalarLiteral::Float(_))
+            && matches!(target, Type::Primitive(_))
+            && literal.widens_to(target)
         {
-            return None;
+            return Some(Self::Widen { target: target_id });
         }
 
         // distinct scalar carriers convert their stored values
         if let (Type::Primitive(source), Type::Primitive(target)) = (source, target)
             && source.widens_to(*target)
         {
-            return Some(Self::Scalar);
+            return Some(Self::Scalar { target: target_id });
         }
 
         None
     }
+}
 
-    /// Return whether two memory form constructors store different carriers.
-    fn carriers_differ(source: Form, target: Form) -> bool {
-        match (source, target) {
-            // placement, readonly, and managed are static or transparent
-            (Form::Placed { .. } | Form::Readonly | Form::Managed, _)
-            | (_, Form::Placed { .. } | Form::Readonly | Form::Managed) => false,
-
-            // static borrow parameters share the pointer carrier
-            (Form::Borrowed(_), Form::Borrowed(_)) => false,
-
-            // equal runtime carriers store directly
-            (Form::Owned, Form::Owned) | (Form::Raw, Form::Raw) => false,
-
-            // different runtime carriers convert
-            _ => true,
+impl CoercionCase {
+    /// Map every type id in this source case.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.source = map(self.source);
+        self.target = map(self.target);
+        for adjustment in &mut self.adjustments {
+            adjustment.map_type_ids(map);
         }
     }
 }
@@ -357,9 +334,13 @@ impl CoercionKind {
 pub struct CoercionSegment {
     /// The module id of the coercion segment.
     pub module_id: ModuleId,
-    /// Coercions keyed by the value node being coerced.
+    /// Coercions keyed by their value node.
     pub(crate) coercions: IndexMap<GlobalNodeIdAny, Coercion>,
 }
+
+/// One rollback position in a coercion segment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CoercionMark(usize);
 
 impl CoercionSegment {
     /// Create an empty coercion segment.
@@ -370,7 +351,19 @@ impl CoercionSegment {
         }
     }
 
-    /// Bind the coercion for one value node.
+    /// Mark the current segment position for later truncation.
+    pub fn mark(&self) -> CoercionMark {
+        CoercionMark(self.coercions.len())
+    }
+
+    /// Truncate coercions back to one mark.
+    pub fn truncate_to(&mut self, mark: CoercionMark) {
+        while self.coercions.len() > mark.0 {
+            self.coercions.pop();
+        }
+    }
+
+    /// Bind one coercion to its value node.
     pub fn bind_coercion(
         &mut self,
         node_id: GlobalNodeIdAny,
@@ -393,8 +386,14 @@ impl CoercionSegment {
 
     /// Map every type id embedded in this segment.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        for coercion in self.coercions.values_mut() {
+        let coercions = mem::take(&mut self.coercions);
+        for (node_id, mut coercion) in coercions {
             coercion.map_type_ids(map);
+            let previous = self.coercions.insert(node_id, coercion);
+            assert!(
+                previous.is_none(),
+                "type mapping produced duplicate coercions for node {node_id:?}"
+            );
         }
     }
 

@@ -42,6 +42,8 @@ const loose: Loose = tight;
 /// @resolution.pattern source=loose kind=binding target=loose
 /// @resolution.name source=Loose target=Loose
 /// @resolution.name source=tight target=tight
+/// @resolution.place source=tight placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=tight root=tight
 "#,
     );
 }
@@ -88,6 +90,8 @@ const tight: Tight = loose;
 /// @resolution.pattern source=tight kind=binding target=tight
 /// @resolution.name source=Tight target=Tight
 /// @resolution.name source=loose target=loose
+/// @resolution.place source=loose placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=loose root=loose
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Loose' is not assignable to type 'Tight'"
@@ -141,6 +145,8 @@ const id: StringId = numeric;
 /// @resolution.pattern source=id kind=binding target=id
 /// @resolution.name source=StringId target=StringId
 /// @resolution.name source=numeric target=numeric
+/// @resolution.place source=numeric placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=numeric root=numeric
 "#,
     );
 }
@@ -187,6 +193,8 @@ const numeric: NumericId = id;
 /// @resolution.pattern source=numeric kind=binding target=numeric
 /// @resolution.name source=NumericId target=NumericId
 /// @resolution.name source=id target=id
+/// @resolution.place source=id placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=id root=id
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'StringId' is not assignable to type 'NumericId'"

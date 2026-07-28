@@ -64,8 +64,6 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn open_generic_template(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        parent: Option<GenericTemplateId>,
-        symbol: Option<dir::GlobalSymbolId>,
         parameters: &[dir::LocalNodeId<dir::GenericParameter>],
     ) -> CompilerResult<Option<GenericTemplateId>> {
         if parameters.is_empty() {
@@ -76,7 +74,7 @@ impl WalkState<'_, '_> {
                 message: format!("generic template source {source:?} is outside the walked module"),
             });
         }
-        let template = self.check.open_generic_template(source, parent, symbol)?;
+        let template = self.check.open_generic_template(source)?;
 
         // open parameter identities before walking any bounds
         for parameter in parameters {
@@ -90,11 +88,9 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn walk_generic_template(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        parent: Option<GenericTemplateId>,
-        symbol: Option<dir::GlobalSymbolId>,
         parameters: &[dir::LocalNodeId<dir::GenericParameter>],
     ) -> CompilerResult<Option<GenericTemplateId>> {
-        let Some(template) = self.open_generic_template(source, parent, symbol, parameters)? else {
+        let Some(template) = self.open_generic_template(source, parameters)? else {
             return Ok(None);
         };
 
@@ -130,7 +126,7 @@ impl WalkState<'_, '_> {
         }
 
         self.check
-            .open_generic_template(owner.declaration, owner.parent, owner.symbol)
+            .open_generic_template(owner.declaration)
             .map(Some)
     }
 
@@ -144,8 +140,6 @@ impl WalkState<'_, '_> {
             .generics
             .push_induced_parameter_site(InducedParameterSite {
                 declaration: declaration.declaration,
-                parent: declaration.parent,
-                symbol: declaration.symbol,
                 ty,
             });
     }
@@ -160,12 +154,9 @@ impl CheckState<'_> {
         let mut parameters = FxIndexMap::default();
         for site in sites {
             for (variable, role) in self.induced_memory_variables(site.ty)? {
-                parameters.entry(variable).or_insert((
-                    site.declaration,
-                    site.parent,
-                    site.symbol,
-                    role,
-                ));
+                parameters
+                    .entry(variable)
+                    .or_insert((site.declaration, role));
             }
         }
 
@@ -173,11 +164,11 @@ impl CheckState<'_> {
         let mut parameters = parameters.into_iter().collect::<Vec<_>>();
         parameters.sort_by_key(|(variable, _)| variable.0);
 
-        for (variable, (declaration, parent, symbol, role)) in parameters {
+        for (variable, (declaration, role)) in parameters {
             // cyclic applications already froze this declaration's arity:
             //  report once and poison the unresolvable hole
             if let Some(reference) = self.cyclic_inductions.get(&declaration).copied() {
-                self.report_circular_lifetime_induction(declaration, reference, symbol)?;
+                self.report_circular_lifetime_induction(declaration, reference)?;
                 let error = self.intern_type(declaration.module_id, dir::Type::Error)?;
                 self.commit_solution(variable, error)?;
 
@@ -190,7 +181,7 @@ impl CheckState<'_> {
                 .origin_source_node(origin)?
                 .into_global(origin.module());
 
-            let template = self.open_generic_template(declaration, parent, symbol)?;
+            let template = self.open_generic_template(declaration)?;
             let parameter = self.push_induced_memory_parameter(template, site, role)?;
             let solution =
                 self.intern_type(declaration.module_id, dir::Type::Parameter(parameter))?;

@@ -220,7 +220,7 @@ impl Compiler {
 
         let symbol_id = state.insert_symbol(
             dir::SymbolRole::Local,
-            dir::SymbolKind::TypeAlias,
+            dir::SymbolKind::GenericTypeParameter,
             Some(dir::StaticKey::Name(parameter.name)),
             None,
             dir::SymbolVisibility::Forward,
@@ -266,7 +266,7 @@ impl Compiler {
                     let symbol_id = state.insert_symbol_in_scope(
                         scope_id,
                         dir::SymbolRole::Local,
-                        dir::SymbolKind::TypeAlias,
+                        dir::SymbolKind::GenericTypeParameter,
                         key,
                         None,
                         dir::SymbolVisibility::Forward,
@@ -277,7 +277,7 @@ impl Compiler {
                 }
                 None => state.insert_symbol(
                     dir::SymbolRole::Local,
-                    dir::SymbolKind::TypeAlias,
+                    dir::SymbolKind::GenericTypeParameter,
                     key,
                     None,
                     dir::SymbolVisibility::Forward,

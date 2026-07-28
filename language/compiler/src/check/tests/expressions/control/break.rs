@@ -40,10 +40,10 @@ while (true) {
 }
 "#,
         r#"
-/// @diagnostic.error id=break-outside-control-target message="break statement has no target"
-/// @diagnostic.label line=4 column=9 span="break" line_source="break;"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
 /// @diagnostic.label line=2 column=8 span="true" line_source="while (true) {"
+/// @diagnostic.error id=break-outside-control-target message="break statement has no target"
+/// @diagnostic.label line=4 column=9 span="break" line_source="break;"
 "#,
     );
 }
@@ -90,6 +90,8 @@ const value = loop {
     if (flag) {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=flag
+    /// @resolution.place source=flag placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=flag root=flag
 
         break 1;
         /// @type.node source="break 1" type=never
@@ -170,10 +172,10 @@ while (true) {
 }
 "#,
         r#"
-/// @diagnostic.error id=break-value-outside-loop message="break with a value can only target a `loop` or labeled block"
-/// @diagnostic.label line=3 column=5 span="break 1" line_source="break 1;"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
 /// @diagnostic.label line=2 column=8 span="true" line_source="while (true) {"
+/// @diagnostic.error id=break-value-outside-loop message="break with a value can only target a `loop` or labeled block"
+/// @diagnostic.label line=3 column=5 span="break 1" line_source="break 1;"
 "#,
     );
 }

@@ -49,10 +49,15 @@ function consume(counter: ^Counter): int32 {
     /// @type.symbol symbol=consume.taken source=taken type=Owned<Counter>
     /// @resolution.pattern source=taken kind=binding target=consume.taken
     /// @resolution.name source=counter target=consume.counter
+    /// @resolution.access source=counter root=consume.counter
 
     return counter.count;
     /// @resolution.name source=counter target=consume.counter
-    /// @resolution.member source=counter.count receiver=Owned<Counter> kind=symbol target=Counter.count
+    /// @resolution.member source=counter.count receiver=Owned<Counter> type=int32 kind=field target_receiver=Owned<Counter> key=count target=Counter.count target_type=int32
+    /// @resolution.place source=counter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=counter root=consume.counter
+    /// @resolution.place source=counter.count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=counter.count root=consume.counter keys=[count]
 
 }
 "#,
@@ -94,11 +99,16 @@ function double(value: int32): int32 {
     /// @type.symbol symbol=double.taken source=taken type=int32
     /// @resolution.pattern source=taken kind=binding target=double.taken
     /// @resolution.name source=value target=double.value
+    /// @resolution.access source=value root=double.value
 
     return value + taken;
     /// @resolution.name source=value target=double.value
-    /// @resolution.operator source="value + taken" kind=builtin
+    /// @resolution.operator source="value + taken" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), taken as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=double.value
     /// @resolution.name source=taken target=double.taken
+    /// @resolution.place source=taken placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=taken root=double.taken
 
 }
 "#,
@@ -162,15 +172,21 @@ function recycle(): int32 {
     /// @type.symbol symbol=recycle.taken source=taken type=Counter
     /// @resolution.pattern source=taken kind=binding target=recycle.taken
     /// @resolution.name source=counter target=recycle.counter
+    /// @resolution.access source=counter root=recycle.counter
 
     counter = new Counter();
-    /// @resolution.pattern.assign source=counter kind=place place=binding(recycle.counter) type=Counter
+    /// @resolution.pattern.assign source=counter kind=place
+    /// @resolution.assignment source=counter write=binding(recycle.counter) type=Counter
     /// @resolution.construct source="new Counter()" parameters=() return=Counter kind=class target=Counter constructor=default
     /// @resolution.name source=Counter target=Counter
 
     return counter.count;
     /// @resolution.name source=counter target=recycle.counter
-    /// @resolution.member source=counter.count receiver=Counter kind=symbol target=Counter.count
+    /// @resolution.member source=counter.count receiver=Counter type=int32 kind=field target_receiver=Counter key=count target=Counter.count target_type=int32
+    /// @resolution.place source=counter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=counter root=recycle.counter
+    /// @resolution.place source=counter.count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=counter.count root=recycle.counter keys=[count]
 
 }
 "#,
@@ -229,16 +245,23 @@ function gamble(flag: boolean, counter: ^Counter): int32 {
 
     if (flag) {
     /// @resolution.name source=flag target=gamble.flag
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=flag root=gamble.flag
 
         const taken = counter;
         /// @type.symbol symbol=gamble.taken source=taken type=Owned<Counter>
         /// @resolution.pattern source=taken kind=binding target=gamble.taken
         /// @resolution.name source=counter target=gamble.counter
+        /// @resolution.access source=counter root=gamble.counter
 
     }
     return counter.count;
     /// @resolution.name source=counter target=gamble.counter
-    /// @resolution.member source=counter.count receiver=Owned<Counter> kind=symbol target=Counter.count
+    /// @resolution.member source=counter.count receiver=Owned<Counter> type=int32 kind=field target_receiver=Owned<Counter> key=count target=Counter.count target_type=int32
+    /// @resolution.place source=counter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=counter root=gamble.counter
+    /// @resolution.place source=counter.count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=counter.count root=gamble.counter keys=[count]
 
 }
 "#,

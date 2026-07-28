@@ -135,9 +135,9 @@ impl Parser {
         // accept equality relation
         else if self.peek_is(TokenType::Equal) {
             self.bump();
-            WhereRelation::Equals
+            WhereRelation::Equal
         }
-        // recover stale relation keywords
+        // recover constraint keywords
         else if matches!(
             self.peek_keyword(),
             Some(Keyword::Extends | Keyword::Implements)

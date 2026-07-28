@@ -67,7 +67,7 @@ export extension<K: Hash, V> of ConcurrentMapRead<K, V>
     }
 
     /// Borrow the entry value.
-    dereference(): WithAccess<&this.Output, "readonly"> {
+    dereference(&readonly this): WithAccess<&this.Output, "readonly"> {
         todo("ConcurrentMapRead.dereference")
     }
 }
@@ -100,7 +100,7 @@ export extension<K: Hash, V> of ConcurrentMapWrite<K, V>
     }
 
     /// Borrow the entry value.
-    dereference(): WithAccess<&this.Output, "exclusive"> {
+    dereference(&exclusive this): WithAccess<&this.Output, "exclusive"> {
         todo("ConcurrentMapWrite.dereference")
     }
 }
@@ -176,7 +176,7 @@ export extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V)> {
     }
 
     /// Create a concurrent map from `entries`.
-    static fromIterator(entries: Iterator<(K, V)>): ^ConcurrentMap<K, V> {
+    static fromIterator<R>(entries: Iterator<(K, V), R>): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.fromIterator")
     }
 
@@ -299,7 +299,7 @@ export extension<K: Hash, V> of ^ConcurrentMap<K, V>
     }
 
     /// Create an owned concurrent map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): ^ConcurrentMap<K, V> {
+    static fromIterator<R>(entries: Iterator<(K, V), R>): ^ConcurrentMap<K, V> {
         ConcurrentMap.fromIterator(entries)
     }
 }

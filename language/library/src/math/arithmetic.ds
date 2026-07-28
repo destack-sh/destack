@@ -1,67 +1,85 @@
 import { todo } from "destack:error";
 
-import { Integer } from "./scalar.ds";
+import { Integer } from "./integer.ds";
 
-/// Method surface for integer arithmetic.
+/// Explicit overflow behaviors for builtin integer arithmetic.
 export extension Arithmetic<T: Integer> of T {
     /// Return `this + other`, or `undefined` on overflow.
     checkedAdd(other: T): T | undefined {
-        checkedAdd(this, other)
+        let (result, overflow) = overflowingAdd(this, other);
+
+        if (overflow) {
+            return undefined;
+        }
+
+        result
     }
 
     /// Return `this - other`, or `undefined` on overflow.
     checkedSubtract(other: T): T | undefined {
-        checkedSubtract(this, other)
+        let (result, overflow) = overflowingSubtract(this, other);
+
+        if (overflow) {
+            return undefined;
+        }
+
+        result
     }
 
     /// Return `this * other`, or `undefined` on overflow.
     checkedMultiply(other: T): T | undefined {
-        checkedMultiply(this, other)
+        let (result, overflow) = overflowingMultiply(this, other);
+
+        if (overflow) {
+            return undefined;
+        }
+
+        result
     }
 
     /// Return `this / other`, or `undefined` on division by zero or overflow.
     checkedDivide(other: T): T | undefined {
-        checkedDivide(this, other)
+        todo("Integer.checkedDivide")
     }
 
     /// Return `this % other`, or `undefined` on division by zero or overflow.
     checkedRemainder(other: T): T | undefined {
-        checkedRemainder(this, other)
+        todo("Integer.checkedRemainder")
     }
 
     /// Return the Euclidean quotient, or `undefined` on division by zero or overflow.
     checkedDivideEuclidean(other: T): T | undefined {
-        checkedDivideEuclidean(this, other)
+        todo("Integer.checkedDivideEuclidean")
     }
 
     /// Return the Euclidean remainder, or `undefined` on division by zero or overflow.
     checkedRemainderEuclidean(other: T): T | undefined {
-        checkedRemainderEuclidean(this, other)
+        todo("Integer.checkedRemainderEuclidean")
     }
 
     /// Return `-this`, or `undefined` on overflow.
     checkedNegate(): T | undefined {
-        checkedNegate(this)
+        todo("Integer.checkedNegate")
     }
 
     /// Return the absolute value, or `undefined` on overflow.
     checkedAbs(): T | undefined {
-        checkedAbs(this)
+        todo("Integer.checkedAbs")
     }
 
     /// Return `this ** exponent`, or `undefined` on overflow.
     checkedPower(exponent: uint32): T | undefined {
-        checkedPower(this, exponent)
+        todo("Integer.checkedPower")
     }
 
     /// Shift left, or `undefined` when the shift amount is out of range.
     checkedShiftLeft(amount: uint32): T | undefined {
-        checkedShiftLeft(this, amount)
+        todo("Integer.checkedShiftLeft")
     }
 
     /// Shift right, or `undefined` when the shift amount is out of range.
     checkedShiftRight(amount: uint32): T | undefined {
-        checkedShiftRight(this, amount)
+        todo("Integer.checkedShiftRight")
     }
 
     /// Return wrapped `this + other` with an overflow flag.
@@ -81,107 +99,107 @@ export extension Arithmetic<T: Integer> of T {
 
     /// Return wrapped `this / other` with an overflow flag.
     overflowingDivide(other: T): (T, boolean) {
-        overflowingDivide(this, other)
+        todo("Integer.overflowingDivide")
     }
 
     /// Return wrapped `this % other` with an overflow flag.
     overflowingRemainder(other: T): (T, boolean) {
-        overflowingRemainder(this, other)
+        todo("Integer.overflowingRemainder")
     }
 
     /// Return the wrapped Euclidean quotient with an overflow flag.
     overflowingDivideEuclidean(other: T): (T, boolean) {
-        overflowingDivideEuclidean(this, other)
+        todo("Integer.overflowingDivideEuclidean")
     }
 
     /// Return the wrapped Euclidean remainder with an overflow flag.
     overflowingRemainderEuclidean(other: T): (T, boolean) {
-        overflowingRemainderEuclidean(this, other)
+        todo("Integer.overflowingRemainderEuclidean")
     }
 
     /// Return wrapped `-this` with an overflow flag.
     overflowingNegate(): (T, boolean) {
-        overflowingNegate(this)
+        todo("Integer.overflowingNegate")
     }
 
     /// Return the wrapped absolute value with an overflow flag.
     overflowingAbs(): (T, boolean) {
-        overflowingAbs(this)
+        todo("Integer.overflowingAbs")
     }
 
     /// Return wrapped `this ** exponent` with an overflow flag.
     overflowingPower(exponent: uint32): (T, boolean) {
-        overflowingPower(this, exponent)
+        todo("Integer.overflowingPower")
     }
 
     /// Shift left with an out-of-range flag.
     overflowingShiftLeft(amount: uint32): (T, boolean) {
-        overflowingShiftLeft(this, amount)
+        todo("Integer.overflowingShiftLeft")
     }
 
     /// Shift right with an out-of-range flag.
     overflowingShiftRight(amount: uint32): (T, boolean) {
-        overflowingShiftRight(this, amount)
+        todo("Integer.overflowingShiftRight")
     }
 
     /// Return `this + other` with modular arithmetic.
     wrappingAdd(other: T): T {
-        wrappingAdd(this, other)
+        todo("Integer.wrappingAdd")
     }
 
     /// Return `this - other` with modular arithmetic.
     wrappingSubtract(other: T): T {
-        wrappingSubtract(this, other)
+        todo("Integer.wrappingSubtract")
     }
 
     /// Return `this * other` with modular arithmetic.
     wrappingMultiply(other: T): T {
-        wrappingMultiply(this, other)
+        todo("Integer.wrappingMultiply")
     }
 
     /// Return `this / other`, wrapping the one overflowing case.
     wrappingDivide(other: T): T {
-        wrappingDivide(this, other)
+        todo("Integer.wrappingDivide")
     }
 
     /// Return `this % other`, wrapping the one overflowing case.
     wrappingRemainder(other: T): T {
-        wrappingRemainder(this, other)
+        todo("Integer.wrappingRemainder")
     }
 
     /// Return the Euclidean quotient, wrapping the one overflowing case.
     wrappingDivideEuclidean(other: T): T {
-        wrappingDivideEuclidean(this, other)
+        todo("Integer.wrappingDivideEuclidean")
     }
 
     /// Return the Euclidean remainder, wrapping the one overflowing case.
     wrappingRemainderEuclidean(other: T): T {
-        wrappingRemainderEuclidean(this, other)
+        todo("Integer.wrappingRemainderEuclidean")
     }
 
     /// Return `-this` with modular arithmetic.
     wrappingNegate(): T {
-        wrappingNegate(this)
+        todo("Integer.wrappingNegate")
     }
 
     /// Return the absolute value with modular arithmetic.
     wrappingAbs(): T {
-        wrappingAbs(this)
+        todo("Integer.wrappingAbs")
     }
 
     /// Return `this ** exponent` with modular arithmetic.
     wrappingPower(exponent: uint32): T {
-        wrappingPower(this, exponent)
+        todo("Integer.wrappingPower")
     }
 
     /// Shift left with a masked shift amount.
     wrappingShiftLeft(amount: uint32): T {
-        wrappingShiftLeft(this, amount)
+        todo("Integer.wrappingShiftLeft")
     }
 
     /// Shift right with a masked shift amount.
     wrappingShiftRight(amount: uint32): T {
-        wrappingShiftRight(this, amount)
+        todo("Integer.wrappingShiftRight")
     }
 
     /// Return `this + other`, clamping at the bounds.
@@ -196,272 +214,118 @@ export extension Arithmetic<T: Integer> of T {
 
     /// Return `this * other`, clamping at the bounds.
     saturatingMultiply(other: T): T {
-        saturatingMultiply(this, other)
+        todo("Integer.saturatingMultiply")
     }
 
     /// Return `-this`, clamping at the bounds.
     saturatingNegate(): T {
-        saturatingNegate(this)
+        todo("Integer.saturatingNegate")
     }
 
     /// Return the absolute value, clamping at the bounds.
     saturatingAbs(): T {
-        saturatingAbs(this)
+        todo("Integer.saturatingAbs")
     }
 
     /// Return `this ** exponent`, clamping at the bounds.
     saturatingPower(exponent: uint32): T {
-        saturatingPower(this, exponent)
-    }
-}
-
-/// Return `a + b`, or `undefined` on overflow.
-export function checkedAdd<T: Integer>(a: T, b: T): T | undefined {
-    let (result, overflow) = overflowingAdd(a, b);
-
-    if (overflow) {
-        return undefined;
+        todo("Integer.saturatingPower")
     }
 
-    result
-}
-
-/// Return `a - b`, or `undefined` on overflow.
-export function checkedSubtract<T: Integer>(a: T, b: T): T | undefined {
-    let (result, overflow) = overflowingSubtract(a, b);
-
-    if (overflow) {
-        return undefined;
+    /// Add without overflow checks.
+    @unsafe
+    uncheckedAdd(other: T): T {
+        uncheckedAdd(this, other)
     }
 
-    result
-}
-
-/// Return `a * b`, or `undefined` on overflow.
-export function checkedMultiply<T: Integer>(a: T, b: T): T | undefined {
-    let (result, overflow) = overflowingMultiply(a, b);
-
-    if (overflow) {
-        return undefined;
+    /// Subtract without overflow checks.
+    @unsafe
+    uncheckedSubtract(other: T): T {
+        uncheckedSubtract(this, other)
     }
 
-    result
-}
+    /// Multiply without overflow checks.
+    @unsafe
+    uncheckedMultiply(other: T): T {
+        uncheckedMultiply(this, other)
+    }
 
-/// Return `a / b`, or `undefined` on division by zero or overflow.
-export function checkedDivide<T: Integer>(a: T, b: T): T | undefined {
-    todo("checkedDivide")
-}
+    /// Divide without division checks.
+    @unsafe
+    uncheckedDivide(other: T): T {
+        uncheckedDivide(this, other)
+    }
 
-/// Return `a % b`, or `undefined` on division by zero or overflow.
-export function checkedRemainder<T: Integer>(a: T, b: T): T | undefined {
-    todo("checkedRemainder")
-}
+    /// Return a remainder without division checks.
+    @unsafe
+    uncheckedRemainder(other: T): T {
+        uncheckedRemainder(this, other)
+    }
 
-/// Return Euclidean division, or `undefined` on division by zero or overflow.
-export function checkedDivideEuclidean<T: Integer>(a: T, b: T): T | undefined {
-    todo("checkedDivideEuclidean")
-}
+    /// Shift left without checking the shift amount.
+    @unsafe
+    uncheckedShiftLeft(amount: uint32): T {
+        uncheckedShiftLeft(this, amount)
+    }
 
-/// Return Euclidean remainder, or `undefined` on division by zero or overflow.
-export function checkedRemainderEuclidean<T: Integer>(a: T, b: T): T | undefined {
-    todo("checkedRemainderEuclidean")
-}
-
-/// Return `-value`, or `undefined` on overflow.
-export function checkedNegate<T: Integer>(value: T): T | undefined {
-    todo("checkedNegate")
-}
-
-/// Return absolute value, or `undefined` on overflow.
-export function checkedAbs<T: Integer>(value: T): T | undefined {
-    todo("checkedAbs")
-}
-
-/// Return `base ** exponent`, or `undefined` on overflow.
-export function checkedPower<T: Integer>(base: T, exponent: uint32): T | undefined {
-    todo("checkedPower")
-}
-
-/// Return `value << amount`, or `undefined` when the shift is invalid.
-export function checkedShiftLeft<T: Integer>(value: T, amount: uint32): T | undefined {
-    todo("checkedShiftLeft")
-}
-
-/// Return `value >> amount`, or `undefined` when the shift is invalid.
-export function checkedShiftRight<T: Integer>(value: T, amount: uint32): T | undefined {
-    todo("checkedShiftRight")
+    /// Shift right without checking the shift amount.
+    @unsafe
+    uncheckedShiftRight(amount: uint32): T {
+        uncheckedShiftRight(this, amount)
+    }
 }
 
 /// Add and report whether overflow occurred.
 @intrinsic("math.arithmetic.overflowing.add")
-export declare function overflowingAdd<T: Integer>(a: T, b: T): (T, boolean);
+declare function overflowingAdd<T: Integer>(a: T, b: T): (T, boolean);
 
 /// Subtract and report whether overflow occurred.
 @intrinsic("math.arithmetic.overflowing.subtract")
-export declare function overflowingSubtract<T: Integer>(a: T, b: T): (T, boolean);
+declare function overflowingSubtract<T: Integer>(a: T, b: T): (T, boolean);
 
 /// Multiply and report whether overflow occurred.
 @intrinsic("math.arithmetic.overflowing.multiply")
-export declare function overflowingMultiply<T: Integer>(a: T, b: T): (T, boolean);
-
-/// Divide and report whether overflow occurred.
-export function overflowingDivide<T: Integer>(a: T, b: T): (T, boolean) {
-    todo("overflowingDivide")
-}
-
-/// Return remainder and report whether overflow occurred.
-export function overflowingRemainder<T: Integer>(a: T, b: T): (T, boolean) {
-    todo("overflowingRemainder")
-}
-
-/// Divide using Euclidean rules and report whether overflow occurred.
-export function overflowingDivideEuclidean<T: Integer>(a: T, b: T): (T, boolean) {
-    todo("overflowingDivideEuclidean")
-}
-
-/// Return Euclidean remainder and report whether overflow occurred.
-export function overflowingRemainderEuclidean<T: Integer>(a: T, b: T): (T, boolean) {
-    todo("overflowingRemainderEuclidean")
-}
-
-/// Negate and report whether overflow occurred.
-export function overflowingNegate<T: Integer>(value: T): (T, boolean) {
-    todo("overflowingNegate")
-}
-
-/// Return absolute value and report whether overflow occurred.
-export function overflowingAbs<T: Integer>(value: T): (T, boolean) {
-    todo("overflowingAbs")
-}
-
-/// Raise to `exponent` and report whether overflow occurred.
-export function overflowingPower<T: Integer>(base: T, exponent: uint32): (T, boolean) {
-    todo("overflowingPower")
-}
-
-/// Shift left and report whether the shift was invalid.
-export function overflowingShiftLeft<T: Integer>(value: T, amount: uint32): (T, boolean) {
-    todo("overflowingShiftLeft")
-}
-
-/// Shift right and report whether the shift was invalid.
-export function overflowingShiftRight<T: Integer>(value: T, amount: uint32): (T, boolean) {
-    todo("overflowingShiftRight")
-}
-
-/// Add with wraparound arithmetic.
-export function wrappingAdd<T: Integer>(a: T, b: T): T {
-    todo("wrappingAdd")
-}
-
-/// Subtract with wraparound arithmetic.
-export function wrappingSubtract<T: Integer>(a: T, b: T): T {
-    todo("wrappingSubtract")
-}
-
-/// Multiply with wraparound arithmetic.
-export function wrappingMultiply<T: Integer>(a: T, b: T): T {
-    todo("wrappingMultiply")
-}
-
-/// Divide with wraparound arithmetic.
-export function wrappingDivide<T: Integer>(a: T, b: T): T {
-    todo("wrappingDivide")
-}
-
-/// Return remainder with wraparound arithmetic.
-export function wrappingRemainder<T: Integer>(a: T, b: T): T {
-    todo("wrappingRemainder")
-}
-
-/// Divide using Euclidean wraparound arithmetic.
-export function wrappingDivideEuclidean<T: Integer>(a: T, b: T): T {
-    todo("wrappingDivideEuclidean")
-}
-
-/// Return Euclidean remainder with wraparound arithmetic.
-export function wrappingRemainderEuclidean<T: Integer>(a: T, b: T): T {
-    todo("wrappingRemainderEuclidean")
-}
-
-/// Negate with wraparound arithmetic.
-export function wrappingNegate<T: Integer>(value: T): T {
-    todo("wrappingNegate")
-}
-
-/// Return absolute value with wraparound arithmetic.
-export function wrappingAbs<T: Integer>(value: T): T {
-    todo("wrappingAbs")
-}
-
-/// Raise to `exponent` with wraparound arithmetic.
-export function wrappingPower<T: Integer>(base: T, exponent: uint32): T {
-    todo("wrappingPower")
-}
-
-/// Shift left with wraparound arithmetic.
-export function wrappingShiftLeft<T: Integer>(value: T, amount: uint32): T {
-    todo("wrappingShiftLeft")
-}
-
-/// Shift right with wraparound arithmetic.
-export function wrappingShiftRight<T: Integer>(value: T, amount: uint32): T {
-    todo("wrappingShiftRight")
-}
+declare function overflowingMultiply<T: Integer>(a: T, b: T): (T, boolean);
 
 /// Add with saturation at numeric bounds.
 @intrinsic("math.arithmetic.saturating.add")
-export declare function saturatingAdd<T: Integer>(a: T, b: T): T;
+declare function saturatingAdd<T: Integer>(a: T, b: T): T;
 
 /// Subtract with saturation at numeric bounds.
 @intrinsic("math.arithmetic.saturating.subtract")
-export declare function saturatingSubtract<T: Integer>(a: T, b: T): T;
-
-/// Multiply with saturation at numeric bounds.
-export function saturatingMultiply<T: Integer>(a: T, b: T): T {
-    todo("saturatingMultiply")
-}
-
-/// Negate with saturation at numeric bounds.
-export function saturatingNegate<T: Integer>(value: T): T {
-    todo("saturatingNegate")
-}
-
-/// Return absolute value with saturation at numeric bounds.
-export function saturatingAbs<T: Integer>(value: T): T {
-    todo("saturatingAbs")
-}
-
-/// Raise to `exponent` with saturation at numeric bounds.
-export function saturatingPower<T: Integer>(base: T, exponent: uint32): T {
-    todo("saturatingPower")
-}
+declare function saturatingSubtract<T: Integer>(a: T, b: T): T;
 
 /// Add without overflow checks.
 @intrinsic("math.arithmetic.unchecked.add")
-export declare function uncheckedAdd<T: Integer>(a: T, b: T): T;
+@unsafe
+declare function uncheckedAdd<T: Integer>(a: T, b: T): T;
 
 /// Subtract without overflow checks.
 @intrinsic("math.arithmetic.unchecked.subtract")
-export declare function uncheckedSubtract<T: Integer>(a: T, b: T): T;
+@unsafe
+declare function uncheckedSubtract<T: Integer>(a: T, b: T): T;
 
 /// Multiply without overflow checks.
 @intrinsic("math.arithmetic.unchecked.multiply")
-export declare function uncheckedMultiply<T: Integer>(a: T, b: T): T;
+@unsafe
+declare function uncheckedMultiply<T: Integer>(a: T, b: T): T;
 
 /// Divide without division checks.
 @intrinsic("math.arithmetic.unchecked.divide")
-export declare function uncheckedDivide<T: Integer>(a: T, b: T): T;
+@unsafe
+declare function uncheckedDivide<T: Integer>(a: T, b: T): T;
 
 /// Return remainder without division checks.
 @intrinsic("math.arithmetic.unchecked.remainder")
-export declare function uncheckedRemainder<T: Integer>(a: T, b: T): T;
+@unsafe
+declare function uncheckedRemainder<T: Integer>(a: T, b: T): T;
 
 /// Shift left without checking the shift amount.
 @intrinsic("math.arithmetic.unchecked.shiftLeft")
-export declare function uncheckedShiftLeft<T: Integer>(value: T, amount: uint32): T;
+@unsafe
+declare function uncheckedShiftLeft<T: Integer>(value: T, amount: uint32): T;
 
 /// Shift right without checking the shift amount.
 @intrinsic("math.arithmetic.unchecked.shiftRight")
-export declare function uncheckedShiftRight<T: Integer>(value: T, amount: uint32): T;
+@unsafe
+declare function uncheckedShiftRight<T: Integer>(value: T, amount: uint32): T;

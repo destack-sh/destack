@@ -19,7 +19,7 @@ function sum(n: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.sum(v0: int32): int32 {
+function test.main.sum(v0: int32): int32 {
     local l0: int32
     local l1: int32
 
@@ -74,7 +74,7 @@ function firstOver(limit: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.firstOver(v0: int32): int32 {
+function test.main.firstOver(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -128,7 +128,7 @@ function sum(n: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.sum(v0: int32): int32 {
+function test.main.sum(v0: int32): int32 {
     local l0: int32
     local l1: int32
 
@@ -152,9 +152,9 @@ b2:
     jump b3
 
 b3:
-    v8: int32 = 1
-    v9: int32 = local.get l1
-    v10: int32 = int.add v9, v8
+    v8: int32 = local.get l1
+    v9: int32 = 1
+    v10: int32 = int.add v8, v9
     local.set l1, v10
     jump b1
 
@@ -183,7 +183,7 @@ function drain(n: int64): int64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.drain(v0: int64): int64 {
+function test.main.drain(v0: int64): int64 {
     local l0: int64
 
 entry(v0: int64):
@@ -231,7 +231,7 @@ function next(seed: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.next(v0: int32): int32 {
+function test.main.next(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
@@ -284,7 +284,7 @@ function find(limit: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.find(v0: int32): int32 {
+function test.main.find(v0: int32): int32 {
     local l0: int32
     local l1: int32
     local l2: int32
@@ -307,9 +307,9 @@ b2:
     jump b5
 
 b3:
-    v18: int32 = 1
-    v19: int32 = local.get l1
-    v20: int32 = int.add v19, v18
+    v18: int32 = local.get l1
+    v19: int32 = 1
+    v20: int32 = int.add v18, v19
     local.set l1, v20
     jump b1
 
@@ -330,9 +330,9 @@ b6:
     branch v11, b9, b10
 
 b7:
-    v15: int32 = 1
-    v16: int32 = local.get l2
-    v17: int32 = int.add v16, v15
+    v15: int32 = local.get l2
+    v16: int32 = 1
+    v17: int32 = int.add v15, v16
     local.set l2, v17
     jump b5
 

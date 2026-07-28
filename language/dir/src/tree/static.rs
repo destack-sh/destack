@@ -69,10 +69,7 @@ impl StaticTerm {
 
     /// Return this value's boolean literal.
     pub fn as_boolean(&self) -> Option<bool> {
-        match self.as_scalar()? {
-            ScalarLiteral::Boolean(value) => Some(value),
-            _ => None,
-        }
+        self.as_scalar()?.as_boolean()
     }
 
     /// Return this value's integer literal.

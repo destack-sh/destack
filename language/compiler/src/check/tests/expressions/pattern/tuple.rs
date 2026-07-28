@@ -38,16 +38,21 @@ let (count, label) = pair;
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node source=pair type=(int32, string)
 /// @resolution.name source=pair target=pair
+/// @resolution.access source=pair root=pair
 
 count satisfies int32;
 /// @type.node source="count satisfies int32" type=int32
 /// @type.node source=count type=int32
 /// @resolution.name source=count target=count
+/// @resolution.place source=count placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=count root=count
 
 label satisfies string;
 /// @type.node source="label satisfies string" type=string
 /// @type.node source=label type=string
 /// @resolution.name source=label target=label
+/// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=label root=label
 "#,
     );
 }
@@ -81,6 +86,7 @@ let (x, y) = point;
 /// @type.symbol symbol=y#2 source=y type=<error>
 /// @type.node source=point type={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=pattern-source-not-tuple-shaped message="type '{ x: int32; y: int32 }' cannot be destructured as a tuple pattern"

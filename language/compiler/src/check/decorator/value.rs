@@ -165,6 +165,11 @@ impl CheckState<'_> {
                 dir::ArgumentSource::Omitted => {
                     values.push(dir::ScalarLiteral::Undefined.into());
                 }
+                dir::ArgumentSource::Write => {
+                    return Err(CompilerError::Internal {
+                        message: "decorator call contains an implicit write argument".to_string(),
+                    });
+                }
                 dir::ArgumentSource::Rest(arguments) => {
                     for argument in arguments {
                         let value =
@@ -353,7 +358,7 @@ impl CheckState<'_> {
                     let key = match key {
                         dir::Key::Name(name) => Some(name.static_key()),
                         dir::Key::Expression(expression) => {
-                            self.static_key_from_expression(module, expression)?
+                            self.evaluate_static_key(module, expression)?
                         }
                     };
                     let Some(key) = key else {
@@ -391,11 +396,7 @@ impl CheckState<'_> {
         value: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<Result<dir::StaticTerm, StaticError>> {
         let source = value.into_global_any(module);
-        let ty = self
-            .committed_node_type(source)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("static type expression {source:?} has no committed type"),
-            })?;
+        let ty = self.require_node_type(source)?;
         let ty = self.settled_root(ty)?;
 
         Ok(Ok(dir::StaticTerm::Type { ty }))
@@ -422,11 +423,7 @@ impl CheckState<'_> {
         }
         // type declarations are first-class reflected values
         else if self.symbol_kind(symbol).can_be_used_as_type() {
-            let Some(ty) = self.committed_node_type(source) else {
-                return Err(CompilerError::Internal {
-                    message: format!("static type value {source:?} has no committed type"),
-                });
-            };
+            let ty = self.require_node_type(source)?;
             let ty = self.settled_root(ty)?;
 
             dir::StaticTerm::Type { ty }

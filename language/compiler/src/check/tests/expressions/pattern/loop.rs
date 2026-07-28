@@ -36,16 +36,21 @@ for (const { name, value } of items) {
 /// @type.symbol symbol=value#2 source=value type=int32
 /// @type.node source=items type=Array<{ name: string; value: int32 }>
 /// @resolution.name source=items target=items
+/// @resolution.access source=items root=items
 
     name satisfies string;
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=name root=name#2
 
     value satisfies int32;
     /// @type.node source="value satisfies int32" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value#2
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=value#2
 
 }
 "#,
@@ -84,10 +89,13 @@ for (const { name } in item) {
 /// @type.symbol symbol=name#2 source=name type=<error>
 /// @type.node source=item type={ name: string }
 /// @resolution.name source=item target=item
+/// @resolution.access source=item root=item
 
     name;
     /// @type.node source=name type=<error>
     /// @resolution.name source=name target=name#2
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=name root=name#2
 
 }
 "#,

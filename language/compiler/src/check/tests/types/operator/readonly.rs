@@ -46,8 +46,13 @@ declare const user: readonly User;
 
 user.profile.name = "Grace";
 /// @resolution.name source=user target=user
-/// @resolution.member source=user.profile receiver=Readonly<{ profile: { name: string } }> kind=field key=profile
-/// @resolution.pattern.assign source=user.profile.name kind=place place=field(name) type=string
+/// @resolution.member source=user.profile receiver=Readonly<{ profile: { name: string } }> type={ name: string } kind=field target_receiver=Readonly<{ profile: { name: string } }> key=profile target_type={ name: string }
+/// @resolution.place source=user placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=user root=user
+/// @resolution.place source=user.profile placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=user.profile root=user keys=[profile]
+/// @resolution.pattern.assign source=user.profile.name kind=place
+/// @resolution.assignment source=user.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=string), type=string" type=string
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
@@ -86,9 +91,13 @@ let frozen: readonly number[] = values;
 /// @type.symbol symbol=frozen source=frozen type=readonly Array<float64>
 /// @resolution.pattern source=frozen kind=binding target=frozen
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 
 frozen satisfies readonly number[];
 /// @resolution.name source=frozen target=frozen
+/// @resolution.place source=frozen placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=frozen root=frozen
 "#,
     );
 }
@@ -119,6 +128,8 @@ let bad: number[] = frozen;
 /// @type.symbol symbol=bad source=bad type=Array<float64>
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=frozen target=frozen
+/// @resolution.place source=frozen placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=frozen root=frozen
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'readonly Array<float64>' is not assignable to type 'Array<float64>'"
@@ -190,8 +201,13 @@ declare const user: readonly User;
 
 user.profile.name = "Grace";
 /// @resolution.name source=user target=user
-/// @resolution.member source=user.profile receiver=Readonly<User> kind=symbol target=User.profile
-/// @resolution.pattern.assign source=user.profile.name kind=place place=field(Profile.name) type=string
+/// @resolution.member source=user.profile receiver=Readonly<User> type=Profile kind=field target_receiver=Readonly<User> key=profile target=User.profile target_type=Profile
+/// @resolution.place source=user placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=user root=user
+/// @resolution.place source=user.profile placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=user.profile root=user keys=[profile]
+/// @resolution.pattern.assign source=user.profile.name kind=place
+/// @resolution.assignment source=user.profile.name write="receiver=Readonly<Profile>, target=field(receiver=Readonly<Profile>, target=Profile.name, type=string), type=string" type=string
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"

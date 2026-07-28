@@ -27,7 +27,7 @@ if (true) {}
 }
 
 /// Report debugger statements.
-fn check(module: &DirModule, lint: &Lint) -> LintResult {
+fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
@@ -51,7 +51,7 @@ fn check(module: &DirModule, lint: &Lint) -> LintResult {
 
 /// Build an automatic debugger removal.
 fn suggest_removal(
-    module: &DirModule,
+    module: &DirModule<'_>,
     view: dir::View<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Result<DiagnosticSuggestion, ProviderError> {
@@ -147,7 +147,7 @@ warning[no-debugger]: `debugger` statement is not allowed
   │           ^^^^^^^^
   │
 
- = help: remove the debugger statement (machine-applicable)
+ = fix: remove the debugger statement
 --- a/main.ds
 +++ b/main.ds
 

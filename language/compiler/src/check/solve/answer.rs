@@ -17,9 +17,19 @@ pub(in crate::check) enum Dependency {
     Variable(dir::TypeVariableId),
     /// A symbol type was written.
     SymbolType(dir::GlobalSymbolId),
+    /// A source node type was written.
+    NodeType(dir::GlobalNodeIdAny),
 }
 
 impl<T> Answer<T> {
+    /// Transform the ready value without changing its dependencies.
+    pub(in crate::check) fn map<U>(self, transform: impl FnOnce(T) -> U) -> Answer<U> {
+        match self {
+            Self::Ready(value) => Answer::Ready(transform(value)),
+            Self::Pending(dependencies) => Answer::Pending(dependencies),
+        }
+    }
+
     /// Borrow the ready value, if this answer has settled.
     pub(in crate::check) fn ready_ref(&self) -> Option<&T> {
         match self {

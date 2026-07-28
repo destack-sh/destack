@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::FxIndexMap;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_formatter::format_file_tree;
 use destack_repository::{FormatterOptions, Module};
@@ -24,18 +24,48 @@ impl CheckState<'_> {
         &mut self,
     ) -> CompilerResult<Vec<AnnotatedSource>> {
         let modules = self.modules.keys().copied().collect::<Vec<_>>();
-        let failed_applications = self.failed_generic_applications()?;
-        let mut sealed = FxIndexMap::default();
+        let mut resolved_types = FxIndexMap::default();
         let mut sources = Vec::with_capacity(modules.len());
         for module_id in modules {
-            let coercions =
-                self.implicit_coercions(module_id, &failed_applications, &mut sealed)?;
+            let coercions = self.source_coercions(module_id, &mut resolved_types)?;
             if let Some(source) = self.render_annotated_source(module_id, &coercions)? {
                 sources.push(source);
             }
         }
 
         Ok(sources)
+    }
+
+    /// Return one module's coercions with every inference type resolved.
+    fn source_coercions(
+        &mut self,
+        module: ModuleId,
+        resolved_types: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
+    ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::Coercion)>> {
+        let mut coercions = self
+            .module(module)
+            .coercions
+            .coercions()
+            .map(|(node, coercion)| (node, coercion.clone()))
+            .collect::<Vec<_>>();
+        let mut ids = FxIndexSet::default();
+
+        // collect every embedded type before changing one coercion
+        for (_, coercion) in &mut coercions {
+            coercion.map_type_ids(&mut |id| {
+                ids.insert(id);
+
+                id
+            });
+        }
+        let replacements = self.resolve_type_ids(ids, resolved_types)?;
+
+        // apply the complete replacement table for source rendering
+        for (_, coercion) in &mut coercions {
+            coercion.map_type_ids(&mut |id| replacements[&id]);
+        }
+
+        Ok(coercions)
     }
 
     /// Render one member module's source with solved checked types.
@@ -138,12 +168,9 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             }
 
             // the hole's node type carries its solved variable
-            let Some(ty) = self
+            let ty = self
                 .check
-                .committed_node_type(hole_id.into_global_any(module_id))
-            else {
-                continue;
-            };
+                .require_node_type(hole_id.into_global_any(module_id))?;
             self.anchor(hole_id.into_any());
             let Some(filled) = self.types.reify(ty)? else {
                 continue;
@@ -199,13 +226,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             parameters.push(parameter);
         }
 
-        let symbol = template.symbol;
-        self.reify_declared_parameter_variance(
-            module_id,
-            declaration_id,
-            symbol,
-            &template.parameters,
-        )?;
+        self.reify_declared_parameter_variance(module_id, declaration_id, &template.parameters)?;
         if parameters.is_empty() {
             return Ok(());
         }
@@ -228,7 +249,6 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         &mut self,
         module_id: ModuleId,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-        symbol: Option<dir::GlobalSymbolId>,
         parameters: &[dir::LocalGenericParameterId],
     ) -> CompilerResult<()> {
         // only nominal type parameters carry a relating variance
@@ -247,16 +267,13 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         };
         let written = written.to_vec();
 
-        let Some(symbol) = symbol else {
-            return Ok(());
-        };
-        let context = self.check.default_symbol_context(symbol);
         for (node, parameter) in written.iter().zip(parameters.iter()) {
             let parameter = dir::GlobalGenericParameterId::new(module_id, *parameter);
+            let form = self.check.parameter_variance_form(parameter)?;
 
             // written modifiers and unmeasured parameters stay as written
             let Some(VarianceState::Derived(derived)) =
-                self.check.variances.get(&(parameter, context))
+                self.check.variances.get(&(parameter, form))
             else {
                 continue;
             };
@@ -441,9 +458,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         let source = expression_id.into_global_any(module_id);
-        let Some(ty) = self.check.committed_node_type(source) else {
-            return Ok(());
-        };
+        let ty = self.check.require_node_type(source)?;
 
         self.anchor(expression_id.into_any());
         let Some(value) = self.types.reify_static(ty)? else {
@@ -528,10 +543,25 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             return Ok(());
         };
 
-        let arguments = match &resolution.target {
-            dir::CallTarget::Expression { generic_arguments } => generic_arguments.as_slice(),
-            dir::CallTarget::Symbol(candidate) => candidate.generic_arguments.as_slice(),
-            dir::CallTarget::Universal(_) => return Ok(()),
+        let dir::OperationResolution::One(call) = resolution else {
+            return Ok(());
+        };
+        let arguments = match call {
+            dir::Call {
+                target: dir::CallTarget::Expression { generic_arguments },
+                ..
+            }
+            | dir::Call {
+                target:
+                    dir::CallTarget::Dynamic {
+                        generic_arguments, ..
+                    },
+                ..
+            } => generic_arguments.as_slice(),
+            dir::Call {
+                target: dir::CallTarget::Symbol { function, .. },
+                ..
+            } => function.generic_arguments.as_slice(),
         };
         if arguments.is_empty() {
             return Ok(());
@@ -575,10 +605,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         };
 
         let node = expression_id.into_global_any(module_id);
-        let target = self.check.committed_node_type(node);
-        let Some(target) = target else {
-            return Ok(());
-        };
+        let target = self.check.require_node_type(node)?;
 
         self.anchor(ty.into_any());
         let Some(reified) = self.types.reify(target)? else {
@@ -679,13 +706,11 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             if node.local_id.ty != dir::NodeType::Expression {
                 continue;
             }
-            // representation-preserving adjustments keep the written source
-            let renders = coercion.adjustments.iter().any(|adjustment| {
-                !matches!(
-                    adjustment.kind,
-                    dir::CoercionKind::Widen | dir::CoercionKind::Direct
-                )
-            });
+            // numeric literal widening stays implicit
+            let renders = coercion
+                .adjustments
+                .iter()
+                .any(|adjustment| !matches!(adjustment, dir::CoercionAdjustment::Widen { .. }));
             if !renders {
                 continue;
             }
@@ -701,8 +726,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             // wrap the coerced value in an explicit cast
             let id = dir::LocalNodeId::<dir::Expression>::new(node.local_id.id);
             let original = self.types.tree.get(id).clone();
-            let span = self.state.authored_span(node.local_id);
-            let expression = self.types.tree.insert(original, span);
+            let expression = self.types.tree.insert_from(original, id);
             *self.types.tree.get_mut(id) = dir::Expression::As {
                 expression,
                 target_type,

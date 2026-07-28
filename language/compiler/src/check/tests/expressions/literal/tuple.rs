@@ -10,7 +10,10 @@ let value = (1, "two", true);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked()
+            .with_reference_types()
+            .with_coercion()
+            .with_check_stats(),
         r#"
 === annotated ===
 let value: (float64, string, boolean) = (1, "two", true);
@@ -19,8 +22,9 @@ let value: (float64, string, boolean) = (1, "two", true);
 let value = (1, "two", true);
 /// @type.symbol symbol=value source=value type=(float64, string, boolean)
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=(1, "two", true) type=(1, "two", true)
+/// @type.node source=(1, "two", true) type=(float64, string, boolean)
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
 
@@ -78,12 +82,12 @@ const value: (float64, string, boolean) = (1, "two", true);
 const value = (1, "two", true);
 /// @type.symbol symbol=value source=value type=(float64, string, boolean)
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=(1, "two", true) type=(1, "two", true)
+/// @type.node source=(1, "two", true) type=(float64, string, boolean)
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=1 decisions=1
+/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -107,13 +111,13 @@ const value: (float64, (float64, float64)) = (1, (2, 3));
 const value = (1, (2, 3));
 /// @type.symbol symbol=value source=value type=(float64, (float64, float64))
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=(1, (2, 3)) type=(1, (2, 3))
+/// @type.node source=(1, (2, 3)) type=(float64, (float64, float64))
 /// @type.node source=1 type=1
-/// @type.node source=(2, 3) type=(2, 3)
+/// @type.node source=(2, 3) type=(float64, float64)
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=1 decisions=1
+/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -141,7 +145,7 @@ const value: (1 | 2, "a" | "b") = (1, "a");
 /// @type.node source=1 type=1
 /// @type.node source="\"a\"" type="a"
 
-/// @check.stats.solve variables=1 types=9 constraints=3 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=9 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -169,11 +173,13 @@ const value: (number, string) = (1, 2);
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=7 constraints=3 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '2' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=37 span="2" line_source="const value: (number, string) = (1, 2);"
+/// @diagnostic.related line=2 column=14 span="(number, string)" line_source="const value: (number, string) = (1, 2);" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in element 1"
 "#,
     );
 }

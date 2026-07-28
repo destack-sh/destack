@@ -19,7 +19,6 @@ impl CheckState<'_> {
         let symbol_types = self.resolved_symbol_types(module, failed_applications, &mut sealed)?;
         let reduced_types = self.resolved_reduced_types(module, &node_types, &symbol_types)?;
         let symbol_literals = self.static_symbol_literals(module)?;
-        let coercions = self.implicit_coercions(module, failed_applications, &mut sealed)?;
 
         // record inferred types and checked reduced types
         let state = self.module_mut(module);
@@ -33,14 +32,6 @@ impl CheckState<'_> {
             state.types_tail.set_type_reduction(source, target);
         }
 
-        // record implicit representation changes beside their value nodes
-        for (node, coercion) in coercions {
-            if let Some(previous) = state.coercions.bind_coercion(node, coercion) {
-                return Err(CompilerError::Internal {
-                    message: format!("node {node:?} already has an implicit coercion {previous:?}"),
-                });
-            }
-        }
 
         // write symbol values as final statics
         for (symbol, literal) in symbol_literals {
@@ -86,7 +77,7 @@ impl CheckState<'_> {
         // keep only unannotated nominal type parameters at their own context
         let mut filled = Vec::new();
         for (parameter, context, derived) in derivations {
-            if Some(context) != self.parameter_owner_context(parameter)? {
+            if context != self.parameter_variance_form(parameter)? {
                 continue;
             }
             let Some(binding) = self.generic_parameter(parameter) else {
@@ -508,4 +499,20 @@ impl CheckState<'_> {
 
         Ok(result)
     }
+    /// Resolve one complete set of embedded type ids for source rendering.
+    pub(in crate::check) fn resolve_type_ids(
+        &mut self,
+        ids: impl IntoIterator<Item = dir::GlobalTypeId>,
+        sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
+    ) -> CompilerResult<FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>> {
+        let failed = FxIndexSet::default();
+        let mut replacements = FxIndexMap::default();
+        for id in ids {
+            let replacement = self.seal_type(id, &failed, sealed)?;
+            replacements.insert(id, replacement);
+        }
+
+        Ok(replacements)
+    }
+
 }

@@ -1,59 +1,52 @@
+use std::slice;
+
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArgumentBinding, ClassConstructor, DereferenceOperation, GenericArgumentBinding,
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, MemberSpace, Predicate, Projection,
-    ProjectionField, ScalarLiteral, StaticKey, SubscriptOperation, VariantCase,
+    AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor,
+    DynamicDispatch, GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId,
+    MemberReceiver, MemberSpace, Predicate, Projection, ProjectionResolution, ScalarFamilySet,
+    ScalarLiteral, StaticKey, UnaryOperator,
 };
 
-/// Receiver selected by contextual lookup, such as `this` or `super`.
-///
-/// Examples:
-/// ```ds
-/// this.name      // declaration: the enclosing class, ty: its instance type
-/// super.render() // declaration: the enclosing class, ty: its superclass type
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ReceiverResolution {
-    /// The receiver syntax kind.
-    pub kind: ReceiverKind,
-    /// The declaration that introduces the receiver.
-    pub declaration: GlobalSymbolId,
-    /// The receiver type after inference.
-    pub ty: GlobalTypeId,
+/// One operation or the operations selected for every runtime union arm.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum OperationResolution<T> {
+    /// One statically selected operation.
+    One(T),
+    /// One operation selected for each runtime union arm.
+    Union {
+        /// The selected operations in runtime union-arm order.
+        arms: Vec<T>,
+        /// The type produced or accepted across every arm.
+        ty: GlobalTypeId,
+    },
 }
 
-impl ReceiverResolution {
-    /// Apply one mapping to every type id stored in this resolution.
-    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.ty = map(self.ty);
+impl<T> From<T> for OperationResolution<T> {
+    /// Convert one operation into a singular resolution.
+    fn from(operation: T) -> Self {
+        Self::One(operation)
     }
 }
 
-/// Receiver syntax resolved by contextual lookup.
-///
-/// Examples:
-/// ```ds
-/// this
-/// super
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum ReceiverKind {
-    /// The active `this` receiver.
-    ///
-    /// Examples:
-    /// ```ds
-    /// this.name
-    /// ```
-    This,
-    /// The active superclass receiver.
-    ///
-    /// Examples:
-    /// ```ds
-    /// super.render()
-    /// ```
-    Super,
+impl<T> OperationResolution<T> {
+    /// Iterate the selected operations in runtime arm order.
+    pub fn iter(&self) -> slice::Iter<'_, T> {
+        match self {
+            Self::One(operation) => slice::from_ref(operation).iter(),
+            Self::Union { arms, .. } => arms.iter(),
+        }
+    }
+
+    /// Return the first selected operation.
+    pub fn first(&self) -> &T {
+        match self {
+            Self::One(operation) => operation,
+            Self::Union { arms, .. } => arms.first().expect("union resolution has no arms"),
+        }
+    }
 }
 
 /// Target selected by lexical or path lookup.
@@ -170,6 +163,142 @@ pub enum LabelResolution {
     Function,
 }
 
+/// One statically selected aggregate field.
+///
+/// Examples:
+/// ```ds
+/// point.x
+/// tuple[0]
+/// user.name
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct FieldResolution {
+    /// The runtime receiver used to access the field.
+    pub receiver: MemberReceiver,
+    /// The selected field.
+    pub target: FieldTarget,
+    /// The selected field type.
+    pub ty: GlobalTypeId,
+}
+
+impl FieldResolution {
+    /// Apply one mapping to every type id stored in this resolution.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.receiver.map_type_ids(map);
+        self.target.map_type_ids(map);
+        self.ty = map(self.ty);
+    }
+}
+
+/// One computed structural index selected during checking.
+///
+/// Examples:
+/// ```ds
+/// bag[key]
+/// record[field]
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct IndexResolution {
+    /// The receiver that exposes the selected storage.
+    pub receiver: MemberReceiver,
+    /// The checked key type accepted by the selection.
+    pub key_type: GlobalTypeId,
+    /// The selected structural storage.
+    pub target: IndexTarget,
+}
+
+impl IndexResolution {
+    /// Apply one mapping to every type id stored in this resolution.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.receiver.map_type_ids(map);
+        self.key_type = map(self.key_type);
+    }
+}
+
+/// Structural storage selected by one computed index.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum IndexTarget {
+    /// One index signature selected by its position in the receiver shape.
+    Signature(usize),
+    /// The finite structural fields reached by the checked key domain.
+    Fields(Vec<StaticKey>),
+}
+
+/// Stored field selected during checking.
+///
+/// Examples:
+/// ```ds
+/// point.x                 // Structural(point, "x")
+/// tuple[0]                // Structural(tuple, 0)
+/// user.name               // Member(User.name) for nominal stored fields
+/// object[Symbol.for("x")] // Structural(object, Symbol.for("x"))
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum FieldTarget {
+    /// Structurally declared field.
+    ///
+    /// Examples:
+    /// ```ds
+    /// declare const point: { x: int32 };
+    /// point.x
+    ///
+    /// declare const object: { [Symbol.for("tag")]: string };
+    /// object[Symbol.for("tag")]
+    /// ```
+    Structural {
+        /// The aggregate that declares the field.
+        owner: GlobalTypeId,
+        /// The selected field key.
+        key: StaticKey,
+    },
+    /// Declaration-backed nominal stored member.
+    ///
+    /// Examples:
+    /// ```ds
+    /// struct Point { x: int32; y: int32 }
+    /// point.x // selects the Point.x field symbol, not only the key "x"
+    /// ```
+    Member {
+        /// The selected field declaration.
+        symbol: GlobalSymbolId,
+        /// The source-level field key.
+        key: StaticKey,
+    },
+}
+
+impl FieldTarget {
+    /// Return the source-level field key.
+    pub fn key(self) -> StaticKey {
+        match self {
+            Self::Structural { key, .. } | Self::Member { key, .. } => key,
+        }
+    }
+
+    /// Apply one mapping to every type id stored in this target.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        if let Self::Structural { owner, .. } = self {
+            *owner = map(*owner);
+        }
+    }
+}
+
+/// One tagged union case selected during checking.
+///
+/// Examples:
+/// ```ds
+/// Result.Ok(value)       // variant: Ok, key: Ok
+/// Event.Click({ x, y })  // variant: Click, key: Click
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct VariantCase {
+    /// The selected variant family symbol.
+    pub owner: GlobalSymbolId,
+    /// The source-level case key.
+    pub key: StaticKey,
+    /// The selected variant declaration.
+    pub variant: GlobalSymbolId,
+}
+
 /// Receiver member selected at a usage site.
 ///
 /// Examples:
@@ -178,29 +307,98 @@ pub enum LabelResolution {
 /// tuple[0]       // receiver: tuple, target: the selected element
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct MemberResolution {
-    /// The receiver type after inference.
+pub struct MemberAccess {
+    /// The use-site receiver type before implicit adjustments.
     pub receiver: GlobalTypeId,
     /// The selected member target.
     pub target: MemberTarget,
+    /// The selected member type.
+    pub ty: GlobalTypeId,
 }
 
-impl MemberResolution {
-    /// Create a member resolution.
-    pub fn new(receiver: GlobalTypeId, target: MemberTarget) -> Self {
-        Self { receiver, target }
+/// Member access selected at a usage site.
+pub type MemberResolution = OperationResolution<MemberAccess>;
+
+impl MemberAccess {
+    /// Create a member access.
+    pub fn new(receiver: GlobalTypeId, target: MemberTarget, ty: GlobalTypeId) -> Self {
+        Self {
+            receiver,
+            target,
+            ty,
+        }
+    }
+
+    /// Apply one mapping to every type id stored in this access.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.receiver = map(self.receiver);
+        self.target.map_type_ids(map);
+        self.ty = map(self.ty);
+    }
+}
+
+impl OperationResolution<MemberAccess> {
+    /// Return the selected member type.
+    pub fn ty(&self) -> GlobalTypeId {
+        match self {
+            Self::One(access) => access.ty,
+            Self::Union { ty, .. } => *ty,
+        }
+    }
+
+    /// Return whether this member reads or writes stored aggregate state.
+    pub fn is_stored(&self) -> bool {
+        match self {
+            Self::One(access) => access.target.is_stored(),
+            Self::Union { arms, .. } => {
+                !arms.is_empty() && arms.iter().all(|access| access.target.is_stored())
+            }
+        }
+    }
+
+    /// Return the selected stored key when every runtime arm agrees.
+    pub fn stored_key(&self) -> Option<StaticKey> {
+        match self {
+            Self::One(access) => access.target.stored_key(),
+            Self::Union { arms, .. } => {
+                let mut key = None;
+                for access in arms {
+                    let arm_key = access.target.stored_key()?;
+                    if key.is_some_and(|key| key != arm_key) {
+                        return None;
+                    }
+                    key = Some(arm_key);
+                }
+
+                key
+            }
+        }
     }
 
     /// Apply one mapping to every type id stored in this resolution.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.receiver = map(self.receiver);
-        self.target.map_type_ids(map);
+        match self {
+            Self::One(access) => access.map_type_ids(map),
+            Self::Union { arms, ty } => {
+                for access in arms {
+                    access.map_type_ids(map);
+                }
+                *ty = map(*ty);
+            }
+        }
     }
 }
 
 /// Member target selected at a usage site.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MemberTarget {
+    /// Compiler-defined stored projection selected by this member access.
+    Projection {
+        /// The source member key.
+        key: StaticKey,
+        /// The selected value projection.
+        projection: Projection,
+    },
     /// Structural field selected from a shape type.
     ///
     /// Examples:
@@ -208,23 +406,17 @@ pub enum MemberTarget {
     /// declare const point: { x: int32 };
     /// point.x        // a field key on a shape, not a declaration
     /// ```
-    Field(StaticKey),
-    /// Structural element selected from a tuple type.
-    ///
-    /// Examples:
-    /// ```ds
-    /// declare const tuple: [string, int32];
-    /// tuple[0]
-    /// ```
-    Element(usize),
-    /// Structural index signature selected from a shape type.
+    Field(FieldResolution),
+    /// Accessor call selected by one property access.
+    Call(Box<Call>),
+    /// Computed structural index selected from a shape type.
     ///
     /// Examples:
     /// ```ds
     /// declare const bag: { [key: string]: int32 };
     /// bag["name"]
     /// ```
-    Index(GlobalTypeId),
+    Index(IndexResolution),
     /// Exactly one symbol-backed member selected at compile time.
     ///
     /// Examples:
@@ -241,30 +433,93 @@ pub enum MemberTarget {
     /// // `push(value: T)` and `push(...values: T[])` stay candidates
     /// // until the call site selects one
     /// ```
-    Existential(Vec<MemberCandidate>),
-    /// Universal symbol-backed candidates deferred to call selection.
-    /// A call is valid only when every candidate accepts it.
+    Existential(Vec<MemberTarget>),
+    /// Simultaneous member requirements contributed by an intersection receiver.
     ///
     /// Examples:
     /// ```ds
-    /// declare const shape: Rectangle | Circle;
-    /// shape.draw()
-    /// // Rectangle.draw and Circle.draw both stay selected: the
-    /// // runtime value can be either variant
+    /// declare const value: { item: Readable } & { item: Writable };
+    /// value.item
     /// ```
-    Universal(Vec<MemberCandidate>),
+    Intersection(Vec<MemberTarget>),
 }
 
 impl MemberTarget {
+    /// Collect every declaration symbol selected by this target.
+    pub fn collect_symbols(&self, symbols: &mut Vec<GlobalSymbolId>) {
+        match self {
+            Self::Existential(targets) | Self::Intersection(targets) => {
+                for target in targets {
+                    target.collect_symbols(symbols);
+                }
+            }
+            target => symbols.extend(target.symbol()),
+        }
+    }
+
+    /// Return the one selected declaration symbol, when unambiguous.
+    pub fn symbol(&self) -> Option<GlobalSymbolId> {
+        match self {
+            Self::Symbol(candidate) => Some(candidate.symbol),
+            Self::Field(FieldResolution {
+                target: FieldTarget::Member { symbol, .. },
+                ..
+            }) => Some(*symbol),
+            Self::Call(call) => call.target.symbol(),
+            Self::Projection { .. }
+            | Self::Field(_)
+            | Self::Index(_)
+            | Self::Existential(_)
+            | Self::Intersection(_) => None,
+        }
+    }
+
+    /// Return the selected stored key.
+    pub fn stored_key(&self) -> Option<StaticKey> {
+        match self {
+            Self::Projection { key, .. } => Some(*key),
+            Self::Field(field) => Some(field.target.key()),
+            Self::Call(_) => None,
+            Self::Symbol(_) => None,
+            Self::Existential(targets) | Self::Intersection(targets) => {
+                let mut key = None;
+                for target in targets {
+                    let candidate_key = target.stored_key()?;
+                    if key.is_some_and(|key| key != candidate_key) {
+                        return None;
+                    }
+                    key = Some(candidate_key);
+                }
+
+                key
+            }
+            Self::Index(_) => None,
+        }
+    }
+
+    /// Return whether this target reads or writes stored aggregate state.
+    pub fn is_stored(&self) -> bool {
+        match self {
+            Self::Projection { .. } | Self::Field(_) | Self::Index(_) => true,
+            Self::Call(_) => false,
+            Self::Symbol(_) => false,
+            Self::Existential(targets) | Self::Intersection(targets) => {
+                !targets.is_empty() && targets.iter().all(Self::is_stored)
+            }
+        }
+    }
+
     /// Apply one mapping to every type id stored in this target.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
-            Self::Field(_) | Self::Element(_) => {}
-            Self::Index(ty) => *ty = map(*ty),
+            Self::Projection { projection, .. } => projection.map_type_ids(map),
+            Self::Field(field) => field.map_type_ids(map),
+            Self::Call(call) => call.map_type_ids(map),
+            Self::Index(index) => index.map_type_ids(map),
             Self::Symbol(candidate) => candidate.map_type_ids(map),
-            Self::Existential(candidates) | Self::Universal(candidates) => {
-                for candidate in candidates {
-                    candidate.map_type_ids(map);
+            Self::Existential(targets) | Self::Intersection(targets) => {
+                for target in targets {
+                    target.map_type_ids(map);
                 }
             }
         }
@@ -281,18 +536,18 @@ impl MemberTarget {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct MemberCandidate {
-    /// The receiver type that selects this candidate.
-    pub receiver: GlobalTypeId,
-    /// The projection steps.
-    pub adjustments: Vec<Projection>,
+    /// The receiver that selects this candidate.
+    pub receiver: MemberReceiver,
     /// The member space that selected this candidate.
     pub space: MemberSpace,
     /// The declaration that exposed this member.
     pub owner: GlobalSymbolId,
     /// The selected member symbol.
     pub symbol: GlobalSymbolId,
-    /// The member type applied to the matched receiver.
-    pub ty: GlobalTypeId,
+    /// The readable member type applied to the matched receiver.
+    pub access_type: GlobalTypeId,
+    /// The callable member type applied to the matched receiver.
+    pub callable_type: Option<GlobalTypeId>,
     /// The selected generic argument bindings needed by this member candidate.
     pub generic_arguments: Vec<GenericArgumentBinding>,
 }
@@ -300,10 +555,10 @@ pub struct MemberCandidate {
 impl MemberCandidate {
     /// Apply one mapping to every type id stored in this candidate.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.receiver = map(self.receiver);
-        self.ty = map(self.ty);
-        for adjustment in &mut self.adjustments {
-            adjustment.map_type_ids(map);
+        self.receiver.map_type_ids(map);
+        self.access_type = map(self.access_type);
+        if let Some(callable_type) = &mut self.callable_type {
+            *callable_type = map(*callable_type);
         }
         for argument in &mut self.generic_arguments {
             argument.map_type_ids(map);
@@ -318,43 +573,394 @@ impl MemberCandidate {
 /// print("hi")    // parameters: (string), return: void
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct CallResolution {
+pub struct Call {
     /// The selected callable target.
     pub target: CallTarget,
-    /// The callable type selected at the call site, when one exists.
-    pub callable_type: Option<GlobalTypeId>,
+    /// The selected callable type.
+    pub callable_type: GlobalTypeId,
     /// The source arguments bound to selected parameters.
     pub arguments: Vec<ArgumentBinding>,
     /// The return type after static substitutions.
     pub return_type: GlobalTypeId,
 }
 
-impl CallResolution {
-    /// Create a call resolution.
-    pub fn new(
-        target: CallTarget,
-        callable_type: Option<GlobalTypeId>,
-        arguments: Vec<ArgumentBinding>,
-        return_type: GlobalTypeId,
-    ) -> Self {
-        Self {
-            target,
-            callable_type,
-            arguments,
-            return_type,
+/// Callable selected at a call site.
+pub type CallResolution = OperationResolution<Call>;
+
+impl OperationResolution<Call> {
+    /// Return the deduplicated declaration symbols selected across arms.
+    pub fn target_symbols(&self) -> Vec<GlobalSymbolId> {
+        let mut symbols = self
+            .iter()
+            .filter_map(|call| call.target.symbol())
+            .collect::<Vec<_>>();
+        symbols.sort();
+        symbols.dedup();
+
+        symbols
+    }
+}
+
+impl Call {
+    /// Return the selected parameter types bound to one argument source.
+    pub fn argument_types(&self, source: ArgumentSource) -> Vec<GlobalTypeId> {
+        self.arguments
+            .iter()
+            .filter(|binding| binding.argument == source)
+            .map(|binding| binding.ty)
+            .collect()
+    }
+
+    /// Apply one mapping to every type id stored in this call.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.target.map_type_ids(map);
+        self.callable_type = map(self.callable_type);
+        for argument in &mut self.arguments {
+            argument.map_type_ids(map);
+        }
+        self.return_type = map(self.return_type);
+    }
+}
+
+impl OperationResolution<Call> {
+    /// Return the call result type.
+    pub fn return_type(&self) -> GlobalTypeId {
+        match self {
+            Self::One(call) => call.return_type,
+            Self::Union { ty, .. } => *ty,
+        }
+    }
+
+    /// Return the selected parameter types bound to one argument source.
+    pub fn argument_types(&self, source: ArgumentSource) -> Vec<GlobalTypeId> {
+        match self {
+            Self::One(call) => call.argument_types(source),
+            Self::Union { arms, .. } => arms
+                .iter()
+                .flat_map(|call| call.argument_types(source.clone()))
+                .collect(),
         }
     }
 
     /// Apply one mapping to every type id stored in this resolution.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::One(call) => call.map_type_ids(map),
+            Self::Union { arms, ty } => {
+                for call in arms {
+                    call.map_type_ids(map);
+                }
+                *ty = map(*ty);
+            }
+        }
+    }
+}
+
+/// Callable target selected for one call.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum CallTarget {
+    /// Function-typed runtime expression.
+    Expression {
+        /// The selected generic argument bindings.
+        generic_arguments: Vec<GenericArgumentBinding>,
+    },
+    /// Declaration-backed function.
+    Symbol {
+        /// The selected function and receiver application.
+        function: FunctionTarget,
+        /// The selected function dispatch.
+        dispatch: FunctionDispatch,
+    },
+    /// Interface member selected through an erased dispatch table.
+    Dynamic {
+        /// The selected erased receiver and interface constraint.
+        dispatch: DynamicDispatch,
+        /// The selected callable interface operation.
+        function: DynamicFunction,
+        /// The selected generic argument bindings.
+        generic_arguments: Vec<GenericArgumentBinding>,
+    },
+}
+
+impl CallTarget {
+    /// Return the selected declaration symbol, when this target has one.
+    pub fn symbol(&self) -> Option<GlobalSymbolId> {
+        match self {
+            Self::Symbol { function, .. } => Some(function.symbol),
+            Self::Dynamic {
+                function: DynamicFunction::Symbol(symbol),
+                ..
+            } => Some(*symbol),
+            Self::Expression { .. }
+            | Self::Dynamic {
+                function:
+                    DynamicFunction::CallSignature(_)
+                    | DynamicFunction::IndexRead(_)
+                    | DynamicFunction::IndexWrite(_),
+                ..
+            } => None,
+        }
+    }
+
+    /// Apply one mapping to every type id stored in this target.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Expression { generic_arguments } => {
+                for argument in generic_arguments {
+                    argument.map_type_ids(map);
+                }
+            }
+            Self::Symbol { function, dispatch } => {
+                function.map_type_ids(map);
+                dispatch.map_type_ids(map);
+            }
+            Self::Dynamic {
+                dispatch,
+                function: _,
+                generic_arguments,
+            } => {
+                dispatch.map_type_ids(map);
+                for argument in generic_arguments {
+                    argument.map_type_ids(map);
+                }
+            }
+        }
+    }
+}
+
+/// Dispatch selected for one declaration-backed function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum FunctionDispatch {
+    /// Direct call to the selected function.
+    Direct,
+    /// Virtual call through a class dispatch table.
+    Virtual {
+        /// The class type declaring the virtual dispatch slot.
+        class: GlobalTypeId,
+    },
+}
+
+impl FunctionDispatch {
+    /// Apply one mapping to every type id stored in this dispatch.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        if let Self::Virtual { class } = self {
+            *class = map(*class);
+        }
+    }
+}
+
+/// Callable operation selected through one erased dispatch table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum DynamicFunction {
+    /// Declared method or property accessor.
+    Symbol(GlobalSymbolId),
+    /// Symbol-free call signature.
+    CallSignature(GlobalNodeIdAny),
+    /// Read operation declared by one index signature.
+    IndexRead(GlobalNodeIdAny),
+    /// Write operation declared by one index signature.
+    IndexWrite(GlobalNodeIdAny),
+}
+
+/// Subscript selected at an index expression or destructuring field.
+///
+/// Examples:
+/// ```ds
+/// values[index]
+/// const { [key]: value } = object;
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct Subscript {
+    /// The selected subscript target.
+    pub target: SubscriptTarget,
+    /// The projected or stored value type.
+    pub ty: GlobalTypeId,
+}
+
+/// Subscript selected at an index expression or destructuring field.
+pub type SubscriptResolution = OperationResolution<Subscript>;
+
+impl Subscript {
+    /// Return whether this subscript reads or writes stored aggregate state.
+    pub fn is_stored(&self) -> bool {
+        match &self.target {
+            SubscriptTarget::Member(member) => member.target.is_stored(),
+            SubscriptTarget::Call(_) => false,
+            SubscriptTarget::Index(read) => read.missing.is_none(),
+        }
+    }
+
+    /// Apply one mapping to every type id stored in this subscript.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         self.target.map_type_ids(map);
-        if let Some(callable_type) = &mut self.callable_type {
-            *callable_type = map(*callable_type);
+        self.ty = map(self.ty);
+    }
+}
+
+impl OperationResolution<Subscript> {
+    /// Return the projected or stored value type.
+    pub fn ty(&self) -> GlobalTypeId {
+        match self {
+            Self::One(subscript) => subscript.ty,
+            Self::Union { ty, .. } => *ty,
         }
-        for argument in &mut self.arguments {
-            argument.map_type_ids(map);
+    }
+
+    /// Return whether this subscript reads or writes stored aggregate state.
+    pub fn is_stored(&self) -> bool {
+        match self {
+            Self::One(subscript) => subscript.is_stored(),
+            Self::Union { arms, .. } => !arms.is_empty() && arms.iter().all(Subscript::is_stored),
         }
-        self.return_type = map(self.return_type);
+    }
+
+    /// Apply one mapping to every type id stored in this resolution.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::One(subscript) => subscript.map_type_ids(map),
+            Self::Union { arms, ty } => {
+                for subscript in arms {
+                    subscript.map_type_ids(map);
+                }
+                *ty = map(*ty);
+            }
+        }
+    }
+}
+
+impl From<MemberResolution> for SubscriptResolution {
+    /// Convert one member resolution into the corresponding subscript resolution.
+    fn from(resolution: MemberResolution) -> Self {
+        match resolution {
+            OperationResolution::One(access) => {
+                let ty = access.ty;
+                let target = SubscriptTarget::Member(access);
+
+                Self::One(Subscript { target, ty })
+            }
+            OperationResolution::Union { arms, ty } => {
+                let arms = arms
+                    .into_iter()
+                    .map(|access| {
+                        let ty = access.ty;
+                        let target = SubscriptTarget::Member(access);
+
+                        Subscript { target, ty }
+                    })
+                    .collect();
+
+                Self::Union { arms, ty }
+            }
+        }
+    }
+}
+
+/// Target selected by one subscript.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum SubscriptTarget {
+    /// Structural tuple, field, or index-signature selection.
+    Member(MemberAccess),
+    /// Protocol-backed subscript write call.
+    Call(Call),
+    /// Protocol-backed subscript read.
+    Index(IndexRead),
+}
+
+impl SubscriptTarget {
+    /// Apply one mapping to every type id stored in this target.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Member(member) => member.map_type_ids(map),
+            Self::Call(call) => call.map_type_ids(map),
+            Self::Index(read) => read.map_type_ids(map),
+        }
+    }
+}
+
+/// One selected `Index.index` call and its bracket projection.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct IndexRead {
+    /// The selected protocol call.
+    pub call: Call,
+    /// The dereference applied to the returned borrow arm.
+    pub dereference: Dereference,
+    /// The non-borrowed result type, when lookup may miss.
+    pub missing: Option<GlobalTypeId>,
+}
+
+impl IndexRead {
+    /// Apply one mapping to every type id stored in this read.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.call.map_type_ids(map);
+        self.dereference.map_type_ids(map);
+        if let Some(missing) = &mut self.missing {
+            *missing = map(*missing);
+        }
+    }
+}
+
+/// Dereference selected by one projection or place.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct Dereference {
+    /// The value receiving the dereference operation.
+    pub receiver: GlobalTypeId,
+    /// The selected dereference target.
+    pub target: DereferenceTarget,
+    /// The projected or stored pointee type.
+    pub ty: GlobalTypeId,
+}
+
+/// Dereference selected by one projection or place.
+pub type DereferenceResolution = OperationResolution<Dereference>;
+
+impl Dereference {
+    /// Apply one mapping to every type id stored in this dereference.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.receiver = map(self.receiver);
+        self.target.map_type_ids(map);
+        self.ty = map(self.ty);
+    }
+}
+
+impl OperationResolution<Dereference> {
+    /// Return the projected or stored pointee type.
+    pub fn ty(&self) -> GlobalTypeId {
+        match self {
+            Self::One(dereference) => dereference.ty,
+            Self::Union { ty, .. } => *ty,
+        }
+    }
+
+    /// Apply one mapping to every type id stored in this resolution.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::One(dereference) => dereference.map_type_ids(map),
+            Self::Union { arms, ty } => {
+                for dereference in arms {
+                    dereference.map_type_ids(map);
+                }
+                *ty = map(*ty);
+            }
+        }
+    }
+}
+
+/// Target selected by one dereference.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum DereferenceTarget {
+    /// Direct dereference of a physical reference or pointer form.
+    Direct,
+    /// Protocol-backed dereference call.
+    Call(Box<Call>),
+}
+
+impl DereferenceTarget {
+    /// Apply one mapping to every type id stored in this target.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Direct => {}
+            Self::Call(call) => call.map_type_ids(map),
+        }
     }
 }
 
@@ -365,175 +971,344 @@ impl CallResolution {
 /// left + right  // Builtin
 /// left == right // Call, when selected through PartialEqual.equal
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum OperatorResolution {
-    /// Compiler-defined operation over checked operand carriers.
-    Builtin,
-    /// User-defined protocol operation.
-    Call(Box<CallResolution>),
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum OperatorApplication {
+    /// One selected unary operator application.
+    Unary {
+        /// The applied unary operator.
+        operator: UnaryOperator,
+        /// The selected implementation and builtin operand.
+        target: OperatorTarget<BuiltinOperand>,
+        /// The operator result type.
+        ty: GlobalTypeId,
+    },
+    /// One selected binary operator application.
+    Binary {
+        /// The applied binary operator.
+        operator: BinaryOperator,
+        /// The selected implementation and builtin operands.
+        target: OperatorTarget<[BuiltinOperand; 2]>,
+        /// The operator result type.
+        ty: GlobalTypeId,
+    },
 }
 
-impl OperatorResolution {
+/// Operator application selected at a usage site.
+pub type OperatorResolution = OperationResolution<OperatorApplication>;
+
+/// Implementation selected for one operator application.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum OperatorTarget<T> {
+    /// Compiler-defined operation over checked operands.
+    Builtin(T),
+    /// User-defined protocol operation.
+    Call(Box<Call>),
+}
+
+/// One operand accepted by a builtin operator.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct BuiltinOperand {
+    /// The expression supplying the operand value.
+    pub source: GlobalNodeIdAny,
+    /// The type accepted by the builtin operation.
+    pub ty: GlobalTypeId,
+    /// The selected scalar families when the operation uses scalar behavior.
+    pub scalar_families: Option<ScalarFamilySet>,
+}
+
+impl BuiltinOperand {
+    /// Apply one mapping to every type id stored in this operand.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.ty = map(self.ty);
+    }
+}
+
+impl OperatorApplication {
+    /// Return the selected protocol call, when this is not a builtin operation.
+    pub fn call(&self) -> Option<&Call> {
+        match self {
+            Self::Unary {
+                target: OperatorTarget::Call(call),
+                ..
+            }
+            | Self::Binary {
+                target: OperatorTarget::Call(call),
+                ..
+            } => Some(call),
+            Self::Unary {
+                target: OperatorTarget::Builtin(_),
+                ..
+            }
+            | Self::Binary {
+                target: OperatorTarget::Builtin(_),
+                ..
+            } => None,
+        }
+    }
+
+    /// Return whether check selected compiler-defined behavior.
+    pub fn is_builtin(&self) -> bool {
+        match self {
+            Self::Unary { target, .. } => matches!(target, OperatorTarget::Builtin(_)),
+            Self::Binary { target, .. } => matches!(target, OperatorTarget::Builtin(_)),
+        }
+    }
+
+    /// Return the operator result type.
+    pub fn ty(&self) -> GlobalTypeId {
+        match self {
+            Self::Unary { ty, .. } | Self::Binary { ty, .. } => *ty,
+        }
+    }
+
+    /// Return the checked builtin operands when check selected builtin behavior.
+    pub fn builtin_operands(&self) -> Option<&[BuiltinOperand]> {
+        match self {
+            Self::Unary {
+                target: OperatorTarget::Builtin(operand),
+                ..
+            } => Some(slice::from_ref(operand)),
+            Self::Binary {
+                target: OperatorTarget::Builtin(operands),
+                ..
+            } => Some(operands),
+            Self::Unary {
+                target: OperatorTarget::Call(_),
+                ..
+            }
+            | Self::Binary {
+                target: OperatorTarget::Call(_),
+                ..
+            } => None,
+        }
+    }
+
+    /// Return the checked builtin operand supplied by one expression.
+    pub fn builtin_operand(&self, source: GlobalNodeIdAny) -> Option<&BuiltinOperand> {
+        self.builtin_operands()?
+            .iter()
+            .find(|operand| operand.source == source)
+    }
+
     /// Apply one mapping to every type id stored in this resolution.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
-            Self::Builtin => {}
-            Self::Call(call) => call.map_type_ids(map),
+            Self::Unary {
+                target: OperatorTarget::Builtin(operand),
+                ty,
+                ..
+            } => {
+                operand.map_type_ids(map);
+                *ty = map(*ty);
+            }
+            Self::Binary {
+                target: OperatorTarget::Builtin(operands),
+                ty,
+                ..
+            } => {
+                for operand in operands {
+                    operand.map_type_ids(map);
+                }
+                *ty = map(*ty);
+            }
+            Self::Unary {
+                target: OperatorTarget::Call(call),
+                ty,
+                ..
+            } => {
+                call.map_type_ids(map);
+                *ty = map(*ty);
+            }
+            Self::Binary {
+                target: OperatorTarget::Call(call),
+                ty,
+                ..
+            } => {
+                call.map_type_ids(map);
+                *ty = map(*ty);
+            }
         }
     }
 }
 
-/// Place selected by a checked expression.
+impl OperationResolution<OperatorApplication> {
+    /// Return whether check selected compiler-defined behavior.
+    pub fn is_builtin(&self) -> bool {
+        match self {
+            Self::One(application) => application.is_builtin(),
+            Self::Union { .. } => false,
+        }
+    }
+
+    /// Return the operator result type.
+    pub fn ty(&self) -> GlobalTypeId {
+        match self {
+            Self::One(application) => application.ty(),
+            Self::Union { ty, .. } => *ty,
+        }
+    }
+
+    /// Return the checked builtin operands when check selected builtin behavior.
+    pub fn builtin_operands(&self) -> Option<&[BuiltinOperand]> {
+        match self {
+            Self::One(application) => application.builtin_operands(),
+            Self::Union { .. } => None,
+        }
+    }
+
+    /// Return the checked builtin operand supplied by one expression.
+    pub fn builtin_operand(&self, source: GlobalNodeIdAny) -> Option<&BuiltinOperand> {
+        self.builtin_operands()?
+            .iter()
+            .find(|operand| operand.source == source)
+    }
+
+    /// Apply one mapping to every type id stored in this resolution.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::One(application) => application.map_type_ids(map),
+            Self::Union { arms, ty } => {
+                for application in arms {
+                    application.map_type_ids(map);
+                }
+                *ty = map(*ty);
+            }
+        }
+    }
+}
+
+/// Addressable storage selected by a checked expression.
 ///
 /// Examples:
 /// ```ds
-/// value          // Binding
-/// object.field   // Field
-/// object.name    // Property, when backed by get/set accessors
-/// values[index]  // Subscript
-/// *pointer       // Dereference
+/// value
+/// object.field
+/// values[index]
+/// *pointer
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct PlaceResolution {
-    /// The expression node that designates the place.
-    pub source: GlobalNodeIdAny,
-    /// The selected storage location.
-    pub storage: Storage,
-    /// The value type stored in the place.
-    pub ty: GlobalTypeId,
+    /// The selected storage placement term.
+    pub placement: GlobalTypeId,
+    /// The selected storage lifetime term.
+    pub lifetime: GlobalTypeId,
+    /// The strongest access granted through the place.
+    pub access: GlobalTypeId,
 }
 
 impl PlaceResolution {
     /// Apply one mapping to every type id stored in this resolution.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
-        self.storage.map_type_ids(map);
-        self.ty = map(self.ty);
+        self.placement = map(self.placement);
+        self.lifetime = map(self.lifetime);
+        self.access = map(self.access);
     }
 }
 
-/// Writable storage location selected by a place expression.
+/// Read and write operations selected for one assignment target.
 ///
 /// Examples:
 /// ```ds
-/// value          // Binding
-/// object.field   // Field
-/// object.name    // Property, when backed by a setter
-/// values[index]  // Subscript
-/// *pointer       // Dereference
+/// value = next
+/// object.field += next
+/// values[index] = next
 /// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct AssignmentResolution {
+    /// The expression node designating the assignment target.
+    pub target: GlobalNodeIdAny,
+    /// The selected read, when the source operator reads before writing.
+    pub read: Option<ReadResolution>,
+    /// The selected write.
+    pub write: WriteResolution,
+}
+
+impl AssignmentResolution {
+    /// Apply one mapping to every type id stored in this resolution.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        if let Some(read) = &mut self.read {
+            read.map_type_ids(map);
+        }
+        self.write.map_type_ids(map);
+    }
+}
+
+/// Read selected for one place expression.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum Storage {
-    /// Local or imported value binding.
+pub enum ReadResolution {
+    /// Local value binding.
     Binding {
         /// The selected binding symbol.
         symbol: GlobalSymbolId,
+        /// The value type produced by the read.
+        ty: GlobalTypeId,
     },
-    /// Structural or nominal field storage.
-    Field {
-        /// The receiver type.
-        receiver: GlobalTypeId,
-        /// The selected field.
-        field: ProjectionField,
-    },
-    /// Accessor-backed property storage.
-    Property {
-        /// The selected getter member, when the source operator reads first.
-        read: Option<Box<MemberResolution>>,
-        /// The selected setter member.
-        write: Box<MemberResolution>,
-    },
-    /// Subscript-selected storage.
-    Subscript {
-        /// The source node providing the subscript key.
-        index: GlobalNodeIdAny,
-        /// The selected subscript operation, when the source operator reads first.
-        read: Option<Box<SubscriptOperation>>,
-        /// The selected write operation.
-        write: Box<SubscriptOperation>,
-    },
-    /// Dereferenced storage.
-    Dereference {
-        /// The selected dereference operation, when the source operator reads first.
-        read: Option<DereferenceOperation>,
-        /// The selected write operation.
-        write: DereferenceOperation,
-    },
+    /// Member read.
+    Member(MemberResolution),
+    /// Subscript read.
+    Subscript(SubscriptResolution),
+    /// Dereference read.
+    Dereference(DereferenceResolution),
 }
 
-impl Storage {
-    /// Apply one mapping to every type id stored in this storage location.
+impl ReadResolution {
+    /// Return the value type produced by this read.
+    pub fn ty(&self) -> GlobalTypeId {
+        match self {
+            Self::Binding { ty, .. } => *ty,
+            Self::Member(member) => member.ty(),
+            Self::Subscript(subscript) => subscript.ty(),
+            Self::Dereference(dereference) => dereference.ty(),
+        }
+    }
+
+    /// Apply one mapping to every type id stored in this read.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
-            Self::Binding { .. } => {}
-            Self::Field { receiver, .. } => *receiver = map(*receiver),
-            Self::Property { read, write } => {
-                if let Some(read) = read {
-                    read.map_type_ids(map);
-                }
-                write.map_type_ids(map);
-            }
-            Self::Subscript { read, write, .. } => {
-                if let Some(read) = read {
-                    read.map_type_ids(map);
-                }
-                write.map_type_ids(map);
-            }
-            Self::Dereference { read, write } => {
-                if let Some(read) = read {
-                    read.map_type_ids(map);
-                }
-                write.map_type_ids(map);
-            }
+            Self::Binding { ty, .. } => *ty = map(*ty),
+            Self::Member(member) => member.map_type_ids(map),
+            Self::Subscript(subscript) => subscript.map_type_ids(map),
+            Self::Dereference(dereference) => dereference.map_type_ids(map),
         }
     }
 }
 
-/// Callable target selected at a call site.
+/// Write selected for one place expression.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum CallTarget {
-    /// Callable expression without a declaration symbol.
-    ///
-    /// Examples:
-    /// ```ds
-    /// const double = (value: int32) => value * 2;
-    /// double(21)     // calls a function-typed value
-    /// ```
-    Expression {
-        /// The selected generic argument bindings, empty when not statically applied.
-        generic_arguments: Vec<GenericArgumentBinding>,
+pub enum WriteResolution {
+    /// Local value binding.
+    Binding {
+        /// The selected binding symbol.
+        symbol: GlobalSymbolId,
+        /// The value type accepted by the write.
+        ty: GlobalTypeId,
     },
-    /// Exactly one symbol-backed callable selected at compile time.
-    ///
-    /// Examples:
-    /// ```ds
-    /// values.push(1) // the matching `push` overload won selection
-    /// ```
-    Symbol(CallCandidate),
-    /// Universal symbol-backed callables selected at compile time.
-    ///
-    /// Examples:
-    /// ```ds
-    /// declare const shape: Rectangle | Circle;
-    /// shape.draw()   // every variant's `draw` must accept the call
-    /// ```
-    Universal(Vec<CallCandidate>),
+    /// Member write.
+    Member(MemberResolution),
+    /// Subscript write.
+    Subscript(SubscriptResolution),
+    /// Dereference write.
+    Dereference(DereferenceResolution),
 }
 
-impl CallTarget {
-    /// Apply one mapping to every type id stored in this target.
+impl WriteResolution {
+    /// Return the value type accepted by this write.
+    pub fn ty(&self) -> GlobalTypeId {
+        match self {
+            Self::Binding { ty, .. } => *ty,
+            Self::Member(member) => member.ty(),
+            Self::Subscript(subscript) => subscript.ty(),
+            Self::Dereference(dereference) => dereference.ty(),
+        }
+    }
+
+    /// Apply one mapping to every type id stored in this write.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
-            Self::Expression { generic_arguments } => {
-                for argument in generic_arguments {
-                    argument.map_type_ids(map);
-                }
-            }
-            Self::Symbol(candidate) => candidate.map_type_ids(map),
-            Self::Universal(candidates) => {
-                for candidate in candidates {
-                    candidate.map_type_ids(map);
-                }
-            }
+            Self::Binding { ty, .. } => *ty = map(*ty),
+            Self::Member(member) => member.map_type_ids(map),
+            Self::Subscript(subscript) => subscript.map_type_ids(map),
+            Self::Dereference(dereference) => dereference.map_type_ids(map),
         }
     }
 }
@@ -572,6 +1347,15 @@ pub enum GuardResolution {
 }
 
 impl GuardResolution {
+    /// Return the executable predicate selected for this guard.
+    pub fn predicate(&self) -> &Predicate {
+        match self {
+            Self::Is(guard) => &guard.predicate,
+            Self::InstanceOf(guard) => &guard.predicate,
+            Self::In(guard) => &guard.predicate,
+        }
+    }
+
     /// Apply one mapping to every type id stored in this guard.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
@@ -665,34 +1449,29 @@ impl InGuardResolution {
     }
 }
 
-/// One callable candidate after overload selection.
+/// One declaration-backed function selected for a call.
 ///
 /// Examples:
 /// ```ds
 /// values.push(1) // `push#1` applied to the Array<int32> receiver
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct CallCandidate {
-    /// The receiver type that selects this candidate.
-    pub receiver: Option<GlobalTypeId>,
-    /// The projection steps.
-    pub adjustments: Vec<Projection>,
+pub struct FunctionTarget {
+    /// The receiver selected for a method call.
+    pub receiver: Option<AdjustedReceiver>,
     /// The generic scope whose arguments are carried into this call.
     pub generic_scope: Option<GlobalSymbolId>,
     /// The selected callable symbol.
     pub symbol: GlobalSymbolId,
-    /// The selected generic argument bindings needed by this call candidate.
+    /// The selected generic argument bindings.
     pub generic_arguments: Vec<GenericArgumentBinding>,
 }
 
-impl CallCandidate {
-    /// Apply one mapping to every type id stored in this candidate.
+impl FunctionTarget {
+    /// Apply one mapping to every type id stored in this target.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         if let Some(receiver) = &mut self.receiver {
-            *receiver = map(*receiver);
-        }
-        for adjustment in &mut self.adjustments {
-            adjustment.map_type_ids(map);
+            receiver.map_type_ids(map);
         }
         for argument in &mut self.generic_arguments {
             argument.map_type_ids(map);
@@ -774,7 +1553,7 @@ impl ConstructTarget {
         match self {
             Self::Class(candidate) => candidate.symbol,
             Self::Newtype(candidate) => candidate.symbol,
-            Self::Variant(candidate) => candidate.case.member,
+            Self::Variant(candidate) => candidate.case.variant,
         }
     }
 
@@ -789,7 +1568,7 @@ impl ConstructTarget {
                 }
             },
             Self::Newtype(candidate) => candidate.symbol,
-            Self::Variant(candidate) => candidate.case.member,
+            Self::Variant(candidate) => candidate.case.variant,
         }
     }
 
@@ -867,6 +1646,12 @@ pub struct VariantConstructCandidate {
     pub case: VariantCase,
     /// The selected generic argument bindings for the owner symbol.
     pub generic_arguments: Vec<GenericArgumentBinding>,
+    /// The selected instantiated case backing.
+    pub backing: GlobalTypeId,
+    /// The generated constructor argument type, absent for a unit variant.
+    pub argument: Option<GlobalTypeId>,
+    /// The selected discriminator field.
+    pub discriminator: StaticKey,
     /// The discriminant value injected by the constructor.
     pub discriminant: ScalarLiteral,
 }
@@ -874,6 +1659,10 @@ pub struct VariantConstructCandidate {
 impl VariantConstructCandidate {
     /// Apply one mapping to every type id stored in this candidate.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.backing = map(self.backing);
+        if let Some(argument) = &mut self.argument {
+            *argument = map(*argument);
+        }
         for argument in &mut self.generic_arguments {
             argument.map_type_ids(map);
         }
@@ -889,6 +1678,7 @@ impl VariantConstructCandidate {
 /// value!                    // Must
 /// value = fallback          // Default
 /// "ready"                   // Test
+/// Status.Ok(value)          // Variant
 /// *point                    // Project
 /// Point { x, y }            // Destructure
 /// "yes" | "no"              // Or
@@ -930,6 +1720,14 @@ pub enum PatternResolution {
     /// match value { "ready" => true }
     /// ```
     Test(Box<PatternPredicateResolution>),
+    /// Pattern that selects one declared variant.
+    ///
+    /// Examples:
+    /// ```ds
+    /// match value { Status.Ok(value) => value }
+    /// match value { Status.Pending => false }
+    /// ```
+    Variant(Box<PatternVariantResolution>),
     /// Pattern that projects the input before matching, like `*Point { x, y }`.
     ///
     /// Examples:
@@ -959,6 +1757,7 @@ impl PatternResolution {
         match self {
             Self::Ignore | Self::Bind(_) | Self::Must(_) | Self::Default(_) | Self::Or(_) => {}
             Self::Test(pattern) => pattern.map_type_ids(map),
+            Self::Variant(pattern) => pattern.map_type_ids(map),
             Self::Project(pattern) => pattern.map_type_ids(map),
             Self::Destructure(pattern) => pattern.map_type_ids(map),
         }
@@ -1034,7 +1833,7 @@ impl PatternPredicateResolution {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct PatternProjectionResolution {
     /// The selected projection.
-    pub projection: Projection,
+    pub projection: ProjectionResolution,
     /// The pattern matched after projection.
     pub pattern: Option<GlobalNodeIdAny>,
 }
@@ -1054,7 +1853,6 @@ impl PatternProjectionResolution {
 /// const { name } = user;
 /// const Point { x, y } = point;
 /// const [head, ...tail] = values;
-/// match status { Status.Ok(value) => value }
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum PatternDestructureResolution {
@@ -1086,13 +1884,6 @@ pub enum PatternDestructureResolution {
     /// const [head, ...tail] = values;
     /// ```
     Sequence(PatternSequenceDestructureResolution),
-    /// Tagged variant destructuring, like `Status.Ok(value)`.
-    ///
-    /// Examples:
-    /// ```ds
-    /// match status { Status.Ok(value) => value }
-    /// ```
-    Variant(Box<PatternVariantDestructureResolution>),
 }
 
 impl PatternDestructureResolution {
@@ -1103,7 +1894,6 @@ impl PatternDestructureResolution {
             Self::Object(destructure) => destructure.map_type_ids(map),
             Self::Nominal(destructure) => destructure.map_type_ids(map),
             Self::Sequence(destructure) => destructure.map_type_ids(map),
-            Self::Variant(destructure) => destructure.map_type_ids(map),
         }
     }
 }
@@ -1231,27 +2021,29 @@ pub struct PatternSequenceArity {
     pub maximum: Option<usize>,
 }
 
-/// Tagged variant destructuring selected by one pattern.
+/// Tagged variant selected by one pattern.
 ///
 /// Examples:
 /// ```ds
 /// match status { Status.Ok(value) => value }
+/// match status { Status.Pending => false }
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct PatternVariantDestructureResolution {
+pub struct PatternVariantResolution {
+    /// The selected variant case.
+    pub case: VariantCase,
     /// The selected variant predicate.
     pub predicate: Predicate,
-    /// The selected variant payload projection.
-    pub projection: Projection,
+    /// The nested pattern matching the complete case payload.
+    pub payload: Option<GlobalNodeIdAny>,
     /// The payload fields in source order.
     pub fields: Vec<PatternFieldResolution>,
 }
 
-impl PatternVariantDestructureResolution {
-    /// Apply one mapping to every type id stored in this destructuring.
+impl PatternVariantResolution {
+    /// Apply one mapping to every type id stored in this pattern.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         self.predicate.map_type_ids(map);
-        self.projection.map_type_ids(map);
         for field in &mut self.fields {
             field.map_type_ids(map);
         }
@@ -1282,7 +2074,7 @@ pub struct PatternFieldResolution {
     /// The source node that introduces the field.
     pub source: GlobalNodeIdAny,
     /// The selected field projection.
-    pub projection: Projection,
+    pub projection: ProjectionResolution,
     /// The nested pattern matched for the field.
     pub pattern: Option<GlobalNodeIdAny>,
 }
@@ -1298,7 +2090,7 @@ impl PatternFieldResolution {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignPatternResolution {
     /// Direct writable place target, like `value` or `object.field`.
-    Place(PlaceResolution),
+    Place,
     /// Defaulted assignment target, like `value = fallback`.
     Default(AssignPatternDefaultResolution),
     /// Ordered destructuring target, like `[head, ...tail]`.
@@ -1313,8 +2105,7 @@ impl AssignPatternResolution {
     /// Apply one mapping to every type id stored in this assignment target.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
-            Self::Place(resolution) => resolution.map_type_ids(map),
-            Self::Default(_) => {}
+            Self::Place | Self::Default(_) => {}
             Self::Sequence(resolution) => resolution.map_type_ids(map),
             Self::Tuple(resolution) => resolution.map_type_ids(map),
             Self::Object(resolution) => resolution.map_type_ids(map),
@@ -1397,7 +2188,7 @@ pub struct AssignPatternFieldResolution {
     /// The source node that introduces the field.
     pub source: GlobalNodeIdAny,
     /// The selected field projection.
-    pub projection: Projection,
+    pub projection: ProjectionResolution,
     /// The nested assignment target.
     pub pattern: Option<GlobalNodeIdAny>,
 }
@@ -1415,7 +2206,7 @@ pub struct AssignPatternRestResolution {
     /// The source node that introduces the rest field.
     pub source: GlobalNodeIdAny,
     /// The materialized rest projection.
-    pub projection: Projection,
+    pub projection: ProjectionResolution,
     /// The nested assignment target.
     pub pattern: Option<GlobalNodeIdAny>,
 }

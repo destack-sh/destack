@@ -12,19 +12,15 @@ impl ModuleQueryContext<'_> {
     ) -> Option<Vec<dir::GlobalSymbolId>> {
         let resolution = self.resolutions().member_resolution(node_id)?;
 
-        let candidates = match &resolution.target {
-            dir::MemberTarget::Symbol(candidate) => slice::from_ref(candidate),
-            dir::MemberTarget::Existential(candidates)
-            | dir::MemberTarget::Universal(candidates) => candidates.as_slice(),
-            dir::MemberTarget::Field(_)
-            | dir::MemberTarget::Element(_)
-            | dir::MemberTarget::Index(_) => return Some(Vec::new()),
+        let accesses = match resolution {
+            dir::OperationResolution::One(access) => slice::from_ref(access),
+            dir::OperationResolution::Union { arms, .. } => arms.as_slice(),
         };
 
-        let symbols = candidates
-            .iter()
-            .map(|candidate| candidate.symbol)
-            .collect();
+        let mut symbols = Vec::new();
+        for access in accesses {
+            access.target.collect_symbols(&mut symbols);
+        }
 
         Some(symbols)
     }

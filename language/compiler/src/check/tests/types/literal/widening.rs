@@ -21,7 +21,7 @@ const first: float64 = values[0];
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
-/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=[1, 2] type=Array<float64>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -31,13 +31,16 @@ const first = values[0];
 /// @type.node source=values type=Array<float64>
 /// @type.node source=values[0] type=float64
 /// @resolution.name source=values target=values
-/// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=float64 kind=symbol target=collections.array.index#4 receiver=Array<float64> instance=Array<float64>.<extension#6>.index#4
-/// @generic.instance source=values[0] id=Array<float64>.<extension#6>.index#4
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
+/// @generic.instance source=values[0] id="Array<float64>.<extension#6>.index#3<\"exclusive\">"
 /// @type.node source=0 type=0
 
-/// @generic.instance id=Array<float64>.<extension#6>.index#4 template=collections.array.index#4 arguments=(float64, float64)
+/// @generic.instance id="Array<float64>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(float64, "exclusive")
 
-/// @check.stats.solve variables=5 types=25 constraints=2 obligations=2 solutions=5 bounds=0 decisions=4
+/// @check.stats.solve variables=13 types=50 constraints=4 obligations=2 solutions=13 bounds=9 decisions=4
 "#,
     );
 }
@@ -73,13 +76,16 @@ const first = values[0];
 /// @type.node source=values type=Array<1 | 2>
 /// @type.node source=values[0] type=1 | 2
 /// @resolution.name source=values target=values
-/// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=1 | 2 kind=symbol target=collections.array.index#4 receiver=Array<1 | 2> instance="Array<1 | 2>.<extension#6>.index#4"
-/// @generic.instance source=values[0] id="Array<1 | 2>.<extension#6>.index#4"
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static 1 | 2, \"exclusive\">)"
+/// @generic.instance source=values[0] id="Array<1 | 2>.<extension#6>.index#3<\"exclusive\">"
 /// @type.node source=0 type=0
 
-/// @generic.instance id="Array<1 | 2>.<extension#6>.index#4" template=collections.array.index#4 arguments=(1 | 2, 1 | 2)
+/// @generic.instance id="Array<1 | 2>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(1 | 2, "exclusive")
 
-/// @check.stats.solve variables=5 types=23 constraints=5 obligations=2 solutions=5 bounds=0 decisions=4
+/// @check.stats.solve variables=13 types=48 constraints=4 obligations=2 solutions=13 bounds=9 decisions=4
 "#,
     );
 }
@@ -107,9 +113,9 @@ const value: number | boolean = 1;
 /// @type.symbol symbol=value source=value type=float64 | boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | boolean, cases: ({ target: 0, adjustments: [{ kind: widen, target: float64 }] }) }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | boolean, cases: ({ source: 1, target: float64, adjustments: [{ kind: widen, target: float64 }] }) }] origin=implicit
 
-/// @check.stats.solve variables=1 types=6 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -154,11 +160,54 @@ function widen(value: 1 | Flag): int32 | Flag {
     return value;
     /// @type.node source=value type=1 | Flag
     /// @resolution.name source=value target=widen.value
-    /// @coercion.node source=value from=1 | Flag adjustments=[{ kind: union, target: int32 | Flag, cases: ({ target: 0, adjustments: [{ kind: widen, target: int32 }] }, 1) }] origin=implicit
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=widen.value
+    /// @coercion.node source=value from=1 | Flag adjustments=[{ kind: union, target: int32 | Flag, cases: ({ source: 1, target: int32, adjustments: [{ kind: widen, target: int32 }] }, { source: Flag, target: Flag }) }] origin=implicit
 
 }
 
-/// @check.stats.solve variables=0 types=10 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=13 constraints=0 obligations=0 solutions=0 bounds=0 decisions=3
+"#,
+    );
+}
+
+#[test]
+fn test_union_members_coerce_to_common_target() {
+    let session = TestSession::single(
+        r#"
+function widen(value: 1 | 2): int32 {
+    return value;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked()
+            .with_reference_types()
+            .with_coercion()
+            .with_check_stats(),
+        r#"
+=== annotated ===
+function widen(value: 1 | 2): int32 {
+    return value as int32;
+}
+
+=== checked ===
+function widen(value: 1 | 2): int32 {
+/// @type.symbol symbol=widen type=(1 | 2) => int32
+/// @type.symbol symbol=widen.value source="value: 1 | 2" type=1 | 2
+
+    return value;
+    /// @type.node source=value type=1 | 2
+    /// @resolution.name source=value target=widen.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=widen.value
+    /// @coercion.node source=value from=1 | 2 adjustments=[{ kind: union, target: int32, cases: ({ source: 1, target: int32, adjustments: [{ kind: widen, target: int32 }] }, { source: 2, target: int32, adjustments: [{ kind: widen, target: int32 }] }) }] origin=implicit
+
+}
+
+/// @check.stats.solve variables=0 types=10 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -187,7 +236,7 @@ const value = true ? 1 : 2;
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=7 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.warning id=constant-condition message="condition is always true"
@@ -220,7 +269,7 @@ let value = true ? 1 : 2;
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=1 types=8 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=8 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.warning id=constant-condition message="condition is always true"

@@ -362,8 +362,12 @@ class User {
         return this.name;
         /// @type.node source=this type=User
         /// @type.node source=this.name type=string
-        /// @resolution.member source=this.name receiver=User kind=symbol target=User.name
+        /// @resolution.member source=this.name receiver=User type=string kind=field target_receiver=User key=name target=User.name target_type=string
         /// @resolution.receiver source=this kind=this declaration=User type=User
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.name root=this keys=[name]
 
     }
 }
@@ -396,8 +400,8 @@ const index: Keys = 1;
 type Bag = { readonly [key: string]: int32 };
 type Keys = keyof Bag;
 
-const text: Keys = "name" as Keys;
-const index: Keys = 1 as Keys;
+const text: Keys = "name" as string | usize;
+const index: Keys = 1 as string | usize;
 
 === checked ===
 type Bag = { readonly [key: string]: int32 };

@@ -21,7 +21,7 @@ name satisfies string;
 
 === checked ===
 let { name = "Ada" } = {};
-/// @resolution.pattern source={ name = "Ada" } kind=object fields={ name }
+/// @resolution.pattern source={ name = "Ada" } kind=object fields={ absent(undefined): name }
 /// @type.symbol symbol=name source=name type=string
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.pattern source=name kind=default pattern=pattern value=expression
@@ -32,6 +32,8 @@ name satisfies string;
 /// @type.node source="name satisfies string" type=string
 /// @type.node source=name type=string
 /// @resolution.name source=name target=name
+/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=name root=name
 "#,
     );
 }
@@ -78,11 +80,16 @@ declare const values: [int32; 1];
 /// @resolution.pattern.assign source=[value = fallback] kind=sequence element=int32 arity=1 fields=(value)
 /// @type.node source=value type=int32
 /// @resolution.pattern.assign source="value = fallback" kind=default pattern=value value=expression
-/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
+/// @resolution.pattern.assign source=value kind=place
+/// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=fallback type=int32
 /// @resolution.name source=fallback target=fallback
+/// @resolution.place source=fallback placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=fallback root=fallback
 /// @type.node source=values type=FixedArray<int32, 1>
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 "#,
     );
 }

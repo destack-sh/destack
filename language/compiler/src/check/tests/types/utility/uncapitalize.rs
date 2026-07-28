@@ -71,6 +71,8 @@ declare const value: Value;
 
 value satisfies "yes" | "no";
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id="Uncapitalize<\"Yes\" | \"No\">" template=types.string.Uncapitalize arguments=("Yes" | "No")
 "#,

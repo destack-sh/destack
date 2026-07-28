@@ -28,14 +28,14 @@ pub(in crate::check) struct FormChain {
     is_open: bool,
 }
 
-/// One normalized managed or owned conversion into borrowed form.
+/// One normalized managed or owned conversion to borrowed form.
 pub(in crate::check) struct BorrowConversion {
+    /// The module that owns the normalized borrow constructor.
+    pub(in crate::check) module: ModuleId,
     /// The source memory form.
     pub(in crate::check) source: FormChain,
     /// The target borrowed form.
     pub(in crate::check) target: FormChain,
-    /// The source ownership after default-form reduction.
-    pub(in crate::check) ownership: dir::Ownership,
     /// The target borrow constructor and payload.
     pub(in crate::check) borrow: dir::FormType,
 }
@@ -60,11 +60,6 @@ impl FormChain {
             dir::Form::Placed { place } => Some(place),
             _ => None,
         })
-    }
-
-    /// Return whether the base can still gain forms at instantiation.
-    pub(in crate::check) fn is_open(&self) -> bool {
-        self.is_open
     }
 
     /// Return whether the chain removes mutable access.
@@ -109,39 +104,41 @@ impl CheckState<'_> {
         Ok(Answer::Ready(is_reference))
     }
 
-    /// Classify one normalized conversion that acquires a borrow.
+    /// Classify one normalized conversion to borrowed form.
     pub(in crate::check) fn borrow_conversion(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<BorrowConversion>> {
+    ) -> CompilerResult<Answer<Option<BorrowConversion>>> {
         let source = self.form_chain(origin, source)?;
         let target = self.form_chain(origin, target)?;
         let Some(borrow) = target.ownership_form() else {
-            return Ok(None);
+            return Ok(Answer::Ready(None));
         };
         if !matches!(borrow.form, dir::Form::Borrowed(_)) {
-            return Ok(None);
+            return Ok(Answer::Ready(None));
         }
         // only placeable values own storage a borrow can target
         if !self.ty(source.base())?.is_placeable() {
-            return Ok(None);
+            return Ok(Answer::Ready(None));
         }
-        // open sources have no form facts and acquire nothing
-        let Answer::Ready(Some(ownership)) = self.form_ownership(origin, &source)? else {
-            return Ok(None);
+        // open source ownership waits for the type that determines its form
+        let Some(ownership) = answer!(self.form_ownership(origin, &source)?) else {
+            let blockers = self.variable_dependencies([source.base()])?;
+
+            return Ok(Answer::ready_unless_blocked(None, blockers));
         };
         if !matches!(ownership, dir::Ownership::Managed | dir::Ownership::Owned) {
-            return Ok(None);
+            return Ok(Answer::Ready(None));
         }
 
-        Ok(Some(BorrowConversion {
+        Ok(Answer::Ready(Some(BorrowConversion {
+            module: origin.module(),
             source,
             target,
-            ownership,
             borrow,
-        }))
+        })))
     }
 
     /// Return the closed access literal behind one access term, or none while open.
@@ -149,39 +146,14 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         access: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::Access>> {
-        let literal = match self.reduce_type_head(origin, access)? {
-            Answer::Ready(access) => match self.ty(access)? {
-                dir::Type::Memory(dir::MemoryLiteral::Access(access)) => Some(access),
-                _ => None,
-            },
-            Answer::Pending(_) => None,
+    ) -> CompilerResult<Answer<Option<dir::Access>>> {
+        let access = answer!(self.reduce_type_head(origin, access)?);
+        let literal = match self.ty(access)? {
+            dir::Type::Memory(dir::MemoryLiteral::Access(access)) => Some(access),
+            _ => None,
         };
 
-        Ok(literal)
-    }
-
-    /// Return whether one managed value grants a borrow of the given access.
-    pub(in crate::check) fn managed_acquisition_granted(
-        &mut self,
-        access: Option<dir::Access>,
-        place: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<bool> {
-        if access != Some(dir::Access::Exclusive) {
-            return Ok(true);
-        }
-
-        // bare sources close local at the acquisition site
-        let is_local = match place {
-            Some(place) => {
-                let place = self.settled_root(place)?;
-
-                self.place_space(place)? == Some(dir::Space::Local)
-            }
-            None => true,
-        };
-
-        Ok(is_local)
+        Ok(Answer::Ready(literal))
     }
 
     /// Return the concrete space required by a nominal declaration and its heritage.
@@ -212,7 +184,8 @@ impl CheckState<'_> {
 
         // inherit the first concrete requirement, as heritage validation rejects disagreement
         for heritage in definition.heritages() {
-            let inherited = self.nominal_space_guarded(heritage.symbol, active)?;
+            let (_, inherited) = self.require_nominal_application(heritage.ty)?;
+            let inherited = self.nominal_space_guarded(inherited.symbol, active)?;
             if space.is_none() {
                 space = inherited;
             }
@@ -243,19 +216,18 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        // unreduced values carry no immediate fact
-        let Answer::Ready(ty) = self.reduce_type_head(origin, ty)? else {
-            return Ok(false);
-        };
+    ) -> CompilerResult<Answer<bool>> {
+        let ty = answer!(self.reduce_type_head(origin, ty)?);
         let is_immediate = match self.ty(ty)? {
             dir::Type::Null
             | dir::Type::Undefined
             | dir::Type::Key(_)
             | dir::Type::Memory(_)
             | dir::Type::Static(_)
-            | dir::Type::EnumMember(_)
             | dir::Type::Range(_) => true,
+            dir::Type::Variant(variant) => {
+                return self.is_immediate_value(origin, variant.owner);
+            }
             dir::Type::Primitive(primitive) => primitive.representation_item().is_none(),
             dir::Type::Literal(literal) => matches!(
                 literal.widen(),
@@ -264,7 +236,7 @@ impl CheckState<'_> {
             _ => false,
         };
 
-        Ok(is_immediate)
+        Ok(Answer::Ready(is_immediate))
     }
 
     /// Place one binding value in its explicitly declared storage space.
@@ -317,33 +289,33 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         place: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let chain = self.form_chain(origin, ty)?;
 
         // dependent types carry placement through every surrounding form
         if chain.is_open {
-            return Ok(ty);
+            return Ok(Answer::Ready(ty));
         }
 
         // types without runtime values have no placement
         if chain.forms.is_empty() && !self.ty(chain.base)?.is_placeable() {
-            return Ok(ty);
+            return Ok(Answer::Ready(ty));
         }
 
         // immediate values pass in registers and take no placement
-        if self.is_immediate_value(origin, ty)? {
-            return Ok(ty);
+        if answer!(self.is_immediate_value(origin, ty)?) {
+            return Ok(Answer::Ready(ty));
         }
 
         // preserve concrete placement and qualify one relative chain
         if let Some(current) = chain.place()
             && !self.is_memory_component(current, "relative")?
         {
-            return Ok(ty);
+            return Ok(Answer::Ready(ty));
         }
 
         // apply placement around the written type so aliases stay visible
-        self.placed_type(origin, ty, place)
+        self.placed_type(origin, ty, place).map(Answer::Ready)
     }
 
     /// Strip every explicit memory form from one type.
@@ -358,6 +330,25 @@ impl CheckState<'_> {
         }
 
         Ok(Answer::Ready(value))
+    }
+
+    /// Return the unqualified value accepted by one construction target.
+    pub(in crate::check) fn construction_value(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let mut value = answer!(self.reduce_type_head(origin, target)?);
+
+        // construction owns storage forms but never manufactures references
+        while let dir::Type::Form(form) = self.ty(value)? {
+            if matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw) {
+                return Ok(Answer::Ready(None));
+            }
+            value = answer!(self.reduce_type_head(origin, form.value)?);
+        }
+
+        Ok(Answer::Ready(Some(value)))
     }
 
     /// Replace the value beneath every explicit memory form.
@@ -382,52 +373,6 @@ impl CheckState<'_> {
         )?;
 
         Ok(Answer::Ready(rebuilt))
-    }
-
-    /// Remove the forms one fresh write sees through from a place type.
-    ///
-    /// A fresh value initializes readonly places, materializes into owned
-    /// storage, and constructs at explicit placements directly.
-    pub(in crate::check) fn strip_fresh_forms(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let head = answer!(self.reduce_type_head(origin, ty)?);
-        let dir::Type::Form(form) = self.ty(head)? else {
-            return Ok(Answer::Ready(head));
-        };
-
-        let payload = answer!(self.strip_fresh_forms(origin, form.value)?);
-        if matches!(
-            form.form,
-            dir::Form::Readonly | dir::Form::Owned | dir::Form::Placed { .. }
-        ) {
-            return Ok(Answer::Ready(payload));
-        }
-        let rebuilt = self.intern_type(
-            origin.module(),
-            dir::Type::Form(dir::FormType {
-                form: form.form,
-                value: payload,
-            }),
-        )?;
-
-        Ok(Answer::Ready(rebuilt))
-    }
-
-    /// Normalize one static value against a memory-domain language item.
-    pub(in crate::check) fn normalize_memory_parameter_value(
-        &mut self,
-        origin: Origin,
-        value: dir::GlobalTypeId,
-        item: dir::LanguageItem,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(kind) = dir::MemoryParameter::from_language_item(item) else {
-            return Ok(value);
-        };
-
-        self.normalize_memory_component(origin, value, kind)
     }
 
     /// Normalize one component to its canonical memory literal.
@@ -996,7 +941,6 @@ impl CheckState<'_> {
             | dir::Type::Intrinsic
             | dir::Type::Key(_)
             | dir::Type::Range(_)
-            | dir::Type::EnumMember(_)
             | dir::Type::Tuple(_)
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
@@ -1024,6 +968,9 @@ impl CheckState<'_> {
                     }
                     _ => None,
                 }
+            }
+            dir::Type::Variant(variant) => {
+                return self.default_ownership(origin, variant.owner);
             }
             dir::Type::Form(form) => match form.form {
                 dir::Form::Readonly | dir::Form::Placed { .. } => {
@@ -1221,13 +1168,10 @@ impl CheckState<'_> {
         origin: Origin,
         argument: dir::GlobalTypeId,
         parameter: dir::GlobalTypeId,
-    ) -> CompilerResult<MemoryRank> {
-        // representation-changing borrow acquisition ranks last
-        if self
-            .borrow_conversion(origin, argument, parameter)?
-            .is_some()
-        {
-            return Ok(MemoryRank::Borrowed);
+    ) -> CompilerResult<Answer<MemoryRank>> {
+        // representation-changing borrows rank last
+        if answer!(self.borrow_conversion(origin, argument, parameter)?).is_some() {
+            return Ok(Answer::Ready(MemoryRank::Borrowed));
         }
 
         // only two existing borrows can differ by access alone
@@ -1236,26 +1180,26 @@ impl CheckState<'_> {
         let Some(dir::Form::Borrowed(argument_borrow)) =
             argument.ownership_form().map(|entry| entry.form)
         else {
-            return Ok(MemoryRank::Exact);
+            return Ok(Answer::Ready(MemoryRank::Exact));
         };
         let Some(dir::Form::Borrowed(parameter_borrow)) =
             parameter.ownership_form().map(|entry| entry.form)
         else {
-            return Ok(MemoryRank::Exact);
+            return Ok(Answer::Ready(MemoryRank::Exact));
         };
 
         // access weakening between borrowed forms ranks in the middle
         let argument_borrow = self.type_borrow(origin.module(), argument_borrow)?;
         let parameter_borrow = self.type_borrow(origin.module(), parameter_borrow)?;
-        let argument_access = self.access_literal(origin, argument_borrow.access)?;
-        let parameter_access = self.access_literal(origin, parameter_borrow.access)?;
+        let argument_access = answer!(self.access_literal(origin, argument_borrow.access)?);
+        let parameter_access = answer!(self.access_literal(origin, parameter_borrow.access)?);
         if let (Some(argument_access), Some(parameter_access)) = (argument_access, parameter_access)
             && argument_access != parameter_access
         {
-            return Ok(MemoryRank::Weakened);
+            return Ok(Answer::Ready(MemoryRank::Weakened));
         }
 
-        Ok(MemoryRank::Exact)
+        Ok(Answer::Ready(MemoryRank::Exact))
     }
 
     /// Return whether two related types differ only by concrete placement.

@@ -3,10 +3,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateVerdict, Cause, CauseKind, CheckFailure,
-    CheckOutcome, Decision, DecisionKind, Dependency, FlowSite, MemoryRank, NewtypeMatch,
-    NewtypeOverload, NewtypeRejection, NewtypeSignature, Origin, Relation, SignatureMatch,
-    SignatureRejection, SignatureSelection, TypeSubstitution, answer,
+    Answer, BodyState, CallableArgument, CandidateVerdict, CheckFailure, CheckOutcome, Decision,
+    DecisionKind, Dependency, Expectation, FlowSite, MemoryRank, NewtypeMatch, NewtypeOverload,
+    NewtypeRejection, NewtypeSignature, Origin, SignatureMatch, SignatureRejection,
+    SignatureSelection, TypeArgumentInference, TypeSubstitution, ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -32,7 +32,7 @@ impl BodyState<'_, '_> {
         let source = ty.into_global_any(module);
 
         // return the committed construct target
-        if let Some(target) = self.committed_node_type(source) {
+        if let Some(target) = self.node_types.get(&source).copied() {
             return Ok(Answer::Ready(target));
         }
 
@@ -84,7 +84,7 @@ impl BodyState<'_, '_> {
         let source = ty.into_global_any(module);
 
         // return the committed construct head
-        if let Some(target) = self.committed_node_type(source) {
+        if let Some(target) = self.node_types.get(&source).copied() {
             return Ok(Answer::Ready(target));
         }
 
@@ -95,7 +95,7 @@ impl BodyState<'_, '_> {
             ..
         } = self.module(module).view().get(ty).clone()
         else {
-            return self.node_type(source);
+            return Ok(Answer::Ready(self.require_node_type(source)?));
         };
 
         // read the construct declaration captured during walk
@@ -107,7 +107,7 @@ impl BodyState<'_, '_> {
             (Some(DecisionKind::Name), Some(resolution)) => match resolution.symbols() {
                 [symbol] => *symbol,
                 _ => {
-                    self.report_ambiguous_reference(module, ty.into_any(), &path)?;
+                    self.report_ambiguous_reference(module, ty.into_any(), &path);
                     let error = self.intern_type(module, dir::Type::Error)?;
 
                     return Ok(Answer::Ready(error));
@@ -216,7 +216,7 @@ impl BodyState<'_, '_> {
         let mut written = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for argument in arguments {
             let argument = argument.into_global_any(module);
-            let ty = answer!(self.node_type(argument)?);
+            let ty = self.require_node_type(argument)?;
             written.push(ty);
         }
 
@@ -239,50 +239,31 @@ impl BodyState<'_, '_> {
         };
 
         // infer omitted construct arguments
-        let parameters = self.generic_template_parameters(template);
-        let Some(substitution) = self.instantiate_parameter_arguments(
+        let parameters = self.generic_template_parameters(template)?;
+        let Some(substitution) = answer!(self.instantiate_parameters(
             origin,
             &parameters,
             &written,
             TypeSubstitution::default(),
-        )?
-        else {
+            TypeArgumentInference::Exact,
+        )?) else {
             let name = self.format_symbol(symbol);
-            let expected = self.written_parameter_count(&parameters);
+            let expected = self.writable_parameter_count(&parameters);
             self.report_wrong_generic_arity(module, source.local_id, name, expected, written.len());
             let error = self.intern_type(module, dir::Type::Error)?;
 
             return Ok(Answer::Ready(error));
         };
 
-        // check selected arguments against declared bounds
-        let sources = SmallVec::<[dir::GlobalNodeIdAny; 4]>::from_iter(std::iter::repeat_n(
-            source,
-            substitution.arguments.len(),
-        ));
-        if let Some(rejection) = answer!(self.check_generic_arguments(
-            origin,
-            &parameters,
-            &substitution.arguments,
-            &sources,
-            &substitution,
-        )?) {
-            let anchored = self.origin_at(origin, rejection.source)?;
-            let anchored = self
-                .check
-                .intern_cause(Cause::root(anchored, CauseKind::Expression));
-            self.relate(
-                anchored,
-                Relation::Satisfies,
-                rejection.argument,
-                rejection.bound,
-            )?;
-            let error = self.intern_type(module, dir::Type::Error)?;
-
-            return Ok(Answer::Ready(error));
+        // register every bound and predicate on the constructed application
+        for constraint in
+            self.substitute_application_constraints(origin, template, &substitution)?
+        {
+            self.check.push_constraint(constraint);
         }
 
-        let arguments = self.intern_type_ids(module, &substitution.arguments)?;
+        let arguments = substitution.arguments().collect::<SmallVec<[_; 4]>>();
+        let arguments = self.intern_type_ids(module, &arguments)?;
         let target = self.intern_type(
             module,
             dir::Type::Application(dir::GenericApplication { symbol, arguments }),
@@ -298,20 +279,19 @@ impl BodyState<'_, '_> {
         ty: dir::LocalNodeId<dir::TypeExpression>,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         result: ConstructResult,
-        expected_return: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<()>> {
+        expectation: Option<Expectation>,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
         let origin = site.origin();
 
-        let arguments = self.callable_arguments(module, argument_nodes)?;
+        let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
 
-        // fresh constructions materialize at owned and placed expected forms,
-        //  taking their storage form directly like widened literals
+        // separate destination forms from the constructed instance
         let mut forms = SmallVec::<[dir::Form; 2]>::new();
-        let mut expected_return = expected_return;
-        while let Some(expected) = expected_return {
+        let mut expected_value = expectation.map(|expectation| expectation.target);
+        while let Some(expected) = expected_value {
             let head = answer!(self.reduce_type_head(origin, expected)?);
             let dir::Type::Form(form) = self.ty(head)? else {
                 break;
@@ -320,11 +300,11 @@ impl BodyState<'_, '_> {
                 break;
             }
             forms.push(form.form);
-            expected_return = Some(form.value);
+            expected_value = Some(form.value);
         }
 
         // select the constructed target
-        let target = answer!(self.select_construct_target(site, ty, expected_return)?);
+        let target = answer!(self.select_construct_target(site, ty, expected_value)?);
         let target = answer!(self.reduce_type_head(origin, target)?);
         let instance = match self.ty(target)? {
             dir::Type::Application(instance) => instance,
@@ -353,9 +333,9 @@ impl BodyState<'_, '_> {
                 if definition.is_abstract {
                     self.report_cannot_construct_abstract_type(origin, target)?;
                     self.commit_decision(node, Decision::Rejected)?;
-                    self.commit_error_node(node)?;
+                    let error = self.commit_error_node(node)?;
 
-                    return Ok(Answer::Ready(()));
+                    return Ok(Answer::Ready(error));
                 }
 
                 let constructors = definition.constructors.clone();
@@ -396,7 +376,12 @@ impl BodyState<'_, '_> {
             })
             .transpose()?;
         // signatures expect the constructed instance in its destination place
-        let expected_return = receiver.or(expected_return);
+        let expectation = receiver.or(expected_value).and_then(|target| {
+            expectation.map(|expectation| Expectation {
+                target,
+                ..expectation
+            })
+        });
 
         // winnow constructors in declaration order, then confirm the winner
         let is_single_candidate = constructors.len() == 1;
@@ -419,13 +404,13 @@ impl BodyState<'_, '_> {
                         target,
                         constructor.ty,
                         &arguments,
-                        expected_return,
+                        expectation,
                         receiver,
                     )?;
                     match outcome {
                         Answer::Ready(matched) => {
                             if let SignatureMatch::Selected(selection) = &matched {
-                                rank = answer!(selection.memory_rank(origin, &arguments, state)?);
+                                rank = selection.rank;
                             }
 
                             Ok(Answer::Ready(matched.into_candidate()))
@@ -434,9 +419,9 @@ impl BodyState<'_, '_> {
                     }
                 },
                 |state, rejection| {
-                    Ok(state
+                    state
                         .check
-                        .describe_signature_rejection(module, constructor.ty, rejection))
+                        .describe_signature_rejection(module, constructor.ty, rejection)
                 },
             )?);
             match verdict {
@@ -467,7 +452,7 @@ impl BodyState<'_, '_> {
                 target,
                 constructor.ty,
                 &arguments,
-                expected_return,
+                expectation,
                 receiver,
             )?;
 
@@ -488,11 +473,9 @@ impl BodyState<'_, '_> {
                 SignatureMatch::Invalid {
                     selection,
                     rejection,
-                    variables,
                 } if is_single_candidate => {
-                    self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
-                    self.check.poison_scope(variables)?;
-                    answer!(self.commit_construct(
+                    self.report_signature_rejection(origin, rejection)?;
+                    let produced = answer!(self.commit_construct(
                         node,
                         module,
                         target.module_id,
@@ -504,20 +487,18 @@ impl BodyState<'_, '_> {
                         &forms,
                     )?);
 
-                    return Ok(Answer::Ready(()));
+                    return Ok(Answer::Ready(produced));
                 }
                 SignatureMatch::Inapplicable(rejection)
                     if is_single_candidate && rejection.is_precise() =>
                 {
-                    self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
+                    self.report_signature_rejection(origin, rejection)?;
                     self.commit_decision(node, Decision::Rejected)?;
-                    self.commit_error_node(node)?;
+                    let error = self.commit_error_node(node)?;
 
-                    return Ok(Answer::Ready(()));
+                    return Ok(Answer::Ready(error));
                 }
-                SignatureMatch::Invalid { variables, .. } => {
-                    self.check.poison_scope(variables)?;
-                }
+                SignatureMatch::Invalid { .. } => {}
                 SignatureMatch::Inapplicable(_) => {}
             }
         }
@@ -557,24 +538,26 @@ impl BodyState<'_, '_> {
         extends: &dir::NominalHeritage,
         active: &mut SmallVec<[dir::GlobalSymbolId; 4]>,
     ) -> CompilerResult<Answer<Vec<dir::ClassConstructorDefinition>>> {
-        if active.contains(&extends.symbol) {
+        let (extends_module, instance) = self.require_nominal_application(extends.ty)?;
+        if active.contains(&instance.symbol) {
             return Ok(Answer::Ready(Vec::new()));
         }
-        active.push(extends.symbol);
+        active.push(instance.symbol);
 
-        let base = match self.definition(extends.symbol)? {
+        let base = match self.definition(instance.symbol)? {
             Some(dir::Definition::Class(base)) => base.clone(),
             _ => {
                 return Err(CompilerError::Internal {
-                    message: format!("base class {:?} has no checked definition", extends.symbol),
+                    message: format!("base class {:?} has no checked definition", instance.symbol),
                 });
             }
         };
         let module = origin.module();
-        let arguments = self.intern_type_ids(module, &extends.arguments)?;
+        let arguments = self.type_ids(extends_module, instance.arguments)?.to_vec();
+        let arguments = self.intern_type_ids(module, &arguments)?;
         let instance = dir::GenericApplication {
-            symbol: extends.symbol,
             arguments,
+            ..instance
         };
         let base_receiver = self.intern_type(module, dir::Type::Application(instance))?;
         let base_constructors = answer!(self.collect_class_construct_candidates(
@@ -592,7 +575,7 @@ impl BodyState<'_, '_> {
             .with_receiver(receiver);
         let mut constructors = Vec::with_capacity(base_constructors.len());
         for base_constructor in base_constructors {
-            let constructor = base_constructor.constructor.forwarded(extends.symbol);
+            let constructor = base_constructor.constructor.forwarded(instance.symbol);
             let ty = self.substitute_type(origin.module(), base_constructor.ty, &substitution)?;
             let ty = self.class_constructor_returning(origin, ty, receiver)?;
 
@@ -629,11 +612,9 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
         function_type: dir::GlobalTypeId,
         arguments: &[CallableArgument],
-        expected_return: Option<dir::GlobalTypeId>,
+        expectation: Option<Expectation>,
         receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<SignatureMatch>> {
-        let source = self.origin_source_node(origin)?;
-
         // reduce the constructor shape before matching arguments
         let function_type = answer!(self.reduce_type_head(origin, function_type)?);
         let Some(function) = self.signature_head(function_type)? else {
@@ -645,24 +626,19 @@ impl BodyState<'_, '_> {
 
         // infer omitted class arguments while testing this constructor
         let template = self.symbol_template(instance.symbol)?;
-        if instance.arguments.is_empty()
-            && let Some(template) = template
-        {
-            let parameters = self.generic_template_parameters(template);
+        if instance.arguments.is_empty() && template.is_some() {
             return self.match_signature(
                 origin,
                 module,
                 function_type.module_id,
-                source,
-                &parameters,
-                None,
+                Some(instance.symbol),
                 &[],
                 &[],
                 &function,
                 return_type,
                 receiver,
                 arguments,
-                expected_return,
+                expectation,
             );
         }
 
@@ -679,22 +655,19 @@ impl BodyState<'_, '_> {
         };
 
         let return_type = function.return_type.or(Some(target));
-        let carried =
-            self.generic_argument_bindings(&substitution.parameters, &substitution.arguments)?;
+        let carried = substitution.bindings.clone();
         self.match_signature(
             origin,
             module,
             function_type.module_id,
-            source,
-            &[],
-            None,
+            Some(instance.symbol),
             &carried,
             &[],
             &function,
             return_type,
             receiver,
             arguments,
-            expected_return,
+            expectation,
         )
     }
 
@@ -713,15 +686,16 @@ impl BodyState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         type_arguments: &[dir::GlobalTypeId],
-        expected_return: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<CheckOutcome>> {
+        expectation: Option<Expectation>,
+    ) -> CompilerResult<Answer<ValueCheck>> {
         let matched = answer!(self.match_newtype(
             origin,
             symbol,
             argument_nodes,
             type_arguments,
-            expected_return,
+            expectation,
             NewtypeOverload::Ordered,
+            ValueUse::Argument,
         )?);
         let (signature, rejection, outcome) = match matched {
             NewtypeMatch::Selected(signature) => (signature, None, CheckOutcome::Holds),
@@ -731,29 +705,39 @@ impl BodyState<'_, '_> {
             NewtypeMatch::Invalid {
                 signature,
                 rejection,
-                variables,
-            } => (
-                signature,
-                Some((rejection, variables)),
-                CheckOutcome::Fails(CheckFailure::Reported),
-            ),
+            } => {
+                self.report_signature_rejection(origin, rejection)?;
+
+                (signature, None, CheckOutcome::Fails(CheckFailure::Relation))
+            }
             NewtypeMatch::Rejected(rejection) => match rejection {
                 NewtypeRejection::Signature(rejection) => {
-                    self.report_signature_rejection(
-                        origin,
-                        origin.module(),
-                        argument_nodes,
-                        rejection,
-                    )?;
+                    self.report_signature_rejection(origin, rejection)?;
                     self.commit_decision(node, Decision::Rejected)?;
-                    self.commit_error_node(node)?;
+                    let source = self.commit_error_node(node)?;
+                    let target = expectation.map_or(source, |expectation| expectation.target);
 
-                    return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
+                    return Ok(Answer::Ready(ValueCheck {
+                        source,
+                        outcome: CheckOutcome::Fails(CheckFailure::Relation),
+                        target,
+                    }));
                 }
                 NewtypeRejection::NoMatch(notes) => {
-                    answer!(self.reject_construct(site, node, origin, argument_nodes, &notes)?);
+                    let source = answer!(self.reject_construct(
+                        site,
+                        node,
+                        origin,
+                        argument_nodes,
+                        &notes,
+                    )?);
+                    let target = expectation.map_or(source, |expectation| expectation.target);
 
-                    return Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Reported)));
+                    return Ok(Answer::Ready(ValueCheck {
+                        source,
+                        outcome: CheckOutcome::Fails(CheckFailure::Relation),
+                        target,
+                    }));
                 }
                 NewtypeRejection::Ambiguous => {
                     return Err(CompilerError::Internal {
@@ -764,11 +748,10 @@ impl BodyState<'_, '_> {
             },
         };
 
-        // report the rejected constraint before poisoning its local inference
+        // report the rejected invocation
         let module = origin.module();
-        if let Some((rejection, variables)) = rejection {
-            self.report_signature_rejection(origin, module, argument_nodes, rejection)?;
-            self.check.poison_scope(variables)?;
+        if let Some(rejection) = rejection {
+            self.report_signature_rejection(origin, rejection)?;
         }
 
         // commit the selected newtype construction
@@ -786,7 +769,13 @@ impl BodyState<'_, '_> {
         self.commit_decision(node, Decision::Construct(resolution))?;
         self.commit_node_type(node, return_type)?;
 
-        Ok(Answer::Ready(outcome))
+        let expected = expectation.map_or(return_type, |expectation| expectation.target);
+
+        Ok(Answer::Ready(ValueCheck {
+            source: return_type,
+            outcome,
+            target: expected,
+        }))
     }
 
     /// Commit one accepted construction selection.
@@ -801,7 +790,7 @@ impl BodyState<'_, '_> {
         signature: SignatureSelection,
         result: ConstructResult,
         forms: &[dir::Form],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let generic_arguments = if signature.generic_arguments.is_empty() {
             let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
 
@@ -838,7 +827,7 @@ impl BodyState<'_, '_> {
 
         self.commit_node_type(node, produced)?;
 
-        Ok(Answer::Ready(()))
+        Ok(Answer::Ready(produced))
     }
 
     /// Return the result carrier for one fallible construction.
@@ -866,13 +855,13 @@ impl BodyState<'_, '_> {
         origin: Origin,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         rejections: &[String],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let arguments = answer!(self.infer_argument_types(site, argument_nodes)?);
         self.report_no_matching_construct(origin, &arguments, rejections)?;
         self.commit_decision(node, Decision::Rejected)?;
-        self.commit_error_node(node)?;
+        let error = self.commit_error_node(node)?;
 
-        Ok(Answer::Ready(()))
+        Ok(Answer::Ready(error))
     }
 
     /// Reject one construction whose target cannot use new.
@@ -882,11 +871,11 @@ impl BodyState<'_, '_> {
         origin: Origin,
         target: dir::GlobalTypeId,
         hint: &str,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         self.report_not_constructible(origin, target, hint)?;
         self.commit_decision(node, Decision::Rejected)?;
-        self.commit_error_node(node)?;
+        let error = self.commit_error_node(node)?;
 
-        Ok(Answer::Ready(()))
+        Ok(Answer::Ready(error))
     }
 }

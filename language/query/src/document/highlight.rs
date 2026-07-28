@@ -185,19 +185,13 @@ impl ModuleQueryContext<'_> {
         let mut spans = FxHashSet::default();
 
         // project every checked write through the authored view
-        for place in self.writable_places() {
-            if place.source.module_id != self.module_id() {
-                return Err(QueryError::invalid(format!(
-                    "highlight write: {:?}",
-                    place.source
-                )));
+        for (target, _write) in self.writable_places() {
+            if target.module_id != self.module_id() {
+                return Err(QueryError::invalid(format!("highlight write: {target:?}")));
             }
             let span = self
-                .node_selection_span(self.view(), place.source.local_id)
-                .ok_or(QueryError::missing(format!(
-                    "highlight span: {:?}",
-                    place.source
-                )))?;
+                .node_selection_span(self.view(), target.local_id)
+                .ok_or(QueryError::missing(format!("highlight span: {target:?}")))?;
             if span.file == file_id {
                 spans.insert(span);
             }

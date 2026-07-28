@@ -7,7 +7,7 @@ import { Rc, RcInner } from "./rc.ds";
 @languageItem("memory.rc.Weak")
 export local struct Weak<T> {
     /// The inner block.
-    inner?: *RcInner<Owned<T>>;
+    inner: *RcInner<Owned<T>> | undefined;
 }
 
 export extension<T> of Weak<T> {

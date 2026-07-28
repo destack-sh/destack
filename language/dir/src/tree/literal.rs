@@ -7,68 +7,8 @@ use destack_core::StringPool;
 
 use crate::{
     Argument, Expression, FloatType, IntegerType, LanguageItem, LocalNodeId, Name, Node, NodeType,
-    PrimitiveType, RangeType, ScalarAlias, StringId, Type,
+    PrimitiveType, RangeType, ScalarAlias, ScalarDomain, StringId, Type,
 };
-
-/// One scalar type family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum ScalarDomain {
-    /// Machine integer scalar values.
-    Integer,
-    /// Machine float scalar values.
-    Float,
-    /// Bigint scalar values.
-    Bigint,
-    /// Character scalar values.
-    Character,
-    /// String scalar values.
-    String,
-    /// Symbol scalar values.
-    Symbol,
-    /// Boolean scalar values.
-    Boolean,
-    /// Null singleton values.
-    Null,
-    /// Undefined singleton values.
-    Undefined,
-}
-
-impl ScalarDomain {
-    /// Return the language item that owns this domain's members.
-    pub fn member_owner_item(self) -> Option<LanguageItem> {
-        match self {
-            Self::Integer | Self::Float => Some(LanguageItem::Number),
-            Self::Bigint => Some(LanguageItem::BigInt),
-            Self::String => Some(LanguageItem::String),
-            Self::Character | Self::Symbol | Self::Boolean | Self::Null | Self::Undefined => None,
-        }
-    }
-
-    /// Return the language item that carries this domain at runtime.
-    pub fn representation_item(self) -> Option<LanguageItem> {
-        match self {
-            Self::Bigint => Some(LanguageItem::BigInt),
-            Self::String => Some(LanguageItem::String),
-            Self::Integer
-            | Self::Float
-            | Self::Character
-            | Self::Symbol
-            | Self::Boolean
-            | Self::Null
-            | Self::Undefined => None,
-        }
-    }
-
-    /// Return whether this domain holds builtin numerics.
-    pub fn is_numeric(self) -> bool {
-        matches!(self, Self::Integer | Self::Float | Self::Bigint)
-    }
-
-    /// Return whether this domain holds only integers.
-    pub fn is_integral(self) -> bool {
-        matches!(self, Self::Integer | Self::Bigint)
-    }
-}
 
 /// A ScalarLiteral is literal scalar value.
 ///
@@ -113,6 +53,24 @@ pub enum ScalarLiteral {
 }
 
 impl ScalarLiteral {
+    /// Return this literal's boolean value.
+    pub fn as_boolean(&self) -> Option<bool> {
+        match self {
+            Self::Boolean(value) => Some(*value),
+            _ => None,
+        }
+    }
+
+    /// Return whether this literal is negative floating-point zero.
+    pub fn is_negative_zero(&self) -> bool {
+        matches!(self, Self::Float(value) if value.to_bits() == (-0.0_f64).to_bits())
+    }
+
+    /// Return whether this literal is a floating-point NaN.
+    pub fn is_nan(&self) -> bool {
+        matches!(self, Self::Float(value) if value.is_nan())
+    }
+
     /// Return this literal's variant name.
     pub fn variant_name(&self) -> &'static str {
         match self {
@@ -400,9 +358,7 @@ impl PartialEq for ScalarLiteral {
             (Self::Boolean(left), Self::Boolean(right)) => left == right,
             (Self::Integer(left), Self::Integer(right)) => left == right,
             (Self::Bigint(left), Self::Bigint(right)) => left == right,
-            (Self::Float(left), Self::Float(right)) => {
-                float_literal_key(*left) == float_literal_key(*right)
-            }
+            (Self::Float(left), Self::Float(right)) => left.to_bits() == right.to_bits(),
             (Self::Character(left), Self::Character(right)) => left == right,
             (Self::String(left), Self::String(right)) => left == right,
             (
@@ -441,7 +397,7 @@ impl Hash for ScalarLiteral {
             }
             Self::Float(value) => {
                 5_u8.hash(state);
-                float_literal_key(*value).hash(state);
+                value.to_bits().hash(state);
             }
             Self::Character(value) => {
                 6_u8.hash(state);
@@ -457,17 +413,6 @@ impl Hash for ScalarLiteral {
                 flags.hash(state);
             }
         }
-    }
-}
-
-/// Return a stable equality and hash key for one float literal.
-fn float_literal_key(value: f64) -> u64 {
-    if value == 0.0 {
-        0.0_f64.to_bits()
-    } else if value.is_nan() {
-        f64::NAN.to_bits()
-    } else {
-        value.to_bits()
     }
 }
 
@@ -565,12 +510,27 @@ impl From<PrimitiveType> for TypeLiteral {
 }
 
 impl TypeLiteral {
+    /// Return this literal type's scalar domain.
+    pub fn scalar_domain(&self) -> Option<ScalarDomain> {
+        let domain = match self {
+            Self::Undefined => ScalarDomain::Undefined,
+            Self::Null => ScalarDomain::Null,
+            Self::Boolean => ScalarDomain::Boolean,
+            Self::Character => ScalarDomain::Character,
+            Self::String => ScalarDomain::String,
+            Self::Bigint => ScalarDomain::Bigint,
+            Self::Number | Self::Float(_) => ScalarDomain::Float,
+            Self::Alias(alias) => alias.primitive().scalar_domain(),
+            Self::Integer(_) => ScalarDomain::Integer,
+            Self::Symbol | Self::UniqueSymbol => ScalarDomain::Symbol,
+            Self::Never | Self::Any | Self::Unknown | Self::Object | Self::Void => return None,
+        };
+
+        Some(domain)
+    }
+
     /// Return the language item owning this type's runtime representation.
     pub fn representation_item(&self) -> Option<LanguageItem> {
-        match self {
-            Self::String => Some(LanguageItem::String),
-            Self::Bigint => Some(LanguageItem::BigInt),
-            _ => None,
-        }
+        self.scalar_domain()?.representation_item()
     }
 }

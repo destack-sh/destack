@@ -1,4 +1,4 @@
-import { Access, WithAccess } from "destack:memory";
+import { Access, Borrowed, Lifetime } from "destack:memory";
 
 /// Interface for index access `a[i]`.
 ///
@@ -10,8 +10,14 @@ export newtype interface Index<I, comptime A: Access = "readonly"> {
     /// The indexed output type.
     type Output;
 
-    /// Return the value at `key`.
-    index(this: WithAccess<&this, A>, key: I): this.Output;
+    /// The result when no indexed value exists.
+    type Missing = never;
+
+    /// Borrow the value at `key`.
+    index<comptime L: Lifetime>(
+        this: Borrowed<this, L, A>,
+        key: I,
+    ): Borrowed<this.Output, L, A> | this.Missing;
 }
 
 /// Interface for index assignment `a[i] = v`.

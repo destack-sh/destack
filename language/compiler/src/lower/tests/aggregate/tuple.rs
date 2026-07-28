@@ -13,7 +13,7 @@ function swap(pair: (int32, float64)): (float64, int32) {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.swap(v0: (int32, float64)): (float64, int32) {
+function test.main.swap(v0: (int32, float64)): (float64, int32) {
 entry(v0: (int32, float64)):
     v1: float64 = field.get v0, 1
     v2: int32 = field.get v0, 0
@@ -54,7 +54,7 @@ type Point {
     y: int32;
 }
 
-function main.corners(v0: Point, v1: Point): (Point, Point) {
+function test.main.corners(v0: Point, v1: Point): (Point, Point) {
 entry(v0: Point, v1: Point):
     v2: (Point, Point) = aggregate (v0, v1)
     return v2

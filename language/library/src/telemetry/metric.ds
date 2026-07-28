@@ -16,10 +16,10 @@ export class Counter {
     readonly name: string;
 
     /// Counter unit.
-    readonly unit?: string;
+    readonly unit: string | undefined;
 
     /// Optional sink for this counter.
-    private sink?: readonly MetricSink;
+    private sink: readonly MetricSink | undefined;
 
     /// Create a counter.
     constructor(name: string, unit?: string, sink?: readonly MetricSink) {
@@ -48,10 +48,10 @@ export class UpDownCounter {
     readonly name: string;
 
     /// Counter unit.
-    readonly unit?: string;
+    readonly unit: string | undefined;
 
     /// Optional sink for this counter.
-    private sink?: readonly MetricSink;
+    private sink: readonly MetricSink | undefined;
 
     /// Create an up-down counter.
     constructor(name: string, unit?: string, sink?: readonly MetricSink) {
@@ -80,10 +80,10 @@ export class Gauge {
     readonly name: string;
 
     /// Gauge unit.
-    readonly unit?: string;
+    readonly unit: string | undefined;
 
     /// Optional sink for this gauge.
-    private sink?: readonly MetricSink;
+    private sink: readonly MetricSink | undefined;
 
     /// Create a gauge.
     constructor(name: string, unit?: string, sink?: readonly MetricSink) {
@@ -112,10 +112,10 @@ export class Histogram {
     readonly name: string;
 
     /// Histogram unit.
-    readonly unit?: string;
+    readonly unit: string | undefined;
 
     /// Optional sink for this histogram.
-    private sink?: readonly MetricSink;
+    private sink: readonly MetricSink | undefined;
 
     /// Create a histogram.
     constructor(name: string, unit?: string, sink?: readonly MetricSink) {
@@ -141,7 +141,7 @@ export class Histogram {
 /// Metric meter.
 export class Meter {
     /// Optional sink for these metric instruments.
-    private sink?: readonly MetricSink;
+    private sink: readonly MetricSink | undefined;
 
     /// Create a meter.
     constructor(sink?: readonly MetricSink) {

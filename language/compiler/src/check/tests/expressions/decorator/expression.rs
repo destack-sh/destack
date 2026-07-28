@@ -124,7 +124,7 @@ newtype mark = (Payload,);
 /// @type.node source=Payload type=Payload
 /// @resolution.name source=Payload target=Payload
 /// @resolution.construct source="Payload({ reason: \"intentional\" })" parameters=({ reason: string }) arguments=(provided({ reason: "intentional" }) as { reason: string }) return=Payload kind=newtype target=Payload backing={ reason: string }
-/// @type.node source={ reason: "intentional" } type={ reason: "intentional" }
+/// @type.node source={ reason: "intentional" } type={ reason: string }
 /// @type.node source="\"intentional\"" type="intentional"
 
 const value = 1;

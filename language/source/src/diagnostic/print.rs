@@ -306,15 +306,15 @@ fn write_suggestion<F>(
 where
     F: Fn(FileId) -> Option<Arc<File>>,
 {
-    let applicability = match suggestion.applicability {
-        Applicability::Automatic => "machine-applicable",
-        Applicability::Unsafe => "unsafe",
-        Applicability::Dangerous => "requires review",
+    let (label, qualifier) = match suggestion.applicability {
+        Applicability::Automatic => ("fix:", ""),
+        Applicability::Unsafe => ("suggestion:", " (may change behavior)"),
+        Applicability::Dangerous => ("suggestion:", " (requires review)"),
     };
     let message = format!(
-        " {} {} {} ({applicability})",
+        " {} {} {}{qualifier}",
         color_text(options, Color::BrightMagenta, "="),
-        color_bold(options, Color::BrightGreen, "help:"),
+        color_bold(options, Color::BrightGreen, label),
         color_text(options, Color::BrightGreen, &suggestion.message)
     );
     write_line(options, &message);
@@ -447,7 +447,7 @@ mod tests {
             "  │ ^^^ use const\n",
             "  │\n",
             "\n",
-            " = help: use `const` (machine-applicable)\n",
+            " = fix: use `const`\n",
             "--- a/<test>\n",
             "+++ b/<test>\n",
             "\n",

@@ -2,40 +2,70 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Dependency, ObligationCheck, ObligationFailure, Origin, TypeSubstitution,
-    answer,
+    Answer, CheckState, InterfaceMember, MemberCandidate, MemberLookup, MemberRole,
+    ObligationCheck,
+    ObligationFailure, Origin, Relation, TypeSubstitution, answer,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Check one extension's implemented interfaces.
-    pub(in crate::check) fn check_extension_conformance(
+    /// Check and record one declaration's interface conformance.
+    pub(in crate::check) fn check_interface_conformance(
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        let source = self.origin_source(origin)?;
-        let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+        let Some(definition) = self.definition(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: format!("implementation obligation has no definition: {symbol:?}"),
+            });
         };
-        let members = extension.members.clone();
-        let target = extension.target.r#type();
-        let implements = extension
-            .implements
-            .iter()
-            .cloned()
-            .collect::<SmallVec<[_; 2]>>();
-        if implements.is_empty() {
+        let members = definition.members().to_vec();
+        let implementations = definition.implementations().to_vec();
+        if implementations.is_empty() {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         }
+        let target = match definition {
+            dir::Definition::Extension(extension) => extension.target.r#type(),
+            dir::Definition::Struct(_) | dir::Definition::Class(_) | dir::Definition::Enum(_) => {
+                let instance = self.declaration_instance(origin.module(), symbol)?;
 
-        // require each declared implementation to satisfy its interface
-        let failures =
-            answer!(self.check_extension_members(origin, source, target, &members, &implements)?);
-        let check = ObligationCheck::from_failures(failures);
+                self.intern_type(origin.module(), dir::Type::Application(instance))?
+            }
+            dir::Definition::TypeAlias(_)
+            | dir::Definition::Interface(_)
+            | dir::Definition::Newtype(_) => {
+                return Err(CompilerError::Internal {
+                    message: format!("definition {symbol:?} cannot implement interfaces"),
+                });
+            }
+        };
+        let mut selected = Vec::new();
+        let mut failures = Vec::new();
 
-        Ok(Answer::Ready(check))
+        // select every declared implementation before mutating DIR
+        for declared in implementations {
+            let heritage = declared.interface;
+            let (interface_module, interface) = self.require_nominal_application(heritage.ty)?;
+            let implementation = answer!(self.select_interface_implementation(
+                origin,
+                symbol,
+                heritage.source,
+                heritage.ty,
+                target,
+                &members,
+                interface_module,
+                &interface,
+            )?);
+            match implementation {
+                Ok(implementation) => selected.push(implementation),
+                Err(failure) => failures.push(failure),
+            }
+        }
+        self.commit_interface_implementations(symbol, selected)?;
+
+        Ok(Answer::Ready(ObligationCheck::from_failures(failures)))
     }
 
     /// Check one extension's implementation coherence.
@@ -46,7 +76,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
         let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+            return Err(CompilerError::Internal {
+                message: format!("extension obligation has no extension definition: {symbol:?}"),
+            });
         };
         let target = extension.target;
         let form = extension.form;
@@ -77,7 +109,10 @@ impl CheckState<'_> {
             // reject extension implementation pairs outside both packages
             dir::ExtensionTarget::Rooted { root, ty } => {
                 let foreign_target = root.module_id.package_id != package;
-                for interface in implements.iter().map(|heritage| heritage.symbol) {
+                for implementation in &implements {
+                    let (_, interface) =
+                        self.require_nominal_application(implementation.interface.ty)?;
+                    let interface = interface.symbol;
                     if foreign_target && interface.module_id.package_id != package {
                         failures.push(ObligationFailure::NonLocalImplementation {
                             source,
@@ -100,7 +135,10 @@ impl CheckState<'_> {
             }
             _ => {
                 // require open implementations beside their interface
-                for interface in implements.iter().map(|heritage| heritage.symbol) {
+                for implementation in &implements {
+                    let (_, interface) =
+                        self.require_nominal_application(implementation.interface.ty)?;
+                    let interface = interface.symbol;
                     if interface.module_id.package_id != package {
                         failures.push(ObligationFailure::ForeignBlanketImplementation {
                             source,
@@ -133,10 +171,7 @@ impl CheckState<'_> {
             return false;
         }
 
-        // allow anonymous extensions anywhere inside the target's package
-        let target_is_local = target
-            .root()
-            .is_some_and(|root| root.module_id.package_id == module.package_id);
+        let target_is_local = target.root().is_some_and(|root| root.module_id == module);
         if target_is_local {
             return false;
         }
@@ -147,155 +182,323 @@ impl CheckState<'_> {
             .is_none()
     }
 
-    /// Check one extension's declared members against its implemented interfaces.
-    fn check_extension_members(
+    /// Select one declaration's implementation of an applied interface.
+    pub(in crate::check) fn select_interface_implementation(
         &mut self,
         origin: Origin,
+        implementer: dir::GlobalSymbolId,
         source: dir::GlobalNodeIdAny,
-        target: dir::GlobalTypeId,
+        declared_interface: dir::GlobalTypeId,
+        implementer_type: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
-        implements: &[dir::NominalHeritage],
-    ) -> CompilerResult<Answer<Vec<ObligationFailure>>> {
-        let mut failures = Vec::new();
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
-
-        // check each implemented interface independently
-        for heritage in implements {
-            let arguments = self.intern_type_ids(source.module_id, &heritage.arguments)?;
-            let interface = dir::GenericApplication {
-                symbol: heritage.symbol,
-                arguments,
-            };
-            let reported = self.intern_type(source.module_id, dir::Type::Application(interface))?;
-            let result = self.check_extension_interface(
-                origin,
-                source,
-                heritage.source,
-                reported,
-                target,
-                members,
-                &interface,
-            )?;
-
-            match result {
-                Answer::Ready(ObligationCheck::Fails(result)) => failures.extend(result),
-                Answer::Ready(ObligationCheck::Holds) => {}
-                Answer::Pending(pending) => blockers.extend(pending),
-            }
-        }
-
-        Ok(Answer::ready_unless_blocked(failures, blockers))
-    }
-
-    /// Check one extension's declared members against one implemented interface.
-    fn check_extension_interface(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalNodeIdAny,
-        anchor_source: dir::GlobalNodeIdAny,
-        reported: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-        members: &[dir::DefinitionMember],
+        interface_module: ModuleId,
         interface: &dir::GenericApplication,
-    ) -> CompilerResult<Answer<ObligationCheck>> {
-        let Some(definition) = self.definition(interface.symbol)? else {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
+    ) -> CompilerResult<Answer<Result<dir::InterfaceImplementation, ObligationFailure>>> {
+        let Some(definition @ dir::Definition::Interface(_)) = self.definition(interface.symbol)?
+        else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "implementation target has no interface definition: {:?}",
+                    interface.symbol,
+                ),
+            });
         };
-        if !matches!(definition, dir::Definition::Interface(_)) {
-            return Ok(Answer::Ready(ObligationCheck::holds()));
-        }
+        let interface_members = definition.members().to_vec();
+
+        // instantiate the implementation's associated types
+        let Some((implementation, receiver)) = answer!(self.instantiate_implemented_interface(
+            origin,
+            declared_interface,
+            implementer_type,
+            members,
+            interface_module,
+            interface,
+            &interface_members,
+        )?) else {
+            let failure = ObligationFailure::InterfaceNotImplemented {
+                source,
+                ty: implementer_type,
+                interface: declared_interface,
+            };
+
+            return Ok(Answer::Ready(Err(failure)));
+        };
 
         let interface_substitution =
-            self.instance_substitution_with_defaults(source.module_id, interface, Some(target))?;
+            self.qualified_instance_substitution(interface_module, interface, receiver)?;
         let requirements = answer!(self.interface_requirements_with_substitution(
             origin,
             interface.symbol,
             &interface_substitution,
         )?);
+        let mut selected = Vec::new();
 
-        // compare each required member with the extension's declared
-        //  members, where any matching overload satisfies the contract
-        let extension_substitution = TypeSubstitution::default().with_receiver(target);
+        // select exact declarations for every named requirement
         for interface_member in requirements.members {
-            let mut candidates = SmallVec::<[_; 2]>::new();
-            for member in members {
-                let member = match self.body().declared_member(member)? {
-                    Answer::Ready(Some(member)) => member,
-                    Answer::Ready(None) => continue,
-                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                };
-                if member.matches(interface_member.space, interface_member.key) {
-                    candidates.push(member);
-                }
-            }
+            let candidates = answer!(self.implementation_member_candidates(
+                origin,
+                implementer,
+                implementer_type,
+                members,
+                &interface_member,
+            )?);
             if candidates.is_empty() {
                 // defaulted members satisfy their own contract
                 if interface_member.has_default {
+                    selected.push(dir::InterfaceMemberImplementation {
+                        requirement: interface_member.source,
+                        declarations: vec![interface_member.source],
+                    });
+                    continue;
+                }
+                if interface_member.is_optional {
                     continue;
                 }
 
                 let failure = ObligationFailure::InterfaceNotImplemented {
-                    source: anchor_source,
-                    ty: target,
-                    interface: reported,
+                    source,
+                    ty: implementer_type,
+                    interface: declared_interface,
                 };
 
-                return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+                return Ok(Answer::Ready(Err(failure)));
             }
 
-            // require presence when an associated type stays abstract
-            let Some(required_type) = interface_member.ty else {
-                continue;
+            let declarations = answer!(self.interface_member_implementations(
+                origin,
+                &candidates,
+                &interface_member,
+            )?);
+            let Some(declarations) = declarations else {
+                let failure = ObligationFailure::InterfaceNotImplemented {
+                    source,
+                    ty: implementer_type,
+                    interface: declared_interface,
+                };
+
+                return Ok(Answer::Ready(Err(failure)));
             };
-
-            let mut satisfied = false;
-            for found in candidates {
-                let Some(found_type) = found.ty else {
-                    continue;
-                };
-                // the found member binds this to the implementing target
-                let found_type =
-                    self.substitute_type(source.module_id, found_type, &extension_substitution)?;
-
-                let relation = interface_member.role.conformance_relation();
-                let assignment =
-                    self.decide_relation(origin, relation, found_type, required_type)?;
-                if answer!(assignment) {
-                    satisfied = true;
-                    break;
-                }
-            }
-
-            if !satisfied {
-                let failure = ObligationFailure::InterfaceNotImplemented {
-                    source: anchor_source,
-                    ty: target,
-                    interface: reported,
-                };
-
-                return Ok(Answer::Ready(ObligationCheck::fail(failure)));
-            }
+            selected.push(dir::InterfaceMemberImplementation {
+                requirement: interface_member.source,
+                declarations,
+            });
         }
 
         // check inherited interfaces against the same extension members
         for application in requirements.inherited {
-            let check = self.check_extension_interface(
+            let (application_module, application_instance) =
+                self.require_nominal_application(application.ty)?;
+            let inherited = answer!(self.select_interface_implementation(
                 origin,
+                implementer,
                 source,
-                anchor_source,
-                reported,
-                target,
+                declared_interface,
+                implementer_type,
                 members,
-                &application.instance,
-            )?;
-            match check {
-                Answer::Ready(ObligationCheck::Holds) => {}
-                Answer::Ready(failure) => return Ok(Answer::Ready(failure)),
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                application_module,
+                &application_instance,
+            )?);
+            match inherited {
+                Ok(inherited) => selected.extend(inherited.members),
+                Err(failure) => return Ok(Answer::Ready(Err(failure))),
             }
         }
 
-        Ok(Answer::Ready(ObligationCheck::holds()))
+        Ok(Answer::Ready(Ok(dir::InterfaceImplementation {
+            interface: dir::NominalHeritage {
+                source,
+                ty: implementation,
+            },
+            members: selected,
+        })))
+    }
+
+    /// Return declarations visible to one explicit interface implementation.
+    fn implementation_member_candidates(
+        &mut self,
+        origin: Origin,
+        implementer: dir::GlobalSymbolId,
+        target: dir::GlobalTypeId,
+        members: &[dir::DefinitionMember],
+        requirement: &InterfaceMember,
+    ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
+        match self.symbol_kind(implementer) {
+            dir::SymbolKind::Extension => {
+                let mut declared = SmallVec::<[_; 2]>::new();
+                for member in members {
+                    let member = match self.body().declared_member(member)? {
+                        Answer::Ready(Some(member)) => member,
+                        Answer::Ready(None) => continue,
+                        Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                    };
+                    if member.matches(requirement.space, requirement.key) {
+                        declared.push(member);
+                    }
+                }
+                let substitution = TypeSubstitution::default().with_receiver(target);
+                let candidates = answer!(self.body().extension_member_candidates(
+                    origin,
+                    implementer,
+                    &substitution,
+                    &declared,
+                )?);
+
+                Ok(Answer::Ready(candidates))
+            }
+            dir::SymbolKind::Struct | dir::SymbolKind::Class | dir::SymbolKind::Enum => {
+                let lookup = answer!(self.body().lookup_inherent_member(
+                    origin,
+                    origin.module(),
+                    target,
+                    requirement.space,
+                    requirement.key,
+                )?);
+                let candidates =
+                    match lookup {
+                        MemberLookup::Missing => Vec::new(),
+                        MemberLookup::Found(candidates) => candidates,
+                        lookup @ MemberLookup::Intersection(_) => lookup
+                            .into_candidates()
+                            .ok_or_else(|| CompilerError::Internal {
+                                message: "nominal implementation has a structural member".into(),
+                            })?,
+                        MemberLookup::Field(_) | MemberLookup::Union(_) => {
+                            return Err(CompilerError::Internal {
+                                message: "nominal implementation has a structural member".into(),
+                            });
+                        }
+                    };
+
+                Ok(Answer::Ready(candidates))
+            }
+            kind => Err(CompilerError::Internal {
+                message: format!("{kind:?} symbol {implementer:?} cannot implement interfaces"),
+            }),
+        }
+    }
+
+    /// Instantiate one extension interface with its concrete associated types.
+    fn instantiate_implemented_interface(
+        &mut self,
+        origin: Origin,
+        implementation: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        members: &[dir::DefinitionMember],
+        interface_module: ModuleId,
+        interface: &dir::GenericApplication,
+        interface_members: &[dir::DefinitionMember],
+    ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, dir::GlobalTypeId)>>> {
+        let (interface_base, mut bindings) = self.refinement_bindings(implementation)?;
+        let interface_substitution = self.instance_substitution(interface_module, interface)?;
+        let receiver_substitution = TypeSubstitution::default().with_receiver(target);
+
+        // select declarations and defaults for every associated type
+        for member in interface_members {
+            let dir::DefinitionMember::AssociatedType(associated) = member else {
+                continue;
+            };
+            let written = bindings
+                .iter()
+                .find(|(key, _)| *key == associated.key)
+                .map(|(_, value)| *value);
+            let declared = members.iter().find_map(|member| match member {
+                dir::DefinitionMember::AssociatedType(candidate)
+                    if candidate.key == associated.key =>
+                {
+                    candidate.value
+                }
+                _ => None,
+            });
+            let declared = declared
+                .map(|value| self.substitute_type(origin.module(), value, &receiver_substitution))
+                .transpose()?;
+
+            // two authored bindings must denote the same type
+            if let (Some(written), Some(declared)) = (written, declared)
+                && !answer!(self.decide_equal(origin, written, declared)?)
+            {
+                return Ok(Answer::Ready(None));
+            }
+
+            // explicit bindings override an interface default
+            let value = match written.or(declared).or(associated.value) {
+                Some(value) => value,
+                None => continue,
+            };
+            let value = if written.is_none() && declared.is_none() {
+                self.substitute_type(origin.module(), value, &interface_substitution)?
+            } else {
+                value
+            };
+            if let Some((_, current)) = bindings.iter_mut().find(|(key, _)| *key == associated.key)
+            {
+                *current = value;
+            } else {
+                bindings.push((associated.key, value));
+            }
+        }
+
+        // resolve receiver-relative binding values through the complete receiver
+        let receiver = self.intern_refinements(origin.module(), target, &bindings)?;
+        let receiver_substitution = TypeSubstitution::default().with_receiver(receiver);
+        for (_, value) in &mut bindings {
+            *value = self.substitute_type(origin.module(), *value, &receiver_substitution)?;
+        }
+        let receiver = self.intern_refinements(origin.module(), target, &bindings)?;
+        let implementation = self.intern_refinements(origin.module(), interface_base, &bindings)?;
+
+        // require every concrete binding to satisfy its declared bound
+        let interface_substitution =
+            self.qualified_instance_substitution(interface_module, interface, receiver)?;
+        for member in interface_members {
+            let dir::DefinitionMember::AssociatedType(associated) = member else {
+                continue;
+            };
+            let Some(constraint) = associated.constraint else {
+                continue;
+            };
+            let Some((_, value)) = bindings.iter().find(|(key, _)| *key == associated.key) else {
+                continue;
+            };
+            let constraint =
+                self.substitute_type(origin.module(), constraint, &interface_substitution)?;
+            if !answer!(self.decide_relation(origin, Relation::Satisfies, *value, constraint,)?) {
+                return Ok(Answer::Ready(None));
+            }
+        }
+
+        Ok(Answer::Ready(Some((implementation, receiver))))
+    }
+
+    /// Commit one declaration's selected interface implementations.
+    fn commit_interface_implementations(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        selected: Vec<dir::InterfaceImplementation>,
+    ) -> CompilerResult<()> {
+        let state = self.module_mut(symbol.module_id);
+        let Some(definition) = state.definitions.definition_mut(symbol) else {
+            return Err(CompilerError::Internal {
+                message: format!("implementer {symbol:?} lost its definition"),
+            });
+        };
+
+        // replace each successful selection by its authored source
+        for selected in selected {
+            let source = selected.interface.source;
+            let Some(implementation) = definition
+                .implementations_mut()
+                .iter_mut()
+                .find(|implementation| implementation.interface.source == source)
+            else {
+                return Err(CompilerError::Internal {
+                    message: format!("implementer {symbol:?} lost implementation {source:?}"),
+                });
+            };
+            *implementation = selected;
+        }
+
+        Ok(())
     }
 
     /// Check visible implementations conflicting with one new extension.
@@ -307,7 +510,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         root: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
-        implements: &[dir::NominalHeritage],
+        implementations: &[dir::InterfaceImplementation],
     ) -> CompilerResult<Answer<Vec<ObligationFailure>>> {
         let mut failures = Vec::new();
 
@@ -330,6 +533,7 @@ impl CheckState<'_> {
             let Some(dir::Definition::Extension(extension)) = self.definition(other)? else {
                 continue;
             };
+            let extension = extension.clone();
             let dir::ExtensionTarget::Rooted {
                 root: other_root,
                 ty: other_ty,
@@ -340,12 +544,21 @@ impl CheckState<'_> {
             if other_root != root {
                 continue;
             }
-            for other_heritage in &extension.implements {
-                let shared = implements
-                    .iter()
-                    .find(|heritage| heritage.symbol == other_heritage.symbol);
-                if let Some(heritage) = shared {
-                    candidates.push((other, other_ty, heritage.clone(), other_heritage.clone()));
+            for other_implementation in &extension.implements {
+                let (_, other_interface) =
+                    self.require_nominal_application(other_implementation.interface.ty)?;
+                for implementation in implementations {
+                    let (_, interface) =
+                        self.require_nominal_application(implementation.interface.ty)?;
+                    if interface.symbol == other_interface.symbol {
+                        candidates.push((
+                            other,
+                            other_ty,
+                            implementation.interface.clone(),
+                            other_implementation.interface.clone(),
+                        ));
+                        break;
+                    }
                 }
             }
         }
@@ -356,13 +569,22 @@ impl CheckState<'_> {
             if !answer!(self.types_may_overlap(origin, ty, other_ty)?) {
                 continue;
             }
-            if heritage.arguments.len() == other_heritage.arguments.len() {
+            let (heritage_module, heritage_interface) =
+                self.require_nominal_application(heritage.ty)?;
+            let (other_module, other_interface) =
+                self.require_nominal_application(other_heritage.ty)?;
+            let heritage_arguments = self
+                .type_ids(heritage_module, heritage_interface.arguments)?
+                .to_vec();
+            let other_arguments = self
+                .type_ids(other_module, other_interface.arguments)?
+                .to_vec();
+            if heritage_arguments.len() == other_arguments.len() {
                 let mut distinct = false;
-                for (left, right) in heritage
-                    .arguments
+                for (left, right) in heritage_arguments
                     .iter()
                     .copied()
-                    .zip(other_heritage.arguments.iter().copied())
+                    .zip(other_arguments.iter().copied())
                 {
                     if !answer!(self.types_may_overlap(origin, left, right)?) {
                         distinct = true;
@@ -377,7 +599,7 @@ impl CheckState<'_> {
             failures.push(ObligationFailure::ConflictingImplementation {
                 source,
                 conflict: other,
-                interface: heritage.symbol,
+                interface: heritage_interface.symbol,
                 ty,
             });
         }
@@ -401,4 +623,48 @@ impl CheckState<'_> {
 
         source.local_id.id > other_source.local_id.id
     }
+    /// Select the candidate declarations implementing one interface member.
+    fn interface_member_implementations(
+        &mut self,
+        origin: Origin,
+        candidates: &[MemberCandidate],
+        requirement: &InterfaceMember,
+    ) -> CompilerResult<Answer<Option<Vec<dir::GlobalNodeIdAny>>>> {
+        // abstract associated members satisfy by presence
+        let Some(member_type) = requirement.ty else {
+            let mut declarations = Vec::new();
+            for candidate in candidates {
+                declarations.push(self.symbol_source(candidate.symbol)?);
+            }
+
+            return Ok(Answer::Ready(
+                (!declarations.is_empty()).then_some(declarations),
+            ));
+        };
+
+        let mut declarations = Vec::new();
+        for candidate in candidates {
+            let found = candidate.callable.unwrap_or(candidate.access_type);
+            let conforms = match requirement.role {
+                // setters accept writes flowing back into the implementation
+                MemberRole::Setter => {
+                    self.decide_relation(origin, Relation::Assignable, member_type, found)?
+                }
+                role if role.is_callable() => {
+                    self.decide_method_relation(origin, Relation::Assignable, found, member_type)?
+                }
+                _ => self.decide_relation(origin, Relation::Assignable, found, member_type)?,
+            };
+            match conforms {
+                Answer::Ready(true) => declarations.push(self.symbol_source(candidate.symbol)?),
+                Answer::Ready(false) => {}
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            }
+        }
+
+        Ok(Answer::Ready(
+            (!declarations.is_empty()).then_some(declarations),
+        ))
+    }
+
 }

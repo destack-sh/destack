@@ -24,10 +24,10 @@ export struct MetricEntry {
     value: number;
 
     /// Unit name when available.
-    unit?: &readonly string;
+    unit?: &readonly string | undefined;
 
     /// Structured fields attached to this entry.
-    fields?: Fields;
+    fields?: Fields | undefined;
 }
 
 /// Distributed trace identifier.
@@ -69,19 +69,19 @@ export struct SpanContext {
     spanId: SpanId;
 
     /// Parent span identifier when present.
-    parentSpanId?: SpanId;
+    parentSpanId?: SpanId | undefined;
 }
 
 /// Span start options.
 export struct SpanOptions {
     /// Span kind.
-    kind?: SpanKind;
+    kind?: SpanKind | undefined;
 
     /// Parent span context.
-    parent?: SpanContext;
+    parent?: SpanContext | undefined;
 
     /// Structured fields attached to the start entry.
-    fields?: Fields;
+    fields?: Fields | undefined;
 }
 
 /// Trace event kind.
@@ -110,25 +110,25 @@ export struct TraceEntry {
     spanId: SpanId;
 
     /// Parent span identifier when present.
-    parentSpanId?: SpanId;
+    parentSpanId?: SpanId | undefined;
 
     /// Span kind on start entries.
-    spanKind?: SpanKind;
+    spanKind?: SpanKind | undefined;
 
     /// Span name.
     name: &readonly string;
 
     /// Event name when available.
-    event?: &readonly string;
+    event?: &readonly string | undefined;
 
     /// Span status when available.
-    status?: SpanStatus;
+    status?: SpanStatus | undefined;
 
     /// Structured fields attached to this entry.
-    fields?: Fields;
+    fields?: Fields | undefined;
 
     /// Error value when available.
-    error?: unknown;
+    error?: unknown | undefined;
 }
 
 /// Log severity.
@@ -156,17 +156,17 @@ export struct LogEntry {
     name: &readonly string;
 
     /// Logger name when available.
-    logger?: &readonly string;
+    logger?: &readonly string | undefined;
 
     /// Human-readable event message.
-    message?: &readonly string;
+    message?: &readonly string | undefined;
 
     /// Structured fields attached to this event.
-    fields?: Fields;
+    fields?: Fields | undefined;
 
     /// Error value when available.
-    error?: unknown;
+    error?: unknown | undefined;
 
     /// Active span when available.
-    span?: SpanContext;
+    span?: SpanContext | undefined;
 }

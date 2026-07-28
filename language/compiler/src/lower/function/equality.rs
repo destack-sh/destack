@@ -38,9 +38,10 @@ impl FunctionLowerer<'_, '_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
+        operands: &[dir::BuiltinOperand; 2],
     ) -> CompilerResult<mir::Value> {
-        let left = self.lower_operand(left)?;
-        let right = self.lower_operand(right)?;
+        let left = self.lower_operand(left, &operands[0])?;
+        let right = self.lower_operand(right, &operands[1])?;
 
         self.lower_binary_operands(left, operator, right)
     }
@@ -51,9 +52,10 @@ impl FunctionLowerer<'_, '_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
+        operands: &[dir::BuiltinOperand; 2],
     ) -> CompilerResult<mir::Value> {
-        let left = self.lower_operand(left)?;
-        let right = self.lower_operand(right)?;
+        let left = self.lower_operand(left, &operands[0])?;
+        let right = self.lower_operand(right, &operands[1])?;
         let equal = self.lower_carrier_equality(left, right)?;
 
         match operator {
@@ -70,48 +72,60 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.coerced_type_id(expression)?;
+        let ty = self.node_type_id(expression)?;
         let Some(layer) = self.lowerer.peel_reference(ty)? else {
             return Ok(ty);
         };
-        if self.lowerer.type_is_reference(layer.stored)? {
+        if self.lowerer.peel_reference(layer.stored)?.is_some() {
             return Ok(ty);
         }
 
         Ok(layer.stored)
     }
 
-    /// Lower one operand, reading borrowed values out of their views.
+    /// Lower one checked builtin operand.
     pub(in crate::lower) fn lower_operand(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
+        operand: &dir::BuiltinOperand,
     ) -> CompilerResult<LoweredOperand> {
-        let carrier = self.operand_carrier(expression)?;
-        let coerced = self.coerced_type_id(expression)?;
+        let source = expression.into_global_any(self.source);
+        if source != operand.source {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "checked builtin operand {:?} is attached to expression {:?}",
+                    operand.source, source
+                ),
+            });
+        }
+
+        let mut carrier = operand.ty;
 
         // leave standalone nullish values unmaterialized until they meet a reference
-        if carrier == coerced {
-            match self.node_type(expression)? {
-                dir::Type::Null => return Ok(LoweredOperand::Null),
-                dir::Type::Undefined => return Ok(LoweredOperand::Undefined),
-                _ => {}
-            }
+        match self.node_type(expression)? {
+            dir::Type::Null => return Ok(LoweredOperand::Null),
+            dir::Type::Undefined => return Ok(LoweredOperand::Undefined),
+            _ => {}
         }
         let mut value = self.lower_expression(expression)?;
 
         // read non-reference values through their borrowed views
-        if carrier != coerced {
+        if let Some(layer) = self.lowerer.peel_reference(carrier)?
+            && !self.lowerer.has_reference_representation(layer.stored)?
+        {
+            carrier = layer.stored;
             let pointee = self.lower_type(carrier)?;
             value = self.builder.load(value, pointee);
         }
 
-        self.classify_equality_operand(carrier, value)
+        self.classify_equality_operand(carrier, operand.scalar_families.as_ref(), value)
     }
 
     /// Classify one evaluated value by its runtime equality carrier.
     fn classify_equality_operand(
         &mut self,
         mut carrier: dir::GlobalTypeId,
+        scalar_families: Option<&dir::ScalarFamilySet>,
         mut value: mir::Value,
     ) -> CompilerResult<LoweredOperand> {
         carrier = self.lowerer.reduced_type(carrier)?;
@@ -137,30 +151,63 @@ impl FunctionLowerer<'_, '_, '_> {
             carrier = self.lowerer.reduced_type(definition.backing)?;
         }
 
-        // value enums compare through their integer discriminants
-        let ty = self.lowerer.ty(carrier)?;
-        if self.is_enum_operand(&ty)? {
-            let value = self.builder.variant_tag(value);
-
-            return Ok(LoweredOperand::Scalar {
-                value,
-                domain: dir::ScalarDomain::Integer,
-            });
-        }
-
-        // scalar semantics take precedence over class-backed representations
-        if let Some(domain) = self.scalar_domain(carrier)? {
-            return Ok(LoweredOperand::Scalar { value, domain });
-        }
-
         let Some(ty) = self.builder.value_type(value) else {
             return Err(CompilerError::Internal {
                 message: "lowered equality operand has no MIR type".to_string(),
             });
         };
-        match self.builder.tree().get(ty) {
+        let ty = self.builder.tree().get(ty);
+
+        // preserve aggregate carriers even when every case shares scalar behavior
+        if matches!(ty, mir::Type::Variant { .. }) {
+            let family = scalar_families
+                .filter(|families| families.len() == 1)
+                .and_then(|families| families.iter().next());
+            if matches!(family, Some(dir::ScalarFamily::Enum(_))) {
+                let value = self.builder.variant_tag(value);
+
+                return Ok(LoweredOperand::Scalar {
+                    value,
+                    domain: dir::ScalarDomain::Integer,
+                });
+            }
+
+            return Ok(LoweredOperand::Variant { value, carrier });
+        }
+
+        // apply leaf scalar behavior selected by check
+        if let Some(families) = scalar_families
+            && families.len() == 1
+        {
+            let family =
+                families
+                    .iter()
+                    .next()
+                    .copied()
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: "checked scalar family set is empty".to_string(),
+                    })?;
+            match family {
+                dir::ScalarFamily::Domain(domain) => {
+                    return Ok(LoweredOperand::Scalar { value, domain });
+                }
+                dir::ScalarFamily::Enum(_) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "checked enum equality carrier {carrier:?} lowered to {ty:?}"
+                        ),
+                    });
+                }
+            }
+        }
+
+        // nested variant payloads compare directly through their MIR scalar carrier
+        if let Some(domain) = Self::mir_scalar_domain(ty) {
+            return Ok(LoweredOperand::Scalar { value, domain });
+        }
+
+        match ty {
             mir::Type::Reference { .. } => Ok(LoweredOperand::Reference(value)),
-            mir::Type::Variant { .. } => Ok(LoweredOperand::Variant { value, carrier }),
             other => Err(CompilerError::Internal {
                 message: format!(
                     "checked equality type lowered to the unsupported MIR carrier {other:?}"
@@ -169,33 +216,16 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Return one type's scalar domain when every union member agrees.
-    fn scalar_domain(
-        &self,
-        carrier: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::ScalarDomain>> {
-        let ty = self.lowerer.ty(carrier)?;
-        let dir::Type::Union(union) = ty else {
-            return Ok(ty.scalar_domain());
-        };
-
-        let mut domain = None;
-        for element in self
-            .lowerer
-            .types(carrier.module_id)?
-            .type_ids(union.elements)
-        {
-            let Some(element) = self.scalar_domain(*element)? else {
-                return Ok(None);
-            };
-            match domain {
-                None => domain = Some(element),
-                Some(domain) if domain == element => {}
-                Some(_) => return Ok(None),
+    /// Return the scalar domain represented directly by one MIR type.
+    fn mir_scalar_domain(ty: &mir::Type) -> Option<dir::ScalarDomain> {
+        match ty {
+            mir::Type::Boolean => Some(dir::ScalarDomain::Boolean),
+            mir::Type::Int { .. } | mir::Type::Isize | mir::Type::Usize => {
+                Some(dir::ScalarDomain::Integer)
             }
+            mir::Type::Float(_) => Some(dir::ScalarDomain::Float),
+            _ => None,
         }
-
-        Ok(domain)
     }
 
     /// Return whether one checked type has one value and no runtime payload.
@@ -219,23 +249,6 @@ impl FunctionLowerer<'_, '_, '_> {
                 _ => return Ok(false),
             }
         }
-    }
-
-    /// Return whether one operand type is a value enum or its member.
-    pub(super) fn is_enum_operand(&self, operand: &dir::Type) -> CompilerResult<bool> {
-        let symbol = match operand {
-            dir::Type::Application(instance) => instance.symbol,
-            dir::Type::EnumMember(member) => member.member,
-            _ => return Ok(false),
-        };
-        if matches!(operand, dir::Type::EnumMember(_)) {
-            return Ok(true);
-        }
-
-        Ok(matches!(
-            self.lowerer.definition(symbol)?,
-            Some(dir::Definition::Enum(_))
-        ))
     }
 
     /// Lower one binary operation over already evaluated operands.
@@ -353,9 +366,9 @@ impl FunctionLowerer<'_, '_, '_> {
                     self.builder.bconst(true)
                 } else {
                     let left = self.builder.variant_payload(left, index);
-                    let left = self.classify_equality_operand(left_member, left)?;
+                    let left = self.classify_equality_operand(left_member, None, left)?;
                     let right = self.builder.variant_payload(right, index);
-                    let right = self.classify_equality_operand(right_member, right)?;
+                    let right = self.classify_equality_operand(right_member, None, right)?;
 
                     self.lower_carrier_equality(left, right)?
                 };

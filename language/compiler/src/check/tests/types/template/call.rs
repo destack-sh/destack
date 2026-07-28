@@ -41,6 +41,8 @@ const segment = parse("id:users");
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
+/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=segment root=segment
 
 /// @generic.instance id="parse<\"users\">" template=parse arguments=("users")
 "#,
@@ -88,6 +90,8 @@ const key = build("users");
 
 key satisfies "id:users";
 /// @resolution.name source=key target=key
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=key root=key
 
 /// @generic.instance id="build<\"users\">" template=build arguments=("users")
 "#,
@@ -141,9 +145,13 @@ const text = identity(value);
 /// @resolution.call source=identity(value) parameters=(`${string}`) arguments=(provided(value) as `${string}`) return=string kind=symbol target=identity instance=identity<string>
 /// @generic.instance source=identity(value) id=identity<string>
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 text satisfies string;
 /// @resolution.name source=text target=text
+/// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=text root=text
 
 /// @generic.instance id=identity<string> template=identity arguments=(string)
 "#,
@@ -191,6 +199,8 @@ parse(key);
 /// @resolution.call source=parse(key) parameters=(`id:${<error>}`) arguments=(provided(key) as `id:${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
 /// @generic.instance source=parse(key) id=parse<<error>>
 /// @resolution.name source=key target=key
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=key root=key
 
 /// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
 "#,
@@ -243,6 +253,8 @@ const segment = parse("id:");
 
 segment satisfies "";
 /// @resolution.name source=segment target=segment
+/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=segment root=segment
 
 /// @generic.instance id="parse<\"\">" template=parse arguments=("")
 "#,
@@ -290,6 +302,8 @@ const value = parse("42");
 
 value satisfies 42;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id=parse<42> template=parse arguments=(42)
 "#,

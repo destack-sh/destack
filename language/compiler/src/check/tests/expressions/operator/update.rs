@@ -28,7 +28,8 @@ const before = value++;
 /// @resolution.pattern source=before kind=binding target=before
 /// @type.node source=value type=int32
 /// @type.node source=value++ type=int32
-/// @resolution.place source=value place=binding(value) type=int32
+/// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
+/// @resolution.operator source=value++ type=int32 operator="++" kind=builtin operands=[value as int32 families=(integer)]
 "#,
     );
 }
@@ -60,8 +61,9 @@ const after = --value;
 /// @type.symbol symbol=after source=after type=int32
 /// @resolution.pattern source=after kind=binding target=after
 /// @type.node source=--value type=int32
+/// @resolution.operator source=--value type=int32 operator="--" kind=builtin operands=[value as int32 families=(integer)]
 /// @type.node source=value type=int32
-/// @resolution.place source=value place=binding(value) type=int32
+/// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
 "#,
     );
 }

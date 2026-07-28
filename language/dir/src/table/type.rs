@@ -13,8 +13,8 @@ use destack_source::ModuleId;
 use crate::{
     BorrowForm, BorrowFormId, Form, FunctionParameterType, FunctionSignatureId,
     FunctionSignatureType, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalTypeId, MemberType,
-    MemberTypeId, RefinedType, RefinedTypeId, SegmentView, Type, TypeElement, TypeField, TypeFlags,
-    TypeIndexSignature, TypeListId, TypeOperation, TypeOperationId,
+    MemberTypeId, RefinedType, RefinedTypeId, SegmentView, Type, TypeElement, TypeFlags,
+    TypeIndexSignature, TypeListId, TypeOperation, TypeOperationId, TypeProperty,
 };
 
 /// Cumulative type slots for one DIR module.
@@ -283,9 +283,9 @@ impl<'a> TypeTable<'a> {
         self.slice(list, |segment| &segment.elements)
     }
 
-    /// Get one shape field list.
-    pub fn fields(&self, list: TypeListId) -> &[TypeField] {
-        self.slice(list, |segment| &segment.fields)
+    /// Get one shape property list.
+    pub fn properties(&self, list: TypeListId) -> &[TypeProperty] {
+        self.slice(list, |segment| &segment.properties)
     }
 
     /// Get one function parameter list.
@@ -344,7 +344,7 @@ impl<'a> TypeTable<'a> {
                     visit(qualifier);
                 }
             }
-            Type::EnumMember(member) => visit(member.owner),
+            Type::Variant(variant) => visit(variant.owner),
             Type::Refined(refined) => {
                 let refined = self.refined(*refined);
                 visit(refined.base);
@@ -432,8 +432,13 @@ impl<'a> TypeTable<'a> {
 
             // structural shapes
             Type::Shape(shape) => {
-                for field in self.fields(shape.fields) {
-                    visit(field.ty);
+                for property in self.properties(shape.properties) {
+                    if let Some(read) = property.access.read() {
+                        visit(read);
+                    }
+                    if let Some(write) = property.access.write() {
+                        visit(write);
+                    }
                 }
                 for child in self.type_ids(shape.call_signatures) {
                     visit(*child);
@@ -570,8 +575,8 @@ pub struct TypeSegment {
     pub(crate) type_ids: ListPool<GlobalTypeId>,
     /// The tuple element lists referenced by type payloads.
     pub(crate) elements: ListPool<TypeElement>,
-    /// The shape field lists referenced by type payloads.
-    pub(crate) fields: ListPool<TypeField>,
+    /// The shape property lists referenced by type payloads.
+    pub(crate) properties: ListPool<TypeProperty>,
     /// The function parameter lists referenced by type payloads.
     pub(crate) parameters: ListPool<FunctionParameterType>,
     /// The index signature lists referenced by type payloads.
@@ -614,8 +619,8 @@ pub struct TypeMark {
     type_ids: u32,
     /// The tuple element element count at the mark.
     elements: u32,
-    /// The shape field element count at the mark.
-    fields: u32,
+    /// The shape property element count at the mark.
+    properties: u32,
     /// The function parameter element count at the mark.
     parameters: u32,
     /// The index signature element count at the mark.
@@ -649,7 +654,7 @@ impl TypeSegment {
             flags: Arena::new(),
             type_ids: ListPool::new(0),
             elements: ListPool::new(0),
-            fields: ListPool::new(0),
+            properties: ListPool::new(0),
             parameters: ListPool::new(0),
             index_signatures: ListPool::new(0),
             strings: ListPool::new(0),
@@ -675,7 +680,7 @@ impl TypeSegment {
             flags: Arena::new(),
             type_ids: ListPool::new(base.type_ids.element_count()),
             elements: ListPool::new(base.elements.element_count()),
-            fields: ListPool::new(base.fields.element_count()),
+            properties: ListPool::new(base.properties.element_count()),
             parameters: ListPool::new(base.parameters.element_count()),
             index_signatures: ListPool::new(base.index_signatures.element_count()),
             strings: ListPool::new(base.strings.element_count()),
@@ -801,9 +806,9 @@ impl TypeSegment {
         self.elements.intern(values)
     }
 
-    /// Intern one shape field list.
-    pub fn intern_fields(&mut self, values: &[TypeField]) -> TypeListId {
-        self.fields.intern(values)
+    /// Intern one shape property list.
+    pub fn intern_properties(&mut self, values: &[TypeProperty]) -> TypeListId {
+        self.properties.intern(values)
     }
 
     /// Intern one function parameter list.
@@ -904,9 +909,9 @@ impl TypeSegment {
         self.elements.get_maybe(list)
     }
 
-    /// Get one shape field list when this segment owns it.
-    pub fn fields_maybe(&self, list: TypeListId) -> Option<&[TypeField]> {
-        self.fields.get_maybe(list)
+    /// Get one shape property list when this segment owns it.
+    pub fn properties_maybe(&self, list: TypeListId) -> Option<&[TypeProperty]> {
+        self.properties.get_maybe(list)
     }
 
     /// Get one function parameter list when this segment owns it.
@@ -956,7 +961,7 @@ impl TypeSegment {
             types: self.type_count(),
             type_ids: self.type_ids.element_count(),
             elements: self.elements.element_count(),
-            fields: self.fields.element_count(),
+            properties: self.properties.element_count(),
             parameters: self.parameters.element_count(),
             index_signatures: self.index_signatures.element_count(),
             strings: self.strings.element_count(),
@@ -986,7 +991,7 @@ impl TypeSegment {
         self.hashes.truncate(keep);
         self.type_ids.truncate_to(mark.type_ids);
         self.elements.truncate_to(mark.elements);
-        self.fields.truncate_to(mark.fields);
+        self.properties.truncate_to(mark.properties);
         self.parameters.truncate_to(mark.parameters);
         self.index_signatures.truncate_to(mark.index_signatures);
         self.strings.truncate_to(mark.strings);

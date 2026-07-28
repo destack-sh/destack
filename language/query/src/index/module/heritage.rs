@@ -87,14 +87,14 @@ impl<'context, 'query> HeritageIndexer<'context, 'query> {
         &mut self,
         derived_symbol: dir::GlobalSymbolId,
         declaration_symbol: dir::GlobalSymbolId,
-        implements: &[dir::NominalHeritage],
+        implementations: &[dir::InterfaceImplementation],
     ) {
         // emit each implemented interface edge
-        for heritage in implements {
+        for implementation in implementations {
             self.push_heritage(
                 derived_symbol,
                 declaration_symbol,
-                heritage,
+                &implementation.interface,
                 dir::HeritageKind::Implements,
             );
         }
@@ -117,13 +117,34 @@ impl<'context, 'query> HeritageIndexer<'context, 'query> {
             return;
         };
 
+        let base = self.heritage_base(heritage.ty);
+
         // emit heritage edge row
         self.entries.push(dir::HeritageEntry {
             derived: derived_symbol,
             declaration: declaration_symbol,
-            base: heritage.symbol,
+            base,
+            source: heritage.source,
+            ty: heritage.ty,
             span,
             kind,
         });
+    }
+
+    /// Return the nominal declaration at the head of one heritage type.
+    fn heritage_base(&self, mut ty: dir::GlobalTypeId) -> dir::GlobalSymbolId {
+        loop {
+            // heritage types intern beside the tables that record them
+            assert_eq!(
+                ty.module_id,
+                self.module.module_id(),
+                "heritage type {ty:?} escapes its module"
+            );
+            match self.module.types().get_type(ty.local_id) {
+                dir::Type::Refined(refined) => ty = self.module.types().refined(refined).base,
+                dir::Type::Application(application) => return application.symbol,
+                head => panic!("heritage type {ty:?} has no nominal application: {head:?}"),
+            }
+        }
     }
 }

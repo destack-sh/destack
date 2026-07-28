@@ -7,10 +7,10 @@ use rustc_hash::FxBuildHasher;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AssignPatternResolution, CallResolution, ConstructResolution, GlobalNodeIdAny, GlobalSymbolId,
-    GlobalTypeId, GuardResolution, InstantiationResolution, LabelResolution, MemberResolution,
-    NameResolution, OperatorResolution, PatternResolution, PlaceResolution, ReceiverResolution,
-    SegmentView,
+    AccessResolution, AssignPatternResolution, AssignmentResolution, CallResolution,
+    ConstructResolution, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, GuardResolution,
+    InstantiationResolution, LabelResolution, MemberResolution, NameResolution, OperatorResolution,
+    PatternResolution, PlaceResolution, ReceiverResolution, SegmentView, SubscriptResolution,
 };
 
 /// Cumulative checked resolutions for one DIR module.
@@ -87,6 +87,13 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.receivers)
     }
 
+    /// Iterate visible access resolutions.
+    pub fn access_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &AccessResolution)> + '_ {
+        self.visible_entries(|segment| &segment.accesses)
+    }
+
     /// Iterate visible member resolutions.
     pub fn member_entries(
         &self,
@@ -106,9 +113,23 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.calls)
     }
 
+    /// Iterate visible subscript resolutions.
+    pub fn subscript_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &SubscriptResolution)> + '_ {
+        self.visible_entries(|segment| &segment.subscripts)
+    }
+
     /// Iterate visible place resolutions.
     pub fn place_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &PlaceResolution)> + '_ {
         self.visible_entries(|segment| &segment.places)
+    }
+
+    /// Iterate visible assignment resolutions.
+    pub fn assignment_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &AssignmentResolution)> + '_ {
+        self.visible_entries(|segment| &segment.assignments)
     }
 
     /// Iterate visible guard resolutions.
@@ -165,6 +186,11 @@ impl<'a> ResolutionTable<'a> {
         self.lookup(node_id, |segment| &segment.receivers)
     }
 
+    /// Get the checked access resolution for a node.
+    pub fn access_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&AccessResolution> {
+        self.lookup(node_id, |segment| &segment.accesses)
+    }
+
     /// Get the member resolution for a node.
     pub fn member_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&MemberResolution> {
         self.lookup(node_id, |segment| &segment.members)
@@ -180,9 +206,19 @@ impl<'a> ResolutionTable<'a> {
         self.lookup(node_id, |segment| &segment.calls)
     }
 
+    /// Get the subscript resolution for a node.
+    pub fn subscript_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&SubscriptResolution> {
+        self.lookup(node_id, |segment| &segment.subscripts)
+    }
+
     /// Get the place resolution for a node.
     pub fn place_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PlaceResolution> {
         self.lookup(node_id, |segment| &segment.places)
+    }
+
+    /// Get the assignment resolution for a node.
+    pub fn assignment_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&AssignmentResolution> {
+        self.lookup(node_id, |segment| &segment.assignments)
     }
 
     /// Get the guard resolution for a node.
@@ -265,14 +301,20 @@ pub struct ResolutionSegment {
     pub(crate) labels: IndexMap<GlobalNodeIdAny, LabelResolution, FxBuildHasher>,
     /// Checked receiver resolutions keyed by DIR node.
     pub(crate) receivers: IndexMap<GlobalNodeIdAny, ReceiverResolution, FxBuildHasher>,
+    /// Checked stable storage accesses keyed by DIR node.
+    pub(crate) accesses: IndexMap<GlobalNodeIdAny, AccessResolution, FxBuildHasher>,
     /// Checked member resolutions keyed by DIR node.
     pub(crate) members: IndexMap<GlobalNodeIdAny, MemberResolution, FxBuildHasher>,
     /// Checked operator resolutions keyed by DIR node.
     pub(crate) operators: IndexMap<GlobalNodeIdAny, OperatorResolution, FxBuildHasher>,
     /// Checked call resolutions keyed by DIR node.
     pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution, FxBuildHasher>,
+    /// Checked subscript resolutions keyed by DIR node.
+    pub(crate) subscripts: IndexMap<GlobalNodeIdAny, SubscriptResolution, FxBuildHasher>,
     /// Checked place resolutions keyed by DIR node.
     pub(crate) places: IndexMap<GlobalNodeIdAny, PlaceResolution, FxBuildHasher>,
+    /// Checked assignment resolutions keyed by DIR node.
+    pub(crate) assignments: IndexMap<GlobalNodeIdAny, AssignmentResolution, FxBuildHasher>,
     /// Checked guard resolutions keyed by DIR node.
     pub(crate) guards: IndexMap<GlobalNodeIdAny, GuardResolution, FxBuildHasher>,
     /// Checked construct resolutions keyed by DIR node.
@@ -287,7 +329,7 @@ pub struct ResolutionSegment {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResolutionMark {
     /// The per-kind map lengths at the mark.
-    lengths: [usize; 12],
+    lengths: [usize; 15],
 }
 
 impl ResolutionSegment {
@@ -299,10 +341,13 @@ impl ResolutionSegment {
                 self.instantiations.len(),
                 self.labels.len(),
                 self.receivers.len(),
+                self.accesses.len(),
                 self.members.len(),
                 self.operators.len(),
                 self.calls.len(),
+                self.subscripts.len(),
                 self.places.len(),
+                self.assignments.len(),
                 self.guards.len(),
                 self.constructs.len(),
                 self.patterns.len(),
@@ -318,10 +363,13 @@ impl ResolutionSegment {
             instantiations,
             labels,
             receivers,
+            accesses,
             members,
             operators,
             calls,
+            subscripts,
             places,
+            assignments,
             guards,
             constructs,
             patterns,
@@ -331,10 +379,13 @@ impl ResolutionSegment {
         Self::truncate_map(&mut self.instantiations, instantiations);
         Self::truncate_map(&mut self.labels, labels);
         Self::truncate_map(&mut self.receivers, receivers);
+        Self::truncate_map(&mut self.accesses, accesses);
         Self::truncate_map(&mut self.members, members);
         Self::truncate_map(&mut self.operators, operators);
         Self::truncate_map(&mut self.calls, calls);
+        Self::truncate_map(&mut self.subscripts, subscripts);
         Self::truncate_map(&mut self.places, places);
+        Self::truncate_map(&mut self.assignments, assignments);
         Self::truncate_map(&mut self.guards, guards);
         Self::truncate_map(&mut self.constructs, constructs);
         Self::truncate_map(&mut self.patterns, patterns);
@@ -358,65 +409,17 @@ impl ResolutionSegment {
             instantiations: IndexMap::default(),
             labels: IndexMap::default(),
             receivers: IndexMap::default(),
+            accesses: IndexMap::default(),
             members: IndexMap::default(),
             operators: IndexMap::default(),
             calls: IndexMap::default(),
+            subscripts: IndexMap::default(),
             places: IndexMap::default(),
+            assignments: IndexMap::default(),
             guards: IndexMap::default(),
             constructs: IndexMap::default(),
             patterns: IndexMap::default(),
             assign_patterns: IndexMap::default(),
-        }
-    }
-
-    /// Copy node-owned resolutions from one node to another.
-    pub fn copy_node_relations(&mut self, source: GlobalNodeIdAny, target: GlobalNodeIdAny) {
-        if let Some(resolution) = self.names.get(&source).cloned() {
-            self.names.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.instantiations.get(&source).cloned() {
-            self.instantiations.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.labels.get(&source).copied() {
-            self.labels.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.receivers.get(&source).copied() {
-            self.receivers.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.members.get(&source).cloned() {
-            self.members.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.operators.get(&source).cloned() {
-            self.operators.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.calls.get(&source).cloned() {
-            self.calls.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.places.get(&source).cloned() {
-            self.places.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.guards.get(&source).cloned() {
-            self.guards.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.constructs.get(&source).cloned() {
-            self.constructs.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.patterns.get(&source).cloned() {
-            self.patterns.insert(target, resolution);
-        }
-
-        if let Some(resolution) = self.assign_patterns.get(&source).cloned() {
-            self.assign_patterns.insert(target, resolution);
         }
     }
 
@@ -481,6 +484,20 @@ impl ResolutionSegment {
         self.receivers.get(&node_id)
     }
 
+    /// Set the checked access resolution for a node.
+    pub fn set_access_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: AccessResolution,
+    ) {
+        self.accesses.insert(node_id, resolution);
+    }
+
+    /// Get the checked access resolution for a node.
+    pub fn access_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&AccessResolution> {
+        self.accesses.get(&node_id)
+    }
+
     /// Set the member resolution for a node.
     pub fn set_member_resolution(
         &mut self,
@@ -519,6 +536,20 @@ impl ResolutionSegment {
         self.calls.get(&node_id)
     }
 
+    /// Set the subscript resolution for a node.
+    pub fn set_subscript_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: SubscriptResolution,
+    ) {
+        self.subscripts.insert(node_id, resolution);
+    }
+
+    /// Get the subscript resolution for a node.
+    pub fn subscript_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&SubscriptResolution> {
+        self.subscripts.get(&node_id)
+    }
+
     /// Set the place resolution for a node.
     pub fn set_place_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: PlaceResolution) {
         self.places.insert(node_id, resolution);
@@ -527,6 +558,20 @@ impl ResolutionSegment {
     /// Get the place resolution for a node.
     pub fn place_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PlaceResolution> {
         self.places.get(&node_id)
+    }
+
+    /// Set the assignment resolution for a node.
+    pub fn set_assignment_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: AssignmentResolution,
+    ) {
+        self.assignments.insert(node_id, resolution);
+    }
+
+    /// Get the assignment resolution for a node.
+    pub fn assignment_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&AssignmentResolution> {
+        self.assignments.get(&node_id)
     }
 
     /// Set the guard resolution for a node.
@@ -616,6 +661,15 @@ impl ResolutionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
+    /// Iterate checked access resolutions.
+    pub fn access_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &AccessResolution)> + '_ {
+        self.accesses
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
     /// Iterate visible member resolutions.
     pub fn member_entries(
         &self,
@@ -641,9 +695,27 @@ impl ResolutionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
+    /// Iterate visible subscript resolutions.
+    pub fn subscript_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &SubscriptResolution)> + '_ {
+        self.subscripts
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
     /// Iterate visible place resolutions.
     pub fn place_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &PlaceResolution)> + '_ {
         self.places
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
+    /// Iterate visible assignment resolutions.
+    pub fn assignment_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &AssignmentResolution)> + '_ {
+        self.assignments
             .iter()
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
@@ -688,10 +760,13 @@ impl ResolutionSegment {
             && self.instantiations.is_empty()
             && self.labels.is_empty()
             && self.receivers.is_empty()
+            && self.accesses.is_empty()
             && self.members.is_empty()
             && self.operators.is_empty()
             && self.calls.is_empty()
+            && self.subscripts.is_empty()
             && self.places.is_empty()
+            && self.assignments.is_empty()
             && self.guards.is_empty()
             && self.constructs.is_empty()
             && self.patterns.is_empty()
@@ -717,7 +792,13 @@ impl ResolutionSegment {
         for resolution in self.calls.values_mut() {
             resolution.map_type_ids(map);
         }
+        for resolution in self.subscripts.values_mut() {
+            resolution.map_type_ids(map);
+        }
         for resolution in self.places.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.assignments.values_mut() {
             resolution.map_type_ids(map);
         }
         for resolution in self.guards.values_mut() {

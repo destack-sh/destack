@@ -35,7 +35,7 @@ impl BodyState<'_, '_> {
         // resolve the written nominal tag like a construction head
         let tag = answer!(self.written_construct_tag(origin, module, ty)?);
         let tag = answer!(self.reduce_type_head(origin, tag)?);
-        let Some(instance) = self.decompose_newtype(origin, tag)? else {
+        let Some(instance) = self.newtype_payload(origin, tag)? else {
             return self.reject_pattern(node, origin, tag);
         };
         let backing = instance.backing;
@@ -60,13 +60,13 @@ impl BodyState<'_, '_> {
         self.commit_pattern(
             node,
             dir::PatternResolution::Project(Box::new(dir::PatternProjectionResolution {
-                projection,
+                projection: projection.into(),
                 pattern: value.map(|value| value.into_global_any(module)),
             })),
         )
     }
 
-    /// Select one enum member pattern as a discriminant test.
+    /// Select one enum member pattern.
     pub(in crate::check) fn select_enum_member_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
@@ -108,24 +108,29 @@ impl BodyState<'_, '_> {
         for owner in owners {
             let member = self.intern_type(
                 module,
-                dir::Type::EnumMember(dir::EnumMemberType {
+                dir::Type::Variant(dir::VariantType {
                     owner: owner.owner,
-                    member,
+                    variant: member,
                 }),
             )?;
             narrowed.push(member);
         }
         let narrowed = self.normalized_union_type(module, narrowed)?;
-        let tag_type = self.intern_type(module, dir::Type::from(&discriminant))?;
+        let carrier = self.normalized_union_type(module, owners.iter().map(|owner| owner.owner))?;
         let predicate = dir::Predicate::unary(
-            dir::PredicateOperand::projected(dir::Projection::VariantTag { ty: tag_type }),
+            dir::PredicateOperand::direct(carrier),
             dir::PredicateCondition::Literal(discriminant),
         )
         .with_narrowed(narrowed);
 
         self.commit_pattern(
             node,
-            dir::PatternResolution::Test(Box::new(dir::PatternPredicateResolution { predicate })),
+            dir::PatternResolution::Variant(Box::new(dir::PatternVariantResolution {
+                case,
+                predicate,
+                payload: None,
+                fields: Vec::new(),
+            })),
         )
     }
 
@@ -162,7 +167,7 @@ impl BodyState<'_, '_> {
         };
 
         // bind the pattern instantiation from the matched input
-        let input = answer!(self.node_type(node.into_any())?);
+        let input = self.require_node_type(node.into_any())?;
         let input = answer!(self.strip_form(origin, input)?);
         let mut matched = input;
         if let Some(instance) = self.decompose_newtype(origin, input)? {
@@ -181,7 +186,7 @@ impl BodyState<'_, '_> {
                 && arm_instance.symbol == instance.symbol
             {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                answer!(self.constrain_type(cause, Relation::Equal, arm, tag)?);
+                answer!(self.constrain_type(origin, cause, Relation::Equal, arm, tag)?);
                 break;
             }
         }

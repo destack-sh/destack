@@ -473,20 +473,14 @@ impl ModuleQueryContext<'_> {
 
         // otherwise read an ordinary checked call selection
         let resolution = self.resolutions().call_resolution(call_id)?;
-        let mut symbols = match &resolution.target {
-            dir::CallTarget::Symbol(candidate) => vec![candidate.symbol],
-            dir::CallTarget::Universal(candidates) => candidates
-                .iter()
-                .map(|candidate| candidate.symbol)
-                .collect(),
-            dir::CallTarget::Expression { .. } => return None,
-        };
-        symbols.sort();
-        symbols.dedup();
+        let symbols = resolution.target_symbols();
+        if symbols.is_empty() {
+            return None;
+        }
 
         Some(SymbolOccurrence {
             symbols,
-            type_id: resolution.callable_type,
+            type_id: Some(resolution.first().callable_type),
             span,
         })
     }

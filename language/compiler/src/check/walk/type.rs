@@ -90,13 +90,13 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::Function(function) => {
                 let function = function.clone();
 
-                self.walk_function_type(source, &function, None, None)
+                self.walk_function_type(source, &function, None)
             }
             // new (value: string) => User
             dir::TypeExpression::Constructor(constructor) => {
                 let constructor = constructor.clone();
 
-                self.walk_constructor_type(source, &constructor, None, None)
+                self.walk_constructor_type(source, &constructor, None)
             }
             // 'a, 'static
             dir::TypeExpression::Lifetime { name } => {
@@ -554,7 +554,7 @@ impl WalkState<'_, '_> {
             // conflicting paths fail at the type query site
             Some(dir::Reference::Ambiguous(_)) => {
                 self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), &path)?;
+                    .report_ambiguous_reference(self.module, id.into_any(), &path);
 
                 Ok(true)
             }
@@ -642,7 +642,7 @@ impl WalkState<'_, '_> {
                     }
                     _ => {
                         self.check
-                            .report_ambiguous_reference(self.module, id.into_any(), path)?;
+                            .report_ambiguous_reference(self.module, id.into_any(), path);
                     }
                 }
             }
@@ -651,7 +651,7 @@ impl WalkState<'_, '_> {
             }
             Some(dir::Reference::Ambiguous(_)) => {
                 self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), path)?;
+                    .report_ambiguous_reference(self.module, id.into_any(), path);
             }
             Some(dir::Reference::Namespace(_)) | Some(dir::Reference::Missing) => {
                 self.check
@@ -697,7 +697,7 @@ impl WalkState<'_, '_> {
             // reject resolve conflicts in type position
             Some(dir::Reference::Ambiguous(_)) => {
                 self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), path)?;
+                    .report_ambiguous_reference(self.module, id.into_any(), path);
 
                 self.intern_type(dir::Type::Error)
             }
@@ -769,7 +769,7 @@ impl WalkState<'_, '_> {
             // reject annotations that name more than one declaration
             _ => {
                 self.check
-                    .report_ambiguous_reference(self.module, id.into_any(), path)?;
+                    .report_ambiguous_reference(self.module, id.into_any(), path);
 
                 self.intern_type(dir::Type::Error)
             }
@@ -869,8 +869,8 @@ impl WalkState<'_, '_> {
         };
 
         // reject impossible arities before instantiating
-        let parameters = self.check.generic_template_parameters(template);
-        let written_count = self.check.written_parameter_count(&parameters);
+        let parameters = self.check.generic_template_parameters(template)?;
+        let written_count = self.check.writable_parameter_count(&parameters);
         let positional = applied
             .iter()
             .filter(|argument| argument.name.is_none())
@@ -947,10 +947,11 @@ impl WalkState<'_, '_> {
                     .normalize_memory_component(origin, argument, kind)?,
                 None => argument,
             };
-            substitution.parameters.push(parameter);
-            substitution.arguments.push(argument);
+            substitution
+                .bindings
+                .push(dir::GenericArgumentBinding::new(parameter, argument));
         }
-        let arguments = substitution.arguments;
+        let arguments = substitution.arguments().collect::<Vec<_>>();
 
         // build the application before attaching its argument checks
         let argument_list = self.intern_type_ids(&arguments)?;
@@ -1006,8 +1007,13 @@ impl WalkState<'_, '_> {
         written: &[&GenericArgument],
     ) -> CompilerResult<()> {
         let substitution = TypeSubstitution {
-            parameters: parameters.iter().copied().collect(),
-            arguments: arguments.iter().copied().collect(),
+            bindings: parameters
+                .iter()
+                .zip(arguments)
+                .map(|(parameter, argument)| {
+                    dir::GenericArgumentBinding::new(*parameter, *argument)
+                })
+                .collect(),
             receiver: None,
         };
         let origin = Origin::Node(
@@ -1118,7 +1124,7 @@ impl WalkState<'_, '_> {
         _id: dir::LocalNodeId<dir::TypeExpression>,
         members: &[dir::LocalNodeId<dir::TypeMember>],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut fields = Vec::new();
+        let mut properties = Vec::new();
         let mut call_signatures = Vec::new();
         let mut construct_signatures = Vec::new();
         let mut index_signatures = Vec::new();
@@ -1143,11 +1149,18 @@ impl WalkState<'_, '_> {
                         None => self.intern_type(dir::Type::Unknown)?,
                     };
 
-                    fields.push(dir::TypeField {
+                    let access = if is_readonly {
+                        dir::PropertyAccess::Read(ty)
+                    } else {
+                        dir::PropertyAccess::ReadWrite {
+                            read: ty,
+                            write: ty,
+                        }
+                    };
+                    properties.push(dir::TypeProperty {
                         key,
-                        ty,
+                        access,
                         is_optional,
-                        is_readonly,
                     });
                 }
                 dir::TypeMember::Method {
@@ -1160,12 +1173,7 @@ impl WalkState<'_, '_> {
                     let Some(key) = self.static_key(*key)? else {
                         continue;
                     };
-                    let template = self.open_signature_template(
-                        member.into_global_any(self.module),
-                        None,
-                        None,
-                        &signature,
-                    )?;
+                    let template = self.open_signature_template(member.into_global_any(self.module), &signature)?;
 
                     let (header, result, tracked) =
                         self.walk_signature_header(member.into_any(), template, &signature, None)?;
@@ -1179,22 +1187,33 @@ impl WalkState<'_, '_> {
                         tracked,
                     )?;
 
-                    fields.push(dir::TypeField {
+                    let access = match signature.role {
+                        Some(dir::FunctionRole::Getter) => {
+                            dir::PropertyAccess::Read(self.type_member_getter_type(ty)?)
+                        }
+                        Some(dir::FunctionRole::Setter) => {
+                            dir::PropertyAccess::Write(self.type_member_setter_type(ty)?)
+                        }
+                        _ => dir::PropertyAccess::ReadWrite {
+                            read: ty,
+                            write: ty,
+                        },
+                    };
+                    properties.push(dir::TypeProperty {
                         key,
-                        ty,
+                        access,
                         is_optional,
-                        is_readonly: false,
                     });
                 }
                 dir::TypeMember::CallSignature { signature } => {
                     let signature = signature.clone();
-                    let ty = self.walk_function_type(member.into_any(), &signature, None, None)?;
+                    let ty = self.walk_function_type(member.into_any(), &signature, None)?;
                     call_signatures.push(ty);
                 }
                 dir::TypeMember::ConstructSignature { signature } => {
                     let signature = signature.clone();
                     let ty =
-                        self.walk_constructor_type(member.into_any(), &signature, None, None)?;
+                        self.walk_constructor_type(member.into_any(), &signature, None)?;
                     construct_signatures.push(ty);
                 }
                 dir::TypeMember::IndexSignature {
@@ -1221,13 +1240,13 @@ impl WalkState<'_, '_> {
             }
         }
 
-        let fields = self.intern_fields(&fields)?;
+        let properties = self.intern_properties(&properties)?;
         let call_signatures = self.intern_type_ids(&call_signatures)?;
         let construct_signatures = self.intern_type_ids(&construct_signatures)?;
         let index_signatures = self.intern_index_signatures(&index_signatures)?;
 
         self.intern_type(dir::Type::Shape(dir::ShapeType {
-            fields,
+            properties,
             call_signatures,
             construct_signatures,
             index_signatures,
@@ -1401,11 +1420,7 @@ impl WalkState<'_, '_> {
         let binder = match self.check.generics.parameter_by_symbol(symbol) {
             Some(binder) => binder,
             None => {
-                let template = self.check.open_generic_template(
-                    parameter.into_global_any(self.module),
-                    None,
-                    None,
-                )?;
+                let template = self.check.open_generic_template(parameter.into_global_any(self.module))?;
                 self.check.push_generic_parameter(
                     template,
                     parameter.into_global_any(self.module),
@@ -1465,4 +1480,44 @@ impl WalkState<'_, '_> {
             value,
         }))
     }
+    /// Return the result type of one structural getter.
+    fn type_member_getter_type(&self, ty: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::FunctionSignature(function) = self.check.ty(ty)? else {
+            return Err(CompilerError::Internal {
+                message: format!("structural getter has non-signature type {ty:?}"),
+            });
+        };
+        let function = self.check.type_signature(ty.module_id, function)?;
+        let Some(result) = function.return_type else {
+            return Err(CompilerError::Internal {
+                message: "structural getter has no result type".into(),
+            });
+        };
+
+        Ok(result)
+    }
+
+    /// Return the parameter type of one structural setter.
+    fn type_member_setter_type(&self, ty: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::FunctionSignature(function) = self.check.ty(ty)? else {
+            return Err(CompilerError::Internal {
+                message: format!("structural setter has non-signature type {ty:?}"),
+            });
+        };
+        let function = self.check.type_signature(ty.module_id, function)?;
+        let parameters = self
+            .check
+            .signature_parameters(ty.module_id, function.parameters)?;
+        let [parameter] = parameters else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "structural setter has {} value parameters",
+                    parameters.len()
+                ),
+            });
+        };
+
+        Ok(parameter.ty)
+    }
+
 }

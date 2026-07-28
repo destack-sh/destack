@@ -122,13 +122,13 @@ impl FunctionLowerer<'_, '_, '_> {
             // x++
             dir::Expression::Unary {
                 operator:
-                    operator @ (dir::UnaryOperator::PostIncrement
+                    dir::UnaryOperator::PostIncrement
                     | dir::UnaryOperator::PostDecrement
                     | dir::UnaryOperator::PreIncrement
-                    | dir::UnaryOperator::PreDecrement),
+                    | dir::UnaryOperator::PreDecrement,
                 right,
             } => {
-                self.lower_update(operator, right)?;
+                self.lower_update(statement, right)?;
 
                 Ok(false)
             }

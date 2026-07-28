@@ -9,9 +9,6 @@ export newtype interface Sequence<T> {
     /// Return the number of elements.
     get length(): usize;
 
-    /// Return the element at `index` by value.
-    index(index: usize): T;
-
     /// Borrow a view over `start..end`.
     view<comptime A: Access = "readonly">(
         this: WithAccess<&this, A>,

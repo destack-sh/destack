@@ -12,8 +12,8 @@ mod relate;
 mod shape;
 mod template;
 mod union;
-mod value;
 mod variance;
 mod widen;
 
+pub(in crate::check) use interface::*;
 pub(in crate::check) use variance::*;

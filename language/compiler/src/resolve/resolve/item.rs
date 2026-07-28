@@ -202,13 +202,18 @@ impl ResolveState<'_> {
 
                 return;
             }
+            // property membership may inspect any apparent built-in owner
+            dir::BinaryOperator::In => {
+                self.use_apparent_member_language_items();
+
+                return;
+            }
             // builtin binary operators
             dir::BinaryOperator::EqualStrict
             | dir::BinaryOperator::NotEqualStrict
             | dir::BinaryOperator::And
             | dir::BinaryOperator::Or
-            | dir::BinaryOperator::Coalesce
-            | dir::BinaryOperator::In => return,
+            | dir::BinaryOperator::Coalesce => return,
         };
 
         self.use_language_item(item);

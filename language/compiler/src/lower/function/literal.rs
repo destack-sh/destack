@@ -66,17 +66,14 @@ impl FunctionLowerer<'_, '_, '_> {
             // pick the single boolean carrier
             dir::ScalarLiteral::Boolean(_) => Ok(mir::Type::Boolean),
 
-            // read the numeric carrier from the checked Widen coercion
+            // require numeric literals to enter through their checked value target
             dir::ScalarLiteral::Integer(_) | dir::ScalarLiteral::Float(_) => {
-                let Some(coercion) = self.coercion(expression) else {
-                    return Err(CompilerError::Internal {
-                        message: "checked DIR is missing a carrier coercion on one numeric literal"
-                            .to_string(),
-                    });
-                };
-                let carrier = self.lower_type(coercion.target())?;
-
-                Ok(self.builder.tree().get(carrier).clone())
+                Err(CompilerError::Internal {
+                    message: format!(
+                        "numeric literal expression {} reached lowering without a concrete target",
+                        expression.id
+                    ),
+                })
             }
 
             // reject literal domains without scalar carriers

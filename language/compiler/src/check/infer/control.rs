@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseId, CauseKind, CheckAttempt, CheckOutcome, Expectation,
-    FlowSite, ForInSourceObligation, Obligation, Origin, PlaceUse, Relation, StaticGate,
+    Answer, BodyState, Cause, CauseKind, CheckAttempt, CheckOutcome, Expectation, FlowSite,
+    ForInSourceObligation, InferMode, Obligation, Origin, PlaceUse, Relation, StaticGate,
     ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
@@ -30,6 +30,7 @@ impl BodyState<'_, '_> {
             false => ty,
         };
         self.check.commit_node_type(node, result)?;
+        self.check.commit_chain_access(node)?;
 
         Ok(Answer::Ready(()))
     }
@@ -60,7 +61,7 @@ impl BodyState<'_, '_> {
             };
 
             if is_optional {
-                let receiver = answer!(self.node_type(left.into_global_any(module))?);
+                let receiver = self.require_node_type(left.into_global_any(module))?;
                 if answer!(self.split_nullish_type(origin, receiver)?).is_some() {
                     return Ok(Answer::Ready(true));
                 }
@@ -99,33 +100,30 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         then_expression: dir::LocalNodeId<dir::Expression>,
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
-        target: dir::GlobalTypeId,
-        relation: Relation,
-        cause: CauseId,
-        use_: ValueUse,
+        expectation: Expectation,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let module = site.node.module_id;
+        let target = expectation.target;
+        let relation = expectation.relation;
 
         // check the then branch against the incoming expectation
         let then_site = self.node_site(then_expression.into_global_any(module))?;
-        let then_check =
-            answer!(self.check_node_expected(then_site, target, relation, cause, use_)?);
-        let then_type = answer!(self.node_type_at(then_site)?);
+        let then_check = answer!(self.check_node(then_site, expectation)?);
+        let then_type = then_check.source;
         let mut check = then_check.outcome;
 
         // check an else branch, or make the missing branch explicit as void
         let result = if let Some(else_expression) = else_expression {
             let else_site = self.node_site(else_expression.into_global_any(module))?;
-            let else_check =
-                answer!(self.check_node_expected(else_site, target, relation, cause, use_)?);
-            let else_type = answer!(self.node_type_at(else_site)?);
+            let else_check = answer!(self.check_node(else_site, expectation)?);
+            let else_type = else_check.source;
             check = check.and(else_check.outcome);
 
             // branches are the adjustment sites: a produced value is the
             //  target, while fully diverging branches produce nothing
             let joined = self.normalized_union_type(module, [then_type, else_type])?;
             match (relation, check) {
-                (Relation::Assignable | Relation::Writable, CheckOutcome::Holds)
+                (Relation::Assignable, CheckOutcome::Holds)
                     if !matches!(self.check.ty(joined)?, dir::Type::Never) =>
                 {
                     target
@@ -140,6 +138,7 @@ impl BodyState<'_, '_> {
         self.commit_node_type(site.node, result)?;
 
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            source: result,
             outcome: check,
             target,
         })))
@@ -322,12 +321,11 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         value: dir::LocalNodeId<dir::Expression>,
         arms: &[dir::LocalNodeId<dir::MatchArm>],
-        target: dir::GlobalTypeId,
-        relation: Relation,
-        cause: CauseId,
-        use_: ValueUse,
+        expectation: Expectation,
     ) -> CompilerResult<Answer<CheckAttempt>> {
         let module = site.node.module_id;
+        let target = expectation.target;
+        let relation = expectation.relation;
         let arms = self.present_match_arms(module, arms)?;
 
         // type the matched value and its patterns like the inferred form
@@ -354,6 +352,7 @@ impl BodyState<'_, '_> {
             let never = self.intern_type(module, dir::Type::Never)?;
             self.commit_node_type(site.node, never)?;
             let check = ValueCheck {
+                source: never,
                 outcome: CheckOutcome::Holds,
                 target,
             };
@@ -370,17 +369,16 @@ impl BodyState<'_, '_> {
                 dir::MatchArm::Block { body, .. } => body.into_global_any(module),
             };
             let body_site = self.node_site(body)?;
-            let body_check =
-                answer!(self.check_node_expected(body_site, target, relation, cause, use_)?);
+            let body_check = answer!(self.check_node(body_site, expectation)?);
             check = body_check.outcome.and(check);
-            values.push(answer!(self.node_type_at(body_site)?));
+            values.push(body_check.source);
         }
 
         // arms are the adjustment sites: a produced value is the target,
         //  while fully diverging arms produce nothing
         let joined = self.normalized_union_type(module, values)?;
         let result = match (relation, check) {
-            (Relation::Assignable | Relation::Writable, CheckOutcome::Holds)
+            (Relation::Assignable, CheckOutcome::Holds)
                 if !matches!(self.check.ty(joined)?, dir::Type::Never) =>
             {
                 target
@@ -390,6 +388,7 @@ impl BodyState<'_, '_> {
         self.commit_node_type(site.node, result)?;
 
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
+            source: result,
             outcome: check,
             target,
         })))
@@ -447,6 +446,7 @@ impl BodyState<'_, '_> {
                 CauseKind::Expression,
             )),
             use_: ValueUse::Condition,
+            mode: InferMode::Exact,
         };
         answer!(self.attempt_node(site, PlaceUse::Read, Some(expectation))?);
 
@@ -465,7 +465,9 @@ impl BodyState<'_, '_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let iterator_site = self.node_site(iterator.into_global_any(module))?;
-        let iterator_type = answer!(self.infer_node_type(iterator_site, PlaceUse::Read)?);
+        let iterator_type =
+            answer!(self.infer_node(iterator_site, PlaceUse::Read, InferMode::Mutable,)?);
+        let iterator_type = answer!(self.flow_type_at(iterator_site, iterator_type)?);
         let target =
             answer!(self.for_each_value_type(site.origin(), site.node, operator, iterator_type)?);
 
@@ -481,7 +483,8 @@ impl BodyState<'_, '_> {
             target,
             Relation::Assignable,
             cause,
-            ValueUse::Store
+            ValueUse::Store,
+            InferMode::Exact,
         )?);
 
         // check the loop body under the bound pattern
@@ -539,21 +542,26 @@ impl BodyState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         iterator_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let protocol = self.language_symbol(dir::LanguageItem::Iterable)?;
         let anchored = self.origin_at(origin, source)?;
-        let implementation = answer!(self.select_protocol_implementation(
+        let key = dir::StaticKey::Name(self.strings().intern("iterator"));
+        let source_site = self.node_site(source)?;
+        let source_value = answer!(self.expression_value(source_site, iterator_type)?);
+        let selected = answer!(self.select_language_protocol_call(
             anchored,
+            source_value,
             iterator_type,
-            iterator_type,
-            protocol,
+            key,
+            dir::LanguageItem::Iterable,
+            &[],
+            &[],
         )?);
-        let Some(implementation) = implementation else {
+        let Some((protocol, _call)) = selected else {
             self.report_for_of_source_not_iterable(source);
             let error = self.intern_type(source.module_id, dir::Type::Error)?;
 
             return Ok(Answer::Ready(error));
         };
-        let Some(value) = implementation.arguments.first().copied() else {
+        let Some(value) = protocol.arguments.first().copied() else {
             return Err(CompilerError::Internal {
                 message: "Iterable protocol implementation has no value argument".to_owned(),
             });

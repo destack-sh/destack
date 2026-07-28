@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, ConstructResult, Decision, Expectation, FlowSite,
-    PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, Cause, CauseKind, CheckOutcome, ConstructResult, Decision, Expectation,
+    FlowSite, PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -17,10 +17,6 @@ impl BodyState<'_, '_> {
         mode: InferMode,
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
-        if self.committed_node_type(node.into_any()).is_some() {
-            return Ok(Answer::Ready(()));
-        }
-
         let expression = self
             .module(node.module_id)
             .view()
@@ -82,11 +78,6 @@ impl BodyState<'_, '_> {
             }
             dir::Expression::ScalarLiteral(value) => {
                 let ty = self.scalar_literal_type(node, value)?;
-                let ty = if mode == InferMode::Widen {
-                    self.widen_type(ty)?
-                } else {
-                    ty
-                };
                 self.commit_node_type(node.into_any(), ty)?;
 
                 Ok(Answer::Ready(()))
@@ -108,9 +99,9 @@ impl BodyState<'_, '_> {
                 Ok(Answer::Ready(()))
             }
             dir::Expression::FixedArrayExpression { value, length } => {
-                let count = answer!(self.node_type(length.into_global_any(node.module_id))?);
+                let count = self.require_node_type(length.into_global_any(node.module_id))?;
 
-                self.infer_fixed_array_expression(site, value, count)
+                self.infer_fixed_array_expression(site, value, count, mode)
             }
             dir::Expression::TupleExpression { elements } => {
                 let ty = answer!(self.infer_tuple_expression(
@@ -166,11 +157,40 @@ impl BodyState<'_, '_> {
             }
             dir::Expression::StructExpression { ty, properties } => {
                 let target = answer!(self.select_construct_target(site, ty, None)?);
-                answer!(self.select_property_merge(
+                let check = answer!(self.select_property_merge(
                     site,
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
                     Some(target),
                 )?);
+                let cause = self.check.intern_cause(Cause::root(
+                    site.origin(),
+                    CauseKind::Write {
+                        place: node.into_any(),
+                    },
+                ));
+                let expectation = Expectation {
+                    target,
+                    relation: Relation::Assignable,
+                    cause,
+                    use_: ValueUse::Store,
+                    mode,
+                };
+                // complete the confirmed construction check at its authored value
+                match check.outcome {
+                    CheckOutcome::Holds => {
+                        answer!(self.check_value(site, check.source, expectation)?);
+                    }
+                    CheckOutcome::Fails(failure) => {
+                        self.record_failure(
+                            cause,
+                            Relation::Assignable,
+                            Some(ValueUse::Store),
+                            check.source,
+                            target,
+                            failure,
+                        );
+                    }
+                }
 
                 Ok(Answer::Ready(()))
             }
@@ -228,22 +248,25 @@ impl BodyState<'_, '_> {
             dir::Expression::Unary { operator, right } => {
                 self.select_unary_operator(site, operator, right, use_)
             }
-            dir::Expression::New { ty, arguments } => self.select_construct(
-                site,
-                ty,
-                &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
-                ConstructResult::Direct,
-                None,
-            ),
+            dir::Expression::New { ty, arguments } => {
+                answer!(self.select_construct(
+                    site,
+                    ty,
+                    &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
+                    ConstructResult::Direct,
+                    None,
+                )?);
+
+                Ok(Answer::Ready(()))
+            }
             dir::Expression::NewMaybe { ty, arguments } => {
-                let () = answer!(self.select_construct(
+                let value = answer!(self.select_construct(
                     site,
                     ty,
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
                     ConstructResult::Fallible,
                     None,
                 )?);
-                let value = answer!(self.check.node_type(node.into_any())?);
                 self.propagate_try_residual(node.into_any(), value, site)?;
 
                 Ok(Answer::Ready(()))
@@ -311,8 +334,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         if let dir::TemplateLiteral::InterpolatedString { arguments, .. } = value {
             for argument in arguments {
-                let ty = answer!(self.infer_argument_type(site, argument)?);
-                answer!(self.select_template_argument(site, argument, ty)?);
+                answer!(self.infer_argument_type(site, argument)?);
             }
         }
 
@@ -322,42 +344,6 @@ impl BodyState<'_, '_> {
         )?;
 
         Ok(Answer::Ready(ty))
-    }
-
-    /// Select how one interpolated argument reaches its string form.
-    fn select_template_argument(
-        &mut self,
-        site: FlowSite,
-        argument: dir::LocalNodeId<dir::Argument>,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
-        let module = site.node.module_id;
-        let origin = site.origin();
-        let node = argument.into_global_any(module);
-
-        // string arguments pass through without conversion
-        let string = self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::String))?;
-        if answer!(self.decide_relation(origin, Relation::Assignable, ty, string)?) {
-            self.commit_decision(node, Decision::Operator(dir::OperatorResolution::Builtin))?;
-
-            return Ok(Answer::Ready(()));
-        }
-
-        // other arguments render through the Display protocol
-        let key = dir::StaticKey::Name(self.strings().intern("display"));
-        let protocol = self.language_protocol(dir::LanguageItem::Display, Vec::new())?;
-        let Some(call) =
-            answer!(self.select_protocol_call(origin, ty, ty, key, &protocol, &[], &[])?)
-        else {
-            self.report_template_argument_not_displayable(origin, ty)?;
-            self.commit_decision(node, Decision::Rejected)?;
-
-            return Ok(Answer::Ready(()));
-        };
-        let resolution = dir::OperatorResolution::Call(Box::new(call.resolution));
-        self.commit_decision(node, Decision::Operator(resolution))?;
-
-        Ok(Answer::Ready(()))
     }
 
     /// Reject expression inference that reached solve without a matching owner.
@@ -402,6 +388,9 @@ impl BodyState<'_, '_> {
             }
             None => answer!(self.symbol_type(*symbol)?),
         };
+        if self.symbol_kind(*symbol) == dir::SymbolKind::Variable {
+            self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
+        }
         let ty = answer!(self.flow_type_at(site, ty)?);
         self.commit_node_type(site.node, ty)?;
 
@@ -416,10 +405,9 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<()>> {
         let module = site.node.module_id;
         let child_site = self.node_site(child.into_global_any(module))?;
-        answer!(self.infer_node(child_site, PlaceUse::Read)?);
+        let ty = answer!(self.infer_node(child_site, PlaceUse::Read, InferMode::Exact)?);
         // commit the raw child type: both nodes share one flow path,
         //  so the parent read overlays the narrowing itself
-        let ty = answer!(self.node_type(child_site.node)?);
         self.commit_node_type(site.node, ty)?;
 
         Ok(Answer::Ready(()))

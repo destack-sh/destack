@@ -4,24 +4,13 @@ use destack_source::{FileId, Span};
 use crate::{Module, ModuleQueryContext, ProgramQueryContext, QueryResult};
 
 impl ModuleQueryContext<'_> {
-    /// Iterate writable places selected during checking.
-    pub(crate) fn writable_places(&self) -> impl Iterator<Item = &dir::PlaceResolution> {
-        let places = self
-            .resolutions()
-            .place_entries()
-            .map(|(_, resolution)| resolution);
-        let assignments =
-            self.resolutions()
-                .assign_pattern_entries()
-                .filter_map(|(_, resolution)| match resolution {
-                    dir::AssignPatternResolution::Place(place) => Some(place),
-                    dir::AssignPatternResolution::Default(_)
-                    | dir::AssignPatternResolution::Sequence(_)
-                    | dir::AssignPatternResolution::Tuple(_)
-                    | dir::AssignPatternResolution::Object(_) => None,
-                });
-
-        places.chain(assignments)
+    /// Iterate writable place targets selected during checking.
+    pub(crate) fn writable_places(
+        &self,
+    ) -> impl Iterator<Item = (dir::GlobalNodeIdAny, &dir::WriteResolution)> {
+        self.resolutions()
+            .assignment_entries()
+            .map(|(_, resolution)| (resolution.target, &resolution.write))
     }
 }
 

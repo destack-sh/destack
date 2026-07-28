@@ -245,8 +245,8 @@ type Left = { kind: "left"; value: int32 };
 type Right = { kind: "right"; value: string };
 type Value = (Left | Right)["value"];
 
-const number: Value = 1 as Value;
-const text: Value = "hello" as Value;
+const number: Value = 1 as int32 | string;
+const text: Value = "hello" as int32 | string;
 
 === checked ===
 type Left = { kind: "left"; value: int32 };
@@ -297,9 +297,9 @@ const text: Value = "hello";
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 type Value = Input["value"];
 
-const missing: Value = undefined as Value;
-const number: Value = 1 as Value;
-const text: Value = "hello" as Value;
+const missing: Value = undefined as float64 | undefined | string;
+const number: Value = 1 as float64 | undefined | string;
+const text: Value = "hello" as float64 | undefined | string;
 
 === checked ===
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
@@ -610,7 +610,7 @@ type User = {
 };
 
 function get<K: keyof User>(user: User, key: K): User[K] {
-    return user[key];
+    return user[key as "name" | "age"];
 }
 
 declare const user: User;
@@ -645,9 +645,14 @@ function get<K: keyof User>(user: User, key: K): User[K] {
     /// @type.node source=user type=User reduced={ readonly name: string; readonly age: int32 }
     /// @type.node source=user[key] type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.name source=user target=get.user
-    /// @resolution.member source=user[key] receiver={ readonly name: string; readonly age: int32 } kind=index key=K
+    /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=user root=get.user
+    /// @resolution.place source=user[key] placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.subscript source=user[key] type={ readonly name: string; readonly age: int32 }[K] kind=member target="receiver={ readonly name: string; readonly age: int32 }, target=index(keyof { readonly name: string; readonly age: int32 }), type={ readonly name: string; readonly age: int32 }[K]"
     /// @type.node source=key type=K
     /// @resolution.name source=key target=get.key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=get.key
 
 }
 
@@ -666,6 +671,8 @@ const name = get(user, "name");
 /// @generic.instance source="get(user, \"name\")" id="get<\"name\">"
 /// @type.node source=user type=User reduced={ readonly name: string; readonly age: int32 }
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 /// @type.node source="\"name\"" type="name"
 
 const age = get(user, "age");
@@ -678,17 +685,23 @@ const age = get(user, "age");
 /// @generic.instance source="get(user, \"age\")" id="get<\"age\">"
 /// @type.node source=user type=User reduced={ readonly name: string; readonly age: int32 }
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 /// @type.node source="\"age\"" type="age"
 
 name satisfies string;
 /// @type.node source="name satisfies string" type=User["name"] reduced=string
 /// @type.node source=name type=User["name"] reduced=string
 /// @resolution.name source=name target=name
+/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=name root=name
 
 age satisfies int32;
 /// @type.node source="age satisfies int32" type=User["age"] reduced=int32
 /// @type.node source=age type=User["age"] reduced=int32
 /// @resolution.name source=age target=age
+/// @resolution.place source=age placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=age root=age
 
 /// @generic.instance id="get<\"age\">" template=get arguments=("age")
 /// @generic.instance id="get<\"name\">" template=get arguments=("name")
@@ -774,6 +787,54 @@ type Value = TokenBox[token];
 /// @definition.type symbol=Value source="type Value = TokenBox[token]" value=TokenBox[token] reduced=int32
 /// @resolution.name source=TokenBox target=TokenBox
 /// @resolution.name source=token target=token
+
+declare const value: Value;
+/// @type.symbol symbol=value source=value type=Value reduced=int32
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=Value target=Value
+"#,
+    );
+}
+
+#[test]
+fn test_indexed_access_projects_imported_unique_symbol_key() {
+    let session = TestSession::builder()
+        .module(
+            "keys.ds",
+            r#"
+export declare const token: unique symbol;
+export type TokenBox = { readonly [token]: int32 };
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { token, TokenBox } from "./keys.ds";
+
+type Value = TokenBox[token];
+declare const value: Value;
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { TokenBox, token } from "./keys.ds";
+
+type Value = TokenBox[token];
+declare const value: Value;
+
+=== checked ===
+import { token, TokenBox } from "./keys.ds";
+
+type Value = TokenBox[token];
+/// @type.symbol symbol=Value source="type Value = TokenBox[token]" type=keys.TokenBox[keys.token] reduced=int32
+/// @definition.type symbol=Value source="type Value = TokenBox[token]" value=keys.TokenBox[keys.token] reduced=int32
+/// @resolution.name source=TokenBox target=keys.TokenBox
+/// @resolution.name source=token target=keys.token
 
 declare const value: Value;
 /// @type.symbol symbol=value source=value type=Value reduced=int32

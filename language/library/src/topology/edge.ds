@@ -12,7 +12,7 @@ export struct EdgeKindRecord {
     /// Edge kind.
     kind: EdgeKind;
     /// Kind labels.
-    labels?: LabelSet;
+    labels?: LabelSet | undefined;
 }
 
 /// Direction selector for directional relationships.
@@ -36,9 +36,9 @@ export struct EdgeRecord {
     /// Destination entity.
     to: EntityId;
     /// Optional edge name.
-    name?: string;
+    name?: string | undefined;
     /// Edge labels.
-    labels?: LabelSet;
+    labels?: LabelSet | undefined;
 }
 
 /// Selector that matches every edge.

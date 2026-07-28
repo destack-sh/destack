@@ -13,7 +13,7 @@ function both(a: boolean, b: boolean): boolean {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.both(v0: boolean, v1: boolean): boolean {
+function test.main.both(v0: boolean, v1: boolean): boolean {
     local l0: boolean
 
 entry(v0: boolean, v1: boolean):
@@ -45,7 +45,7 @@ function either(a: boolean, b: boolean): boolean {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.either(v0: boolean, v1: boolean): boolean {
+function test.main.either(v0: boolean, v1: boolean): boolean {
     local l0: boolean
 
 entry(v0: boolean, v1: boolean):

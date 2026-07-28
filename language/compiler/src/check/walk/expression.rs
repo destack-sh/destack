@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     AssignedPlace, CauseKind, ConditionBranch, ControlTargetForm, ExpectedType, FlowBranch,
-    FlowCheckpoint, Obligation, Origin, PatternCoverage, PatternCoverageObligation, PlaceUse,
-    Relation, ValueUse, VariableRole, WalkState, Widening,
+    FlowCheckpoint, Obligation, Origin, PatternCoverage, PatternCoverageObligation,
+    PlaceUse, Relation, ValueUse, VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -48,9 +48,6 @@ impl WalkState<'_, '_> {
                             message: format!("function value {id:?} has no declaration symbol"),
                         });
                     };
-                    let ty = self.symbol_type_slot(symbol)?;
-                    self.commit_node_type(id, ty)?;
-
                     // move the body from independent roots to its value expression
                     let Some(body) = self.check.functions.swap_remove(&symbol) else {
                         return Err(CompilerError::Internal {
@@ -452,8 +449,8 @@ impl WalkState<'_, '_> {
                     self.mark_place_assigned(place);
                 }
 
-                // increments invalidate predicates under the target
-                self.clear_mutated_expression_predicates(right);
+                // increments invalidate narrowings under the target
+                self.clear_mutated_expression_narrowings(right);
 
                 // increment operation infers from its queued value use
             }
@@ -1458,8 +1455,8 @@ impl WalkState<'_, '_> {
         for (expression, place) in places {
             self.mark_place_assigned(place);
 
-            // assignments invalidate predicates under the written expression
-            self.clear_mutated_expression_predicates(expression);
+            // assignments invalidate narrowings under the written expression
+            self.clear_mutated_expression_narrowings(expression);
         }
     }
 }

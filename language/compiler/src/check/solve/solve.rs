@@ -1,115 +1,90 @@
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BoundSide, CheckEvent, CheckFailure, CheckOutcome, CheckState, Constraint,
-    ConstraintFailure, ConstraintId, ConstraintState, Dependency, Expectation, FlowSite,
-    InferenceScope, Origin, Task, TaskFailure, TaskFailures, VariableRole, answer,
+    Answer, BoundSide, CauseId, CheckEvent, CheckFailure, CheckOutcome, CheckState, Constraint,
+    ConstraintId, ConstraintResult, Dependency, Expectation, FailedCheck, FlowSite, InferMode,
+    InferenceScope, Origin, Relation, Task, Value, ValueUse, VariableRole, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Drain every queued task to quiescence.
-    pub(in crate::check) fn drain(&mut self) -> CompilerResult<()> {
-        let failures = self.drain_tasks()?;
-
-        // report the most specific failed constraint in each cause chain
-        let mut report = Vec::with_capacity(failures.len());
-        for (index, failure) in failures.iter().enumerate() {
-            let TaskFailure::Constraint(failure) = failure else {
-                report.push(index);
-
-                continue;
-            };
-            let has_descendant = failures.iter().any(|candidate| {
-                let TaskFailure::Constraint(candidate) = candidate else {
-                    return false;
-                };
-
-                self.solver
-                    .causes
-                    .is_ancestor(failure.cause, candidate.cause)
-            });
-            if !has_descendant {
-                report.push(index);
-            }
-        }
-
-        for (index, failure) in failures.into_iter().enumerate() {
-            if !report.contains(&index) {
-                continue;
-            }
-            self.report_task_failure(failure)?;
-        }
-
-        Ok(())
-    }
-
-    /// Drain every queued task and return its failures.
-    pub(in crate::check) fn drain_tasks(&mut self) -> CompilerResult<TaskFailures> {
-        let mut failures = TaskFailures::new();
+    /// Drain every queued task.
+    fn drain_tasks(&mut self) -> CompilerResult<()> {
         loop {
             // run every ready check task first
             if let Some(task) = self.solver.pop_check() {
-                self.run_queued_task(task, &mut failures)?;
+                self.run_queued_task(task)?;
 
                 continue;
             }
 
             // settle component-owned variables before obligations consume them
-            let mark = self.solver.snapshot_watermark();
-            if self.settle_task(InferenceScope::ROOT, mark, false)?.settled {
-                continue;
+            match self.settle_scope(InferenceScope::ROOT)? {
+                Answer::Ready(true) => continue,
+                Answer::Ready(false) => {}
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "root inference scope depends on outside variables {blockers:?}"
+                        ),
+                    });
+                }
             }
 
             // obligations may add new check tasks, so run one at a time
             if let Some(task) = self.solver.pop_obligation() {
-                self.run_queued_task(task, &mut failures)?;
+                self.run_queued_task(task)?;
 
                 continue;
             }
 
             // defaults complete dry variables only at quiescence
-            let mark = self.solver.snapshot_watermark();
-            if self.settle_task(InferenceScope::ROOT, mark, true)?.settled {
-                continue;
+            match self.default_scope(InferenceScope::ROOT)? {
+                Answer::Ready(true) => continue,
+                Answer::Ready(false) => {}
+                Answer::Pending(blockers) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "root inference defaults depend on outside variables {blockers:?}"
+                        ),
+                    });
+                }
             }
 
             break;
         }
 
-        Ok(failures)
+        Ok(())
     }
 
-    /// Drain queued value and type constraints without checking bodies or obligations.
-    pub(in crate::check) fn drain_constraint_tasks(
+    /// Drain queued checks without running deferred obligations.
+    pub(in crate::check) fn drain_check_tasks(
         &mut self,
         scope: InferenceScope,
-        mark: usize,
-    ) -> CompilerResult<TaskFailures> {
-        let mut failures = TaskFailures::new();
+    ) -> CompilerResult<Answer<()>> {
         loop {
-            // run every value and type constraint created by the task
-            while let Some(task) = self.solver.pop_constraint_task() {
-                self.run_queued_task(task, &mut failures)?;
+            // run every check created by the current inference scope
+            while let Some(task) = self.solver.pop_check() {
+                self.run_queued_task(task)?;
             }
 
-            // settle the variables the task owns and the holes it adopted
-            if !self.settle_task(scope, mark, true)?.settled {
-                break;
+            // settle variables allocated or bounded by this task
+            match self.default_scope(scope)? {
+                Answer::Ready(true) => {}
+                Answer::Ready(false) => return Ok(Answer::Ready(())),
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
             }
         }
-
-        Ok(failures)
     }
 
     /// Run one popped task, completing or parking it.
-    fn run_queued_task(&mut self, task: Task, failures: &mut TaskFailures) -> CompilerResult<()> {
-        // move the task out of active work and collect its failures
+    fn run_queued_task(&mut self, task: Task) -> CompilerResult<()> {
+        // move completed work out of the active queue
         match self.run_task(&task)? {
-            Answer::Ready(task_failures) => {
+            Answer::Ready(()) => {
                 self.solver.complete_task(&task);
-                failures.extend(task_failures);
             }
             Answer::Pending(blockers) => {
                 if blockers.is_empty() {
@@ -143,8 +118,9 @@ impl CheckState<'_> {
             variables: self.solver.variable_count(),
         });
 
-        self.drain()?;
-        self.report_unresolved()?;
+        self.drain_tasks()?;
+        let explained = self.report_failures()?;
+        self.report_unresolved(&explained)?;
 
         self.record_event(CheckEvent::SolveFinished {
             iterations: self.solve_steps,
@@ -155,22 +131,30 @@ impl CheckState<'_> {
     }
 
     /// Report every unresolved symbol and inference variable after the drain.
-    pub(in crate::check) fn report_unresolved(&mut self) -> CompilerResult<()> {
+    pub(in crate::check) fn report_unresolved(
+        &mut self,
+        explained: &FxIndexSet<dir::TypeVariableId>,
+    ) -> CompilerResult<()> {
         // every remaining root is a genuine inference failure
         let mut unresolved = Vec::new();
         for index in 0..self.solver.variable_count() {
             let variable = dir::TypeVariableId(index as u32);
             let state = *self.solver.variable(variable)?;
-            if state.solution.is_none() {
+            if state.state.is_open() {
                 let origin = self.solver.origin(state.origin);
                 unresolved.push((variable, origin.module()));
             }
         }
 
-        // one connected open inference graph is one failure: it reports at
-        //  its annotatable produced cells, or at every origin without one
+        let groups = self.unresolved_variable_groups()?;
+
+        // select annotatable produced cells from each connected failure graph
         let mut origins = FxIndexMap::default();
-        for group in self.unresolved_variable_groups()? {
+        for group in groups {
+            // a failed check containing this graph already explains its open variables
+            if group.iter().any(|variable| explained.contains(variable)) {
+                continue;
+            }
             let annotatable = group
                 .iter()
                 .filter(|variable| {
@@ -193,35 +177,43 @@ impl CheckState<'_> {
         }
 
         // report the failures while their bounds still show as open
-        self.report_cannot_infer_origins(origins)?;
+        self.report_inference_failures(origins)?;
 
-        // close failed inference graphs with the compiler error type;
-        //  leave declarations open for their inference components
-        if !self.is_declaration() {
-            let poisoned = !unresolved.is_empty();
-            for (variable, module) in unresolved {
-                if self.solver.variable(variable)?.solution.is_some() {
-                    continue;
-                }
-                let error = self.intern_type(module, dir::Type::Error)?;
-                self.commit_solution(variable, error)?;
+        // close failed inference graphs with the compiler error type
+        let has_unresolved = !unresolved.is_empty();
+        for (variable, module) in unresolved {
+            if !self.solver.variable(variable)?.state.is_open() {
+                continue;
             }
+            let error = self.intern_type(module, dir::Type::Error)?;
+            self.commit_error_solution(variable, error)?;
+        }
 
-            // poisoned graphs complete their parked tasks against the error
-            if poisoned {
-                self.drain()?;
-            }
+        // error completion wakes every task parked on unresolved inference
+        if has_unresolved {
+            self.drain_tasks()?;
         }
 
         // retain unresolved symbol dependencies from parked tasks
         let parked = self.solver.drain_waiters();
         let mut symbols = FxIndexMap::default();
         for (dependency, _) in parked {
-            if let Dependency::SymbolType(symbol) = dependency {
-                symbols.entry(Origin::Symbol(symbol)).or_insert(None);
+            match dependency {
+                Dependency::Variable(_) => {}
+                Dependency::SymbolType(symbol) => {
+                    symbols.entry(Origin::Symbol(symbol)).or_insert(None);
+                }
+                Dependency::NodeType(node) => {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "node checking did not publish a type: {}",
+                            self.node_label(node)
+                        ),
+                    });
+                }
             }
         }
-        self.report_cannot_infer_origins(symbols)?;
+        self.report_inference_failures(symbols)?;
 
         Ok(())
     }
@@ -243,7 +235,7 @@ impl CheckState<'_> {
     }
 
     /// Report unresolved inference origins in deterministic source order.
-    fn report_cannot_infer_origins(
+    fn report_inference_failures(
         &mut self,
         origins: FxIndexMap<Origin, Option<dir::TypeVariableId>>,
     ) -> CompilerResult<()> {
@@ -278,27 +270,18 @@ impl CheckState<'_> {
         let count = self.solver.variable_count();
         let mut parent: Vec<u32> = (0..count as u32).collect();
 
-        fn find(parent: &mut [u32], mut index: u32) -> u32 {
-            while parent[index as usize] != index {
-                parent[index as usize] = parent[parent[index as usize] as usize];
-                index = parent[index as usize];
-            }
-
-            index
-        }
-
         // union open variables with the open variables in their bounds
         for index in 0..count {
             let variable = dir::TypeVariableId(index as u32);
-            if self.solver.variable(variable)?.solution.is_some() {
+            if !self.solver.variable(variable)?.state.is_open() {
                 continue;
             }
             for side in [BoundSide::Lower, BoundSide::Upper] {
                 for bound in self.solver.variables.side_bounds(variable, side)? {
                     for dependency in self.type_variables(bound.ty)? {
-                        if self.solver.variable(dependency)?.solution.is_none() {
-                            let left = find(&mut parent, index as u32);
-                            let right = find(&mut parent, dependency.0);
+                        if self.solver.variable(dependency)?.state.is_open() {
+                            let left = find_disjoint_root(&mut parent, index as u32);
+                            let right = find_disjoint_root(&mut parent, dependency.0);
                             parent[left as usize] = right;
                         }
                     }
@@ -310,8 +293,8 @@ impl CheckState<'_> {
         let mut groups = FxIndexMap::<u32, Vec<dir::TypeVariableId>>::default();
         for index in 0..count {
             let variable = dir::TypeVariableId(index as u32);
-            if self.solver.variable(variable)?.solution.is_none() {
-                let root = find(&mut parent, index as u32);
+            if self.solver.variable(variable)?.state.is_open() {
+                let root = find_disjoint_root(&mut parent, index as u32);
                 groups.entry(root).or_default().push(variable);
             }
         }
@@ -320,27 +303,29 @@ impl CheckState<'_> {
     }
 
     /// Run one solver task once, returning its failures.
-    pub(in crate::check) fn run_task(
-        &mut self,
-        task: &Task,
-    ) -> CompilerResult<Answer<TaskFailures>> {
+    pub(in crate::check) fn run_task(&mut self, task: &Task) -> CompilerResult<Answer<()>> {
         match task {
             Task::Relate(constraint) => self.run_relate(*constraint),
             Task::Check { site, expectation } => self.run_check(*site, *expectation),
+            Task::Convert {
+                site,
+                source,
+                expectation,
+            } => self.run_convert(*site, *source, *expectation),
             Task::Infer { site, use_ } => {
                 let mut body = self.body();
                 let checked = body.attempt_node(*site, *use_, None)?;
 
                 Ok(match checked {
-                    Answer::Ready(_) => Answer::Ready(TaskFailures::new()),
+                    Answer::Ready(_) => Answer::Ready(()),
                     Answer::Pending(blockers) => Answer::Pending(blockers),
                 })
             }
             Task::CheckBody(body) => {
-                let checked = body.check(self)?;
+                let checked = body.check(self, InferMode::Exact, None)?;
 
                 Ok(match checked {
-                    Answer::Ready(_) => Answer::Ready(TaskFailures::new()),
+                    Answer::Ready(_) => Answer::Ready(()),
                     Answer::Pending(blockers) => Answer::Pending(blockers),
                 })
             }
@@ -353,99 +338,152 @@ impl CheckState<'_> {
         &mut self,
         site: FlowSite,
         expectation: Expectation,
-    ) -> CompilerResult<Answer<TaskFailures>> {
+    ) -> CompilerResult<Answer<()>> {
         let mut body = self.body();
         let checked = body.check_node(site, expectation)?;
 
         Ok(match checked {
-            Answer::Ready(_) => Answer::Ready(TaskFailures::new()),
+            Answer::Ready(_) => Answer::Ready(()),
             Answer::Pending(blockers) => Answer::Pending(blockers),
         })
     }
 
-    /// Report one task failure at the fulfillment boundary.
-    pub(in crate::check) fn report_task_failure(
+    /// Convert one checked value to its contextual target.
+    fn run_convert(
         &mut self,
-        failure: TaskFailure,
-    ) -> CompilerResult<()> {
-        match failure {
-            TaskFailure::Constraint(failure) => self.report_constraint_failure(
+        site: FlowSite,
+        source: Value,
+        expectation: Expectation,
+    ) -> CompilerResult<Answer<()>> {
+        let mut body = self.body();
+        let conversion = answer!(body.convert_value(
+            site,
+            expectation.cause,
+            expectation.relation,
+            source,
+            expectation.target,
+            expectation.use_,
+            expectation.mode,
+        )?);
+        body.commit_value_conversion(site, source.ty, expectation, conversion)?;
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Retain one failed check until its cause tree is complete.
+    pub(in crate::check) fn record_failure(
+        &mut self,
+        cause: CauseId,
+        relation: Relation,
+        use_: Option<ValueUse>,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        failure: CheckFailure,
+    ) {
+        self.failures.push(FailedCheck {
+            cause,
+            relation,
+            use_,
+            source,
+            target,
+            failure,
+        });
+    }
+
+    /// Report one failure for every terminal failed cause.
+    fn report_failures(&mut self) -> CompilerResult<FxIndexSet<dir::TypeVariableId>> {
+        let mut failures = std::mem::take(&mut self.failures);
+
+        // include completed type constraints in the same cause forest
+        for id in self.solver.constraints.failures_from(0) {
+            let constraint = *self.solver.constraints.get(id)?;
+            let result =
+                self.solver
+                    .constraints
+                    .result(id)?
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!("failed constraint {id:?} has no completed result"),
+                    })?;
+            let CheckOutcome::Fails(failure) = result.outcome else {
+                return Err(CompilerError::Internal {
+                    message: format!("failed constraint {id:?} has a successful result"),
+                });
+            };
+            failures.push(FailedCheck {
+                cause: constraint.cause(),
+                relation: constraint.relation(),
+                use_: None,
+                source: result.source,
+                target: result.target,
+                failure,
+            });
+        }
+
+        // failed relations explain any open inference variables they contain
+        let mut explained = FxIndexSet::default();
+        for failure in &failures {
+            explained.extend(self.type_variables(failure.source)?);
+            explained.extend(self.type_variables(failure.target)?);
+        }
+
+        // suppress every failed cause with a failed descendant
+        let mut suppressed = FxIndexSet::default();
+        for failure in &failures {
+            let mut parent = self.solver.causes.get(failure.cause).parent;
+            while let Some(ancestor) = parent {
+                suppressed.insert(ancestor);
+                parent = self.solver.causes.get(ancestor).parent;
+            }
+        }
+
+        // report the first failure retained at each terminal cause
+        let mut causes = FxIndexSet::default();
+        for failure in failures {
+            if suppressed.contains(&failure.cause) || !causes.insert(failure.cause) {
+                continue;
+            }
+            self.emit_failure(
                 failure.cause,
                 failure.relation,
                 failure.use_,
                 failure.source,
                 failure.target,
                 failure.failure,
-            ),
-            TaskFailure::Obligation(failure) => self.report_obligation_failure(failure),
+            )?;
         }
+
+        Ok(explained)
     }
 
     /// Solve one relation constraint once.
-    fn run_relate(&mut self, id: ConstraintId) -> CompilerResult<Answer<TaskFailures>> {
+    fn run_relate(&mut self, id: ConstraintId) -> CompilerResult<Answer<()>> {
         if self.solver.constraints.is_complete(id) {
-            return Ok(Answer::Ready(TaskFailures::new()));
+            return Ok(Answer::Ready(()));
         }
 
         let constraint = *self.solver.constraints.get(id)?;
-        let checked = match constraint {
-            Constraint::Type(constraint) => {
-                let check = self.check_type_constraint(
-                    constraint.cause,
-                    constraint.relation,
-                    constraint.source,
-                    constraint.target,
-                )?;
-
-                match check {
-                    Answer::Ready(check) => {
-                        Answer::Ready((constraint.source, constraint.target, check, None))
-                    }
-                    Answer::Pending(blockers) => Answer::Pending(blockers),
-                }
-            }
-            Constraint::Value(constraint) => {
-                let mut body = self.body();
-                let target = constraint.target;
-                let site = body.node_site(constraint.node)?;
-                let source = answer!(body.node_type_at(site)?);
-                let check = answer!(body.check_value_relation(
-                    constraint.cause,
-                    constraint.relation,
-                    source,
-                    target,
-                )?);
-
-                Answer::Ready((source, target, check.outcome, check.coercion))
-            }
-        };
+        let checked = self.check_type_constraint(
+            constraint.origin,
+            constraint.cause,
+            constraint.relation,
+            constraint.source,
+            constraint.target,
+        )?;
 
         match checked {
-            Answer::Ready((source, target, check, coercion)) => {
-                let mut failures = TaskFailures::new();
-                if let CheckOutcome::Fails(mut failure) = check {
-                    // derived failures reject but never report themselves
-                    if constraint.is_derived() {
-                        failure = CheckFailure::Reported;
-                    }
-                    failures.push(TaskFailure::Constraint(ConstraintFailure {
-                        cause: constraint.cause(),
-                        relation: constraint.relation(),
-                        use_: constraint.value_use(),
-                        source,
-                        target,
-                        failure,
-                    }));
-                }
-
-                let state = check.state();
-                self.solver.set_constraint_result(id, state, coercion)?;
+            Answer::Ready(outcome) => {
+                let result = ConstraintResult {
+                    source: constraint.source,
+                    target: constraint.target,
+                    outcome,
+                };
+                self.solver.set_constraint_result(id, result)?;
                 self.record_event(CheckEvent::RelationChecked {
                     constraint: id,
                     is_finished: true,
                 });
 
-                Ok(Answer::Ready(failures))
+                Ok(Answer::Ready(()))
             }
             Answer::Pending(blockers) => {
                 self.record_event(CheckEvent::RelationChecked {
@@ -471,25 +509,6 @@ impl CheckState<'_> {
         self.queue_task(Task::Check { site, expectation });
     }
 
-    /// Record one constraint that has already finished checking.
-    pub(in crate::check) fn record_constraint(
-        &mut self,
-        constraint: Constraint,
-        state: ConstraintState,
-        coercion: Option<Box<dir::Coercion>>,
-    ) -> CompilerResult<ConstraintId> {
-        if !state.is_done() {
-            return Err(CompilerError::Internal {
-                message: "recorded constraint is still pending".to_string(),
-            });
-        }
-
-        let id = self.solver.allocate_constraint(constraint);
-        self.solver.set_constraint_result(id, state, coercion)?;
-
-        Ok(id)
-    }
-
     /// Queue one solver task.
     pub(in crate::check) fn queue_task(&mut self, task: Task) {
         self.solver.push_task(task);
@@ -501,15 +520,39 @@ impl CheckState<'_> {
         task: &Task,
         blockers: &[Dependency],
     ) -> CompilerResult<()> {
+        let mut pending = SmallVec::<[Dependency; 2]>::new();
+        for blocker in blockers.iter().copied() {
+            if self.is_dependency_pending(blocker)? && !pending.contains(&blocker) {
+                pending.push(blocker);
+            }
+        }
+
+        // retry after a dependency completed between observation and registration
+        if pending.is_empty() {
+            self.solver.retry_task(task.clone());
+
+            return Ok(());
+        }
+
         self.record_event(CheckEvent::TaskParked {
             task: task.clone(),
-            blockers: blockers.iter().copied().collect(),
+            blockers: pending.clone(),
         });
 
-        for blocker in blockers {
-            self.solver.wait_for(*blocker, task.clone());
+        for blocker in pending {
+            self.solver.wait_for(blocker, task.clone());
         }
 
         Ok(())
     }
+}
+
+/// Return one disjoint-set root while compressing its path.
+fn find_disjoint_root(parents: &mut [u32], mut index: u32) -> u32 {
+    while parents[index as usize] != index {
+        parents[index as usize] = parents[parents[index as usize] as usize];
+        index = parents[index as usize];
+    }
+
+    index
 }

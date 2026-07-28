@@ -19,6 +19,7 @@ enum CoercionValue {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
+    /// Lower one expression through its checked coercion.
     pub(in crate::lower) fn lower_expression(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -26,10 +27,11 @@ impl FunctionLowerer<'_, '_, '_> {
         let Some(coercion) = self.coercion(expression) else {
             return self.lower_expression_value(expression);
         };
+        let target = coercion.target();
         let value = self.coercion_source(expression, coercion.source)?;
         let value = self.lower_adjustments(value, coercion.source, &coercion.adjustments)?;
 
-        self.materialize_coercion_value(value, coercion.target())
+        self.materialize_coercion_value(value, target)
     }
 
     /// Classify one expression before applying its checked coercion path.
@@ -57,7 +59,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<CoercionValue> {
         for adjustment in adjustments {
             value = self.lower_adjustment(value, source, adjustment)?;
-            source = adjustment.target;
+            source = adjustment.target();
         }
 
         Ok(value)
@@ -70,20 +72,21 @@ impl FunctionLowerer<'_, '_, '_> {
         source: dir::GlobalTypeId,
         adjustment: &dir::CoercionAdjustment,
     ) -> CompilerResult<CoercionValue> {
-        match adjustment.kind {
-            dir::CoercionKind::Direct => Ok(value),
-            dir::CoercionKind::Widen => {
-                let value = self.materialize_coercion_value(value, adjustment.target)?;
+        match adjustment {
+            dir::CoercionAdjustment::Widen { target } => {
+                let value = self.materialize_coercion_value(value, *target)?;
 
                 Ok(CoercionValue::Runtime(value))
             }
-            dir::CoercionKind::Borrow => {
-                let target = self.lower_type(adjustment.target)?;
+            dir::CoercionAdjustment::Borrow { target } => {
+                let target = self.lower_type(*target)?;
                 let value = match value {
                     CoercionValue::Expression(expression) => {
                         self.lower_borrowed_place(expression, target)?
                     }
-                    CoercionValue::Runtime(value) if self.lowerer.type_is_reference(source)? => {
+                    CoercionValue::Runtime(value)
+                        if self.lowerer.has_reference_representation(source)? =>
+                    {
                         self.builder.cast(mir::CastOperator::Bitcast, value, target)
                     }
                     _ => {
@@ -95,14 +98,21 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
-            dir::CoercionKind::Scalar => {
+            dir::CoercionAdjustment::Read { target } => {
+                let value = self.materialize_coercion_value(value, source)?;
+                let target = self.lower_type(*target)?;
+                let value = self.builder.load(value, target);
+
+                Ok(CoercionValue::Runtime(value))
+            }
+            dir::CoercionAdjustment::Scalar { target } => {
                 let value = self.materialize_coercion_value(value, source)?;
                 let Some(source) = self.builder.value_type(value) else {
                     return Err(CompilerError::Internal {
                         message: "lowered scalar coercion source has no MIR type".to_string(),
                     });
                 };
-                let target = self.lower_type(adjustment.target)?;
+                let target = self.lower_type(*target)?;
                 let value = if self.builder.tree().get(source) == self.builder.tree().get(target) {
                     value
                 } else {
@@ -116,19 +126,14 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
-            dir::CoercionKind::Union => {
-                let value = self.lower_union_adjustment(
-                    value,
-                    source,
-                    adjustment.target,
-                    &adjustment.cases,
-                )?;
+            dir::CoercionAdjustment::Union { target, cases } => {
+                let value = self.lower_union_adjustment(value, source, *target, cases)?;
 
                 Ok(CoercionValue::Runtime(value))
             }
-            kind => Err(LowerError::Unsupported {
+            adjustment => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
-                construct: format!("an implicit {} coercion", kind.as_str()),
+                construct: format!("an implicit {} coercion", adjustment.as_str()),
             }
             .into()),
         }
@@ -251,33 +256,33 @@ impl FunctionLowerer<'_, '_, '_> {
                         .to_string(),
                 });
             }
-            let Some(target_index) = first.target else {
+            let target_member = first.target;
+            let Some(target_index) = target_members
+                .iter()
+                .position(|member| *member == target_member)
+            else {
                 return Err(CompilerError::Internal {
-                    message: "checked union injection omitted its target case".to_string(),
-                });
-            };
-            let Some(target_member) = target_members.get(target_index as usize).copied() else {
-                return Err(CompilerError::Internal {
-                    message: "checked union conversion selects an absent target case".to_string(),
+                    message: "checked union conversion selects an absent target member".to_string(),
                 });
             };
             let payload = self.union_payload(CoercionValue::Runtime(value), target_member)?;
 
-            return Ok(self.builder.variant_new(carrier, target_index, payload));
+            return Ok(self
+                .builder
+                .variant_new(carrier, target_index as u32, payload));
         }
         let [case] = cases else {
             return Err(CompilerError::Internal {
                 message: "checked union injection requires exactly one source case".to_string(),
             });
         };
-        let Some(target_index) = case.target else {
+        let target_member = case.target;
+        let Some(target_index) = target_members
+            .iter()
+            .position(|member| *member == target_member)
+        else {
             return Err(CompilerError::Internal {
-                message: "checked union injection omitted its target case".to_string(),
-            });
-        };
-        let Some(target_member) = target_members.get(target_index as usize).copied() else {
-            return Err(CompilerError::Internal {
-                message: "checked union injection selects an absent target case".to_string(),
+                message: "checked union injection selects an absent target member".to_string(),
             });
         };
 
@@ -285,7 +290,9 @@ impl FunctionLowerer<'_, '_, '_> {
         let value = self.lower_adjustments(value, source, &case.adjustments)?;
         let payload = self.union_payload(value, target_member)?;
 
-        Ok(self.builder.variant_new(carrier, target_index, payload))
+        Ok(self
+            .builder
+            .variant_new(carrier, target_index as u32, payload))
     }
 
     /// Convert one indexed union value into another ordered case set.
@@ -318,18 +325,19 @@ impl FunctionLowerer<'_, '_, '_> {
             let source_value = self.union_case_value(value, source_index, source_member)?;
             let source_value =
                 self.lower_adjustments(source_value, source_member, &mapping.adjustments)?;
-            let Some(target_index) = mapping.target else {
+            let target_member = mapping.target;
+            let Some(target_index) = target_members
+                .iter()
+                .position(|member| *member == target_member)
+            else {
                 return Err(CompilerError::Internal {
-                    message: "checked union conversion omitted its target case".to_string(),
-                });
-            };
-            let Some(target_member) = target_members.get(target_index as usize).copied() else {
-                return Err(CompilerError::Internal {
-                    message: "checked union conversion selects an absent target case".to_string(),
+                    message: "checked union conversion selects an absent target member".to_string(),
                 });
             };
             let payload = self.union_payload(source_value, target_member)?;
-            let converted = self.builder.variant_new(carrier, target_index, payload);
+            let converted = self
+                .builder
+                .variant_new(carrier, target_index as u32, payload);
             self.builder.local_set(result, converted);
             self.builder.jump(exit);
         }
@@ -362,9 +370,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "checked union exit has an incomplete case map".to_string(),
             });
         }
-        if cases.iter().any(|case| case.target.is_some()) {
+        if cases.iter().any(|case| case.target != target) {
             return Err(CompilerError::Internal {
-                message: "checked union exit selects a target-union case".to_string(),
+                message: "checked union exit selects a different target type".to_string(),
             });
         }
         let value = self.materialize_coercion_value(value, source)?;
@@ -545,49 +553,96 @@ impl FunctionLowerer<'_, '_, '_> {
             // a + b
             dir::Expression::Binary {
                 left,
-                operator,
+                operator: _,
                 right,
             } => {
                 let resolution = self.operator_resolution(expression)?;
-                match resolution {
-                    dir::OperatorResolution::Builtin => match operator {
+                let dir::OperationResolution::One(application) = resolution else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a binary operator on union operands".to_string(),
+                    }
+                    .into());
+                };
+                match application {
+                    dir::OperatorApplication::Binary {
+                        operator,
+                        target: dir::OperatorTarget::Builtin(operands),
+                        ..
+                    } => match operator {
                         dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
-                            self.lower_strict_equality(left, operator, right)
+                            self.lower_strict_equality(left, operator, right, &operands)
                         }
                         operator => match operator {
                             dir::BinaryOperator::And | dir::BinaryOperator::Or => {
                                 self.lower_logical(expression, left, operator, right)
                             }
-                            operator => self.lower_binary(left, operator, right),
+                            operator => self.lower_binary(left, operator, right, &operands),
                         },
                     },
                     // protocol operators dispatch as left.method(right)
-                    dir::OperatorResolution::Call(resolution) => match &resolution.target {
-                        dir::CallTarget::Symbol(candidate) => {
-                            self.lower_operator_method(left, &resolution, candidate)
-                        }
+                    dir::OperatorApplication::Binary {
+                        target: dir::OperatorTarget::Call(call),
+                        ..
+                    } => match &*call {
+                        dir::Call {
+                            target:
+                                dir::CallTarget::Symbol {
+                                    function,
+                                    dispatch: dir::FunctionDispatch::Direct,
+                                },
+                            ..
+                        } => self.lower_operator_method(left, &call, function),
                         _ => Err(CompilerError::Internal {
                             message: "checked DIR selected a non-callable binary operator"
                                 .to_string(),
                         }),
                     },
+                    dir::OperatorApplication::Unary { .. } => Err(CompilerError::Internal {
+                        message: "checked DIR selected a unary resolution for a binary expression"
+                            .to_string(),
+                    }),
                 }
             }
 
             // -value
-            dir::Expression::Unary { operator, right } => {
-                match self.operator_resolution(expression)? {
-                    dir::OperatorResolution::Builtin => self.lower_unary(operator, right),
+            dir::Expression::Unary { operator: _, right } => {
+                let resolution = self.operator_resolution(expression)?;
+                let dir::OperationResolution::One(application) = resolution else {
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lowerer.module.into(),
+                        construct: "a unary operator on a union operand".to_string(),
+                    }
+                    .into());
+                };
+                match application {
+                    dir::OperatorApplication::Unary {
+                        operator,
+                        target: dir::OperatorTarget::Builtin(operand),
+                        ..
+                    } => self.lower_unary(operator, right, &operand),
                     // protocol operators dispatch as right.method()
-                    dir::OperatorResolution::Call(resolution) => match &resolution.target {
-                        dir::CallTarget::Symbol(candidate) => {
-                            self.lower_operator_method(right, &resolution, candidate)
-                        }
+                    dir::OperatorApplication::Unary {
+                        target: dir::OperatorTarget::Call(call),
+                        ..
+                    } => match &*call {
+                        dir::Call {
+                            target:
+                                dir::CallTarget::Symbol {
+                                    function,
+                                    dispatch: dir::FunctionDispatch::Direct,
+                                },
+                            ..
+                        } => self.lower_operator_method(right, &call, function),
                         _ => Err(CompilerError::Internal {
                             message: "checked DIR selected a non-callable unary operator"
                                 .to_string(),
                         }),
                     },
+                    dir::OperatorApplication::Binary { .. } => Err(CompilerError::Internal {
+                        message: "checked DIR selected a binary resolution for a unary expression"
+                            .to_string(),
+                    }),
                 }
             }
 
@@ -621,7 +676,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::Member { left, .. } => self.lower_member(expression, left),
 
             // pair[0]
-            dir::Expression::Index { left, .. } => self.lower_member(expression, left),
+            dir::Expression::Index { left, .. } => self.lower_subscript(expression, left),
 
             // value as T
             dir::Expression::As {

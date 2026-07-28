@@ -21,16 +21,17 @@ impl BodyState<'_, '_> {
         let value_site = self.node_site(value.into_global_any(module))?;
 
         // the value checks against the target without taking its type
-        let target = answer!(self.node_type(target_type.into_global_any(module))?);
+        let target = self.require_node_type(target_type.into_global_any(module))?;
         let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
-        answer!(self.check_node_expected(
+        let check = answer!(self.check_node_expected(
             value_site,
             target,
             Relation::Satisfies,
             cause,
             ValueUse::Satisfies,
+            InferMode::Mutable,
         )?);
-        let value_type = answer!(self.node_type_at(value_site)?);
+        let value_type = check.source;
         self.commit_node_type(node.into_any(), value_type)?;
 
         Ok(Answer::Ready(()))
@@ -52,33 +53,26 @@ impl BodyState<'_, '_> {
             dir::TypeExpression::Const
         );
         if is_const_assertion {
-            answer!(self.infer_expression(value_site, PlaceUse::Read, InferMode::Const)?);
-            let ty = answer!(self.node_type_at(value_site)?);
+            let ty = answer!(self.infer_node(value_site, PlaceUse::Read, InferMode::Const,)?);
+            let ty = answer!(self.flow_type_at(value_site, ty)?);
             self.commit_node_type(node.into_any(), ty)?;
 
             return Ok(Answer::Ready(()));
         }
 
-        let target = answer!(self.node_type(target_type.into_global_any(module))?);
+        let target = self.require_node_type(target_type.into_global_any(module))?;
 
-        // cast targets with open holes deduce them from their operand
-        if !self.check.type_variables(target)?.is_empty()
-            && self.committed_node_type(value_site.node).is_none()
-        {
-            let cause = self.intern_cause(Cause::root(value_site.origin(), CauseKind::Expression));
-            let expectation = Expectation {
-                target,
-                relation: Relation::Castable,
-                cause,
-                use_: ValueUse::Store,
-            };
-            answer!(self.check_node(value_site, expectation)?);
-            self.commit_node_type(node.into_any(), target)?;
-
-            return Ok(Answer::Ready(()));
-        }
-
-        let value_type = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+        // check the operand through the cast target
+        let cause = self.intern_cause(Cause::root(value_site.origin(), CauseKind::Expression));
+        let expectation = Expectation {
+            target,
+            relation: Relation::Castable,
+            cause,
+            use_: ValueUse::Store,
+            mode: InferMode::Widen,
+        };
+        let check = answer!(self.check_node(value_site, expectation)?);
+        let value_type = check.source;
 
         // a cast onto the operand's own settled type has no effect
         let value_root = self.check.settled_root(value_type)?;
@@ -91,13 +85,6 @@ impl BodyState<'_, '_> {
             );
         }
 
-        let cause = self.intern_cause(Cause::root(value_site.origin(), CauseKind::Expression));
-        self.push_constraint(Constraint::r#type(
-            Relation::Castable,
-            value_type,
-            target,
-            cause,
-        ));
         self.commit_node_type(node.into_any(), target)?;
 
         Ok(Answer::Ready(()))
@@ -133,6 +120,7 @@ impl BodyState<'_, '_> {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 for bound in bounds {
                     self.push_constraint(Constraint::r#type(
+                        origin,
                         Relation::Assignable,
                         *bound,
                         element,
@@ -167,9 +155,9 @@ impl BodyState<'_, '_> {
         let node = site.node.into_typed::<dir::Expression>();
         let value_site = self.node_site(value.into_global_any(node.module_id))?;
         let value = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-        let output = answer!(
-            self.reduce_operation_type(site.origin(), dir::TypeOperation::TryOutput { value },)?
-        );
+        let output =
+            answer!(self
+                .reduce_operation_type(site.origin(), dir::TypeOperation::TryOutput { value },)?);
         self.propagate_try_residual(node.into_any(), value, site)?;
         self.commit_node_type(node.into_any(), output)?;
 
@@ -193,6 +181,7 @@ impl BodyState<'_, '_> {
             TryPropagationTarget::Failure { ty } => {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 self.push_constraint(Constraint::r#type(
+                    origin,
                     Relation::Assignable,
                     residual,
                     ty,
@@ -209,7 +198,13 @@ impl BodyState<'_, '_> {
                     dir::Type::Application(dir::GenericApplication { symbol, arguments }),
                 )?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                self.push_constraint(Constraint::r#type(Relation::Implements, ret, target, cause));
+                self.push_constraint(Constraint::r#type(
+                    origin,
+                    Relation::Implements,
+                    ret,
+                    target,
+                    cause,
+                ));
             }
             TryPropagationTarget::Return { ty: None } => {
                 self.check.report_try_outside_function(node);

@@ -21,8 +21,8 @@ posts satisfies Route;
 === annotated ===
 type Route = `api:${"users" | "posts"}`;
 
-const users: Route = "api:users" as Route;
-const posts: Route = "api:posts" as Route;
+const users: Route = "api:users" as "api:users" | "api:posts";
+const posts: Route = "api:posts" as "api:users" | "api:posts";
 
 users satisfies "api:users" | "api:posts";
 posts satisfies Route;
@@ -44,9 +44,13 @@ const posts: Route = "api:posts";
 
 users satisfies "api:users" | "api:posts";
 /// @resolution.name source=users target=users
+/// @resolution.place source=users placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=users root=users
 
 posts satisfies Route;
 /// @resolution.name source=posts target=posts
+/// @resolution.place source=posts placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=posts root=posts
 /// @resolution.name source=Route target=Route
 "#,
     );
@@ -71,8 +75,8 @@ const bad: Route = "fr-users";
 === annotated ===
 type Route = `${"en" | "de"}-${"users" | "posts"}`;
 
-const enUsers: Route = "en-users" as Route;
-const dePosts: Route = "de-posts" as Route;
+const enUsers: Route = "en-users" as "en-users" | "en-posts" | "de-users" | "de-posts";
+const dePosts: Route = "de-posts" as "en-users" | "en-posts" | "de-users" | "de-posts";
 const bad: Route = "fr-users";
 
 === checked ===
@@ -260,6 +264,8 @@ const ok: AnyString = value;
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=AnyString target=AnyString
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }
@@ -299,6 +305,8 @@ const item: NumericRoute = "item:42";
 
 item satisfies `item:${number}`;
 /// @resolution.name source=item target=item
+/// @resolution.place source=item placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=item root=item
 "#,
     );
 }

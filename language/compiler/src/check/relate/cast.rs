@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, ScalarFamily, answer};
+use crate::check::{Answer, CheckState, Origin, Relation, answer};
 
 impl CheckState<'_> {
     /// Decide explicit castability.
@@ -29,7 +29,7 @@ impl CheckState<'_> {
             && families.iter().all(|family| {
                 matches!(
                     family,
-                    ScalarFamily::Domain(
+                    dir::ScalarFamily::Domain(
                         dir::ScalarDomain::Integer
                             | dir::ScalarDomain::Float
                             | dir::ScalarDomain::Character

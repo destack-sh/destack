@@ -54,9 +54,11 @@ impl CheckState<'_> {
             | dir::Type::Key(_)
             | dir::Type::Memory(_)
             | dir::Type::Static(_)
-            | dir::Type::EnumMember(_)
             | dir::Type::Range(_)
             | dir::Type::Reference(_) => Ok(Answer::Ready(true)),
+            dir::Type::Variant(variant) => {
+                self.satisfies_overwrite_stable(origin, variant.owner, active)
+            }
             dir::Type::Any
             | dir::Type::Unknown
             | dir::Type::Object
@@ -120,9 +122,9 @@ impl CheckState<'_> {
             }
             dir::Type::Shape(shape) => {
                 let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
-                    .shape_fields(ty.module_id, shape.fields)?
+                    .shape_properties(ty.module_id, shape.properties)?
                     .iter()
-                    .map(|field| field.ty)
+                    .flat_map(|field| field.access.types())
                     .collect();
 
                 self.all_overwrite_stable(origin, ids, active)

@@ -24,7 +24,7 @@ function pick(flag: boolean): Mode {
 @copy
 type Mode = variant<int64, void> { 1int64 = void; 2int64 = void; };
 
-function main.pick(v0: boolean): Mode {
+function test.main.pick(v0: boolean): Mode {
 entry(v0: boolean):
     branch v0, b1, b2
 
@@ -75,7 +75,7 @@ function fallback(mode: Mode): int32 {
 @copy
 type Mode = variant<int64, void> { 1int64 = void; 2int64 = void; };
 
-function main.describe(v0: Mode): int32 {
+function test.main.describe(v0: Mode): int32 {
     local l0: int32
 
 entry(v0: Mode):
@@ -96,7 +96,7 @@ b3:
     return v3
 }
 
-function main.fallback(v0: Mode): int32 {
+function test.main.fallback(v0: Mode): int32 {
     local l0: int32
 
 entry(v0: Mode):

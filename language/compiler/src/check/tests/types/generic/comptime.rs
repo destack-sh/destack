@@ -35,6 +35,8 @@ function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
     return value;
     /// @type.node source=value type=FixedArray<uint8, N>
     /// @resolution.name source=value target=take.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=take.value
 
 }
 
@@ -91,6 +93,8 @@ function choose<comptime Flag: boolean = true>(value: int32): int32 {
     return value;
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=choose.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=choose.value
 
 }
 

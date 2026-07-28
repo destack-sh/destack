@@ -253,11 +253,6 @@ export extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor
         todo("Tensor.contiguous")
     }
 
-    /// Return the element at `coordinate` by value.
-    index(coordinate: Coordinate<Rank>): T {
-        todo("Tensor.index")
-    }
-
     /// Borrow the element at `coordinate`.
     index<comptime A: Access = "readonly">(
         this: WithAccess<&Tensor<T, Rank, F, P>, A>,

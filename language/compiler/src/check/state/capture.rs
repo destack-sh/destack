@@ -27,6 +27,8 @@ pub(in crate::check) struct Capture {
 pub(in crate::check) struct Receiver {
     /// The declaration that introduces contextual `this`, when any.
     pub(in crate::check) declaration: Option<dir::GlobalSymbolId>,
+    /// The receiver declaration's default ownership, when fixed.
+    pub(in crate::check) ownership: Option<dir::Ownership>,
     /// The receiver type.
     pub(in crate::check) ty: dir::GlobalTypeId,
     /// The superclass receiver type, when the owner extends one.

@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, FlowSite, Origin, PlaceUse, Relation, answer,
+    Answer, BodyState, CallableArgument, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -107,6 +107,7 @@ impl BodyState<'_, '_> {
         &mut self,
         module: ModuleId,
         arguments: &[dir::LocalNodeId<dir::Argument>],
+        use_: ValueUse,
     ) -> CompilerResult<SmallVec<[CallableArgument; 4]>> {
         let mut values = SmallVec::<[CallableArgument; 4]>::new();
 
@@ -117,7 +118,8 @@ impl BodyState<'_, '_> {
                 Some(value) => values.push(CallableArgument {
                     source: value,
                     ty: None,
-                    relation: self.literal_relation(value),
+                    relation: Relation::Assignable,
+                    use_,
                 }),
                 None => {
                     let ty = self.intern_type(module, dir::Type::Error)?;
@@ -125,6 +127,7 @@ impl BodyState<'_, '_> {
                         source,
                         ty: Some(ty),
                         relation: Relation::Assignable,
+                        use_,
                     });
                 }
             }
@@ -137,81 +140,48 @@ impl BodyState<'_, '_> {
     pub(in crate::check) fn source_callable_arguments(
         &mut self,
         origin: Origin,
-        arguments: &[dir::GlobalTypeId],
         sources: &[dir::ArgumentSource],
     ) -> CompilerResult<SmallVec<[CallableArgument; 4]>> {
         let source = self
             .origin_source_node(origin)?
             .into_global(origin.module());
-        let mut index = 0usize;
         let mut values = SmallVec::<[CallableArgument; 4]>::new();
 
-        // map each binding source to the type supplied by its caller
+        // map authored and generated values directly
         for argument in sources {
             match argument {
                 dir::ArgumentSource::Provided(source) => {
-                    let Some(ty) = arguments.get(index).copied() else {
-                        return Err(CompilerError::Internal {
-                            message: "typed argument source has no type".to_string(),
-                        });
-                    };
-                    index += 1;
                     values.push(CallableArgument {
                         source: *source,
-                        ty: Some(ty),
-                        relation: self.literal_relation(*source),
+                        ty: None,
+                        relation: Relation::Assignable,
+                        use_: ValueUse::Argument,
                     });
                 }
                 dir::ArgumentSource::Rest(sources) => {
                     for source in sources {
-                        let Some(ty) = arguments.get(index).copied() else {
-                            return Err(CompilerError::Internal {
-                                message: "typed rest argument source has no type".to_string(),
-                            });
-                        };
-                        index += 1;
                         values.push(CallableArgument {
                             source: *source,
-                            ty: Some(ty),
-                            relation: self.literal_relation(*source),
+                            ty: None,
+                            relation: Relation::Assignable,
+                            use_: ValueUse::Argument,
                         });
                     }
                 }
                 dir::ArgumentSource::Static(ty) => {
-                    let ty = match arguments.get(index).copied() {
-                        Some(ty) => {
-                            index += 1;
-                            ty
-                        }
-                        None => *ty,
-                    };
                     values.push(CallableArgument {
                         source,
-                        ty: Some(ty),
+                        ty: Some(*ty),
                         relation: Relation::Assignable,
+                        use_: ValueUse::Argument,
                     });
                 }
-                dir::ArgumentSource::Omitted => {
-                    if let Some(ty) = arguments.get(index).copied() {
-                        index += 1;
-                        values.push(CallableArgument {
-                            source,
-                            ty: Some(ty),
-                            relation: Relation::Assignable,
-                        });
-                    }
+                dir::ArgumentSource::Write | dir::ArgumentSource::Omitted => {
+                    return Err(CompilerError::Internal {
+                        message: format!("{argument:?} is not a callable argument source"),
+                    });
                 }
             }
-        }
-
-        // reject mismatched typed argument metadata loudly
-        if index != arguments.len() {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "typed call supplied {} types but consumed {index}",
-                    arguments.len()
-                ),
-            });
         }
 
         Ok(values)

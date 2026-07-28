@@ -30,7 +30,7 @@ struct Point {
     x: int32;
 }
 
-const value: HasX = Point { x: 1 };
+const value: Dynamic<HasX> = Point { x: 1 } as Dynamic<HasX>;
 value satisfies HasX;
 
 === checked ===
@@ -55,13 +55,15 @@ struct Point {
 }
 
 const value: HasX = Point { x: 1 };
-/// @type.symbol symbol=value source=value type=HasX
+/// @type.symbol symbol=value source=value type=Dynamic<HasX>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=HasX target=HasX
 /// @resolution.name source=Point target=Point
 
 value satisfies HasX;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 /// @resolution.name source=HasX target=HasX
 "#,
     );
@@ -114,9 +116,13 @@ const value: { readonly x: int32 } = point;
 /// @type.symbol symbol=value source=value type={ readonly x: int32 }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 
 value satisfies { readonly x: int32 };
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }
@@ -151,7 +157,7 @@ struct Counter {
     count: int32;
 }
 
-const counter: HasCount = Counter { count: 1 };
+const counter: Dynamic<HasCount> = Counter { count: 1 } as Dynamic<HasCount>;
 counter satisfies HasCount;
 
 === checked ===
@@ -176,13 +182,15 @@ struct Counter {
 }
 
 const counter: HasCount = Counter { count: 1 };
-/// @type.symbol symbol=counter source=counter type=HasCount
+/// @type.symbol symbol=counter source=counter type=Dynamic<HasCount>
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.name source=HasCount target=HasCount
 /// @resolution.name source=Counter target=Counter
 
 counter satisfies HasCount;
 /// @resolution.name source=counter target=counter
+/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=counter root=counter
 /// @resolution.name source=HasCount target=HasCount
 "#,
     );
@@ -274,19 +282,18 @@ interface Base<in out T> {}
 /// @generic.template symbol=Base parameters=(in out T)
 /// @type.symbol symbol=Base source="interface Base<in out T> {}" type=Base
 /// @definition.interface symbol=Base source="interface Base<in out T> {}" template=(in out T)
-/// @definition.where symbol=Base source="interface Base<in out T> {}" relation=satisfies left=this right=Base<T>
 /// @type.symbol symbol=Base.T source="in out T" type=T
 
 interface Left extends Base<string> {}
 /// @type.symbol symbol=Left source="interface Left extends Base<string> {}" type=Left
 /// @definition.interface symbol=Left source="interface Left extends Base<string> {}"
-/// @definition.extends symbol=Left source=Base<string> target=Base arguments=(string)
+/// @definition.extends symbol=Left source=Base<string> target=Base<string>
 /// @resolution.name source=Base target=Base
 
 interface Right extends Base<int32> {}
 /// @type.symbol symbol=Right source="interface Right extends Base<int32> {}" type=Right
 /// @definition.interface symbol=Right source="interface Right extends Base<int32> {}"
-/// @definition.extends symbol=Right source=Base<int32> target=Base arguments=(int32)
+/// @definition.extends symbol=Right source=Base<int32> target=Base<int32>
 /// @resolution.name source=Base target=Base
 
 struct Point implements Left, Right {}
@@ -300,9 +307,9 @@ struct Point implements Left, Right {}
 /// @resolution.name source=Right target=Right
 "#,
         r#"
-/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Right'"
-/// @diagnostic.label line=6 column=31 span="Right" line_source="struct Point implements Left, Right {}"
 /// @diagnostic.error id=conflicting-heritage message="type 'Point' has conflicting heritage for 'Base'"
+/// @diagnostic.label line=6 column=31 span="Right" line_source="struct Point implements Left, Right {}"
+/// @diagnostic.error id=interface-not-implemented message="type 'Point' does not implement interface 'Right'"
 /// @diagnostic.label line=6 column=31 span="Right" line_source="struct Point implements Left, Right {}"
 "#,
     );
@@ -372,6 +379,8 @@ const value: PointClass = point;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=PointClass target=PointClass
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Point' is not assignable to type 'PointClass'"
@@ -446,6 +455,8 @@ const value: Point = point;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'PointClass' is not assignable to type 'Point'"

@@ -16,7 +16,7 @@ function weigh(value: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.weigh(v0: int32): int32 {
+function test.main.weigh(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = intrinsic.math.bits.populationCount(v0)
     return v1
@@ -63,7 +63,7 @@ function halt(): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.halt(): int32 {
+function test.main.halt(): int32 {
 entry:
     trap.abort
 
@@ -91,7 +91,7 @@ function pause(value: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.pause(v0: int32): int32 {
+function test.main.pause(v0: int32): int32 {
 entry(v0: int32):
     breakpoint
     return v0
@@ -171,7 +171,7 @@ type MemoryScope = variant<int64, void> { 0int64 = void; };
 @copy
 type MemoryRegionSet = variant<int64, void> { 0int64 = void; };
 
-function main.publish(): void {
+function test.main.publish(): void {
 entry:
     atomic.fence release
     return
@@ -219,7 +219,7 @@ function clamp(value: int32): int8 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.clamp(v0: int32): int8 {
+function test.main.clamp(v0: int32): int8 {
 entry(v0: int32):
     v1: int8 = cast.saturate v0 -> int8
     return v1
@@ -299,7 +299,7 @@ type MemoryScope = variant<int64, void> { 0int64 = void; };
 @copy
 type MemoryRegionSet = variant<int64, void> { 0int64 = void; };
 
-function main.acquireAll(): void {
+function test.main.acquireAll(): void {
 entry:
     atomic.fence acquire
     return
@@ -350,7 +350,7 @@ function bump(pointer: *int32): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.bump(v0: ref<int32, raw, mutable>): void {
+function test.main.bump(v0: ref<int32, raw, mutable>): void {
 entry(v0: ref<int32, raw, mutable>):
     v1: int32 = load v0
     store v0, v1
@@ -379,7 +379,7 @@ function mirror(pointer: *int32): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.mirror(v0: ref<int32, raw, mutable>): void {
+function test.main.mirror(v0: ref<int32, raw, mutable>): void {
 entry(v0: ref<int32, raw, mutable>):
     v1: int32 = intrinsic.memory.ptr.readVolatile(v0)
     v2: void = intrinsic.memory.ptr.writeVolatile(v0, v1)
@@ -405,7 +405,7 @@ function exchange(pointer: *int32, value: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.exchange(v0: ref<int32, raw, mutable>, v1: int32): int32 {
+function test.main.exchange(v0: ref<int32, raw, mutable>, v1: int32): int32 {
 entry(v0: ref<int32, raw, mutable>, v1: int32):
     v2: int32 = load v0
     store v0, v1
@@ -431,7 +431,7 @@ function flip(first: *int32, second: *int32): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.flip(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): void {
+function test.main.flip(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): void {
 entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
     v2: int32 = load v0
     v3: int32 = load v1
@@ -459,7 +459,7 @@ function destroy(pointer: *int32): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.destroy(v0: ref<int32, raw, mutable>): void {
+function test.main.destroy(v0: ref<int32, raw, mutable>): void {
 entry(v0: ref<int32, raw, mutable>):
     v1: int32 = load v0
     drop v1
@@ -502,7 +502,7 @@ type Pair {
     high: int64;
 }
 
-function main.measure(): usize {
+function test.main.measure(): usize {
 entry:
     v0: uint64 = 16
     v1: uint64 = 8
@@ -534,7 +534,7 @@ function empty(): *int64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.empty(): ref<int64, raw, mutable> {
+function test.main.empty(): ref<int64, raw, mutable> {
 entry:
     v0: uint64 = 8
     v1: ref<int64, raw, mutable> = intrinsic.memory.raw.transmute(v0)
@@ -563,7 +563,7 @@ function distance(pointer: *int32, origin: *int32): int {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.distance(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int64 {
+function test.main.distance(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>): int64 {
 entry(v0: ref<int32, raw, mutable>, v1: ref<int32, raw, mutable>):
     v2: int64 = 2
     v3: int64 = 4
@@ -606,7 +606,7 @@ function build(): int64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.build(): int64 {
+function test.main.build(): int64 {
 entry:
     v0: uninit<int64> = uninit
     v1: uninit<int64> = zeroed
@@ -639,7 +639,7 @@ function wrap(value: int64): int64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.wrap(v0: int64): int64 {
+function test.main.wrap(v0: int64): int64 {
 entry(v0: int64):
     v1: manual<int64> = intrinsic.memory.raw.transmute(v0)
     v2: int64 = intrinsic.memory.raw.transmute(v1)

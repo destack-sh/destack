@@ -138,6 +138,13 @@ impl<'a> BindingTable<'a> {
         self.get_scope_by_id(scope.id)
     }
 
+    /// Iterate one scope's lexical ancestors, nearest first.
+    pub fn scope_ancestors(&self, scope_id: LocalScopeId) -> impl Iterator<Item = LocalScope> + '_ {
+        let parent = self.get_scope_by_id(scope_id).parent;
+
+        std::iter::successors(parent, |scope| self.get_scope(*scope).parent)
+    }
+
     /// Return the module's root namespace scope, with all bindings visible.
     pub fn module_scope(&self) -> LocalScope {
         let scope_id = self

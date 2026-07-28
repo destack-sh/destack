@@ -124,8 +124,8 @@ const b: Result = "b";
 type Extract<T> = T extends `foo-${infer A}` ? A : never;
 type Result = Extract<`foo-a` | `foo-b`>;
 
-const a: Result = "a" as Result;
-const b: Result = "b" as Result;
+const a: Result = "a" as "a" | "b";
+const b: Result = "b" as "a" | "b";
 
 === checked ===
 type Extract<T> = T extends `foo-${infer A}` ? A : never;
@@ -338,8 +338,12 @@ const bad: Result = ("foo-bar", "baz");
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"foo-bar\"' is not assignable to type '\"foo\"'"
 /// @diagnostic.label line=5 column=22 span="\"foo-bar\"" line_source="const bad: Result = (\"foo-bar\", \"baz\");"
+/// @diagnostic.related line=5 column=12 span="Result" line_source="const bad: Result = (\"foo-bar\", \"baz\");" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in element 0"
 /// @diagnostic.error id=not-assignable message="type '\"baz\"' is not assignable to type '\"bar-baz\"'"
 /// @diagnostic.label line=5 column=33 span="\"baz\"" line_source="const bad: Result = (\"foo-bar\", \"baz\");"
+/// @diagnostic.related line=5 column=12 span="Result" line_source="const bad: Result = (\"foo-bar\", \"baz\");" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in element 1"
 "#,
     );
 }
@@ -397,8 +401,12 @@ const bad: Result = ("", "a");
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"\"' is not assignable to type '\"a\"'"
 /// @diagnostic.label line=6 column=22 span="\"\"" line_source="const bad: Result = (\"\", \"a\");"
+/// @diagnostic.related line=6 column=12 span="Result" line_source="const bad: Result = (\"\", \"a\");" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in element 0"
 /// @diagnostic.error id=not-assignable message="type '\"a\"' is not assignable to type '\"\"'"
 /// @diagnostic.label line=6 column=26 span="\"a\"" line_source="const bad: Result = (\"\", \"a\");"
+/// @diagnostic.related line=6 column=12 span="Result" line_source="const bad: Result = (\"\", \"a\");" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in element 1"
 "#,
     );
 }

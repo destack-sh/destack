@@ -2,57 +2,104 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    Answer, BodyState, Cause, CauseId, CauseKind, Constraint, Decision, FlowSite, MemberCandidate,
-    MemberLookup, Origin, PlaceUse, Relation, SubscriptProtocol, ValueUse, answer,
+    Answer, BodyState, Cause, CauseKind, Decision, FlowSite, InferMode, InterfaceIndexSignature,     Origin, PlaceUse, Relation, SubscriptProtocol, Value, ValueUse, answer,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// One selected subscript operation.
 pub(in crate::check) struct SubscriptSelection {
-    /// The selected read operation.
-    read: Option<dir::SubscriptOperation>,
-    /// The selected write operation.
-    write: Option<dir::SubscriptOperation>,
-    /// The type exposed by the index expression.
-    ty: dir::GlobalTypeId,
-    /// The selected key parameter, when this is an operator call.
-    key_parameter: Option<dir::GlobalTypeId>,
+    /// The selected read resolution.
+    read: Option<dir::SubscriptResolution>,
+    /// The selected write resolution.
+    write: Option<dir::SubscriptResolution>,
+    /// Structural key types required by this selection.
+    key_types: SmallVec<[dir::GlobalTypeId; 2]>,
 }
 
 impl SubscriptSelection {
     /// Return one member-backed subscript selection.
-    fn member(use_: PlaceUse, resolution: dir::MemberResolution, ty: dir::GlobalTypeId) -> Self {
+    fn member_access(
+        use_: PlaceUse,
+        access: dir::MemberAccess,
+        read_type: dir::GlobalTypeId,
+        write_type: dir::GlobalTypeId,
+    ) -> Self {
         let read = match use_ {
             PlaceUse::Read | PlaceUse::Update => {
-                Some(dir::SubscriptOperation::Member(resolution.clone()))
+                let access = dir::MemberAccess {
+                    ty: read_type,
+                    ..access.clone()
+                };
+
+                Some(dir::OperationResolution::One(access))
             }
             PlaceUse::Write => None,
         };
         let write = match use_ {
-            PlaceUse::Write | PlaceUse::Update => Some(dir::SubscriptOperation::Member(resolution)),
+            PlaceUse::Write | PlaceUse::Update => {
+                let access = dir::MemberAccess {
+                    ty: write_type,
+                    ..access
+                };
+
+                Some(dir::OperationResolution::One(access))
+            }
             PlaceUse::Read => None,
         };
 
+        Self::member_resolutions(read, write)
+    }
+
+    /// Return one member-backed subscript selection.
+    fn member_resolutions(
+        read: Option<dir::MemberResolution>,
+        write: Option<dir::MemberResolution>,
+    ) -> Self {
+        let mut key_types = SmallVec::new();
+        if let Some(read) = &read {
+            Self::collect_member_key_types(read, &mut key_types);
+        }
+        if let Some(write) = &write {
+            Self::collect_member_key_types(write, &mut key_types);
+        }
+        key_types.sort_unstable();
+        key_types.dedup();
+
         Self {
-            read,
-            write,
-            ty,
-            key_parameter: None,
+            read: read.map(Into::into),
+            write: write.map(Into::into),
+            key_types,
         }
     }
 
-    /// Return one protocol-backed subscript read.
-    fn call_read(
-        resolution: dir::CallResolution,
-        ty: dir::GlobalTypeId,
-        key_parameter: Option<dir::GlobalTypeId>,
-    ) -> Self {
-        Self {
-            read: Some(dir::SubscriptOperation::Call(resolution)),
-            write: None,
+    /// Collect structural key types from one member resolution.
+    fn collect_member_key_types(
+        resolution: &dir::MemberResolution,
+        key_types: &mut SmallVec<[dir::GlobalTypeId; 2]>,
+    ) {
+        let accesses = match resolution {
+            dir::OperationResolution::One(access) => std::slice::from_ref(access),
+            dir::OperationResolution::Union { arms, .. } => arms,
+        };
+        for access in accesses {
+            if let dir::MemberTarget::Index(index) = &access.target {
+                key_types.push(index.key_type);
+            }
+        }
+    }
+
+    /// Return one value-producing subscript call.
+    fn call_value(call: dir::Call, ty: dir::GlobalTypeId) -> Self {
+        let subscript = dir::Subscript {
+            target: dir::SubscriptTarget::Call(call),
             ty,
-            key_parameter,
+        };
+
+        Self {
+            read: Some(dir::OperationResolution::One(subscript)),
+            write: None,
+            key_types: SmallVec::new(),
         }
     }
 
@@ -60,71 +107,162 @@ impl SubscriptSelection {
     fn call_write(
         resolution: dir::CallResolution,
         ty: dir::GlobalTypeId,
-        key_parameter: Option<dir::GlobalTypeId>,
-    ) -> Self {
-        Self {
+        key_types: SmallVec<[dir::GlobalTypeId; 2]>,
+    ) -> CompilerResult<Self> {
+        let write = match resolution {
+            dir::OperationResolution::One(call) => {
+                let subscript = dir::Subscript {
+                    target: dir::SubscriptTarget::Call(call),
+                    ty,
+                };
+
+                dir::OperationResolution::One(subscript)
+            }
+            dir::OperationResolution::Union { arms, .. } => {
+                let mut subscripts = Vec::with_capacity(arms.len());
+                for call in arms {
+                    let write_types = call.argument_types(dir::ArgumentSource::Write);
+                    let [arm_type] = write_types.as_slice() else {
+                        return Err(CompilerError::Internal {
+                            message: "selected union IndexSet call has no unique value binding"
+                                .to_string(),
+                        });
+                    };
+                    subscripts.push(dir::Subscript {
+                        target: dir::SubscriptTarget::Call(call),
+                        ty: *arm_type,
+                    });
+                }
+
+                dir::OperationResolution::Union {
+                    arms: subscripts,
+                    ty,
+                }
+            }
+        };
+
+        Ok(Self {
             read: None,
-            write: Some(dir::SubscriptOperation::Call(resolution)),
-            ty,
-            key_parameter,
+            write: Some(write),
+            key_types,
+        })
+    }
+
+    /// Return one selection covering every runtime arm of a union receiver.
+    fn union(
+        use_: PlaceUse,
+        selections: Vec<Self>,
+        read_type: Option<dir::GlobalTypeId>,
+        write_type: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<Self> {
+        let mut reads = Vec::new();
+        let mut writes = Vec::new();
+        let mut key_types = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+
+        // retain every selected runtime arm
+        for selection in selections {
+            key_types.extend(selection.key_types);
+            if let Some(read) = selection.read {
+                let dir::OperationResolution::One(read) = read else {
+                    return Err(CompilerError::Internal {
+                        message: "union subscript selection contains a nested union".to_string(),
+                    });
+                };
+                reads.push(read);
+            }
+            if let Some(write) = selection.write {
+                let dir::OperationResolution::One(write) = write else {
+                    return Err(CompilerError::Internal {
+                        message: "union subscript selection contains a nested union".to_string(),
+                    });
+                };
+                writes.push(write);
+            }
         }
+
+        // require the resolution shape implied by the requested place use
+        let read = match use_ {
+            PlaceUse::Read | PlaceUse::Update if reads.is_empty() => {
+                return Err(CompilerError::Internal {
+                    message: "union subscript selection has no read operations".to_string(),
+                });
+            }
+            PlaceUse::Read | PlaceUse::Update => Some(dir::OperationResolution::Union {
+                arms: reads,
+                ty: read_type.ok_or_else(|| CompilerError::Internal {
+                    message: "union subscript read has no read type".to_string(),
+                })?,
+            }),
+            PlaceUse::Write => None,
+        };
+        let write = match use_ {
+            PlaceUse::Write | PlaceUse::Update if writes.is_empty() => {
+                return Err(CompilerError::Internal {
+                    message: "union subscript selection has no write operations".to_string(),
+                });
+            }
+            PlaceUse::Write | PlaceUse::Update => Some(dir::OperationResolution::Union {
+                arms: writes,
+                ty: write_type.ok_or_else(|| CompilerError::Internal {
+                    message: "union subscript write has no write type".to_string(),
+                })?,
+            }),
+            PlaceUse::Read => None,
+        };
+
+        key_types.sort_unstable();
+        key_types.dedup();
+
+        Ok(Self {
+            read,
+            write,
+            key_types,
+        })
     }
 
-    /// Return the type exposed by the selected subscript read.
-    pub(in crate::check) fn ty(&self) -> dir::GlobalTypeId {
-        self.ty
+    /// Return the value type read by this subscript.
+    pub(in crate::check) fn read_type(&self) -> Option<dir::GlobalTypeId> {
+        self.read.as_ref().map(dir::SubscriptResolution::ty)
     }
 
-    /// Return the key constraint required by the selected operator call.
-    pub(in crate::check) fn key_constraint(
-        &self,
-        cause: CauseId,
-        index: dir::GlobalNodeIdAny,
-    ) -> Option<Constraint> {
-        let parameter = self.key_parameter?;
-
-        Some(Constraint::value(
-            Relation::Assignable,
-            index,
-            parameter,
-            cause,
-            ValueUse::Argument,
-        ))
+    /// Return the value type accepted by this subscript.
+    pub(in crate::check) fn write_type(&self) -> Option<dir::GlobalTypeId> {
+        self.write.as_ref().map(dir::SubscriptResolution::ty)
     }
 
-    /// Return the durable read decision selected for an index expression.
+    /// Return whether the selected read accesses stored aggregate state.
+    pub(in crate::check) fn reads_storage(&self) -> bool {
+        self.read
+            .as_ref()
+            .is_some_and(dir::SubscriptResolution::is_stored)
+    }
+
+    /// Return the structural key types required by this selection.
+    pub(in crate::check) fn key_types(&self) -> &[dir::GlobalTypeId] {
+        &self.key_types
+    }
+
+    /// Return the read decision selected for an index expression.
     pub(in crate::check) fn into_decision(self) -> Option<Decision> {
         let read = self.read?;
 
-        Some(match read {
-            dir::SubscriptOperation::Member(resolution) => Decision::Member(resolution),
-            dir::SubscriptOperation::Call(resolution) => Decision::Call(resolution),
-        })
+        Some(Decision::Subscript(read))
     }
 
     /// Return the projected read selected for a computed pattern key.
-    pub(in crate::check) fn into_read_projection(
-        self,
-        index: dir::GlobalNodeIdAny,
-    ) -> Option<dir::Projection> {
-        let read = self.read?;
-
-        Some(dir::Projection::SubscriptGet {
-            index,
-            read: Box::new(read),
-            ty: self.ty,
-        })
+    pub(in crate::check) fn into_read_projection(self) -> Option<dir::ProjectionResolution> {
+        self.read.map(Into::into)
     }
 
-    /// Return the place selected for a subscript write or update.
-    pub(in crate::check) fn into_place(self, index: dir::GlobalNodeIdAny) -> Option<dir::Storage> {
+    /// Return the place resolutions selected for a subscript write or update.
+    pub(in crate::check) fn into_place(
+        self,
+    ) -> Option<(Option<dir::ReadResolution>, dir::WriteResolution)> {
         let write = self.write?;
+        let read = self.read.map(dir::ReadResolution::Subscript);
+        let write = dir::WriteResolution::Subscript(write);
 
-        Some(dir::Storage::Subscript {
-            index,
-            read: self.read.map(Box::new),
-            write: Box::new(write),
-        })
+        Some((read, write))
     }
 }
 
@@ -134,11 +272,13 @@ impl BodyState<'_, '_> {
     pub(in crate::check) fn decide_subscript_index_signature_satisfied(
         &mut self,
         origin: Origin,
+        relation: Relation,
         receiver: dir::GlobalTypeId,
         signature: &dir::TypeIndexSignature,
     ) -> CompilerResult<Answer<bool>> {
         let read = self.decide_subscript_read_signature(
             origin,
+            relation,
             receiver,
             signature.key_type,
             signature.value_type,
@@ -149,6 +289,7 @@ impl BodyState<'_, '_> {
 
         let write = self.decide_subscript_write_signature(
             origin,
+            relation,
             receiver,
             signature.key_type,
             signature.value_type,
@@ -174,15 +315,21 @@ impl BodyState<'_, '_> {
         let receiver_node = left.into_global_any(module);
         let receiver_site = self.node_site(receiver_node)?;
         let receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
+        let receiver_value = answer!(self.expression_value(receiver_site, receiver)?);
         let Some(index) = index else {
             return self.reject_operator(node, origin, "[]".to_string(), &[receiver]);
         };
         let index_node = index.into_global_any(module);
+        let index_key = self.check.module(module).view().get(index).static_key();
         let index_site = self.node_site(index_node)?;
         let index = answer!(self.infer_node_type(index_site, PlaceUse::Read)?);
 
         // reduce both operands before selection
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
+        let receiver_value = Value {
+            ty: receiver,
+            ..receiver_value
+        };
         let receiver_type = self.readable_value(receiver)?;
         let space = self.member_receiver_space(receiver_node, receiver)?;
         let index = answer!(self.reduce_type_head(origin, index)?);
@@ -192,7 +339,7 @@ impl BodyState<'_, '_> {
             origin,
             module,
             use_,
-            receiver,
+            receiver_value,
             receiver_type,
             space,
             index_node,
@@ -201,16 +348,21 @@ impl BodyState<'_, '_> {
             return self.reject_operator(node, origin, "[]".to_string(), &[receiver_type, index]);
         };
 
-        // commit result
-        let key_scope = self.origin_scope(origin)?;
-        let anchored = Origin::Node(index_node, key_scope);
-        let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
-        if let Some(constraint) = selection.key_constraint(cause, index_node) {
-            self.push_constraint(constraint);
+        // require one key conversion across every selected runtime arm
+        if !answer!(self.check_subscript_key(index_site, index, selection.key_types())?) {
+            return self.reject_operator(node, origin, "[]".to_string(), &[receiver_type, index]);
         }
-        let ty = selection.ty();
+        let ty = selection
+            .read_type()
+            .ok_or_else(|| CompilerError::Internal {
+                message: "subscript read selection has no read resolution".to_string(),
+            })?;
+        let reads_storage = selection.reads_storage();
         if let Some(decision) = selection.into_decision() {
             self.commit_decision(node, decision)?;
+        }
+        if reads_storage && let Some(key) = index_key {
+            self.commit_projected_access(node, receiver_node, key)?;
         }
         let site = self.node_site(node)?;
         let ty = answer!(self.flow_type_at(site, ty)?);
@@ -225,7 +377,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         use_: PlaceUse,
-        receiver: dir::GlobalTypeId,
+        receiver: Value,
         receiver_type: dir::GlobalTypeId,
         space: dir::MemberSpace,
         index_node: dir::GlobalNodeIdAny,
@@ -233,16 +385,48 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         let receiver_type = answer!(self.reduce_type_head(origin, receiver_type)?);
 
-        // constrained generics select operations through their constraint
-        if let dir::Type::Parameter(parameter) = self.ty(receiver_type)? {
-            let constraint = self
-                .generic_parameter(parameter)
-                .and_then(|binding| binding.constraint);
-            if let Some(constraint) = constraint {
-                return self.select_subscript(
-                    origin, module, use_, receiver, constraint, space, index_node, index,
-                );
+        // unions select one exact subscript operation for every runtime arm
+        if let Some(arms) = answer!(self.union_arms(origin, receiver_type)?) {
+            let mut selections = Vec::with_capacity(arms.len());
+            let mut read_types = Vec::with_capacity(arms.len());
+            let mut write_types = Vec::with_capacity(arms.len());
+            for arm in arms {
+                let arm_receiver = answer!(self.replace_form_value(origin, receiver.ty, arm)?);
+                let arm_type = self.readable_value(arm_receiver)?;
+                let arm_receiver = Value {
+                    ty: arm_receiver,
+                    ..receiver
+                };
+                let Some(selection) = answer!(self.select_subscript(
+                    origin,
+                    module,
+                    use_,
+                    arm_receiver,
+                    arm_type,
+                    space,
+                    index_node,
+                    index,
+                )?) else {
+                    return Ok(Answer::Ready(None));
+                };
+
+                read_types.extend(selection.read_type());
+                write_types.extend(selection.write_type());
+                selections.push(selection);
             }
+            let read_type = if read_types.is_empty() {
+                None
+            } else {
+                Some(self.normalized_union_type(module, read_types)?)
+            };
+            let write_type = if write_types.is_empty() {
+                None
+            } else {
+                Some(self.normalized_intersection_type(module, write_types)?)
+            };
+            let selection = SubscriptSelection::union(use_, selections, read_type, write_type)?;
+
+            return Ok(Answer::Ready(Some(selection)));
         }
 
         // singleton keys use the same member lookup as dot access
@@ -260,12 +444,26 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(Some(selection)));
         }
 
+        // erased interfaces dispatch through their applied index declarations
+        if let dir::Type::Dynamic(dynamic) = self.ty(receiver_type)?
+            && let Some(selection) = answer!(self.select_dynamic_subscript(
+                origin,
+                use_,
+                receiver.ty,
+                dynamic.constraint,
+                index_node,
+                index,
+            )?)
+        {
+            return Ok(Answer::Ready(Some(selection)));
+        }
+
         match self.ty(receiver_type)? {
             dir::Type::Tuple(tuple) => {
-                self.select_tuple_subscript(receiver, receiver_type.module_id, index, use_, tuple)
+                self.select_tuple_subscript(receiver.ty, receiver_type, index, use_, tuple)
             }
             dir::Type::Shape(shape) => {
-                self.select_shape_subscript(origin, receiver, receiver_type, index, use_, &shape)
+                self.select_shape_subscript(origin, receiver.ty, receiver_type, index, use_, &shape)
             }
             dir::Type::Application(_)
             | dir::Type::Reference(_)
@@ -275,16 +473,199 @@ impl BodyState<'_, '_> {
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Primitive(_)
-            | dir::Type::Literal(_) => self.select_protocol_subscript(
+            | dir::Type::Literal(_) => {
+                self.select_protocol_subscript(origin, use_, receiver, receiver_type, index_node)
+            }
+            _ => Ok(Answer::Ready(None)),
+        }
+    }
+
+    /// Select an applied interface index declaration through erased dispatch.
+    fn select_dynamic_subscript(
+        &mut self,
+        origin: Origin,
+        use_: PlaceUse,
+        receiver: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
+        index_node: dir::GlobalNodeIdAny,
+        index: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
+        let constraint = answer!(self.reduce_type_head(origin, constraint)?);
+        let dir::Type::Application(instance) = self.ty(constraint)? else {
+            return Ok(Answer::Ready(None));
+        };
+        if self.symbol_kind(instance.symbol) != dir::SymbolKind::Interface {
+            return Ok(Answer::Ready(None));
+        }
+        let requirements = answer!(self.interface_requirements(
+            origin,
+            constraint.module_id,
+            &instance,
+            constraint
+        )?);
+
+        // prefer index signatures declared by the selected interface
+        for signature in requirements.index_signatures {
+            let accepts = answer!(self.decide_relation(
+                origin,
+                Relation::Assignable,
+                index,
+                signature.key_type,
+            )?);
+            if accepts {
+                let selection = self.dynamic_subscript_selection(
+                    origin, use_, receiver, constraint, index_node, signature,
+                )?;
+
+                return Ok(Answer::Ready(selection));
+            }
+        }
+
+        // continue through each applied inherited interface
+        for inherited in requirements.inherited {
+            let selection = answer!(self.select_dynamic_subscript(
                 origin,
                 use_,
                 receiver,
-                receiver_type,
+                inherited.ty,
                 index_node,
                 index,
-            ),
-            _ => Ok(Answer::Ready(None)),
+            )?);
+            if selection.is_some() {
+                return Ok(Answer::Ready(selection));
+            }
         }
+
+        Ok(Answer::Ready(None))
+    }
+
+    /// Build one erased subscript selection from an applied index signature.
+    fn dynamic_subscript_selection(
+        &mut self,
+        origin: Origin,
+        use_: PlaceUse,
+        receiver: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
+        index: dir::GlobalNodeIdAny,
+        signature: InterfaceIndexSignature,
+    ) -> CompilerResult<Option<SubscriptSelection>> {
+        let read = match use_ {
+            PlaceUse::Read | PlaceUse::Update => {
+                let read_type = self.index_signature_read_type(origin, signature.value_type)?;
+                let call = self.dynamic_index_call(
+                    origin,
+                    receiver,
+                    constraint,
+                    index,
+                    signature,
+                    SubscriptProtocol::Index,
+                    read_type,
+                )?;
+
+                Some(SubscriptSelection::call_value(call, read_type))
+            }
+            PlaceUse::Write => None,
+        };
+        let write = match use_ {
+            PlaceUse::Write | PlaceUse::Update if signature.is_readonly => return Ok(None),
+            PlaceUse::Write | PlaceUse::Update => {
+                let void = self.intern_type(origin.module(), dir::Type::Void)?;
+                let call = self.dynamic_index_call(
+                    origin,
+                    receiver,
+                    constraint,
+                    index,
+                    signature,
+                    SubscriptProtocol::IndexSet,
+                    void,
+                )?;
+
+                Some(SubscriptSelection::call_write(
+                    dir::OperationResolution::One(call),
+                    signature.value_type,
+                    SmallVec::from_slice(&[signature.key_type]),
+                )?)
+            }
+            PlaceUse::Read => None,
+        };
+
+        match (read, write) {
+            (Some(read), Some(write)) => Ok(Some(SubscriptSelection {
+                read: read.read,
+                write: write.write,
+                key_types: SmallVec::new(),
+            })),
+            (Some(read), None) => Ok(Some(read)),
+            (None, Some(write)) => Ok(Some(write)),
+            (None, None) => Ok(None),
+        }
+    }
+
+    /// Build one erased call to an applied index signature.
+    fn dynamic_index_call(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        constraint: dir::GlobalTypeId,
+        index: dir::GlobalNodeIdAny,
+        signature: InterfaceIndexSignature,
+        protocol: SubscriptProtocol,
+        return_type: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::Call> {
+        let mut parameters = SmallVec::<[dir::FunctionParameterType; 2]>::new();
+        parameters.push(dir::FunctionParameterType {
+            ty: signature.key_type,
+            is_optional: false,
+            is_rest: false,
+        });
+        let mut sources = SmallVec::<[dir::ArgumentSource; 2]>::new();
+        sources.push(dir::ArgumentSource::Provided(index));
+
+        // writes bind their stored value after the authored index
+        let function = match protocol {
+            SubscriptProtocol::Index => dir::DynamicFunction::IndexRead(signature.source),
+            SubscriptProtocol::IndexSet => {
+                parameters.push(dir::FunctionParameterType {
+                    ty: signature.value_type,
+                    is_optional: false,
+                    is_rest: false,
+                });
+                sources.push(dir::ArgumentSource::Write);
+
+                dir::DynamicFunction::IndexWrite(signature.source)
+            }
+        };
+        let parameters = self.intern_parameters(origin.module(), &parameters)?;
+        let callable_type = self.intern_signature(
+            origin.module(),
+            dir::FunctionSignatureType {
+                asynchrony: dir::Asynchrony::Sync,
+                template: None,
+                this_parameter: Some(constraint),
+                parameters,
+                return_type: Some(return_type),
+                is_generator: false,
+            },
+        )?;
+        let parameters = self
+            .signature_parameters(callable_type.module_id, parameters)?
+            .to_vec();
+        let arguments = Self::source_argument_bindings(&sources, &parameters);
+        let dispatch = dir::DynamicDispatch {
+            receiver: dir::AdjustedReceiver::direct(receiver),
+            constraint,
+        };
+
+        Ok(dir::Call {
+            target: dir::CallTarget::Dynamic {
+                dispatch,
+                function,
+                generic_arguments: Vec::new(),
+            },
+            callable_type,
+            arguments,
+            return_type,
+        })
     }
 
     /// Select one computed subscript read projection.
@@ -294,7 +675,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         receiver: dir::GlobalTypeId,
         index_site: FlowSite,
-    ) -> CompilerResult<Answer<Option<dir::Projection>>> {
+    ) -> CompilerResult<Answer<Option<dir::ProjectionResolution>>> {
         let index_node = index_site.node;
         let index = answer!(self.infer_node_type(index_site, PlaceUse::Read)?);
         let index = answer!(self.reduce_type_head(origin, index)?);
@@ -305,7 +686,10 @@ impl BodyState<'_, '_> {
             origin,
             module,
             PlaceUse::Read,
-            receiver,
+            Value {
+                ty: receiver,
+                place: None,
+            },
             receiver_type,
             space,
             index_node,
@@ -314,14 +698,53 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(None));
         };
 
-        let key_scope = self.origin_scope(origin)?;
-        let anchored = Origin::Node(index_node, key_scope);
-        let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
-        if let Some(constraint) = selection.key_constraint(cause, index_node) {
-            self.push_constraint(constraint);
+        // require one key conversion across every selected runtime arm
+        if !answer!(self.check_subscript_key(index_site, index, selection.key_types())?) {
+            return Ok(Answer::Ready(None));
         }
 
-        Ok(Answer::Ready(selection.into_read_projection(index_node)))
+        Ok(Answer::Ready(selection.into_read_projection()))
+    }
+
+    /// Check one subscript key across every selected runtime arm.
+    pub(in crate::check) fn check_subscript_key(
+        &mut self,
+        site: FlowSite,
+        source: dir::GlobalTypeId,
+        targets: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Answer<bool>> {
+        let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
+        let mut selected = None::<Option<dir::Coercion>>;
+
+        // require every arm to accept the same runtime conversion
+        let value = answer!(self.expression_value(site, source)?);
+        for target in targets.iter().copied() {
+            let conversion = answer!(self.convert_value(
+                site,
+                cause,
+                Relation::Assignable,
+                value,
+                target,
+                ValueUse::Argument,
+                InferMode::Exact,
+            )?);
+            if !conversion.outcome.is_holds() {
+                return Ok(Answer::Ready(false));
+            }
+            let coercion = conversion.coercion.map(|coercion| *coercion);
+            match &selected {
+                Some(selected) if selected != &coercion => return Ok(Answer::Ready(false)),
+                Some(_) => {}
+                None => selected = Some(coercion),
+            }
+        }
+
+        // commit the uniform conversion only after every arm holds
+        if let Some(Some(coercion)) = selected {
+            self.commit_coercion(site.node, coercion)?;
+        }
+
+        Ok(Answer::Ready(true))
     }
 
     /// Select one static-key subscript through member lookup.
@@ -330,80 +753,43 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         use_: PlaceUse,
-        receiver: dir::GlobalTypeId,
+        receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         let lookup = answer!(self.lookup_member(origin, module, lookup_receiver, space, key)?);
 
-        match lookup {
-            MemberLookup::Field(ty) => Ok(Answer::Ready(Some(SubscriptSelection::member(
-                use_,
-                dir::MemberResolution::new(receiver, dir::MemberTarget::Field(key)),
-                ty,
-            )))),
-            MemberLookup::Found(candidates) => self.select_member_candidate_subscript(
-                module,
-                use_,
-                receiver,
-                lookup_receiver,
-                candidates,
-            ),
-            MemberLookup::Missing => Ok(Answer::Ready(None)),
-        }
-    }
+        match use_ {
+            PlaceUse::Read => {
+                let Some(resolution) =
+                    answer!(self.select_member_read(origin, receiver, key, &lookup)?)
+                else {
+                    return Ok(Answer::Ready(None));
+                };
+                let selection = SubscriptSelection::member_resolutions(Some(resolution), None);
 
-    /// Select declaration-backed members for one static-key subscript.
-    fn select_member_candidate_subscript(
-        &mut self,
-        module: ModuleId,
-        use_: PlaceUse,
-        receiver: dir::GlobalTypeId,
-        lookup_receiver: dir::GlobalTypeId,
-        candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
-        if use_ != PlaceUse::Read {
-            return Ok(Answer::Ready(None));
-        }
-
-        // collect readable member candidates
-        let mut resolution_candidates = Vec::new();
-        let mut types = Vec::with_capacity(candidates.len());
-        for candidate in candidates {
-            if !candidate.role.is_readable() {
-                continue;
+                Ok(Answer::Ready(Some(selection)))
             }
-            types.push(candidate.ty);
-            let Some(candidate) = candidate.resolution_candidate(receiver) else {
-                continue;
-            };
-            resolution_candidates.push(candidate);
+            PlaceUse::Write | PlaceUse::Update => {
+                let Some(selection) =
+                    answer!(self.select_member_assignment(origin, receiver, key, use_, lookup,)?)
+                else {
+                    return Ok(Answer::Ready(None));
+                };
+                let (read, write) = selection.into_resolutions();
+                let selection = SubscriptSelection::member_resolutions(read, Some(write));
+
+                Ok(Answer::Ready(Some(selection)))
+            }
         }
-
-        if resolution_candidates.is_empty() {
-            return Ok(Answer::Ready(None));
-        }
-
-        // union receivers require every runtime arm to expose the member
-        let target = if matches!(self.ty(lookup_receiver)?, dir::Type::Union(_)) {
-            dir::MemberTarget::Universal(resolution_candidates)
-        } else {
-            dir::MemberTarget::Existential(resolution_candidates)
-        };
-        let ty = self.normalized_union_type(module, types)?;
-        let resolution = dir::MemberResolution::new(receiver, target);
-
-        Ok(Answer::Ready(Some(SubscriptSelection::member(
-            use_, resolution, ty,
-        ))))
     }
 
     /// Select one tuple element by literal position.
     fn select_tuple_subscript(
         &self,
         receiver: dir::GlobalTypeId,
-        module: ModuleId,
+        lookup_receiver: dir::GlobalTypeId,
         index: dir::GlobalTypeId,
         use_: PlaceUse,
         tuple: dir::TupleType,
@@ -412,13 +798,22 @@ impl BodyState<'_, '_> {
             dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => usize::try_from(value).ok(),
             _ => None,
         };
-        let elements = self.tuple_elements(module, tuple.elements)?;
+        let elements = self.tuple_elements(lookup_receiver.module_id, tuple.elements)?;
         let selection = position.and_then(|position| {
             let element = elements.get(position)?;
-            let target = dir::MemberTarget::Element(position);
-            let resolution = dir::MemberResolution::new(receiver, target);
+            let target = dir::MemberTarget::Field(dir::FieldResolution {
+                receiver: dir::MemberReceiver::direct(lookup_receiver),
+                target: dir::FieldTarget::Structural {
+                    owner: lookup_receiver,
+                    key: dir::StaticKey::Index(position),
+                },
+                ty: element.ty,
+            });
+            let resolution = dir::MemberAccess::new(receiver, target, element.ty);
 
-            Some(SubscriptSelection::member(use_, resolution, element.ty))
+            Some(SubscriptSelection::member_access(
+                use_, resolution, element.ty, element.ty,
+            ))
         });
 
         Ok(Answer::Ready(selection))
@@ -434,28 +829,11 @@ impl BodyState<'_, '_> {
         use_: PlaceUse,
         shape: &dir::ShapeType,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
-        // singleton keys project fields first
-        if let Some(key) = self.static_key_from_type(index)? {
-            let field = self
-                .shape_fields(lookup_receiver.module_id, shape.fields)?
-                .iter()
-                .find(|field| field.key == key)
-                .copied();
-            if let Some(field) = field {
-                let target = dir::MemberTarget::Field(key);
-                let resolution = dir::MemberResolution::new(receiver, target);
-
-                return Ok(Answer::Ready(Some(SubscriptSelection::member(
-                    use_, resolution, field.ty,
-                ))));
-            }
-        }
-
         // index signatures accept matching key types
         let index_signatures = self
             .shape_index_signatures(lookup_receiver.module_id, shape.index_signatures)?
             .to_vec();
-        for signature in index_signatures {
+        for (position, signature) in index_signatures.into_iter().enumerate() {
             let accepts = answer!(self.decide_relation(
                 origin,
                 Relation::Assignable,
@@ -463,17 +841,17 @@ impl BodyState<'_, '_> {
                 signature.key_type,
             )?);
             if accepts {
-                let target = dir::MemberTarget::Index(signature.key_type);
-                let resolution = dir::MemberResolution::new(receiver, target);
-                let ty = match use_ {
-                    PlaceUse::Write => signature.value_type,
-                    PlaceUse::Read | PlaceUse::Update => {
-                        self.index_signature_read_type(origin, signature.value_type)?
-                    }
-                };
+                let target = dir::MemberTarget::Index(dir::IndexResolution {
+                    receiver: dir::MemberReceiver::direct(lookup_receiver),
+                    key_type: signature.key_type,
+                    target: dir::IndexTarget::Signature(position),
+                });
+                let read_type = self.index_signature_read_type(origin, signature.value_type)?;
+                let write_type = signature.value_type;
+                let resolution = dir::MemberAccess::new(receiver, target, read_type);
 
-                return Ok(Answer::Ready(Some(SubscriptSelection::member(
-                    use_, resolution, ty,
+                return Ok(Answer::Ready(Some(SubscriptSelection::member_access(
+                    use_, resolution, read_type, write_type,
                 ))));
             }
         }
@@ -488,18 +866,43 @@ impl BodyState<'_, '_> {
         let accepts =
             answer!(self.decide_relation(origin, Relation::Assignable, index, key_domain,)?);
         if accepts {
-            let target = dir::MemberTarget::Index(index);
-            let resolution = dir::MemberResolution::new(receiver, target);
-            let ty = self.intern_operation(
+            let fields = self
+                .shape_properties(lookup_receiver.module_id, shape.properties)?
+                .to_vec();
+            let mut keys = Vec::new();
+            let mut write_types = Vec::new();
+            for field in fields {
+                let key_type = self.static_key_type(origin.module(), field.key)?;
+                if !answer!(self.types_may_overlap(origin, index, key_type)?) {
+                    continue;
+                }
+                // read-only fields accept no index writes
+                let Some(write_type) = field.access.write() else {
+                    continue;
+                };
+                keys.push(field.key);
+                write_types.push(write_type);
+            }
+            if write_types.is_empty() {
+                return Ok(Answer::Ready(None));
+            }
+            let target = dir::MemberTarget::Index(dir::IndexResolution {
+                receiver: dir::MemberReceiver::direct(lookup_receiver),
+                key_type: key_domain,
+                target: dir::IndexTarget::Fields(keys),
+            });
+            let read_type = self.intern_operation(
                 origin.module(),
                 dir::TypeOperation::Index(dir::IndexType {
                     left: lookup_receiver,
                     index,
                 }),
             )?;
+            let write_type = self.normalized_intersection_type(origin.module(), write_types)?;
+            let resolution = dir::MemberAccess::new(receiver, target, read_type);
 
-            return Ok(Answer::Ready(Some(SubscriptSelection::member(
-                use_, resolution, ty,
+            return Ok(Answer::Ready(Some(SubscriptSelection::member_access(
+                use_, resolution, read_type, write_type,
             ))));
         }
 
@@ -511,20 +914,19 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         use_: PlaceUse,
-        receiver: dir::GlobalTypeId,
+        receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
-        index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         match use_ {
             PlaceUse::Read => {
-                self.select_subscript_read(origin, receiver, lookup_receiver, index_node, index)
+                self.select_subscript_read(origin, receiver, lookup_receiver, index_node)
             }
             PlaceUse::Write => {
-                self.select_subscript_write(origin, receiver, lookup_receiver, index_node, index)
+                self.select_subscript_write(origin, receiver, lookup_receiver, index_node)
             }
             PlaceUse::Update => {
-                self.select_subscript_update(origin, receiver, lookup_receiver, index_node, index)
+                self.select_subscript_update(origin, receiver, lookup_receiver, index_node)
             }
         }
     }
@@ -533,82 +935,156 @@ impl BodyState<'_, '_> {
     fn select_subscript_read(
         &mut self,
         origin: Origin,
-        receiver: dir::GlobalTypeId,
+        receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
-        index: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
+        self.select_subscript_read_source(
+            origin,
+            receiver,
+            lookup_receiver,
+            dir::ArgumentSource::Provided(index_node),
+        )
+    }
+
+    /// Select one protocol-backed subscript read from a checked argument source.
+    pub(in crate::check) fn select_subscript_read_source(
+        &mut self,
+        origin: Origin,
+        receiver: Value,
+        lookup_receiver: dir::GlobalTypeId,
+        source: dir::ArgumentSource,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         let method = SubscriptProtocol::Index;
-        let arguments = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[index]);
-        let sources = [dir::ArgumentSource::Provided(index_node)];
-        let protocol = method.protocol(self, arguments.to_vec())?;
+        let sources = [source];
         let key = method.key(self.strings());
-        let Some(call) = answer!(self.select_protocol_call(
+        let Some((_protocol, call)) = answer!(self.select_language_protocol_call(
             origin,
             receiver,
             lookup_receiver,
             key,
-            &protocol,
-            &arguments,
+            method.item(),
+            &[],
             &sources,
         )?) else {
             return Ok(Answer::Ready(None));
         };
 
-        let resolution = call.resolution;
-        let projected = call.return_type;
-        let key_parameter = resolution.arguments.first().map(|argument| argument.ty);
+        let read = match call.resolution {
+            dir::OperationResolution::One(call) => {
+                let subscript = answer!(self.project_index_call(origin, call)?);
 
-        Ok(Answer::Ready(Some(SubscriptSelection::call_read(
-            resolution,
-            projected,
-            key_parameter,
-        ))))
+                dir::OperationResolution::One(subscript)
+            }
+            dir::OperationResolution::Union { arms, .. } => {
+                let mut subscripts = Vec::with_capacity(arms.len());
+                let mut types = Vec::with_capacity(arms.len());
+                for call in arms {
+                    let subscript = answer!(self.project_index_call(origin, call)?);
+                    types.push(subscript.ty);
+                    subscripts.push(subscript);
+                }
+                let ty = self.normalized_union_type(origin.module(), types)?;
+
+                dir::OperationResolution::Union {
+                    arms: subscripts,
+                    ty,
+                }
+            }
+        };
+        let selection = SubscriptSelection {
+            read: Some(read),
+            write: None,
+            key_types: SmallVec::new(),
+        };
+
+        Ok(Answer::Ready(Some(selection)))
+    }
+
+    /// Project one selected `Index.index` call through its returned borrow.
+    fn project_index_call(
+        &mut self,
+        origin: Origin,
+        call: dir::Call,
+    ) -> CompilerResult<Answer<dir::Subscript>> {
+        let return_type = answer!(self.reduce_type_head(origin, call.return_type)?);
+        let arms = match self.ty(return_type)? {
+            dir::Type::Union(union) => SmallVec::<[_; 4]>::from_slice(
+                self.type_ids(return_type.module_id, union.elements)?,
+            ),
+            _ => SmallVec::from_slice(&[return_type]),
+        };
+        let mut borrowed = None;
+        let mut missing = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+
+        // separate the required borrow from any declared missing cases
+        for arm in arms {
+            let chain = self.form_chain(origin, arm)?;
+            if let Some(candidate) = chain
+                .ownership_form()
+                .filter(|form| matches!(form.form, dir::Form::Borrowed(_)))
+            {
+                if borrowed.replace((arm, candidate.value)).is_some() {
+                    return Err(CompilerError::Internal {
+                        message: "selected Index.index call returns multiple borrow arms".into(),
+                    });
+                }
+            } else {
+                missing.push(arm);
+            }
+        }
+        let Some((borrow, output)) = borrowed else {
+            return Err(CompilerError::Internal {
+                message: "selected Index.index call does not return a borrow".into(),
+            });
+        };
+        let missing = match missing.as_slice() {
+            [] => None,
+            [missing] => Some(*missing),
+            _ => Some(self.normalized_union_type(origin.module(), missing)?),
+        };
+        let dereference = dir::Dereference {
+            receiver: borrow,
+            target: dir::DereferenceTarget::Direct,
+            ty: output,
+        };
+        let ty = match missing {
+            Some(missing) => self.normalized_union_type(origin.module(), [output, missing])?,
+            None => output,
+        };
+        let target = dir::SubscriptTarget::Index(dir::IndexRead {
+            call,
+            dereference,
+            missing,
+        });
+
+        Ok(Answer::Ready(dir::Subscript { target, ty }))
     }
 
     /// Select one subscript update.
     fn select_subscript_update(
         &mut self,
         origin: Origin,
-        receiver: dir::GlobalTypeId,
+        receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
-        index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
-        let read = answer!(self.select_subscript_read(
-            origin,
-            receiver,
-            lookup_receiver,
-            index_node,
-            index,
-        )?);
-        let write = answer!(self.select_subscript_write(
-            origin,
-            receiver,
-            lookup_receiver,
-            index_node,
-            index,
-        )?);
+        let read =
+            answer!(self.select_subscript_read(origin, receiver, lookup_receiver, index_node,)?);
+        let write =
+            answer!(self.select_subscript_write(origin, receiver, lookup_receiver, index_node,)?);
         let (Some(read), Some(write)) = (read, write) else {
             return Ok(Answer::Ready(None));
         };
-
-        // the read element and the written value must agree: every
-        //  subscript exposes one element type
-        let element = read.ty;
-        let value = write.ty;
-        let origin = self.intern_origin(origin);
-        let anchored = self.solver.origin(origin);
-        let cause = self.intern_cause(Cause::root(anchored, CauseKind::Expression));
-        self.push_constraint(Constraint::r#type(Relation::Equal, element, value, cause));
-
-        let key_parameter = read.key_parameter;
+        let mut key_types = read.key_types;
+        key_types.extend(write.key_types);
+        key_types.sort_unstable();
+        key_types.dedup();
 
         Ok(Answer::Ready(Some(SubscriptSelection {
             read: read.read,
             write: write.write,
-            ty: element,
-            key_parameter,
+            key_types,
         })))
     }
 
@@ -616,112 +1092,234 @@ impl BodyState<'_, '_> {
     fn select_subscript_write(
         &mut self,
         origin: Origin,
-        receiver: dir::GlobalTypeId,
+        receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
-        index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         let method = SubscriptProtocol::IndexSet;
-        let arguments = SmallVec::<[dir::GlobalTypeId; 1]>::from_slice(&[index]);
-        let protocol = method.protocol(self, arguments.to_vec())?;
         let key = method.key(self.strings());
-        let Some(member) = answer!(self.select_protocol_member(
+        let Some((_protocol, member)) = answer!(self.select_language_protocol_member(
             origin,
-            receiver,
+            receiver.ty,
             lookup_receiver,
             key,
-            &protocol,
+            method.item(),
+            &[],
         )?) else {
             return Ok(Answer::Ready(None));
         };
 
-        let Some((callable, signature)) = answer!(self.callable_signature_type(origin, member.ty)?)
+        let sources = [
+            dir::ArgumentSource::Provided(index_node),
+            dir::ArgumentSource::Write,
+        ];
+        let Some(resolution) =
+            answer!(self.subscript_write_call(origin, &member.resolution, &sources,)?)
         else {
             return Ok(Answer::Ready(None));
         };
-        let signature_parameters = self
-            .signature_parameters(callable.module_id, signature.parameters)?
-            .to_vec();
-        let key_parameter = signature_parameters.first().map(|parameter| parameter.ty);
-        let Some(value) = signature_parameters.last().map(|parameter| parameter.ty) else {
+        let key_types = resolution.argument_types(dir::ArgumentSource::Provided(index_node));
+        let value_types = resolution.argument_types(dir::ArgumentSource::Write);
+        if key_types.is_empty() {
+            return Err(CompilerError::Internal {
+                message: "selected IndexSet call has no key parameter".to_string(),
+            });
+        }
+        let value = match value_types.as_slice() {
+            [] => return Ok(Answer::Ready(None)),
+            [single] => *single,
+            _ => self.normalized_intersection_type(origin.module(), value_types)?,
+        };
+
+        let selection = SubscriptSelection::call_write(resolution, value, key_types.into())?;
+
+        Ok(Answer::Ready(Some(selection)))
+    }
+
+    /// Select the write calls from one protocol member resolution.
+    fn subscript_write_call(
+        &mut self,
+        origin: Origin,
+        resolution: &dir::MemberResolution,
+        sources: &[dir::ArgumentSource],
+    ) -> CompilerResult<Answer<Option<dir::CallResolution>>> {
+        match resolution {
+            dir::OperationResolution::One(access) => {
+                let call = answer!(self.subscript_write_access_call(origin, access, sources)?);
+
+                Ok(Answer::Ready(call.map(dir::OperationResolution::One)))
+            }
+            dir::OperationResolution::Union { arms, .. } => {
+                let mut calls = Vec::with_capacity(arms.len());
+                let mut returns = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+                for access in arms {
+                    let Some(call) =
+                        answer!(self.subscript_write_access_call(origin, access, sources)?)
+                    else {
+                        return Ok(Answer::Ready(None));
+                    };
+                    returns.push(call.return_type);
+                    calls.push(call);
+                }
+                let ty = match returns.as_slice() {
+                    [single] => *single,
+                    _ => self.normalized_union_type(origin.module(), returns)?,
+                };
+
+                Ok(Answer::Ready(Some(dir::OperationResolution::Union {
+                    arms: calls,
+                    ty,
+                })))
+            }
+        }
+    }
+
+    /// Select one write call from one protocol member access.
+    fn subscript_write_access_call(
+        &mut self,
+        origin: Origin,
+        access: &dir::MemberAccess,
+        sources: &[dir::ArgumentSource],
+    ) -> CompilerResult<Answer<Option<dir::Call>>> {
+        let dir::MemberTarget::Symbol(candidate) = &access.target else {
+            return Err(CompilerError::Internal {
+                message: "selected IndexSet member is not callable".to_string(),
+            });
+        };
+        let callable_type = candidate
+            .callable_type
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "selected IndexSet member {:?} has no callable type",
+                    candidate.symbol
+                ),
+            })?;
+        let Some((callable, signature)) =
+            answer!(self.callable_signature_type(origin, callable_type)?)
+        else {
             return Ok(Answer::Ready(None));
         };
-        let sources = [
-            dir::ArgumentSource::Provided(index_node),
-            dir::ArgumentSource::Omitted,
-        ];
-        let target = dir::CallTarget::Symbol(dir::CallCandidate {
-            receiver: Some(receiver),
-            adjustments: Vec::new(),
-            generic_scope: Some(member.owner),
-            symbol: member.symbol,
-            generic_arguments: member.generic_arguments,
-        });
-        let resolution = dir::CallResolution::new(
+        let parameters = self
+            .signature_parameters(callable.module_id, signature.parameters)?
+            .to_vec();
+        let Some(return_type) = signature.return_type else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "selected IndexSet member {:?} has no checked return type",
+                    candidate.symbol
+                ),
+            });
+        };
+        let target = match &candidate.receiver {
+            dir::MemberReceiver::Direct(receiver) => dir::CallTarget::Symbol {
+                function: dir::FunctionTarget {
+                    receiver: Some(receiver.clone()),
+                    generic_scope: Some(candidate.owner),
+                    symbol: candidate.symbol,
+                    generic_arguments: candidate.generic_arguments.clone(),
+                },
+                dispatch: dir::FunctionDispatch::Direct,
+            },
+            dir::MemberReceiver::Dynamic(dispatch) => dir::CallTarget::Dynamic {
+                dispatch: dispatch.clone(),
+                function: dir::DynamicFunction::Symbol(candidate.symbol),
+                generic_arguments: candidate.generic_arguments.clone(),
+            },
+        };
+        let call = dir::Call {
             target,
-            Some(callable),
-            Self::source_argument_bindings(&sources, &signature_parameters),
-            signature
-                .return_type
-                .unwrap_or(self.intern_type(origin.module(), dir::Type::Void)?),
-        );
+            callable_type: callable,
+            arguments: Self::source_argument_bindings(sources, &parameters),
+            return_type,
+        };
 
-        Ok(Answer::Ready(Some(SubscriptSelection::call_write(
-            resolution,
-            value,
-            key_parameter,
-        ))))
+        Ok(Answer::Ready(Some(call)))
     }
 
     /// Decide whether `Index<I>` returns values compatible with one signature.
     fn decide_subscript_read_signature(
         &mut self,
         origin: Origin,
+        relation: Relation,
         receiver: dir::GlobalTypeId,
         key_type: dir::GlobalTypeId,
         value_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let method = SubscriptProtocol::Index;
-        let arguments = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[key_type]);
-        let sources = [dir::ArgumentSource::Omitted];
+        let sources = [dir::ArgumentSource::Static(key_type)];
         let key = method.key(self.strings());
-        let protocol = method.protocol(self, arguments.to_vec())?;
         let read_type = self.index_signature_read_type(origin, value_type)?;
+        let selected = answer!(self.select_language_protocol_call(
+            origin,
+            Value {
+                ty: receiver,
+                place: None,
+            },
+            receiver,
+            key,
+            method.item(),
+            &[key_type],
+            &sources,
+        )?);
+        let Some((_protocol, call)) = selected else {
+            return Ok(Answer::Ready(false));
+        };
 
-        self.protocol_call_returns(
-            origin, receiver, key, &protocol, &arguments, &sources, read_type,
-        )
+        self.decide_relation(origin, relation, call.return_type, read_type)
     }
 
     /// Decide whether `IndexSet<I>` accepts values compatible with one signature.
     fn decide_subscript_write_signature(
         &mut self,
         origin: Origin,
+        relation: Relation,
         receiver: dir::GlobalTypeId,
         key_type: dir::GlobalTypeId,
         value_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let method = SubscriptProtocol::IndexSet;
         let key = method.key(self.strings());
-        let protocol = method.protocol(self, vec![key_type])?;
-        let member =
-            answer!(self.select_protocol_member(origin, receiver, receiver, key, &protocol)?);
-        let Some(member) = member else {
+        let selected = answer!(self.select_language_protocol_member(
+            origin,
+            receiver,
+            receiver,
+            key,
+            method.item(),
+            &[key_type, value_type],
+        )?);
+        let Some((_protocol, member)) = selected else {
             return Ok(Answer::Ready(false));
         };
-
-        let signature = answer!(self.callable_signature_type(origin, member.ty)?);
-        let Some((callable, signature)) = signature else {
-            return Ok(Answer::Ready(false));
-        };
-        let Some(input) = self
-            .signature_parameters(callable.module_id, signature.parameters)?
-            .last()
-            .map(|parameter| parameter.ty)
+        let sources = [dir::ArgumentSource::Omitted, dir::ArgumentSource::Write];
+        let Some(call) =
+            answer!(self.subscript_write_call(origin, &member.resolution, &sources,)?)
         else {
             return Ok(Answer::Ready(false));
         };
+        let key_types = call.argument_types(dir::ArgumentSource::Omitted);
+        let value_types = call.argument_types(dir::ArgumentSource::Write);
+        let key = match key_types.as_slice() {
+            [] => {
+                return Err(CompilerError::Internal {
+                    message: "selected IndexSet call has no key parameter".to_string(),
+                });
+            }
+            [single] => *single,
+            _ => self.normalized_intersection_type(origin.module(), key_types)?,
+        };
+        let input = match value_types.as_slice() {
+            [] => {
+                return Err(CompilerError::Internal {
+                    message: "selected IndexSet call has no runtime alternatives".to_string(),
+                });
+            }
+            [single] => *single,
+            _ => self.normalized_intersection_type(origin.module(), value_types)?,
+        };
 
-        self.decide_relation(origin, Relation::Assignable, value_type, input)
+        let key_holds = self.decide_relation(origin, relation, key_type, key)?;
+        let value_holds = self.decide_relation(origin, relation, value_type, input)?;
+
+        Ok(key_holds.and(value_holds))
     }
 }

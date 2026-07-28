@@ -19,7 +19,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_constant(literal, target);
         }
 
-        let source = self.coerced_type(value)?;
+        let source = self.node_type(value)?;
         let source = self.lowerer.scalar_type(&source)?;
         let lowered = self.lower_expression(value)?;
         if source == target {

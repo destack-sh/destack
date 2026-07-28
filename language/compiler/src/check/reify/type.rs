@@ -1,5 +1,6 @@
 use destack_core::StringPool;
 use destack_dir as dir;
+use smallvec::SmallVec;
 use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::CompilerResult;
@@ -410,7 +411,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     generic_arguments: arguments,
                 }
             }
-            dir::Type::EnumMember(_) => return Ok(None),
+            dir::Type::Variant(_) => return Ok(None),
 
             dir::Type::Array(array) => {
                 let Some(element) = self.reify_depth(array.element, next)? else {
@@ -479,18 +480,18 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     return Ok(None);
                 }
 
-                let shape_fields = self
+                let shape_properties = self
                     .check
-                    .shape_fields(id.module_id, shape.fields)?
+                    .shape_properties(id.module_id, shape.properties)?
                     .to_vec();
-                let mut members = Vec::with_capacity(shape_fields.len());
-                for field in &shape_fields {
+                let mut members = Vec::with_capacity(shape_properties.len());
+                for field in &shape_properties {
                     let key = match field.key {
                         dir::StaticKey::Name(name) => dir::Key::Name(dir::Name::Identifier(name)),
                         dir::StaticKey::Index(index) => dir::Key::Name(dir::Name::Index(index)),
                         dir::StaticKey::Symbol(_) => return Ok(None),
                     };
-                    let Some(declared_type) = self.reify_depth(field.ty, next)? else {
+                    let Some(declared_type) = self.reify_depth(field.access.store(), next)? else {
                         return Ok(None);
                     };
                     let member = dir::TypeMember::Field {
@@ -498,7 +499,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         declared_type: Some(declared_type),
                         is_static: false,
                         is_optional: field.is_optional,
-                        is_readonly: field.is_readonly,
+                        is_readonly: !field.access.is_writable(),
                     };
 
                     members.push(self.insert(member));
@@ -978,9 +979,10 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         ids: &[dir::GlobalTypeId],
         depth: usize,
     ) -> CompilerResult<Option<Vec<dir::LocalNodeId<dir::GenericArgument>>>> {
-        let parameters = template
-            .map(|template| self.check.generic_template_parameters(template))
-            .unwrap_or_default();
+        let parameters = match template {
+            Some(template) => self.check.generic_template_parameters(template)?,
+            None => SmallVec::new(),
+        };
         let mut arguments = Vec::with_capacity(ids.len());
         for (index, id) in ids.iter().copied().enumerate() {
             let parameter = parameters

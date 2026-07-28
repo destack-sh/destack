@@ -42,11 +42,15 @@ declare const point: { x: int32; y: string };
 /// @type.node source="{ x, y: label } = point" type={ x: int32; y: string }
 /// @resolution.pattern.assign source={ x, y: label } kind=object fields={ x, y: label }
 /// @type.node source=x type=int32
-/// @resolution.pattern.assign source=x kind=place place=binding(x#1) type=int32
+/// @resolution.pattern.assign source=x kind=place
+/// @resolution.assignment source=x write=binding(x#1) type=int32
 /// @type.node source=label type=string
-/// @resolution.pattern.assign source=label kind=place place=binding(label) type=string
+/// @resolution.pattern.assign source=label kind=place
+/// @resolution.assignment source=label write=binding(label) type=string
 /// @type.node source=point type={ x: int32; y: string }
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
     );
 }
@@ -93,11 +97,15 @@ declare const values: [int32; 3];
 /// @type.node source="[first, , last] = values" type=FixedArray<int32, 3>
 /// @resolution.pattern.assign source=[first, , last] kind=sequence element=int32 arity=3 fields=(first, last)
 /// @type.node source=first type=int32
-/// @resolution.pattern.assign source=first kind=place place=binding(first) type=int32
+/// @resolution.pattern.assign source=first kind=place
+/// @resolution.assignment source=first write=binding(first) type=int32
 /// @type.node source=last type=int32
-/// @resolution.pattern.assign source=last kind=place place=binding(last) type=int32
+/// @resolution.pattern.assign source=last kind=place
+/// @resolution.assignment source=last write=binding(last) type=int32
 /// @type.node source=values type=FixedArray<int32, 3>
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 "#,
     );
 }
@@ -134,7 +142,7 @@ let name: string = "";
 let rest: { age: int32; active: boolean } = { age: 0, active: false };
 /// @type.symbol symbol=rest source=rest type={ age: int32; active: boolean }
 /// @resolution.pattern source=rest kind=binding target=rest
-/// @type.node source={ age: 0, active: false } type={ age: 0; active: false }
+/// @type.node source={ age: 0, active: false } type={ age: int32; active: boolean }
 /// @type.node source=0 type=0
 /// @type.node source=false type=false
 
@@ -146,11 +154,15 @@ declare const user: { name: string; age: int32; active: boolean };
 /// @type.node source="{ name, ...rest } = user" type={ name: string; age: int32; active: boolean }
 /// @resolution.pattern.assign source={ name, ...rest } kind=object fields={ name } rest=...rest
 /// @type.node source=name type=string
-/// @resolution.pattern.assign source=name kind=place place=binding(name#1) type=string
+/// @resolution.pattern.assign source=name kind=place
+/// @resolution.assignment source=name write=binding(name#1) type=string
 /// @type.node source=rest type={ age: int32; active: boolean }
-/// @resolution.pattern.assign source=rest kind=place place=binding(rest) type={ age: int32; active: boolean }
+/// @resolution.pattern.assign source=rest kind=place
+/// @resolution.assignment source=rest write=binding(rest) type={ age: int32; active: boolean }
 /// @type.node source=user type={ name: string; age: int32; active: boolean }
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 "#,
     );
 }
@@ -197,11 +209,15 @@ declare const values: int32[];
 /// @type.node source="[head, ...tail] = values" type=Array<int32>
 /// @resolution.pattern.assign source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
 /// @type.node source=head type=int32
-/// @resolution.pattern.assign source=head kind=place place=binding(head) type=int32
+/// @resolution.pattern.assign source=head kind=place
+/// @resolution.assignment source=head write=binding(head) type=int32
 /// @type.node source=tail type=Array<int32>
-/// @resolution.pattern.assign source=tail kind=place place=binding(tail) type=Array<int32>
+/// @resolution.pattern.assign source=tail kind=place
+/// @resolution.assignment source=tail write=binding(tail) type=Array<int32>
 /// @type.node source=values type=Array<int32>
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 "#,
     );
 }
@@ -257,16 +273,20 @@ declare const packet: { point: { x: int32 }; meta: (string,) };
     point: { x },
     /// @resolution.pattern.assign source={ x } kind=object fields={ x }
     /// @type.node source=x type=int32
-    /// @resolution.pattern.assign source=x kind=place place=binding(x#1) type=int32
+    /// @resolution.pattern.assign source=x kind=place
+    /// @resolution.assignment source=x write=binding(x#1) type=int32
 
     meta: (label,),
     /// @resolution.pattern.assign source=(label,) kind=tuple fields=(label)
     /// @type.node source=label type=string
-    /// @resolution.pattern.assign source=label kind=place place=binding(label) type=string
+    /// @resolution.pattern.assign source=label kind=place
+    /// @resolution.assignment source=label write=binding(label) type=string
 
 } = packet);
 /// @type.node source=packet type={ point: { x: int32 }; meta: (string,) }
 /// @resolution.name source=packet target=packet
+/// @resolution.place source=packet placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=packet root=packet
 "#,
     );
 }
@@ -322,19 +342,23 @@ declare const packet: { count?: int32; labels: (string | undefined,) };
     count = 1,
     /// @type.node source=count type=int32
     /// @resolution.pattern.assign source="count = 1" kind=default pattern=count value=expression
-    /// @resolution.pattern.assign source=count kind=place place=binding(count#1) type=int32
+    /// @resolution.pattern.assign source=count kind=place
+    /// @resolution.assignment source=count write=binding(count#1) type=int32
     /// @type.node source=1 type=1
 
     labels: (label = "missing",),
     /// @resolution.pattern.assign source=(label = "missing",) kind=tuple fields=(label)
     /// @type.node source=label type=string
     /// @resolution.pattern.assign source="label = \"missing\"" kind=default pattern=label value=expression
-    /// @resolution.pattern.assign source=label kind=place place=binding(label) type=string
+    /// @resolution.pattern.assign source=label kind=place
+    /// @resolution.assignment source=label write=binding(label) type=string
     /// @type.node source="\"missing\"" type="missing"
 
 } = packet);
 /// @type.node source=packet type={ count?: int32; labels: (string | undefined,) }
 /// @resolution.name source=packet target=packet
+/// @resolution.place source=packet placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=packet root=packet
 "#,
     );
 }
@@ -375,9 +399,12 @@ declare const point: { x: int32 };
 /// @resolution.pattern.assign source={ ["x"]: value } kind=object fields={ x: value }
 /// @type.node source="\"x\"" type="x"
 /// @type.node source=value type=int32
-/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
+/// @resolution.pattern.assign source=value kind=place
+/// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
     );
 }
@@ -421,13 +448,18 @@ declare const bag: { [key: string]: int32 };
 
 ({ [key]: value } = bag);
 /// @type.node source="{ [key]: value } = bag" type={ [key: string]: int32 }
-/// @resolution.pattern.assign source={ [key]: value } kind=object fields={ key: value }
+/// @resolution.pattern.assign source={ [key]: value } kind=object fields={ subscript(member(receiver={ [key: string]: int32 }, target=index(string), type=int32 | undefined), int32 | undefined): value }
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=key root=key
 /// @type.node source=value type=int32
-/// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
+/// @resolution.pattern.assign source=value kind=place
+/// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=bag type={ [key: string]: int32 }
 /// @resolution.name source=bag target=bag
+/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bag root=bag
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'int32 | undefined' is not assignable to type 'int32'"
@@ -478,8 +510,12 @@ declare const point: { x: int32 };
 /// @type.node source="{ [key]: value } = point" type=<error>
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=key root=key
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=computed-pattern-key-not-valid message="computed pattern key is not valid for the source type"

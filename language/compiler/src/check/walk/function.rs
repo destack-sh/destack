@@ -266,7 +266,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         self.check
-            .open_generic_template(owner.declaration, owner.parent, owner.symbol)
+            .open_generic_template(owner.declaration)
             .map(Some)
     }
 
@@ -301,12 +301,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         source: dir::LocalNodeIdAny,
         declaration: &dir::FunctionTypeExpression,
-        parent: Option<GenericTemplateId>,
         return_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let template = self.walk_signature_template(
             source,
-            parent,
             declaration.declares_generic_scope(),
             &declaration.generic_parameters,
             &declaration.where_clauses,
@@ -367,12 +365,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         source: dir::LocalNodeIdAny,
         declaration: &dir::ConstructorType,
-        parent: Option<GenericTemplateId>,
         return_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let template = self.walk_signature_template(
             source,
-            parent,
             declaration.declares_generic_scope(),
             &declaration.generic_parameters,
             &declaration.where_clauses,
@@ -434,7 +430,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     fn walk_signature_template(
         &mut self,
         source: dir::LocalNodeIdAny,
-        parent: Option<GenericTemplateId>,
         declares_scope: bool,
         generic_parameters: &[dir::LocalNodeId<dir::GenericParameter>],
         where_clauses: &[dir::LocalNodeId<dir::WhereClause>],
@@ -445,10 +440,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         let source = source.into_global(self.module);
         let template = if generic_parameters.is_empty() {
-            self.check.open_generic_template(source, parent, None)?
+            self.check.open_generic_template(source)?
         } else {
             let Some(template) =
-                self.walk_generic_template(source, parent, None, generic_parameters)?
+                self.walk_generic_template(source, generic_parameters)?
             else {
                 return Ok(None);
             };
@@ -600,11 +595,25 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let generator = yield_target
             .zip(resume_target)
             .map(|(yielded, resumed)| GeneratorTargets { yielded, resumed });
+        // bind constructor initialization to its exact declaration
+        let initializes = if signature.is_constructor() {
+            let owner = receiver
+                .as_ref()
+                .and_then(|receiver| receiver.receiver.declaration)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("constructor {symbol:?} has no declaring receiver"),
+                })?;
+
+            Some(owner)
+        } else {
+            None
+        };
         let body = FunctionBody {
+            symbol,
             site: body_site,
             return_type,
             generator,
-            is_constructor: signature.is_constructor(),
+            initializes,
         };
         if self.check.functions.insert(symbol, body).is_some() {
             return Err(CompilerError::Internal {
@@ -691,7 +700,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let is_optional = self.tree.get(id).is_optional();
         let ty = self.walk_type_expression(declared_type)?;
         let ty = if represents_open_type {
-            self.check.storage_type(self.module, ty)?
+            let origin = Origin::Node(
+                declared_type.into_global_any(self.module),
+                self.flow().template_scope(),
+            );
+
+            self.check.storage_type(origin, ty)?
         } else {
             ty
         };

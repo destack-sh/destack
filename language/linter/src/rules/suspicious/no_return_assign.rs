@@ -16,7 +16,7 @@ declare_lint_stub! {
 }
 
 /// Check no-return-assign.
-fn check(_module: &DirModule, lint: &Lint) -> LintResult {
+fn check(_module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Err(ProviderError::internal(format!(
         "lint {} is not implemented",
         lint.id

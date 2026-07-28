@@ -36,16 +36,21 @@ let { x, y } = point;
 /// @type.symbol symbol=y#2 source=y type=string
 /// @type.node source=point type={ x: int32; y: string }
 /// @resolution.name source=point target=point
+/// @resolution.access source=point root=point
 
 x satisfies int32;
 /// @type.node source="x satisfies int32" type=int32
 /// @type.node source=x type=int32
 /// @resolution.name source=x target=x#2
+/// @resolution.place source=x placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=x root=x#2
 
 y satisfies string;
 /// @type.node source="y satisfies string" type=string
 /// @type.node source=y type=string
 /// @resolution.name source=y target=y#2
+/// @resolution.place source=y placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=y root=y#2
 "#,
     );
 }
@@ -79,6 +84,8 @@ let { x }: { x: int32 } = source;
 /// @type.symbol symbol=x#3 source=x type=int32
 /// @type.node source=source type={ x: string }
 /// @resolution.name source=source target=source
+/// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=source root=source
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '{ x: string }' is not assignable to type '{ x: int32 }'"

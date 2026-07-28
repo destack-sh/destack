@@ -134,7 +134,7 @@ const left: Offset = -4;
 /// @type.symbol symbol=left source=left type=Offset reduced=-4..=4
 /// @resolution.pattern source=left kind=binding target=left
 /// @resolution.name source=Offset target=Offset
-/// @resolution.operator source=-4 kind=builtin
+/// @resolution.operator source=-4 type=-4 operator="-" kind=builtin operands=[4 as 4 families=(integer)]
 
 const right: Offset = 4;
 /// @type.symbol symbol=right source=right type=Offset reduced=-4..=4

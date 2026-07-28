@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, Origin, PlaceUse,
-    Relation, ValueUse, answer,
+    Answer, BodyState, Cause, CauseKind, Constraint, Expectation, FlowSite, InferMode, Origin,
+    PlaceUse, Relation, ValueUse, Widening, answer, declarator_widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -27,11 +27,12 @@ impl BodyState<'_, '_> {
             }
             // let pattern = value else { ... }
             dir::Expression::LetElse {
+                kind,
                 declarator,
                 else_branch,
                 ..
             } => {
-                answer!(self.check_declarator(module, *declarator)?);
+                answer!(self.check_declarator(module, *declarator, Some(*kind))?);
                 let else_site = self.check.node_site(else_branch.into_global_any(module))?;
                 answer!(self.attempt_node(else_site, PlaceUse::Read, None)?);
                 let void = self.check.intern_type(module, dir::Type::Void)?;
@@ -40,10 +41,20 @@ impl BodyState<'_, '_> {
                 Ok(Answer::Ready(()))
             }
             // let x = value
-            dir::Expression::Let { declarators, .. }
-            | dir::Expression::Using { declarators, .. } => {
+            dir::Expression::Let {
+                kind, declarators, ..
+            } => {
                 for declarator in declarators {
-                    answer!(self.check_declarator(module, *declarator)?);
+                    answer!(self.check_declarator(module, *declarator, Some(*kind))?);
+                }
+                let void = self.check.intern_type(module, dir::Type::Void)?;
+                self.check.commit_node_type(node, void)?;
+
+                Ok(Answer::Ready(()))
+            }
+            dir::Expression::Using { declarators, .. } => {
+                for declarator in declarators {
+                    answer!(self.check_declarator(module, *declarator, None)?);
                 }
                 let void = self.check.intern_type(module, dir::Type::Void)?;
                 self.check.commit_node_type(node, void)?;
@@ -55,15 +66,15 @@ impl BodyState<'_, '_> {
                 // relate the returned value to the body's return target
                 if let Some(value) = value {
                     let value_site = self.check.node_site(value.into_global_any(module))?;
-                    let expectation = self.return_type.map(|return_type| {
-                        Expectation::assignable(
-                            return_type,
-                            self.check.intern_cause(Cause::root(
-                                value_site.origin(),
-                                CauseKind::Return { annotation: None },
-                            )),
-                            ValueUse::Output,
-                        )
+                    let expectation = self.return_type.map(|return_type| Expectation {
+                        target: return_type,
+                        relation: Relation::Assignable,
+                        cause: self.check.intern_cause(Cause::root(
+                            value_site.origin(),
+                            CauseKind::Return { annotation: None },
+                        )),
+                        use_: ValueUse::Output,
+                        mode: self.output_mode,
                     });
                     answer!(self.attempt_node(value_site, PlaceUse::Read, expectation)?);
                 }
@@ -75,6 +86,7 @@ impl BodyState<'_, '_> {
                         CauseKind::Return { annotation: None },
                     ));
                     self.check.push_constraint(Constraint::r#type(
+                        site.origin(),
                         Relation::Assignable,
                         void,
                         return_type,
@@ -100,15 +112,15 @@ impl BodyState<'_, '_> {
                         // scalar values flow to the yield target
                         dir::YieldCardinality::Scalar => generator.map(|targets| targets.yielded),
                     };
-                    let expectation = target.map(|target| {
-                        Expectation::assignable(
-                            target,
-                            self.check.intern_cause(Cause::root(
-                                value_site.origin(),
-                                CauseKind::Return { annotation: None },
-                            )),
-                            ValueUse::Output,
-                        )
+                    let expectation = target.map(|target| Expectation {
+                        target,
+                        relation: Relation::Assignable,
+                        cause: self.check.intern_cause(Cause::root(
+                            value_site.origin(),
+                            CauseKind::Return { annotation: None },
+                        )),
+                        use_: ValueUse::Output,
+                        mode: self.output_mode,
                     });
                     answer!(self.attempt_node(value_site, PlaceUse::Read, expectation)?);
                 }
@@ -119,6 +131,7 @@ impl BodyState<'_, '_> {
                         .check
                         .intern_cause(Cause::root(site.origin(), CauseKind::Expression));
                     self.check.push_constraint(Constraint::r#type(
+                        site.origin(),
                         Relation::Assignable,
                         void,
                         targets.yielded,
@@ -248,15 +261,22 @@ impl BodyState<'_, '_> {
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::Declarator>,
+        binding_kind: Option<dir::LetKind>,
     ) -> CompilerResult<Answer<()>> {
         let declarator = self.module(module).view().get(id).clone();
         let pattern = declarator.pattern;
 
         // resolve the written type before checking the optional value
         let annotation = declarator.ty.map(|ty| ty.into_global_any(module));
-        let written = annotation
-            .map(|annotation| self.require_node_type(annotation))
-            .transpose()?;
+        let written = match annotation {
+            Some(annotation) => {
+                let ty = self.require_node_type(annotation)?;
+                let origin = self.node_origin(annotation)?;
+
+                Some(self.storage_type(origin, ty)?)
+            }
+            None => None,
+        };
         let target = match (declarator.value, written) {
             (Some(value), Some(written)) => {
                 let site = self.node_site(value.into_global_any(module))?;
@@ -269,6 +289,7 @@ impl BodyState<'_, '_> {
                     relation: Relation::Assignable,
                     cause,
                     use_: ValueUse::Store,
+                    mode: InferMode::Exact,
                 };
                 answer!(self.attempt_node(site, PlaceUse::Read, Some(expectation))?);
 
@@ -276,8 +297,15 @@ impl BodyState<'_, '_> {
             }
             (Some(value), None) => {
                 let site = self.node_site(value.into_global_any(module))?;
+                let widening =
+                    declarator_widening(self.module(module).view(), &declarator, binding_kind);
+                let mode = match widening {
+                    Widening::Never | Widening::Aggregate | Widening::Multiple => InferMode::Exact,
+                    Widening::Always => InferMode::Widen,
+                };
+                let ty = answer!(self.infer_node(site, PlaceUse::Read, mode)?);
 
-                Some(answer!(self.infer_node_type(site, PlaceUse::Read)?))
+                Some(answer!(self.flow_type_at(site, ty)?))
             }
             (None, Some(written)) => Some(written),
             (None, None) => None,
@@ -308,8 +336,10 @@ impl BodyState<'_, '_> {
                 dir::ConditionOperand::Expression { condition } => {
                     answer!(self.check_condition(module, *condition)?);
                 }
-                dir::ConditionOperand::Binding { declarator, .. } => {
-                    answer!(self.check_declarator(module, *declarator)?);
+                dir::ConditionOperand::Binding {
+                    kind, declarator, ..
+                } => {
+                    answer!(self.check_declarator(module, *declarator, Some(*kind))?);
                 }
             }
         }
@@ -335,6 +365,7 @@ impl BodyState<'_, '_> {
                 CauseKind::Expression,
             )),
             use_: ValueUse::Condition,
+            mode: InferMode::Exact,
         };
         answer!(self.attempt_node(site, PlaceUse::Read, Some(expectation))?);
 

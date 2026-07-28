@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, Decision, FlowPointId, Origin, Protocol, answer};
+use crate::check::{Answer, BodyState, Decision, FlowPointId, Origin, Protocol, Value, answer};
 
 impl BodyState<'_, '_> {
     /// Select one sequence pattern.
@@ -22,10 +22,8 @@ impl BodyState<'_, '_> {
             return self.commit_rejected_pattern(node);
         }
 
-        let sequence = self.language_protocol(dir::LanguageItem::Sequence, vec![])?;
-
         // reject non-sequence sources before projecting fields
-        let Some(_length) = answer!(self.select_sequence_length(origin, scrutinee, &sequence)?)
+        let Some((sequence, _length)) = answer!(self.select_sequence_length(origin, scrutinee)?)
         else {
             self.report_pattern_source_not_sequence_shaped(origin, scrutinee)?;
 
@@ -61,16 +59,15 @@ impl BodyState<'_, '_> {
             match self.module(module).view().get(*field) {
                 dir::PatternField::Positional { pattern } => {
                     let pattern = *pattern;
-                    let Some(call) = answer!(self.select_sequence_element(
+                    let Some(projection) = answer!(self.select_sequence_element(
                         field.into_global_any(module),
                         origin,
                         scrutinee,
-                        &sequence,
                         position,
                     )?) else {
                         continue;
                     };
-                    let element = call.return_type;
+                    let element = projection.ty();
 
                     answer!(self.check_pattern_projection(
                         flow,
@@ -80,7 +77,7 @@ impl BodyState<'_, '_> {
                     )?);
                     projected.push(dir::PatternFieldResolution {
                         source: field.into_global_any(module),
-                        projection: dir::Projection::Call(Box::new(call)),
+                        projection,
                         pattern: Some(pattern.into_global_any(module)),
                     });
                     position += 1;
@@ -96,7 +93,7 @@ impl BodyState<'_, '_> {
                     )?) else {
                         continue;
                     };
-                    let rest_type = call.return_type;
+                    let rest_type = call.return_type();
 
                     if let Some(pattern) = pattern {
                         answer!(self.check_pattern_projection(
@@ -108,7 +105,7 @@ impl BodyState<'_, '_> {
                     }
                     rest = Some(Box::new(dir::PatternFieldResolution {
                         source: field.into_global_any(module),
-                        projection: dir::Projection::Call(Box::new(call)),
+                        projection: call.into(),
                         pattern: pattern.map(|pattern| pattern.into_global_any(module)),
                     }));
                 }
@@ -152,10 +149,9 @@ impl BodyState<'_, '_> {
         }
 
         let rest_start = self.assign_sequence_rest_start(module, fields);
-        let sequence = self.language_protocol(dir::LanguageItem::Sequence, vec![])?;
 
         // reject non-sequence sources before projecting fields
-        let Some(_length) = answer!(self.select_sequence_length(origin, scrutinee, &sequence)?)
+        let Some((sequence, _length)) = answer!(self.select_sequence_length(origin, scrutinee)?)
         else {
             self.report_pattern_source_not_sequence_shaped(origin, scrutinee)?;
             self.commit_decision(node.into_any(), Decision::Rejected)?;
@@ -186,16 +182,15 @@ impl BodyState<'_, '_> {
             match self.module(module).view().get(*field) {
                 dir::AssignPatternField::Positional { pattern } => {
                     let pattern = *pattern;
-                    let Some(call) = answer!(self.select_sequence_element(
+                    let Some(projection) = answer!(self.select_sequence_element(
                         field.into_global_any(module),
                         origin,
                         scrutinee,
-                        &sequence,
                         position,
                     )?) else {
                         continue;
                     };
-                    let element = call.return_type;
+                    let element = projection.ty();
 
                     answer!(self.check_pattern_projection(
                         flow,
@@ -205,7 +200,7 @@ impl BodyState<'_, '_> {
                     )?);
                     projected.push(dir::AssignPatternFieldResolution {
                         source: field.into_global_any(module),
-                        projection: dir::Projection::Call(Box::new(call)),
+                        projection,
                         pattern: Some(pattern.into_global_any(module)),
                     });
                     position += 1;
@@ -221,7 +216,7 @@ impl BodyState<'_, '_> {
                     )?) else {
                         continue;
                     };
-                    let rest_type = call.return_type;
+                    let rest_type = call.return_type();
 
                     if let Some(pattern) = pattern {
                         answer!(self.check_pattern_projection(
@@ -233,7 +228,7 @@ impl BodyState<'_, '_> {
                     }
                     rest = Some(Box::new(dir::AssignPatternFieldResolution {
                         source: field.into_global_any(module),
-                        projection: dir::Projection::Call(Box::new(call)),
+                        projection: call.into(),
                         pattern: pattern.map(|pattern| pattern.into_global_any(module)),
                     }));
                 }
@@ -261,16 +256,20 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
-        sequence: &Protocol,
-    ) -> CompilerResult<Answer<Option<dir::MemberResolution>>> {
+    ) -> CompilerResult<Answer<Option<(Protocol, dir::MemberResolution)>>> {
         let key = self.static_name("length");
-        let Some(member) =
-            answer!(self.select_protocol_member(origin, receiver, receiver, key, sequence)?)
-        else {
+        let Some((sequence, member)) = answer!(self.select_language_protocol_member(
+            origin,
+            receiver,
+            receiver,
+            key,
+            dir::LanguageItem::Sequence,
+            &[],
+        )?) else {
             return Ok(Answer::Ready(None));
         };
 
-        Ok(Answer::Ready(Some(member.resolution)))
+        Ok(Answer::Ready(Some((sequence, member.resolution))))
     }
 
     /// Return the `Index.index` call for a sequence receiver.
@@ -279,20 +278,25 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeIdAny,
         origin: Origin,
         receiver: dir::GlobalTypeId,
-        sequence: &Protocol,
         index: usize,
-    ) -> CompilerResult<Answer<Option<dir::CallResolution>>> {
+    ) -> CompilerResult<Answer<Option<dir::ProjectionResolution>>> {
         let index = self.static_usize_type(node, index)?;
-        let key = self.static_name("index");
-        let arguments = [index];
-        let sources = [dir::ArgumentSource::Static(index)];
-        let Some(call) = answer!(self.select_protocol_call(
-            origin, receiver, receiver, key, sequence, &arguments, &sources
+        let Some(selection) = answer!(self.select_subscript_read_source(
+            origin,
+            Value {
+                ty: receiver,
+                place: None,
+            },
+            receiver,
+            dir::ArgumentSource::Static(index),
         )?) else {
             return Ok(Answer::Ready(None));
         };
+        let Some(projection) = selection.into_read_projection() else {
+            return Ok(Answer::Ready(None));
+        };
 
-        Ok(Answer::Ready(Some(call.resolution)))
+        Ok(Answer::Ready(Some(projection)))
     }
 
     /// Return the `Sequence.rest` call for a sequence receiver.
@@ -306,10 +310,17 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<dir::CallResolution>>> {
         let start_type = self.static_usize_type(node, start)?;
         let key = self.static_name("rest");
-        let arguments = [start_type];
         let sources = [dir::ArgumentSource::Static(start_type)];
         let Some(call) = answer!(self.select_protocol_call(
-            origin, receiver, receiver, key, sequence, &arguments, &sources
+            origin,
+            Value {
+                ty: receiver,
+                place: None,
+            },
+            receiver,
+            key,
+            sequence,
+            &sources,
         )?) else {
             return Ok(Answer::Ready(None));
         };

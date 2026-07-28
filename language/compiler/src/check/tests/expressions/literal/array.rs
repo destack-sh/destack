@@ -10,7 +10,10 @@ let values = [1, 2];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked()
+            .with_reference_types()
+            .with_coercion()
+            .with_check_stats(),
         r#"
 === annotated ===
 let values: float64[] = [1, 2];
@@ -19,9 +22,11 @@ let values: float64[] = [1, 2];
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
-/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=[1, 2] type=Array<float64>
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 /// @type.node source=2 type=2
+/// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 
 /// @check.stats.solve variables=1 types=8 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
@@ -38,7 +43,10 @@ const values = [1, 2];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked()
+            .with_reference_types()
+            .with_coercion()
+            .with_check_stats(),
         r#"
 === annotated ===
 const values: float64[] = [1, 2];
@@ -47,11 +55,13 @@ const values: float64[] = [1, 2];
 const values = [1, 2];
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.pattern source=values kind=binding target=values
-/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=[1, 2] type=Array<float64>
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 /// @type.node source=2 type=2
+/// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 
-/// @check.stats.solve variables=1 types=8 constraints=0 obligations=1 solutions=1 bounds=1 decisions=1
+/// @check.stats.solve variables=1 types=8 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -88,16 +98,19 @@ const first = values[0];
 /// @type.node source=values type=readonly [1, 2] reduced=[1, 2]
 /// @type.node source=values[0] type=1
 /// @resolution.name source=values target=values
-/// @resolution.member source=values[0] receiver=[1, 2] kind=element index=0
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=1 kind=member target="receiver=[1, 2], target=field(receiver=[1, 2], target=0, type=1), type=1"
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=2 types=8 constraints=0 obligations=2 solutions=2 bounds=0 decisions=4
+/// @check.stats.solve variables=2 types=11 constraints=0 obligations=2 solutions=2 bounds=0 decisions=4
 "#,
     );
 }
 
 #[test]
-fn test_empty_array_requires_element_context() {
+fn test_empty_array_infers_never_elements() {
     let session = TestSession::single(
         r#"
 const values = [];
@@ -143,7 +156,7 @@ const values: int32[] = [];
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -158,19 +171,29 @@ let values = [1, "two", true];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked()
+            .with_reference_types()
+            .with_coercion()
+            .with_check_stats(),
         r#"
 === annotated ===
-let values: (float64 | string | boolean)[] = [1, "two", true];
+let values: (float64 | string | boolean)[] = [
+    1 as float64 | string | boolean,
+    "two" as float64 | string | boolean,
+    true as float64 | string | boolean,
+];
 
 === checked ===
 let values = [1, "two", true];
 /// @type.symbol symbol=values source=values type=Array<float64 | string | boolean>
 /// @resolution.pattern source=values kind=binding target=values
-/// @type.node source=[1, "two", true] type=Array<1 | "two" | true>
+/// @type.node source=[1, "two", true] type=Array<float64 | string | boolean>
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: 1, target: float64, adjustments: [{ kind: widen, target: float64 }] }) }] origin=implicit
 /// @type.node source="\"two\"" type="two"
+/// @coercion.node source="\"two\"" from="two" adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: "two", target: string }) }] origin=implicit
 /// @type.node source=true type=true
+/// @coercion.node source=true from=true adjustments=[{ kind: union, target: float64 | string | boolean, cases: ({ source: true, target: boolean }) }] origin=implicit
 
 /// @check.stats.solve variables=1 types=12 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
@@ -187,7 +210,10 @@ const values: number[] = [1, 2, 3];
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked()
+            .with_reference_types()
+            .with_coercion()
+            .with_check_stats(),
         r#"
 === annotated ===
 const values: float64[] = [1, 2, 3];
@@ -198,10 +224,47 @@ const values: number[] = [1, 2, 3];
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] type=Array<float64>
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 /// @type.node source=2 type=2
+/// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 /// @type.node source=3 type=3
+/// @coercion.node source=3 from=3 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 
-/// @check.stats.solve variables=1 types=7 constraints=4 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+"#,
+    );
+}
+
+#[test]
+fn test_satisfies_contextualizes_array_elements() {
+    let session = TestSession::single(
+        r#"
+const values = [1, 2] satisfies readonly number[];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked()
+            .with_reference_types()
+            .with_coercion()
+            .with_check_stats(),
+        r#"
+=== annotated ===
+const values: float64[] = [1, 2] satisfies readonly number[];
+
+=== checked ===
+const values = [1, 2] satisfies readonly number[];
+/// @type.symbol symbol=values source=values type=Array<float64>
+/// @resolution.pattern source=values kind=binding target=values
+/// @type.node source=[1, 2] satisfies readonly number[] type=Array<float64>
+/// @type.node source=[1, 2] type=Array<float64>
+/// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
+/// @type.node source=2 type=2
+/// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: float64 }] origin=implicit
+
+/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -229,11 +292,13 @@ const values: number[] = [1, "two"];
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=1 types=6 constraints=3 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type '\"two\"' is not assignable to type 'float64'"
 /// @diagnostic.label line=2 column=30 span="\"two\"" line_source="const values: number[] = [1, \"two\"];"
+/// @diagnostic.related line=2 column=15 span="number[]" line_source="const values: number[] = [1, \"two\"];" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in element 1"
 "#,
     );
 }

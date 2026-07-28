@@ -13,7 +13,7 @@ function scale(x: float64, factor: float64): float64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.scale(v0: float64, v1: float64): float64 {
+function test.main.scale(v0: float64, v1: float64): float64 {
 entry(v0: float64, v1: float64):
     v2: float64 = float.mul v0, v1
     v3: float64 = 1.5
@@ -37,7 +37,7 @@ function hotter(x: float32, limit: float32): boolean {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.hotter(v0: float32, v1: float32): boolean {
+function test.main.hotter(v0: float32, v1: float32): boolean {
 entry(v0: float32, v1: float32):
     v2: boolean = float.gt v0, v1
     return v2

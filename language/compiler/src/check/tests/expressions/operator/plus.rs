@@ -21,7 +21,7 @@ const value = 1 + 2;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="1 + 2" type=3
 /// @type.node source=1 type=1
-/// @resolution.operator source="1 + 2" kind=builtin
+/// @resolution.operator source="1 + 2" type=3 operator="+" kind=builtin operands=[1 as 1 families=(integer), 2 as 2 families=(integer)]
 /// @type.node source=2 type=2
 "#,
     );
@@ -97,9 +97,9 @@ struct Vector {
 
 extension of Vector implements Add<Vector> {
 /// @definition.extension symbol=<module>#2 form=local target=Vector
-/// @definition.implements symbol=<module>#2 source=Add<Vector> target=ops.plus.Add arguments=(Vector)
+/// @definition.implements symbol=<module>#2 source=Add<Vector> target="Add<Vector><type Output = Vector>"
 /// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
-/// @definition.method symbol=add slot=add type=(this: this, Vector) => Vector
+/// @definition.method symbol=add slot=add type=<add.'l0>(this: &add.'l0 exclusive this, Vector) => Vector
 /// @resolution.name source=Vector target=Vector
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Vector target=Vector
@@ -109,7 +109,8 @@ extension of Vector implements Add<Vector> {
     /// @resolution.name source=Vector target=Vector
 
     add(other: Vector): Vector {
-    /// @type.symbol symbol=add type=(this: this, Vector) => Vector
+    /// @generic.template symbol=add parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=add type=<add.'l0>(this: &add.'l0 exclusive this, Vector) => Vector
     /// @type.symbol symbol=add.other source="other: Vector" type=Vector
     /// @resolution.name source=Vector target=Vector
     /// @resolution.name source=Vector target=Vector
@@ -120,27 +121,43 @@ extension of Vector implements Add<Vector> {
 
             x: this.x + other.x,
             /// @type.node source="this.x + other.x" type=int32
-            /// @type.node source=this type=Vector
+            /// @type.node source=this type=&add.'l0 exclusive Vector
             /// @type.node source=this.x type=int32
-            /// @resolution.member source=this.x receiver=Vector kind=symbol target=Vector.x
-            /// @resolution.operator source="this.x + other.x" kind=builtin
-            /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Vector
+            /// @resolution.member source=this.x receiver=&add.'l0 exclusive Vector type=int32 kind=field target_receiver=&add.'l0 exclusive Vector key=x target=Vector.x target_type=int32
+            /// @resolution.operator source="this.x + other.x" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), other.x as int32 families=(integer)]
+            /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&add.'l0 exclusive Vector
+            /// @resolution.place source=this placement="local" lifetime=add.'l0 access="exclusive"
+            /// @resolution.access source=this root=this
+            /// @resolution.place source=this.x placement="local" lifetime=add.'l0 access="exclusive"
+            /// @resolution.access source=this.x root=this keys=[x]
             /// @type.node source=other type=Vector
             /// @type.node source=other.x type=int32
             /// @resolution.name source=other target=add.other
-            /// @resolution.member source=other.x receiver=Vector kind=symbol target=Vector.x
+            /// @resolution.member source=other.x receiver=Vector type=int32 kind=field target_receiver=Vector key=x target=Vector.x target_type=int32
+            /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=other root=add.other
+            /// @resolution.place source=other.x placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=other.x root=add.other keys=[x]
 
             y: this.y + other.y,
             /// @type.node source="this.y + other.y" type=int32
-            /// @type.node source=this type=Vector
+            /// @type.node source=this type=&add.'l0 exclusive Vector
             /// @type.node source=this.y type=int32
-            /// @resolution.member source=this.y receiver=Vector kind=symbol target=Vector.y
-            /// @resolution.operator source="this.y + other.y" kind=builtin
-            /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Vector
+            /// @resolution.member source=this.y receiver=&add.'l0 exclusive Vector type=int32 kind=field target_receiver=&add.'l0 exclusive Vector key=y target=Vector.y target_type=int32
+            /// @resolution.operator source="this.y + other.y" type=int32 operator="+" kind=builtin operands=[this.y as int32 families=(integer), other.y as int32 families=(integer)]
+            /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&add.'l0 exclusive Vector
+            /// @resolution.place source=this placement="local" lifetime=add.'l0 access="exclusive"
+            /// @resolution.access source=this root=this
+            /// @resolution.place source=this.y placement="local" lifetime=add.'l0 access="exclusive"
+            /// @resolution.access source=this.y root=this keys=[y]
             /// @type.node source=other type=Vector
             /// @type.node source=other.y type=int32
             /// @resolution.name source=other target=add.other
-            /// @resolution.member source=other.y receiver=Vector kind=symbol target=Vector.y
+            /// @resolution.member source=other.y receiver=Vector type=int32 kind=field target_receiver=Vector key=y target=Vector.y target_type=int32
+            /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=other root=add.other
+            /// @resolution.place source=other.y placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=other.y root=add.other keys=[y]
 
         };
     }
@@ -162,9 +179,137 @@ const sum = left + right;
 /// @type.node source="left + right" type=Vector
 /// @type.node source=left type=Vector
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left + right" kind=call parameters=(Vector) arguments=(provided(right) as Vector) return=Vector target=add receiver=Vector
+/// @resolution.operator source="left + right" type=Vector operator="+" kind=call parameters=(Vector) arguments=(provided(right) as Vector) return=Vector kind=symbol target=add receiver=Vector adjustments=(borrow(&'static exclusive Vector))
+/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=left root=left
 /// @type.node source=right type=Vector
 /// @resolution.name source=right target=right
+/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=right root=right
+"#,
+    );
+}
+
+#[test]
+fn test_overloaded_plus_selects_protocol_compatible_declaration() {
+    let session = TestSession::single(
+        r#"
+struct Score {}
+
+extension of Score implements Add<Score> {
+    type Output = Score;
+
+    add(other: Score): string {
+        return "invalid";
+    }
+
+    add(other: Score): Score {
+        return other;
+    }
+}
+
+declare const left: Score;
+declare const right: Score;
+
+const sum = left + right;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+struct Score {}
+
+extension of Score implements Add<Score> {
+    type Output = Score;
+
+    add(other: Score): string {
+        return "invalid";
+    }
+
+    add(other: Score): Score {
+        return other;
+    }
+}
+
+declare const left: Score;
+declare const right: Score;
+
+const sum: Score = left + right;
+
+=== checked ===
+struct Score {}
+/// @type.symbol symbol=Score source="struct Score {}" type=Score
+/// @definition.struct symbol=Score source="struct Score {}"
+
+extension of Score implements Add<Score> {
+/// @definition.extension symbol=<module>#2 form=local target=Score
+/// @definition.implements symbol=<module>#2 source=Add<Score> target="Add<Score><type Output = Score>"
+/// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
+/// @definition.method symbol=add#1 slot=add type=<add#1.'l0>(this: &add#1.'l0 exclusive this, Score) => string
+/// @definition.method symbol=add#2 slot=add type=<add#2.'l0>(this: &add#2.'l0 exclusive this, Score) => Score
+/// @resolution.name source=Score target=Score
+/// @resolution.name source=Add target=ops.plus.Add
+/// @resolution.name source=Score target=Score
+
+    type Output = Score;
+    /// @type.symbol symbol=Output source="type Output = Score" type=Score
+    /// @resolution.name source=Score target=Score
+
+    add(other: Score): string {
+    /// @generic.template symbol=add#1 parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=add#1 type=<add#1.'l0>(this: &add#1.'l0 exclusive this, Score) => string
+    /// @type.symbol symbol=add.other#1 source="other: Score" type=Score
+    /// @resolution.name source=Score target=Score
+
+        return "invalid";
+        /// @type.node source="\"invalid\"" type="invalid"
+
+    }
+
+    add(other: Score): Score {
+    /// @generic.template symbol=add#2 parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=add#2 type=<add#2.'l0>(this: &add#2.'l0 exclusive this, Score) => Score
+    /// @type.symbol symbol=add.other#2 source="other: Score" type=Score
+    /// @resolution.name source=Score target=Score
+    /// @resolution.name source=Score target=Score
+
+        return other;
+        /// @type.node source=other type=Score
+        /// @resolution.name source=other target=add.other#2
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=add.other#2
+
+    }
+}
+
+declare const left: Score;
+/// @type.symbol symbol=left source=left type=Score
+/// @resolution.pattern source=left kind=binding target=left
+/// @resolution.name source=Score target=Score
+
+declare const right: Score;
+/// @type.symbol symbol=right source=right type=Score
+/// @resolution.pattern source=right kind=binding target=right
+/// @resolution.name source=Score target=Score
+
+const sum = left + right;
+/// @type.symbol symbol=sum source=sum type=Score
+/// @resolution.pattern source=sum kind=binding target=sum
+/// @type.node source="left + right" type=Score
+/// @type.node source=left type=Score
+/// @resolution.name source=left target=left
+/// @resolution.operator source="left + right" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(right) as Score) return=Score kind=symbol target=add#2 receiver=Score adjustments=(borrow(&'static exclusive Score))
+/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=left root=left
+/// @type.node source=right type=Score
+/// @resolution.name source=right target=right
+/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=right root=right
+"#,
+        r#"
 "#,
     );
 }
@@ -228,9 +373,9 @@ struct Score {
 
 extension of Score implements Add<Score> {
 /// @definition.extension symbol=<module>#2 form=local target=Score
-/// @definition.implements symbol=<module>#2 source=Add<Score> target=ops.plus.Add arguments=(Score)
+/// @definition.implements symbol=<module>#2 source=Add<Score> target="Add<Score><type Output = Score>"
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
-/// @definition.method symbol=add slot=add type=(this: this, Score) => Score
+/// @definition.method symbol=add slot=add type=<add.'l0>(this: &add.'l0 exclusive this, Score) => Score
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
 /// @resolution.name source=Score target=Score
@@ -240,18 +385,27 @@ extension of Score implements Add<Score> {
     /// @resolution.name source=Score target=Score
 
     add(other: Score): Score {
-    /// @type.symbol symbol=add type=(this: this, Score) => Score
+    /// @generic.template symbol=add parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=add type=<add.'l0>(this: &add.'l0 exclusive this, Score) => Score
     /// @type.symbol symbol=add.other source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score
 
         Score { value: this.value + other.value }
         /// @resolution.name source=Score target=Score
-        /// @resolution.member source=this.value receiver=Score kind=symbol target=Score.value
-        /// @resolution.operator source="this.value + other.value" kind=builtin
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Score
+        /// @resolution.member source=this.value receiver=&add.'l0 exclusive Score type=float64 kind=field target_receiver=&add.'l0 exclusive Score key=value target=Score.value target_type=float64
+        /// @resolution.operator source="this.value + other.value" type=float64 operator="+" kind=builtin operands=[this.value as float64 families=(float), other.value as float64 families=(float)]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&add.'l0 exclusive Score
+        /// @resolution.place source=this placement="local" lifetime=add.'l0 access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=add.'l0 access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=add.other
-        /// @resolution.member source=other.value receiver=Score kind=symbol target=Score.value
+        /// @resolution.member source=other.value receiver=Score type=float64 kind=field target_receiver=Score key=value target=Score.value target_type=float64
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=add.other
+        /// @resolution.place source=other.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other.value root=add.other keys=[value]
 
     }
 }
@@ -267,9 +421,13 @@ declare const bonus: Score;
 /// @resolution.name source=Score target=Score
 
 total += bonus;
-/// @resolution.operator source="total += bonus" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score target=add receiver=Score
-/// @resolution.pattern.assign source=total kind=place place=binding(total) type=Score
+/// @resolution.operator source="total += bonus" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score kind=symbol target=add receiver=Score adjustments=(borrow(&'static exclusive Score))
+/// @resolution.pattern.assign source=total kind=place
+/// @resolution.place source=total placement="local" lifetime="static" access="exclusive"
+/// @resolution.assignment source=total read=binding(total) write=binding(total) type=Score
 /// @resolution.name source=bonus target=bonus
+/// @resolution.place source=bonus placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bonus root=bonus
 "#);
 }
 
@@ -332,9 +490,9 @@ struct Score {
 
 extension of Score implements Add {
 /// @definition.extension symbol=<module>#2 form=local target=Score
-/// @definition.implements symbol=<module>#2 source=Add target=ops.plus.Add arguments=(this)
+/// @definition.implements symbol=<module>#2 source=Add target="Add<Score><type Output = Score>"
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
-/// @definition.method symbol=add slot=add type=(this: this, Score) => Score
+/// @definition.method symbol=add slot=add type=<add.'l0>(this: &add.'l0 exclusive this, Score) => Score
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
 
@@ -343,18 +501,27 @@ extension of Score implements Add {
     /// @resolution.name source=Score target=Score
 
     add(other: Score): Score {
-    /// @type.symbol symbol=add type=(this: this, Score) => Score
+    /// @generic.template symbol=add parent=template#0 parameters=('l0)
+    /// @type.symbol symbol=add type=<add.'l0>(this: &add.'l0 exclusive this, Score) => Score
     /// @type.symbol symbol=add.other source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score
 
         Score { value: this.value + other.value }
         /// @resolution.name source=Score target=Score
-        /// @resolution.member source=this.value receiver=Score kind=symbol target=Score.value
-        /// @resolution.operator source="this.value + other.value" kind=builtin
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Score
+        /// @resolution.member source=this.value receiver=&add.'l0 exclusive Score type=float64 kind=field target_receiver=&add.'l0 exclusive Score key=value target=Score.value target_type=float64
+        /// @resolution.operator source="this.value + other.value" type=float64 operator="+" kind=builtin operands=[this.value as float64 families=(float), other.value as float64 families=(float)]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&add.'l0 exclusive Score
+        /// @resolution.place source=this placement="local" lifetime=add.'l0 access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=add.'l0 access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=add.other
-        /// @resolution.member source=other.value receiver=Score kind=symbol target=Score.value
+        /// @resolution.member source=other.value receiver=Score type=float64 kind=field target_receiver=Score key=value target=Score.value target_type=float64
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=add.other
+        /// @resolution.place source=other.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other.value root=add.other keys=[value]
 
     }
 }
@@ -370,8 +537,12 @@ declare const bonus: Score;
 /// @resolution.name source=Score target=Score
 
 total += bonus;
-/// @resolution.operator source="total += bonus" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score target=add receiver=Score
-/// @resolution.pattern.assign source=total kind=place place=binding(total) type=Score
+/// @resolution.operator source="total += bonus" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score kind=symbol target=add receiver=Score adjustments=(borrow(&'static exclusive Score))
+/// @resolution.pattern.assign source=total kind=place
+/// @resolution.place source=total placement="local" lifetime="static" access="exclusive"
+/// @resolution.assignment source=total read=binding(total) write=binding(total) type=Score
 /// @resolution.name source=bonus target=bonus
+/// @resolution.place source=bonus placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bonus root=bonus
 "#);
 }

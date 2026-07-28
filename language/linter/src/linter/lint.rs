@@ -113,13 +113,13 @@ impl LintOutput {
 }
 
 /// One checked DIR module lint function.
-pub type DirModuleCheck = fn(&DirModule, &Lint) -> LintResult;
+pub type DirModuleCheck = for<'a> fn(&DirModule<'a>, &Lint) -> LintResult;
 
 /// One checked DIR program lint function.
 pub type DirProgramCheck = fn(&DirProgram, &Lint) -> LintResult;
 
 /// One verified MIR module lint function.
-pub type MirModuleCheck = fn(&MirModule, &Lint) -> LintResult;
+pub type MirModuleCheck = for<'a> fn(&MirModule<'a>, &Lint) -> LintResult;
 
 /// One verified MIR program lint function.
 pub type MirProgramCheck = fn(&MirProgram, &Lint) -> LintResult;
@@ -176,15 +176,22 @@ pub struct LintExample {
 }
 
 impl LintExample {
-    /// Return the reported source without leading or trailing newlines.
+    /// Return the reported source without its framing newlines.
     pub fn reported(&self) -> &str {
-        self.reported.trim_matches('\n')
+        trim_source_frame(&self.reported)
     }
 
-    /// Return the accepted source without leading or trailing newlines.
+    /// Return the accepted source without its framing newlines.
     pub fn accepted(&self) -> &str {
-        self.accepted.trim_matches('\n')
+        trim_source_frame(&self.accepted)
     }
+}
+
+/// Remove one framing newline from each edge of multiline source.
+fn trim_source_frame(source: &str) -> &str {
+    let source = source.strip_prefix('\n').unwrap_or(source);
+
+    source.strip_suffix('\n').unwrap_or(source)
 }
 
 /// A lint.

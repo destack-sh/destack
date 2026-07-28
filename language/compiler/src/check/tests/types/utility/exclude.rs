@@ -36,6 +36,8 @@ declare const letter: Letter;
 
 letter satisfies "a" | "c";
 /// @resolution.name source=letter target=letter
+/// @resolution.place source=letter placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=letter root=letter
 
 /// @generic.instance id="Exclude<\"a\" | \"b\" | \"c\", \"b\">" template=types.object.Exclude arguments=("a" | "b" | "c", "b")
 "#,

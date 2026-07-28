@@ -195,7 +195,7 @@ impl CallItem {
         };
         let selected = match &resolution.target {
             dir::ConstructTarget::Newtype(candidate) => candidate.symbol,
-            dir::ConstructTarget::Variant(candidate) => candidate.case.member,
+            dir::ConstructTarget::Variant(candidate) => candidate.case.variant,
             dir::ConstructTarget::Class(_) => return Self::from_symbol(program, callee),
         };
 
@@ -350,24 +350,10 @@ impl CallableSelection<'_> {
         // otherwise read the ordinary call selection
         let resolution = module.resolutions().call_resolution(node_id)?;
 
-        match &resolution.target {
-            dir::CallTarget::Symbol(candidate) => Some(CallableSelection::Symbol(candidate.symbol)),
-            dir::CallTarget::Universal(candidates) => {
-                let mut symbols = candidates
-                    .iter()
-                    .map(|candidate| candidate.symbol)
-                    .collect::<Vec<_>>();
-
-                // require every viable overload to name the same declaration
-                symbols.sort();
-                symbols.dedup();
-
-                match symbols.as_slice() {
-                    [symbol_id] => Some(CallableSelection::Symbol(*symbol_id)),
-                    _ => None,
-                }
-            }
-            dir::CallTarget::Expression { .. } => None,
+        // require every selected arm to name the same declaration
+        match resolution.target_symbols().as_slice() {
+            [symbol_id] => Some(CallableSelection::Symbol(*symbol_id)),
+            _ => None,
         }
     }
 
@@ -393,7 +379,7 @@ impl CallableSelection<'_> {
                 call: ConstructorCall::new(&candidate.generic_arguments, resolution),
             },
             dir::ConstructTarget::Variant(candidate) => CallableSelection::Variant {
-                symbol_id: candidate.case.member,
+                symbol_id: candidate.case.variant,
                 call: ConstructorCall::new(&candidate.generic_arguments, resolution),
             },
         }

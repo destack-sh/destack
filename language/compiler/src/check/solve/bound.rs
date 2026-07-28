@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{CauseId, Relation};
+use crate::check::{CauseId, Origin, Relation};
 
 /// One empty intrusive list link.
 pub(in crate::check) const EMPTY: u32 = u32::MAX;
@@ -8,6 +8,8 @@ pub(in crate::check) const EMPTY: u32 = u32::MAX;
 /// One bound collected for an inference variable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct TypeBound {
+    /// The type evaluation site.
+    pub(in crate::check) origin: Origin,
     /// The bound type.
     pub(in crate::check) ty: dir::GlobalTypeId,
     /// The relation between the variable and this bound.
@@ -18,8 +20,14 @@ pub(in crate::check) struct TypeBound {
 
 impl TypeBound {
     /// Return one type bound from its cause.
-    pub(in crate::check) fn new(ty: dir::GlobalTypeId, relation: Relation, cause: CauseId) -> Self {
+    pub(in crate::check) fn new(
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        relation: Relation,
+        cause: CauseId,
+    ) -> Self {
         Self {
+            origin,
             ty,
             relation,
             cause,
@@ -57,8 +65,8 @@ impl BoundList {
         }
     }
 
-    /// Return whether this side carries no bounds.
-    pub(in crate::check) fn is_empty(self) -> bool {
+    /// Return whether this side has no bounds.
+    pub(in crate::check) const fn is_empty(&self) -> bool {
         self.count == 0
     }
 }

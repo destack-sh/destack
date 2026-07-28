@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{Answer, CheckState, MemberLookup, Origin, answer};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Project the success or residual type of one tried value.
@@ -67,7 +67,18 @@ impl CheckState<'_> {
                             Some(carrier)
                         }
                     }
-                    MemberLookup::Field(_) | MemberLookup::Found(_) => lookup.value_type(),
+                    MemberLookup::Field(_)
+                    | MemberLookup::Found(_)
+                    | MemberLookup::Union(_)
+                    | MemberLookup::Intersection(_) => {
+                        let Some(ty) = self.body().member_read_type(origin, &lookup)? else {
+                            return Err(CompilerError::Internal {
+                                message: "try carrier member has no value type".to_string(),
+                            });
+                        };
+
+                        Some(ty)
+                    }
                 }
             }
         };

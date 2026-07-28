@@ -23,7 +23,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -100,6 +100,8 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
     /// @type.node type=T#3
     /// @type.node source=outcome type=Outcome<T#3, E#3>
     /// @resolution.name source=outcome target=unwrapOr.outcome
+    /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=outcome root=unwrapOr.outcome
     /// @generic.instance source=outcome id="Outcome<T#3, E#3>"
 
         Ok { value } => value
@@ -109,6 +111,8 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
         /// @type.symbol symbol=unwrapOr.value source=value type=T#3
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=unwrapOr.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=unwrapOr.value
 
         Err { error } => fallback
         /// @resolution.name source=Err target=Err
@@ -117,6 +121,8 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
         /// @type.symbol symbol=unwrapOr.error source=error type=E#3
         /// @type.node source=fallback type=T#3
         /// @resolution.name source=fallback target=unwrapOr.fallback
+        /// @resolution.place source=fallback placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=fallback root=unwrapOr.fallback
 
     }
 }
@@ -125,7 +131,6 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
 /// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
 /// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
 "#,
-        r#""#,
     );
 }
 
@@ -225,6 +230,8 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
     /// @type.node type=T#3
     /// @type.node source=outcome type=Outcome<T#3, E#3>
     /// @resolution.name source=outcome target=unwrap.outcome
+    /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=outcome root=unwrap.outcome
     /// @generic.instance source=outcome id="Outcome<T#3, E#3>"
 
         Ok { value } => value
@@ -234,6 +241,8 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
         /// @type.symbol symbol=unwrap.value source=value type=T#3
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=unwrap.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=unwrap.value
 
     }
 }
@@ -267,7 +276,7 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -292,10 +301,10 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
 newtype Edge<T> =
 /// @generic.template symbol=Edge parameters=(in out T#1)
 /// @type.symbol symbol=Edge type=Edge
-/// @type.symbol symbol=Edge.Bounded type=Edge.Bounded
-/// @type.symbol symbol=Edge.Open type=Edge.Open
-/// @definition.newtype symbol=Edge template=(in out T#1) backing={ kind: "bounded"; limit: T#1 } | { kind: "open" }
-/// @definition.variant symbol=Edge.Bounded key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: T#1 }
+/// @type.symbol symbol=Edge.Bounded type=<T#1>({ limit: T#1 }) => Edge.Bounded<T#1>
+/// @type.symbol symbol=Edge.Open type=Edge.Open<T#1>
+/// @definition.newtype symbol=Edge template=(in out T#1) discriminator=kind backing={ kind: "bounded"; limit: T#1 } | { kind: "open" }
+/// @definition.variant symbol=Edge.Bounded key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: T#1 } argument={ limit: T#1 }
 /// @definition.variant symbol=Edge.Open key=Open discriminant=open backing={ kind: "open" }
 /// @type.symbol symbol=Edge.T source=T type=T#1
 
@@ -319,26 +328,26 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
     /// @type.node type=T#2
     /// @type.node source=edge type=Edge<T#2>
     /// @resolution.name source=edge target=limitOr.edge
+    /// @resolution.place source=edge placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=edge root=limitOr.edge
     /// @generic.instance source=edge id=Edge<T#2>
 
         Edge.Bounded { limit } => limit
         /// @resolution.name source=Edge.Bounded target=Edge
-        /// @resolution.pattern source="Edge.Bounded { limit }" kind=variant predicate="variant.tag(\"bounded\") is \"bounded\"" projection="variant.payload(Edge.Bounded<T#2>, { limit: T#2 })" payload=object fields={ limit }
-        /// @generic.instance source="Edge.Bounded { limit }" id=Edge<T#2>
+        /// @resolution.pattern source="Edge.Bounded { limit }" kind=variant predicate="variant.tag(Edge<T#2>, kind, \"bounded\") is \"bounded\"" projection="variant.payload(Edge.Bounded, backing={ kind: \"bounded\"; limit: T#2 }, discriminator=kind, value=String(#253c54912ad10e85), type={ kind: \"bounded\"; limit: T#2 })" payload=object fields={ limit }
         /// @type.symbol symbol=limitOr.limit source=limit type=T#2
         /// @type.node source=limit type=T#2
         /// @resolution.name source=limit target=limitOr.limit
+        /// @resolution.place source=limit placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=limit root=limitOr.limit
 
         Edge.Open => fallback
-        /// @type.node source=Edge type=Edge
-        /// @type.node source=Edge.Open type=Edge.Open
         /// @resolution.name source=Edge target=Edge
-        /// @resolution.member source=Edge.Open receiver=Edge kind=symbol target=Edge.Open
-        /// @resolution.pattern source=Edge.Open kind=variant predicate="variant.tag(\"open\") is \"open\"" projection="variant.payload(Edge.Open<T#2>, {})" fields=()
-        /// @generic.instance source=Edge.Open id=Edge<T#1>
-        /// @generic.instance source=Edge.Open id=Edge<T#2>
+        /// @resolution.pattern source=Edge.Open kind=variant predicate="variant.tag(Edge<T#2>, kind, \"open\") is \"open\""
         /// @type.node source=fallback type=T#2
         /// @resolution.name source=fallback target=limitOr.fallback
+        /// @resolution.place source=fallback placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=fallback root=limitOr.fallback
 
     }
 }
@@ -346,7 +355,6 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
 /// @generic.instance id=Edge<T#1> template=Edge arguments=(T#1)
 /// @generic.instance id=Edge<T#2> template=Edge arguments=(T#2)
 "#,
-        r#""#,
     );
 }
 
@@ -393,10 +401,10 @@ const value: string = match (edge) {
 newtype Edge<T> =
 /// @generic.template symbol=Edge parameters=(in out T)
 /// @type.symbol symbol=Edge type=Edge
-/// @type.symbol symbol=Edge.Bounded type=Edge.Bounded
-/// @type.symbol symbol=Edge.Open type=Edge.Open
-/// @definition.newtype symbol=Edge template=(in out T) backing={ kind: "bounded"; limit: T } | { kind: "open" }
-/// @definition.variant symbol=Edge.Bounded key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: T }
+/// @type.symbol symbol=Edge.Bounded type=<T>({ limit: T }) => Edge.Bounded<T>
+/// @type.symbol symbol=Edge.Open type=Edge.Open<T>
+/// @definition.newtype symbol=Edge template=(in out T) discriminator=kind backing={ kind: "bounded"; limit: T } | { kind: "open" }
+/// @definition.variant symbol=Edge.Bounded key=Bounded discriminant=bounded backing={ kind: "bounded"; limit: T } argument={ limit: T }
 /// @definition.variant symbol=Edge.Open key=Open discriminant=open backing={ kind: "open" }
 /// @type.symbol symbol=Edge.T source=T type=T
 
@@ -414,26 +422,26 @@ declare const edge: Edge<string> | Edge<int32>;
 const value: string = match (edge) {
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node type=string
+/// @type.node type=string | int32
 /// @type.node source=edge type=Edge<string> | Edge<int32>
 /// @resolution.name source=edge target=edge
+/// @resolution.place source=edge placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=edge root=edge
 /// @generic.instance source=edge id=Edge<int32>
 /// @generic.instance source=edge id=Edge<string>
 
     Edge.Bounded { limit } => limit
     /// @resolution.name source=Edge.Bounded target=Edge
-    /// @resolution.pattern source="Edge.Bounded { limit }" kind=variant predicate="variant.tag(\"bounded\") is \"bounded\"" projection="variant.payload(Edge.Bounded, { limit: string } | { limit: int32 })" payload=object fields={ limit }
+    /// @resolution.pattern source="Edge.Bounded { limit }" kind=variant predicate="variant.tag(Edge<string> | Edge<int32>, kind, \"bounded\") is \"bounded\"" projection="variant.payload(Edge.Bounded, backing={ kind: \"bounded\"; limit: string } | { kind: \"bounded\"; limit: int32 }, discriminator=kind, value=String(#253c54912ad10e85), type={ kind: \"bounded\"; limit: string } | { kind: \"bounded\"; limit: int32 })" payload=object fields={ limit }
     /// @type.symbol symbol=limit source=limit type=string | int32
     /// @type.node source=limit type=string | int32
     /// @resolution.name source=limit target=limit
+    /// @resolution.place source=limit placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=limit root=limit
 
     Edge.Open => ""
-    /// @type.node source=Edge type=Edge
-    /// @type.node source=Edge.Open type=Edge.Open
     /// @resolution.name source=Edge target=Edge
-    /// @resolution.member source=Edge.Open receiver=Edge kind=symbol target=Edge.Open
-    /// @resolution.pattern source=Edge.Open kind=variant predicate="variant.tag(\"open\") is \"open\"" projection="variant.payload(Edge.Open, {})" fields=()
-    /// @generic.instance source=Edge.Open id=Edge<T>
+    /// @resolution.pattern source=Edge.Open kind=variant predicate="variant.tag(Edge<string> | Edge<int32>, kind, \"open\") is \"open\""
     /// @type.node source="\"\"" type=""
 
 };

@@ -173,8 +173,10 @@ impl Repository {
         }
 
         let root_config = self.destack_for_workspace(revision)?;
-        let packages = self.package_index(revision)?;
-        let kind = if packages.len() > 1 {
+        let is_workspace = root_config
+            .as_ref()
+            .is_some_and(|config| config.workspace_packages().is_some());
+        let kind = if is_workspace {
             RootKind::Workspace
         } else {
             RootKind::Package

@@ -80,7 +80,7 @@ export extension<T> of Ref<T> implements Dispose, Dereference<"readonly"> {
     }
 
     /// Borrow the protected value.
-    dereference(): WithAccess<&this.Output, "readonly"> {
+    dereference(&readonly this): WithAccess<&this.Output, "readonly"> {
         todo("Ref.dereference")
     }
 }
@@ -101,7 +101,7 @@ export extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"exclusiv
     }
 
     /// Borrow the protected value.
-    dereference(): WithAccess<&this.Output, "exclusive"> {
+    dereference(&exclusive this): WithAccess<&this.Output, "exclusive"> {
         todo("ExclusiveRef.dereference")
     }
 }

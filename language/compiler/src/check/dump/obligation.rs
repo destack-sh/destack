@@ -29,9 +29,9 @@ impl Obligation {
                     "coverage",
                     pattern_coverage_label(&obligation.coverage, context),
                 ),
-            Self::WritablePlace(obligation) => event
-                .text("place", place_label(&obligation.place.storage, context))
-                .text("source", context.node_label(obligation.place.source)),
+            Self::WritableTarget(obligation) => event
+                .text("target", place_label(&obligation.target.write, context))
+                .text("source", context.node_label(obligation.target.source)),
             Self::Representation(obligation) => {
                 event.text("type", context.type_label(obligation.ty))
             }
@@ -40,7 +40,7 @@ impl Obligation {
                 runtime_predicate_label(&obligation.predicate, context),
             ),
             Self::ForInSource(obligation) => event.text("type", context.type_label(obligation.ty)),
-            Self::ExtensionConformance(obligation) => {
+            Self::InterfaceConformance(obligation) => {
                 event.text("symbol", context.symbol_label(obligation.symbol))
             }
             Self::ImplementationCoherence(obligation) => {
@@ -70,11 +70,11 @@ impl Obligation {
         match self {
             Self::PatternCoverage(_) => "pattern.coverage",
             Self::UseAfterMove(_) => "use.after.move",
-            Self::WritablePlace(_) => "writable.place",
+            Self::WritableTarget(_) => "writable.target",
             Self::Representation(_) => "representation",
             Self::RuntimePredicate(_) => "runtime.predicate",
             Self::ForInSource(_) => "for.in.source",
-            Self::ExtensionConformance(_) => "extension.conformance",
+            Self::InterfaceConformance(_) => "interface.conformance",
             Self::ImplementationCoherence(_) => "implementation.coherence",
             Self::DeclarationHeritage(_) => "declaration.heritage",
             Self::ClassInitialization(_) => "class.initialization",
@@ -140,30 +140,66 @@ fn pattern_coverage_label(coverage: &PatternCoverage, context: &DumpContext<'_, 
     }
 }
 
-/// Render one place compactly.
-fn place_label(place: &dir::Storage, context: &DumpContext<'_, '_>) -> String {
+/// Render one writable place compactly.
+fn place_label(place: &dir::WriteResolution, context: &DumpContext<'_, '_>) -> String {
     match place {
-        dir::Storage::Binding { symbol } => {
+        dir::WriteResolution::Binding { symbol, .. } => {
             format!("binding({})", context.symbol_label(*symbol))
         }
-        dir::Storage::Field {
+        dir::WriteResolution::Member(member) => member_place_label(member, context),
+        dir::WriteResolution::Subscript(_) => "subscript".to_string(),
+        dir::WriteResolution::Dereference(_) => "dereference".to_string(),
+    }
+}
+
+/// Render one writable member compactly.
+fn member_place_label(member: &dir::MemberResolution, context: &DumpContext<'_, '_>) -> String {
+    match member {
+        dir::OperationResolution::One(access) => member_access_place_label(access, context),
+        dir::OperationResolution::Union { arms, .. } => {
+            let labels = arms
+                .iter()
+                .map(|access| member_access_place_label(access, context))
+                .collect::<Vec<_>>();
+
+            format!("union({})", labels.join(", "))
+        }
+    }
+}
+
+/// Render one singular writable member compactly.
+fn member_access_place_label(access: &dir::MemberAccess, context: &DumpContext<'_, '_>) -> String {
+    member_target_place_label(&access.target, context)
+}
+
+/// Render one writable member target compactly.
+fn member_target_place_label(target: &dir::MemberTarget, context: &DumpContext<'_, '_>) -> String {
+    match target {
+        dir::MemberTarget::Field(dir::FieldResolution {
             receiver,
-            field: dir::ProjectionField::Key(key),
-        } => {
-            format!(
-                "field({}.{})",
-                context.type_label(*receiver),
-                context.static_key_label(key)
-            )
-        }
-        dir::Storage::Field {
-            field: dir::ProjectionField::Member(symbol),
+            target: dir::FieldTarget::Structural { key, .. },
             ..
-        } => {
-            format!("field({})", context.symbol_label(*symbol))
+        }) => format!(
+            "field({}.{})",
+            context.type_label(receiver.source()),
+            context.static_key_label(key)
+        ),
+        dir::MemberTarget::Field(dir::FieldResolution {
+            target: dir::FieldTarget::Member { symbol, .. },
+            ..
+        }) => format!("field({})", context.symbol_label(*symbol)),
+        dir::MemberTarget::Call(_) => "property".to_string(),
+        dir::MemberTarget::Intersection(targets) => {
+            let labels = targets
+                .iter()
+                .map(|target| member_target_place_label(target, context))
+                .collect::<Vec<_>>();
+
+            format!("intersection({})", labels.join(", "))
         }
-        dir::Storage::Property { .. } => "property".to_string(),
-        dir::Storage::Subscript { .. } => "subscript".to_string(),
-        dir::Storage::Dereference { .. } => "dereference".to_string(),
+        dir::MemberTarget::Projection { .. }
+        | dir::MemberTarget::Index(_)
+        | dir::MemberTarget::Symbol(_)
+        | dir::MemberTarget::Existential(_) => "member".to_string(),
     }
 }

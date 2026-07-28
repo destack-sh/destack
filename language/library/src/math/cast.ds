@@ -1,47 +1,31 @@
-import { Float, Integer } from "./scalar.ds";
+import { todo } from "destack:error";
+
+import { Integer } from "./integer.ds";
 
 /// Convert to `U`, keeping the low bits.
 @intrinsic("math.cast.int.truncate")
-export declare function truncateInt<T: Integer, U: Integer>(value: T): U;
+declare function truncateInt<T: Integer, U: Integer>(value: T): U;
 
 /// Convert to `U`, clamping into the destination range.
 @intrinsic("math.cast.int.saturate")
-export declare function saturateInt<T: Integer, U: Integer>(value: T): U;
+declare function saturateInt<T: Integer, U: Integer>(value: T): U;
 
-/// Convert to `U` when the value is representable, or return `undefined`.
-@intrinsic("math.cast.int.tryInto")
-export declare function tryIntoInt<T: Integer, U: Integer>(value: T): U | undefined;
-
-/// Method surface for explicit lossy integer conversions.
+/// Explicit lossy conversions between builtin integer types.
 ///
 /// `as` between numeric types is lossless-only; these methods pick the lossy behavior explicitly.
 export extension Cast<T: Integer> of T {
     /// Convert to `U`, keeping the low bits.
     truncate<U: Integer>(): U {
-        return truncateInt<T, U>(this);
+        truncateInt<T, U>(this)
     }
 
     /// Convert to `U`, clamping into the destination range.
     saturate<U: Integer>(): U {
-        return saturateInt<T, U>(this);
+        saturateInt<T, U>(this)
     }
 
     /// Convert to `U` when the value is representable, or return `undefined`.
     tryInto<U: Integer>(): U | undefined {
-        return tryIntoInt<T, U>(this);
+        todo("Integer.tryInto")
     }
 }
-
-// saturating conversions: clamp to bounds and map NaN to zero
-
-/// Saturating float to signed integer conversion.
-///
-/// NaN converts to 0 and out of range values clamp to bounds.
-@intrinsic("math.cast.floatToSignedInt.saturating")
-export declare function floatToSignedIntSaturating<T: Integer, F: Float>(value: F): T;
-
-/// Saturating float to unsigned integer conversion.
-///
-/// NaN converts to 0 and out of range values clamp to bounds.
-@intrinsic("math.cast.floatToUnsignedInt.saturating")
-export declare function floatToUnsignedIntSaturating<T: Integer, F: Float>(value: F): T;

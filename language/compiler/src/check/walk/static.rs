@@ -21,9 +21,9 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<Option<dir::StaticKey>> {
         match key {
             dir::Key::Name(name) => Ok(Some(name.static_key())),
-            dir::Key::Expression(expression) => self
-                .check
-                .static_key_from_expression(self.module, expression),
+            dir::Key::Expression(expression) => {
+                self.check.evaluate_static_key(self.module, expression)
+            }
         }
     }
 

@@ -9,7 +9,7 @@ use crate::{
     ScalarLiteral, StaticKey, StringId, TypeLiteral, UnaryOperator,
 };
 
-use super::{FloatType, MemoryParameter, PrimitiveType};
+use super::{FloatType, IntegerType, MemoryParameter, PrimitiveType};
 
 /// A canonical solved type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -60,8 +60,8 @@ pub enum Type {
     Member(MemberTypeId),
     /// Applied type refined by one associated member equality.
     Refined(RefinedTypeId),
-    /// Singleton enum member type, like `Mode.Read`.
-    EnumMember(EnumMemberType),
+    /// One selected enum or Tagged variant, like `Mode.Read` or `Result.Ok`.
+    Variant(VariantType),
 
     /// Canonical memory or access form, like `^User` or `&exclusive User`.
     Form(FormType),
@@ -123,14 +123,14 @@ impl From<TypeLiteral> for Type {
 }
 
 impl From<ScalarLiteral> for Type {
-    /// Convert a scalar literal expression into its fresh type.
+    /// Convert a scalar literal expression into its exact type.
     fn from(value: ScalarLiteral) -> Self {
         Self::from(&value)
     }
 }
 
 impl From<&ScalarLiteral> for Type {
-    /// Convert a scalar literal expression into its fresh type.
+    /// Convert a scalar literal expression into its exact type.
     fn from(value: &ScalarLiteral) -> Self {
         match value {
             ScalarLiteral::Null => Self::Null,
@@ -147,6 +147,14 @@ impl From<&ScalarLiteral> for Type {
 }
 
 impl Type {
+    /// Return whether this is a boolean type or boolean singleton.
+    pub fn is_boolean(&self) -> bool {
+        matches!(
+            self,
+            Self::Primitive(PrimitiveType::Boolean) | Self::Literal(ScalarLiteral::Boolean(_))
+        )
+    }
+
     /// Return this type's variant name.
     pub fn variant_name(&self) -> &'static str {
         match self {
@@ -173,7 +181,7 @@ impl Type {
             Self::Application(_) => "Application",
             Self::Refined(_) => "Refined",
             Self::Member(_) => "Member",
-            Self::EnumMember(_) => "EnumMember",
+            Self::Variant(_) => "Variant",
             Self::Form(_) => "Form",
             Self::Dynamic(_) => "Dynamic",
             Self::Operation(_) => "Operation",
@@ -195,21 +203,6 @@ impl Type {
         matches!(
             self,
             Self::Undefined | Self::Literal(ScalarLiteral::Undefined)
-        )
-    }
-
-    /// Return whether this type denotes one exact value.
-    pub fn is_singleton(&self) -> bool {
-        matches!(
-            self,
-            Self::Void
-                | Self::Null
-                | Self::Undefined
-                | Self::Literal(_)
-                | Self::Key(_)
-                | Self::Memory(_)
-                | Self::Static(_)
-                | Self::EnumMember(_)
         )
     }
 
@@ -257,10 +250,40 @@ impl Type {
         Some(domain)
     }
 
+    /// Return the primitive carrier selected when this scalar must store a runtime value.
+    pub fn scalar_carrier(&self) -> Option<Self> {
+        let primitive = match self {
+            Self::Primitive(_) => return Some(*self),
+            Self::Literal(literal) => return Some(literal.widen()),
+            Self::Key(StaticKey::Name(_)) => PrimitiveType::String,
+            Self::Key(StaticKey::Index(_)) => {
+                PrimitiveType::Integer(IntegerType::Pointer { is_signed: false })
+            }
+            Self::Key(StaticKey::Symbol(_)) => PrimitiveType::Symbol,
+            _ => return None,
+        };
+
+        Some(Self::Primitive(primitive))
+    }
+
     /// Return the language declaration that owns this built-in type's members.
     pub fn member_owner_item(&self) -> Option<LanguageItem> {
         if let Some(domain) = self.scalar_domain() {
             return domain.member_owner_item();
+        }
+
+        match self {
+            Self::Array(_) => Some(LanguageItem::Array),
+            Self::Slice(_) => Some(LanguageItem::Slice),
+            Self::FixedArray(_) => Some(LanguageItem::FixedArray),
+            _ => None,
+        }
+    }
+
+    /// Return the language declaration that carries this built-in type at runtime.
+    pub fn representation_item(&self) -> Option<LanguageItem> {
+        if let Some(domain) = self.scalar_domain() {
+            return domain.representation_item();
         }
 
         match self {
@@ -329,7 +352,7 @@ impl Type {
             | Self::Static(_)
             | Self::Intrinsic
             | Self::Application(_)
-            | Self::EnumMember(_)
+            | Self::Variant(_)
             | Self::Form(_)
             | Self::Dynamic(_)
             | Self::Array(_)
@@ -832,18 +855,19 @@ pub struct RefinedType {
     pub value: GlobalTypeId,
 }
 
-/// Singleton type of one enum member.
+/// One selected enum or Tagged variant type.
 ///
 /// Examples:
 /// ```ds
 /// Mode.Read
+/// Result.Ok({ value: 1 })
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct EnumMemberType {
-    /// The enum declaration instance.
+pub struct VariantType {
+    /// The instantiated variant family.
     pub owner: GlobalTypeId,
-    /// The selected enum variant symbol.
-    pub member: GlobalSymbolId,
+    /// The selected variant declaration.
+    pub variant: GlobalSymbolId,
 }
 
 /// Canonical memory or access form.
@@ -904,6 +928,11 @@ pub enum Form {
 }
 
 impl Form {
+    /// Return whether this form is a non-owning view over its payload.
+    pub fn is_view(self) -> bool {
+        matches!(self, Self::Borrowed(_) | Self::Raw | Self::Readonly)
+    }
+
     /// Return this form's ownership constructor, when it carries one.
     pub fn ownership(self) -> Option<Ownership> {
         match self {
@@ -2074,8 +2103,8 @@ impl TypeElement {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ShapeType {
-    /// The shape field list.
-    pub fields: TypeListId,
+    /// The shape property list.
+    pub properties: TypeListId,
     /// The call signature list.
     pub call_signatures: TypeListId,
     /// The construct signature list.
@@ -2084,18 +2113,94 @@ pub struct ShapeType {
     pub index_signatures: TypeListId,
 }
 
-/// A field in an object-like type.
-/// Methods are represented as fields whose `ty` is a `Type::FunctionSignature`.
+/// One property in a structural object type.
+///
+/// Examples:
+/// ```ds
+/// {
+///     readonly name: string;
+///     get value(): string;
+///     set value(input: string | number);
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct TypeField {
-    /// The key of the field.
+pub struct TypeProperty {
+    /// The property key.
     pub key: StaticKey,
-    /// The type of the field.
-    pub ty: GlobalTypeId,
-    /// Whether the field is optional.
+    /// The supported property operations and their value types.
+    pub access: PropertyAccess,
+    /// Whether the property may be absent.
     pub is_optional: bool,
-    /// Whether the field is readonly.
-    pub is_readonly: bool,
+}
+
+/// The value types exposed by one structural property.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum PropertyAccess {
+    /// A readable property.
+    Read(GlobalTypeId),
+    /// A writable property.
+    Write(GlobalTypeId),
+    /// A readable and writable property.
+    ReadWrite {
+        /// The value type produced by a read.
+        read: GlobalTypeId,
+        /// The value type accepted by a write.
+        write: GlobalTypeId,
+    },
+}
+
+impl PropertyAccess {
+    /// Return the value type produced by a read.
+    pub fn read(self) -> Option<GlobalTypeId> {
+        match self {
+            Self::Read(ty) | Self::ReadWrite { read: ty, .. } => Some(ty),
+            Self::Write(_) => None,
+        }
+    }
+
+    /// Return the value type accepted by a write.
+    pub fn write(self) -> Option<GlobalTypeId> {
+        match self {
+            Self::Write(ty) | Self::ReadWrite { write: ty, .. } => Some(ty),
+            Self::Read(_) => None,
+        }
+    }
+
+    /// Return whether the property supports reads.
+    pub fn is_readable(self) -> bool {
+        !matches!(self, Self::Write(_))
+    }
+
+    /// Return whether the property supports writes.
+    pub fn is_writable(self) -> bool {
+        !matches!(self, Self::Read(_))
+    }
+
+    /// Return the value type one construction write accepts.
+    pub fn store(self) -> GlobalTypeId {
+        match self {
+            Self::Write(ty) | Self::ReadWrite { write: ty, .. } | Self::Read(ty) => ty,
+        }
+    }
+
+    /// Iterate every value type this property exposes.
+    pub fn types(self) -> impl Iterator<Item = GlobalTypeId> {
+        let (read, write) = match self {
+            Self::Read(ty) => (Some(ty), None),
+            Self::Write(ty) => (None, Some(ty)),
+            Self::ReadWrite { read, write } => (Some(read), Some(write)),
+        };
+
+        read.into_iter().chain(write)
+    }
+
+    /// Restrict this property to reads where possible.
+    pub fn readonly(self) -> PropertyAccess {
+        match self {
+            Self::ReadWrite { read, .. } => Self::Read(read),
+            access => access,
+        }
+    }
 }
 
 /// An index signature in an object type.

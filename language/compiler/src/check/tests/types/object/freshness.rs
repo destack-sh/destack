@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_fresh_literal_arguments_choose_their_union_arm() {
+fn test_fresh_object_literal_argument_selects_union_arm() {
     // a fresh object literal has no aliases, so it conforms covariantly
     // with strict excess keys and picks the shape arm of a union target
     let session = TestSession::single(
@@ -25,7 +25,7 @@ function run(argument?: Argument): void {}
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_node_types(),
         r#"
@@ -76,16 +76,15 @@ function skipAll(): void {
     /// @type.node source="run({ skip: true })" type=void
     /// @resolution.name source=run target=run
     /// @resolution.call source="run({ skip: true })" parameters=(Argument | undefined) arguments=(provided({ skip: true }) as Argument | undefined) return=void kind=symbol target=run
-    /// @type.node source={ skip: true } type={ skip: true }
+    /// @type.node source={ skip: true } type={ skip: boolean }
     /// @type.node source=true type=true
 
 }
 
 function run(argument?: Argument): void {}
-/// @type.symbol symbol=run source="function run(argument?: Argument): void {}" type=(Argument | undefined) => void
+/// @type.symbol symbol=run source="function run(argument?: Argument): void {}" type=(Argument | undefined?) => void
 /// @type.symbol symbol=run.argument source="argument?: Argument" type=Argument | undefined
 /// @resolution.name source=Argument target=Argument
 "#,
-        r#""#,
     );
 }

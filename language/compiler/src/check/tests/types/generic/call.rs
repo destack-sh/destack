@@ -1,6 +1,454 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
+fn test_infer_method_type_argument_from_callback_result() {
+    let session = TestSession::single(
+        r#"
+import { Result } from "destack:error";
+
+declare function first(): Result<int32, string>;
+declare function second(value: int32): Result<boolean, string>;
+
+const result: Result<boolean, string> = first().andThen((value) => second(value));
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { Result } from "destack:error";
+
+declare function first(): Result<int32, string>;
+declare function second(value: int32): Result<boolean, string>;
+
+const result: Result<boolean, string> = first().andThen<int32, string, boolean, string>(
+    (value: int32): Result<boolean, string> => second(value),
+);
+
+=== checked ===
+import { Result } from "destack:error";
+
+declare function first(): Result<int32, string>;
+/// @type.symbol symbol=first source="declare function first(): Result<int32, string>" type=() => error.result.Result<int32, string>
+/// @resolution.name source=Result target=error.result.Result
+
+declare function second(value: int32): Result<boolean, string>;
+/// @type.symbol symbol=second source="declare function second(value: int32): Result<boolean, string>" type=(int32) => error.result.Result<boolean, string>
+/// @type.symbol symbol=second.value source="value: int32" type=int32
+/// @resolution.name source=Result target=error.result.Result
+
+const result: Result<boolean, string> = first().andThen((value) => second(value));
+/// @type.symbol symbol=result source=result type=error.result.Result<boolean, string>
+/// @resolution.pattern source=result kind=binding target=result
+/// @resolution.name source=Result target=error.result.Result
+/// @type.node source="first().andThen((value) => second(value))" type=error.result.Result<boolean, string>
+/// @type.node source=first type=() => error.result.Result<int32, string>
+/// @type.node source=first() type=error.result.Result<int32, string>
+/// @type.node source=first().andThen type=<error.result.andThen.U, error.result.andThen.F>(this: error.result.Result<int32, string>, Function<(int32,), error.result.Result<error.result.andThen.U, error.result.andThen.F>>) => error.result.Result<error.result.andThen.U, string | error.result.andThen.F>
+/// @resolution.name source=first target=first
+/// @resolution.member source=first().andThen receiver=error.result.Result<int32, string> type=<error.result.andThen.U, error.result.andThen.F>(this: error.result.Result<int32, string>, Function<(int32,), error.result.Result<error.result.andThen.U, error.result.andThen.F>>) => error.result.Result<error.result.andThen.U, string | error.result.andThen.F> kind=symbol target_receiver=error.result.Result<int32, string> target=error.result.andThen
+/// @resolution.call source="first().andThen((value) => second(value))" parameters=(Function<(int32,), error.result.Result<boolean, string>>) arguments=(provided((value) => second(value)) as Function<(int32,), error.result.Result<boolean, string>>) return=error.result.Result<boolean, string> kind=symbol target=error.result.andThen receiver=error.result.Result<int32, string> instance="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>"
+/// @resolution.call source=first() parameters=() return=error.result.Result<int32, string> kind=symbol target=first
+/// @generic.instance source="first().andThen((value) => second(value))" id="error.result.Result<boolean, string>"
+/// @generic.instance source="first().andThen((value) => second(value))" id="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>"
+/// @generic.instance source=first id="error.result.Result<int32, string>"
+/// @generic.instance source=first() id="error.result.Result<int32, string>"
+/// @generic.instance source=first().andThen id="error.result.Result<error.result.andThen.U, error.result.andThen.F>"
+/// @generic.instance source=first().andThen id="error.result.Result<error.result.andThen.U, string | error.result.andThen.F>"
+/// @generic.instance source=first().andThen id="error.result.Result<int32, string>"
+/// @type.symbol symbol=symbol5 source=(value) => second(value) type=Function<(int32,), error.result.Result<boolean, string>>
+/// @type.node source=(value) => second(value) type=Function<(int32,), error.result.Result<boolean, string>>
+/// @generic.instance source=(value) => second(value) id="error.result.Result<boolean, string>"
+/// @type.symbol symbol=symbol5.value source=value type=int32
+/// @type.node source=second type=(int32) => error.result.Result<boolean, string>
+/// @type.node source=second(value) type=error.result.Result<boolean, string>
+/// @resolution.name source=second target=second
+/// @resolution.call source=second(value) parameters=(int32) arguments=(provided(value) as int32) return=error.result.Result<boolean, string> kind=symbol target=second
+/// @generic.instance source=second id="error.result.Result<boolean, string>"
+/// @generic.instance source=second(value) id="error.result.Result<boolean, string>"
+/// @type.node source=value type=int32
+/// @resolution.name source=value target=symbol5.value
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol5.value
+
+/// @generic.instance id="error.result.Result<boolean, string>" template=error.result.Result arguments=(boolean, string)
+/// @generic.instance id="error.result.Result<error.result.andThen.U, error.result.andThen.F>" template=error.result.Result arguments=(error.result.andThen.U, error.result.andThen.F)
+/// @generic.instance id="error.result.Result<error.result.andThen.U, string | error.result.andThen.F>" template=error.result.Result arguments=(error.result.andThen.U, string | error.result.andThen.F)
+/// @generic.instance id="error.result.Result<int32, string>" template=error.result.Result arguments=(int32, string)
+/// @generic.instance id="error.result.Result<int32, string>.<extension#1>.andThen<boolean, string>" template=error.result.andThen arguments=(int32, string, boolean, string)
+"#,
+    );
+}
+
+#[test]
+fn test_call_selects_value_returning_promise_overload() {
+    let session = TestSession::single(
+        r#"
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+const result: Promise<string> = input.then(() => "done");
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+const result: Promise<string> = input.then<int32, string>((): string => "done");
+
+=== checked ===
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+/// @type.symbol symbol=input source=input type=async.promise.Promise<int32>
+/// @resolution.pattern source=input kind=binding target=input
+/// @resolution.name source=Promise target=async.promise.Promise
+
+const result: Promise<string> = input.then(() => "done");
+/// @type.symbol symbol=result source=result type=async.promise.Promise<string>
+/// @resolution.pattern source=result kind=binding target=result
+/// @resolution.name source=Promise target=async.promise.Promise
+/// @type.node source="input.then(() => \"done\")" type=async.promise.Promise<string>
+/// @type.node source=input type=async.promise.Promise<int32>
+/// @type.node source=input.then type=<async.promise.Promise.then.U#1>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise<async.promise.Promise.then.U#1>>) => async.promise.Promise<async.promise.Promise.then.U#1> & <async.promise.Promise.then.U#2>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise.then.U#2>) => async.promise.Promise<async.promise.Promise.then.U#2>
+/// @resolution.name source=input target=input
+/// @resolution.member source=input.then receiver=async.promise.Promise<int32> type=<async.promise.Promise.then.U#1>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise<async.promise.Promise.then.U#1>>) => async.promise.Promise<async.promise.Promise.then.U#1> & <async.promise.Promise.then.U#2>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise.then.U#2>) => async.promise.Promise<async.promise.Promise.then.U#2> kind=existential targets=[async.promise.Promise.then#1, async.promise.Promise.then#2]
+/// @resolution.call source="input.then(() => \"done\")" parameters=(Function<(int32,), string>) arguments=(provided(() => "done") as Function<(int32,), string>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.then#2 receiver=async.promise.Promise<int32> instance=async.promise.Promise<int32>.then#2<string>
+/// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=input root=input
+/// @generic.instance source="input.then(() => \"done\")" id=async.promise.Promise<int32>.then#2<string>
+/// @generic.instance source="input.then(() => \"done\")" id=async.promise.Promise<string>
+/// @generic.instance source=input id=async.promise.Promise<int32>
+/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
+/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
+/// @generic.instance source=input.then id=async.promise.Promise<int32>
+/// @type.symbol symbol=symbol3 source="() => \"done\"" type=Function<(), string>
+/// @type.node source="() => \"done\"" type=Function<(), string>
+/// @type.node source="\"done\"" type="done"
+
+/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#1> template=async.promise.Promise arguments=(async.promise.Promise.then.U#1)
+/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#2> template=async.promise.Promise arguments=(async.promise.Promise.then.U#2)
+/// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
+/// @generic.instance id=async.promise.Promise<int32>.then#2<string> template=async.promise.Promise.then#2 arguments=(int32, string)
+/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
+"#,
+    );
+}
+
+#[test]
+fn test_call_selects_promise_returning_overload() {
+    let session = TestSession::single(
+        r#"
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+declare const next: Promise<string>;
+const result: Promise<string> = input.then(() => next);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+declare const next: Promise<string>;
+const result: Promise<string> = input.then<int32, string>((): Promise<string> => next);
+
+=== checked ===
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+/// @type.symbol symbol=input source=input type=async.promise.Promise<int32>
+/// @resolution.pattern source=input kind=binding target=input
+/// @resolution.name source=Promise target=async.promise.Promise
+
+declare const next: Promise<string>;
+/// @type.symbol symbol=next source=next type=async.promise.Promise<string>
+/// @resolution.pattern source=next kind=binding target=next
+/// @resolution.name source=Promise target=async.promise.Promise
+
+const result: Promise<string> = input.then(() => next);
+/// @type.symbol symbol=result source=result type=async.promise.Promise<string>
+/// @resolution.pattern source=result kind=binding target=result
+/// @resolution.name source=Promise target=async.promise.Promise
+/// @type.node source="input.then(() => next)" type=async.promise.Promise<string>
+/// @type.node source=input type=async.promise.Promise<int32>
+/// @type.node source=input.then type=<async.promise.Promise.then.U#1>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise<async.promise.Promise.then.U#1>>) => async.promise.Promise<async.promise.Promise.then.U#1> & <async.promise.Promise.then.U#2>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise.then.U#2>) => async.promise.Promise<async.promise.Promise.then.U#2>
+/// @resolution.name source=input target=input
+/// @resolution.member source=input.then receiver=async.promise.Promise<int32> type=<async.promise.Promise.then.U#1>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise<async.promise.Promise.then.U#1>>) => async.promise.Promise<async.promise.Promise.then.U#1> & <async.promise.Promise.then.U#2>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise.then.U#2>) => async.promise.Promise<async.promise.Promise.then.U#2> kind=existential targets=[async.promise.Promise.then#1, async.promise.Promise.then#2]
+/// @resolution.call source="input.then(() => next)" parameters=(Function<(int32,), async.promise.Promise<string>>) arguments=(provided(() => next) as Function<(int32,), async.promise.Promise<string>>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.then#1 receiver=async.promise.Promise<int32> instance=async.promise.Promise<int32>.then#1<string>
+/// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=input root=input
+/// @generic.instance source="input.then(() => next)" id=async.promise.Promise<int32>.then#1<string>
+/// @generic.instance source="input.then(() => next)" id=async.promise.Promise<string>
+/// @generic.instance source=input id=async.promise.Promise<int32>
+/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
+/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
+/// @generic.instance source=input.then id=async.promise.Promise<int32>
+/// @type.symbol symbol=symbol4 source="() => next" type=Function<(), async.promise.Promise<string>>
+/// @type.node source="() => next" type=Function<(), async.promise.Promise<string>>
+/// @generic.instance source="() => next" id=async.promise.Promise<string>
+/// @type.node source=next type=async.promise.Promise<string>
+/// @resolution.name source=next target=next
+/// @resolution.place source=next placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=next root=next
+/// @generic.instance source=next id=async.promise.Promise<string>
+
+/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#1> template=async.promise.Promise arguments=(async.promise.Promise.then.U#1)
+/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#2> template=async.promise.Promise arguments=(async.promise.Promise.then.U#2)
+/// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
+/// @generic.instance id=async.promise.Promise<int32>.then#1<string> template=async.promise.Promise.then#1 arguments=(int32, string)
+/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
+"#,
+    );
+}
+
+#[test]
+fn test_call_contextualizes_nested_promise_overloads() {
+    let session = TestSession::single(
+        r#"
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+const result: Promise<string> = input.then((value) => {
+    input.then(() => "done")
+});
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+const result: Promise<string> = input.then<int32, string>((value: int32): Promise<string> => {
+    input.then<int32, string>((): string => "done")
+});
+
+=== checked ===
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+/// @type.symbol symbol=input source=input type=async.promise.Promise<int32>
+/// @resolution.pattern source=input kind=binding target=input
+/// @resolution.name source=Promise target=async.promise.Promise
+
+const result: Promise<string> = input.then((value) => {
+/// @type.symbol symbol=result source=result type=async.promise.Promise<string>
+/// @resolution.pattern source=result kind=binding target=result
+/// @resolution.name source=Promise target=async.promise.Promise
+/// @type.node source=input type=async.promise.Promise<int32>
+/// @type.node source=input.then type=<async.promise.Promise.then.U#1>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise<async.promise.Promise.then.U#1>>) => async.promise.Promise<async.promise.Promise.then.U#1> & <async.promise.Promise.then.U#2>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise.then.U#2>) => async.promise.Promise<async.promise.Promise.then.U#2>
+/// @type.node type=async.promise.Promise<string>
+/// @resolution.name source=input target=input
+/// @resolution.member source=input.then receiver=async.promise.Promise<int32> type=<async.promise.Promise.then.U#1>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise<async.promise.Promise.then.U#1>>) => async.promise.Promise<async.promise.Promise.then.U#1> & <async.promise.Promise.then.U#2>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise.then.U#2>) => async.promise.Promise<async.promise.Promise.then.U#2> kind=existential targets=[async.promise.Promise.then#1, async.promise.Promise.then#2]
+/// @resolution.call parameters=(Function<(int32,), async.promise.Promise<string>>) arguments=(provided(argument) as Function<(int32,), async.promise.Promise<string>>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.then#1 receiver=async.promise.Promise<int32> instance=async.promise.Promise<int32>.then#1<string>
+/// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=input root=input
+/// @generic.instance source=input id=async.promise.Promise<int32>
+/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
+/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
+/// @generic.instance source=input.then id=async.promise.Promise<int32>
+/// @type.symbol symbol=symbol3 type=Function<(int32,), async.promise.Promise<string>>
+/// @type.node type=Function<(int32,), async.promise.Promise<string>>
+/// @type.symbol symbol=symbol3.value source=value type=int32
+
+    input.then(() => "done")
+    /// @type.node source="input.then(() => \"done\")" type=async.promise.Promise<string>
+    /// @type.node source=input type=async.promise.Promise<int32>
+    /// @type.node source=input.then type=<async.promise.Promise.then.U#1>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise<async.promise.Promise.then.U#1>>) => async.promise.Promise<async.promise.Promise.then.U#1> & <async.promise.Promise.then.U#2>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise.then.U#2>) => async.promise.Promise<async.promise.Promise.then.U#2>
+    /// @resolution.name source=input target=input
+    /// @resolution.member source=input.then receiver=async.promise.Promise<int32> type=<async.promise.Promise.then.U#1>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise<async.promise.Promise.then.U#1>>) => async.promise.Promise<async.promise.Promise.then.U#1> & <async.promise.Promise.then.U#2>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise.then.U#2>) => async.promise.Promise<async.promise.Promise.then.U#2> kind=existential targets=[async.promise.Promise.then#1, async.promise.Promise.then#2]
+    /// @resolution.call source="input.then(() => \"done\")" parameters=(Function<(int32,), string>) arguments=(provided(() => "done") as Function<(int32,), string>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.then#2 receiver=async.promise.Promise<int32> instance=async.promise.Promise<int32>.then#2<string>
+    /// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=input root=input
+    /// @generic.instance source="input.then(() => \"done\")" id=async.promise.Promise<int32>.then#2<string>
+    /// @generic.instance source="input.then(() => \"done\")" id=async.promise.Promise<string>
+    /// @generic.instance source=input id=async.promise.Promise<int32>
+    /// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
+    /// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
+    /// @generic.instance source=input.then id=async.promise.Promise<int32>
+    /// @type.symbol symbol=symbol3.symbol5 source="() => \"done\"" type=Function<(), string>
+    /// @type.node source="() => \"done\"" type=Function<(), string>
+    /// @type.node source="\"done\"" type="done"
+
+});
+
+/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#1> template=async.promise.Promise arguments=(async.promise.Promise.then.U#1)
+/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#2> template=async.promise.Promise arguments=(async.promise.Promise.then.U#2)
+/// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
+/// @generic.instance id=async.promise.Promise<int32>.then#1<string> template=async.promise.Promise.then#1 arguments=(int32, string)
+/// @generic.instance id=async.promise.Promise<int32>.then#2<string> template=async.promise.Promise.then#2 arguments=(int32, string)
+/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
+"#,
+    );
+}
+
+#[test]
+fn test_call_keeps_mixed_promise_result_nested() {
+    let session = TestSession::single(
+        r#"
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+declare const next: Promise<string>;
+declare const usePromise: boolean;
+const result: Promise<string | Promise<string>> = input.then(() => {
+    usePromise ? next : "done"
+});
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+declare const next: Promise<string>;
+declare const usePromise: boolean;
+const result: Promise<string | Promise<string>> = input.then<int32, string | Promise<string>>(
+    (): string | Promise<string> => {
+        usePromise ? (next as string | Promise<string>) : ("done" as string | Promise<string>)
+    },
+);
+
+=== checked ===
+import { Promise } from "destack:async";
+
+declare const input: Promise<int32>;
+/// @type.symbol symbol=input source=input type=async.promise.Promise<int32>
+/// @resolution.pattern source=input kind=binding target=input
+/// @resolution.name source=Promise target=async.promise.Promise
+
+declare const next: Promise<string>;
+/// @type.symbol symbol=next source=next type=async.promise.Promise<string>
+/// @resolution.pattern source=next kind=binding target=next
+/// @resolution.name source=Promise target=async.promise.Promise
+
+declare const usePromise: boolean;
+/// @type.symbol symbol=usePromise source=usePromise type=boolean
+/// @resolution.pattern source=usePromise kind=binding target=usePromise
+
+const result: Promise<string | Promise<string>> = input.then(() => {
+/// @type.symbol symbol=result source=result type=async.promise.Promise<string | async.promise.Promise<string>>
+/// @resolution.pattern source=result kind=binding target=result
+/// @resolution.name source=Promise target=async.promise.Promise
+/// @resolution.name source=Promise target=async.promise.Promise
+/// @type.node source=input type=async.promise.Promise<int32>
+/// @type.node source=input.then type=<async.promise.Promise.then.U#1>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise<async.promise.Promise.then.U#1>>) => async.promise.Promise<async.promise.Promise.then.U#1> & <async.promise.Promise.then.U#2>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise.then.U#2>) => async.promise.Promise<async.promise.Promise.then.U#2>
+/// @type.node type=async.promise.Promise<string | async.promise.Promise<string>>
+/// @resolution.name source=input target=input
+/// @resolution.member source=input.then receiver=async.promise.Promise<int32> type=<async.promise.Promise.then.U#1>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise<async.promise.Promise.then.U#1>>) => async.promise.Promise<async.promise.Promise.then.U#1> & <async.promise.Promise.then.U#2>(this: async.promise.Promise<int32>, Function<(int32,), async.promise.Promise.then.U#2>) => async.promise.Promise<async.promise.Promise.then.U#2> kind=existential targets=[async.promise.Promise.then#1, async.promise.Promise.then#2]
+/// @resolution.call parameters=(Function<(int32,), string | async.promise.Promise<string>>) arguments=(provided(argument) as Function<(int32,), string | async.promise.Promise<string>>) return=async.promise.Promise<string | async.promise.Promise<string>> kind=symbol target=async.promise.Promise.then#2 receiver=async.promise.Promise<int32> instance="async.promise.Promise<int32>.then#2<string | async.promise.Promise<string>>"
+/// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=input root=input
+/// @generic.instance source=input id=async.promise.Promise<int32>
+/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#1>
+/// @generic.instance source=input.then id=async.promise.Promise<async.promise.Promise.then.U#2>
+/// @generic.instance source=input.then id=async.promise.Promise<int32>
+/// @type.symbol symbol=symbol5 type=Function<(), string | async.promise.Promise<string>>
+/// @type.node type=Function<(), string | async.promise.Promise<string>>
+
+    usePromise ? next : "done"
+    /// @type.node source="usePromise ? next : \"done\"" type=string | async.promise.Promise<string>
+    /// @type.node source=usePromise type=boolean
+    /// @resolution.name source=usePromise target=usePromise
+    /// @resolution.place source=usePromise placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=usePromise root=usePromise
+    /// @generic.instance source="usePromise ? next : \"done\"" id=async.promise.Promise<string>
+    /// @type.node source=next type=async.promise.Promise<string>
+    /// @resolution.name source=next target=next
+    /// @resolution.place source=next placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=next root=next
+    /// @generic.instance source=next id=async.promise.Promise<string>
+    /// @type.node source="\"done\"" type="done"
+
+});
+
+/// @generic.instance id="async.promise.Promise<int32>.then#2<string | async.promise.Promise<string>>" template=async.promise.Promise.then#2 arguments=(int32, string | async.promise.Promise<string>)
+/// @generic.instance id="async.promise.Promise<string | async.promise.Promise<string>>" template=async.promise.Promise arguments=(string | async.promise.Promise<string>)
+/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#1> template=async.promise.Promise arguments=(async.promise.Promise.then.U#1)
+/// @generic.instance id=async.promise.Promise<async.promise.Promise.then.U#2> template=async.promise.Promise arguments=(async.promise.Promise.then.U#2)
+/// @generic.instance id=async.promise.Promise<int32> template=async.promise.Promise arguments=(int32)
+/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
+"#,
+    );
+}
+
+#[test]
+fn test_call_selects_promise_resolve_identity_overload() {
+    let session = TestSession::single(
+        r#"
+import { Promise } from "destack:async";
+
+declare const input: Promise<string>;
+const result: Promise<string> = Promise.resolve(input);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { Promise } from "destack:async";
+
+declare const input: Promise<string>;
+const result: Promise<string> = Promise.resolve<string>(input);
+
+=== checked ===
+import { Promise } from "destack:async";
+
+declare const input: Promise<string>;
+/// @type.symbol symbol=input source=input type=async.promise.Promise<string>
+/// @resolution.pattern source=input kind=binding target=input
+/// @resolution.name source=Promise target=async.promise.Promise
+
+const result: Promise<string> = Promise.resolve(input);
+/// @type.symbol symbol=result source=result type=async.promise.Promise<string>
+/// @resolution.pattern source=result kind=binding target=result
+/// @resolution.name source=Promise target=async.promise.Promise
+/// @type.node source=Promise type=async.promise.Promise
+/// @type.node source=Promise.resolve type=<async.promise.Promise.resolve.T#1>(async.promise.Promise<async.promise.Promise.resolve.T#1>) => async.promise.Promise<async.promise.Promise.resolve.T#1> & <async.promise.Promise.resolve.T#2>(async.promise.Promise.resolve.T#2) => async.promise.Promise<async.promise.Promise.resolve.T#2>
+/// @type.node source=Promise.resolve(input) type=async.promise.Promise<string>
+/// @resolution.name source=Promise target=async.promise.Promise
+/// @resolution.member source=Promise.resolve receiver=async.promise.Promise type=<async.promise.Promise.resolve.T#1>(async.promise.Promise<async.promise.Promise.resolve.T#1>) => async.promise.Promise<async.promise.Promise.resolve.T#1> & <async.promise.Promise.resolve.T#2>(async.promise.Promise.resolve.T#2) => async.promise.Promise<async.promise.Promise.resolve.T#2> kind=existential targets=[async.promise.Promise.resolve#1, async.promise.Promise.resolve#2]
+/// @resolution.call source=Promise.resolve(input) parameters=(async.promise.Promise<string>) arguments=(provided(input) as async.promise.Promise<string>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.resolve#1 receiver=async.promise.Promise instance=async.promise.Promise.resolve#1<string>
+/// @generic.instance source=Promise.resolve id=async.promise.Promise<async.promise.Promise.resolve.T#1>
+/// @generic.instance source=Promise.resolve id=async.promise.Promise<async.promise.Promise.resolve.T#2>
+/// @generic.instance source=Promise.resolve(input) id=async.promise.Promise.resolve#1<string>
+/// @generic.instance source=Promise.resolve(input) id=async.promise.Promise<string>
+/// @type.node source=input type=async.promise.Promise<string>
+/// @resolution.name source=input target=input
+/// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=input root=input
+/// @generic.instance source=input id=async.promise.Promise<string>
+
+/// @generic.instance id=async.promise.Promise.resolve#1<string> template=async.promise.Promise.resolve#1 arguments=(string)
+/// @generic.instance id=async.promise.Promise<async.promise.Promise.resolve.T#1> template=async.promise.Promise arguments=(async.promise.Promise.resolve.T#1)
+/// @generic.instance id=async.promise.Promise<async.promise.Promise.resolve.T#2> template=async.promise.Promise arguments=(async.promise.Promise.resolve.T#2)
+/// @generic.instance id=async.promise.Promise<string> template=async.promise.Promise arguments=(string)
+"#);
+}
+
+#[test]
 fn test_call_infers_type_argument_from_parameter() {
     let session = TestSession::single(
         r#"
@@ -39,6 +487,8 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=identity.value
 
 }
 
@@ -65,7 +515,7 @@ const text = identity("x");
 /// @generic.instance id="identity<\"x\">" template=identity arguments=("x")
 /// @generic.instance id=identity<1> template=identity arguments=(1)
 
-/// @check.stats.solve variables=4 types=12 constraints=4 obligations=2 solutions=4 bounds=2 decisions=9
+/// @check.stats.solve variables=4 types=15 constraints=0 obligations=2 solutions=4 bounds=2 decisions=9
 "#);
 }
 
@@ -104,6 +554,8 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=identity.value
 
 }
 
@@ -115,7 +567,7 @@ const values = identity([1, 2]);
 /// @resolution.name source=identity target=identity
 /// @resolution.call source="identity([1, 2])" parameters=(Array<float64>) arguments=(provided([1, 2]) as Array<float64>) return=Array<float64> kind=symbol target=identity instance=identity<Array<float64>>
 /// @generic.instance source="identity([1, 2])" id=identity<Array<float64>>
-/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=[1, 2] type=Array<float64>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -160,8 +612,12 @@ function first<T>(values: T[]): T {
     /// @type.node source=values type=Array<T>
     /// @type.node source=values[0] type=T
     /// @resolution.name source=values target=first.values
-    /// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=T kind=symbol target=collections.array.index#4 receiver=Array<T> instance=Array<T>.<extension#6>.index#4
-    /// @generic.instance source=values[0] id=Array<T>.<extension#6>.index#4
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=first.values
+    /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values[0] root=first.values keys=[0]
+    /// @resolution.subscript source=values[0] type=T kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame T, \"exclusive\">)"
+    /// @generic.instance source=values[0] id="Array<T>.<extension#6>.index#3<\"exclusive\">"
     /// @type.node source=0 type=0
 
 }
@@ -178,7 +634,7 @@ const value = first([1, 2]);
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @generic.instance id=Array<T>.<extension#6>.index#4 template=collections.array.index#4 arguments=(T, T)
+/// @generic.instance id="Array<T>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(T, "exclusive")
 /// @generic.instance id=first<float64> template=first arguments=(float64)
 "#,
     );
@@ -221,6 +677,8 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=identity.value
 
 }
 
@@ -285,6 +743,8 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=identity.value
 
 }
 
@@ -338,6 +798,8 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=identity.value
 
 }
 
@@ -394,6 +856,8 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=identity.value
 
 }
 
@@ -453,6 +917,8 @@ function parse<T>(value: T): T {
     return value;
     /// @type.node source=value type=T#1
     /// @resolution.name source=value target=parse.value#1
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=parse.value#1
 
 }
 
@@ -468,8 +934,12 @@ function parse<T>(value: T[]): T {
     /// @type.node source=value type=Array<T#2>
     /// @type.node source=value[0] type=T#2
     /// @resolution.name source=value target=parse.value#2
-    /// @resolution.call source=value[0] parameters=(usize) arguments=(provided(0) as usize) return=T#2 kind=symbol target=collections.array.index#4 receiver=Array<T#2> instance=Array<T#2>.<extension#6>.index#4
-    /// @generic.instance source=value[0] id=Array<T#2>.<extension#6>.index#4
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=parse.value#2
+    /// @resolution.place source=value[0] placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value[0] root=parse.value#2 keys=[0]
+    /// @resolution.subscript source=value[0] type=T#2 kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame T#2, \"exclusive\">)"
+    /// @generic.instance source=value[0] id="Array<T#2>.<extension#6>.index#3<\"exclusive\">"
     /// @type.node source=0 type=0
 
 }
@@ -480,7 +950,7 @@ const parser = parse<int32>;
 /// @type.node source=parse<int32> type=<error>
 /// @resolution.name source=parse target=[parse#1, parse#2]
 
-/// @generic.instance id=Array<T#2>.<extension#6>.index#4 template=collections.array.index#4 arguments=(T#2, T#2)
+/// @generic.instance id="Array<T#2>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(T#2, "exclusive")
 "#,
         r#"
 /// @diagnostic.error id=ambiguous-reference message="ambiguous reference 'parse'"
@@ -507,13 +977,13 @@ const overridden = pair(1, "x");
 === annotated ===
 declare function pair<T, U = T>(left: T, right?: U): (T, U);
 
-const defaulted: (1, 1) = pair<1, 1>(1);
-const overridden: (1, "x") = pair<1, "x">(1, "x" as "x" | undefined);
+const defaulted: (float64, float64) = pair<float64, float64>(1);
+const overridden: (float64, string) = pair<float64, string>(1, "x" as string | undefined);
 
 === checked ===
 declare function pair<T, U = T>(left: T, right?: U): (T, U);
 /// @generic.template symbol=pair parameters=(T, U = T)
-/// @type.symbol symbol=pair source="declare function pair<T, U = T>(left: T, right?: U): (T, U)" type=<T, U = T>(T, U | undefined) => (T, U)
+/// @type.symbol symbol=pair source="declare function pair<T, U = T>(left: T, right?: U): (T, U)" type=<T, U = T>(T, U | undefined?) => (T, U)
 /// @type.symbol symbol=pair.T source=T type=T
 /// @type.symbol symbol=pair.U source="U = T" type=U
 /// @resolution.name source=T target=pair.T
@@ -525,28 +995,504 @@ declare function pair<T, U = T>(left: T, right?: U): (T, U);
 /// @resolution.name source=U target=pair.U
 
 const defaulted = pair(1);
-/// @type.symbol symbol=defaulted source=defaulted type=(1, 1)
+/// @type.symbol symbol=defaulted source=defaulted type=(float64, float64)
 /// @resolution.pattern source=defaulted kind=binding target=defaulted
-/// @type.node source=pair type=(1, 1 | undefined) => (1, 1)
-/// @type.node source=pair(1) type=(1, 1)
+/// @type.node source=pair type=(float64, float64 | undefined?) => (float64, float64)
+/// @type.node source=pair(1) type=(float64, float64)
 /// @resolution.name source=pair target=pair
-/// @resolution.call source=pair(1) parameters=(1, 1 | undefined) arguments=(provided(1) as 1, omitted as 1 | undefined) return=(1, 1) kind=symbol target=pair instance="pair<1, 1>"
-/// @generic.instance source=pair(1) id="pair<1, 1>"
+/// @resolution.call source=pair(1) parameters=(float64, float64 | undefined) arguments=(provided(1) as float64, omitted as float64 | undefined) return=(float64, float64) kind=symbol target=pair instance="pair<float64, float64>"
+/// @generic.instance source=pair(1) id="pair<float64, float64>"
 /// @type.node source=1 type=1
 
 const overridden = pair(1, "x");
-/// @type.symbol symbol=overridden source=overridden type=(1, "x")
+/// @type.symbol symbol=overridden source=overridden type=(float64, string)
 /// @resolution.pattern source=overridden kind=binding target=overridden
-/// @type.node source="pair(1, \"x\")" type=(1, "x")
-/// @type.node source=pair type=(1, "x" | undefined) => (1, "x")
+/// @type.node source="pair(1, \"x\")" type=(float64, string)
+/// @type.node source=pair type=(float64, string | undefined?) => (float64, string)
 /// @resolution.name source=pair target=pair
-/// @resolution.call source="pair(1, \"x\")" parameters=(1, "x" | undefined) arguments=(provided(1) as 1, provided("x") as "x" | undefined) return=(1, "x") kind=symbol target=pair instance="pair<1, \"x\">"
-/// @generic.instance source="pair(1, \"x\")" id="pair<1, \"x\">"
+/// @resolution.call source="pair(1, \"x\")" parameters=(float64, string | undefined) arguments=(provided(1) as float64, provided("x") as string | undefined) return=(float64, string) kind=symbol target=pair instance="pair<float64, string>"
+/// @generic.instance source="pair(1, \"x\")" id="pair<float64, string>"
 /// @type.node source=1 type=1
 /// @type.node source="\"x\"" type="x"
 
-/// @generic.instance id="pair<1, 1>" template=pair arguments=(1, 1)
-/// @generic.instance id="pair<1, \"x\">" template=pair arguments=(1, "x")
+/// @generic.instance id="pair<float64, float64>" template=pair arguments=(float64, float64)
+/// @generic.instance id="pair<float64, string>" template=pair arguments=(float64, string)
 "#,
     );
+}
+
+#[test]
+fn test_constrained_type_parameter_preserves_competing_literals() {
+    let session = TestSession::single(
+        r#"
+declare function choose<T: 1 | 2>(left: T, right: T): T;
+
+const value = choose(1, 2);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare function choose<T: 1 | 2>(left: T, right: T): T;
+
+const value: 1 | 2 = choose<1 | 2>(1 as 1 | 2, 2 as 1 | 2);
+
+=== checked ===
+declare function choose<T: 1 | 2>(left: T, right: T): T;
+/// @generic.template symbol=choose parameters=(T: 1 | 2)
+/// @type.symbol symbol=choose source="declare function choose<T: 1 | 2>(left: T, right: T): T" type=<T: 1 | 2>(T, T) => T
+/// @type.symbol symbol=choose.T source="T: 1 | 2" type=T
+/// @type.symbol symbol=choose.left source="left: T" type=T
+/// @resolution.name source=T target=choose.T
+/// @type.symbol symbol=choose.right source="right: T" type=T
+/// @resolution.name source=T target=choose.T
+/// @resolution.name source=T target=choose.T
+
+const value = choose(1, 2);
+/// @type.symbol symbol=value source=value type=1 | 2
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source="choose(1, 2)" type=1 | 2
+/// @type.node source=choose type=(1 | 2, 1 | 2) => 1 | 2
+/// @resolution.name source=choose target=choose
+/// @resolution.call source="choose(1, 2)" parameters=(1 | 2, 1 | 2) arguments=(provided(1) as 1 | 2, provided(2) as 1 | 2) return=1 | 2 kind=symbol target=choose instance="choose<1 | 2>"
+/// @generic.instance source="choose(1, 2)" id="choose<1 | 2>"
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+
+/// @generic.instance id="choose<1 | 2>" template=choose arguments=(1 | 2)
+"#,
+    );
+}
+
+#[test]
+fn test_where_constraint_preserves_competing_literals() {
+    let session = TestSession::single(
+        r#"
+declare function choose<T>(left: T, right: T): T where T: 1 | 2;
+
+const value = choose(1, 2);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+declare function choose<T>(left: T, right: T): T where T: 1 | 2;
+
+const value: 1 | 2 = choose<1 | 2>(1 as 1 | 2, 2 as 1 | 2);
+
+=== checked ===
+declare function choose<T>(left: T, right: T): T where T: 1 | 2;
+/// @generic.template symbol=choose parameters=(T)
+/// @type.symbol symbol=choose source="declare function choose<T>(left: T, right: T): T where T: 1 | 2" type=<T>(T, T) => T
+/// @type.symbol symbol=choose.T source=T type=T
+/// @type.symbol symbol=choose.left source="left: T" type=T
+/// @resolution.name source=T target=choose.T
+/// @type.symbol symbol=choose.right source="right: T" type=T
+/// @resolution.name source=T target=choose.T
+/// @resolution.name source=T target=choose.T
+/// @resolution.name source=T target=choose.T
+
+const value = choose(1, 2);
+/// @type.symbol symbol=value source=value type=1 | 2
+/// @resolution.pattern source=value kind=binding target=value
+/// @type.node source="choose(1, 2)" type=1 | 2
+/// @type.node source=choose type=(1 | 2, 1 | 2) => 1 | 2
+/// @resolution.name source=choose target=choose
+/// @resolution.call source="choose(1, 2)" parameters=(1 | 2, 1 | 2) arguments=(provided(1) as 1 | 2, provided(2) as 1 | 2) return=1 | 2 kind=symbol target=choose instance="choose<1 | 2>"
+/// @generic.instance source="choose(1, 2)" id="choose<1 | 2>"
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+
+/// @generic.instance id="choose<1 | 2>" template=choose arguments=(1 | 2)
+"#,
+    );
+}
+
+#[test]
+fn test_explicit_function_argument_checks_where_clause() {
+    let session = TestSession::single(
+        r#"
+newtype interface Marker {}
+
+struct Good {}
+
+extension of Good implements Marker {}
+
+function accept<T>(value: T): T where T: Marker {
+    return value;
+}
+
+const accepted = accept<Good>;
+const rejected = accept<int32>;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+newtype interface Marker {}
+
+struct Good {}
+
+extension of Good implements Marker {}
+
+function accept<T>(value: T): T where T: Marker {
+    return value;
+}
+
+const accepted = accept<Good>;
+const rejected = accept<int32>;
+
+=== checked ===
+newtype interface Marker {}
+/// @type.symbol symbol=Marker source="newtype interface Marker {}" type=Marker
+/// @definition.interface symbol=Marker source="newtype interface Marker {}" nominal=true
+
+struct Good {}
+/// @type.symbol symbol=Good source="struct Good {}" type=Good
+/// @definition.struct symbol=Good source="struct Good {}"
+
+extension of Good implements Marker {}
+/// @definition.extension symbol=<module>#2 source="extension of Good implements Marker {}" form=local target=Good
+/// @definition.implements symbol=<module>#2 source=Marker target=Marker
+/// @resolution.name source=Good target=Good
+/// @resolution.name source=Marker target=Marker
+
+function accept<T>(value: T): T where T: Marker {
+/// @generic.template symbol=accept parameters=(T)
+/// @type.symbol symbol=accept type=<T>(T) => T
+/// @type.symbol symbol=accept.T source=T type=T
+/// @type.symbol symbol=accept.value source="value: T" type=T
+/// @resolution.name source=T target=accept.T
+/// @resolution.name source=T target=accept.T
+/// @resolution.name source=T target=accept.T
+/// @resolution.name source=Marker target=Marker
+
+    return value;
+    /// @type.node source=value type=T
+    /// @resolution.name source=value target=accept.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=accept.value
+
+}
+
+const accepted = accept<Good>;
+/// @type.symbol symbol=accepted source=accepted type=<T>(Good) => Good
+/// @resolution.pattern source=accepted kind=binding target=accepted
+/// @type.node source=accept<Good> type=<T>(Good) => Good
+/// @resolution.name source=accept target=accept
+/// @resolution.instantiation source=accept<Good> target=accept instance=accept<Good>
+/// @generic.instance source=accept<Good> id=accept<Good>
+/// @resolution.name source=Good target=Good
+
+const rejected = accept<int32>;
+/// @type.symbol symbol=rejected source=rejected type=<T>(int32) => int32
+/// @resolution.pattern source=rejected kind=binding target=rejected
+/// @type.node source=accept<int32> type=<T>(int32) => int32
+/// @resolution.name source=accept target=accept
+/// @resolution.instantiation source=accept<int32> target=accept instance=accept<int32>
+/// @generic.instance source=accept<int32> id=accept<int32>
+
+/// @generic.instance id=accept<Good> template=accept arguments=(Good)
+/// @generic.instance id=accept<int32> template=accept arguments=(int32)
+"#,
+        r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'Marker'"
+/// @diagnostic.label line=13 column=18 span="accept<int32>" line_source="const rejected = accept<int32>;"
+"#,
+    );
+}
+#[test]
+fn test_overloaded_promise_callback_infers_nested_result() {
+    let session = TestSession::single(
+        r#"
+declare class Promise<T> {
+    then<U>(onFulfilled: (value: T) => Promise<U>): Promise<U>;
+    then<U>(onFulfilled: (value: T) => U): Promise<U>;
+}
+
+struct Ok<T> {
+    kind: "Ok" = "Ok";
+    value: T;
+}
+
+struct Err<E> {
+    kind: "Err" = "Err";
+    error: E;
+}
+
+@derive(Tagged)
+newtype Result<T, E> = Ok<T> | Err<E>;
+
+declare function result<T, E>(): Result<T, E>;
+
+extension<T, E> of Result<T, E> {
+    andThen<U, F>(f: (value: T) => Result<U, F>): Result<U, E | F> {
+        result<U, E | F>()
+    }
+}
+
+newtype AsyncResult<T, E> = Promise<Result<T, E>>;
+
+extension<T, E> of AsyncResult<T, E> {
+    andThenSync<U, F>(f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
+        AsyncResult(this.then((result) => result.andThen(f)))
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+declare class Promise<out T> {
+    then<U>(onFulfilled: (arg0: T) => Promise<U>): Promise<U>;
+    then<U>(onFulfilled: (arg0: T) => U): Promise<U>;
+}
+
+struct Ok<out T> {
+    kind: "Ok" = "Ok";
+    value: T;
+}
+
+struct Err<out E> {
+    kind: "Err" = "Err";
+    error: E;
+}
+
+@derive(Tagged)
+newtype Result<out T, out E> = Ok<T> | Err<E>;
+
+declare function result<T, E>(): Result<T, E>;
+
+extension<T, E> of Result<T, E> {
+    andThen<U, F>(f: (arg0: T) => Result<U, F>): Result<U, E | F> {
+        result<U, E | F>()
+    }
+}
+
+newtype AsyncResult<out T, out E> = Promise<Result<T, E>>;
+
+extension<T, E> of AsyncResult<T, E> {
+    andThenSync<U, F>(f: (arg0: T) => Result<U, F>): AsyncResult<U, E | F> {
+        AsyncResult(
+            this.then<Result<T, E>, Result<U, E | F>>(
+                (result: Result<T, E>): Result<U, E | F> => result.andThen<T, E, U, F>(f),
+            ),
+        )
+    }
+}
+
+=== checked ===
+declare class Promise<T> {
+/// @generic.template symbol=Promise parameters=(out T#1)
+/// @type.symbol symbol=Promise type=Promise
+/// @definition.class symbol=Promise template=(out T#1)
+/// @definition.method symbol=Promise.then#1 source="then<U>(onFulfilled: (value: T) => Promise<U>): Promise<U>" slot=then type=<U#1>(this: this, Function<(T#1,), Promise<U#1>>) => Promise<U#1>
+/// @definition.method symbol=Promise.then#2 source="then<U>(onFulfilled: (value: T) => U): Promise<U>" slot=then type=<U#2>(this: this, Function<(T#1,), U#2>) => Promise<U#2>
+/// @type.symbol symbol=Promise.T source=T type=T#1
+
+    then<U>(onFulfilled: (value: T) => Promise<U>): Promise<U>;
+    /// @generic.template symbol=Promise.then#1 parent=template#0 parameters=(U#1)
+    /// @type.symbol symbol=Promise.then#1 source="then<U>(onFulfilled: (value: T) => Promise<U>): Promise<U>" type=<U#1>(this: this, Function<(T#1,), Promise<U#1>>) => Promise<U#1>
+    /// @type.symbol symbol=Promise.then.U#1 source=U type=U#1
+    /// @type.symbol symbol=Promise.then.onFulfilled#1 source="onFulfilled: (value: T) => Promise<U>" type=Function<(T#1,), Promise<U#1>>
+    /// @resolution.name source=T target=Promise.T
+    /// @resolution.name source=Promise target=Promise
+    /// @resolution.name source=U target=Promise.then.U#1
+    /// @resolution.name source=Promise target=Promise
+    /// @resolution.name source=U target=Promise.then.U#1
+
+    then<U>(onFulfilled: (value: T) => U): Promise<U>;
+    /// @generic.template symbol=Promise.then#2 parent=template#0 parameters=(U#2)
+    /// @type.symbol symbol=Promise.then#2 source="then<U>(onFulfilled: (value: T) => U): Promise<U>" type=<U#2>(this: this, Function<(T#1,), U#2>) => Promise<U#2>
+    /// @type.symbol symbol=Promise.then.U#2 source=U type=U#2
+    /// @type.symbol symbol=Promise.then.onFulfilled#2 source="onFulfilled: (value: T) => U" type=Function<(T#1,), U#2>
+    /// @resolution.name source=T target=Promise.T
+    /// @resolution.name source=U target=Promise.then.U#2
+    /// @resolution.name source=Promise target=Promise
+    /// @resolution.name source=U target=Promise.then.U#2
+
+}
+
+struct Ok<T> {
+/// @generic.template symbol=Ok parameters=(out T#2)
+/// @type.symbol symbol=Ok type=Ok
+/// @definition.struct symbol=Ok template=(out T#2)
+/// @definition.field symbol=Ok.kind source="kind: \"Ok\" = \"Ok\"" key=kind type="Ok"
+/// @definition.field symbol=Ok.value source="value: T" key=value type=T#2
+/// @type.symbol symbol=Ok.T source=T type=T#2
+
+    kind: "Ok" = "Ok";
+    /// @type.symbol symbol=Ok.kind source="kind: \"Ok\" = \"Ok\"" type="Ok"
+
+    value: T;
+    /// @type.symbol symbol=Ok.value source="value: T" type=T#2
+    /// @resolution.name source=T target=Ok.T
+
+}
+
+struct Err<E> {
+/// @generic.template symbol=Err parameters=(out E#1)
+/// @type.symbol symbol=Err type=Err
+/// @definition.struct symbol=Err template=(out E#1)
+/// @definition.field symbol=Err.error source="error: E" key=error type=E#1
+/// @definition.field symbol=Err.kind source="kind: \"Err\" = \"Err\"" key=kind type="Err"
+/// @type.symbol symbol=Err.E source=E type=E#1
+
+    kind: "Err" = "Err";
+    /// @type.symbol symbol=Err.kind source="kind: \"Err\" = \"Err\"" type="Err"
+
+    error: E;
+    /// @type.symbol symbol=Err.error source="error: E" type=E#1
+    /// @resolution.name source=E target=Err.E
+
+}
+
+@derive(Tagged)
+/// @resolution.name source=derive target=decorator.derive.derive
+/// @resolution.name source=Tagged target=decorator.derive.Tagged
+
+newtype Result<T, E> = Ok<T> | Err<E>;
+/// @generic.template symbol=Result parameters=(out T#3, out E#2)
+/// @type.symbol symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" type=Result
+/// @type.symbol symbol=Result.Err type=<T#3, E#2>({ error: E#2 }) => Result.Err<T#3, E#2>
+/// @type.symbol symbol=Result.Ok type=<T#3, E#2>({ value: T#3 }) => Result.Ok<T#3, E#2>
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#3, out E#2) discriminator=kind backing=Ok<T#3> | Err<E#2>
+/// @definition.variant symbol=Result.Err source="newtype Result<T, E> = Ok<T> | Err<E>" key=Err discriminant=Err backing=Err<E#2> argument={ error: E#2 }
+/// @definition.variant symbol=Result.Ok source="newtype Result<T, E> = Ok<T> | Err<E>" key=Ok discriminant=Ok backing=Ok<T#3> argument={ value: T#3 }
+/// @type.symbol symbol=Result.T source=T type=T#3
+/// @type.symbol symbol=Result.E source=E type=E#2
+/// @resolution.name source=Ok target=Ok
+/// @resolution.name source=T target=Result.T
+/// @resolution.name source=Err target=Err
+/// @resolution.name source=E target=Result.E
+
+declare function result<T, E>(): Result<T, E>;
+/// @generic.template symbol=result parameters=(T#4, E#3)
+/// @type.symbol symbol=result source="declare function result<T, E>(): Result<T, E>" type=<T#4, E#3>() => Result<T#4, E#3>
+/// @type.symbol symbol=result.T source=T type=T#4
+/// @type.symbol symbol=result.E source=E type=E#3
+/// @resolution.name source=Result target=Result
+/// @resolution.name source=T target=result.T
+/// @resolution.name source=E target=result.E
+
+extension<T, E> of Result<T, E> {
+/// @generic.template symbol=<module>#2 parameters=(T#5, E#4)
+/// @definition.extension symbol=<module>#2 form=local target=Result<T#5, E#4>
+/// @definition.method symbol=andThen slot=andThen type=<U#3, F#1>(this: this, Function<(T#5,), Result<U#3, F#1>>) => Result<U#3, E#4 | F#1>
+/// @type.symbol symbol=T#1 source=T type=T#5
+/// @type.symbol symbol=E#1 source=E type=E#4
+/// @resolution.name source=Result target=Result
+/// @resolution.name source=T target=T#1
+/// @resolution.name source=E target=E#1
+
+    andThen<U, F>(f: (value: T) => Result<U, F>): Result<U, E | F> {
+    /// @generic.template symbol=andThen parent=template#5 parameters=(U#3, F#1)
+    /// @type.symbol symbol=andThen type=<U#3, F#1>(this: this, Function<(T#5,), Result<U#3, F#1>>) => Result<U#3, E#4 | F#1>
+    /// @type.symbol symbol=andThen.U source=U type=U#3
+    /// @type.symbol symbol=andThen.F source=F type=F#1
+    /// @type.symbol symbol=andThen.f source="f: (value: T) => Result<U, F>" type=Function<(T#5,), Result<U#3, F#1>>
+    /// @resolution.name source=T target=T#1
+    /// @resolution.name source=Result target=Result
+    /// @resolution.name source=U target=andThen.U
+    /// @resolution.name source=F target=andThen.F
+    /// @resolution.name source=Result target=Result
+    /// @resolution.name source=U target=andThen.U
+    /// @resolution.name source=E target=E#1
+    /// @resolution.name source=F target=andThen.F
+
+        result<U, E | F>()
+        /// @resolution.name source=result target=result
+        /// @resolution.call source="result<U, E | F>()" parameters=() return=Result<U#3, E#4 | F#1> kind=symbol target=result instance="result<U#3, E#4 | F#1>"
+        /// @generic.instance source="result<U, E | F>()" id="result<U#3, E#4 | F#1>"
+        /// @resolution.name source=U target=andThen.U
+        /// @resolution.name source=E target=E#1
+        /// @resolution.name source=F target=andThen.F
+
+    }
+}
+
+newtype AsyncResult<T, E> = Promise<Result<T, E>>;
+/// @generic.template symbol=AsyncResult parameters=(out T#6, out E#5)
+/// @type.symbol symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" type=AsyncResult
+/// @definition.newtype symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" template=(out T#6, out E#5) backing=Promise<Result<T#6, E#5>>
+/// @type.symbol symbol=AsyncResult.T source=T type=T#6
+/// @type.symbol symbol=AsyncResult.E source=E type=E#5
+/// @resolution.name source=Promise target=Promise
+/// @resolution.name source=Result target=Result
+/// @resolution.name source=T target=AsyncResult.T
+/// @resolution.name source=E target=AsyncResult.E
+
+extension<T, E> of AsyncResult<T, E> {
+/// @generic.template symbol=<module>#3 parameters=(T#7, E#6)
+/// @definition.extension symbol=<module>#3 form=local target=AsyncResult<T#7, E#6>
+/// @definition.method symbol=andThenSync slot=andThenSync type=<U#4, F#2>(this: this, Function<(T#7,), Result<U#4, F#2>>) => AsyncResult<U#4, E#6 | F#2>
+/// @type.symbol symbol=T#2 source=T type=T#7
+/// @type.symbol symbol=E#2 source=E type=E#6
+/// @resolution.name source=AsyncResult target=AsyncResult
+/// @resolution.name source=T target=T#2
+/// @resolution.name source=E target=E#2
+
+    andThenSync<U, F>(f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
+    /// @generic.template symbol=andThenSync parent=template#7 parameters=(U#4, F#2)
+    /// @type.symbol symbol=andThenSync type=<U#4, F#2>(this: this, Function<(T#7,), Result<U#4, F#2>>) => AsyncResult<U#4, E#6 | F#2>
+    /// @type.symbol symbol=andThenSync.U source=U type=U#4
+    /// @type.symbol symbol=andThenSync.F source=F type=F#2
+    /// @type.symbol symbol=andThenSync.f source="f: (value: T) => Result<U, F>" type=Function<(T#7,), Result<U#4, F#2>>
+    /// @resolution.name source=T target=T#2
+    /// @resolution.name source=Result target=Result
+    /// @resolution.name source=U target=andThenSync.U
+    /// @resolution.name source=F target=andThenSync.F
+    /// @resolution.name source=AsyncResult target=AsyncResult
+    /// @resolution.name source=U target=andThenSync.U
+    /// @resolution.name source=E target=E#2
+    /// @resolution.name source=F target=andThenSync.F
+
+        AsyncResult(this.then((result) => result.andThen(f)))
+        /// @resolution.name source=AsyncResult target=AsyncResult
+        /// @resolution.construct source="AsyncResult(this.then((result) => result.andThen(f)))" parameters=(Promise<Result<U#4, E#6 | F#2>>) arguments=(provided(this.then((result) => result.andThen(f))) as Promise<Result<U#4, E#6 | F#2>>) return=AsyncResult<U#4, E#6 | F#2> kind=newtype target=AsyncResult backing=Promise<Result<U#4, E#6 | F#2>> instance="AsyncResult<U#4, E#6 | F#2>"
+        /// @generic.instance source="AsyncResult(this.then((result) => result.andThen(f)))" id="AsyncResult<U#4, E#6 | F#2>"
+        /// @resolution.member source=this.then receiver=AsyncResult<T#7, E#6> type=<U#1>(this: Promise<Result<T#7, E#6>>, Function<(Result<T#7, E#6>,), Promise<U#1>>) => Promise<U#1> & <U#2>(this: Promise<Result<T#7, E#6>>, Function<(Result<T#7, E#6>,), U#2>) => Promise<U#2> kind=existential targets=[Promise.then#1, Promise.then#2]
+        /// @resolution.call source="this.then((result) => result.andThen(f))" parameters=(Function<(Result<T#7, E#6>,), Result<U#4, E#6 | F#2>>) arguments=(provided((result) => result.andThen(f)) as Function<(Result<T#7, E#6>,), Result<U#4, E#6 | F#2>>) return=Promise<Result<U#4, E#6 | F#2>> kind=symbol target=Promise.then#2 receiver=AsyncResult<T#7, E#6> adjustments=(newtype.payload(AsyncResult, Promise<Result<T#7, E#6>>)) instance="Promise<Result<T#7, E#6>>.then#2<Result<U#4, E#6 | F#2>>"
+        /// @resolution.receiver source=this kind=this declaration=<module>#3 type=AsyncResult<T#7, E#6>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @generic.instance source="this.then((result) => result.andThen(f))" id="Promise<Result<T#7, E#6>>.then#2<Result<U#4, E#6 | F#2>>"
+        /// @type.symbol symbol=andThenSync.symbol52 source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#4, E#6 | F#2>>
+        /// @type.symbol symbol=andThenSync.symbol52.result source=result type=Result<T#7, E#6>
+        /// @resolution.name source=result target=andThenSync.symbol52.result
+        /// @resolution.member source=result.andThen receiver=Result<T#7, E#6> type=<U#3, F#1>(this: Result<T#7, E#6>, Function<(T#7,), Result<U#3, F#1>>) => Result<U#3, E#6 | F#1> kind=symbol target_receiver=Result<T#7, E#6> target=andThen
+        /// @resolution.call source=result.andThen(f) parameters=(Function<(T#7,), Result<U#4, F#2>>) arguments=(provided(f) as Function<(T#7,), Result<U#4, F#2>>) return=Result<U#4, E#6 | F#2> kind=symbol target=andThen receiver=Result<T#7, E#6> instance="Result<T#7, E#6>.<extension#1>.andThen<U#4, F#2>"
+        /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=result root=andThenSync.symbol52.result
+        /// @generic.instance source=result.andThen(f) id="Result<T#7, E#6>.<extension#1>.andThen<U#4, F#2>"
+        /// @resolution.name source=f target=andThenSync.f
+        /// @resolution.place source=f placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=f root=andThenSync.f
+
+    }
+}
+
+/// @generic.instance id="AsyncResult<U#4, E#6 | F#2>" template=AsyncResult arguments=(U#4, E#6 | F#2)
+/// @generic.instance id="Promise<Result<T#7, E#6>>.then#2<Result<U#4, E#6 | F#2>>" template=Promise.then#2 arguments=(Result<T#7, E#6>, Result<U#4, E#6 | F#2>)
+/// @generic.instance id="Result<T#3, E#2>" template=Result arguments=(T#3, E#2)
+/// @generic.instance id="Result<T#4, E#3>" template=Result arguments=(T#4, E#3)
+/// @generic.instance id="Result<T#7, E#6>" template=Result arguments=(T#7, E#6)
+/// @generic.instance id="Result<T#7, E#6>.<extension#1>.andThen<U#4, F#2>" template=andThen arguments=(T#7, E#6, U#4, F#2)
+/// @generic.instance id="Result<U#3, E#4 | F#1>" template=Result arguments=(U#3, E#4 | F#1)
+/// @generic.instance id="Result<U#3, F#1>" template=Result arguments=(U#3, F#1)
+/// @generic.instance id="Result<U#4, E#6 | F#2>" template=Result arguments=(U#4, E#6 | F#2)
+/// @generic.instance id="Result<U#4, F#2>" template=Result arguments=(U#4, F#2)
+/// @generic.instance id="result<U#3, E#4 | F#1>" template=result arguments=(U#3, E#4 | F#1)
+/// @generic.instance id=Promise<U#1> template=Promise arguments=(U#1)
+/// @generic.instance id=Promise<U#2> template=Promise arguments=(U#2)
+"#);
 }

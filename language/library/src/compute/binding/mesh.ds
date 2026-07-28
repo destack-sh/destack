@@ -17,7 +17,7 @@ export interface ComputeMeshBinding {
         effect: "deterministic",
         requires: ["host.compute.mesh.read"],
     })
-    axes(mesh: Mesh): &readonly [MeshAxis];
+    axes(mesh: &readonly Mesh): &readonly [MeshAxis];
 
     /// Return the devices in row-major mesh order.
     @binding("destack.compute.mesh.devices", {
@@ -25,7 +25,7 @@ export interface ComputeMeshBinding {
         effect: "deterministic",
         requires: ["host.compute.mesh.read"],
     })
-    devices(mesh: Mesh): &readonly [Device];
+    devices(mesh: &readonly Mesh): &readonly [Device];
 
     /// Return the number of mesh axes.
     @binding("destack.compute.mesh.rank", {
@@ -33,7 +33,7 @@ export interface ComputeMeshBinding {
         effect: "deterministic",
         requires: ["host.compute.mesh.read"],
     })
-    rank(mesh: Mesh): usize;
+    rank(mesh: &readonly Mesh): usize;
 
     /// Return the total number of devices.
     @binding("destack.compute.mesh.size", {
@@ -41,5 +41,5 @@ export interface ComputeMeshBinding {
         effect: "deterministic",
         requires: ["host.compute.mesh.read"],
     })
-    size(mesh: Mesh): usize;
+    size(mesh: &readonly Mesh): usize;
 }

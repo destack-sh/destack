@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -10,7 +9,7 @@ use destack_repository::{
     ArtifactReader, Package, Profile, ProfileId, ProviderContext, ProviderError, Repository,
     Revision,
 };
-use destack_source::{ComponentId, ModuleId, TargetId};
+use destack_source::{ModuleId, TargetId};
 
 use super::{DirProgram, LintSet, Linter, MirProgram};
 
@@ -66,7 +65,11 @@ impl LintProgram {
 
         // load the checked module graph and target components
         let graph = artifacts.component_graph(profile)?;
-        let components = Self::reachable_components(&graph, &roots)?;
+        let components = graph.reachable_components(&roots).map_err(|root| {
+            ProviderError::internal(format!(
+                "lint module {root:?} is missing from its component graph"
+            ))
+        })?;
         let mut modules = components
             .iter()
             .flat_map(|component| graph.reference_members(*component))
@@ -84,9 +87,9 @@ impl LintProgram {
         }))
     }
 
-    /// Return whether the target package owns one reachable module.
+    /// Return whether the target package owns one module.
     pub fn owns(&self, module: ModuleId) -> bool {
-        module.package_id == self.package.id && self.modules.binary_search(&module).is_ok()
+        module.package_id == self.package.id
     }
 
     /// Iterate module ids reachable from the target roots.
@@ -97,41 +100,6 @@ impl LintProgram {
     /// Iterate package-owned module ids.
     pub fn owned_module_ids(&self) -> impl Iterator<Item = ModuleId> + '_ {
         self.module_ids().filter(|module| self.owns(*module))
-    }
-
-    /// Return components reachable from the roots.
-    fn reachable_components(
-        graph: &ComponentGraph,
-        roots: &[ModuleId],
-    ) -> Result<Box<[ComponentId]>, ProviderError> {
-        let mut pending = VecDeque::new();
-
-        // resolve every module root to its component
-        for root in roots {
-            let component = graph.reference_component(*root).ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "lint module {root:?} is missing from its component graph"
-                ))
-            })?;
-            pending.push_back(component);
-        }
-
-        let mut components = FxIndexSet::default();
-
-        // walk component dependencies
-        while let Some(component) = pending.pop_front() {
-            if !components.insert(component) {
-                continue;
-            }
-
-            pending.extend(graph.reference_dependencies(component).iter().copied());
-        }
-
-        // stabilize component order
-        let mut components = components.into_iter().collect::<Vec<_>>();
-        components.sort_unstable();
-
-        Ok(components.into_boxed_slice())
     }
 }
 
@@ -177,7 +145,11 @@ impl Linter {
         };
 
         // project the target components and collect their modules
-        let program_components = LintProgram::reachable_components(&graph, &roots)?;
+        let program_components = graph.reachable_components(&roots).map_err(|root| {
+            ProviderError::internal(format!(
+                "lint module {root:?} is missing from its component graph"
+            ))
+        })?;
         let mut program_modules = Vec::new();
         for component in program_components.iter().copied() {
             dependencies.project(
@@ -244,7 +216,11 @@ impl Linter {
                     ComponentGraphProjection::ReferenceComponent(root),
                 );
             }
-            let dir_components = LintProgram::reachable_components(&graph, &graph_roots)?;
+            let dir_components = graph.reachable_components(&graph_roots).map_err(|root| {
+                ProviderError::internal(format!(
+                    "DIR module {root:?} is missing from its component graph"
+                ))
+            })?;
             let mut modules = Vec::new();
 
             // project components introduced by the DIR program
@@ -340,7 +316,7 @@ impl Linter {
             return Ok(());
         }
 
-        // load checked DIR for the target closure and globals
+        // load checked DIR for the target modules and globals
         let revision = context.revision();
         let artifacts = self.repository.artifact_reader(revision);
         let profile = program.profile.id();
@@ -349,14 +325,18 @@ impl Linter {
         roots.extend(environment.globals.iter().copied());
         roots.sort_unstable();
         roots.dedup();
-        let components = LintProgram::reachable_components(&program.graph, &roots)?;
+        let components = program.graph.reachable_components(&roots).map_err(|root| {
+            ProviderError::internal(format!(
+                "DIR module {root:?} is missing from its component graph"
+            ))
+        })?;
         let mut module_ids = components
             .iter()
             .flat_map(|component| program.graph.reference_members(*component))
             .copied()
             .collect::<Vec<_>>();
         module_ids.sort_unstable();
-        let dir = DirProgram::load(
+        let program = DirProgram::load(
             self.repository.as_ref(),
             revision,
             &artifacts,
@@ -364,11 +344,11 @@ impl Linter {
             environment,
             &module_ids,
         )?;
-        let strings = self.repository.string_pool();
+        let strings = &program.dir.strings;
 
         // execute enabled DIR program lints
         for (lint, severity, check) in lints.dir_programs() {
-            let output = check(&dir, lint)?;
+            let output = check(&program, lint)?;
             let (diagnostics, errors) = lint.apply_controls(
                 controls,
                 severity,
@@ -397,12 +377,12 @@ impl Linter {
         // load verified MIR and whole-program analysis
         let revision = context.revision();
         let artifacts = self.repository.artifact_reader(revision);
-        let mir = MirProgram::load(self.repository.as_ref(), revision, &artifacts, program)?;
-        let strings = self.repository.string_pool();
+        let program = MirProgram::load(self.repository.as_ref(), revision, &artifacts, program)?;
+        let strings = &program.mir.strings;
 
         // execute enabled MIR program lints
         for (lint, severity, check) in lints.mir_programs() {
-            let output = check(&mir, lint)?;
+            let output = check(&program, lint)?;
             let (diagnostics, errors) = lint.apply_controls(
                 controls,
                 severity,

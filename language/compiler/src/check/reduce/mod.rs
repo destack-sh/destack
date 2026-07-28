@@ -16,6 +16,5 @@ mod r#typeof;
 mod union;
 
 pub(in crate::check) use key::{InvalidOperation, OperationReduction};
-pub(in crate::check) use memory::MemoryRank;
-pub(in crate::check) use scalar::ScalarFamily;
+pub(in crate::check) use memory::{BorrowConversion, MemoryRank};
 pub(in crate::check) use substitute::TypeSubstitution;

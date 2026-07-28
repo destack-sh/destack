@@ -654,7 +654,7 @@ impl CheckState<'_> {
             let origin = self.intern_origin(Origin::Symbol(symbol));
             let origin = self.solver.origin(origin);
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.push_constraint(Constraint::r#type(Relation::Equal, existing, ty, cause));
+            self.push_constraint(Constraint::r#type(origin, Relation::Equal, existing, ty, cause));
 
             return Ok(existing);
         }

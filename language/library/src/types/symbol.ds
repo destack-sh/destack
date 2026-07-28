@@ -18,6 +18,7 @@ export class Symbol {
     }
 
     /// Return a symbol from the shared registry.
+    @languageItem("types.Symbol.for")
     static for(key: string): symbol {
         todo("Symbol.for")
     }

@@ -68,7 +68,7 @@ export extension<T> of LinkedList<T>
     }
 
     /// Create a linked list from `values`.
-    static fromIterator(values: Iterator<T>): ^LinkedList<T> {
+    static fromIterator<R>(values: Iterator<T, R>): ^LinkedList<T> {
         todo("LinkedList.fromIterator")
     }
 
@@ -186,7 +186,7 @@ export extension<T> of ^LinkedList<T> implements From<Iterable<T>>, FromIterator
     }
 
     /// Create an owned linked list from values.
-    static fromIterator(values: Iterator<T>): ^LinkedList<T> {
+    static fromIterator<R>(values: Iterator<T, R>): ^LinkedList<T> {
         LinkedList.fromIterator(values)
     }
 }

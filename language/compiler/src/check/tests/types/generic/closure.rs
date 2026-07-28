@@ -75,7 +75,7 @@ const value = map(1, (item) => item);
 === annotated ===
 declare function map<T, U>(value: T, callback: (arg0: T) => U): U;
 
-const value: 1 = map<1, 1>(1, (item: 1): 1 => item);
+const value: float64 = map<float64, float64>(1, (item: float64): float64 => item);
 
 === checked ===
 declare function map<T, U>(value: T, callback: (value: T) => U): U;
@@ -91,21 +91,23 @@ declare function map<T, U>(value: T, callback: (value: T) => U): U;
 /// @resolution.name source=U target=map.U
 
 const value = map(1, (item) => item);
-/// @type.symbol symbol=value source=value type=1
+/// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source="map(1, (item) => item)" type=1
-/// @type.node source=map type=(1, Function<(1,), 1>) => 1
+/// @type.node source="map(1, (item) => item)" type=float64
+/// @type.node source=map type=(float64, Function<(float64,), float64>) => float64
 /// @resolution.name source=map target=map
-/// @resolution.call source="map(1, (item) => item)" parameters=(1, Function<(1,), 1>) arguments=(provided(1) as 1, provided((item) => item) as Function<(1,), 1>) return=1 kind=symbol target=map instance="map<1, 1>"
-/// @generic.instance source="map(1, (item) => item)" id="map<1, 1>"
+/// @resolution.call source="map(1, (item) => item)" parameters=(float64, Function<(float64,), float64>) arguments=(provided(1) as float64, provided((item) => item) as Function<(float64,), float64>) return=float64 kind=symbol target=map instance="map<float64, float64>"
+/// @generic.instance source="map(1, (item) => item)" id="map<float64, float64>"
 /// @type.node source=1 type=1
-/// @type.symbol symbol=symbol7 source="(item) => item" type=Function<(1,), 1>
-/// @type.node source="(item) => item" type=Function<(1,), 1>
-/// @type.symbol symbol=symbol7.item source=item type=1
-/// @type.node source=item type=1
+/// @type.symbol symbol=symbol7 source="(item) => item" type=Function<(float64,), float64>
+/// @type.node source="(item) => item" type=Function<(float64,), float64>
+/// @type.symbol symbol=symbol7.item source=item type=float64
+/// @type.node source=item type=float64
 /// @resolution.name source=item target=symbol7.item
+/// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=item root=symbol7.item
 
-/// @generic.instance id="map<1, 1>" template=map arguments=(1, 1)
+/// @generic.instance id="map<float64, float64>" template=map arguments=(float64, float64)
 "#,
     );
 }
@@ -167,8 +169,10 @@ const mapped = box.map((value) => value);
 /// @type.node source=box type=Box<int32>
 /// @type.node source=box.map type=<U>(this: Box<int32>, Function<(int32,), U>) => Box<U>
 /// @resolution.name source=box target=box
-/// @resolution.member source=box.map receiver=Box<int32> kind=symbol target=Box.map
+/// @resolution.member source=box.map receiver=Box<int32> type=<U>(this: Box<int32>, Function<(int32,), U>) => Box<U> kind=symbol target_receiver=Box<int32> target=Box.map
 /// @resolution.call source="box.map((value) => value)" parameters=(Function<(int32,), int32>) arguments=(provided((value) => value) as Function<(int32,), int32>) return=Box<int32> kind=symbol target=Box.map receiver=Box<int32> instance=Box<int32>.map<int32>
+/// @resolution.place source=box placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=box root=box
 /// @generic.instance source="box.map((value) => value)" id=Box<int32>
 /// @generic.instance source="box.map((value) => value)" id=Box<int32>.map<int32>
 /// @generic.instance source=box id=Box<int32>
@@ -179,6 +183,8 @@ const mapped = box.map((value) => value);
 /// @type.symbol symbol=symbol9.value source=value type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=symbol9.value
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol9.value
 
 /// @generic.instance id=Box<U> template=Box arguments=(U)
 /// @generic.instance id=Box<int32> template=Box arguments=(int32)
@@ -206,7 +212,10 @@ const value = map(1, (item) => item);
 declare class Box<in out T> {}
 declare function map<T, U>(value: T, callback: (arg0: T) => U | Box<U>): U;
 
-const value: 1 = map<1, 1>(1, (item: 1): 1 | Box<1> => item as 1 | Box<1>);
+const value: float64 = map<float64, float64>(
+    1,
+    (item: float64): float64 | Box<float64> => item as float64 | Box<float64>,
+);
 
 === checked ===
 declare class Box<in out T> {}
@@ -230,25 +239,27 @@ declare function map<T, U>(value: T, callback: (value: T) => U | Box<U>): U;
 /// @resolution.name source=U target=map.U
 
 const value = map(1, (item) => item);
-/// @type.symbol symbol=value source=value type=1
+/// @type.symbol symbol=value source=value type=float64
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source="map(1, (item) => item)" type=1
-/// @type.node source=map type=(1, Function<(1,), 1 | Box<1>>) => 1
+/// @type.node source="map(1, (item) => item)" type=float64
+/// @type.node source=map type=(float64, Function<(float64,), float64 | Box<float64>>) => float64
 /// @resolution.name source=map target=map
-/// @resolution.call source="map(1, (item) => item)" parameters=(1, Function<(1,), 1 | Box<1>>) arguments=(provided(1) as 1, provided((item) => item) as Function<(1,), 1 | Box<1>>) return=1 kind=symbol target=map instance="map<1, 1>"
-/// @generic.instance source="map(1, (item) => item)" id="map<1, 1>"
-/// @generic.instance source=map id=Box<1>
+/// @resolution.call source="map(1, (item) => item)" parameters=(float64, Function<(float64,), float64 | Box<float64>>) arguments=(provided(1) as float64, provided((item) => item) as Function<(float64,), float64 | Box<float64>>) return=float64 kind=symbol target=map instance="map<float64, float64>"
+/// @generic.instance source="map(1, (item) => item)" id="map<float64, float64>"
+/// @generic.instance source=map id=Box<float64>
 /// @type.node source=1 type=1
-/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(1,), 1 | Box<1>>
-/// @type.node source="(item) => item" type=Function<(1,), 1 | Box<1>>
-/// @generic.instance source="(item) => item" id=Box<1>
-/// @type.symbol symbol=symbol9.item source=item type=1
-/// @type.node source=item type=1
+/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(float64,), float64 | Box<float64>>
+/// @type.node source="(item) => item" type=Function<(float64,), float64 | Box<float64>>
+/// @generic.instance source="(item) => item" id=Box<float64>
+/// @type.symbol symbol=symbol9.item source=item type=float64
+/// @type.node source=item type=float64
 /// @resolution.name source=item target=symbol9.item
+/// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=item root=symbol9.item
 
-/// @generic.instance id="map<1, 1>" template=map arguments=(1, 1)
-/// @generic.instance id=Box<1> template=Box arguments=(1)
+/// @generic.instance id="map<float64, float64>" template=map arguments=(float64, float64)
 /// @generic.instance id=Box<U> template=Box arguments=(U)
+/// @generic.instance id=Box<float64> template=Box arguments=(float64)
 "#,
     );
 }
@@ -313,8 +324,10 @@ const value = box.map((item) => item);
 /// @type.node source=box type=Box<int32>
 /// @type.node source=box.map type=<U>(this: Box<int32>, Function<(int32,), U | Box<U>>) => U
 /// @resolution.name source=box target=box
-/// @resolution.member source=box.map receiver=Box<int32> kind=symbol target=Box.map
+/// @resolution.member source=box.map receiver=Box<int32> type=<U>(this: Box<int32>, Function<(int32,), U | Box<U>>) => U kind=symbol target_receiver=Box<int32> target=Box.map
 /// @resolution.call source="box.map((item) => item)" parameters=(Function<(int32,), int32 | Box<int32>>) arguments=(provided((item) => item) as Function<(int32,), int32 | Box<int32>>) return=int32 kind=symbol target=Box.map receiver=Box<int32> instance=Box<int32>.map<int32>
+/// @resolution.place source=box placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=box root=box
 /// @generic.instance source="box.map((item) => item)" id=Box<int32>.map<int32>
 /// @generic.instance source=box id=Box<int32>
 /// @generic.instance source=box.map id=Box<U>
@@ -325,6 +338,8 @@ const value = box.map((item) => item);
 /// @type.symbol symbol=symbol9.item source=item type=int32
 /// @type.node source=item type=int32
 /// @resolution.name source=item target=symbol9.item
+/// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=item root=symbol9.item
 
 /// @generic.instance id=Box<U> template=Box arguments=(U)
 /// @generic.instance id=Box<int32> template=Box arguments=(int32)

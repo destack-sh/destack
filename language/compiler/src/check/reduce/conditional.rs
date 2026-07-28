@@ -616,8 +616,8 @@ impl CheckState<'_> {
         actual_module: ModuleId,
         actual: dir::ShapeType,
     ) -> CompilerResult<Answer<bool>> {
-        let pattern_fields = self.shape_fields(pattern_module, pattern.fields)?.to_vec();
-        let actual_fields = self.shape_fields(actual_module, actual.fields)?.to_vec();
+        let pattern_fields = self.shape_properties(pattern_module, pattern.properties)?.to_vec();
+        let actual_fields = self.shape_properties(actual_module, actual.properties)?.to_vec();
         let fields = self.match_infer_shape_fields(
             origin,
             captures,
@@ -679,8 +679,8 @@ impl CheckState<'_> {
         origin: Origin,
         captures: &mut InferMatch,
         variance: Variance,
-        pattern: &[dir::TypeField],
-        actual: &[dir::TypeField],
+        pattern: &[dir::TypeProperty],
+        actual: &[dir::TypeProperty],
     ) -> CompilerResult<Answer<bool>> {
         let mut decision = Answer::Ready(true);
         for pattern_field in pattern {
@@ -700,8 +700,8 @@ impl CheckState<'_> {
                 origin,
                 captures,
                 variance,
-                pattern_field.ty,
-                actual_field.ty,
+                pattern_field.access.store(),
+                actual_field.access.store(),
             )?);
             if decision.is_ready_false() {
                 return Ok(decision);
@@ -771,9 +771,10 @@ impl CheckState<'_> {
         if pattern.len() != actual.len() {
             return Ok(Answer::Ready(false));
         }
-        let parameters = self
-            .symbol_template(symbol)?
-            .map(|template| self.generic_template_parameters(template));
+        let parameters = match self.symbol_template(symbol)? {
+            Some(template) => Some(self.generic_template_parameters(template)?),
+            None => None,
+        };
         let mut decision = Answer::Ready(true);
         for (index, (pattern, actual)) in pattern
             .iter()
@@ -784,9 +785,8 @@ impl CheckState<'_> {
             let argument_variance = match &parameters {
                 Some(parameters) => match parameters.get(index) {
                     Some(parameter) => {
-                        let context = self.default_symbol_context(symbol);
-
-                        variance.compose(self.parameter_variance(*parameter, context)?)
+                        let form = self.default_variance_form(symbol);
+                        variance.compose(self.parameter_variance(*parameter, form)?)
                     }
                     None => Variance::Invariant,
                 },

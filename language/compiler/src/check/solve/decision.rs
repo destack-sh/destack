@@ -21,8 +21,10 @@ pub(in crate::check) enum Decision {
     Operator(dir::OperatorResolution),
     /// Resolved call.
     Call(dir::CallResolution),
-    /// Resolved writable place expression.
-    Place(dir::PlaceResolution),
+    /// Resolved subscript access.
+    Subscript(dir::SubscriptResolution),
+    /// Resolved assignment target.
+    Assignment(dir::AssignmentResolution),
     /// Resolved runtime predicate expression.
     Guard(dir::GuardResolution),
     /// Resolved construct expression.
@@ -45,7 +47,8 @@ impl Decision {
             Self::Member(_) => DecisionKind::Member,
             Self::Operator(_) => DecisionKind::Operator,
             Self::Call(_) => DecisionKind::Call,
-            Self::Place(_) => DecisionKind::Place,
+            Self::Subscript(_) => DecisionKind::Subscript,
+            Self::Assignment(_) => DecisionKind::Assignment,
             Self::Guard(_) => DecisionKind::Guard,
             Self::Construct(_) => DecisionKind::Construct,
             Self::Pattern(_) => DecisionKind::Pattern,
@@ -70,8 +73,10 @@ pub(in crate::check) enum DecisionKind {
     Operator,
     /// Resolved call.
     Call,
-    /// Resolved writable place expression.
-    Place,
+    /// Resolved subscript access.
+    Subscript,
+    /// Resolved assignment target.
+    Assignment,
     /// Resolved runtime predicate expression.
     Guard,
     /// Resolved construct expression.
@@ -153,7 +158,12 @@ impl CheckState<'_> {
             Decision::Member(resolution) => resolutions.set_member_resolution(node, resolution),
             Decision::Operator(resolution) => resolutions.set_operator_resolution(node, resolution),
             Decision::Call(resolution) => resolutions.set_call_resolution(node, resolution),
-            Decision::Place(resolution) => resolutions.set_place_resolution(node, resolution),
+            Decision::Subscript(resolution) => {
+                resolutions.set_subscript_resolution(node, resolution)
+            }
+            Decision::Assignment(resolution) => {
+                resolutions.set_assignment_resolution(node, resolution)
+            }
             Decision::Guard(resolution) => resolutions.set_guard_resolution(node, resolution),
             Decision::Construct(resolution) => {
                 resolutions.set_construct_resolution(node, resolution)
@@ -164,6 +174,7 @@ impl CheckState<'_> {
             }
             Decision::Rejected => {}
         }
+
         self.record_event(CheckEvent::NodeDecided { node });
 
         Ok(())
@@ -186,7 +197,12 @@ impl CheckState<'_> {
                 resolutions.operator_resolution(node) == Some(resolution)
             }
             Decision::Call(resolution) => resolutions.call_resolution(node) == Some(resolution),
-            Decision::Place(resolution) => resolutions.place_resolution(node) == Some(resolution),
+            Decision::Subscript(resolution) => {
+                resolutions.subscript_resolution(node) == Some(resolution)
+            }
+            Decision::Assignment(resolution) => {
+                resolutions.assignment_resolution(node) == Some(resolution)
+            }
             Decision::Guard(resolution) => resolutions.guard_resolution(node) == Some(resolution),
             Decision::Construct(resolution) => {
                 resolutions.construct_resolution(node) == Some(resolution)

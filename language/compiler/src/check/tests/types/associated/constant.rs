@@ -109,8 +109,10 @@ function readHeader<T: RegisterBlock<comptime Width = 16>>(block: T): [uint8; 16
 
     return block.read();
     /// @resolution.name source=block target=readHeader.block
-    /// @resolution.member source=block.read receiver=T kind=symbol target=RegisterBlock.read
+    /// @resolution.member source=block.read receiver=T type=(this: T) => FixedArray<uint8, T.Width> kind=symbol target_receiver=T target=RegisterBlock.read
     /// @resolution.call source=block.read() parameters=() return=FixedArray<uint8, T.Width> kind=symbol target=RegisterBlock.read receiver=T
+    /// @resolution.place source=block placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=block root=readHeader.block
 
 }
 "#,

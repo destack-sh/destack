@@ -26,8 +26,8 @@ impl ModuleLowerer<'_> {
 
                 self.ensure_nominal(tree, instance.symbol)
             }
-            // enum members carry their owning enum
-            dir::Type::EnumMember(member) => self.lower_type_id(tree, member.owner),
+            // variants lower through their owning carrier
+            dir::Type::Variant(member) => self.lower_type_id(tree, member.owner),
             // instance substitutions resolve generic parameters
             dir::Type::Parameter(parameter) => {
                 let Some(argument) = self.substitution.get(&parameter).copied() else {
@@ -49,12 +49,7 @@ impl ModuleLowerer<'_> {
                     return self.nullable_reference(tree, reference, nullability);
                 }
 
-                // literal unions store at their family carrier
-                if let Some(carrier) = self.literal_union_carrier(id.module_id, &union)? {
-                    return Ok(tree.insert(carrier));
-                }
-
-                // tagged unions store as indexed variants
+                // non-nullish unions store as indexed variants
                 let elements = self.types(id.module_id)?.type_ids(union.elements).to_vec();
                 let mut payloads = Vec::with_capacity(elements.len());
                 for element in &elements {
@@ -231,4 +226,3 @@ impl ModuleLowerer<'_> {
         Ok(tree.insert(ty))
     }
 }
-

@@ -2,7 +2,7 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-/// Source location that produced check work.
+/// Source location that produced one check operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum Origin {
     /// Work came from one source node under one assuming template.
@@ -12,25 +12,16 @@ pub(in crate::check) enum Origin {
 }
 
 impl Origin {
-    /// Return the source module that produced this work.
+    /// Return the source module for this origin.
     pub(in crate::check) fn module(self) -> ModuleId {
         match self {
             Self::Node(node, _) => node.module_id,
             Self::Symbol(symbol) => symbol.module_id,
         }
     }
-
-    /// Return the expression node that produced this work.
-    pub(in crate::check) fn expression(self) -> Option<dir::GlobalNodeId<dir::Expression>> {
-        let Self::Node(node, _) = self else {
-            return None;
-        };
-
-        node.try_into_typed().ok()
-    }
 }
 
-/// Component-global id of one interned work origin.
+/// Component-global id of one interned check origin.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct OriginId(u32);
 
@@ -46,7 +37,7 @@ impl OriginId {
     }
 }
 
-/// Interned work origins, deduplicated per component.
+/// Interned check origins, deduplicated per component.
 #[derive(Debug, Default)]
 pub(in crate::check) struct OriginArena {
     /// The interned origins in first-seen order.

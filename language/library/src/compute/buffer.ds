@@ -48,23 +48,23 @@ export newtype Buffer<T> = intrinsic;
 
 export extension<T> of Buffer<T> {
     /// Return the device that owns this buffer.
-    get device(): Device {
+    get device(&readonly this): Device {
         Context.current().compute.buffer.device(this)
     }
 
     /// Return the element count.
-    get length(): usize {
+    get length(&readonly this): usize {
         Context.current().compute.buffer.length(this)
     }
 
     /// Return the byte length.
-    get byteLength(): usize {
+    get byteLength(&readonly this): usize {
         Context.current().compute.buffer.byteLength(this)
     }
 
     /// Allocate a compute buffer.
     static allocate(
-        device: Device,
+        device: &readonly Device,
         length: usize,
         options?: BufferOptions,
     ): Result<Buffer<T>, ComputeError> {
@@ -73,7 +73,7 @@ export extension<T> of Buffer<T> {
 
     /// Create a buffer initialized from host values.
     static from(
-        device: Device,
+        device: &readonly Device,
         values: [T],
         options?: BufferOptions,
     ): Result<Buffer<T>, ComputeError> {
@@ -81,22 +81,27 @@ export extension<T> of Buffer<T> {
     }
 
     /// Copy this buffer to `destination`.
-    copyTo(destination: Buffer<T>, region: BufferCopyRegion, stream?: Stream): Event {
+    copyTo(
+        &readonly this,
+        destination: &Buffer<T>,
+        region: BufferCopyRegion,
+        stream?: &Stream,
+    ): Event {
         Context.current().compute.buffer.copyTo(this, destination, region, stream)
     }
 
     /// Fill this buffer with `value`.
-    fill(value: T, stream?: Stream): Event {
+    fill(&this, value: T, stream?: &Stream): Event {
         Context.current().compute.buffer.fill(this, value, stream)
     }
 
     /// Read this buffer into host memory.
-    read(stream?: Stream): Result<[T], ComputeError> {
+    read(&readonly this, stream?: &Stream): Result<[T], ComputeError> {
         Context.current().compute.buffer.read(this, stream)
     }
 
     /// Write host values into this buffer.
-    write(values: [T], stream?: Stream): Event {
+    write(&this, values: [T], stream?: &Stream): Event {
         Context.current().compute.buffer.write(this, values, stream)
     }
 }

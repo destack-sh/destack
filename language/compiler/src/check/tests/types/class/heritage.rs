@@ -438,10 +438,10 @@ class Right extends Left {}
 /// @resolution.name source=Left target=Left
 "#,
         r#"
-/// @diagnostic.error id=circular-heritage message="type 'Right' has circular heritage"
-/// @diagnostic.label line=3 column=21 span="Left" line_source="class Right extends Left {}"
 /// @diagnostic.error id=circular-heritage message="type 'Left' has circular heritage"
 /// @diagnostic.label line=2 column=20 span="Right" line_source="class Left extends Right {}"
+/// @diagnostic.error id=circular-heritage message="type 'Right' has circular heritage"
+/// @diagnostic.label line=3 column=21 span="Left" line_source="class Right extends Left {}"
 "#,
     );
 }
@@ -751,6 +751,8 @@ const map: Map<string, int32> = record;
 /// @resolution.pattern source=map kind=binding target=map
 /// @resolution.name source=Map target=collections.map.Map
 /// @resolution.name source=record target=record
+/// @resolution.place source=record placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=record root=record
 
 /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
@@ -846,6 +848,8 @@ class Base {
 
         return value;
         /// @resolution.name source=value target=Base.parse.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Base.parse.value
 
     }
 }

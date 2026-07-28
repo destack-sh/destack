@@ -25,8 +25,8 @@ newtype Shape =
             .with_statics(),
         r#"
 === annotated ===
-const circle: Shape = Shape.Round({ radius: 5 });
-const rectangle: Shape = Shape.rectangle_shape({ width: 10, height: 20 });
+const circle = Shape.Round({ radius: 5 });
+const rectangle = Shape.rectangle_shape({ width: 10, height: 20 });
 
 @derive(
     Tagged({
@@ -43,19 +43,18 @@ const circle = Shape.Round({ radius: 5 });
 const rectangle = Shape.rectangle_shape({ width: 10, height: 20 });
 
 @derive(Tagged({
-/// @decorator.node expression=derive target=decorator.derive type=derive kind=derive providers=[decorator.derive.Tagged backing={ discriminant?: string; case?: decorator.derive.TaggedCase; names?: decorator.derive.TaggedNames } type=Tagged] value="derive(Tagged({ case: \"snake_case\"; names: { circle: \"Round\" } }))"
+/// @decorator.node expression=derive target=decorator.derive type=derive kind=derive providers=[decorator.derive.Tagged backing={ discriminator?: string; case?: decorator.derive.TaggedCase; names?: decorator.derive.TaggedNames } type=Tagged] value="derive(Tagged({ case: \"snake_case\"; names: { circle: \"Round\" } }))"
 
     case: "snake_case",
     names: { circle: "Round" },
 }))
 newtype Shape =
-/// @definition.newtype symbol=Shape backing={ kind: "rectangleShape"; width: int32; height: int32 } | { kind: "circle"; radius: int32 }
-/// @definition.variant symbol=Shape.Round key=Round discriminant=circle backing={ kind: "circle"; radius: int32 }
-/// @definition.variant symbol=Shape.rectangle_shape key=rectangle_shape discriminant=rectangleShape backing={ kind: "rectangleShape"; width: int32; height: int32 }
+/// @definition.newtype symbol=Shape discriminator=kind backing={ kind: "rectangleShape"; width: int32; height: int32 } | { kind: "circle"; radius: int32 }
+/// @definition.variant symbol=Shape.Round key=Round discriminant=circle backing={ kind: "circle"; radius: int32 } argument={ radius: int32 }
+/// @definition.variant symbol=Shape.rectangle_shape key=rectangle_shape discriminant=rectangleShape backing={ kind: "rectangleShape"; width: int32; height: int32 } argument={ width: int32; height: int32 }
 
     | { kind: "rectangleShape"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
-
 "#,
     );
 }
@@ -100,11 +99,11 @@ match (status) {
 
 newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
-/// @type.symbol symbol=Status.Err type=Status.Err
-/// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" backing=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32>
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string>
+/// @type.symbol symbol=Status.Err type=({ error: int32 }) => Status.Err
+/// @type.symbol symbol=Status.Ok type=({ value: string }) => Status.Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" discriminator=kind backing=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -117,24 +116,30 @@ match (status) {
 /// @type.node type=string | int32
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
+/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=status root=status
 
     Status.Ok(value) => value satisfies string
     /// @resolution.name source=Status.Ok target=Status
-    /// @resolution.pattern source=Status.Ok(value) kind=variant predicate="variant.tag(\"Ok\") is \"Ok\"" projection="variant.payload(Status.Ok, { value: string })" payload=tuple fields=(value)
+    /// @resolution.pattern source=Status.Ok(value) kind=variant predicate="variant.tag(Status, kind, \"Ok\") is \"Ok\"" projection="variant.payload(Status.Ok, backing=Ok<string>, discriminator=kind, value=String(#569faed0cbe4284e), type=Ok<string>)" payload=tuple fields=(value)
     /// @type.symbol symbol=value source=value type=string
     /// @resolution.pattern source=value kind=binding target=value
     /// @type.node source="value satisfies string" type=string
     /// @type.node source=value type=string
     /// @resolution.name source=value target=value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=value
 
     Status.Err(code) => code satisfies int32
     /// @resolution.name source=Status.Err target=Status
-    /// @resolution.pattern source=Status.Err(code) kind=variant predicate="variant.tag(\"Err\") is \"Err\"" projection="variant.payload(Status.Err, { error: int32 })" payload=tuple fields=(code)
+    /// @resolution.pattern source=Status.Err(code) kind=variant predicate="variant.tag(Status, kind, \"Err\") is \"Err\"" projection="variant.payload(Status.Err, backing=Err<int32>, discriminator=kind, value=String(#d43ec2a2697cb194), type=Err<int32>)" payload=tuple fields=(code)
     /// @type.symbol symbol=code source=code type=int32
     /// @resolution.pattern source=code kind=binding target=code
     /// @type.node source="code satisfies int32" type=int32
     /// @type.node source=code type=int32
     /// @resolution.name source=code target=code
+    /// @resolution.place source=code placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=code root=code
 
 }
 "#,
@@ -181,11 +186,11 @@ match (event) {
 
 newtype Event = { kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string };
 /// @type.symbol symbol=Event type=Event
-/// @type.symbol symbol=Event.Click type=Event.Click
-/// @type.symbol symbol=Event.Key type=Event.Key
-/// @definition.newtype symbol=Event backing={ kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string }
-/// @definition.variant symbol=Event.Click key=Click discriminant=click backing={ kind: "click"; x: int32; y: int32 }
-/// @definition.variant symbol=Event.Key key=Key discriminant=key backing={ kind: "key"; key: string }
+/// @type.symbol symbol=Event.Click type=({ x: int32; y: int32 }) => Event.Click
+/// @type.symbol symbol=Event.Key type=({ key: string }) => Event.Key
+/// @definition.newtype symbol=Event discriminator=kind backing={ kind: "click"; x: int32; y: int32 } | { kind: "key"; key: string }
+/// @definition.variant symbol=Event.Click key=Click discriminant=click backing={ kind: "click"; x: int32; y: int32 } argument={ x: int32; y: int32 }
+/// @definition.variant symbol=Event.Key key=Key discriminant=key backing={ kind: "key"; key: string } argument={ key: string }
 
 declare const event: Event;
 /// @type.symbol symbol=event source=event type=Event
@@ -196,29 +201,37 @@ match (event) {
 /// @type.node type=int32 | usize
 /// @type.node source=event type=Event
 /// @resolution.name source=event target=event
+/// @resolution.place source=event placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=event root=event
 
     Event.Click({ x, y }) => x + y
     /// @resolution.name source=Event.Click target=Event
-    /// @resolution.pattern source="Event.Click({ x, y })" kind=variant predicate="variant.tag(\"click\") is \"click\"" projection="variant.payload(Event.Click, { x: int32; y: int32 })" payload=tuple fields=(pattern)
+    /// @resolution.pattern source="Event.Click({ x, y })" kind=variant predicate="variant.tag(Event, kind, \"click\") is \"click\"" projection="variant.payload(Event.Click, backing={ kind: \"click\"; x: int32; y: int32 }, discriminator=kind, value=String(#ed3e1eeb16139c23), type={ kind: \"click\"; x: int32; y: int32 })" payload=pattern
     /// @resolution.pattern source={ x, y } kind=object fields={ x, y }
     /// @type.symbol symbol=x source=x type=int32
     /// @type.symbol symbol=y source=y type=int32
     /// @type.node source="x + y" type=int32
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x
-    /// @resolution.operator source="x + y" kind=builtin
+    /// @resolution.operator source="x + y" type=int32 operator="+" kind=builtin operands=[x as int32 families=(integer), y as int32 families=(integer)]
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=x
     /// @type.node source=y type=int32
     /// @resolution.name source=y target=y
+    /// @resolution.place source=y placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=y root=y
 
     Event.Key({ key }) => key.length
     /// @resolution.name source=Event.Key target=Event
-    /// @resolution.pattern source="Event.Key({ key })" kind=variant predicate="variant.tag(\"key\") is \"key\"" projection="variant.payload(Event.Key, { key: string })" payload=tuple fields=(pattern)
+    /// @resolution.pattern source="Event.Key({ key })" kind=variant predicate="variant.tag(Event, kind, \"key\") is \"key\"" projection="variant.payload(Event.Key, backing={ kind: \"key\"; key: string }, discriminator=kind, value=String(#c1e0263bab2b8eff), type={ kind: \"key\"; key: string })" payload=pattern
     /// @resolution.pattern source={ key } kind=object fields={ key }
     /// @type.symbol symbol=key source=key type=string
     /// @type.node source=key type=string
     /// @type.node source=key.length type=usize
     /// @resolution.name source=key target=key
-    /// @resolution.member source=key.length receiver=string kind=symbol target=string.string.length
+    /// @resolution.member source=key.length receiver=string type=usize kind=call target="string.string.length(parameters=(), arguments=(), return=usize)"
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,
@@ -269,11 +282,11 @@ match (status) {
 
 newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
-/// @type.symbol symbol=Status.Err type=Status.Err
-/// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" backing=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32>
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string>
+/// @type.symbol symbol=Status.Err type=({ error: int32 }) => Status.Err
+/// @type.symbol symbol=Status.Ok type=({ value: string }) => Status.Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" discriminator=kind backing=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -285,9 +298,9 @@ newtype Status = Ok<string> | Err<int32>;
 
 newtype Other = Ok<string>;
 /// @type.symbol symbol=Other source="newtype Other = Ok<string>" type=Other
-/// @type.symbol symbol=Other.Ok type=Other.Ok
-/// @definition.newtype symbol=Other source="newtype Other = Ok<string>" backing=Ok<string>
-/// @definition.variant symbol=Other.Ok source="newtype Other = Ok<string>" key=Ok discriminant=Ok backing=Ok<string>
+/// @type.symbol symbol=Other.Ok type=({ value: string }) => Other.Ok
+/// @definition.newtype symbol=Other source="newtype Other = Ok<string>" discriminator=kind backing=Ok<string>
+/// @definition.variant symbol=Other.Ok source="newtype Other = Ok<string>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 
 declare const status: Status;
@@ -299,12 +312,16 @@ match (status) {
 /// @type.node type=<error>
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
+/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=status root=status
 
     Other.Ok(value) => value
     /// @resolution.name source=Other.Ok target=Other
     /// @type.symbol symbol=value source=value type=<error>
     /// @type.node source=value type=<error>
     /// @resolution.name source=value target=value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=value
 
 }
 "#,
@@ -353,11 +370,11 @@ match (status) {
 
 newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
-/// @type.symbol symbol=Status.Err type=Status.Err
-/// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" backing=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32>
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string>
+/// @type.symbol symbol=Status.Err type=({ error: int32 }) => Status.Err
+/// @type.symbol symbol=Status.Ok type=({ value: string }) => Status.Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" discriminator=kind backing=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -370,12 +387,16 @@ match (status) {
 /// @type.node type=<error>
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
+/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=status root=status
 
     Status.Done(value) => value
     /// @resolution.name source=Status.Done target=Status
     /// @type.symbol symbol=value source=value type=<error>
     /// @type.node source=value type=<error>
     /// @resolution.name source=value target=value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=value
 
 }
 "#,
@@ -426,11 +447,11 @@ const label: "ok" | "err" = match (status) {
 
 newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
-/// @type.symbol symbol=Status.Err type=Status.Err
-/// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" backing=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32>
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string>
+/// @type.symbol symbol=Status.Err type=({ error: int32 }) => Status.Err
+/// @type.symbol symbol=Status.Ok type=({ value: string }) => Status.Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" discriminator=kind backing=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -445,17 +466,19 @@ const label = match (status) {
 /// @type.node type="ok" | "err"
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
+/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=status root=status
 
     Status.Ok(value) => "ok"
     /// @resolution.name source=Status.Ok target=Status
-    /// @resolution.pattern source=Status.Ok(value) kind=variant predicate="variant.tag(\"Ok\") is \"Ok\"" projection="variant.payload(Status.Ok, { value: string })" payload=tuple fields=(value)
+    /// @resolution.pattern source=Status.Ok(value) kind=variant predicate="variant.tag(Status, kind, \"Ok\") is \"Ok\"" projection="variant.payload(Status.Ok, backing=Ok<string>, discriminator=kind, value=String(#569faed0cbe4284e), type=Ok<string>)" payload=tuple fields=(value)
     /// @type.symbol symbol=value source=value type=string
     /// @resolution.pattern source=value kind=binding target=value
     /// @type.node source="\"ok\"" type="ok"
 
     Status.Err(code) => "err"
     /// @resolution.name source=Status.Err target=Status
-    /// @resolution.pattern source=Status.Err(code) kind=variant predicate="variant.tag(\"Err\") is \"Err\"" projection="variant.payload(Status.Err, { error: int32 })" payload=tuple fields=(code)
+    /// @resolution.pattern source=Status.Err(code) kind=variant predicate="variant.tag(Status, kind, \"Err\") is \"Err\"" projection="variant.payload(Status.Err, backing=Err<int32>, discriminator=kind, value=String(#d43ec2a2697cb194), type=Err<int32>)" payload=tuple fields=(code)
     /// @type.symbol symbol=code source=code type=int32
     /// @resolution.pattern source=code kind=binding target=code
     /// @type.node source="\"err\"" type="err"
@@ -505,11 +528,11 @@ const label: "ok" | "err" = match (status) {
 
 newtype Status = Ok<string> | Err<int32>;
 /// @type.symbol symbol=Status source="newtype Status = Ok<string> | Err<int32>" type=Status
-/// @type.symbol symbol=Status.Err type=Status.Err
-/// @type.symbol symbol=Status.Ok type=Status.Ok
-/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" backing=Ok<string> | Err<int32>
-/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32>
-/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string>
+/// @type.symbol symbol=Status.Err type=({ error: int32 }) => Status.Err
+/// @type.symbol symbol=Status.Ok type=({ value: string }) => Status.Ok
+/// @definition.newtype symbol=Status source="newtype Status = Ok<string> | Err<int32>" discriminator=kind backing=Ok<string> | Err<int32>
+/// @definition.variant symbol=Status.Err source="newtype Status = Ok<string> | Err<int32>" key=Err discriminant=Err backing=Err<int32> argument={ error: int32 }
+/// @definition.variant symbol=Status.Ok source="newtype Status = Ok<string> | Err<int32>" key=Ok discriminant=Ok backing=Ok<string> argument={ value: string }
 /// @resolution.name source=Ok target=error.result.Ok
 /// @resolution.name source=Err target=error.result.Err
 
@@ -524,24 +547,28 @@ const label = match (status) {
 /// @type.node type="ok" | "err"
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
+/// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=status root=status
 
     Status.Ok(value) if (value.length > 0) => "ok"
     /// @resolution.name source=Status.Ok target=Status
-    /// @resolution.pattern source=Status.Ok(value) kind=variant predicate="variant.tag(\"Ok\") is \"Ok\"" projection="variant.payload(Status.Ok, { value: string })" payload=tuple fields=(value)
+    /// @resolution.pattern source=Status.Ok(value) kind=variant predicate="variant.tag(Status, kind, \"Ok\") is \"Ok\"" projection="variant.payload(Status.Ok, backing=Ok<string>, discriminator=kind, value=String(#569faed0cbe4284e), type=Ok<string>)" payload=tuple fields=(value)
     /// @type.symbol symbol=value source=value type=string
     /// @resolution.pattern source=value kind=binding target=value
     /// @type.node source="value.length > 0" type=boolean
     /// @type.node source=value type=string
     /// @type.node source=value.length type=usize
     /// @resolution.name source=value target=value
-    /// @resolution.member source=value.length receiver=string kind=symbol target=string.string.length
-    /// @resolution.operator source="value.length > 0" kind=builtin
+    /// @resolution.member source=value.length receiver=string type=usize kind=call target="string.string.length(parameters=(), arguments=(), return=usize)"
+    /// @resolution.operator source="value.length > 0" type=boolean operator=">" kind=builtin operands=[value.length as usize families=(integer), 0 as usize families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=value
     /// @type.node source=0 type=0
     /// @type.node source="\"ok\"" type="ok"
 
     Status.Err(code) => "err"
     /// @resolution.name source=Status.Err target=Status
-    /// @resolution.pattern source=Status.Err(code) kind=variant predicate="variant.tag(\"Err\") is \"Err\"" projection="variant.payload(Status.Err, { error: int32 })" payload=tuple fields=(code)
+    /// @resolution.pattern source=Status.Err(code) kind=variant predicate="variant.tag(Status, kind, \"Err\") is \"Err\"" projection="variant.payload(Status.Err, backing=Err<int32>, discriminator=kind, value=String(#d43ec2a2697cb194), type=Err<int32>)" payload=tuple fields=(code)
     /// @type.symbol symbol=code source=code type=int32
     /// @resolution.pattern source=code kind=binding target=code
     /// @type.node source="\"err\"" type="err"
@@ -613,16 +640,16 @@ function describe(mode: Mode): int32 {
 
     match (mode) {
     /// @resolution.name source=mode target=describe.mode
+    /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=mode root=describe.mode
 
         Mode.Read => 10
         /// @resolution.name source=Mode target=Mode
-        /// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
-        /// @resolution.pattern source=Mode.Read kind=literal value=1
+        /// @resolution.pattern source=Mode.Read kind=variant predicate="Mode is 1"
 
         Mode.Write => 20
         /// @resolution.name source=Mode target=Mode
-        /// @resolution.member source=Mode.Write receiver=Mode kind=symbol target=Mode.Write
-        /// @resolution.pattern source=Mode.Write kind=literal value=2
+        /// @resolution.pattern source=Mode.Write kind=variant predicate="Mode is 2"
 
     }
 }
@@ -688,11 +715,12 @@ function describe(mode: Mode): int32 {
 
     match (mode) {
     /// @resolution.name source=mode target=describe.mode
+    /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=mode root=describe.mode
 
         Mode.Read => 10
         /// @resolution.name source=Mode target=Mode
-        /// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
-        /// @resolution.pattern source=Mode.Read kind=literal value=1
+        /// @resolution.pattern source=Mode.Read kind=variant predicate="Mode is 1"
 
     }
 }

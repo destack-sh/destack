@@ -134,7 +134,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Local>> {
-        let ty = self.coerced_type_id(expression)?;
+        let ty = self.node_type_id(expression)?;
         let ty = self.lower_type(ty)?;
 
         Ok(self.builder.local(ty, mir::Mutability::Mutable))

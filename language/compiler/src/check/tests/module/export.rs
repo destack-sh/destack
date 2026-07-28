@@ -42,6 +42,7 @@ const direct = value;
 /// @resolution.pattern source=direct kind=binding target=direct
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=source.value
+/// @resolution.access source=value root=source.value
 "#,
     );
 }
@@ -88,6 +89,7 @@ const namespaced = source.value;
 /// @resolution.pattern source=namespaced kind=binding target=namespaced
 /// @type.node source=source.value type=int32
 /// @resolution.name source=source.value target=source.value
+/// @resolution.access source=source.value root=source.value
 "#,
     );
 }
@@ -130,6 +132,7 @@ const first = helper;
 /// @type.symbol symbol=first source=first type=int32
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=helper target=util.helper
+/// @resolution.access source=helper root=util.helper
 
 const second = sibling;
 /// @type.symbol symbol=second source=second type=<error>

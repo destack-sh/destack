@@ -38,6 +38,8 @@ const value = if (enabled) {
 /// @type.node type=1 | 2
 /// @type.node source=enabled type=boolean
 /// @resolution.name source=enabled target=enabled
+/// @resolution.place source=enabled placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=enabled root=enabled
 
     1
     /// @type.node source=1 type=1
@@ -80,9 +82,13 @@ function add(left: int32, right: int32): int32 {
     /// @type.node source="left + right" type=int32
     /// @type.node source=left type=int32
     /// @resolution.name source=left target=add.left
-    /// @resolution.operator source="left + right" kind=builtin
+    /// @resolution.operator source="left + right" type=int32 operator="+" kind=builtin operands=[left as int32 families=(integer), right as int32 families=(integer)]
+    /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=left root=add.left
     /// @type.node source=right type=int32
     /// @resolution.name source=right target=add.right
+    /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=right root=add.right
 
 }
 "#,
