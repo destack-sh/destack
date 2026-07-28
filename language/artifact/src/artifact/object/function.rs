@@ -25,7 +25,7 @@ pub struct Function {
     /// The runtime binding name when present.
     pub binding: Option<StringId>,
     /// The coroutine behavior when this function may suspend.
-    pub coroutine: Option<mir::Coroutine>,
+    pub coroutine: Option<mir::CoroutineKind>,
 }
 
 impl Function {
