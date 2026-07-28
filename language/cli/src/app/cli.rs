@@ -4,7 +4,7 @@ use clap::{Args, CommandFactory, Parser, ValueEnum};
 
 use crate::{
     bench, build, cache, check, clean, completions, console, doc, doctor, eval, explain, fmt, info,
-    init, lint, lsp, run, settings, targets, task, test, update, version,
+    init, lint, lsp, query, rewrite, run, settings, targets, task, test, update, version,
 };
 
 #[cfg(feature = "dev")]
@@ -13,8 +13,8 @@ use crate::command::DevCommand;
 use crate::command::dev::{VersionCommands, release, stats};
 use crate::command::{
     BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, DaemonArgs, DocArgs,
-    DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, RunArgs,
-    SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
+    DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, QueryArgs,
+    RewriteArgs, RunArgs, SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
 };
 
 /// Base help template for CLI output.
@@ -114,6 +114,12 @@ pub enum Command {
     #[command(alias = "fmt")]
     Format(FmtArgs),
 
+    /// Query source files with a structural pattern.
+    Query(QueryArgs),
+
+    /// Rewrite source files with a structural pattern.
+    Rewrite(RewriteArgs),
+
     /// Initialize a new project.
     Init(InitArgs),
 
@@ -182,6 +188,8 @@ impl Command {
             Self::Eval(args) => eval::run(&args),
             Self::Lint(args) => lint::run(&args),
             Self::Format(args) => fmt::run(&args),
+            Self::Query(args) => query::run(&args),
+            Self::Rewrite(args) => rewrite::run(&args),
             Self::Init(args) => init::run(&args),
             Self::Clean(args) => clean::run(&args),
             Self::Cache(args) => cache::run(&args),
@@ -298,19 +306,31 @@ fn build_commands_help(color_enabled: bool) -> String {
         },
         CommandEntry {
             name: "check",
-            example: "src/",
+            example: ".",
             help: None,
             group: 0,
         },
         CommandEntry {
             name: "lint",
-            example: "src/",
+            example: ".",
             help: None,
             group: 0,
         },
         CommandEntry {
             name: "format",
             example: "src/",
+            help: None,
+            group: 0,
+        },
+        CommandEntry {
+            name: "query",
+            example: "'fetch($URL)' .",
+            help: None,
+            group: 0,
+        },
+        CommandEntry {
+            name: "rewrite",
+            example: "'fetch($URL)' 'client.fetch($URL)' .",
             help: None,
             group: 0,
         },
@@ -394,12 +414,6 @@ fn build_commands_help(color_enabled: bool) -> String {
         },
         CommandEntry {
             name: "lsp",
-            example: "",
-            help: None,
-            group: 3,
-        },
-        CommandEntry {
-            name: "query",
             example: "",
             help: None,
             group: 3,

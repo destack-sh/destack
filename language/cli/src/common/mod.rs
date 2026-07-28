@@ -1,6 +1,7 @@
 pub mod format;
 pub mod input;
 pub mod list;
+pub mod node;
 pub mod output;
 pub mod program;
 pub mod progress;
@@ -30,6 +31,7 @@ pub use list::{
     list_payload_with_count, print_grouped_list, print_grouped_list_with, print_list,
     print_list_with,
 };
+pub use node::NodeTypeArg;
 pub use output::TargetArgs;
 pub use program::{FileSystemOverride, ProgramArgs, ensure_no_watch_or_dev};
 pub use progress::{ProgressMode, ProgressReporter, is_tty};

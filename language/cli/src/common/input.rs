@@ -60,8 +60,8 @@ impl SingleInputArgs {
 /// Common input arguments for compilation commands.
 #[derive(Args, Debug, Clone, Default)]
 pub struct InputArgs {
-    /// Input files or directories.
-    #[arg(value_name = "FILES")]
+    /// Input files and at most one package or Workspace directory.
+    #[arg(value_name = "PATHS")]
     pub files: Vec<PathBuf>,
 
     /// Evaluate inline code (can be specified multiple times).
