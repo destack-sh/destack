@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::Duration;
 
 use destack_query::QueryMethodId;
 
@@ -24,8 +23,6 @@ pub struct QuerySuite {
     fixtures: HashMap<String, QueryFixture>,
     /// The discovered runnable cases.
     cases: Vec<Case>,
-    /// The maximum duration of one query case.
-    timeout: Duration,
     /// Whether mismatched response rows should be replaced.
     is_blessing: bool,
     /// Earlier response length changes in each Markdown file.
@@ -54,7 +51,7 @@ struct ResponseDelta {
 
 impl QuerySuite {
     /// Load every query fixture.
-    pub fn load(options: &RunOptions) -> Result<Self, String> {
+    pub fn load() -> Result<Self, String> {
         let query_directory = fixtures_dir().join("query");
         require_method_files(&query_directory)?;
         let MarkdownSuiteIndex { cases, entries } =
@@ -67,7 +64,6 @@ impl QuerySuite {
             workspace,
             fixtures: entries,
             cases,
-            timeout: options.case_timeout(),
             is_blessing: is_blessing(),
             response_deltas: Mutex::new(HashMap::new()),
         })
@@ -176,11 +172,6 @@ impl Suite for QuerySuite {
             Ok(()) => CaseResult::Passed,
             Err(message) => CaseResult::Failed { message },
         }
-    }
-
-    /// Return the maximum duration of one case.
-    fn timeout(&self) -> Option<Duration> {
-        Some(self.timeout)
     }
 }
 

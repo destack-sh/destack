@@ -15,7 +15,7 @@ struct QueryOptions {
 /// Run the query fixture suite.
 fn main() -> ExitCode {
     let options = QueryOptions::parse();
-    let suite = match QuerySuite::load(&options.run) {
+    let suite = match QuerySuite::load() {
         Ok(suite) => suite,
         Err(error) => {
             eprintln!("{error}");
