@@ -474,7 +474,14 @@ impl BodyState<'_, '_> {
             | dir::Type::FixedArray(_)
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_) => {
-                self.select_protocol_subscript(origin, use_, receiver, receiver_type, index_node)
+                self.select_protocol_subscript(
+                    origin,
+                    use_,
+                    receiver,
+                    receiver_type,
+                    index_node,
+                    index,
+                )
             }
             _ => Ok(Answer::Ready(None)),
         }
@@ -876,14 +883,15 @@ impl BodyState<'_, '_> {
                 if !answer!(self.types_may_overlap(origin, index, key_type)?) {
                     continue;
                 }
-                // read-only fields accept no index writes
-                let Some(write_type) = field.access.write() else {
-                    continue;
-                };
                 keys.push(field.key);
-                write_types.push(write_type);
+                // read-only fields accept no index writes
+                write_types.extend(field.access.write());
             }
-            if write_types.is_empty() {
+            if keys.is_empty() {
+                return Ok(Answer::Ready(None));
+            }
+            // writes need every overlapping field writable
+            if use_ != PlaceUse::Read && write_types.len() != keys.len() {
                 return Ok(Answer::Ready(None));
             }
             let target = dir::MemberTarget::Index(dir::IndexResolution {
@@ -898,7 +906,10 @@ impl BodyState<'_, '_> {
                     index,
                 }),
             )?;
-            let write_type = self.normalized_intersection_type(origin.module(), write_types)?;
+            let write_type = match write_types.is_empty() {
+                true => read_type,
+                false => self.normalized_intersection_type(origin.module(), write_types)?,
+            };
             let resolution = dir::MemberAccess::new(receiver, target, read_type);
 
             return Ok(Answer::Ready(Some(SubscriptSelection::member_access(
@@ -917,16 +928,17 @@ impl BodyState<'_, '_> {
         receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
+        index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         match use_ {
             PlaceUse::Read => {
-                self.select_subscript_read(origin, receiver, lookup_receiver, index_node)
+                self.select_subscript_read(origin, receiver, lookup_receiver, index_node, index)
             }
             PlaceUse::Write => {
-                self.select_subscript_write(origin, receiver, lookup_receiver, index_node)
+                self.select_subscript_write(origin, receiver, lookup_receiver, index_node, index)
             }
             PlaceUse::Update => {
-                self.select_subscript_update(origin, receiver, lookup_receiver, index_node)
+                self.select_subscript_update(origin, receiver, lookup_receiver, index_node, index)
             }
         }
     }
@@ -938,12 +950,14 @@ impl BodyState<'_, '_> {
         receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
+        index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         self.select_subscript_read_source(
             origin,
             receiver,
             lookup_receiver,
             dir::ArgumentSource::Provided(index_node),
+            index,
         )
     }
 
@@ -954,10 +968,15 @@ impl BodyState<'_, '_> {
         receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         source: dir::ArgumentSource,
+        index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         let method = SubscriptProtocol::Index;
         let sources = [source];
         let key = method.key(self.strings());
+
+        // the checked key classifies candidates in probes, while the
+        //  committed selection still flows context into the key argument
+        let index = self.settled_root(index)?;
         let Some((_protocol, call)) = answer!(self.select_language_protocol_call(
             origin,
             receiver,
@@ -965,6 +984,7 @@ impl BodyState<'_, '_> {
             key,
             method.item(),
             &[],
+            &[index],
             &sources,
         )?) else {
             return Ok(Answer::Ready(None));
@@ -1068,11 +1088,14 @@ impl BodyState<'_, '_> {
         receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
+        index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
-        let read =
-            answer!(self.select_subscript_read(origin, receiver, lookup_receiver, index_node,)?);
-        let write =
-            answer!(self.select_subscript_write(origin, receiver, lookup_receiver, index_node,)?);
+        let read = answer!(
+            self.select_subscript_read(origin, receiver, lookup_receiver, index_node, index)?
+        );
+        let write = answer!(
+            self.select_subscript_write(origin, receiver, lookup_receiver, index_node, index)?
+        );
         let (Some(read), Some(write)) = (read, write) else {
             return Ok(Answer::Ready(None));
         };
@@ -1095,9 +1118,11 @@ impl BodyState<'_, '_> {
         receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
+        index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         let method = SubscriptProtocol::IndexSet;
         let key = method.key(self.strings());
+        let index = self.settled_root(index)?;
         let Some((_protocol, member)) = answer!(self.select_language_protocol_member(
             origin,
             receiver.ty,
@@ -1105,6 +1130,7 @@ impl BodyState<'_, '_> {
             key,
             method.item(),
             &[],
+            &[index],
         )?) else {
             return Ok(Answer::Ready(None));
         };
@@ -1259,6 +1285,7 @@ impl BodyState<'_, '_> {
             key,
             method.item(),
             &[key_type],
+            &[],
             &sources,
         )?);
         let Some((_protocol, call)) = selected else {
@@ -1286,6 +1313,7 @@ impl BodyState<'_, '_> {
             key,
             method.item(),
             &[key_type, value_type],
+            &[],
         )?);
         let Some((_protocol, member)) = selected else {
             return Ok(Answer::Ready(false));

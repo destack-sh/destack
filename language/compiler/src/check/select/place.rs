@@ -156,11 +156,20 @@ impl BodyState<'_, '_> {
             module,
             dir::Type::Memory(dir::MemoryLiteral::Lifetime(lifetime)),
         )?;
+        // owned storage stays unique even in shared space
+        let exclusive = match space {
+            dir::Space::Local => true,
+            dir::Space::Shared => {
+                let chain = self.form_chain(origin, ty)?;
+
+                answer!(self.form_ownership(origin, &chain)?) == Some(dir::Ownership::Owned)
+            }
+        };
         let access = self.intern_type(
             module,
-            dir::Type::Memory(dir::MemoryLiteral::Access(match space {
-                dir::Space::Local => dir::Access::Exclusive,
-                dir::Space::Shared => dir::Access::Mutable,
+            dir::Type::Memory(dir::MemoryLiteral::Access(match exclusive {
+                true => dir::Access::Exclusive,
+                false => dir::Access::Mutable,
             })),
         )?;
         let place = dir::PlaceResolution {
@@ -240,8 +249,12 @@ impl BodyState<'_, '_> {
             ) {
                 place.placement = placement;
 
-                // shared storage cannot grant exclusive access by default
-                if self.place_space(root)? == Some(dir::Space::Shared) {
+                // shared storage grants exclusivity only through unique ownership
+                let is_owned = matches!(
+                    chain.ownership_form().map(|form| form.form),
+                    Some(dir::Form::Owned)
+                );
+                if self.place_space(root)? == Some(dir::Space::Shared) && !is_owned {
                     place.access = self.intern_type(
                         origin.module(),
                         dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Mutable)),

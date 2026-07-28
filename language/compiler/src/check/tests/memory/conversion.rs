@@ -1343,7 +1343,7 @@ declare function replace<'a>(value: shared &'a exclusive User): void;
 
 inspect(user as shared &'static readonly User);
 modify(user as shared &'static User);
-replace(user);
+replace(user as shared &'static exclusive User);
 
 === checked ===
 class User {}
@@ -1377,7 +1377,7 @@ inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(Placed<&'static readonly User, "shared">) arguments=(provided(user) as Placed<&'static readonly User, "shared">) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<Owned<User>, "shared"> adjustments=[{ kind: borrow, target: Placed<&'static readonly User, "shared"> }] origin=implicit
 
@@ -1385,7 +1385,7 @@ modify(user);
 /// @resolution.name source=modify target=modify
 /// @resolution.call source=modify(user) parameters=(Placed<&'static User, "shared">) arguments=(provided(user) as Placed<&'static User, "shared">) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<Owned<User>, "shared"> adjustments=[{ kind: borrow, target: Placed<&'static User, "shared"> }] origin=implicit
 
@@ -1393,8 +1393,9 @@ replace(user);
 /// @resolution.name source=replace target=replace
 /// @resolution.call source=replace(user) parameters=(Placed<&'static exclusive User, "shared">) arguments=(provided(user) as Placed<&'static exclusive User, "shared">) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
+/// @coercion.node source=user from=Placed<Owned<User>, "shared"> adjustments=[{ kind: borrow, target: Placed<&'static exclusive User, "shared"> }] origin=implicit
 "#,
     );
 }
@@ -1774,10 +1775,7 @@ let owned: ^Point = borrow;
 /// @coercion.node source=borrow from=&'static Point adjustments=[{ kind: read, target: Point }] origin=implicit
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'shared ^User' is not assignable to parameter of type 'shared &'static exclusive User'"
-/// @diagnostic.label line=11 column=9 span="user" line_source="replace(user);"
-/// @diagnostic.related line=11 column=1 span="replace(user)" line_source="replace(user);" message="in this call"
-/// @diagnostic.note message="expected '&'static exclusive User', found '^User'"
+
 "#,
     );
 }

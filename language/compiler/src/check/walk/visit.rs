@@ -58,12 +58,9 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        // demand needs every template walked; active walks resume in their
-        //  own frame; unloaded modules are sealed
-        if !self.templates_ready
-            || self.active_walks.contains(&symbol.module_id)
-            || !self.modules.contains_key(&symbol.module_id)
-        {
+        // demand needs every template walked; unloaded modules are sealed;
+        //  declaration-level cycles resolve inside the demanded frame
+        if !self.templates_ready || !self.modules.contains_key(&symbol.module_id) {
             return Ok(());
         }
 

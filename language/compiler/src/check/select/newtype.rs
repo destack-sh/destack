@@ -41,6 +41,8 @@ pub(in crate::check) struct NewtypeSignature {
     pub(in crate::check) parameters: SmallVec<[dir::FunctionParameterType; 4]>,
     /// The instantiated nominal return type.
     pub(in crate::check) return_type: dir::GlobalTypeId,
+    /// The argument conversions selected with the backing.
+    pub(in crate::check) coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
 }
 
 /// Reason no backing alternative accepted the supplied arguments.
@@ -273,6 +275,7 @@ impl BodyState<'_, '_> {
             selection,
             parameters: signature.parameters,
             return_type: signature.return_type,
+            coercions: signature.coercions,
         };
         let matched = match rejection {
             Some(rejection) => NewtypeMatch::Invalid {

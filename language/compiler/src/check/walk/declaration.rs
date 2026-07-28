@@ -494,13 +494,9 @@ impl WalkState<'_, '_> {
         } else {
             self.bind_symbol_type(symbol, value)?;
 
-            // record the written template only: elided lifetimes in alias
-            //  values quantify universally, never as consumer arity
-            let template = if declaration.generic_parameters.is_empty() {
-                None
-            } else {
-                template
-            };
+            // induced lifetimes never surface as written consumer arity,
+            //  but committed arity must match the applications uses intern
+            let template = self.induced_owner_template(induction, template)?;
 
             dir::Definition::TypeAlias(dir::TypeAliasDefinition {
                 template: template.map(|template| template.local_id),

@@ -758,8 +758,13 @@ impl BodyState<'_, '_> {
         let NewtypeSignature {
             selection,
             parameters,
+            coercions,
             return_type,
         } = signature;
+        // commit conversions only after the backing has been selected
+        for (source, coercion) in &coercions {
+            self.commit_coercion(*source, coercion.clone())?;
+        }
         let target = dir::ConstructTarget::Newtype(selection);
         let resolution = dir::ConstructResolution::new(
             target,
@@ -798,6 +803,10 @@ impl BodyState<'_, '_> {
         } else {
             signature.generic_arguments.clone()
         };
+        // commit conversions only after the constructor has been selected
+        for (source, coercion) in &signature.coercions {
+            self.commit_coercion(*source, coercion.clone())?;
+        }
         let target = dir::ConstructTarget::Class(dir::ClassConstructCandidate {
             symbol: instance.symbol,
             constructor,

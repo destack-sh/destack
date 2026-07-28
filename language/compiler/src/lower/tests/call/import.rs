@@ -189,25 +189,25 @@ function open(): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type box.Box {
+type test.box.Box {
     weight: int32;
 }
 
-function main.open(): int32 {
+function test.main.open(): int32 {
 entry:
-    v0: ref<box.Box, managed, mutable> = new.zeroed box.Box
-    v1: ref<box.Box, borrowed, exclusive> = cast.bit v0 -> ref<box.Box, borrowed, exclusive>
+    v0: ref<test.box.Box, managed, mutable> = new.zeroed test.box.Box
+    v1: ref<test.box.Box, borrowed, exclusive> = cast.bit v0 -> ref<test.box.Box, borrowed, exclusive>
     v2: int32 = 7
-    call box.Box.constructor(v1, v2)
-    v3: int32 = call box.Box.weigh(v0)
+    call test.box.Box.constructor(v1, v2)
+    v3: int32 = call test.box.Box.weigh(v0)
     return v3
 }
 
-external function box.Box.constructor(ref<box.Box, borrowed, exclusive>, int32): void
+external function test.box.Box.constructor(ref<test.box.Box, borrowed, exclusive>, int32): void
 
-external function box.Box.weigh(ref<box.Box, managed, mutable>): int32
-/// @layout.struct name=box.Box size=4 align=4
-/// @layout.field owner=box.Box index=0 name=weight offset=0 size=4 align=4
+external function test.box.Box.weigh(ref<test.box.Box, managed, mutable>): int32
+/// @layout.struct name=test.box.Box size=4 align=4
+/// @layout.field owner=test.box.Box index=0 name=weight offset=0 size=4 align=4
 "#,
     );
 }

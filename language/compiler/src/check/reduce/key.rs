@@ -734,6 +734,10 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::StaticKey>> {
         let key = match self.ty(ty)? {
             dir::Type::Key(key) => key,
+            // unique symbol references key by their declaration identity
+            dir::Type::Application(instance) if instance.arguments.is_empty() => {
+                return self.symbol_static_key(instance.symbol);
+            }
             dir::Type::Literal(dir::ScalarLiteral::String(name)) => dir::StaticKey::Name(name),
             dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
                 let Ok(index) = usize::try_from(value) else {

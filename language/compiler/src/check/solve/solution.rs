@@ -121,17 +121,28 @@ impl CheckState<'_> {
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         }
 
-        // complete each remaining owned component from its declared defaults
+        // declared defaults settle before widening finalizes literals, so
+        //  awaiting selections resume before literals commit their widths
         let components = self.variable_components(scope)?;
         let mut defaulted = false;
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
-        for variables in &components {
-            if variables.is_empty() {
-                continue;
+        for declared in [true, false] {
+            for variables in &components {
+                if variables.is_empty() {
+                    continue;
+                }
+                if self.component_defaults(variables)?.is_empty() == declared {
+                    continue;
+                }
+                match self.default_component(variables)? {
+                    Answer::Ready(progress) => defaulted |= progress,
+                    Answer::Pending(pending) => blockers.extend(pending),
+                }
             }
-            match self.default_component(variables)? {
-                Answer::Ready(progress) => defaulted |= progress,
-                Answer::Pending(pending) => blockers.extend(pending),
+
+            // the widening pass waits for a quiescence without declared progress
+            if declared && defaulted {
+                return Ok(Answer::Ready(true));
             }
         }
 
@@ -220,9 +231,17 @@ impl CheckState<'_> {
         &mut self,
         variables: &[dir::TypeVariableId],
     ) -> CompilerResult<Answer<bool>> {
-        let mut defaults = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+        let defaults = self.component_defaults(variables)?;
 
-        // collect declared and memory defaults for the component
+        self.solve_component(variables, &defaults)
+    }
+
+    /// Collect the declared and memory defaults of one variable component.
+    fn component_defaults(
+        &mut self,
+        variables: &[dir::TypeVariableId],
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        let mut defaults = SmallVec::<[dir::GlobalTypeId; 2]>::new();
         for variable in variables {
             let state = *self.solver.variable(*variable)?;
             let origin = self.solver.origin(state.origin);
@@ -247,14 +266,22 @@ impl CheckState<'_> {
                     | None => None,
                 },
             };
-            if let Some(default) = default
-                && self.type_variables(default)?.is_empty()
-            {
-                defaults.push(default);
+            if let Some(default) = default {
+                // a usable default carries no open or component-own variable
+                let mut open = false;
+                for variable in self.type_variables(default)? {
+                    if variables.contains(&variable) || self.solver.solution(variable)?.is_none() {
+                        open = true;
+                        break;
+                    }
+                }
+                if !open {
+                    defaults.push(default);
+                }
             }
         }
 
-        self.solve_component(variables, &defaults)
+        Ok(defaults)
     }
 
     /// Solve one variable component from evidence and declared defaults.

@@ -265,6 +265,7 @@ impl BodyState<'_, '_> {
             key,
             dir::LanguageItem::Sequence,
             &[],
+            &[],
         )?) else {
             return Ok(Answer::Ready(None));
         };
@@ -289,6 +290,7 @@ impl BodyState<'_, '_> {
             },
             receiver,
             dir::ArgumentSource::Static(index),
+            index,
         )?) else {
             return Ok(Answer::Ready(None));
         };

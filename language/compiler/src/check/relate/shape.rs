@@ -409,6 +409,12 @@ impl CheckState<'_> {
                     relations.push((Relation::Widens, target_write, source.access.write()?));
                 }
             }
+            // satisfies certifies reads without granting writes
+            Relation::Satisfies => {
+                if let Some(target_read) = target.access.read() {
+                    relations.push((Relation::Satisfies, source.access.read()?, target_read));
+                }
+            }
             // exact relations pair each supported operation
             _ => {
                 match (source.access.read(), target.access.read()) {

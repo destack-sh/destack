@@ -836,9 +836,10 @@ impl CheckState<'_> {
         if arguments.len() != parameters.len() {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "generic template {template:?} received {} arguments for {} parameters",
+                    "generic template {template:?} received {} arguments for {} parameters\n{}",
                     arguments.len(),
                     parameters.len(),
+                    std::backtrace::Backtrace::force_capture(),
                 ),
             });
         }
@@ -867,10 +868,16 @@ impl CheckState<'_> {
             }
 
             let name = self.format_symbol(instance.symbol);
+            let rendered = self
+                .type_ids(module, instance.arguments)?
+                .iter()
+                .map(|argument| self.format_type(*argument))
+                .collect::<Vec<_>>()
+                .join(", ");
 
             return Err(CompilerError::Internal {
                 message: format!(
-                    "nongeneric symbol {name} ({:?}) has {} applied type arguments",
+                    "nongeneric symbol {name} ({:?}) has {} applied type arguments: ({rendered})",
                     instance.symbol,
                     instance.arguments.len(),
                 ),

@@ -47,8 +47,6 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) external_modules: FxIndexMap<ModuleId, CheckExternalModuleState>,
     /// Members whose bodies this check infers.
     pub(in crate::check) inference_modules: FxIndexSet<ModuleId>,
-    /// Modules with an active walk state, innermost last.
-    pub(in crate::check) active_walks: FxIndexSet<ModuleId>,
     /// Whether every member template is declared and walked.
     pub(in crate::check) templates_ready: bool,
     /// Sealed artifact containing each external module's committed tables.
@@ -150,7 +148,6 @@ impl<'a> CheckState<'a> {
             modules: FxIndexMap::default(),
             external_modules: FxIndexMap::default(),
             inference_modules,
-            active_walks: FxIndexSet::default(),
             templates_ready: false,
             external_components,
             inherent_externals: Some(inherent_externals),

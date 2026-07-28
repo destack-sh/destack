@@ -49,8 +49,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         tree: dir::View<'check>,
         check: &'check mut CheckState<'state>,
     ) -> Self {
-        check.active_walks.insert(module);
-
         Self {
             check,
             tree,
@@ -99,8 +97,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 });
             }
         }
-
-        self.check.active_walks.swap_remove(&module);
 
         Ok(())
     }

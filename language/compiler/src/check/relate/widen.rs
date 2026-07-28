@@ -246,23 +246,10 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         bounds: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // repeated bounds contribute one intersection member
-        let mut unique = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        for bound in bounds {
-            if !unique.contains(bound) {
-                unique.push(*bound);
-            }
-        }
         let origin = self.solver.variable(variable)?.origin;
         let origin = self.solver.origin(origin);
-        let module = origin.module();
-        if let [single] = unique.as_slice() {
-            return Ok(*single);
-        }
-        let elements = self.intern_type_ids(module, &unique)?;
-        let intersection = dir::Type::Intersection(dir::IntersectionType { elements });
 
-        self.intern_type(module, intersection)
+        self.normalized_intersection_type(origin.module(), bounds.iter().copied())
     }
 
     /// Widen one closed type, rebuilding literal leaves to their bases.

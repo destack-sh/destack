@@ -37,7 +37,7 @@ pub(in crate::check) struct Solver {
     /// Undo entries recorded by active snapshots.
     undo: Vec<Undo>,
     /// The number of nested snapshots.
-    snapshot_depth: usize,
+    pub(in crate::check) snapshot_depth: usize,
 }
 
 /// Snapshot of solver state before one probe.

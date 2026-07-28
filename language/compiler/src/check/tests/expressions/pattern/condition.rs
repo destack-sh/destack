@@ -91,22 +91,22 @@ declare const config: { enabled: boolean; retries: int32 } | null;
 
 if (let { enabled, retries } = config) {
 /// @resolution.pattern source={ enabled, retries } kind=object fields={ enabled, retries }
-/// @type.symbol symbol=enabled#2 source=enabled type=boolean & unknown
-/// @type.symbol symbol=retries#2 source=retries type=int32 & unknown
+/// @type.symbol symbol=enabled#2 source=enabled type=boolean
+/// @type.symbol symbol=retries#2 source=retries type=int32
 /// @type.node source=config type={ enabled: boolean; retries: int32 } | null
 /// @resolution.name source=config target=config
 /// @resolution.access source=config root=config
 
     enabled satisfies boolean;
-    /// @type.node source="enabled satisfies boolean" type=boolean & unknown
-    /// @type.node source=enabled type=boolean & unknown
+    /// @type.node source="enabled satisfies boolean" type=boolean
+    /// @type.node source=enabled type=boolean
     /// @resolution.name source=enabled target=enabled#2
     /// @resolution.place source=enabled placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=enabled root=enabled#2
 
     retries satisfies int32;
-    /// @type.node source="retries satisfies int32" type=int32 & unknown
-    /// @type.node source=retries type=int32 & unknown
+    /// @type.node source="retries satisfies int32" type=int32
+    /// @type.node source=retries type=int32
     /// @resolution.name source=retries target=retries#2
     /// @resolution.place source=retries placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=retries root=retries#2
@@ -344,14 +344,14 @@ if (ready && let { name } = user) {
 /// @resolution.place source=ready placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=ready root=ready
 /// @resolution.pattern source={ name } kind=object fields={ name }
-/// @type.symbol symbol=name#2 source=name type=string & unknown
+/// @type.symbol symbol=name#2 source=name type=string
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
 /// @resolution.access source=user root=user
 
     name satisfies string;
-    /// @type.node source="name satisfies string" type=string & unknown
-    /// @type.node source=name type=string & unknown
+    /// @type.node source="name satisfies string" type=string
+    /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
     /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=name root=name#2
@@ -455,26 +455,26 @@ declare const point: { x: int32 } | null;
 
 if (let { name } = user && let { x } = point) {
 /// @resolution.pattern source={ name } kind=object fields={ name }
-/// @type.symbol symbol=name#2 source=name type=string & unknown
+/// @type.symbol symbol=name#2 source=name type=string
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
 /// @resolution.access source=user root=user
 /// @resolution.pattern source={ x } kind=object fields={ x }
-/// @type.symbol symbol=x#2 source=x type=int32 & unknown
+/// @type.symbol symbol=x#2 source=x type=int32
 /// @type.node source=point type={ x: int32 } | null
 /// @resolution.name source=point target=point
 /// @resolution.access source=point root=point
 
     name satisfies string;
-    /// @type.node source="name satisfies string" type=string & unknown
-    /// @type.node source=name type=string & unknown
+    /// @type.node source="name satisfies string" type=string
+    /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
     /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=name root=name#2
 
     x satisfies int32;
-    /// @type.node source="x satisfies int32" type=int32 & unknown
-    /// @type.node source=x type=int32 & unknown
+    /// @type.node source="x satisfies int32" type=int32
+    /// @type.node source=x type=int32
     /// @resolution.name source=x target=x#2
     /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=x#2
@@ -518,14 +518,14 @@ declare const user: { name: string } | null;
 
 if (let { name } = user) {
 /// @resolution.pattern source={ name } kind=object fields={ name }
-/// @type.symbol symbol=name#2 source=name type=string & unknown
+/// @type.symbol symbol=name#2 source=name type=string
 /// @type.node source=user type={ name: string } | null
 /// @resolution.name source=user target=user
 /// @resolution.access source=user root=user
 
     name satisfies string;
-    /// @type.node source="name satisfies string" type=string & unknown
-    /// @type.node source=name type=string & unknown
+    /// @type.node source="name satisfies string" type=string
+    /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
     /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=name root=name#2

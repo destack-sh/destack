@@ -57,13 +57,13 @@ type OwnedShared = ^shared User;
 type LocalBorrowed = local &readonly User;
 /// @generic.template symbol=LocalBorrowed parameters=('a)
 /// @type.symbol symbol=LocalBorrowed source="type LocalBorrowed = local &readonly User" type=Placed<&LocalBorrowed.'a readonly User, "local">
-/// @definition.type symbol=LocalBorrowed source="type LocalBorrowed = local &readonly User" value=Placed<&LocalBorrowed.'a readonly User, "local">
+/// @definition.type symbol=LocalBorrowed source="type LocalBorrowed = local &readonly User" template=('a) value=Placed<&LocalBorrowed.'a readonly User, "local">
 /// @resolution.name source=User target=User
 
 type BorrowedLocal = &readonly local User;
 /// @generic.template symbol=BorrowedLocal parameters=('a)
 /// @type.symbol symbol=BorrowedLocal source="type BorrowedLocal = &readonly local User" type=Placed<&BorrowedLocal.'a readonly User, "local">
-/// @definition.type symbol=BorrowedLocal source="type BorrowedLocal = &readonly local User" value=Placed<&BorrowedLocal.'a readonly User, "local">
+/// @definition.type symbol=BorrowedLocal source="type BorrowedLocal = &readonly local User" template=('a) value=Placed<&BorrowedLocal.'a readonly User, "local">
 /// @resolution.name source=User target=User
 "#,
         r#"
@@ -286,7 +286,7 @@ const localFromShared: local ^User = sharedUser;
 /// @resolution.pattern source=localFromShared kind=binding target=localFromShared
 /// @resolution.name source=User target=User
 /// @resolution.name source=sharedUser target=sharedUser
-/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="exclusive"
 /// @resolution.access source=sharedUser root=sharedUser
 "#,
         r#"

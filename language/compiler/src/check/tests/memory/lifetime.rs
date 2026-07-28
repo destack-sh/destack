@@ -499,7 +499,7 @@ function warn(count?: int32, cause?: Dynamic<unknown>): void {
 type Options = {
 /// @generic.template symbol=Options parameters=('a)
 /// @type.symbol symbol=Options type={ count?: int32 | undefined; message?: &Options.'a readonly string; error?: unknown }
-/// @definition.type symbol=Options value={ count?: int32 | undefined; message?: &Options.'a readonly string; error?: unknown }
+/// @definition.type symbol=Options template=('a) value={ count?: int32 | undefined; message?: &Options.'a readonly string; error?: unknown }
 
     count?: int32 | undefined;
     message?: &readonly string;

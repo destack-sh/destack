@@ -17,12 +17,39 @@ pub(in crate::check) struct Protocol {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The protocol generic arguments.
     pub(in crate::check) arguments: Vec<dir::GlobalTypeId>,
+    /// Checked argument types classifying candidates in probes only.
+    pub(in crate::check) classification: Vec<dir::GlobalTypeId>,
 }
 
 impl Protocol {
     /// Create one complete applied protocol.
     fn new(symbol: dir::GlobalSymbolId, arguments: Vec<dir::GlobalTypeId>) -> Self {
-        Self { symbol, arguments }
+        Self {
+            symbol,
+            arguments,
+            classification: Vec::new(),
+        }
+    }
+
+    /// Classify candidates against checked argument types in leading slots.
+    fn with_classification(mut self, classification: &[dir::GlobalTypeId]) -> Self {
+        self.classification = classification.to_vec();
+
+        self
+    }
+
+    /// Return the probe-facing protocol with classified leading arguments.
+    fn classified(&self) -> Self {
+        let mut arguments = self.arguments.clone();
+        for (slot, argument) in arguments.iter_mut().zip(&self.classification) {
+            *slot = *argument;
+        }
+
+        Self {
+            symbol: self.symbol,
+            arguments,
+            classification: Vec::new(),
+        }
     }
 
     /// Return this protocol as a generic instance interned into one module.
@@ -186,10 +213,12 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         item: dir::LanguageItem,
         written: &[dir::GlobalTypeId],
+        classification: &[dir::GlobalTypeId],
         argument_sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Answer<Option<(Protocol, ProtocolCall)>>> {
         let protocol =
             answer!(self.infer_language_protocol(origin, lookup_receiver, item, written,)?);
+        let protocol = protocol.with_classification(classification);
         let selected = answer!(self.select_protocol_call(
             origin,
             receiver,
@@ -211,9 +240,11 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         item: dir::LanguageItem,
         written: &[dir::GlobalTypeId],
+        classification: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<Option<(Protocol, ProtocolMember)>>> {
         let protocol =
             answer!(self.infer_language_protocol(origin, lookup_receiver, item, written,)?);
+        let protocol = protocol.with_classification(classification);
         let selected = answer!(self.select_protocol_member(
             origin,
             receiver,
@@ -294,8 +325,10 @@ impl BodyState<'_, '_> {
         let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
         let interface = protocol.instance(self, module)?;
         let interface = self.intern_type(module, dir::Type::Application(interface))?;
-        let requirements =
-            answer!(protocol.members(self, origin, interface, lookup_receiver, key)?);
+        let members = protocol.members(self, origin, interface, lookup_receiver, key)?;
+        if let Answer::Pending(pending) = &members {
+        }
+        let requirements = answer!(members);
         let extension = self.select_extension_protocol_call(
             origin,
             module,
@@ -305,6 +338,8 @@ impl BodyState<'_, '_> {
             protocol,
             argument_sources,
         )?;
+        if let Answer::Pending(pending) = &extension {
+        }
         if !matches!(extension, Answer::Ready(None)) {
             return Ok(extension);
         }
@@ -449,6 +484,7 @@ impl BodyState<'_, '_> {
                 continue;
             }
 
+            let classified = protocol.classified();
             let verdict = self.probe_candidate(|state| {
                 state.match_extension_protocol_candidate(
                     origin,
@@ -457,7 +493,7 @@ impl BodyState<'_, '_> {
                     extension_symbol,
                     target_type,
                     &implements,
-                    protocol,
+                    &classified,
                 )
             })?;
             let candidate = (
@@ -477,7 +513,9 @@ impl BodyState<'_, '_> {
                     indeterminate.get_or_insert(candidate);
                 }
                 Answer::Ready(CandidateVerdict::Rejected) => {}
+                // unresolved outer evidence keeps the candidate for commit
                 Answer::Pending(pending) => {
+                    indeterminate.get_or_insert(candidate);
                     blockers.extend(pending);
                 }
             }
@@ -563,25 +601,25 @@ impl BodyState<'_, '_> {
             )>,
         >,
     > {
-        let Some((substitution, implementation, index)) =
-            answer!(self.match_extension_protocol_implementation(
-                origin,
-                module,
-                lookup_receiver,
-                extension_symbol,
-                target_type,
-                implementations,
-                protocol,
-            )?)
-        else {
+        let matched = self.match_extension_protocol_implementation(
+            origin,
+            module,
+            lookup_receiver,
+            extension_symbol,
+            target_type,
+            implementations,
+            protocol,
+        )?;
+        let Some((substitution, implementation, index)) = answer!(matched) else {
             return Ok(Answer::Ready(None));
         };
-        let candidates = answer!(self.extension_member_candidates(
+        let candidates = self.extension_member_candidates(
             origin,
             extension_symbol,
             &substitution,
             members,
-        )?);
+        )?;
+        let candidates = answer!(candidates);
         if candidates.is_empty() {
             return Ok(Answer::Ready(None));
         }
@@ -624,7 +662,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<(TypeSubstitution, dir::GlobalTypeId, usize)>>> {
         let template = self.symbol_template(extension_symbol)?;
         let Some(substitution) =
-            answer!(self.instantiate_extension(origin, lookup_receiver, template, target_type,)?)
+            answer!(self.instantiate_extension(origin, lookup_receiver, template, target_type)?)
         else {
             return Ok(Answer::Ready(None));
         };

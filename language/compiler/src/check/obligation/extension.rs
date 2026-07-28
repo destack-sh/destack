@@ -570,13 +570,15 @@ impl CheckState<'_> {
                 .map(|value| self.substitute_type(origin.module(), value, &receiver_substitution))
                 .transpose()?;
 
-            // two authored bindings must denote the same reduced type
-            if let (Some(written), Some(declared)) = (written, declared) {
-                let written = answer!(self.reduce_type(origin, written)?);
-                let reduced = answer!(self.reduce_type(origin, declared)?);
-                if !answer!(self.decide_equal(origin, written, reduced)?) {
-                    return Ok(Answer::Ready(None));
-                }
+            // two authored bindings must denote the same reduced type; open
+            //  instantiations inherit the judgment from the declaration gate
+            if let (Some(written), Some(declared)) = (written, declared)
+                && let Answer::Ready(written) = self.reduce_type(origin, written)?
+                && let Answer::Ready(reduced) = self.reduce_type(origin, declared)?
+                && let Answer::Ready(equal) = self.decide_equal(origin, written, reduced)?
+                && !equal
+            {
+                return Ok(Answer::Ready(None));
             }
 
             // explicit bindings override an interface default

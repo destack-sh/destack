@@ -554,6 +554,7 @@ impl BodyState<'_, '_> {
             dir::LanguageItem::Iterable,
             &[],
             &[],
+            &[],
         )?);
         let Some((protocol, _call)) = selected else {
             self.report_for_of_source_not_iterable(source);

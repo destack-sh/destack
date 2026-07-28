@@ -239,28 +239,28 @@ type Box {
     weight: int32;
 }
 
-function main.Box.constructor(v0: ref<Box, borrowed, exclusive>, v1: int32): void {
+function test.main.Box.constructor(v0: ref<Box, borrowed, exclusive>, v1: int32): void {
 entry(v0: ref<Box, borrowed, exclusive>, v1: int32):
     v2: ref<int32, borrowed, mutable> = field.address v0, 0
     store v2, v1
     return
 }
 
-function main.Box.unwrap(v0: Box): int32 {
+function test.main.Box.unwrap(v0: Box): int32 {
 entry(v0: Box):
     v1: int32 = field.get v0, 0
     return v1
 }
 
-function main.open(): int32 {
+function test.main.open(): int32 {
     local l0: Box
 
 entry:
     v0: ref<Box, borrowed, exclusive> = local.address l0
     v1: int32 = 7
-    call main.Box.constructor(v0, v1)
+    call test.main.Box.constructor(v0, v1)
     v2: Box = local.get l0
-    v3: int32 = call main.Box.unwrap(v2)
+    v3: int32 = call test.main.Box.unwrap(v2)
     return v3
 }
 /// @layout.struct name=Box size=4 align=4

@@ -460,7 +460,10 @@ impl CheckState<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        Ok(Answer::Ready(self.require_node_type(node)?))
+        match self.committed_node_type(node) {
+            Some(ty) => Ok(Answer::Ready(ty)),
+            None => Ok(Answer::pending([Dependency::NodeType(node)])),
+        }
     }
 
     /// Return an invariant label for one source node.
@@ -482,10 +485,30 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let Some(ty) = self.committed_node_type(node) else {
+            let mut open = Vec::new();
+            for index in 0..self.solver.variable_count() {
+                let variable = dir::TypeVariableId(index as u32);
+                if let Ok(record) = self.solver.variable(variable)
+                    && record.state.is_open()
+                {
+                    let default = self
+                        .solver
+                        .variables
+                        .variable_default(variable)
+                        .map(|default| self.format_type(default));
+                    open.push(format!(
+                        "{variable:?} origin={:?} bounds={}/{} default={default:?}",
+                        record.origin, record.lower.count, record.upper.count,
+                    ));
+                }
+            }
+
             return Err(CompilerError::Internal {
                 message: format!(
-                    "required node has no checked type: {}",
-                    self.node_label(node)
+                    "required node has no checked type: {}; decision={:?}; open variables: {}",
+                    self.node_label(node),
+                    self.decisions.kind(node),
+                    open.join("; "),
                 ),
             });
         };
@@ -514,6 +537,9 @@ impl CheckState<'_> {
         }
 
         self.node_types.insert(node, ty);
+        for waiter in self.solver.wake(Dependency::NodeType(node)) {
+            self.queue_task(waiter);
+        }
 
         Ok(())
     }
@@ -700,6 +726,17 @@ impl CheckState<'_> {
 
         if let Some(ty) = self.symbol_type_maybe(symbol) {
             return Ok(Answer::Ready(ty));
+        }
+
+        // external tables are sealed, so absence can never wake a waiter
+        if !self.is_component_module(symbol.module_id) {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "external symbol {} has no committed type\n{}",
+                    self.format_symbol(symbol),
+                    std::backtrace::Backtrace::force_capture(),
+                ),
+            });
         }
 
         Ok(Answer::pending([Dependency::SymbolType(symbol)]))

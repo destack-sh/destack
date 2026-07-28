@@ -37,8 +37,11 @@ impl CheckState<'_> {
                 _ => SmallVec::from_slice(&[element]),
             };
 
-            // keep exact elements once
+            // keep exact elements once, dropping the unknown identity
             for element in elements {
+                if matches!(self.ty(element)?, dir::Type::Unknown) {
+                    continue;
+                }
                 if !kept.contains(&element) {
                     kept.push(element);
                 }
@@ -46,6 +49,7 @@ impl CheckState<'_> {
         }
 
         match kept.as_slice() {
+            [] => self.intern_type(module, dir::Type::Unknown),
             [single] => Ok(*single),
             _ => {
                 let elements = self.intern_type_ids(module, &kept)?;
@@ -221,12 +225,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         Ok(match (left, right) {
             (Some(left), Some(right)) if left != right => {
-                let elements = self.intern_type_ids(origin.module(), &[left, right])?;
-
-                Some(self.intern_type(
-                    origin.module(),
-                    dir::Type::Intersection(dir::IntersectionType { elements }),
-                )?)
+                Some(self.normalized_intersection_type(origin.module(), [left, right])?)
             }
             (left, right) => left.or(right),
         })

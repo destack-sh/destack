@@ -263,7 +263,7 @@ impl CheckState<'_> {
             let ty = self.settled_root(ty)?;
 
             // omit rows declarations cannot settle without bodies
-            if self.is_declaration() && self.type_flags(ty)?.has_variable() {
+            if self.is_declaration() && self.has_open_variable(ty)? {
                 continue;
             }
             let ty = self.seal_type(ty, failed_applications, sealed)?;
@@ -299,6 +299,17 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return whether one type still contains an unsolved variable.
+    fn has_open_variable(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        for variable in self.type_variables(ty)? {
+            if self.solver.solution(variable)?.is_none() {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Resolve one module's recorded symbol types.
     fn resolved_symbol_types(
         &mut self,
@@ -323,7 +334,7 @@ impl CheckState<'_> {
             let ty = self.settled_root(ty)?;
 
             // omit rows declarations cannot settle without bodies
-            if self.is_declaration() && self.type_flags(ty)?.has_variable() {
+            if self.is_declaration() && self.has_open_variable(ty)? {
                 continue;
             }
             let ty = self.seal_type(ty, failed_applications, sealed)?;
@@ -491,8 +502,24 @@ impl CheckState<'_> {
                 self.map_type_children(id.module_id, id.module_id, ty, &mut |state, child| {
                     state.seal_type(child, failed_applications, sealed)
                 })?;
+            let rebuilt = self.intern_type(id.module_id, rebuilt)?;
 
-            self.intern_type(id.module_id, rebuilt)?
+            // sealed children may collapse the composite they sit in
+            match self.ty(rebuilt)? {
+                dir::Type::Union(union) => {
+                    let elements = self.type_ids(rebuilt.module_id, union.elements)?.to_vec();
+
+                    self.normalized_union_type(id.module_id, elements)?
+                }
+                dir::Type::Intersection(intersection) => {
+                    let elements = self
+                        .type_ids(rebuilt.module_id, intersection.elements)?
+                        .to_vec();
+
+                    self.normalized_intersection_type(id.module_id, elements)?
+                }
+                _ => rebuilt,
+            }
         };
 
         sealed.insert(id, Some(result));
