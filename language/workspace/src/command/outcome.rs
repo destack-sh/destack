@@ -1,4 +1,6 @@
-use destack_source::DiagnosticCollection;
+use std::sync::Arc;
+
+use destack_source::{DiagnosticCollection, File};
 
 use super::CommandMessagePayload;
 use crate::Message;
@@ -12,6 +14,8 @@ pub(crate) struct CommandOutcome<T = ()> {
     pub(crate) exit_code: i32,
     /// Messages produced by command execution.
     pub(crate) messages: Vec<Message>,
+    /// Source files referenced by command data.
+    pub(crate) files: Vec<Arc<File>>,
     /// Command payload data.
     pub(crate) data: T,
     /// Number of modules included in the command.
@@ -35,6 +39,7 @@ impl CommandOutcome<()> {
             diagnostics,
             exit_code,
             messages: Vec::new(),
+            files: Vec::new(),
             data: (),
             module_count,
             profile_count,
@@ -62,6 +67,7 @@ impl<T> CommandOutcome<T> {
             diagnostics: self.diagnostics,
             exit_code: self.exit_code,
             messages: self.messages,
+            files: self.files,
             data,
             module_count: self.module_count,
             profile_count: self.profile_count,
@@ -72,6 +78,12 @@ impl<T> CommandOutcome<T> {
     /// Attach one command message.
     pub(super) fn with_message(mut self, message: Message) -> Self {
         self.messages.push(message);
+        self
+    }
+
+    /// Attach source files referenced by command data.
+    pub(super) fn with_files(mut self, files: Vec<Arc<File>>) -> Self {
+        self.files = files;
         self
     }
 }

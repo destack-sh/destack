@@ -14,22 +14,23 @@ use crate::{
     CommandError, CommandOptions, CommandOutcome, CommandProgress, CommandResult, CommandRevision,
     DocInput, DocOptions, DocOutput, DoctorInput, DoctorOptions, DoctorOutput, FormatInput,
     FormatOutput, InfoInput, InfoOptions, InfoOutput, Output, OutputBuffer, ProgressEvent,
-    RunInput, RunOutput, SettingsInput, SettingsOptions, SettingsOutput, TargetsInput,
-    TargetsOptions, TargetsOutput, TaskInput, TaskOptions, TaskOutput, TestInput, TestOptions,
-    TestOutput, Workspace, source_watch_options,
+    QueryInput, QueryOutput, RewriteInput, RewriteOutput, RunInput, RunOutput, SettingsInput,
+    SettingsOptions, SettingsOutput, TargetsInput, TargetsOptions, TargetsOutput, TaskInput,
+    TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, Workspace, source_watch_options,
 };
 use dashmap::DashMap;
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
 };
 use destack_repository::{Ref, Repository, Revision};
-use destack_session::{Session, SessionEvent, SessionEventHandler};
+use destack_session::{SessionEvent, SessionEventHandler};
 use destack_source::{
     Content, ContentId, DiagnosticCollection, Edit, File, FileId, FileWatcher, OverlayFileSystem,
     TextRange,
 };
 use parking_lot::Mutex;
 
+use super::root::WorkspaceRoot;
 use super::{ReloadRequest, RunQueryRequest, RunQueryResponse, SessionPin, UpdateBatch};
 use crate::{ExportRequest, ExportResult, ExportedFile, FileEdit, FileImage, QueryFile};
 
@@ -37,8 +38,8 @@ use crate::{ExportRequest, ExportResult, ExportedFile, FileEdit, FileImage, Quer
 pub struct LocalWorkspace {
     /// Repository for workspace resolution.
     pub(crate) repository: Arc<Repository>,
-    /// Sessions keyed by root path.
-    pub(super) roots: DashMap<PathBuf, Arc<Session>>,
+    /// Opened roots keyed by root path.
+    pub(super) roots: DashMap<PathBuf, Arc<WorkspaceRoot>>,
     /// Open files keyed by source path.
     pub(crate) open_file_by_path: DashMap<PathBuf, OpenFile>,
     /// Overlay filesystem shared by live sessions.
@@ -63,7 +64,7 @@ impl std::fmt::Debug for LocalWorkspace {
         formatter
             .debug_struct("LocalWorkspace")
             .field("repository", &self.repository)
-            .field("sessions_by_root", &self.roots)
+            .field("roots", &self.roots)
             .field("open_file_by_path", &self.open_file_by_path.len())
             .field("overlay_file_system", &self.overlay_file_system.is_some())
             .field("file_watcher", &self.file_watcher.is_some())
@@ -183,13 +184,14 @@ impl LocalWorkspace {
             diagnostics,
             exit_code,
             messages,
+            files,
             data,
             module_count,
             profile_count,
             target_count,
         } = result;
         let revision = context.revision()?;
-        let files = command_file_images(&context, revision, &diagnostics)?;
+        let files = command_file_images(&context, revision, &diagnostics, &files)?;
         let success = exit_code == 0;
 
         let output = Output {
@@ -254,9 +256,17 @@ fn command_file_images(
     context: &CommandContext<'_>,
     revision: Revision,
     diagnostics: &DiagnosticCollection,
+    sources: &[Arc<File>],
 ) -> CommandResult<Vec<FileImage>> {
     let mut seen = HashSet::new();
     let mut files = Vec::new();
+
+    // retain files referenced by command data
+    for file in sources {
+        if seen.insert(file.id) {
+            files.push(FileImage::from(file.as_ref()));
+        }
+    }
 
     // collect every file referenced by labels and suggestion patches
     for diagnostic in diagnostics.iter() {
@@ -275,15 +285,11 @@ fn command_file_images(
                 continue;
             }
 
-            let file = context
-                .repository
-                .file(revision, file_id)
-                .map_err(|error| CommandError::internal(error.to_string()))?
-                .ok_or_else(|| {
-                    CommandError::internal(format!(
-                        "diagnostic references missing source file {file_id:?}"
-                    ))
-                })?;
+            let file = context.file(revision, file_id)?.ok_or_else(|| {
+                CommandError::internal(format!(
+                    "diagnostic references missing source file {file_id:?}"
+                ))
+            })?;
             files.push(FileImage::from(file.as_ref()));
         }
     }
@@ -373,6 +379,32 @@ impl Workspace for LocalWorkspace {
 
         self.run_command(root, &common, request.revision, progress, |context| {
             context.run_format_command(root, &request.source, request.mode)
+        })
+    }
+
+    fn query(
+        &self,
+        root: &Path,
+        request: QueryInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<QueryOutput, CommandError> {
+        let common = request.command_options();
+
+        self.run_command(root, &common, request.revision, progress, |context| {
+            context.run_query_command(&request)
+        })
+    }
+
+    fn rewrite(
+        &self,
+        root: &Path,
+        request: RewriteInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<RewriteOutput, CommandError> {
+        let common = request.command_options();
+
+        self.run_command(root, &common, request.revision, progress, |context| {
+            context.run_rewrite_command(&request)
         })
     }
 

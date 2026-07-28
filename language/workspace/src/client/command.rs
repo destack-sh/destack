@@ -3,9 +3,9 @@ use crate::protocol::{RequestOptions, RootId, WorkspaceRequest, WorkspaceRespons
 use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, DocInput, DocOutput, DoctorInput, DoctorOutput,
-    FormatInput, FormatOutput, InfoInput, InfoOutput, ProgressEvent, RunInput, RunOutput,
-    SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput,
-    TestOutput,
+    FormatInput, FormatOutput, InfoInput, InfoOutput, ProgressEvent, QueryInput, QueryOutput,
+    RewriteInput, RewriteOutput, RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput,
+    TargetsOutput, TaskInput, TaskOutput, TestInput, TestOutput,
 };
 
 impl Client {
@@ -48,6 +48,48 @@ impl Client {
             WorkspaceResponse::Format(response) => Ok(response),
             WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("format result", other)),
+        }
+    }
+
+    /// Query source files with one structural pattern.
+    pub fn query(
+        &self,
+        handle: RootId,
+        input: QueryInput,
+        options: RequestOptions,
+        on_progress: &mut dyn FnMut(ProgressEvent),
+    ) -> Result<QueryOutput, ClientError> {
+        let response = self.send_request_with_progress(
+            WorkspaceRequest::Query { handle, input },
+            options,
+            on_progress,
+        )?;
+
+        match response {
+            WorkspaceResponse::Query(response) => Ok(response),
+            WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
+            other => Err(Self::unexpected_response("query result", other)),
+        }
+    }
+
+    /// Rewrite source files with one structural pattern.
+    pub fn rewrite(
+        &self,
+        handle: RootId,
+        input: RewriteInput,
+        options: RequestOptions,
+        on_progress: &mut dyn FnMut(ProgressEvent),
+    ) -> Result<RewriteOutput, ClientError> {
+        let response = self.send_request_with_progress(
+            WorkspaceRequest::Rewrite { handle, input },
+            options,
+            on_progress,
+        )?;
+
+        match response {
+            WorkspaceResponse::Rewrite(response) => Ok(response),
+            WorkspaceResponse::Error(error) => Err(ClientError::Server(error)),
+            other => Err(Self::unexpected_response("rewrite result", other)),
         }
     }
 

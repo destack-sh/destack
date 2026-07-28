@@ -14,8 +14,8 @@ use super::{
 };
 use crate::{
     BenchInput, BuildInput, CacheInput, CheckInput, CleanInput, DocInput, DoctorInput,
-    ExportRequest, FormatInput, InfoInput, RunInput, SettingsInput, TargetsInput, TaskInput,
-    TestInput,
+    ExportRequest, FormatInput, InfoInput, QueryInput, RewriteInput, RunInput, SettingsInput,
+    TargetsInput, TaskInput, TestInput,
 };
 
 /// Requests accepted by the workspace protocol.
@@ -88,6 +88,20 @@ pub enum WorkspaceRequest {
         handle: RootId,
         /// Format input.
         input: FormatInput,
+    },
+    /// Query source files with a structural pattern.
+    Query {
+        /// Root handle.
+        handle: RootId,
+        /// Query input.
+        input: QueryInput,
+    },
+    /// Rewrite source files with a structural pattern.
+    Rewrite {
+        /// Root handle.
+        handle: RootId,
+        /// Rewrite input.
+        input: RewriteInput,
     },
     /// Build target artifacts.
     Build {

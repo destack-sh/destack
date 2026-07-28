@@ -27,6 +27,11 @@ pub enum Error {
         /// The current tracked client file version.
         current: i32,
     },
+    /// A disk write targeted an open editor document.
+    OpenFileWrite {
+        /// The open file path.
+        path: PathBuf,
+    },
     /// The requested text change is invalid.
     InvalidTextChange {
         /// The changed file path.
@@ -39,7 +44,7 @@ pub enum Error {
         /// The validation failure detail.
         detail: String,
     },
-    /// The query expected revision does not match the current revision.
+    /// The expected revision does not match the current revision.
     StaleRevision {
         /// The caller expected revision.
         expected: Revision,
@@ -62,6 +67,15 @@ pub enum Error {
         /// The path that failed.
         path: PathBuf,
         /// The filesystem failure.
+        source: std::io::Error,
+    },
+    /// Restoring source files after a failed operation also failed.
+    RollbackFailed {
+        /// The original operation failure.
+        operation: Box<Error>,
+        /// The path that could not be restored.
+        path: PathBuf,
+        /// The restoration failure.
         source: std::io::Error,
     },
     /// Internal workspace failure.
@@ -91,6 +105,13 @@ impl std::fmt::Display for Error {
                     path.display()
                 )
             }
+            Error::OpenFileWrite { path } => {
+                write!(
+                    formatter,
+                    "cannot write open editor source to disk: {}",
+                    path.display()
+                )
+            }
             Error::InvalidTextChange { path, detail } => {
                 write!(
                     formatter,
@@ -104,7 +125,7 @@ impl std::fmt::Display for Error {
             Error::StaleRevision { expected, current } => {
                 write!(
                     formatter,
-                    "stale query revision: expected {expected}, current {current}"
+                    "stale revision: expected {expected}, current {current}"
                 )
             }
             Error::TargetNotSelected { package_id } => {
@@ -129,6 +150,17 @@ impl std::fmt::Display for Error {
                     path.display()
                 )
             }
+            Error::RollbackFailed {
+                operation,
+                path,
+                source,
+            } => {
+                write!(
+                    formatter,
+                    "{operation}; restoring {} also failed: {source}",
+                    path.display()
+                )
+            }
             Error::Internal { detail } => {
                 write!(formatter, "workspace internal error: {detail}")
             }
@@ -143,6 +175,7 @@ impl std::error::Error for Error {
             Error::Session(error) => Some(error),
             Error::Query(error) => Some(error),
             Error::Io { source, .. } => Some(source),
+            Error::RollbackFailed { operation, .. } => Some(operation),
             _ => None,
         }
     }

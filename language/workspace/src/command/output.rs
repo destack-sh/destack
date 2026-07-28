@@ -13,6 +13,7 @@ use super::common::CommandMessagePayload;
 use super::doctor::DoctorPayload;
 use super::format::FormatPayload;
 use super::info::InfoPayload;
+use super::pattern::{QueryPayload, RewritePayload};
 use super::run::RunPayload;
 use super::settings::SettingsPayload;
 use super::targets::TargetsPayload;
@@ -31,7 +32,7 @@ macro_rules! command_output {
             pub exit_code: i32,
             /// Diagnostics produced by the operation.
             pub diagnostics: Vec<Diagnostic>,
-            /// File images needed to render diagnostics.
+            /// File images referenced by diagnostics and command data.
             pub files: Vec<FileImage>,
             /// Messages produced by operation execution.
             pub messages: Vec<Message>,
@@ -108,7 +109,7 @@ pub struct Output<T = ()> {
     pub exit_code: i32,
     /// Diagnostics produced by the operation.
     pub diagnostics: Vec<Diagnostic>,
-    /// File images needed to render diagnostics.
+    /// File images referenced by diagnostics and command data.
     pub files: Vec<FileImage>,
     /// Messages produced by operation execution.
     pub messages: Vec<Message>,
@@ -152,6 +153,8 @@ command_output!(DocOutput, CommandMessagePayload);
 command_output!(DoctorOutput, DoctorPayload);
 command_output!(FormatOutput, FormatPayload);
 command_output!(InfoOutput, InfoPayload);
+command_output!(QueryOutput, QueryPayload);
+command_output!(RewriteOutput, RewritePayload);
 command_output!(RunOutput, Option<RunPayload>);
 command_output!(SettingsOutput, SettingsPayload);
 command_output!(TargetsOutput, TargetsPayload);

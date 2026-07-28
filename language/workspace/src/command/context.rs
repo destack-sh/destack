@@ -11,7 +11,9 @@ use destack_repository::{
     apply_manifest_overrides_to_json, parse_jsonc_text,
 };
 use destack_session::{Session, SessionEventHandler};
-use destack_source::{DiagnosticCollection, Edit, FileType, ModuleId, ProfileId, TargetId, glob};
+use destack_source::{
+    DiagnosticCollection, Edit, File, FileId, FileType, ModuleId, ProfileId, TargetId, Uri, glob,
+};
 use serde_json::{Map, Value};
 
 use crate::LocalWorkspace;
@@ -33,8 +35,12 @@ pub(crate) struct CommandContext<'a> {
     pub(super) root: PathBuf,
     /// Repository for the command.
     pub(crate) repository: Arc<Repository>,
+    /// Root workspace revision from which this command forked.
+    pub(super) base: Revision,
     /// Private command session over the active revision.
     pub(super) session: Session,
+    /// Command files retained for diagnostics without entering the module index.
+    files: BTreeMap<FileId, Arc<File>>,
     /// Common command options.
     pub(super) common: &'a CommandOptions,
     /// Output buffer for command streaming.
@@ -85,7 +91,9 @@ impl<'a> CommandContext<'a> {
             workspace,
             root,
             repository,
+            base: revision,
             session,
+            files: BTreeMap::new(),
             common,
             output,
         })
@@ -408,8 +416,6 @@ impl<'a> CommandContext<'a> {
         file_type: FileType,
     ) -> CommandResult<ModuleId> {
         let path = PathBuf::from(command_input_logical_path(kind, name, file_type));
-
-        // publish the new command scoped file text
         self.session
             .edit(
                 self.session.head(),
@@ -426,6 +432,48 @@ impl<'a> CommandContext<'a> {
             .map_err(|error| format!("failed to resolve command input module {name}: {error}"))?;
 
         Ok(module_id)
+    }
+
+    /// Add one non-module command file retained for diagnostics.
+    pub(super) fn add_file(&mut self, path: PathBuf, content: &str) -> CommandResult<Arc<File>> {
+        let file_id = FileId::from_logical_path(&path);
+        let name = path
+            .file_name()
+            .ok_or_else(|| {
+                CommandError::internal(format!(
+                    "command file path has no file name: {}",
+                    path.display()
+                ))
+            })?
+            .to_string_lossy()
+            .into_owned();
+        let uri = Uri::logical(path.to_string_lossy());
+        let file = Arc::new(File::from_text(
+            file_id,
+            name,
+            uri,
+            None,
+            FileType::from_path_or_unknown(&path),
+            content.to_string(),
+        ));
+        self.files.insert(file_id, file.clone());
+
+        Ok(file)
+    }
+
+    /// Return one command or repository file.
+    pub(crate) fn file(
+        &self,
+        revision: Revision,
+        file_id: FileId,
+    ) -> CommandResult<Option<Arc<File>>> {
+        if let Some(file) = self.files.get(&file_id) {
+            return Ok(Some(file.clone()));
+        }
+
+        self.repository
+            .file(revision, file_id)
+            .map_err(|error| CommandError::internal(error.to_string()))
     }
 
     /// Return the unique selected profile count for the provided modules.

@@ -1477,6 +1477,7 @@ dependencies = [
  "destack_json",
  "destack_mir",
  "destack_parser",
+ "destack_pattern",
  "destack_program",
  "destack_query",
  "destack_repository",

@@ -13,8 +13,8 @@ use super::{
 };
 use crate::{
     BenchOutput, BuildOutput, CacheOutput, CheckOutput, CleanOutput, DocOutput, DoctorOutput,
-    ExportResult, FileImage, FormatOutput, InfoOutput, RunOutput, SettingsOutput, TargetsOutput,
-    TaskOutput, TestOutput,
+    ExportResult, FileImage, FormatOutput, InfoOutput, QueryOutput, RewriteOutput, RunOutput,
+    SettingsOutput, TargetsOutput, TaskOutput, TestOutput,
 };
 
 /// Responses emitted by the workspace protocol.
@@ -57,6 +57,10 @@ pub enum WorkspaceResponse {
     Check(CheckOutput),
     /// Format response.
     Format(FormatOutput),
+    /// Structural query response.
+    Query(QueryOutput),
+    /// Structural rewrite response.
+    Rewrite(RewriteOutput),
     /// Build response.
     Build(BuildOutput),
     /// Run response.

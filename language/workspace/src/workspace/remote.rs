@@ -14,9 +14,10 @@ use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, Client, ClientError, CommandError, CommandProgress,
     DocInput, DocOutput, DoctorInput, DoctorOutput, ExportRequest, ExportResult, FileEdit,
-    FormatInput, FormatOutput, InfoInput, InfoOutput, ProgressEvent, QueryFile, RunInput,
-    RunOutput, RunQueryResponse, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput,
-    TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch, WatchPolicy, WatchUpdate, Workspace,
+    FormatInput, FormatOutput, InfoInput, InfoOutput, ProgressEvent, QueryFile, QueryInput,
+    QueryOutput, RewriteInput, RewriteOutput, RunInput, RunOutput, RunQueryResponse, SettingsInput,
+    SettingsOutput, TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput, TestOutput,
+    UpdateBatch, WatchPolicy, WatchUpdate, Workspace,
 };
 
 /// Workspace backed by a protocol client.
@@ -294,6 +295,38 @@ impl Workspace for RemoteWorkspace {
 
         self.client
             .format(handle, request, RequestOptions::default(), &mut notify)
+            .map_err(Self::command_error)
+    }
+
+    fn query(
+        &self,
+        root: &Path,
+        request: QueryInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<QueryOutput, CommandError> {
+        let handle = self
+            .handle_for_root(root)
+            .map_err(Self::remote_command_error)?;
+        let mut notify = Self::client_progress(progress);
+
+        self.client
+            .query(handle, request, RequestOptions::default(), &mut notify)
+            .map_err(Self::command_error)
+    }
+
+    fn rewrite(
+        &self,
+        root: &Path,
+        request: RewriteInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<RewriteOutput, CommandError> {
+        let handle = self
+            .handle_for_root(root)
+            .map_err(Self::remote_command_error)?;
+        let mut notify = Self::client_progress(progress);
+
+        self.client
+            .rewrite(handle, request, RequestOptions::default(), &mut notify)
             .map_err(Self::command_error)
     }
 

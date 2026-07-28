@@ -1,9 +1,10 @@
-use destack_serde::Reflect;
+use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use destack_repository::Revision;
-use destack_session::{Change, Session};
+use destack_serde::Reflect;
+use destack_session::{Change, Session, SessionError};
 use destack_source::{
     ContentId, Edit, FileWatchEvent, FileWatchEventKind, TextChange, Uri, apply_text_changes,
 };
@@ -36,6 +37,14 @@ pub struct Commit {
     pub messages: Vec<Message>,
 }
 
+/// Previous filesystem content retained until one source commit publishes.
+struct FileBackup {
+    /// The source path.
+    path: PathBuf,
+    /// The previous bytes, or `None` when the path did not exist.
+    content: Option<Vec<u8>>,
+}
+
 impl LocalWorkspace {
     /// Open one file with its current content.
     pub fn open_file(&self, uri: Uri, version: i32, edit: Edit) -> Result<UpdateBatch, Error> {
@@ -45,8 +54,21 @@ impl LocalWorkspace {
     /// Change one open file to its current content.
     pub fn change_file(&self, uri: Uri, version: i32, edit: Edit) -> Result<UpdateBatch, Error> {
         let path = file_content_edit_path(&edit)?.to_path_buf();
+        let root = self.edit_root(path.as_path())?;
+        let _write = root.writes.lock();
 
-        // reject stale client versions before mutating repository state
+        self.commit_open_file(&root.session, path, uri, version, edit)
+    }
+
+    /// Commit one open file change while its root is locked.
+    fn commit_open_file(
+        &self,
+        session: &Session,
+        path: PathBuf,
+        uri: Uri,
+        version: i32,
+        edit: Edit,
+    ) -> Result<UpdateBatch, Error> {
         if let Some(current) = self.open_file_version(path.as_path())
             && version <= current
         {
@@ -58,7 +80,6 @@ impl LocalWorkspace {
         }
 
         // publish the open content as repository source truth
-        let session = self.edit_session(path.as_path())?;
         let is_removed = edit.is_remove();
         let open_content = edit.clone();
         let commit = session.edit(session.head(), vec![edit])?;
@@ -67,15 +88,15 @@ impl LocalWorkspace {
         if is_removed {
             self.remove_open_state(path.as_path());
 
-            return self.build_change_result(&session, commit.changes);
+            return self.build_change_result(session, commit.changes);
         }
 
         // store client metadata after the revision carries the same content
         let revision = session.revision(session.head())?;
-        let content_id = self.content_id_at_path(&session, revision, path.as_path())?;
+        let content_id = self.content_id_at_path(session, revision, path.as_path())?;
         self.set_open_state(path.as_path(), uri, version, content_id, open_content);
 
-        self.build_change_result(&session, commit.changes)
+        self.build_change_result(session, commit.changes)
     }
 
     /// Patch one open text file.
@@ -86,6 +107,9 @@ impl LocalWorkspace {
         version: i32,
         changes: Vec<TextChange>,
     ) -> Result<UpdateBatch, Error> {
+        let root = self.edit_root(path)?;
+        let _write = root.writes.lock();
+
         // reject stale client versions before computing text
         if let Some(current) = self.open_file_version(path)
             && version <= current
@@ -110,22 +134,22 @@ impl LocalWorkspace {
                 detail: error.to_string(),
             })?;
 
-        self.change_file(
-            uri,
-            version,
-            Edit::SetText {
-                path: path.to_path_buf(),
-                text: content,
-            },
-        )
+        let edit = Edit::SetText {
+            path: path.to_path_buf(),
+            text: content,
+        };
+
+        self.commit_open_file(&root.session, path.to_path_buf(), uri, version, edit)
     }
 
     /// Save one open file to explicit content.
     pub fn save_file(&self, edit: Edit) -> Result<UpdateBatch, Error> {
         let path = file_content_edit_path(&edit)?.to_path_buf();
+        let root = self.edit_root(path.as_path())?;
+        let _write = root.writes.lock();
+        let session = &root.session;
 
         // publish the saved content to the repository revision
-        let session = self.edit_session(path.as_path())?;
         let file = self.open_state(path.as_path());
         let is_removed = edit.is_remove();
         let open_content = edit.clone();
@@ -136,11 +160,11 @@ impl LocalWorkspace {
             if is_removed {
                 self.remove_open_state(path.as_path());
 
-                return self.build_change_result(&session, commit.changes);
+                return self.build_change_result(session, commit.changes);
             }
 
             let revision = session.revision(session.head())?;
-            let content_id = self.content_id_at_path(&session, revision, path.as_path())?;
+            let content_id = self.content_id_at_path(session, revision, path.as_path())?;
 
             self.set_open_state(
                 path.as_path(),
@@ -151,7 +175,7 @@ impl LocalWorkspace {
             );
         }
 
-        self.build_change_result(&session, commit.changes)
+        self.build_change_result(session, commit.changes)
     }
 
     /// Save text content from explicit content or host filesystem.
@@ -204,8 +228,11 @@ impl LocalWorkspace {
 
     /// Close one open file and restore filesystem backed source truth.
     pub fn close_file(&self, path: &Path) -> Result<UpdateBatch, Error> {
+        let root = self.edit_root(path)?;
+        let _write = root.writes.lock();
+        let session = &root.session;
+
         // remove overlay state first so filesystem reads see disk truth
-        let session = self.edit_session(path)?;
         let Some(file) = self.remove_open_state(path) else {
             return Ok(UpdateBatch::default());
         };
@@ -236,35 +263,60 @@ impl LocalWorkspace {
             }
         };
 
-        self.build_change_result(&session, commit.changes)
+        self.build_change_result(session, commit.changes)
     }
 
     /// Apply one edit through the workspace.
     pub fn apply_file(&self, edit: Edit) -> Result<UpdateBatch, Error> {
         let path = file_content_edit_path(&edit)?.to_path_buf();
+        let root = self.edit_root(path.as_path())?;
+        let _write = root.writes.lock();
+        let session = &root.session;
 
         // apply direct edits through the owning session
-        let session = self.edit_session(path.as_path())?;
         let commit = session
             .edit(session.head(), vec![edit])
             .map_err(Error::from)?;
 
-        self.build_change_result(&session, commit.changes)
+        self.build_change_result(session, commit.changes)
     }
 
     /// Write one edit to the host filesystem and workspace.
     pub fn write_file(&self, edit: Edit) -> Result<UpdateBatch, Error> {
-        self.write_update_to_disk(&edit)?;
+        let path = file_content_edit_path(&edit)?.to_path_buf();
+        let root = self.edit_root(path.as_path())?;
+        let _write = root.writes.lock();
+        let session = &root.session;
+        let revision = session.revision(session.head())?;
+        let commit = self.commit_source_edits(session, revision, vec![edit])?;
 
-        self.apply_file(edit)
+        self.build_change_result(session, commit.changes)
+    }
+
+    /// Write source edits when the current revision still matches.
+    pub(crate) fn write_source_edits_if_current(
+        &self,
+        root: &Path,
+        revision: Revision,
+        edits: Vec<Edit>,
+    ) -> Result<Commit, Error> {
+        let root = self.workspace_root(root)?;
+        let _write = root.writes.lock();
+        let commit = self.commit_source_edits(&root.session, revision, edits)?;
+
+        self.workspace_commit(&root.session, commit)
     }
 
     /// Apply atomic edits through the workspace.
     pub fn apply_source_edits(&self, root: &Path, edits: Vec<Edit>) -> Result<Commit, Error> {
+        let root = self.workspace_root(root)?;
+        let _write = root.writes.lock();
+        let session = &root.session;
+
         // publish the edit batch through the owning session
-        let session = self.session(root)?;
         let commit = session.edit(session.head(), edits)?;
-        self.workspace_commit(&session, commit)
+
+        self.workspace_commit(session, commit)
     }
 
     /// Apply atomic edits when the current revision still matches.
@@ -274,11 +326,114 @@ impl LocalWorkspace {
         revision: Revision,
         edits: Vec<Edit>,
     ) -> Result<Commit, Error> {
+        let root = self.workspace_root(root)?;
+        let _write = root.writes.lock();
+        let session = &root.session;
+
         // publish the edit batch through the owning session
-        let session = self.session(root)?;
         let commit = session.edit_if_current(session.head(), revision, edits)?;
 
-        self.workspace_commit(&session, commit)
+        self.workspace_commit(session, commit)
+    }
+
+    /// Commit source edits to disk and one exact session revision.
+    fn commit_source_edits(
+        &self,
+        session: &Session,
+        revision: Revision,
+        edits: Vec<Edit>,
+    ) -> Result<destack_session::Commit, Error> {
+        // validate disk targets before preparing repository state
+        for edit in &edits {
+            let path = file_content_edit_path(edit)?;
+            if self.has_open_file(path) {
+                return Err(Error::OpenFileWrite {
+                    path: path.to_path_buf(),
+                });
+            }
+        }
+
+        // build and pin the edited revision without publishing it
+        let prepared = match session.prepare_edit(session.head(), revision, edits.clone()) {
+            Ok(prepared) => prepared,
+            Err(SessionError::StaleRevision {
+                expected, current, ..
+            }) => return Err(Error::StaleRevision { expected, current }),
+            Err(error) => return Err(Error::from(error)),
+        };
+        let backups = self.backup_files(&edits)?;
+
+        // write every file while the root and session remain locked
+        for edit in &edits {
+            if let Err(error) = self.write_update_to_disk(edit) {
+                return Err(self.restore_after(error, &backups));
+            }
+        }
+
+        // publish only after every filesystem write succeeds
+        match prepared.publish() {
+            Ok(commit) => Ok(commit),
+            Err(error) => Err(self.restore_after(Error::from(error), &backups)),
+        }
+    }
+
+    /// Retain original filesystem bytes for every edited path.
+    fn backup_files(&self, edits: &[Edit]) -> Result<Vec<FileBackup>, Error> {
+        let file_system = self.repository.file_system();
+        let mut paths = HashSet::new();
+        let mut backups = Vec::new();
+
+        // read every distinct path before performing any write
+        for edit in edits {
+            let path = file_content_edit_path(edit)?;
+            if !paths.insert(path.to_path_buf()) {
+                continue;
+            }
+            let content = if file_system.exists(path).map_err(|source| Error::Io {
+                path: path.to_path_buf(),
+                source,
+            })? {
+                Some(file_system.read(path).map_err(|source| Error::Io {
+                    path: path.to_path_buf(),
+                    source,
+                })?)
+            } else {
+                None
+            };
+            backups.push(FileBackup {
+                path: path.to_path_buf(),
+                content,
+            });
+        }
+
+        Ok(backups)
+    }
+
+    /// Restore original filesystem content after a failed source commit.
+    fn restore_after(&self, operation: Error, backups: &[FileBackup]) -> Error {
+        // restore every path even when one restoration fails
+        let mut failure = None;
+        for backup in backups.iter().rev() {
+            let result = match &backup.content {
+                Some(content) => self.repository.file_system().write(&backup.path, content),
+                None => self.repository.file_system().remove_file(&backup.path),
+            };
+            if let Err(source) = result
+                && source.kind() != ErrorKind::NotFound
+                && failure.is_none()
+            {
+                failure = Some((backup.path.clone(), source));
+            }
+        }
+
+        match failure {
+            Some((path, source)) => Error::RollbackFailed {
+                operation: Box::new(operation),
+                path,
+                source,
+            },
+            None => operation,
+        }
     }
 
     /// Build one workspace commit from one session commit.
@@ -443,8 +598,16 @@ impl LocalWorkspace {
 
     /// Apply one watched file removal.
     fn apply_watch_removal(&self, path: &Path, result: &mut UpdateBatch) -> Result<(), Error> {
+        let root = self.edit_root(path)?;
+        let _write = root.writes.lock();
+        let session = &root.session;
+
+        // ignore files that became open after watch event collection
+        if self.has_open_file(path) {
+            return Ok(());
+        }
+
         // ignore paths outside repository reload policy
-        let session = self.edit_session(path)?;
         if !session.imports_filesystem_path(path) {
             return Ok(());
         }
@@ -456,7 +619,7 @@ impl LocalWorkspace {
                 path: path.to_path_buf(),
             }],
         ) {
-            Ok(commit) => self.extend_with_change_result(&session, commit.changes, result)?,
+            Ok(commit) => self.extend_with_change_result(session, commit.changes, result)?,
             Err(error) => result.messages.push(Message::warning(
                 "watch_remove_failed",
                 format!("watch: failed to remove {}: {error}", path.display()),
@@ -468,8 +631,16 @@ impl LocalWorkspace {
 
     /// Apply one watched file content refresh.
     fn apply_watch_file(&self, path: &Path, result: &mut UpdateBatch) -> Result<(), Error> {
+        let root = self.edit_root(path)?;
+        let _write = root.writes.lock();
+        let session = &root.session;
+
+        // ignore files that became open after watch event collection
+        if self.has_open_file(path) {
+            return Ok(());
+        }
+
         // ignore paths outside repository reload policy
-        let session = self.edit_session(path)?;
         if !session.imports_filesystem_path(path) {
             return Ok(());
         }
@@ -489,7 +660,7 @@ impl LocalWorkspace {
 
         // publish the refreshed file payload
         match session.edit(session.head(), vec![edit]) {
-            Ok(commit) => self.extend_with_change_result(&session, commit.changes, result)?,
+            Ok(commit) => self.extend_with_change_result(session, commit.changes, result)?,
             Err(error) => result.messages.push(Message::warning(
                 "watch_update_failed",
                 format!("watch: failed to update {}: {error}", path.display()),
@@ -528,11 +699,13 @@ impl LocalWorkspace {
         let mut result = UpdateBatch::default();
 
         // reload each root independently
-        for root in roots {
-            let session = self.session(root)?;
-            let open_files = self.open_files_under(root);
+        for root_path in roots {
+            let root = self.workspace_root(root_path)?;
+            let _write = root.writes.lock();
+            let session = &root.session;
+            let open_files = self.open_files_under(root_path);
             let changes = session.reload_from_fs(session.head())?;
-            let update = self.build_change_result(&session, changes)?;
+            let update = self.build_change_result(session, changes)?;
 
             result.updates.extend(update.updates);
             result.messages.extend(update.messages);
@@ -541,8 +714,8 @@ impl LocalWorkspace {
             for (path, file) in open_files {
                 let commit = session.edit(session.head(), vec![file.content.clone()])?;
                 let revision = session.revision(session.head())?;
-                let content_id = self.content_id_at_path(&session, revision, path.as_path())?;
-                let update = self.build_change_result(&session, commit.changes)?;
+                let content_id = self.content_id_at_path(session, revision, path.as_path())?;
+                let update = self.build_change_result(session, commit.changes)?;
 
                 self.set_open_state(
                     path.as_path(),

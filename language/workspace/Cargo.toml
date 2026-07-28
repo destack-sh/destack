@@ -23,6 +23,7 @@ destack_heap = { workspace = true }
 destack_json = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
+destack_pattern = { workspace = true }
 destack_program = { workspace = true }
 destack_query = { workspace = true }
 destack_session = { workspace = true, default-features = false }

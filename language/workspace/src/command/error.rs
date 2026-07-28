@@ -23,6 +23,8 @@ pub enum CommandErrorKind {
     Compiler,
     /// Runtime execution failure.
     Runtime,
+    /// Source publication failure.
+    Source,
     /// Payload serialization or decoding failure.
     Payload,
     /// Internal command failure.
@@ -53,6 +55,11 @@ impl CommandError {
     /// Create a runtime error.
     pub fn runtime(message: impl Into<String>) -> Self {
         Self::new(CommandErrorKind::Runtime, message)
+    }
+
+    /// Create a source publication error.
+    pub fn source(message: impl Into<String>) -> Self {
+        Self::new(CommandErrorKind::Source, message)
     }
 
     /// Create a payload error.
@@ -90,6 +97,7 @@ impl fmt::Display for CommandError {
             CommandErrorKind::Resolve => write!(formatter, "resolve error: {}", self.message),
             CommandErrorKind::Compiler => write!(formatter, "compiler error: {}", self.message),
             CommandErrorKind::Runtime => write!(formatter, "runtime error: {}", self.message),
+            CommandErrorKind::Source => write!(formatter, "source error: {}", self.message),
             CommandErrorKind::Payload => write!(formatter, "payload error: {}", self.message),
             CommandErrorKind::Internal => write!(formatter, "internal error: {}", self.message),
         }

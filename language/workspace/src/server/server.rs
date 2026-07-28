@@ -228,6 +228,16 @@ impl Server {
 
                 self.handle_format(handle, input, &notify)
             }
+            WorkspaceRequest::Query { handle, input } => {
+                let notify = self.progress_notification(transport, handle);
+
+                self.handle_query(handle, input, &notify)
+            }
+            WorkspaceRequest::Rewrite { handle, input } => {
+                let notify = self.progress_notification(transport, handle);
+
+                self.handle_rewrite(handle, input, &notify)
+            }
             WorkspaceRequest::Build { handle, input } => {
                 let notify = self.progress_notification(transport, handle);
 
@@ -389,7 +399,9 @@ impl Server {
         // map workspace errors into protocol domain errors
         let code = match error {
             Error::FileMissing { .. } | Error::PathNotInRoot { .. } => ProtocolErrorCode::NotFound,
-            Error::StaleOpenFile { .. } => ProtocolErrorCode::Conflict,
+            Error::StaleOpenFile { .. } | Error::OpenFileWrite { .. } => {
+                ProtocolErrorCode::Conflict
+            }
             Error::InvalidEdit { .. }
             | Error::InvalidTextChange { .. }
             | Error::TargetNotSelected { .. } => ProtocolErrorCode::InvalidRequest,
@@ -398,6 +410,7 @@ impl Server {
             | Error::Session(_)
             | Error::Query(_)
             | Error::Io { .. }
+            | Error::RollbackFailed { .. }
             | Error::Internal { .. } => ProtocolErrorCode::Internal,
         };
 

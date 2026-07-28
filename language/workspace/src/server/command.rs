@@ -2,8 +2,9 @@ use std::path::Path;
 
 use crate::{
     BenchInput, BuildInput, CacheInput, CheckInput, CleanInput, CommandError, CommandErrorKind,
-    CommandProgress, DocInput, DoctorInput, FormatInput, InfoInput, ProgressEvent, RunInput,
-    SettingsInput, TargetsInput, TaskInput, TestInput, Transport, Workspace,
+    CommandProgress, DocInput, DoctorInput, FormatInput, InfoInput, ProgressEvent, QueryInput,
+    RewriteInput, RunInput, SettingsInput, TargetsInput, TaskInput, TestInput, Transport,
+    Workspace,
 };
 
 use super::Server;
@@ -40,6 +41,36 @@ impl Server {
             notify,
             |workspace, root, progress| workspace.format(root, input, progress),
             WorkspaceResponse::Format,
+        )
+    }
+
+    /// Handle a structural query request.
+    pub(super) fn handle_query(
+        &self,
+        handle: RootId,
+        input: QueryInput,
+        notify: &(dyn Fn(ProgressEvent) + Sync),
+    ) -> Result<WorkspaceResponse, ProtocolError> {
+        self.handle_command(
+            handle,
+            notify,
+            |workspace, root, progress| workspace.query(root, input, progress),
+            WorkspaceResponse::Query,
+        )
+    }
+
+    /// Handle a structural rewrite request.
+    pub(super) fn handle_rewrite(
+        &self,
+        handle: RootId,
+        input: RewriteInput,
+        notify: &(dyn Fn(ProgressEvent) + Sync),
+    ) -> Result<WorkspaceResponse, ProtocolError> {
+        self.handle_command(
+            handle,
+            notify,
+            |workspace, root, progress| workspace.rewrite(root, input, progress),
+            WorkspaceResponse::Rewrite,
         )
     }
 
@@ -267,7 +298,9 @@ impl Server {
             | CommandErrorKind::Config
             | CommandErrorKind::Resolve
             | CommandErrorKind::Payload => ProtocolErrorCode::InvalidRequest,
-            CommandErrorKind::Compiler | CommandErrorKind::Runtime => ProtocolErrorCode::Conflict,
+            CommandErrorKind::Compiler | CommandErrorKind::Runtime | CommandErrorKind::Source => {
+                ProtocolErrorCode::Conflict
+            }
             CommandErrorKind::Internal => ProtocolErrorCode::Internal,
         };
 

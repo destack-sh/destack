@@ -4,12 +4,32 @@ use std::sync::Arc;
 use destack_repository::{Ref, Revision};
 use destack_serde::Reflect;
 use destack_session::Session;
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::Error;
 use crate::file::normalize_path;
 
 use super::LocalWorkspace;
+
+/// One opened source root.
+pub(crate) struct WorkspaceRoot {
+    /// The live source session.
+    pub(crate) session: Arc<Session>,
+    /// Serializes source changes and open document state.
+    pub(crate) writes: Mutex<()>,
+}
+
+impl std::fmt::Debug for WorkspaceRoot {
+    /// Format the opened root state.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("WorkspaceRoot")
+            .field("session", &self.session)
+            .field("writes", &self.writes)
+            .finish()
+    }
+}
 
 /// Request to reload host source state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -86,7 +106,7 @@ impl LocalWorkspace {
         let mut best_depth = 0usize;
 
         for entry in self.roots.iter() {
-            let session = entry.value();
+            let session = &entry.value().session;
             let revision = session.revision(session.head())?;
             let repository = session.repository();
             let file_id = session.file_id(path);
@@ -113,15 +133,18 @@ impl LocalWorkspace {
         Ok(best_root)
     }
 
-    /// Resolve the session that should own one edit.
-    pub(crate) fn edit_session(&self, path: &Path) -> Result<Arc<Session>, Error> {
-        // prefer configured root ownership for local edits
-        if let Some(root) = self.resolve_configured_root(path) {
-            return self.session(&root);
-        }
+    /// Resolve the opened root that should own one edit.
+    pub(crate) fn edit_root(&self, path: &Path) -> Result<Arc<WorkspaceRoot>, Error> {
+        let root = match self.resolve_configured_root(path) {
+            Some(root) => root,
+            None => self
+                .resolve_repository_root(path)?
+                .ok_or_else(|| Error::PathNotInRoot {
+                    path: path.to_path_buf(),
+                })?,
+        };
 
-        // fall back to tracked repository ownership
-        self.session_at(path)
+        self.workspace_root(&root)
     }
 
     /// Return the canonical path when available, otherwise the original path.
@@ -146,7 +169,12 @@ impl LocalWorkspace {
         }
 
         let session = Arc::new(self.build_session(root.clone())?);
-        self.roots.insert(root.clone(), Arc::clone(&session));
+        let workspace_root = Arc::new(WorkspaceRoot {
+            session: Arc::clone(&session),
+            writes: Mutex::new(()),
+        });
+        let _write = workspace_root.writes.lock();
+        self.roots.insert(root.clone(), Arc::clone(&workspace_root));
 
         // synchronize the current source state for the new root ref
         let result = session.reload_from_fs(session.head());
@@ -165,6 +193,8 @@ impl LocalWorkspace {
         let Some(root) = self.configured_root(root) else {
             return Ok(());
         };
+        let workspace_root = self.workspace_root(root.as_path())?;
+        let _write = workspace_root.writes.lock();
 
         self.remove_open_files_under(root.as_path());
         if let Some((_, watch)) = self.watches.remove(root.as_path()) {
@@ -192,6 +222,13 @@ impl LocalWorkspace {
 
     /// Resolve or create the session for a root.
     pub fn session(&self, root: &Path) -> Result<Arc<Session>, Error> {
+        let workspace_root = self.workspace_root(root)?;
+
+        Ok(Arc::clone(&workspace_root.session))
+    }
+
+    /// Resolve or create one opened root.
+    pub(crate) fn workspace_root(&self, root: &Path) -> Result<Arc<WorkspaceRoot>, Error> {
         let root = root.to_path_buf();
 
         if !self.roots.contains_key(&root) {
@@ -204,28 +241,17 @@ impl LocalWorkspace {
             .map(|entry| Arc::clone(entry.value()))
             .ok_or_else(|| Error::PathNotInRoot { path: root.clone() })?;
 
-        if session.root() != root {
+        if session.session.root() != root {
             return Err(Error::Internal {
                 detail: format!(
                     "session root mismatch: expected {}, found {}",
                     root.display(),
-                    session.root().display()
+                    session.session.root().display()
                 ),
             });
         }
 
         Ok(session)
-    }
-
-    /// Resolve or create the session that owns a path.
-    pub(super) fn session_at(&self, path: &Path) -> Result<Arc<Session>, Error> {
-        let Some(root) = self.resolve_repository_root(path)? else {
-            return Err(Error::PathNotInRoot {
-                path: path.to_path_buf(),
-            });
-        };
-
-        self.session(&root)
     }
 
     /// Resolve the current revision for the session that owns a path.

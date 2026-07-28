@@ -1,4 +1,4 @@
-use destack_source::Edit;
+use destack_source::{Edit, FileSystem};
 
 use crate::Error;
 use crate::tests::harness::TestWorkspace;
@@ -186,4 +186,101 @@ fn test_change_file_rejects_stale_version() {
         .expect_err("expected stale file version");
 
     assert!(matches!(error, Error::StaleOpenFile { .. }));
+}
+
+/// Reject stale disk writes before changing filesystem or Workspace source state.
+#[test]
+fn test_write_source_edits_rejects_stale_revision() {
+    let test = TestWorkspace::new("workspace_stale_write");
+    let disk_source = "export const value = 1;\n";
+    let live_source = "export const value = 2;\n";
+    let attempted_source = "export const value = 3;\n";
+    let path = test.write_text("main.ds", disk_source);
+    test.apply_text(&path, disk_source);
+    let stale = test
+        .workspace
+        .revision(&test.roots[0])
+        .expect("read stale base");
+    test.apply_text(&path, live_source);
+    let live = test
+        .workspace
+        .revision(&test.roots[0])
+        .expect("read live revision");
+
+    let error = test
+        .workspace
+        .write_source_edits_if_current(
+            &test.roots[0],
+            stale,
+            vec![Edit::SetText {
+                path: path.clone(),
+                text: attempted_source.to_string(),
+            }],
+        )
+        .expect_err("reject stale source write");
+
+    assert!(matches!(error, Error::StaleRevision { .. }));
+    assert_eq!(
+        test.fs.read_to_string(&path).expect("read disk source"),
+        disk_source
+    );
+    assert_eq!(
+        test.workspace
+            .revision(&test.roots[0])
+            .expect("read retained revision"),
+        live
+    );
+}
+
+/// Restore every changed file when one source write fails.
+#[test]
+fn test_write_source_edits_restores_failed_batch() {
+    let test = TestWorkspace::new_with_write_failure("source-write-failure", "second.ds");
+    let first_source = "export const value = 1;\n";
+    let second_source = "export const value = 2;\n";
+    let first = test.write_text("first.ds", first_source);
+    let second = test.write_text("second.ds", second_source);
+    test.apply_text(&first, first_source);
+    test.apply_text(&second, second_source);
+    let before = test
+        .workspace
+        .revision(&test.roots[0])
+        .expect("read revision before failed write");
+    let edits = vec![
+        Edit::SetText {
+            path: first.clone(),
+            text: "export const value = 3;\n".to_string(),
+        },
+        Edit::SetText {
+            path: second.clone(),
+            text: "export const value = 4;\n".to_string(),
+        },
+    ];
+
+    let error = test
+        .workspace
+        .write_source_edits_if_current(&test.roots[0], before, edits)
+        .expect_err("fail source write batch");
+
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "filesystem error at {}: injected write failure",
+            second.display()
+        )
+    );
+    assert_eq!(
+        test.fs.read_to_string(&first).expect("read first source"),
+        first_source
+    );
+    assert_eq!(
+        test.fs.read_to_string(&second).expect("read second source"),
+        second_source
+    );
+    assert_eq!(
+        test.workspace
+            .revision(&test.roots[0])
+            .expect("read unchanged revision"),
+        before
+    );
 }

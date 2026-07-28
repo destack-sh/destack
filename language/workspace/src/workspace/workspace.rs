@@ -14,8 +14,9 @@ use crate::{
     BenchInput, BenchOutput, BuildInput, BuildOutput, CacheInput, CacheOutput, CheckInput,
     CheckOutput, CleanInput, CleanOutput, CommandError, CommandProgress, DocInput, DocOutput,
     DoctorInput, DoctorOutput, ExportRequest, ExportResult, FileEdit, FormatInput, FormatOutput,
-    InfoInput, InfoOutput, QueryFile, RunInput, RunOutput, SettingsInput, SettingsOutput,
-    TargetsInput, TargetsOutput, TaskInput, TaskOutput, TestInput, TestOutput, UpdateBatch,
+    InfoInput, InfoOutput, QueryFile, QueryInput, QueryOutput, RewriteInput, RewriteOutput,
+    RunInput, RunOutput, SettingsInput, SettingsOutput, TargetsInput, TargetsOutput, TaskInput,
+    TaskOutput, TestInput, TestOutput, UpdateBatch,
 };
 
 /// Workspace operations shared by local and remote workspace implementations.
@@ -96,6 +97,22 @@ pub trait Workspace: std::fmt::Debug + Send + Sync {
         input: FormatInput,
         progress: Option<CommandProgress<'_>>,
     ) -> Result<FormatOutput, CommandError>;
+
+    /// Query source files with one structural pattern.
+    fn query(
+        &self,
+        root: &Path,
+        input: QueryInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<QueryOutput, CommandError>;
+
+    /// Rewrite source files with one structural pattern.
+    fn rewrite(
+        &self,
+        root: &Path,
+        input: RewriteInput,
+        progress: Option<CommandProgress<'_>>,
+    ) -> Result<RewriteOutput, CommandError>;
 
     /// Build target artifacts for a root.
     fn build(
