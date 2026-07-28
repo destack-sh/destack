@@ -6,40 +6,21 @@ use core::arch::aarch64::{vaddq_s32, vld1q_s32, vst1q_s32};
 use core::arch::x86_64::{__m128i, _mm_add_epi32, _mm_loadu_si128, _mm_storeu_si128};
 
 use destack_bytecode::{
-    CodeOffset, ConvertMode, FloatOperation, Instruction, IntegerOperation, Operands,
-    ReduceOperation, RegisterRange, Scalar, VectorOperation, VectorType,
+    ConvertMode, FloatOperation, Instruction, IntegerOperation, Operands, ReduceOperation,
+    RegisterSpan, Scalar, VectorOperation, VectorType,
 };
-use destack_program::{Continuation, MemoryAccess, Outcome, Word};
+use destack_program::Word;
 
 use crate::diagnostic::{Error, Result, Trap};
-use crate::machine::{Activation, Frame};
+use crate::machine::Activation;
 
 impl Activation<'_, '_> {
     /// Execute one packed vector operation.
-    pub(crate) fn execute_vector<const WATCH: bool>(
+    pub(crate) fn execute_vector(
         &mut self,
-        frame: Frame,
-        instruction_offset: CodeOffset,
         instruction: Instruction<'_>,
         operation: VectorOperation,
-    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
-        let access = match operation {
-            VectorOperation::Load => Some(MemoryAccess::Read),
-            VectorOperation::Store => Some(MemoryAccess::Write),
-            _ => None,
-        };
-        let needs_range = WATCH
-            && access.is_some()
-            && self
-                .watch_points
-                .is_some_and(|points| points.requires_memory_range());
-        let address = if needs_range {
-            Some(self.vector_address(instruction, operation)?)
-        } else {
-            None
-        };
-
-        // execute one packed vector operation
+    ) -> Result<()> {
         match operation {
             VectorOperation::Splat => self.execute_vector_splat(instruction),
             VectorOperation::Insert => self.execute_vector_insert(instruction),
@@ -52,40 +33,27 @@ impl Activation<'_, '_> {
             VectorOperation::Load => self.execute_vector_load(instruction),
             VectorOperation::Store => self.execute_vector_store(instruction),
             VectorOperation::Convert => self.execute_vector_convert(instruction),
-        }?;
-
-        // report vector memory only in the observed loop
-        if WATCH && let Some(access) = access {
-            self.watch_after(frame, instruction_offset, access, address)
-        } else {
-            Ok(None)
         }
     }
 
     /// Return the touched native byte range for one vector memory operation.
-    fn vector_address(
+    pub(crate) fn vector_address(
         &self,
         instruction: Instruction<'_>,
         operation: VectorOperation,
     ) -> Result<(usize, usize)> {
-        let mut operands = instruction.operands();
+        let mut operands = self.operands(instruction);
         let pointer = if operation == VectorOperation::Load {
-            let _target = operands.range().map_err(|_| self.invalid_instruction())?;
+            let _target = operands.span()?;
 
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?
+            operands.register()?
         } else {
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?
+            operands.register()?
         };
         if operation == VectorOperation::Store {
-            let _source = operands.range().map_err(|_| self.invalid_instruction())?;
+            let _source = operands.span()?;
         }
-        let vector = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
+        let vector = operands.vector_type()?;
         let address = self.read(pointer.0).bits() as usize;
 
         Ok((address, Self::vector_byte_len(vector)))
@@ -93,14 +61,10 @@ impl Activation<'_, '_> {
 
     /// Broadcast one scalar across every lane.
     fn execute_vector_splat(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands.range().map_err(|_| self.invalid_instruction())?;
-        let value = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let vector = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.span()?;
+        let value = operands.register()?;
+        let vector = operands.vector_type()?;
         let value = self.read(value.0).bits();
         self.clear_vector(target);
 
@@ -113,18 +77,12 @@ impl Activation<'_, '_> {
 
     /// Replace one vector lane.
     fn execute_vector_insert(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands.range().map_err(|_| self.invalid_instruction())?;
-        let source = operands.range().map_err(|_| self.invalid_instruction())?;
-        let index = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let value = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let vector = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.span()?;
+        let source = operands.span()?;
+        let index = operands.register()?;
+        let value = operands.register()?;
+        let vector = operands.vector_type()?;
         let index = self.read(index.0).bits();
         if index >= u64::from(vector.lane_count) {
             return Err(Error::trap(Trap::Bounds));
@@ -137,17 +95,11 @@ impl Activation<'_, '_> {
 
     /// Extract one vector lane.
     fn execute_vector_extract(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.range().map_err(|_| self.invalid_instruction())?;
-        let index = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let vector = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.span()?;
+        let index = operands.register()?;
+        let vector = operands.vector_type()?;
         let index = self.read(index.0).bits();
         if index >= u64::from(vector.lane_count) {
             return Err(Error::trap(Trap::Bounds));
@@ -161,32 +113,24 @@ impl Activation<'_, '_> {
 
     /// Select lanes from two vectors.
     fn execute_vector_shuffle(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands.range().map_err(|_| self.invalid_instruction())?;
-        let input_count = operands.u16().map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.span()?;
+        let input_count = operands.u16()?;
         if input_count != 2 {
             return Err(self.invalid_instruction());
         }
-        let left = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let right = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let lane_count = operands.u16().map_err(|_| self.invalid_instruction())?;
+        let left = operands.register()?;
+        let right = operands.register()?;
+        let lane_count = operands.u16()?;
         if lane_count == 0 {
             return Err(self.invalid_instruction());
         }
         let lanes = operands;
         let mut vector_operand = lanes;
         for _ in 0..lane_count {
-            vector_operand
-                .u16()
-                .map_err(|_| self.invalid_instruction())?;
+            vector_operand.u16()?;
         }
-        let vector = vector_operand
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
+        let vector = vector_operand.vector_type()?;
         if lane_count != vector.lane_count {
             return Err(self.invalid_instruction());
         }
@@ -194,7 +138,7 @@ impl Activation<'_, '_> {
 
         let mut lanes = lanes;
         for target_lane in 0..lane_count {
-            let source_lane = lanes.u16().map_err(|_| self.invalid_instruction())?;
+            let source_lane = lanes.u16()?;
             if source_lane >= lane_count * 2 {
                 return Err(self.invalid_instruction());
             }
@@ -203,7 +147,7 @@ impl Activation<'_, '_> {
             } else {
                 (right, source_lane - lane_count)
             };
-            let source = RegisterRange::new(source, vector.word_count());
+            let source = RegisterSpan::new(source, vector.word_count());
             let value = self.read_vector_lane(source, vector, source_lane);
             self.write_vector_lane(target, vector, target_lane, value);
         }
@@ -217,22 +161,18 @@ impl Activation<'_, '_> {
         instruction: Instruction<'_>,
         is_comparison: bool,
     ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands.range().map_err(|_| self.invalid_instruction())?;
-        let input_count = operands.u16().map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.span()?;
+        let input_count = operands.u16()?;
         if input_count == 0 || input_count > 3 {
             return Err(self.invalid_instruction());
         }
         let inputs = operands;
         for _ in 0..input_count {
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?;
+            operands.register()?;
         }
-        let vector = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
-        let operator = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let vector = operands.vector_type()?;
+        let operator = operands.u16()? as u8;
         if vector.scalar.is_float() {
             let operation =
                 FloatOperation::from_code(operator).ok_or_else(|| self.invalid_instruction())?;
@@ -260,8 +200,8 @@ impl Activation<'_, '_> {
     /// Execute one floating-point operation across packed vector lanes.
     fn execute_float_vector_lanes(
         &mut self,
-        target: RegisterRange,
-        inputs: Operands<'_>,
+        target: RegisterSpan,
+        inputs: Operands<'_, false>,
         input_count: u16,
         vector: VectorType,
         operation: FloatOperation,
@@ -297,8 +237,8 @@ impl Activation<'_, '_> {
     /// Execute one integer operation across packed vector lanes.
     fn execute_integer_vector_lanes(
         &mut self,
-        target: RegisterRange,
-        inputs: Operands<'_>,
+        target: RegisterSpan,
+        inputs: Operands<'_, false>,
         input_count: u16,
         vector: VectorType,
         operation: IntegerOperation,
@@ -309,10 +249,10 @@ impl Activation<'_, '_> {
             && matches!(vector.scalar, Scalar::Int32 | Scalar::Uint32)
         {
             let mut inputs = inputs;
-            let left = inputs.register().map_err(|_| self.invalid_instruction())?;
-            let right = inputs.register().map_err(|_| self.invalid_instruction())?;
-            let left = RegisterRange::new(left, vector.word_count());
-            let right = RegisterRange::new(right, vector.word_count());
+            let left = inputs.register()?;
+            let right = inputs.register()?;
+            let left = RegisterSpan::new(left, vector.word_count());
+            let right = RegisterSpan::new(right, vector.word_count());
             self.add_i32x4(target, left, right);
 
             return Ok(());
@@ -343,16 +283,12 @@ impl Activation<'_, '_> {
 
     /// Convert every vector lane into one target scalar representation.
     fn execute_vector_convert(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands.range().map_err(|_| self.invalid_instruction())?;
-        let source = operands.range().map_err(|_| self.invalid_instruction())?;
-        let source_type = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
-        let target_type = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
-        let mode = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let mut operands = self.operands(instruction);
+        let target = operands.span()?;
+        let source = operands.span()?;
+        let source_type = operands.vector_type()?;
+        let target_type = operands.vector_type()?;
+        let mode = operands.u16()? as u8;
         let mode = ConvertMode::from_code(mode).ok_or_else(|| self.invalid_instruction())?;
         if source_type.lane_count != target_type.lane_count {
             return Err(self.invalid_instruction());
@@ -372,27 +308,19 @@ impl Activation<'_, '_> {
 
     /// Select each lane through one packed boolean mask.
     fn execute_vector_select(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands.range().map_err(|_| self.invalid_instruction())?;
-        let input_count = operands.u16().map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.span()?;
+        let input_count = operands.u16()?;
         if input_count != 3 {
             return Err(self.invalid_instruction());
         }
-        let condition = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let left = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let right = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let vector = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
-        let condition = RegisterRange::new(condition, vector.mask().word_count());
-        let left = RegisterRange::new(left, vector.word_count());
-        let right = RegisterRange::new(right, vector.word_count());
+        let condition = operands.register()?;
+        let left = operands.register()?;
+        let right = operands.register()?;
+        let vector = operands.vector_type()?;
+        let condition = RegisterSpan::new(condition, vector.mask().word_count());
+        let left = RegisterSpan::new(left, vector.word_count());
+        let right = RegisterSpan::new(right, vector.word_count());
         self.clear_vector(target);
 
         for lane in 0..vector.lane_count {
@@ -410,15 +338,11 @@ impl Activation<'_, '_> {
 
     /// Reduce every vector lane into one scalar.
     fn execute_vector_reduce(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.range().map_err(|_| self.invalid_instruction())?;
-        let vector = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
-        let operation = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.span()?;
+        let vector = operands.vector_type()?;
+        let operation = operands.u16()? as u8;
         let operation =
             ReduceOperation::from_code(operation).ok_or_else(|| self.invalid_instruction())?;
         if vector.lane_count == 0 {
@@ -439,14 +363,10 @@ impl Activation<'_, '_> {
 
     /// Load one packed vector from a native pointer.
     fn execute_vector_load(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands.range().map_err(|_| self.invalid_instruction())?;
-        let source = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let vector = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.span()?;
+        let source = operands.register()?;
+        let vector = operands.vector_type()?;
         let target = self.vector_pointer(target);
         let source = self.read(source.0).bits() as *const u8;
 
@@ -460,14 +380,10 @@ impl Activation<'_, '_> {
 
     /// Store one packed vector through a native pointer.
     fn execute_vector_store(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.range().map_err(|_| self.invalid_instruction())?;
-        let vector = operands
-            .vector_type()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.span()?;
+        let vector = operands.vector_type()?;
         let target = self.read(target.0).bits() as *mut u8;
         let source = self.vector_pointer(source).cast_const();
 
@@ -482,14 +398,12 @@ impl Activation<'_, '_> {
     /// Read one vector input lane from an encoded register list.
     fn vector_input(
         &self,
-        operands: &mut Operands<'_>,
+        operands: &mut Operands<'_, false>,
         vector: VectorType,
         lane: u16,
     ) -> Result<Word> {
-        let register = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let range = RegisterRange::new(register, vector.word_count());
+        let register = operands.register()?;
+        let range = RegisterSpan::new(register, vector.word_count());
         let value = self.read_vector_lane(range, vector, lane);
 
         Ok(Word::from_bits(vector.scalar.encode(value)))
@@ -544,7 +458,7 @@ impl Activation<'_, '_> {
 
     /// Read one packed lane from a contiguous register range.
     #[inline(always)]
-    fn read_vector_lane(&self, range: RegisterRange, vector: VectorType, lane: u16) -> u64 {
+    fn read_vector_lane(&self, range: RegisterSpan, vector: VectorType, lane: u16) -> u64 {
         let bit_width = u32::from(vector.scalar.bit_width());
         let bit_offset = u32::from(lane) * bit_width;
         let word = range.start.0 + (bit_offset / u64::BITS) as u16;
@@ -558,7 +472,7 @@ impl Activation<'_, '_> {
     #[inline(always)]
     fn write_vector_lane(
         &mut self,
-        range: RegisterRange,
+        range: RegisterSpan,
         vector: VectorType,
         lane: u16,
         value: u64,
@@ -575,7 +489,7 @@ impl Activation<'_, '_> {
     }
 
     /// Clear one vector result range before packed lane writes.
-    fn clear_vector(&mut self, range: RegisterRange) {
+    fn clear_vector(&mut self, range: RegisterSpan) {
         for word in 0..range.word_count {
             self.write(range.start.0 + word, Word::ZERO);
         }
@@ -584,7 +498,7 @@ impl Activation<'_, '_> {
     /// Add four packed 32-bit integer lanes on AArch64.
     #[cfg(target_arch = "aarch64")]
     #[inline(always)]
-    fn add_i32x4(&mut self, target: RegisterRange, left: RegisterRange, right: RegisterRange) {
+    fn add_i32x4(&mut self, target: RegisterSpan, left: RegisterSpan, right: RegisterSpan) {
         let target = self.vector_pointer(target).cast::<i32>();
         let left = self.vector_pointer(left).cast::<i32>();
         let right = self.vector_pointer(right).cast::<i32>();
@@ -600,7 +514,7 @@ impl Activation<'_, '_> {
     /// Add four packed 32-bit integer lanes on x86-64.
     #[cfg(target_arch = "x86_64")]
     #[inline(always)]
-    fn add_i32x4(&mut self, target: RegisterRange, left: RegisterRange, right: RegisterRange) {
+    fn add_i32x4(&mut self, target: RegisterSpan, left: RegisterSpan, right: RegisterSpan) {
         let target = self.vector_pointer(target).cast::<__m128i>();
         let left = self.vector_pointer(left).cast::<__m128i>();
         let right = self.vector_pointer(right).cast::<__m128i>();
@@ -616,7 +530,7 @@ impl Activation<'_, '_> {
     /// Add four packed 32-bit integer lanes without target SIMD.
     #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
     #[inline(always)]
-    fn add_i32x4(&mut self, target: RegisterRange, left: RegisterRange, right: RegisterRange) {
+    fn add_i32x4(&mut self, target: RegisterSpan, left: RegisterSpan, right: RegisterSpan) {
         self.clear_vector(target);
         let vector = VectorType::new(Scalar::Uint32, 4);
 
@@ -629,7 +543,7 @@ impl Activation<'_, '_> {
     }
 
     /// Return the native address of one vector register range.
-    fn vector_pointer(&self, range: RegisterRange) -> *mut u8 {
+    fn vector_pointer(&self, range: RegisterSpan) -> *mut u8 {
         let frame = self.frame();
         let byte_offset = frame.range(range) * Word::BYTE_LEN;
 

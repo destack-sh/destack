@@ -13,13 +13,9 @@ impl Activation<'_, '_> {
         source: ValueType,
         target: ValueType,
     ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let result = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let value = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let result = operands.register()?;
+        let value = operands.register()?;
         let value = self.read(value.0);
 
         let value = match operation {

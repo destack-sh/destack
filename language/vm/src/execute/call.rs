@@ -1,7 +1,7 @@
 use std::ptr;
 
 use destack_bytecode::{CodeOffset, Instruction, Opcode, Operands};
-use destack_program::{DynamicTableId, FunctionId, VirtualTableId, Word};
+use destack_program::{DynamicTableId, FunctionId, Outcome, VirtualTableId, Word};
 
 use crate::diagnostic::{Error, Result};
 use crate::machine::{Activation, Return};
@@ -18,27 +18,27 @@ impl Activation<'_, '_> {
     /// Execute one direct, indirect, or dynamic bytecode call.
     pub(crate) fn execute_call(
         &mut self,
+        pc: CodeOffset,
         instruction: Instruction<'_>,
-        instruction_offset: CodeOffset,
     ) -> Result<()> {
         let opcode = instruction.opcode();
-        let mut operands = instruction.operands();
+        let mut operands = self.operands(instruction);
 
         // replace the current frame directly for tail calls
         if Self::is_tail_call(opcode) {
             let callee = self.callee(opcode, &mut operands)?;
-            let arguments = operands.range().map_err(|_| self.invalid_instruction())?;
+            let arguments = operands.span()?;
 
             return self.tail_call(callee.function, arguments, callee.environment);
         }
 
         // decode the result range before the selected callee form
-        let results = operands.range().map_err(|_| self.invalid_instruction())?;
+        let results = operands.span()?;
         let callee = self.callee(opcode, &mut operands)?;
-        let arguments = operands.range().map_err(|_| self.invalid_instruction())?;
+        let arguments = operands.span()?;
         let (normal, unwind) = if Self::is_invoke(opcode) {
-            let normal = operands.i32().map_err(|_| self.invalid_instruction())?;
-            let unwind = operands.i32().map_err(|_| self.invalid_instruction())?;
+            let normal = operands.i32()?;
+            let unwind = operands.i32()?;
 
             (Some(normal), Some(unwind))
         } else {
@@ -49,8 +49,12 @@ impl Activation<'_, '_> {
             callee.function,
             arguments,
             callee.environment,
-            Return::Values(results),
-            instruction_offset,
+            Return::Call {
+                pc,
+                registers: results,
+                normal: None,
+                unwind: None,
+            },
             normal,
             unwind,
         )
@@ -60,19 +64,19 @@ impl Activation<'_, '_> {
     pub(crate) fn execute_return(
         &mut self,
         instruction: Instruction<'_>,
-    ) -> Result<Option<Vec<Word>>> {
-        let mut operands = instruction.operands();
-        let results = operands.range().map_err(|_| self.invalid_instruction())?;
+    ) -> Result<Option<Outcome<Vec<Word>>>> {
+        let mut operands = self.operands(instruction);
+        let results = operands.span()?;
 
-        self.return_values(results)
+        self.return_frame(results)
     }
 
     /// Decode the linked callee and optional hidden environment.
-    fn callee(&self, opcode: Opcode, operands: &mut Operands<'_>) -> Result<Callee> {
+    fn callee(&self, opcode: Opcode, operands: &mut Operands<'_, false>) -> Result<Callee> {
         match opcode {
             // direct function
             Opcode::CALL | Opcode::INVOKE | Opcode::TAIL_CALL => {
-                let function = operands.u32().map_err(|_| self.invalid_instruction())?;
+                let function = operands.u32()?;
 
                 Ok(Callee {
                     function: FunctionId(function),
@@ -82,7 +86,7 @@ impl Activation<'_, '_> {
 
             // indirect function value or pointer
             Opcode::CALL_INDIRECT | Opcode::INVOKE_INDIRECT | Opcode::TAIL_CALL_INDIRECT => {
-                let value = operands.range().map_err(|_| self.invalid_instruction())?;
+                let value = operands.span()?;
                 let environment = match value.word_count {
                     1 => None,
                     2 => Some(self.read(value.start.0 + 1)),
@@ -97,16 +101,12 @@ impl Activation<'_, '_> {
 
             // virtual table id stored in the concrete object
             Opcode::CALL_VIRTUAL | Opcode::INVOKE_VIRTUAL | Opcode::TAIL_CALL_VIRTUAL => {
-                let receiver = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
-                let reference = operands
-                    .reference()
-                    .map_err(|_| self.invalid_instruction())?;
-                let dispatch_offset = operands.u32().map_err(|_| self.invalid_instruction())?;
-                let slot = operands.u16().map_err(|_| self.invalid_instruction())?;
+                let receiver = operands.register()?;
+                let reference = operands.reference()?;
+                let dispatch_offset = operands.u32()?;
+                let slot = operands.u16()?;
                 let edge = self.read_reference_edge(receiver, reference)?;
-                let address = self.call.memory.native_address(edge) + dispatch_offset as usize;
+                let address = self.activation.memory.address(edge) + dispatch_offset as usize;
 
                 // SAFETY: linked virtual calls use the dispatch field from the receiver layout
                 let table = unsafe { ptr::read_unaligned(address as *const u32) };
@@ -124,8 +124,8 @@ impl Activation<'_, '_> {
 
             // dynamic dispatch table carried by the erased value
             Opcode::CALL_DYNAMIC | Opcode::INVOKE_DYNAMIC | Opcode::TAIL_CALL_DYNAMIC => {
-                let dynamic = operands.range().map_err(|_| self.invalid_instruction())?;
-                let slot = operands.u16().map_err(|_| self.invalid_instruction())?;
+                let dynamic = operands.span()?;
+                let slot = operands.u16()?;
                 if dynamic.word_count != 2 {
                     return Err(self.invalid_instruction());
                 }

@@ -1,5 +1,5 @@
 use destack_bytecode::{Instruction, Opcode};
-use destack_program::{TypeId, Word};
+use destack_program::Word;
 
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
@@ -9,23 +9,18 @@ impl Activation<'_, '_> {
     pub(crate) fn execute_slice(&mut self, instruction: Instruction<'_>) -> Result<()> {
         match instruction.opcode() {
             Opcode::SLICE_VIEW => self.execute_slice_view(instruction),
-            Opcode::SLICE_LENGTH => self.execute_slice_length(instruction),
             _ => unreachable!("slice dispatch selects one slice opcode"),
         }
     }
 
     /// Form one checked subview over a contiguous slice.
     fn execute_slice_view(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands.range().map_err(|_| self.invalid_instruction())?;
-        let source = operands.range().map_err(|_| self.invalid_instruction())?;
-        let element = TypeId(operands.u32().map_err(|_| self.invalid_instruction())?);
-        let start = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let length = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.span()?;
+        let source = operands.span()?;
+        let stride = operands.u32()? as usize;
+        let start = operands.register()?;
+        let length = operands.register()?;
         if target.word_count != 2 || source.word_count != 2 {
             return Err(self.invalid_instruction());
         }
@@ -38,15 +33,10 @@ impl Activation<'_, '_> {
             return Err(Error::trap(Trap::Bounds));
         }
 
-        // advance the stable reference by the linked element layout width
-        let element_byte_len = self
-            .machine
-            .program
-            .type_byte_len(element)
-            .ok_or_else(|| self.invalid_instruction())?;
+        // advance the stable reference by the encoded element stride
         let byte_offset = usize::try_from(start)
             .ok()
-            .and_then(|start| start.checked_mul(element_byte_len))
+            .and_then(|start| start.checked_mul(stride))
             .ok_or_else(|| Error::trap(Trap::Bounds))?;
         let reference = self.read(source.start.0).bits() as usize;
         let reference = reference
@@ -55,22 +45,6 @@ impl Activation<'_, '_> {
 
         self.write(target.start.0, Word::from_bits(reference as u64));
         self.write(target.start.0 + 1, Word::uint64(length));
-
-        Ok(())
-    }
-
-    /// Read the element count from one slice descriptor.
-    fn execute_slice_length(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.range().map_err(|_| self.invalid_instruction())?;
-        if source.word_count != 2 {
-            return Err(self.invalid_instruction());
-        }
-
-        self.write(target.0, self.read(source.start.0 + 1));
 
         Ok(())
     }

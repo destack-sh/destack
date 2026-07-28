@@ -1,7 +1,7 @@
 use destack_bytecode::CodeOffset;
-use destack_program::{Continuation, Outcome, StopReason, Word};
+use destack_program::{Outcome, StopReason, Word};
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::Result;
 use crate::machine::{Activation, Frame};
 
 impl Activation<'_, '_> {
@@ -9,12 +9,12 @@ impl Activation<'_, '_> {
     pub(crate) fn stop_before(
         &mut self,
         frame: Frame,
-        instruction_offset: CodeOffset,
-    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
+        pc: CodeOffset,
+    ) -> Result<Option<Outcome<Vec<Word>>>> {
         let Some(stop_points) = self.stop_points else {
             return Ok(None);
         };
-        let Some(point) = self.point_at(frame, instruction_offset) else {
+        let Some(point) = self.point_at(frame, pc) else {
             return Ok(None);
         };
 
@@ -28,37 +28,21 @@ impl Activation<'_, '_> {
             return Ok(None);
         };
 
-        // capture the canonical state before the selected instruction
-        let frame_state = self
-            .machine
-            .program
-            .frame_state_at(point)
-            .ok_or_else(Error::invalid_continuation)?;
-        let continuation = self.capture(frame_state)?;
+        // retain the active physical machine at the selected instruction
+        self.save_position();
+        self.is_retained = true;
 
-        Ok(Some(Outcome::Stopped {
-            continuation,
-            reason,
-        }))
+        Ok(Some(Outcome::Stopped { reason }))
     }
 
     /// Stop after one explicit breakpoint instruction.
-    pub(crate) fn stop_after(
-        &mut self,
-        instruction_offset: CodeOffset,
-    ) -> Result<Outcome<Continuation, Vec<Word>>> {
+    pub(crate) fn stop_after(&mut self, pc: CodeOffset) -> Result<Outcome<Vec<Word>>> {
         let frame = self.frame();
-        let point = self.point(frame, instruction_offset)?;
-        let next_point = self.point(frame, frame.code_offset)?;
-        let frame_state = self
-            .machine
-            .program
-            .frame_state_at(next_point)
-            .ok_or_else(Error::invalid_continuation)?;
-        let continuation = self.capture(frame_state)?;
+        let point = self.point(frame, pc)?;
+        self.save_position();
+        self.is_retained = true;
 
         Ok(Outcome::Stopped {
-            continuation,
             reason: StopReason::Instruction { point },
         })
     }

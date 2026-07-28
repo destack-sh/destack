@@ -1,8 +1,7 @@
 use destack_bytecode::{AtomicOperation, CodeOffset, Instruction, MemoryOperation, Opcode, Scalar};
 use destack_mir::Space;
 use destack_program::{
-    Continuation, GlobalAddress, GlobalLocation, MemoryAccess, MemoryRange, Outcome, StopReason,
-    TypeId, Word,
+    GlobalAddress, GlobalLocation, MemoryAccess, MemoryRange, Outcome, StopReason, Word,
 };
 
 use crate::diagnostic::{Error, Result};
@@ -16,19 +15,13 @@ impl Activation<'_, '_> {
         operation: MemoryOperation,
         scalar: Scalar,
     ) -> Result<(usize, usize)> {
-        let mut operands = instruction.operands();
+        let mut operands = self.operands(instruction);
         let address = if operation == MemoryOperation::Load {
-            let _target = operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?;
+            let _target = operands.register()?;
 
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?
+            operands.register()?
         } else {
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?
+            operands.register()?
         };
         let address = self.read(address.0).bits() as usize;
         let byte_len = scalar.bit_width() as usize / 8;
@@ -42,28 +35,18 @@ impl Activation<'_, '_> {
         instruction: Instruction<'_>,
         is_load: bool,
     ) -> Result<(usize, usize)> {
-        let mut operands = instruction.operands();
+        let mut operands = self.operands(instruction);
         let address = if is_load {
-            let _target = operands.range().map_err(|_| self.invalid_instruction())?;
+            let _target = operands.span()?;
 
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?
+            operands.register()?
         } else {
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?
+            operands.register()?
         };
         if !is_load {
-            let _value = operands.range().map_err(|_| self.invalid_instruction())?;
+            let _value = operands.span()?;
         }
-        let ty = TypeId(operands.u32().map_err(|_| self.invalid_instruction())?);
-        let byte_len = self
-            .machine
-            .program
-            .layout(ty)
-            .map(|layout| layout.byte_len())
-            .ok_or_else(|| self.invalid_instruction())?;
+        let byte_len = operands.u32()? as usize;
         let address = self.read(address.0).bits() as usize;
 
         Ok((address, byte_len))
@@ -76,38 +59,22 @@ impl Activation<'_, '_> {
         operation: AtomicOperation,
         scalar: Scalar,
     ) -> Result<(usize, usize)> {
-        let mut operands = instruction.operands();
+        let mut operands = self.operands(instruction);
         let pointer = if operation == AtomicOperation::Load {
-            let _target = operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?;
+            let _target = operands.register()?;
 
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?
+            operands.register()?
         } else if operation == AtomicOperation::Store {
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?
+            operands.register()?
         } else if operation.is_compare_exchange() {
-            let _target = operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?;
-            let _status = operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?;
+            let _target = operands.register()?;
+            let _status = operands.register()?;
 
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?
+            operands.register()?
         } else {
-            let _target = operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?;
+            let _target = operands.register()?;
 
-            operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?
+            operands.register()?
         };
         let address = self.read(pointer.0).bits() as usize;
         let byte_len = scalar.bit_width() as usize / 8;
@@ -115,80 +82,51 @@ impl Activation<'_, '_> {
         Ok((address, byte_len))
     }
 
-    /// Stop after one byte-range operation selected by an active watchpoint.
-    pub(crate) fn watch_bytes_after(
-        &mut self,
-        frame: Frame,
-        instruction_offset: CodeOffset,
+    /// Return memory accesses performed by one byte-range operation.
+    pub(crate) fn byte_accesses(
+        &self,
         instruction: Instruction<'_>,
-    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
-        let mut operands = instruction.operands();
+    ) -> Result<[Option<(MemoryAccess, (usize, usize))>; 2]> {
+        let mut operands = self.operands(instruction);
         match instruction.opcode() {
             Opcode::COPY_BYTES | Opcode::MOVE_BYTES => {
-                let target = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
-                let source = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
-                let byte_len = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
+                let target = operands.register()?;
+                let source = operands.register()?;
+                let byte_len = operands.register()?;
                 let byte_len = self.read(byte_len.0).bits() as usize;
                 let source = (self.read(source.0).bits() as usize, byte_len);
                 let target = (self.read(target.0).bits() as usize, byte_len);
 
-                // report the source read before the target write
-                if let Some(outcome) =
-                    self.watch_after(frame, instruction_offset, MemoryAccess::Read, Some(source))?
-                {
-                    return Ok(Some(outcome));
-                }
-
-                self.watch_after(frame, instruction_offset, MemoryAccess::Write, Some(target))
+                Ok([
+                    Some((MemoryAccess::Read, source)),
+                    Some((MemoryAccess::Write, target)),
+                ])
             }
             Opcode::FILL_BYTES => {
-                let target = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
-                let _byte = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
-                let byte_len = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
+                let target = operands.register()?;
+                let _byte = operands.register()?;
+                let byte_len = operands.register()?;
                 let byte_len = self.read(byte_len.0).bits() as usize;
                 let target = (self.read(target.0).bits() as usize, byte_len);
 
-                self.watch_after(frame, instruction_offset, MemoryAccess::Write, Some(target))
+                Ok([Some((MemoryAccess::Write, target)), None])
             }
             Opcode::COMPARE_BYTES => {
-                let _target = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
-                let left = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
-                let right = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
-                let byte_len = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
+                let _target = operands.register()?;
+                let left = operands.register()?;
+                let right = operands.register()?;
+                let byte_len = operands.register()?;
                 let byte_len = self.read(byte_len.0).bits() as usize;
                 let left = (self.read(left.0).bits() as usize, byte_len);
                 let right = (self.read(right.0).bits() as usize, byte_len);
 
-                // report both reads in operand order
-                if let Some(outcome) =
-                    self.watch_after(frame, instruction_offset, MemoryAccess::Read, Some(left))?
-                {
-                    return Ok(Some(outcome));
-                }
-
-                self.watch_after(frame, instruction_offset, MemoryAccess::Read, Some(right))
+                Ok([
+                    Some((MemoryAccess::Read, left)),
+                    Some((MemoryAccess::Read, right)),
+                ])
             }
-            _ => Ok(None),
+            Opcode::PREFETCH_READ | Opcode::PREFETCH_WRITE => Ok([None, None]),
+            _ => unreachable!("byte memory dispatch selects one byte-range opcode"),
         }
     }
 
@@ -196,14 +134,14 @@ impl Activation<'_, '_> {
     pub(crate) fn watch_after(
         &mut self,
         frame: Frame,
-        instruction_offset: CodeOffset,
+        pc: CodeOffset,
         access: MemoryAccess,
         address: Option<(usize, usize)>,
-    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
+    ) -> Result<Option<Outcome<Vec<Word>>>> {
         let Some(watch_points) = self.watch_points else {
             return Ok(None);
         };
-        let point = self.point(frame, instruction_offset)?;
+        let point = self.point(frame, pc)?;
         let sites = self
             .machine
             .program
@@ -213,9 +151,7 @@ impl Activation<'_, '_> {
         // select the first matching site and watchpoint deterministically
         for &site in sites {
             let range = if watch_points.requires_memory_range() {
-                let (address, byte_len) = address.ok_or_else(|| {
-                    Error::invalid_instruction(frame.function, instruction_offset)
-                })?;
+                let (address, byte_len) = address.ok_or_else(Error::invalid_instruction)?;
 
                 Some(self.memory_range(site.space, address, byte_len)?)
             } else {
@@ -225,24 +161,15 @@ impl Activation<'_, '_> {
                 continue;
             };
 
-            // retain the state after the completed memory operation
-            let frame = self.frame();
-            let next = self.point(frame, frame.code_offset)?;
-            let frame_state = self
-                .machine
-                .program
-                .frame_state_at(next)
-                .ok_or_else(Error::invalid_continuation)?;
-            let continuation = self.capture(frame_state)?;
+            // retain the physical machine after the completed memory operation
+            self.save_position();
+            self.is_retained = true;
             let reason = StopReason::Watchpoint {
                 watchpoint_id,
                 point,
             };
 
-            return Ok(Some(Outcome::Stopped {
-                continuation,
-                reason,
-            }));
+            return Ok(Some(Outcome::Stopped { reason }));
         }
 
         Ok(None)
@@ -253,7 +180,7 @@ impl Activation<'_, '_> {
         let range = match space {
             Space::Local | Space::Shared => {
                 let offset = self
-                    .call
+                    .activation
                     .memory
                     .heap_offset(space, address)
                     .ok_or_else(|| self.invalid_instruction())?;
@@ -269,7 +196,7 @@ impl Activation<'_, '_> {
                     .machine
                     .stack
                     .byte_offset(address)
-                    .ok_or_else(Error::invalid_continuation)?;
+                    .ok_or_else(|| self.invalid_instruction())?;
 
                 MemoryRange::frame(offset as u64, byte_len as u64)
             }
@@ -295,13 +222,13 @@ impl Activation<'_, '_> {
                     GlobalLocation::Constant => self
                         .machine
                         .program
-                        .constant_native_address(global_address, global.byte_len()),
-                    GlobalLocation::SharedStatic => self.call.memory.shared_static.native_address(
+                        .constant_address(global_address, global.byte_len()),
+                    GlobalLocation::SharedStatic => self.activation.memory.shared_static.address(
                         global,
                         global_address,
                         global.byte_len(),
                     ),
-                    GlobalLocation::LocalStatic => self.call.memory.local_static.native_address(
+                    GlobalLocation::LocalStatic => self.activation.memory.local_static.address(
                         global,
                         global_address,
                         global.byte_len(),
@@ -324,11 +251,6 @@ impl Activation<'_, '_> {
             }
         }
 
-        let frame = self.frame();
-
-        Err(Error::invalid_instruction(
-            frame.function,
-            frame.code_offset,
-        ))
+        Err(Error::invalid_instruction())
     }
 }

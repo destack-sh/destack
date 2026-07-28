@@ -1,42 +1,97 @@
-use destack_bytecode::{CodeOffset, CodeRange, RegisterRange};
-use destack_program::{FrameStateId, FunctionId};
+use destack_bytecode::{CodeOffset, CodeRange, RegisterSpan};
+use destack_program::{Completion, FrameStateId, FunctionId, Word};
+use serde::{Deserialize, Serialize};
 
 /// One active bytecode call frame.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Frame {
     /// The linked function being executed.
     pub(crate) function: FunctionId,
     /// The function's encoded bytecode range.
     pub(crate) code: CodeRange,
-    /// The next function-relative instruction byte.
-    pub(crate) code_offset: CodeOffset,
-    /// The first byte owned by this frame in the VM stack.
-    pub(crate) stack_offset: usize,
-    /// The first canonical frame byte in the VM stack.
-    pub(crate) frame_offset: usize,
-    /// The canonical frame byte length.
-    pub(crate) frame_byte_len: u32,
-    /// The durable state used when this frame is suspended by a callee.
-    pub(crate) frame_state: Option<FrameStateId>,
-    /// The state entered when the suspended callee returns normally.
-    pub(crate) normal_state: Option<FrameStateId>,
-    /// The state entered when the suspended callee unwinds.
-    pub(crate) unwind_state: Option<FrameStateId>,
+    /// The function-relative instruction entered when execution resumes.
+    pub(crate) pc: CodeOffset,
     /// The first register word in the VM stack.
     pub(crate) register_offset: usize,
     /// The function register word count.
     pub(crate) register_count: u16,
-    /// The caller destination when this is not the entry frame.
-    pub(crate) return_to: Option<Return>,
+    /// The transition taken when this frame returns.
+    pub(crate) return_to: Return,
 }
 
 /// One caller transition retained across a bytecode call.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum Return {
-    /// Copy returned words into the caller register range.
-    Values(RegisterRange),
+    /// Exit the root call chain.
+    Exit {
+        /// The terminal completion mode.
+        completion: Completion,
+    },
+    /// Return from one ordinary or invoked call.
+    Call {
+        /// Caller program counter that entered the callee.
+        pc: CodeOffset,
+        /// Caller registers receiving returned words.
+        registers: RegisterSpan,
+        /// Caller bytecode offset entered after normal completion.
+        normal: Option<CodeOffset>,
+        /// Caller bytecode offset entered during panic unwinding.
+        unwind: Option<CodeOffset>,
+    },
+    /// Return from one continuation control transfer.
+    Continuation {
+        /// Caller program counter that drove the continuation.
+        pc: CodeOffset,
+        /// Caller registers receiving one yielded value.
+        yielded_registers: RegisterSpan,
+        /// Caller register receiving the replacement continuation.
+        continuation_register: u16,
+        /// Caller registers receiving the final return value.
+        returned_registers: RegisterSpan,
+        /// Caller bytecode offset entered when the continuation yields.
+        yielded: CodeOffset,
+        /// Caller bytecode offset entered when the continuation returns.
+        returned: CodeOffset,
+        /// Caller bytecode offset entered during panic unwinding.
+        unwind: Option<CodeOffset>,
+    },
+    /// Return from the initial eager execution of one task.
+    Task {
+        /// Caller program counter that started the task.
+        pc: CodeOffset,
+        /// Caller register containing the runtime task identity.
+        task_register: u16,
+    },
     /// Resume the caller after one destructor completes.
-    Drop,
+    Drop {
+        /// Caller program counter that entered the destructor.
+        pc: CodeOffset,
+        /// Canonical caller state retained across destructor execution.
+        caller_state: FrameStateId,
+        /// Retained caller frames released after this destructor returns.
+        frame_count: u16,
+    },
+}
+
+impl Return {
+    /// Return the caller program counter when this transition has one.
+    pub(crate) const fn pc(self) -> Option<CodeOffset> {
+        match self {
+            Self::Exit { .. } => None,
+            Self::Call { pc, .. }
+            | Self::Continuation { pc, .. }
+            | Self::Task { pc, .. }
+            | Self::Drop { pc, .. } => Some(pc),
+        }
+    }
+
+    /// Return the exact caller state when this transition retains one.
+    pub(crate) const fn state(self) -> Option<FrameStateId> {
+        match self {
+            Self::Drop { caller_state, .. } => Some(caller_state),
+            _ => None,
+        }
+    }
 }
 
 impl Frame {
@@ -44,23 +99,14 @@ impl Frame {
     pub(crate) const fn new(
         function: FunctionId,
         code: CodeRange,
-        stack_offset: usize,
-        frame_offset: usize,
-        frame_byte_len: u32,
         register_offset: usize,
         register_count: u16,
-        return_to: Option<Return>,
+        return_to: Return,
     ) -> Self {
         Self {
             function,
             code,
-            code_offset: CodeOffset(0),
-            stack_offset,
-            frame_offset,
-            frame_byte_len,
-            frame_state: None,
-            normal_state: None,
-            unwind_state: None,
+            pc: CodeOffset(0),
             register_offset,
             register_count,
             return_to,
@@ -75,49 +121,19 @@ impl Frame {
 
     /// Return one function-relative register range start.
     #[inline(always)]
-    pub(crate) const fn range(self, range: RegisterRange) -> usize {
+    pub(crate) const fn range(self, range: RegisterSpan) -> usize {
         self.register(range.start.0)
     }
 
-    /// Return one canonical frame slot address.
+    /// Return the first byte in this frame's register window.
     #[inline(always)]
-    pub(crate) const fn slot(self, byte_offset: u32) -> usize {
-        self.frame_offset + byte_offset as usize
+    pub(crate) const fn byte_offset(self) -> usize {
+        self.register_offset * Word::BYTE_LEN
     }
 
-    /// Retain the caller states required while one callee is active.
-    pub(crate) fn suspend(
-        &mut self,
-        frame_state: FrameStateId,
-        normal_state: Option<FrameStateId>,
-        unwind_state: Option<FrameStateId>,
-    ) {
-        self.frame_state = Some(frame_state);
-        self.normal_state = normal_state;
-        self.unwind_state = unwind_state;
-    }
-
-    /// Clear caller states after the active callee returns.
-    pub(crate) fn resume(&mut self) {
-        self.frame_state = None;
-        self.normal_state = None;
-        self.unwind_state = None;
-    }
-
-    /// Return whether this frame is executing one destructor.
-    pub(crate) const fn is_destructor(self) -> bool {
-        matches!(self.return_to, Some(Return::Drop))
-    }
-
-    /// Advance to the instruction following one encoded instruction.
+    /// Return one branch target relative to this frame's next instruction.
     #[inline(always)]
-    pub(crate) fn advance(&mut self, byte_len: usize) {
-        self.code_offset.0 += byte_len as u32;
-    }
-
-    /// Branch relative to the end of the current instruction.
-    #[inline(always)]
-    pub(crate) fn branch(&mut self, displacement: i32) {
-        self.code_offset.0 = self.code_offset.0.wrapping_add_signed(displacement);
+    pub(crate) const fn branch_offset(self, displacement: i32) -> CodeOffset {
+        CodeOffset(self.pc.0.wrapping_add_signed(displacement))
     }
 }

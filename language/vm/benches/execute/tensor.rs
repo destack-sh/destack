@@ -8,27 +8,25 @@ const ELEMENT_COUNT: u64 = 256;
 const ITERATIONS: i32 = 1_000;
 
 const PROGRAM: &str = r#"
-type Vector
+function f0 {
+    constant.int32 r1, 0
+    constant.int32 r2, 1
+    constant.int32 r3, 2
+    constant.uint64 r4, 0
+    tensor.splat r5, r2, a0
+    tensor.splat r6, r3, a1
+    tensor.splat r7, r1, a2
 
-export function add(r0: int32): int32 {
-    r1: int32 = 0
-    r2: int32 = 1
-    r3: int32 = 2
-    r4: uint64 = 0
-    r5: tensor<int32, Vector, space(local)> = tensor.splat r2
-    r6: tensor<int32, Vector, space(local)> = tensor.splat r3
-    r7: tensor<int32, Vector, space(local)> = tensor.splat r1
+b0:
+    branch.lt.int32 r1, r0 => b1, b2
 
-l0:
-    branch.lt.int32 r1, r0 => l1, l2
+b1:
+    tensor.element r7, [(r5, l0), (r6, l0)], int.add, a3
+    int.add.int32 r1, r1, r2
+    jump b0
 
-l1:
-    r7: tensor<int32, Vector, space(local)> = int.add r5, r6
-    r1: int32 = int.add r1, r2
-    jump l0
-
-l2:
-    r8: int32 = tensor.extract r7, [r4]
+b2:
+    tensor.extract r8, (r7, l0), [r4]
     return r8
 }
 "#;

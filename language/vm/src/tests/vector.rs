@@ -8,37 +8,29 @@ use super::{TestMachine, TestProgram};
 fn test_execute_vectors() {
     let mut machine = TestMachine::parse(
         r#"
-export function vectors(
-    r0: vector<int32, 4>,
-    r2: vector<int32, 4>,
-    r4: uint32,
-    r5: int32,
-): (vector<int32, 4>, int32, int32) {
-    r6: vector<int32, 4> = int.add r0, r2
-    r8: vector<boolean, 4> = vector.compare int.gt, r6, r0
-    r9: vector<int32, 4> = select r8, r6, r0
-    r11: vector<int32, 4> = vector.insert r9, r4, r5
-    r13: vector<int32, 4> = vector.shuffle r11, r2, [0, 5, 2, 7]
-    r15: int32 = vector.reduce int.add, r9
-    r16: int32 = vector.extract r9, r4
-    return r13, r15, r16
+function f0 {
+    vector.add.int32x4 r6:r7, r0:r1, r2:r3
+    vector.compare.gt.int32x4 r8, r6:r7, r0:r1
+    vector.select.int32x4 r9:r10, r8, r6:r7, r0:r1
+    vector.insert.int32x4 r11:r12, r9:r10, r4, r5
+    vector.shuffle.int32x4 r13:r14, r11:r12, r2:r3, [0, 5, 2, 7]
+    vector.reduce.add.int32x4 r15, r9:r10
+    vector.extract.int32x4 r16, r9:r10, r4
+    return r13:r16
 }
 
-export function convert(
-    r0: vector<float32, 4>,
-    r2: uint32,
-): (vector<int16, 4>, int16) {
-    r3: vector<int16, 4> = vector.convert roundFloor, r0
-    r4: int16 = vector.extract r3, r2
-    return r3, r4
+function f1 {
+    vector.convert.roundFloor.float32x4.int16x4 r3, r0:r1
+    vector.extract.int16x4 r4, r3, r2
+    return r3:r4
 }
 "#,
-        TestProgram::new(),
+        TestProgram::words(),
     );
 
     // execute one multiword integer vector pipeline
     let value = machine.complete(
-        "vectors",
+        0,
         &[
             pack_i32(1, 2),
             pack_i32(3, 4),
@@ -60,7 +52,7 @@ export function convert(
 
     // convert every floating lane under one explicit rounding mode
     let value = machine.complete(
-        "convert",
+        1,
         &[pack_f32(1.75, -2.25), pack_f32(3.0, -4.75), Word::uint32(2)],
     );
     assert_eq!(value, vec![pack_i16(1, -3, 3, -5), Word::int16(3)]);
@@ -69,49 +61,37 @@ export function convert(
 /// Execute vector memory through the observed loop and stop after the write.
 #[test]
 fn test_watch_vector_memory() {
-    let site = TestMachine::memory(0, 0, MemoryAccess::Write, Space::Local);
-    let watch = TestMachine::watchpoint(0, 0, 17, MemoryAccess::Write);
+    let site = TestProgram::memory_site(0, 0, MemoryAccess::Write, Space::Local);
+    let watch = TestProgram::watchpoint(0, 0, 17, MemoryAccess::Write);
     let watchpoint_id = watch.watchpoint_id;
     let watches = WatchSet::new(vec![watch]);
     let mut machine = TestMachine::parse(
         r#"
-type State
-
-export function copy(
-    r0: pointer,
-    r1: vector<uint32, 4>,
-): vector<uint32, 4> {
-    slot s0: State = r0[1]
-
-    store r0, r1
-    r3: vector<uint32, 4> = load r0
-    return r3
+function f0 {
+    vector.store.uint32x4 r0, r1:r2
+    vector.load.uint32x4 r3:r4, r0
+    return r3:r4
 }
 "#,
-        TestProgram::new().memory([site]),
+        TestProgram::words().memory([site]),
     );
     let mut storage = [0_u32; 4];
     let pointer = Word::from_bits(storage.as_mut_ptr() as u64);
     let vector = [pack_u32(3, 5), pack_u32(7, 11)];
 
     // stop only after the vector bytes have been written
-    let (continuation, reason) = machine.run_to_stop(
-        "copy",
-        &[pointer, vector[0], vector[1]],
-        None,
-        Some(&watches),
-    );
+    let reason = machine.run_to_stop(0, &[pointer, vector[0], vector[1]], None, Some(&watches));
     assert_eq!(storage, [3, 5, 7, 11]);
     assert_eq!(
         reason,
         StopReason::Watchpoint {
             watchpoint_id,
-            point: TestMachine::point(0, 0),
+            point: TestProgram::point(0, 0),
         }
     );
 
     // continue after the retained store and read the same packed bytes
-    let value = machine.continue_to_completion(continuation, None, Some(&watches), None);
+    let value = machine.continue_to_completion(None, Some(&watches), None);
     assert_eq!(value, vector);
 }
 

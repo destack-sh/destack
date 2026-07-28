@@ -7,26 +7,19 @@ use super::{TestMachine, TestProgram};
 fn test_execute_integer_widths() {
     let mut machine = TestMachine::parse(
         r#"
-export function integers(
-    r0: int8,
-    r1: int8,
-    r2: uint16,
-): (int8, boolean, int8, uint32, uint16) {
-    r3: int8, r4: boolean = int.add.overflowing r0, r1
-    r5: int8 = int.add.saturating r0, r1
-    r6: uint32 = int.countLeadingZeros r0
-    r7: uint16 = int.byteSwap r2
-    return r3, r4, r5, r6, r7
+function f0 {
+    int.add.overflowing.int8 r3, r4, r0, r1
+    int.add.saturating.int8 r5, r0, r1
+    int.countLeadingZeros.int8 r6, r0
+    int.byteSwap.uint16 r7, r2
+    return r3:r7
 }
 
 "#,
-        TestProgram::new(),
+        TestProgram::words(),
     );
 
-    let value = machine.complete(
-        "integers",
-        &[Word::int8(120), Word::int8(20), Word::uint16(0x1234)],
-    );
+    let value = machine.complete(0, &[Word::int8(120), Word::int8(20), Word::uint16(0x1234)]);
 
     assert_eq!(
         value,
@@ -45,25 +38,20 @@ export function integers(
 fn test_execute_integer128() {
     let mut machine = TestMachine::parse(
         r#"
-export function integers(
-    r0: int128,
-    r2: int128,
-    r4: uint128,
-    r6: uint32,
-): (int128, boolean, uint128, uint32) {
-    r7: int128, r9: boolean = int.add.overflowing r0, r2
-    r10: uint128 = int.rotateLeft r4, r6
-    r12: uint32 = int.countOnes r10
-    return r7, r9, r10, r12
+function f0 {
+    int.add.overflowing.int128 r7:r8, r9, r0:r1, r2:r3
+    int.rotateLeft.uint128 r10:r11, r4:r5, r6
+    int.countOnes.uint128 r12, r10:r11
+    return r7:r12
 }
 "#,
-        TestProgram::new(),
+        TestProgram::words(),
     );
     let maximum = i128::MAX as u128;
     let rotated = 0x8000_0000_0000_0000_0000_0000_0000_0001_u128;
 
     let value = machine.complete(
-        "integers",
+        0,
         &[
             Word::from_bits(maximum as u64),
             Word::from_bits((maximum >> u64::BITS) as u64),

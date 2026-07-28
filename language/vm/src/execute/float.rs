@@ -6,33 +6,26 @@ use crate::machine::Activation;
 
 impl Activation<'_, '_> {
     /// Execute one scalar floating-point operation.
+    #[inline(always)]
     pub(crate) fn execute_float(
         &mut self,
         instruction: Instruction<'_>,
         operation: FloatOperation,
         scalar: Scalar,
     ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let left = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let left = operands.register()?;
         let left = self.read(left.0);
         let right = if operation.input_count() >= 2 {
-            let right = operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?;
+            let right = operands.register()?;
 
             Some(self.read(right.0))
         } else {
             None
         };
         let addend = if operation.input_count() == 3 {
-            let addend = operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?;
+            let addend = operands.register()?;
 
             Some(self.read(addend.0))
         } else {

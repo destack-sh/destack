@@ -7,24 +7,24 @@ use crate::runtime::Runtime;
 const ITERATIONS: i32 = 10_000;
 
 const PROGRAM: &str = r#"
-export function add(r0: int32): int32 {
-    r1: int32 = 0
-    r2: int32 = 1
-    r3: vector<int32, 4> = vector.splat r1
-    r5: vector<int32, 4> = vector.splat r2
+function f0 {
+    constant.int32 r1, 0
+    constant.int32 r2, 1
+    vector.splat.int32x4 r3:r4, r1
+    vector.splat.int32x4 r5:r6, r2
 
-l0:
-    branch.lt.int32 r1, r0 => l1, l2
+b0:
+    branch.lt.int32 r1, r0 => b1, b2
 
-l1:
-    r7: vector<int32, 4> = int.add r3, r5
-    r3: vector<int32, 4> = move r7
-    r1: int32 = int.add r1, r2
-    jump l0
+b1:
+    vector.add.int32x4 r7:r8, r3:r4, r5:r6
+    move r3:r4, r7:r8
+    int.add.int32 r1, r1, r2
+    jump b0
 
-l2:
-    r9: uint32 = 0
-    r10: int32 = vector.extract r3, r9
+b2:
+    constant.uint32 r9, 0
+    vector.extract.int32x4 r10, r3:r4, r9
     return r10
 }
 "#;

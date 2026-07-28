@@ -7,16 +7,15 @@ use crate::machine::Activation;
 
 impl Activation<'_, '_> {
     /// Execute one direct or conditional control transfer.
-    pub(crate) fn execute_control(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
+    #[inline(always)]
+    pub(crate) fn execute_control(&self, instruction: Instruction<'_>) -> Result<i32> {
+        let mut operands = self.operands(instruction);
         let displacement = if instruction.opcode() == Opcode::JUMP {
-            operands.i32().map_err(|_| self.invalid_instruction())?
+            operands.i32()?
         } else {
-            let condition = operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?;
-            let yes = operands.i32().map_err(|_| self.invalid_instruction())?;
-            let no = operands.i32().map_err(|_| self.invalid_instruction())?;
+            let condition = operands.register()?;
+            let yes = operands.i32()?;
+            let no = operands.i32()?;
 
             if self.read(condition.0).as_boolean() {
                 yes
@@ -25,34 +24,30 @@ impl Activation<'_, '_> {
             }
         };
 
-        self.frame_mut().branch(displacement);
-
-        Ok(())
+        Ok(displacement)
     }
 
     /// Execute one scalar check and branch on failure.
     pub(crate) fn execute_check(
-        &mut self,
+        &self,
         instruction: Instruction<'_>,
         check: ScalarCheck,
         scalar: Scalar,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let left = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+    ) -> Result<Option<i32>> {
+        let mut operands = self.operands(instruction);
+        let left = operands.register()?;
         let left = self.read(left.0);
         let is_valid = match check {
             ScalarCheck::Nonzero => self.is_nonzero(left, scalar)?,
             ScalarCheck::Shift => {
-                let width = operands.u16().map_err(|_| self.invalid_instruction())?;
+                let width = operands.u16()?;
 
                 scalar
                     .integer(left.bits())
                     .is_some_and(|value| value >= 0 && value < i128::from(width))
             }
             ScalarCheck::Narrow => {
-                let target = operands.u16().map_err(|_| self.invalid_instruction())?;
+                let target = operands.u16()?;
                 let target =
                     Scalar::from_code(target as u8).ok_or_else(|| self.invalid_instruction())?;
                 let value = scalar
@@ -67,16 +62,12 @@ impl Activation<'_, '_> {
             ScalarCheck::AddOverflow
             | ScalarCheck::SubtractOverflow
             | ScalarCheck::MultiplyOverflow => {
-                let right = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
+                let right = operands.register()?;
 
                 !self.integer_overflows(check, scalar, left, self.read(right.0))?
             }
             ScalarCheck::Bounds => {
-                let length = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
+                let length = operands.register()?;
                 let index = scalar
                     .integer(left.bits())
                     .ok_or_else(|| self.invalid_instruction())?;
@@ -87,12 +78,8 @@ impl Activation<'_, '_> {
                 index >= 0 && index < length
             }
             ScalarCheck::Range => {
-                let length = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
-                let limit = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
+                let length = operands.register()?;
+                let limit = operands.register()?;
                 let start = scalar
                     .integer(left.bits())
                     .ok_or_else(|| self.invalid_instruction())?;
@@ -106,86 +93,74 @@ impl Activation<'_, '_> {
                 start >= 0 && length >= 0 && start <= limit && length <= limit - start
             }
         };
-        let failure = operands.i32().map_err(|_| self.invalid_instruction())?;
+        let failure = operands.i32()?;
 
-        if !is_valid {
-            self.frame_mut().branch(failure);
-        }
-
-        Ok(())
+        Ok((!is_valid).then_some(failure))
     }
 
     /// Execute one fused scalar comparison and branch.
+    #[inline(always)]
     pub(crate) fn execute_comparison(
-        &mut self,
+        &self,
         instruction: Instruction<'_>,
         comparison: Comparison,
         scalar: Scalar,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let left = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let right = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let yes = operands.i32().map_err(|_| self.invalid_instruction())?;
-        let no = operands.i32().map_err(|_| self.invalid_instruction())?;
+    ) -> Result<i32> {
+        let mut operands = self.operands(instruction);
+        let left = operands.register()?;
+        let right = operands.register()?;
+        let yes = operands.i32()?;
+        let no = operands.i32()?;
         let is_match =
             self.compare_words(comparison, scalar, self.read(left.0), self.read(right.0))?;
         let displacement = if is_match { yes } else { no };
 
-        self.frame_mut().branch(displacement);
-
-        Ok(())
+        Ok(displacement)
     }
 
     /// Execute one inline integer switch.
-    pub(crate) fn execute_switch(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let value = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+    pub(crate) fn execute_switch(&self, instruction: Instruction<'_>) -> Result<i32> {
+        let mut operands = self.operands(instruction);
+        let value = operands.register()?;
         let value = self.read(value.0).bits();
-        let case_count = operands.u16().map_err(|_| self.invalid_instruction())?;
+        let case_count = operands.u16()?;
         let mut selected = None;
 
         // read every case to reach the mandatory fallback operand
         for _ in 0..case_count {
-            let case = operands.u64().map_err(|_| self.invalid_instruction())?;
-            let displacement = operands.i32().map_err(|_| self.invalid_instruction())?;
+            let case = operands.u64()?;
+            let displacement = operands.i32()?;
             if selected.is_none() && value == case {
                 selected = Some(displacement);
             }
         }
-        let fallback = operands.i32().map_err(|_| self.invalid_instruction())?;
+        let fallback = operands.i32()?;
 
         let displacement = match selected {
             Some(displacement) => displacement,
             None => fallback,
         };
 
-        self.frame_mut().branch(displacement);
-
-        Ok(())
+        Ok(displacement)
     }
 
     /// Execute one address or runtime type check.
-    pub(crate) fn execute_runtime_check(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let value = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+    pub(crate) fn execute_runtime_check(
+        &self,
+        instruction: Instruction<'_>,
+    ) -> Result<Option<i32>> {
+        let mut operands = self.operands(instruction);
+        let value = operands.register()?;
         let value = self.read(value.0);
         let is_valid = match instruction.opcode() {
             Opcode::CHECK_NULL => value.bits() != 0,
             Opcode::CHECK_EXACT_TYPE => {
-                let expected = TypeId(operands.u32().map_err(|_| self.invalid_instruction())?);
+                let expected = TypeId(operands.u32()?);
 
                 value.bits() == u64::from(expected.0)
             }
             Opcode::CHECK_SUBTYPE => {
-                let expected = TypeId(operands.u32().map_err(|_| self.invalid_instruction())?);
+                let expected = TypeId(operands.u32()?);
                 let concrete = TypeId(value.bits() as u32);
 
                 self.machine
@@ -195,19 +170,15 @@ impl Activation<'_, '_> {
             }
             _ => unreachable!("runtime check dispatch selects one check opcode"),
         };
-        let failure = operands.i32().map_err(|_| self.invalid_instruction())?;
+        let failure = operands.i32()?;
 
-        if !is_valid {
-            self.frame_mut().branch(failure);
-        }
-
-        Ok(())
+        Ok((!is_valid).then_some(failure))
     }
 
     /// Execute one terminal language trap.
     pub(crate) fn execute_trap(&self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let reason = operands.u16().map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let reason = operands.u16()?;
         let reason =
             bytecode::Trap::from_code(reason as u8).ok_or_else(|| self.invalid_instruction())?;
         let trap = match reason {

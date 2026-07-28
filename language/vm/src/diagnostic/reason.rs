@@ -1,5 +1,6 @@
 use std::{error, fmt};
 
+use destack_bytecode as bytecode;
 use destack_heap::HeapError;
 use destack_program as program;
 use serde::{Deserialize, Serialize};
@@ -9,6 +10,8 @@ use super::{BindingError, InstructionError, MachineError, Panic, ResourceError, 
 /// The exact reason one VM operation failed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ErrorReason {
+    /// A bytecode stream could not be decoded.
+    Bytecode(Box<bytecode::Error>),
     /// A Program operation failed.
     Program(Box<program::Error>),
     /// A heap operation failed.
@@ -34,6 +37,13 @@ impl From<program::Error> for ErrorReason {
     }
 }
 
+impl From<bytecode::Error> for ErrorReason {
+    /// Preserve one bytecode decoding failure.
+    fn from(error: bytecode::Error) -> Self {
+        Self::Bytecode(Box::new(error))
+    }
+}
+
 impl From<HeapError> for ErrorReason {
     /// Preserve one heap operation failure.
     fn from(error: HeapError) -> Self {
@@ -45,6 +55,7 @@ impl fmt::Display for ErrorReason {
     /// Format one VM execution failure reason.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Bytecode(error) => write!(formatter, "bytecode decoding failed: {error}"),
             Self::Program(error) => write!(formatter, "program operation failed: {error}"),
             Self::Heap(error) => write!(formatter, "heap operation failed: {error}"),
             Self::Instruction(error) => write!(formatter, "instruction failed: {error}"),
@@ -61,6 +72,7 @@ impl error::Error for ErrorReason {
     /// Return the specific VM failure.
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
+            Self::Bytecode(error) => Some(error.as_ref()),
             Self::Program(error) => Some(error.as_ref()),
             Self::Heap(error) => Some(error.as_ref()),
             Self::Instruction(error) => Some(error),

@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use destack_bytecode::{Instruction, IntegerOperation, RegisterRange, Scalar};
+use destack_bytecode::{Instruction, IntegerOperation, RegisterSpan, Scalar};
 use destack_program::Word;
 
 use crate::diagnostic::{Error, Result, Trap};
@@ -8,28 +8,21 @@ use crate::machine::Activation;
 
 impl Activation<'_, '_> {
     /// Execute one single-word integer operation.
+    #[inline(always)]
     pub(crate) fn execute_integer(
         &mut self,
         instruction: Instruction<'_>,
         operation: IntegerOperation,
         scalar: Scalar,
     ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
         let overflow_target = if operation.is_overflowing() {
-            Some(
-                operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?,
-            )
+            Some(operands.register()?)
         } else {
             None
         };
-        let left = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+        let left = operands.register()?;
         let left = self.read(left.0).bits();
 
         // unary operations consume no right register
@@ -45,9 +38,7 @@ impl Activation<'_, '_> {
             IntegerOperation::ByteSwap => (Self::byte_swap(left, scalar), false),
             IntegerOperation::BitReverse => (Self::bit_reverse(left, scalar), false),
             _ => {
-                let right = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
+                let right = operands.register()?;
                 let right = self.read(right.0).bits();
 
                 Self::integer_binary(operation, scalar, left, right)?
@@ -90,6 +81,7 @@ impl Activation<'_, '_> {
     }
 
     /// Execute one binary scalar integer operation.
+    #[inline(always)]
     fn integer_binary(
         operation: IntegerOperation,
         scalar: Scalar,
@@ -350,33 +342,25 @@ impl Activation<'_, '_> {
         operation: IntegerOperation,
         is_signed: bool,
     ) -> Result<()> {
-        let mut operands = instruction.operands();
+        let mut operands = self.operands(instruction);
 
         // decode destinations before source values
         let value_target = if operation.is_count() || operation.is_comparison() {
             None
         } else {
-            Some(operands.range().map_err(|_| self.invalid_instruction())?)
+            Some(operands.span()?)
         };
         let scalar_target = if operation.is_count() || operation.is_comparison() {
-            Some(
-                operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?,
-            )
+            Some(operands.register()?)
         } else {
             None
         };
         let overflow_target = if operation.is_overflowing() {
-            Some(
-                operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?,
-            )
+            Some(operands.register()?)
         } else {
             None
         };
-        let left = operands.range().map_err(|_| self.invalid_instruction())?;
+        let left = operands.span()?;
         let left = self.read_integer128(left)?;
 
         // execute unary, count, and binary forms
@@ -389,9 +373,7 @@ impl Activation<'_, '_> {
             IntegerOperation::ByteSwap => (left.swap_bytes(), false),
             IntegerOperation::BitReverse => (left.reverse_bits(), false),
             _ if operation.uses_count() => {
-                let count = operands
-                    .register()
-                    .map_err(|_| self.invalid_instruction())?;
+                let count = operands.register()?;
                 let count = self.read(count.0).as_u64() as u32;
 
                 (
@@ -400,7 +382,7 @@ impl Activation<'_, '_> {
                 )
             }
             _ => {
-                let right = operands.range().map_err(|_| self.invalid_instruction())?;
+                let right = operands.span()?;
                 let right = self.read_integer128(right)?;
 
                 Self::integer128_binary(operation, left, right, is_signed)?
@@ -539,7 +521,7 @@ impl Activation<'_, '_> {
     }
 
     /// Read one two-word 128-bit integer.
-    fn read_integer128(&self, range: RegisterRange) -> Result<u128> {
+    fn read_integer128(&self, range: RegisterSpan) -> Result<u128> {
         if range.word_count != 2 {
             return Err(self.invalid_instruction());
         }
@@ -550,7 +532,7 @@ impl Activation<'_, '_> {
     }
 
     /// Write one two-word 128-bit integer.
-    fn write_integer128(&mut self, range: RegisterRange, value: u128) -> Result<()> {
+    fn write_integer128(&mut self, range: RegisterSpan, value: u128) -> Result<()> {
         if range.word_count != 2 {
             return Err(self.invalid_instruction());
         }

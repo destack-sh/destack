@@ -1,6 +1,6 @@
 use std::{error, fmt};
 
-use destack_bytecode::CodeOffset;
+use destack_bytecode as bytecode;
 use destack_heap::HeapError;
 use destack_program as program;
 use destack_program::{BindingId, FunctionId};
@@ -13,13 +13,17 @@ use super::{
 
 /// One VM execution error with its executable location.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Error {
+pub struct Error(Box<Diagnostic>);
+
+/// One complete VM execution diagnostic.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct Diagnostic {
     /// The exact execution failure.
-    pub reason: ErrorReason,
+    reason: ErrorReason,
     /// The call stack at the time of failure.
-    pub stack: Vec<StackTraceFrame>,
+    stack: Vec<StackTraceFrame>,
     /// The operation that failed.
-    pub anchor: DiagnosticAnchor,
+    anchor: DiagnosticAnchor,
 }
 
 /// Result of one VM operation.
@@ -27,12 +31,32 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 impl Error {
     /// Create one unlocated VM execution error.
-    pub const fn new(reason: ErrorReason) -> Self {
-        Self {
+    pub fn new(reason: ErrorReason) -> Self {
+        Self(Box::new(Diagnostic {
             reason,
             stack: Vec::new(),
             anchor: DiagnosticAnchor::None,
-        }
+        }))
+    }
+
+    /// Return the exact execution failure.
+    pub fn reason(&self) -> &ErrorReason {
+        &self.0.reason
+    }
+
+    /// Return the captured call stack.
+    pub fn stack(&self) -> &[StackTraceFrame] {
+        &self.0.stack
+    }
+
+    /// Return the operation that failed.
+    pub const fn anchor(&self) -> &DiagnosticAnchor {
+        &self.0.anchor
+    }
+
+    /// Create one bytecode decoding error.
+    pub fn bytecode(error: bytecode::Error) -> Self {
+        Self::new(ErrorReason::from(error))
     }
 
     /// Create one Program operation error.
@@ -46,7 +70,7 @@ impl Error {
     }
 
     /// Create one unavailable runtime binding error.
-    pub const fn binding_unavailable(function: FunctionId, binding: BindingId) -> Self {
+    pub fn binding_unavailable(function: FunctionId, binding: BindingId) -> Self {
         Self::new(ErrorReason::Binding(BindingError::Unavailable {
             function,
             binding,
@@ -59,88 +83,95 @@ impl Error {
     }
 
     /// Create one invalid instruction error.
-    pub const fn invalid_instruction(function: FunctionId, code_offset: CodeOffset) -> Self {
-        Self::new(ErrorReason::Instruction(InstructionError::Invalid {
-            function,
-            code_offset,
-        }))
+    pub fn invalid_instruction() -> Self {
+        Self::new(ErrorReason::Instruction(InstructionError::Invalid))
     }
 
     /// Create one unsupported opcode error.
-    pub const fn unsupported_opcode(opcode: u16) -> Self {
+    pub fn unsupported_opcode(opcode: u16) -> Self {
         Self::new(ErrorReason::Instruction(
             InstructionError::UnsupportedOpcode { opcode },
         ))
     }
 
     /// Create one unsupported tensor sharding error.
-    pub const fn unsupported_tensor_sharding() -> Self {
+    pub fn unsupported_tensor_sharding() -> Self {
         Self::new(ErrorReason::Instruction(
             InstructionError::UnsupportedTensorSharding,
         ))
     }
 
-    /// Create one invalid continuation error.
-    pub const fn invalid_continuation() -> Self {
-        Self::new(ErrorReason::Machine(MachineError::InvalidContinuation))
+    /// Create one invalid machine image error.
+    pub fn invalid_image() -> Self {
+        Self::new(ErrorReason::Machine(MachineError::InvalidImage))
+    }
+
+    /// Create one active execution error.
+    pub fn execution_active() -> Self {
+        Self::new(ErrorReason::Machine(MachineError::ExecutionActive))
+    }
+
+    /// Create one missing stopped execution error.
+    pub fn execution_not_stopped() -> Self {
+        Self::new(ErrorReason::Machine(MachineError::ExecutionNotStopped))
     }
 
     /// Create one invalid destructor error.
-    pub const fn invalid_destructor(function: FunctionId) -> Self {
+    pub fn invalid_destructor(function: FunctionId) -> Self {
         Self::new(ErrorReason::Instruction(
             InstructionError::InvalidDestructor { function },
         ))
     }
 
     /// Create one incompatible pointer width error.
-    pub const fn incompatible_pointer_width(program: u8, host: u8) -> Self {
+    pub fn incompatible_pointer_width(program: u8, host: u8) -> Self {
         Self::new(ErrorReason::Machine(
             MachineError::IncompatiblePointerWidth { program, host },
         ))
     }
 
     /// Create one stack overflow error.
-    pub const fn stack_overflow() -> Self {
+    pub fn stack_overflow() -> Self {
         Self::new(ErrorReason::Resource(ResourceError::StackOverflow))
     }
 
     /// Create one frame depth error.
-    pub const fn frame_limit_exceeded() -> Self {
+    pub fn frame_limit_exceeded() -> Self {
         Self::new(ErrorReason::Resource(ResourceError::FrameLimitExceeded))
     }
 
     /// Create one instruction limit error.
-    pub const fn instruction_limit_exceeded() -> Self {
+    pub fn instruction_limit_exceeded() -> Self {
         Self::new(ErrorReason::Resource(
             ResourceError::InstructionLimitExceeded,
         ))
     }
 
     /// Create one world memory exhaustion error.
-    pub const fn memory_exhausted() -> Self {
+    pub fn memory_exhausted() -> Self {
         Self::new(ErrorReason::Resource(ResourceError::MemoryExhausted))
     }
 
     /// Create one language trap error.
-    pub const fn trap(trap: Trap) -> Self {
+    pub fn trap(trap: Trap) -> Self {
         Self::new(ErrorReason::Trap(trap))
     }
 
     /// Create one language panic error.
-    pub const fn panic(panic: Panic) -> Self {
+    pub fn panic(panic: Panic) -> Self {
         Self::new(ErrorReason::Panic(panic))
     }
 
     /// Attach one captured call stack.
     pub fn with_stack(mut self, stack: Vec<StackTraceFrame>) -> Self {
-        self.stack = stack;
+        self.0.stack = stack;
 
         self
     }
 
     /// Attach one executable location.
     pub fn with_anchor(mut self, anchor: DiagnosticAnchor) -> Self {
-        self.anchor = anchor;
+        self.0.anchor = anchor;
 
         self
     }
@@ -160,6 +191,13 @@ impl From<HeapError> for Error {
     }
 }
 
+impl From<bytecode::Error> for Error {
+    /// Preserve one bytecode decoding failure.
+    fn from(error: bytecode::Error) -> Self {
+        Self::bytecode(error)
+    }
+}
+
 impl From<ErrorReason> for Error {
     /// Create one unlocated VM execution error.
     fn from(reason: ErrorReason) -> Self {
@@ -170,14 +208,14 @@ impl From<ErrorReason> for Error {
 impl fmt::Display for Error {
     /// Format one VM execution error and its captured stack.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.reason.fmt(formatter)?;
-        if self.stack.is_empty() {
+        self.0.reason.fmt(formatter)?;
+        if self.0.stack.is_empty() {
             return Ok(());
         }
 
         // append captured frames from the failure outward
         formatter.write_str("\nStack trace:\n")?;
-        for (index, frame) in self.stack.iter().rev().enumerate() {
+        for (index, frame) in self.0.stack.iter().rev().enumerate() {
             let name = frame.function_name.as_deref().unwrap_or("<anonymous>");
             writeln!(
                 formatter,
@@ -193,6 +231,6 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     /// Return the exact execution failure.
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        Some(&self.reason)
+        Some(&self.0.reason)
     }
 }

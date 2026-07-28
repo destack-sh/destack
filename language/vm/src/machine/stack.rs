@@ -47,8 +47,13 @@ impl Stack {
             range: self.range,
             base,
             materialized_byte_len: self.materialized_byte_len,
-            byte_len: 0,
+            byte_len: self.byte_len,
         }
+    }
+
+    /// Return the world memory map that owns this stack.
+    pub(crate) fn memory(&self) -> Arc<MemoryMap> {
+        self.memory.clone()
     }
 
     /// Remove every live stack byte.
@@ -135,7 +140,9 @@ impl Stack {
     }
 
     /// Copy one live stack byte range into a destination slice.
-    pub(crate) fn read_bytes(&self, byte_offset: usize, bytes: &mut [u8]) {
+    pub(crate) fn read_bytes(&self, byte_offset: usize, bytes: &mut [u8]) -> Result<()> {
+        self.live_range(byte_offset, bytes.len())?;
+
         // SAFETY: frame ranges address initialized live stack bytes
         unsafe {
             ptr::copy_nonoverlapping(
@@ -144,10 +151,14 @@ impl Stack {
                 bytes.len(),
             );
         }
+
+        Ok(())
     }
 
     /// Copy one byte slice into a live stack range.
-    pub(crate) fn write_bytes(&mut self, byte_offset: usize, bytes: &[u8]) {
+    pub(crate) fn write_bytes(&mut self, byte_offset: usize, bytes: &[u8]) -> Result<()> {
+        self.live_range(byte_offset, bytes.len())?;
+
         // SAFETY: frame ranges address initialized live stack bytes
         unsafe {
             ptr::copy_nonoverlapping(
@@ -156,6 +167,20 @@ impl Stack {
                 bytes.len(),
             );
         }
+
+        Ok(())
+    }
+
+    /// Borrow one live stack byte range mutably.
+    pub(crate) fn bytes_mut(&mut self, byte_offset: usize, byte_len: usize) -> Result<&mut [u8]> {
+        self.live_range(byte_offset, byte_len)?;
+
+        // SAFETY: callers provide one live range and hold exclusive machine access
+        let bytes = unsafe {
+            std::slice::from_raw_parts_mut(self.address(byte_offset) as *mut u8, byte_len)
+        };
+
+        Ok(bytes)
     }
 
     /// Move one possibly overlapping live byte range.
@@ -223,6 +248,18 @@ impl Stack {
         }
 
         words
+    }
+
+    /// Require one byte range to lie inside the live stack prefix.
+    fn live_range(&self, byte_offset: usize, byte_len: usize) -> Result<()> {
+        let end = byte_offset
+            .checked_add(byte_len)
+            .ok_or_else(Error::invalid_image)?;
+        if end > self.byte_len {
+            return Err(Error::invalid_image());
+        }
+
+        Ok(())
     }
 }
 

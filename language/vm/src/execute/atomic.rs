@@ -1,37 +1,25 @@
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering, fence};
 
 use destack_bytecode::{
-    AtomicAccess, AtomicOperation, AtomicOrder, CodeOffset, CompareExchangeAccess, FenceAccess,
-    Instruction, Scalar,
+    AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, FenceAccess, Instruction,
+    Scalar,
 };
-use destack_program::{Continuation, MemoryAccess, Outcome, Word};
+use destack_program::Word;
 
 use crate::diagnostic::Result;
-use crate::machine::{Activation, Frame};
+use crate::machine::Activation;
 
 impl Activation<'_, '_> {
     /// Execute one typed atomic memory operation.
-    pub(crate) fn execute_atomic<const WATCH: bool>(
+    pub(crate) fn execute_atomic(
         &mut self,
-        frame: Frame,
-        instruction_offset: CodeOffset,
         instruction: Instruction<'_>,
         operation: AtomicOperation,
         scalar: Scalar,
-    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
+    ) -> Result<()> {
         if !operation.supports(scalar) {
             return Err(self.invalid_instruction());
         }
-
-        let needs_range = WATCH
-            && self
-                .watch_points
-                .is_some_and(|points| points.requires_memory_range());
-        let address = if needs_range {
-            Some(self.atomic_address(instruction, operation, scalar)?)
-        } else {
-            None
-        };
 
         // execute through the exact machine width
         match scalar.bit_width() {
@@ -42,22 +30,12 @@ impl Activation<'_, '_> {
             _ => unreachable!("atomic scalars occupy one bytecode word"),
         }
 
-        // report the completed access only in the observed loop
-        let access = match operation {
-            AtomicOperation::Load => MemoryAccess::Read,
-            AtomicOperation::Store => MemoryAccess::Write,
-            _ => MemoryAccess::ReadWrite,
-        };
-        if WATCH {
-            self.watch_after(frame, instruction_offset, access, address)
-        } else {
-            Ok(None)
-        }
+        Ok(())
     }
 
     /// Execute one atomic fence.
     pub(crate) fn execute_atomic_fence(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
+        let mut operands = self.operands(instruction);
         let access = operands
             .u32()
             .ok()
@@ -96,13 +74,9 @@ impl Activation<'_, '_> {
         instruction: Instruction<'_>,
         scalar: Scalar,
     ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let pointer = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let pointer = operands.register()?;
         let access = operands
             .u16()
             .ok()
@@ -122,13 +96,9 @@ impl Activation<'_, '_> {
     /// Execute one exact-width atomic store.
     #[inline(always)]
     fn execute_atomic_store<A: AtomicWord>(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let pointer = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let value = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let pointer = operands.register()?;
+        let value = operands.register()?;
         let access = operands
             .u16()
             .ok()
@@ -151,22 +121,12 @@ impl Activation<'_, '_> {
         operation: AtomicOperation,
         scalar: Scalar,
     ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let status = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let pointer = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let expected = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let replacement = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let status = operands.register()?;
+        let pointer = operands.register()?;
+        let expected = operands.register()?;
+        let replacement = operands.register()?;
         let access = operands
             .u16()
             .ok()
@@ -202,16 +162,10 @@ impl Activation<'_, '_> {
         operation: AtomicOperation,
         scalar: Scalar,
     ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let pointer = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let value = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let pointer = operands.register()?;
+        let value = operands.register()?;
         let access = operands
             .u16()
             .ok()

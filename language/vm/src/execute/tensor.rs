@@ -1,21 +1,20 @@
 use std::ptr;
 
 use bytecode::{
-    CodeOffset, ConvertMode, FloatOperation, IndexReduceOperation, Instruction, IntegerOperation,
-    ReduceOperation, ReferenceType, RegisterId, RegisterRange, Scalar, TensorOperand,
-    TensorOperation, TieBreak,
+    ConvertMode, ElementOperation, IndexReduceOperation, Instruction, Operands, ReduceOperation,
+    RegisterId, RegisterSpan, Scalar, TensorOperand, TensorOperation, TieBreak,
 };
 use destack_bytecode as bytecode;
 use destack_heap::{AllocationShape, HeapEdge, Payload};
 use destack_mir as mir;
 use destack_program::{
-    Continuation, LayoutShape, MemoryAccess, Outcome, ProgramPoint, ScalarFormat, TensorDimension,
-    TensorLayout, TensorSharding, TensorViewLayout, TypeId, Word,
+    AllocationSite, AllocationSiteId, LayoutId, LayoutShape, MemoryAccess, ScalarFormat,
+    TensorDimension, TensorLayout, TensorSharding, TensorViewLayout, TypeId, Word,
 };
 use mir::{TensorDimensionOrder, TensorFormat, TraceMap};
 
 use crate::diagnostic::{Error, Result, Trap};
-use crate::machine::{Activation, Frame};
+use crate::machine::Activation;
 
 /// One tensor resolved against live execution memory.
 #[derive(Clone, Copy)]
@@ -34,6 +33,19 @@ struct Tensor {
     scalar: Scalar,
     /// The number of logical elements.
     element_count: usize,
+}
+
+/// One linked allocation selected by a tensor result operand.
+#[derive(Clone, Copy)]
+struct TensorAllocation {
+    /// The allocation site used for profiling.
+    site_id: AllocationSiteId,
+    /// The linked allocation operation.
+    site: AllocationSite,
+    /// The physical tensor layout.
+    layout: TensorLayout,
+    /// The tensor element representation.
+    scalar: Scalar,
 }
 
 /// The physical addressing rule for one resolved tensor.
@@ -347,81 +359,78 @@ impl Coordinate {
 
 impl Activation<'_, '_> {
     /// Execute one tensor operation through the direct CPU engine.
-    pub(crate) fn execute_tensor<const WATCH: bool>(
+    pub(crate) fn execute_tensor(
         &mut self,
-        frame: Frame,
-        instruction_offset: CodeOffset,
         instruction: Instruction<'_>,
         operation: TensorOperation,
-    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
-        let point = self.point(frame, instruction_offset)?;
+    ) -> Result<Option<(MemoryAccess, (usize, usize))>> {
         let access = match operation {
             TensorOperation::Load => self.execute_tensor_load(instruction).map(Some),
             TensorOperation::Store => self.execute_tensor_store(instruction).map(Some),
             TensorOperation::Fill => self.execute_tensor_fill(instruction).map(Some),
             TensorOperation::Copy => self.execute_tensor_copy(instruction).map(Some),
             TensorOperation::Element | TensorOperation::Compare => {
-                self.execute_tensor_element(instruction, operation, point)?;
+                self.execute_tensor_element(instruction, operation)?;
 
                 Ok(None)
             }
             TensorOperation::Select => {
-                self.execute_tensor_select(instruction, point)?;
+                self.execute_tensor_select(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::Transpose => {
-                self.execute_tensor_transpose(instruction, point)?;
+                self.execute_tensor_transpose(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::Reshape => {
-                self.execute_tensor_reshape(instruction, point)?;
+                self.execute_tensor_reshape(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::Broadcast => {
-                self.execute_tensor_broadcast(instruction, point)?;
+                self.execute_tensor_broadcast(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::Slice => {
-                self.execute_tensor_slice(instruction, point)?;
+                self.execute_tensor_slice(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::Pad => {
-                self.execute_tensor_pad(instruction, point)?;
+                self.execute_tensor_pad(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::Concat => {
-                self.execute_tensor_concat(instruction, point)?;
+                self.execute_tensor_concat(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::Splat => {
-                self.execute_tensor_splat(instruction, point)?;
+                self.execute_tensor_splat(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::Convert => {
-                self.execute_tensor_convert(instruction, point)?;
+                self.execute_tensor_convert(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::Bitcast => {
-                self.execute_tensor_bitcast(instruction, point)?;
+                self.execute_tensor_bitcast(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::Reduce => {
-                self.execute_tensor_reduce(instruction, point)?;
+                self.execute_tensor_reduce(instruction)?;
 
                 Ok(None)
             }
             TensorOperation::IndexReduce => {
-                self.execute_tensor_index_reduce(instruction, point)?;
+                self.execute_tensor_index_reduce(instruction)?;
 
                 Ok(None)
             }
@@ -443,12 +452,7 @@ impl Activation<'_, '_> {
             }
         }?;
 
-        // publish completed tensor memory only in the observed loop
-        if WATCH && let Some((memory_access, address)) = access {
-            self.watch_after(frame, instruction_offset, memory_access, Some(address))
-        } else {
-            Ok(None)
-        }
+        Ok(access)
     }
 
     /// Execute one elementwise scalar tensor operation.
@@ -456,20 +460,23 @@ impl Activation<'_, '_> {
         &mut self,
         instruction: Instruction<'_>,
         tensor_operation: TensorOperation,
-        point: ProgramPoint,
     ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let mut inputs = operands.tensors().map_err(|_| self.invalid_instruction())?;
-        let source_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
-        let operator = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
-        let (result_scalar, ty) = self.tensor_result(&mut operands)?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let mut inputs = operands.tensors()?;
+        let operator = operands.u16()?;
+        let operator =
+            ElementOperation::from_code(operator).ok_or_else(|| self.invalid_instruction())?;
+        let allocation = self.tensor_allocation(&mut operands)?;
+        let expects_comparison = tensor_operation == TensorOperation::Compare;
+        let first_input = inputs.next().ok_or_else(|| self.invalid_instruction())?;
+        let first = self.tensor(first_input)?;
+        let source_scalar = first.scalar;
         let (float_operation, integer_operation, input_count, is_comparison) =
-            if source_scalar.is_float() {
-                let operation = FloatOperation::from_code(operator)
-                    .ok_or_else(|| self.invalid_instruction())?;
+            if let Some(operation) = operator.float_operation() {
+                if !source_scalar.is_float() {
+                    return Err(self.invalid_instruction());
+                }
 
                 (
                     Some(operation),
@@ -477,10 +484,10 @@ impl Activation<'_, '_> {
                     operation.input_count(),
                     operation.is_comparison(),
                 )
-            } else if source_scalar.is_integer() {
-                let operation = IntegerOperation::from_code(operator)
-                    .filter(|operation| !operation.is_overflowing())
-                    .ok_or_else(|| self.invalid_instruction())?;
+            } else if let Some(operation) = operator.integer_operation() {
+                if !source_scalar.is_integer() || operation.is_overflowing() {
+                    return Err(self.invalid_instruction());
+                }
 
                 (
                     None,
@@ -491,13 +498,7 @@ impl Activation<'_, '_> {
             } else {
                 return Err(self.invalid_instruction());
             };
-        let expects_comparison = tensor_operation == TensorOperation::Compare;
-        if inputs.len() != input_count || is_comparison != expects_comparison {
-            return Err(self.invalid_instruction());
-        }
-        let first_input = inputs.next().ok_or_else(|| self.invalid_instruction())?;
-        let first = self.tensor(first_input)?;
-        if first.scalar != source_scalar {
+        if inputs.len() + 1 != input_count || is_comparison != expects_comparison {
             return Err(self.invalid_instruction());
         }
         let mut tensors = [first; 3];
@@ -514,13 +515,13 @@ impl Activation<'_, '_> {
             }
         }
         if expects_comparison {
-            if result_scalar != Scalar::Boolean {
+            if allocation.scalar != Scalar::Boolean {
                 return Err(self.invalid_instruction());
             }
-        } else if result_scalar != source_scalar {
+        } else if allocation.scalar != source_scalar {
             return Err(self.invalid_instruction());
         }
-        let result = self.allocate_tensor(target, result_scalar, ty, first.dimensions(), point)?;
+        let result = self.allocate_tensor(target, allocation, first.dimensions())?;
 
         // execute one scalar operation per logical element
         for index in 0..result.element_count() {
@@ -545,40 +546,31 @@ impl Activation<'_, '_> {
                 .linear_address(index)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-            self.store(address, result_scalar, value);
+            self.store(address, allocation.scalar, value);
         }
 
         Ok(())
     }
 
     /// Execute one elementwise tensor selection.
-    fn execute_tensor_select(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let mut inputs = operands.tensors().map_err(|_| self.invalid_instruction())?;
-        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
-        let (result_scalar, ty) = self.tensor_result(&mut operands)?;
+    fn execute_tensor_select(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let mut inputs = operands.tensors()?;
+        let allocation = self.tensor_allocation(&mut operands)?;
         let condition = self.tensor(inputs.next().ok_or_else(|| self.invalid_instruction())?)?;
         let left = self.tensor(inputs.next().ok_or_else(|| self.invalid_instruction())?)?;
         let right = self.tensor(inputs.next().ok_or_else(|| self.invalid_instruction())?)?;
-        if result_scalar != scalar
-            || condition.scalar != Scalar::Boolean
-            || left.scalar != scalar
-            || right.scalar != scalar
+        if condition.scalar != Scalar::Boolean
+            || left.scalar != allocation.scalar
+            || right.scalar != allocation.scalar
             || inputs.next().is_some()
             || !condition.matches_dimensions(&left)
             || !condition.matches_dimensions(&right)
         {
             return Err(self.invalid_instruction());
         }
-        let result =
-            self.allocate_tensor(target, result_scalar, ty, condition.dimensions(), point)?;
+        let result = self.allocate_tensor(target, allocation, condition.dimensions())?;
 
         // select the source tensor independently for every element
         for index in 0..result.element_count() {
@@ -594,32 +586,24 @@ impl Activation<'_, '_> {
                 .linear_address(index)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-            self.store(target, result_scalar, self.load(source, scalar));
+            self.store(
+                target,
+                allocation.scalar,
+                self.load(source, allocation.scalar),
+            );
         }
 
         Ok(())
     }
 
     /// Execute one tensor splat.
-    fn execute_tensor_splat(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let value = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let value_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
-        let (scalar, ty) = self.tensor_result(&mut operands)?;
-        if value_scalar != scalar {
-            return Err(self.invalid_instruction());
-        }
-        let dimensions = self.fixed_tensor_dimensions(ty)?;
-        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+    fn execute_tensor_splat(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let value = operands.register()?;
+        let allocation = self.tensor_allocation(&mut operands)?;
+        let dimensions = self.fixed_tensor_dimensions(allocation.layout)?;
+        let result = self.allocate_tensor(target, allocation, dimensions.iter().copied())?;
         let value = self.read(value.0);
 
         // fill dense and non-default physical orders through logical addresses
@@ -627,7 +611,7 @@ impl Activation<'_, '_> {
             let address = result
                 .linear_address(index)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
-            self.store(address, scalar, value);
+            self.store(address, allocation.scalar, value);
         }
 
         Ok(())
@@ -635,22 +619,16 @@ impl Activation<'_, '_> {
 
     /// Execute one tensor scalar extraction.
     fn execute_tensor_extract(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.tensor()?;
         let indices = self.tensor_indices(&mut operands)?;
-        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
         let source = self.tensor(source)?;
-        if source.scalar != scalar {
-            return Err(self.invalid_instruction());
-        }
         let address = source
             .element_address(&indices)
             .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-        self.write(target.0, self.load(address, scalar));
+        self.write(target.0, self.load(address, source.scalar));
 
         Ok(())
     }
@@ -660,23 +638,20 @@ impl Activation<'_, '_> {
         &mut self,
         instruction: Instruction<'_>,
     ) -> Result<(MemoryAccess, (usize, usize))> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let view = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let view = operands.tensor()?;
         let indices = self.tensor_indices(&mut operands)?;
-        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
         let view = self.tensor(view)?;
-        if view.scalar != scalar || !matches!(view.shape, TensorShape::Strided(_)) {
+        if !matches!(view.shape, TensorShape::Strided(_)) {
             return Err(self.invalid_instruction());
         }
         let address = view
             .element_address(&indices)
             .ok_or_else(|| Error::trap(Trap::Bounds))?;
-        let byte_len = scalar.bit_width() as usize / u8::BITS as usize;
+        let byte_len = view.scalar.bit_width() as usize / u8::BITS as usize;
 
-        self.write(target.0, self.load(address, scalar));
+        self.write(target.0, self.load(address, view.scalar));
 
         Ok((MemoryAccess::Read, (address, byte_len)))
     }
@@ -686,23 +661,20 @@ impl Activation<'_, '_> {
         &mut self,
         instruction: Instruction<'_>,
     ) -> Result<(MemoryAccess, (usize, usize))> {
-        let mut operands = instruction.operands();
-        let view = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let view = operands.tensor()?;
         let indices = self.tensor_indices(&mut operands)?;
-        let value = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let value = operands.register()?;
         let view = self.tensor(view)?;
-        if view.scalar != scalar || !matches!(view.shape, TensorShape::Strided(_)) {
+        if !matches!(view.shape, TensorShape::Strided(_)) {
             return Err(self.invalid_instruction());
         }
         let address = view
             .element_address(&indices)
             .ok_or_else(|| Error::trap(Trap::Bounds))?;
-        let byte_len = scalar.bit_width() as usize / u8::BITS as usize;
+        let byte_len = view.scalar.bit_width() as usize / u8::BITS as usize;
 
-        self.store(address, scalar, self.read(value.0));
+        self.store(address, view.scalar, self.read(value.0));
 
         Ok((MemoryAccess::Write, (address, byte_len)))
     }
@@ -712,14 +684,11 @@ impl Activation<'_, '_> {
         &mut self,
         instruction: Instruction<'_>,
     ) -> Result<(MemoryAccess, (usize, usize))> {
-        let mut operands = instruction.operands();
-        let view = operands.tensor().map_err(|_| self.invalid_instruction())?;
-        let value = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let view = operands.tensor()?;
+        let value = operands.register()?;
         let view = self.tensor(view)?;
-        if view.scalar != scalar || !matches!(view.shape, TensorShape::Strided(_)) {
+        if !matches!(view.shape, TensorShape::Strided(_)) {
             return Err(self.invalid_instruction());
         }
         let value = self.read(value.0);
@@ -729,7 +698,7 @@ impl Activation<'_, '_> {
             let address = view
                 .linear_address(index)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
-            self.store(address, scalar, value);
+            self.store(address, view.scalar, value);
         }
 
         let byte_span = view.byte_span().ok_or_else(|| self.invalid_instruction())?;
@@ -742,13 +711,11 @@ impl Activation<'_, '_> {
         &mut self,
         instruction: Instruction<'_>,
     ) -> Result<(MemoryAccess, (usize, usize))> {
-        let mut operands = instruction.operands();
-        let mut tensors = operands.tensors().map_err(|_| self.invalid_instruction())?;
-        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let mut tensors = operands.tensors()?;
         let target = self.tensor(tensors.next().ok_or_else(|| self.invalid_instruction())?)?;
         let source = self.tensor(tensors.next().ok_or_else(|| self.invalid_instruction())?)?;
-        if target.scalar != scalar
-            || source.scalar != scalar
+        if target.scalar != source.scalar
             || tensors.next().is_some()
             || !matches!(target.shape, TensorShape::Strided(_))
             || !target.matches_dimensions(&source)
@@ -758,13 +725,17 @@ impl Activation<'_, '_> {
 
         // copy through logical coordinates so arbitrary strides remain valid
         for index in 0..target.element_count() {
-            let source = source
+            let source_address = source
                 .linear_address(index)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
             let target_address = target
                 .linear_address(index)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
-            self.store(target_address, scalar, self.load(source, scalar));
+            self.store(
+                target_address,
+                target.scalar,
+                self.load(source_address, source.scalar),
+            );
         }
 
         let byte_span = target
@@ -775,20 +746,14 @@ impl Activation<'_, '_> {
     }
 
     /// Execute one tensor reshape by preserving logical element order.
-    fn execute_tensor_reshape(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+    fn execute_tensor_reshape(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.tensor()?;
         let dimensions = self.tensor_indices(&mut operands)?;
-        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        let allocation = self.tensor_allocation(&mut operands)?;
         let source = self.tensor(source)?;
-        if source.scalar != scalar {
+        if source.scalar != allocation.scalar {
             return Err(self.invalid_instruction());
         }
         let element_count = Tensor::count_elements(dimensions.iter().copied())
@@ -796,29 +761,20 @@ impl Activation<'_, '_> {
         if element_count != source.element_count() {
             return Err(self.invalid_instruction());
         }
-        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+        let result = self.allocate_tensor(target, allocation, dimensions.iter().copied())?;
 
         self.copy_tensor(&result, &source)
     }
 
     /// Execute one tensor transpose.
-    fn execute_tensor_transpose(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
-        let permutation = operands
-            .u16s()
-            .map_err(|_| self.invalid_instruction())?
-            .collect::<Vec<_>>();
-        let (scalar, ty) = self.tensor_result(&mut operands)?;
+    fn execute_tensor_transpose(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.tensor()?;
+        let permutation = operands.u16s()?.collect::<Vec<_>>();
+        let allocation = self.tensor_allocation(&mut operands)?;
         let source = self.tensor(source)?;
-        if source.scalar != scalar || permutation.len() != source.rank() {
+        if source.scalar != allocation.scalar || permutation.len() != source.rank() {
             return Err(self.invalid_instruction());
         }
         let mut seen = vec![false; permutation.len()];
@@ -836,7 +792,7 @@ impl Activation<'_, '_> {
             .map(|axis| source.dimension(*axis as usize))
             .collect::<Option<Vec<_>>>()
             .ok_or_else(|| self.invalid_instruction())?;
-        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+        let result = self.allocate_tensor(target, allocation, dimensions.iter().copied())?;
 
         let mut coordinate = Coordinate::zero(result.rank());
 
@@ -856,33 +812,28 @@ impl Activation<'_, '_> {
                 .element_address(&coordinate.values)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-            self.store(target_address, scalar, self.load(source_address, scalar));
+            self.store(
+                target_address,
+                allocation.scalar,
+                self.load(source_address, source.scalar),
+            );
         }
 
         Ok(())
     }
 
     /// Execute one tensor broadcast.
-    fn execute_tensor_broadcast(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
-        let axes = operands
-            .u16s()
-            .map_err(|_| self.invalid_instruction())?
-            .collect::<Vec<_>>();
-        let (scalar, ty) = self.tensor_result(&mut operands)?;
+    fn execute_tensor_broadcast(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.tensor()?;
+        let axes = operands.u16s()?.collect::<Vec<_>>();
+        let allocation = self.tensor_allocation(&mut operands)?;
         let source = self.tensor(source)?;
-        if source.scalar != scalar || axes.len() != source.rank() {
+        if source.scalar != allocation.scalar || axes.len() != source.rank() {
             return Err(self.invalid_instruction());
         }
-        let dimensions = self.broadcast_dimensions(ty, &source, &axes)?;
+        let dimensions = self.broadcast_dimensions(allocation.layout, &source, &axes)?;
         let mut seen = vec![false; dimensions.len()];
         for axis in &axes {
             let Some(seen) = seen.get_mut(*axis as usize) else {
@@ -893,7 +844,7 @@ impl Activation<'_, '_> {
             }
             *seen = true;
         }
-        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+        let result = self.allocate_tensor(target, allocation, dimensions.iter().copied())?;
 
         let mut coordinate = Coordinate::zero(result.rank());
 
@@ -914,29 +865,27 @@ impl Activation<'_, '_> {
                 .element_address(&coordinate.values)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-            self.store(target_address, scalar, self.load(source_address, scalar));
+            self.store(
+                target_address,
+                allocation.scalar,
+                self.load(source_address, source.scalar),
+            );
         }
 
         Ok(())
     }
 
     /// Execute one tensor slice.
-    fn execute_tensor_slice(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+    fn execute_tensor_slice(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.tensor()?;
         let offsets = self.tensor_indices(&mut operands)?;
         let sizes = self.tensor_indices(&mut operands)?;
         let strides = self.tensor_indices(&mut operands)?;
-        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        let allocation = self.tensor_allocation(&mut operands)?;
         let source = self.tensor(source)?;
-        if source.scalar != scalar
+        if source.scalar != allocation.scalar
             || offsets.len() != source.rank()
             || sizes.len() != source.rank()
             || strides.len() != source.rank()
@@ -965,7 +914,7 @@ impl Activation<'_, '_> {
                 return Err(Error::trap(Trap::Bounds));
             }
         }
-        let result = self.allocate_tensor(target, scalar, ty, sizes.iter().copied(), point)?;
+        let result = self.allocate_tensor(target, allocation, sizes.iter().copied())?;
 
         let mut coordinate = Coordinate::zero(result.rank());
 
@@ -988,33 +937,28 @@ impl Activation<'_, '_> {
                 .element_address(&coordinate.values)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-            self.store(target_address, scalar, self.load(source_address, scalar));
+            self.store(
+                target_address,
+                allocation.scalar,
+                self.load(source_address, source.scalar),
+            );
         }
 
         Ok(())
     }
 
     /// Execute one tensor padding operation.
-    fn execute_tensor_pad(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
-        let padding = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
+    fn execute_tensor_pad(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.tensor()?;
+        let padding = operands.register()?;
         let low = self.tensor_indices(&mut operands)?;
         let high = self.tensor_indices(&mut operands)?;
         let interior = self.tensor_indices(&mut operands)?;
-        let (scalar, ty) = self.tensor_result(&mut operands)?;
+        let allocation = self.tensor_allocation(&mut operands)?;
         let source = self.tensor(source)?;
-        if source_scalar != scalar || source.scalar != scalar {
+        if source.scalar != allocation.scalar {
             return Err(self.invalid_instruction());
         }
         if low.len() != source.rank()
@@ -1041,7 +985,7 @@ impl Activation<'_, '_> {
             .map(|spacing| spacing.checked_add(1))
             .collect::<Option<Vec<_>>>()
             .ok_or_else(|| self.invalid_instruction())?;
-        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+        let result = self.allocate_tensor(target, allocation, dimensions.iter().copied())?;
         let padding = self.read(padding.0);
 
         let mut coordinate = Coordinate::zero(result.rank());
@@ -1077,31 +1021,25 @@ impl Activation<'_, '_> {
                     .element_address(&source_coordinate)
                     .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-                self.load(address, scalar)
+                self.load(address, source.scalar)
             };
             let address = result
                 .element_address(&coordinate.values)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-            self.store(address, scalar, value);
+            self.store(address, allocation.scalar, value);
         }
 
         Ok(())
     }
 
     /// Execute one tensor concatenation.
-    fn execute_tensor_concat(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let inputs = operands.tensors().map_err(|_| self.invalid_instruction())?;
-        let axis = operands.u16().map_err(|_| self.invalid_instruction())? as usize;
-        let (scalar, ty) = self.tensor_result(&mut operands)?;
+    fn execute_tensor_concat(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let inputs = operands.tensors()?;
+        let axis = operands.u16()? as usize;
+        let allocation = self.tensor_allocation(&mut operands)?;
         if inputs.is_empty() {
             return Err(self.invalid_instruction());
         }
@@ -1109,7 +1047,7 @@ impl Activation<'_, '_> {
             .into_iter()
             .map(|input| self.tensor(input))
             .collect::<Result<Vec<_>>>()?;
-        if inputs.iter().any(|input| input.scalar != scalar) {
+        if inputs.iter().any(|input| input.scalar != allocation.scalar) {
             return Err(self.invalid_instruction());
         }
         let mut dimensions = inputs[0].dimensions().collect::<Vec<_>>();
@@ -1132,7 +1070,7 @@ impl Activation<'_, '_> {
                 size.checked_add(input.dimension(axis)?)
             })
             .ok_or_else(|| self.invalid_instruction())?;
-        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+        let result = self.allocate_tensor(target, allocation, dimensions.iter().copied())?;
 
         let mut coordinate = Coordinate::zero(result.rank());
 
@@ -1165,36 +1103,26 @@ impl Activation<'_, '_> {
                 .element_address(&coordinate.values)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-            self.store(target_address, scalar, self.load(source_address, scalar));
+            self.store(
+                target_address,
+                allocation.scalar,
+                self.load(source_address, source.scalar),
+            );
         }
 
         Ok(())
     }
 
     /// Execute one tensor element conversion.
-    fn execute_tensor_convert(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
-        let source_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
-        let target_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
-        let mode = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+    fn execute_tensor_convert(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.tensor()?;
+        let mode = operands.u16()? as u8;
         let mode = ConvertMode::from_code(mode).ok_or_else(|| self.invalid_instruction())?;
-        let (result_scalar, ty) = self.tensor_result(&mut operands)?;
-        if result_scalar != target_scalar {
-            return Err(self.invalid_instruction());
-        }
+        let allocation = self.tensor_allocation(&mut operands)?;
         let source = self.tensor(source)?;
-        if source.scalar != source_scalar {
-            return Err(self.invalid_instruction());
-        }
-        let result = self.allocate_tensor(target, target_scalar, ty, source.dimensions(), point)?;
+        let result = self.allocate_tensor(target, allocation, source.dimensions())?;
 
         // convert each logical element through the scalar conversion path
         for index in 0..result.element_count() {
@@ -1204,47 +1132,36 @@ impl Activation<'_, '_> {
             let target_address = result
                 .linear_address(index)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
-            let value = self.load(source_address, source_scalar);
-            let value = self.convert_scalar(value, source_scalar, target_scalar, mode)?;
+            let value = self.load(source_address, source.scalar);
+            let value = self.convert_scalar(value, source.scalar, allocation.scalar, mode)?;
 
-            self.store(target_address, target_scalar, value);
+            self.store(target_address, allocation.scalar, value);
         }
 
         Ok(())
     }
 
     /// Execute one exact tensor storage bitcast.
-    fn execute_tensor_bitcast(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
-        let source_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
-        let (target_scalar, ty) = self.tensor_result(&mut operands)?;
+    fn execute_tensor_bitcast(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.tensor()?;
+        let allocation = self.tensor_allocation(&mut operands)?;
         let source = self.tensor(source)?;
-        if source.scalar != source_scalar {
-            return Err(self.invalid_instruction());
-        }
-        let dimensions = self.fixed_tensor_dimensions(ty)?;
+        let dimensions = self.fixed_tensor_dimensions(allocation.layout)?;
         let target_element_count = Tensor::count_elements(dimensions.iter().copied())
             .ok_or_else(|| self.invalid_instruction())?;
         let source_byte_len = source
             .element_count()
-            .checked_mul(source_scalar.bit_width() as usize / u8::BITS as usize)
+            .checked_mul(source.scalar.bit_width() as usize / u8::BITS as usize)
             .ok_or_else(|| self.invalid_instruction())?;
         let target_byte_len = target_element_count
-            .checked_mul(target_scalar.bit_width() as usize / u8::BITS as usize)
+            .checked_mul(allocation.scalar.bit_width() as usize / u8::BITS as usize)
             .ok_or_else(|| self.invalid_instruction())?;
         if source_byte_len != target_byte_len {
             return Err(self.invalid_instruction());
         }
-        let result =
-            self.allocate_tensor(target, target_scalar, ty, dimensions.iter().copied(), point)?;
+        let result = self.allocate_tensor(target, allocation, dimensions.iter().copied())?;
 
         // SAFETY: both tensor allocations own non-overlapping payloads of the same byte length
         unsafe {
@@ -1259,35 +1176,22 @@ impl Activation<'_, '_> {
     }
 
     /// Execute one tensor reduction over selected axes.
-    fn execute_tensor_reduce(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
-        let initial = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
-        let operation = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+    fn execute_tensor_reduce(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.tensor()?;
+        let initial = operands.register()?;
+        let operation = operands.u16()? as u8;
         let operation =
             ReduceOperation::from_code(operation).ok_or_else(|| self.invalid_instruction())?;
         let axes = operands
-            .u16s()
-            .map_err(|_| self.invalid_instruction())?
+            .u16s()?
             .into_iter()
             .map(usize::from)
             .collect::<Vec<_>>();
-        let (result_scalar, ty) = self.tensor_result(&mut operands)?;
-        if scalar != result_scalar {
-            return Err(self.invalid_instruction());
-        }
+        let allocation = self.tensor_allocation(&mut operands)?;
         let source = self.tensor(source)?;
-        if source.scalar != scalar {
+        if source.scalar != allocation.scalar {
             return Err(self.invalid_instruction());
         }
         let mut reduced = vec![false; source.rank()];
@@ -1305,7 +1209,7 @@ impl Activation<'_, '_> {
             .enumerate()
             .filter_map(|(axis, dimension)| (!reduced[axis]).then_some(dimension))
             .collect::<Vec<_>>();
-        let result = self.allocate_tensor(target, scalar, ty, dimensions.iter().copied(), point)?;
+        let result = self.allocate_tensor(target, allocation, dimensions.iter().copied())?;
         let initial = self.read(initial.0);
 
         let mut source_coordinate = Coordinate::zero(source.rank());
@@ -1316,7 +1220,7 @@ impl Activation<'_, '_> {
             let address = result
                 .linear_address(index)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
-            self.store(address, scalar, initial);
+            self.store(address, allocation.scalar, initial);
         }
 
         // reduce source coordinates into each result coordinate
@@ -1338,44 +1242,36 @@ impl Activation<'_, '_> {
             let source_address = source
                 .element_address(&source_coordinate.values)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
-            let current = self.load(result_address, scalar);
+            let current = self.load(result_address, allocation.scalar);
             let value = self.reduce_value(
                 operation,
-                scalar,
+                allocation.scalar,
                 current,
-                self.load(source_address, scalar),
+                self.load(source_address, source.scalar),
             )?;
 
-            self.store(result_address, scalar, value);
+            self.store(result_address, allocation.scalar, value);
         }
 
         Ok(())
     }
 
     /// Execute one tensor index reduction.
-    fn execute_tensor_index_reduce(
-        &mut self,
-        instruction: Instruction<'_>,
-        point: ProgramPoint,
-    ) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
-        let source_scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
-        let operation = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+    fn execute_tensor_index_reduce(&mut self, instruction: Instruction<'_>) -> Result<()> {
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let source = operands.tensor()?;
+        let operation = operands.u16()? as u8;
         let operation =
             IndexReduceOperation::from_code(operation).ok_or_else(|| self.invalid_instruction())?;
-        let axis = operands.u16().map_err(|_| self.invalid_instruction())? as usize;
-        let tie = operands.u16().map_err(|_| self.invalid_instruction())? as u8;
+        let axis = operands.u16()? as usize;
+        let tie = operands.u16()? as u8;
         let tie = TieBreak::from_code(tie).ok_or_else(|| self.invalid_instruction())?;
-        let (result_scalar, ty) = self.tensor_result(&mut operands)?;
+        let allocation = self.tensor_allocation(&mut operands)?;
         let source = self.tensor(source)?;
-        if source.scalar != source_scalar
-            || axis >= source.rank()
+        if axis >= source.rank()
             || source.dimension(axis) == Some(0)
-            || !result_scalar.is_integer()
+            || !allocation.scalar.is_integer()
         {
             return Err(self.invalid_instruction());
         }
@@ -1384,8 +1280,7 @@ impl Activation<'_, '_> {
             .enumerate()
             .filter_map(|(current, dimension)| (current != axis).then_some(dimension))
             .collect::<Vec<_>>();
-        let result =
-            self.allocate_tensor(target, result_scalar, ty, dimensions.iter().copied(), point)?;
+        let result = self.allocate_tensor(target, allocation, dimensions.iter().copied())?;
 
         let mut result_coordinate = Coordinate::zero(result.rank());
 
@@ -1400,7 +1295,7 @@ impl Activation<'_, '_> {
                 .element_address(&source_coordinate)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
             let mut selected = 0usize;
-            let mut selected_value = self.load(first_address, source_scalar);
+            let mut selected_value = self.load(first_address, source.scalar);
 
             let dimension = source
                 .dimension(axis)
@@ -1410,13 +1305,13 @@ impl Activation<'_, '_> {
                 let address = source
                     .element_address(&source_coordinate)
                     .ok_or_else(|| Error::trap(Trap::Bounds))?;
-                let value = self.load(address, source_scalar);
+                let value = self.load(address, source.scalar);
                 let comparison = match operation {
                     IndexReduceOperation::Minimum => ReduceOperation::Minimum,
                     IndexReduceOperation::Maximum => ReduceOperation::Maximum,
                 };
                 let reduced =
-                    self.reduce_value(comparison, source_scalar, selected_value, value)?;
+                    self.reduce_value(comparison, source.scalar, selected_value, value)?;
                 let replaces =
                     reduced == value && (selected_value != value || tie == TieBreak::Last);
                 if replaces {
@@ -1428,8 +1323,8 @@ impl Activation<'_, '_> {
                 .element_address(&result_coordinate.values)
                 .ok_or_else(|| Error::trap(Trap::Bounds))?;
 
-            let selected = Word::from_bits(result_scalar.encode(selected as u64));
-            self.store(address, result_scalar, selected);
+            let selected = Word::from_bits(allocation.scalar.encode(selected as u64));
+            self.store(address, allocation.scalar, selected);
         }
 
         Ok(())
@@ -1437,19 +1332,24 @@ impl Activation<'_, '_> {
 
     /// Execute one derived tensor view.
     fn execute_tensor_view(&mut self, instruction: Instruction<'_>) -> Result<()> {
-        let mut operands = instruction.operands();
-        let target = operands.range().map_err(|_| self.invalid_instruction())?;
-        let source = operands.tensor().map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.span()?;
+        let source = operands.tensor()?;
         let offsets = self.tensor_indices(&mut operands)?;
         let sizes = self.tensor_indices(&mut operands)?;
         let strides = self.tensor_indices(&mut operands)?;
-        let (scalar, ty) = self.tensor_result(&mut operands)?;
-        let source = self.tensor(source)?;
+        let layout = operands.u32()?;
+        let layout = LayoutId::from_raw(layout).ok_or_else(|| self.invalid_instruction())?;
         let layout = self
             .machine
             .program
-            .tensor_view_layout(ty)
+            .layout_by_id(layout)
             .ok_or_else(|| self.invalid_instruction())?;
+        let LayoutShape::TensorView(layout) = layout.shape else {
+            return Err(self.invalid_instruction());
+        };
+        let source = self.tensor(source)?;
+        let scalar = self.tensor_scalar(layout.element)?;
         let rank = self
             .machine
             .program
@@ -1464,7 +1364,7 @@ impl Activation<'_, '_> {
         }
         let expected = self.machine.program.tensor_dimensions(layout.dimensions);
         self.match_tensor_dimensions(expected, sizes.iter().copied())?;
-        let base = self.call.memory.native_address(source.edge);
+        let base = self.activation.memory.address(source.edge);
         let mut byte_offset = source
             .address
             .checked_sub(base)
@@ -1531,11 +1431,12 @@ impl Activation<'_, '_> {
 
     /// Resolve one tensor operand against its program layout.
     fn tensor(&self, input: TensorOperand) -> Result<Tensor> {
-        let ty = TypeId(input.ty.0);
+        let layout =
+            LayoutId::from_raw(input.layout.0).ok_or_else(|| self.invalid_instruction())?;
         let layout = self
             .machine
             .program
-            .layout(ty)
+            .layout_by_id(layout)
             .ok_or_else(|| self.invalid_instruction())?;
 
         match layout.shape {
@@ -1546,7 +1447,7 @@ impl Activation<'_, '_> {
     }
 
     /// Resolve one owning tensor register.
-    fn owning_tensor(&self, registers: RegisterRange, layout: TensorLayout) -> Result<Tensor> {
+    fn owning_tensor(&self, registers: RegisterSpan, layout: TensorLayout) -> Result<Tensor> {
         if registers.word_count != 1 || !matches!(layout.sharding, TensorSharding::Unsharded) {
             return Err(Error::unsupported_tensor_sharding());
         }
@@ -1557,7 +1458,7 @@ impl Activation<'_, '_> {
             .tensor_dimensions(layout.dimensions)
             .len();
         let edge = self.read_edge(registers.start, layout.space)?;
-        let base = self.call.memory.native_address(edge);
+        let base = self.activation.memory.address(edge);
         let header_byte_len = rank
             .checked_mul(Word::BYTE_LEN)
             .ok_or_else(|| self.invalid_instruction())?;
@@ -1569,7 +1470,7 @@ impl Activation<'_, '_> {
     }
 
     /// Resolve one canonical tensor view descriptor.
-    fn tensor_view(&self, registers: RegisterRange, layout: TensorViewLayout) -> Result<Tensor> {
+    fn tensor_view(&self, registers: RegisterSpan, layout: TensorViewLayout) -> Result<Tensor> {
         if !matches!(layout.sharding, TensorSharding::Unsharded) {
             return Err(Error::unsupported_tensor_sharding());
         }
@@ -1599,9 +1500,9 @@ impl Activation<'_, '_> {
         let expected = self.machine.program.tensor_dimensions(layout.dimensions);
         self.match_tensor_dimensions(expected, TensorDimensions::new(dimension_address, rank))?;
         let address = self
-            .call
+            .activation
             .memory
-            .native_address(edge)
+            .address(edge)
             .checked_add(byte_offset)
             .ok_or_else(|| self.invalid_instruction())?;
 
@@ -1681,36 +1582,22 @@ impl Activation<'_, '_> {
     fn allocate_tensor<Dimensions>(
         &mut self,
         target: RegisterId,
-        scalar: Scalar,
-        ty: TypeId,
+        allocation: TensorAllocation,
         dimensions: Dimensions,
-        point: ProgramPoint,
     ) -> Result<Tensor>
     where
         Dimensions: Clone + ExactSizeIterator<Item = usize>,
     {
-        let (site_id, site) = self
-            .machine
-            .program
-            .sites()
-            .allocation(self.machine.program.sections(), point)
-            .map(|(site_id, site)| (site_id, *site))
-            .ok_or_else(|| self.invalid_instruction())?;
-        if site.result_type != ty {
-            return Err(self.invalid_instruction());
-        }
-        let layout = self
-            .machine
-            .program
-            .tensor_layout(ty)
-            .ok_or_else(|| self.invalid_instruction())?;
+        let TensorAllocation {
+            site_id,
+            site,
+            layout,
+            scalar,
+        } = allocation;
         if !matches!(layout.sharding, TensorSharding::Unsharded) {
             return Err(Error::unsupported_tensor_sharding());
         }
-        if layout.space != site.space
-            || self.machine.program.scalar_format(layout.element)
-                != Some(ScalarFormat::from(scalar))
-        {
+        if layout.space != site.space {
             return Err(self.invalid_instruction());
         }
         let expected_dimensions = self.machine.program.tensor_dimensions(layout.dimensions);
@@ -1736,9 +1623,9 @@ impl Activation<'_, '_> {
             .and_then(|byte_len| byte_len.checked_add(header_byte_len))
             .ok_or_else(|| self.invalid_instruction())?;
         let shape = AllocationShape::new(byte_len, Word::BYTE_LEN, None, TraceMap::empty());
-        let plan = self.call.memory.plan_allocation(site.space, &shape);
+        let plan = self.activation.memory.plan_allocation(site.space, &shape);
         let edge = self
-            .call
+            .activation
             .memory
             .allocate(
                 site.space,
@@ -1750,7 +1637,7 @@ impl Activation<'_, '_> {
         self.write(target.0, Word::from_bits(edge.bits() as u64));
 
         // write the shape header before exposing element storage
-        let base = self.call.memory.native_address(edge);
+        let base = self.activation.memory.address(edge);
         for (axis, dimension) in dimensions.enumerate() {
             self.store(
                 base + axis * Word::BYTE_LEN,
@@ -1768,69 +1655,38 @@ impl Activation<'_, '_> {
             .ok_or_else(|| self.invalid_instruction())
     }
 
-    /// Resolve one tensor result representation against its Program layout.
-    fn tensor_result(
-        &self,
-        operands: &mut destack_bytecode::Operands<'_>,
-    ) -> Result<(Scalar, TypeId)> {
-        let scalar = operands.scalar().map_err(|_| self.invalid_instruction())?;
-        let reference = operands
-            .reference()
-            .map_err(|_| self.invalid_instruction())?;
-        let ty = TypeId(operands.u32().map_err(|_| self.invalid_instruction())?);
+    /// Resolve one linked tensor allocation.
+    fn tensor_allocation(&self, operands: &mut Operands<'_, false>) -> Result<TensorAllocation> {
+        let site_id = operands.u32()?;
+        let site_id = AllocationSiteId(site_id);
+        let site = self
+            .machine
+            .program
+            .sites()
+            .allocation_by_id(self.machine.program.sections(), site_id)
+            .copied()
+            .ok_or_else(|| self.invalid_instruction())?;
         let layout = self
             .machine
             .program
-            .layout(ty)
+            .layout_by_id(site.layout)
             .ok_or_else(|| self.invalid_instruction())?;
-        let (element, expected_reference) = match layout.shape {
-            LayoutShape::Tensor(layout) => {
-                let reference = ReferenceType::new(
-                    bytecode::ReferenceKind::MANAGED,
-                    match layout.space {
-                        mir::Space::Local => bytecode::Space::LOCAL,
-                        mir::Space::Shared => bytecode::Space::SHARED,
-                        _ => return Err(self.invalid_instruction()),
-                    },
-                );
-
-                (layout.element, reference)
-            }
-            LayoutShape::TensorView(layout) => {
-                let kind = match layout.reference.flags.kind() {
-                    Some(mir::ReferenceKind::Managed) => bytecode::ReferenceKind::MANAGED,
-                    Some(mir::ReferenceKind::Unique) => bytecode::ReferenceKind::UNIQUE,
-                    Some(mir::ReferenceKind::Borrowed) => bytecode::ReferenceKind::BORROWED,
-                    Some(mir::ReferenceKind::Raw) | None => {
-                        return Err(self.invalid_instruction());
-                    }
-                };
-                let space = match layout.reference.space() {
-                    Some(mir::Space::Local) => bytecode::Space::LOCAL,
-                    Some(mir::Space::Shared) => bytecode::Space::SHARED,
-                    Some(mir::Space::Frame | mir::Space::Static) | None => {
-                        return Err(self.invalid_instruction());
-                    }
-                };
-                let reference = ReferenceType::new(kind, space);
-
-                (layout.element, reference)
-            }
-            _ => return Err(self.invalid_instruction()),
-        };
-        let expected_scalar = self.tensor_scalar(element)?;
-        if scalar != expected_scalar || reference != expected_reference {
+        let LayoutShape::Tensor(layout) = layout.shape else {
             return Err(self.invalid_instruction());
-        }
+        };
+        let scalar = self.tensor_scalar(layout.element)?;
 
-        Ok((scalar, ty))
+        Ok(TensorAllocation {
+            site_id,
+            site,
+            layout,
+            scalar,
+        })
     }
 
     /// Read one encoded tensor index register list.
-    fn tensor_indices(&self, operands: &mut destack_bytecode::Operands<'_>) -> Result<Vec<usize>> {
-        let registers = operands
-            .registers()
-            .map_err(|_| self.invalid_instruction())?;
+    fn tensor_indices(&self, operands: &mut Operands<'_, false>) -> Result<Vec<usize>> {
+        let registers = operands.registers()?;
 
         Ok(registers
             .into_iter()
@@ -1861,13 +1717,7 @@ impl Activation<'_, '_> {
     }
 
     /// Return one tensor type's fully static dimensions.
-    fn fixed_tensor_dimensions(&self, ty: TypeId) -> Result<Vec<usize>> {
-        let layout = self
-            .machine
-            .program
-            .tensor_layout(ty)
-            .ok_or_else(|| self.invalid_instruction())?;
-
+    fn fixed_tensor_dimensions(&self, layout: TensorLayout) -> Result<Vec<usize>> {
         self.machine
             .program
             .tensor_dimensions(layout.dimensions)
@@ -1884,15 +1734,10 @@ impl Activation<'_, '_> {
     /// Resolve result dimensions for one broadcast operation.
     fn broadcast_dimensions(
         &self,
-        ty: TypeId,
+        layout: TensorLayout,
         source: &Tensor,
         axes: &[u16],
     ) -> Result<Vec<usize>> {
-        let layout = self
-            .machine
-            .program
-            .tensor_layout(ty)
-            .ok_or_else(|| self.invalid_instruction())?;
         let dimensions = self.machine.program.tensor_dimensions(layout.dimensions);
         let mut result = Vec::with_capacity(dimensions.len());
 

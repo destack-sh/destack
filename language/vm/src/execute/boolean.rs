@@ -6,27 +6,22 @@ use crate::machine::Activation;
 
 impl Activation<'_, '_> {
     /// Execute one boolean operation.
+    #[inline(always)]
     pub(crate) fn execute_boolean(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let operation = instruction
             .opcode()
             .boolean_operation()
             .ok_or_else(|| self.invalid_instruction())?;
-        let mut operands = instruction.operands();
-        let target = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
-        let left = operands
-            .register()
-            .map_err(|_| self.invalid_instruction())?;
+        let mut operands = self.operands(instruction);
+        let target = operands.register()?;
+        let left = operands.register()?;
         let left = self.read(left.0).as_boolean();
 
         // execute the unary or binary form
         let value = if operation == BooleanOperation::Not {
             !left
         } else {
-            let right = operands
-                .register()
-                .map_err(|_| self.invalid_instruction())?;
+            let right = operands.register()?;
             let right = self.read(right.0).as_boolean();
 
             match operation {

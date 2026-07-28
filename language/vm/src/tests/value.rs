@@ -7,17 +7,15 @@ use super::{TestMachine, TestProgram};
 fn test_execute_zeroed_storage() {
     let mut machine = TestMachine::parse(
         r#"
-export function zero(
-    r0: uninit<ref<managed, space(local)>>,
-): uninit<ref<managed, space(local)>> {
-    r0: uninit<ref<managed, space(local)>> = zeroed
+function f0 {
+    constant.zeroed r0
     return r0
 }
 "#,
-        TestProgram::new(),
+        TestProgram::words(),
     );
 
-    let value = machine.complete("zero", &[Word::from_bits(u64::MAX)]);
+    let value = machine.complete(0, &[Word::from_bits(u64::MAX)]);
 
     assert_eq!(value, vec![Word::ZERO]);
 }

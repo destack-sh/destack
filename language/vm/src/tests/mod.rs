@@ -1,19 +1,25 @@
 mod aggregate;
 mod allocation;
 mod call;
-mod continuation;
 mod control;
 mod dynamic;
 mod float;
 mod function;
 mod integer;
+mod link;
+mod machine;
 mod memory;
 mod profile;
+mod program;
+mod runtime;
 mod slice;
 mod stop;
+mod suspension;
+mod task;
 mod tensor;
-mod tests;
 mod value;
 mod vector;
 
-pub(crate) use tests::{TestMachine, TestProgram};
+pub(crate) use machine::TestMachine;
+pub(crate) use program::TestProgram;
+pub(crate) use runtime::{RuntimeCall, TestRuntime};

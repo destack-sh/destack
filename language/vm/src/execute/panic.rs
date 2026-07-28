@@ -1,8 +1,8 @@
 use destack_bytecode::{Instruction, Opcode};
-use destack_program::TypeId;
+use destack_program::{Task, TaskOutcome, TypeId};
 
 use crate::diagnostic::{Error, Panic, Result, Trap};
-use crate::machine::Activation;
+use crate::machine::{Activation, Return};
 
 impl Activation<'_, '_> {
     /// Begin unwinding one language panic.
@@ -10,15 +10,12 @@ impl Activation<'_, '_> {
         if self.panic.is_some() {
             return Err(Error::trap(Trap::Abort));
         }
-        if let Some(function) = self.destructor() {
-            return Err(Error::invalid_destructor(function));
-        }
         let panic = match instruction.opcode() {
             Opcode::PANIC => Panic::empty(),
             Opcode::PANIC_VALUE => {
-                let mut operands = instruction.operands();
-                let ty = TypeId(operands.u32().map_err(|_| self.invalid_instruction())?);
-                let range = operands.range().map_err(|_| self.invalid_instruction())?;
+                let mut operands = self.operands(instruction);
+                let ty = TypeId(operands.u32()?);
+                let range = operands.span()?;
                 let start = self.frame().range(range);
                 let words = self.machine.stack.words(start, range.word_count as usize);
 
@@ -47,27 +44,34 @@ impl Activation<'_, '_> {
             let Some(frame) = self.machine.frames.pop() else {
                 unreachable!("panic unwinding requires an active frame");
             };
-            self.machine.stack.truncate(frame.stack_offset);
+            self.machine.stack.truncate(frame.byte_offset());
 
             // report the panic after the entry frame leaves the machine
-            let Some(caller) = self.machine.frames.last().copied() else {
+            let Some(_caller) = self.machine.frames.last().copied() else {
                 let Some(error) = self.panic.take() else {
                     unreachable!("panic unwinding requires a retained payload");
                 };
 
                 return Err(error);
             };
+            self.activate();
+
+            // settle task state before unwinding through its eager caller
+            if let Return::Task { task_register, .. } = frame.return_to {
+                let task = Task::from_bits(self.read(task_register).bits());
+                self.activation
+                    .runtime
+                    .finish_task(task, TaskOutcome::Cancelled)
+                    .map_err(Error::program)?;
+            }
 
             // enter the nearest explicit unwind cleanup
-            if let Some(unwind_state) = caller.unwind_state {
-                let point = self
-                    .machine
-                    .program
-                    .frame_point(unwind_state)
-                    .ok_or_else(Error::invalid_continuation)?;
-                let code_offset = self.code_offset(point)?;
-                self.frame_mut().code_offset = code_offset;
-                self.frame_mut().resume();
+            let unwind = match frame.return_to {
+                Return::Call { unwind, .. } | Return::Continuation { unwind, .. } => unwind,
+                Return::Exit { .. } | Return::Task { .. } | Return::Drop { .. } => None,
+            };
+            if let Some(unwind) = unwind {
+                self.jump(unwind);
 
                 return Ok(());
             }

@@ -5,21 +5,21 @@ use super::{TestMachine, TestProgram};
 /// Record explicit counters and exact sampled word values through Program sites.
 #[test]
 fn test_record_profile() {
-    let counter = TestMachine::counter(0, 0, 0);
-    let sample = TestMachine::sample(0, 1, 0);
+    let counter = TestProgram::counter(0, 0, 0);
+    let sample = TestProgram::sample(0, 1, 0);
     let mut machine = TestMachine::parse(
         r#"
-export function observe(r0: uint64): uint64 {
+function f0 {
     profile.increment counter(0)
     profile.sample sampler(0), r0
     return r0
 }
 "#,
-        TestProgram::new().counters([counter]).samples([sample]),
+        TestProgram::words().counters([counter]).samples([sample]),
     );
     let mut profile = Profile::new(machine.program(), ProfileOptions::STANDARD);
 
-    let value = machine.complete_profiled("observe", &[Word::uint64(37)], &mut profile);
+    let value = machine.complete_profiled(0, &[Word::uint64(37)], &mut profile);
 
     assert_eq!(value, vec![Word::uint64(37)]);
     assert_eq!(profile.counters[0].count, 1);

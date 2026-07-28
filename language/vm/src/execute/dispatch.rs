@@ -1,11 +1,12 @@
-use destack_bytecode::{CodeOffset, Instruction, Opcode};
-use destack_program::{Continuation, Outcome, Word};
+use destack_bytecode::{AtomicOperation, MemoryOperation, Opcode, VectorOperation};
+use destack_program::{MemoryAccess, Outcome, Word};
 
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
 
 impl Activation<'_, '_> {
     /// Dispatch instructions until the entry frame returns.
+    #[inline(never)]
     pub(crate) fn dispatch<
         const STOP: bool,
         const WATCH: bool,
@@ -13,19 +14,13 @@ impl Activation<'_, '_> {
         const BOUNDED: bool,
     >(
         &mut self,
-    ) -> Result<Outcome<Continuation, Vec<Word>>> {
-        let program = self.machine.program.clone();
-        let code_bytes = program.bytecode().bytes(program.sections());
+    ) -> Result<Outcome<Vec<Word>>> {
+        let mut position = self.cursor.position();
 
         loop {
             // retain the exact location before instruction handlers advance
-            let Some(frame) = self.machine.frames.last() else {
-                unreachable!("bytecode dispatch requires an active frame");
-            };
-            let function = frame.function;
-            let code = frame.code;
-            let instruction_offset = frame.code_offset;
-            self.instruction_offset = instruction_offset;
+            let operation_pc = position.pc();
+            self.pc = operation_pc;
 
             // enforce the configured instruction budget outside opcode handlers
             if BOUNDED {
@@ -39,332 +34,404 @@ impl Activation<'_, '_> {
             }
 
             // decode the active instruction and advance before transfers
-            let function_bytes = code.slice(code_bytes);
-            let instruction_bytes = function_bytes
-                .get(instruction_offset.index()..)
-                .ok_or_else(|| Error::invalid_instruction(function, instruction_offset))?;
-            let instruction = Instruction::read(instruction_bytes)
-                .map_err(|_| Error::invalid_instruction(function, instruction_offset))?;
+            // SAFETY: the activation borrows the Program for the complete dispatch
+            let instruction = unsafe { position.decode() };
 
             // stop before externally configured instruction points
             let stopped = if STOP {
-                self.stop_before(self.frame(), instruction_offset)?
+                self.cursor.set_position(position);
+
+                self.stop_before(self.frame(), operation_pc)?
             } else {
                 None
             };
             if let Some(outcome) = stopped {
                 return Ok(outcome);
             }
-            self.frame_mut().advance(instruction.byte_len());
+            position.advance(instruction.byte_len());
 
-            // execute one decoded instruction
-            let outcome =
-                self.execute_instruction::<WATCH, PROFILE>(instruction_offset, instruction)?;
-            if let Some(outcome) = outcome {
-                return Ok(outcome);
+            // expose the completed operation position to observed execution
+            if WATCH {
+                self.cursor.set_position(position);
             }
-        }
-    }
 
-    /// Execute one instruction selected from an encoded opcode family.
-    fn execute_instruction<const WATCH: bool, const PROFILE: bool>(
-        &mut self,
-        instruction_offset: CodeOffset,
-        instruction: Instruction<'_>,
-    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
-        let opcode = instruction.opcode();
+            // dispatch directly through the opcode's reserved high-byte range
+            let opcode = instruction.opcode();
+            match opcode.code() >> 8 {
+                0x00 => match opcode {
+                    // aggregates
+                    Opcode::AGGREGATE
+                    | Opcode::EXTRACT
+                    | Opcode::INSERT
+                    | Opcode::VARIANT_NEW
+                    | Opcode::VARIANT_TAG => self.execute_aggregate(instruction)?,
 
-        // directly named opcodes
-        if !opcode.is_parameterized() {
-            self.execute_opcode::<WATCH, PROFILE>(instruction_offset, instruction)
-        }
-        // integer operations
-        else if let Some((operation, scalar)) = opcode.integer_operation() {
-            self.execute_integer(instruction, operation, scalar)?;
+                    // values
+                    Opcode::MOVE
+                    | Opcode::MOVE_RANGE
+                    | Opcode::SELECT
+                    | Opcode::SELECT_RANGE
+                    | Opcode::EQUAL
+                    | Opcode::CONSTANT_TYPE
+                    | Opcode::CONSTANT_INT128
+                    | Opcode::CONSTANT_UINT128
+                    | Opcode::CONSTANT_NULL
+                    | Opcode::CONSTANT_UNDEFINED
+                    | Opcode::CONSTANT_ZEROED => self.execute_value(instruction)?,
 
-            Ok(None)
-        }
-        // 128-bit integer operations
-        else if let Some((operation, is_signed)) = opcode.integer128_operation() {
-            self.execute_integer128(instruction, operation, is_signed)?;
+                    // address construction
+                    Opcode::GLOBAL_ADDRESS => self.execute_global_address(instruction)?,
+                    Opcode::FRAME_ADDRESS => self.execute_frame_address(instruction)?,
 
-            Ok(None)
-        }
-        // floating point operations
-        else if let Some((operation, scalar)) = opcode.float_operation() {
-            self.execute_float(instruction, operation, scalar)?;
+                    // pointer materialization and arithmetic
+                    Opcode::POINTER_FRAME
+                    | Opcode::POINTER_GLOBAL
+                    | Opcode::POINTER_LOCAL
+                    | Opcode::POINTER_SHARED => self.execute_pointer(instruction)?,
+                    Opcode::POINTER_ADD_IMMEDIATE
+                    | Opcode::POINTER_ADD
+                    | Opcode::POINTER_ADD_SCALED
+                    | Opcode::POINTER_BYTE_OFFSET_FROM => {
+                        self.execute_pointer_arithmetic(instruction)?
+                    }
+                    Opcode::CAST_POINTER_TO_INT | Opcode::CAST_INT_TO_POINTER => {
+                        let Some((operation, source, target)) = opcode.cast_operation() else {
+                            unreachable!("pointer cast opcodes carry one exact conversion");
+                        };
+                        self.execute_cast(instruction, operation, source, target)?;
+                    }
 
-            Ok(None)
-        }
-        // scalar memory families
-        else if let Some((operation, scalar)) = opcode.memory_operation() {
-            self.execute_memory::<WATCH>(
-                self.frame(),
-                instruction_offset,
-                instruction,
-                operation,
-                scalar,
-            )
-        }
-        // scalar constants
-        else if opcode.constant_scalar().is_some() {
-            self.execute_constant(instruction)?;
+                    // references
+                    Opcode::LOAD | Opcode::STORE => {
+                        let access = if opcode == Opcode::LOAD {
+                            MemoryAccess::Read
+                        } else {
+                            MemoryAccess::Write
+                        };
+                        let needs_range = WATCH
+                            && self
+                                .watch_points
+                                .is_some_and(|points| points.requires_memory_range());
+                        let address = if needs_range {
+                            Some(self.value_address(instruction, access == MemoryAccess::Read)?)
+                        } else {
+                            None
+                        };
+                        self.execute_value_memory(instruction)?;
 
-            Ok(None)
-        }
-        // boolean operations
-        else if opcode.boolean_operation().is_some() {
-            self.execute_boolean(instruction)?;
+                        if WATCH
+                            && let Some(outcome) =
+                                self.watch_after(self.frame(), operation_pc, access, address)?
+                        {
+                            return Ok(outcome);
+                        }
+                    }
+                    Opcode::FREE | Opcode::PIN | Opcode::UNPIN | Opcode::BARRIER => {
+                        self.execute_reference(instruction)?
+                    }
+                    Opcode::DROP => {
+                        self.cursor.set_position(position);
+                        self.execute_drop(operation_pc, instruction)?;
+                        position = self.cursor.position();
+                    }
 
-            Ok(None)
-        }
-        // scalar casts
-        else if let Some((operation, source, target)) = opcode.cast_operation() {
-            self.execute_cast(instruction, operation, source, target)?;
+                    // byte ranges
+                    Opcode::COPY_BYTES
+                    | Opcode::MOVE_BYTES
+                    | Opcode::FILL_BYTES
+                    | Opcode::COMPARE_BYTES
+                    | Opcode::PREFETCH_READ
+                    | Opcode::PREFETCH_WRITE => {
+                        let accesses = if WATCH {
+                            self.byte_accesses(instruction)?
+                        } else {
+                            [None, None]
+                        };
+                        self.execute_byte_memory(instruction)?;
 
-            Ok(None)
-        }
-        // checked scalar transfers
-        else if let Some((check, scalar)) = opcode.scalar_check() {
-            self.execute_check(instruction, check, scalar)?;
+                        if WATCH {
+                            for (access, address) in accesses.into_iter().flatten() {
+                                let outcome = self.watch_after(
+                                    self.frame(),
+                                    operation_pc,
+                                    access,
+                                    Some(address),
+                                )?;
+                                if let Some(outcome) = outcome {
+                                    return Ok(outcome);
+                                }
+                            }
+                        }
+                    }
 
-            Ok(None)
-        }
-        // scalar comparisons
-        else if let Some((comparison, scalar)) = opcode.comparison() {
-            self.execute_comparison(instruction, comparison, scalar)?;
+                    // atomics
+                    Opcode::ATOMIC_FENCE => self.execute_atomic_fence(instruction)?,
 
-            Ok(None)
-        }
-        // atomic memory families
-        else if let Some((operation, scalar)) = opcode.atomic_operation() {
-            self.execute_atomic::<WATCH>(
-                self.frame(),
-                instruction_offset,
-                instruction,
-                operation,
-                scalar,
-            )
-        }
-        // heap allocation families
-        else if let Some(operation) = opcode.new_operation() {
-            self.execute_new::<PROFILE>(instruction, instruction_offset, operation)?;
+                    // control flow
+                    Opcode::JUMP | Opcode::BRANCH => {
+                        let displacement = self.execute_control(instruction)?;
+                        position.branch(displacement);
+                    }
+                    Opcode::SWITCH => {
+                        let displacement = self.execute_switch(instruction)?;
+                        position.branch(displacement);
+                    }
+                    Opcode::AWAIT | Opcode::YIELD => {
+                        self.cursor.set_position(position);
+                        let outcome = self.execute_suspension(operation_pc, instruction)?;
+                        if let Some(outcome) = outcome {
+                            return Ok(outcome);
+                        }
+                        position = self.cursor.position();
+                    }
+                    Opcode::CHECK_NULL | Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE => {
+                        if let Some(displacement) = self.execute_runtime_check(instruction)? {
+                            position.branch(displacement);
+                        }
+                    }
 
-            Ok(None)
-        }
-        // packed vector operations
-        else if let Some(operation) = opcode.vector_operation() {
-            self.execute_vector::<WATCH>(self.frame(), instruction_offset, instruction, operation)
-        }
-        // tensor operations
-        else if let Some(operation) = opcode.tensor_operation() {
-            self.execute_tensor::<WATCH>(self.frame(), instruction_offset, instruction, operation)
-        }
-        // unassigned opcode
-        else {
-            Err(Error::unsupported_opcode(opcode.code()))
-        }
-    }
+                    // slices and function values
+                    Opcode::SLICE_VIEW => self.execute_slice(instruction)?,
+                    Opcode::FUNCTION_ADDRESS | Opcode::FUNCTION_BIND => {
+                        self.execute_function(instruction)?
+                    }
 
-    /// Execute one fixed opcode outside the encoded operation families.
-    fn execute_opcode<const WATCH: bool, const PROFILE: bool>(
-        &mut self,
-        instruction_offset: CodeOffset,
-        instruction: Instruction<'_>,
-    ) -> Result<Option<Outcome<Continuation, Vec<Word>>>> {
-        match instruction.opcode() {
-            // aggregates
-            Opcode::AGGREGATE
-            | Opcode::FIELD_GET
-            | Opcode::FIELD_SET
-            | Opcode::ELEMENT_GET
-            | Opcode::ELEMENT_SET
-            | Opcode::VARIANT_NEW
-            | Opcode::VARIANT_TAG
-            | Opcode::VARIANT_PAYLOAD => {
-                self.execute_aggregate(instruction)?;
+                    // continuations, waiters, and tasks
+                    Opcode::CONTINUATION_NEW
+                    | Opcode::CONTINUATION_DESTROY
+                    | Opcode::CONTINUATION_RESUME
+                    | Opcode::CONTINUATION_COMPLETE => {
+                        self.cursor.set_position(position);
+                        self.execute_continuation(operation_pc, instruction)?;
+                        position = self.cursor.position();
+                    }
+                    Opcode::WAITER_QUEUE | Opcode::WAITER_CANCEL => {
+                        self.execute_waiter(instruction)?
+                    }
+                    Opcode::TASK_RESOLVE
+                    | Opcode::TASK_PARK
+                    | Opcode::TASK_CANCEL
+                    | Opcode::TASK_DETACH => self.execute_task(operation_pc, instruction)?,
+                    Opcode::TASK_START => {
+                        self.cursor.set_position(position);
+                        self.execute_task(operation_pc, instruction)?;
+                        position = self.cursor.position();
+                    }
 
-                Ok(None)
-            }
-            // values
-            Opcode::MOVE
-            | Opcode::MOVE_RANGE
-            | Opcode::SELECT
-            | Opcode::SELECT_RANGE
-            | Opcode::EQUAL
-            | Opcode::CONSTANT_TYPE
-            | Opcode::CONSTANT_BYTES
-            | Opcode::CONSTANT_INT128
-            | Opcode::CONSTANT_UINT128
-            | Opcode::CONSTANT_NULL
-            | Opcode::CONSTANT_UNDEFINED
-            | Opcode::CONSTANT_UNINIT
-            | Opcode::CONSTANT_ZEROED => {
-                self.execute_value(instruction)?;
+                    // dynamic values and calls
+                    Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_TYPE => {
+                        self.execute_dynamic(instruction)?
+                    }
+                    Opcode::CALL
+                    | Opcode::CALL_INDIRECT
+                    | Opcode::CALL_VIRTUAL
+                    | Opcode::CALL_DYNAMIC
+                    | Opcode::INVOKE
+                    | Opcode::INVOKE_INDIRECT
+                    | Opcode::INVOKE_VIRTUAL
+                    | Opcode::INVOKE_DYNAMIC
+                    | Opcode::TAIL_CALL
+                    | Opcode::TAIL_CALL_INDIRECT
+                    | Opcode::TAIL_CALL_VIRTUAL
+                    | Opcode::TAIL_CALL_DYNAMIC => {
+                        self.cursor.set_position(position);
+                        self.execute_call(operation_pc, instruction)?;
+                        position = self.cursor.position();
+                    }
+                    Opcode::RETURN => {
+                        self.cursor.set_position(position);
+                        let outcome = self.execute_return(instruction)?;
+                        if let Some(outcome) = outcome {
+                            return Ok(outcome);
+                        }
+                        position = self.cursor.position();
+                    }
+                    Opcode::PANIC | Opcode::PANIC_VALUE => {
+                        self.cursor.set_position(position);
+                        self.execute_panic(instruction)?;
+                        position = self.cursor.position();
+                    }
+                    Opcode::UNWIND_RESUME => {
+                        self.cursor.set_position(position);
+                        self.execute_unwind_resume()?;
+                        position = self.cursor.position();
+                    }
 
-                Ok(None)
-            }
-            // initialization
-            Opcode::NEW_COMPLETE => {
-                self.execute_new_complete(instruction)?;
+                    // profiling and stops
+                    Opcode::PROFILE_INCREMENT | Opcode::PROFILE_SAMPLE => {
+                        if PROFILE {
+                            self.execute_profile(instruction)?;
+                        }
+                    }
+                    Opcode::BREAKPOINT => {
+                        self.cursor.set_position(position);
 
-                Ok(None)
-            }
-            // addresses and pointers
-            Opcode::GLOBAL_ADDRESS => {
-                self.execute_global_address(instruction)?;
+                        return self.stop_after(operation_pc);
+                    }
 
-                Ok(None)
-            }
-            Opcode::FRAME_ADDRESS => {
-                self.execute_frame_address(instruction)?;
+                    // traps
+                    Opcode::UNREACHABLE => return Err(Error::trap(Trap::Unreachable)),
+                    Opcode::TRAP => self.execute_trap(instruction)?,
 
-                Ok(None)
-            }
-            Opcode::FRAME_LOAD | Opcode::FRAME_STORE => {
-                self.execute_frame_memory(instruction)?;
-
-                Ok(None)
-            }
-            Opcode::REFERENCE_POINTER => {
-                self.execute_reference_pointer(instruction)?;
-
-                Ok(None)
-            }
-            Opcode::POINTER_OFFSET | Opcode::POINTER_INDEX | Opcode::POINTER_DISTANCE => {
-                self.execute_pointer(instruction)?;
-
-                Ok(None)
-            }
-            Opcode::CAST_POINTER_TO_INT | Opcode::CAST_INT_TO_POINTER => {
-                let Some((operation, source, target)) = instruction.opcode().cast_operation()
-                else {
-                    unreachable!("pointer cast opcodes carry one exact conversion");
-                };
-                self.execute_cast(instruction, operation, source, target)?;
-
-                Ok(None)
-            }
-            // references
-            Opcode::LOAD | Opcode::STORE => {
-                self.execute_value_memory::<WATCH>(self.frame(), instruction_offset, instruction)
-            }
-            Opcode::FREE | Opcode::PIN | Opcode::UNPIN | Opcode::BARRIER => {
-                self.execute_reference(instruction)?;
-
-                Ok(None)
-            }
-            Opcode::DROP => {
-                self.execute_drop(instruction, instruction_offset)?;
-
-                Ok(None)
-            }
-            // byte ranges
-            Opcode::COPY_BYTES
-            | Opcode::MOVE_BYTES
-            | Opcode::FILL_BYTES
-            | Opcode::COMPARE_BYTES
-            | Opcode::PREFETCH_READ
-            | Opcode::PREFETCH_WRITE => {
-                self.execute_byte_memory::<WATCH>(self.frame(), instruction_offset, instruction)
-            }
-            // atomics
-            Opcode::ATOMIC_FENCE => {
-                self.execute_atomic_fence(instruction)?;
-
-                Ok(None)
-            }
-            // control flow
-            Opcode::JUMP | Opcode::BRANCH => {
-                self.execute_control(instruction)?;
-
-                Ok(None)
-            }
-            Opcode::SWITCH => {
-                self.execute_switch(instruction)?;
-
-                Ok(None)
-            }
-            Opcode::CHECK_NULL | Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE => {
-                self.execute_runtime_check(instruction)?;
-
-                Ok(None)
-            }
-            // slices
-            Opcode::SLICE_VIEW | Opcode::SLICE_LENGTH => {
-                self.execute_slice(instruction)?;
-
-                Ok(None)
-            }
-            // function values
-            Opcode::FUNCTION_ADDRESS
-            | Opcode::FUNCTION_BIND
-            | Opcode::FUNCTION_ENVIRONMENT
-            | Opcode::FUNCTION_ENVIRONMENT_CURRENT => {
-                self.execute_function(instruction)?;
-
-                Ok(None)
-            }
-            // dynamic values
-            Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_PAYLOAD | Opcode::DYNAMIC_TYPE => {
-                self.execute_dynamic(instruction)?;
-
-                Ok(None)
-            }
-            Opcode::CALL
-            | Opcode::CALL_INDIRECT
-            | Opcode::CALL_VIRTUAL
-            | Opcode::CALL_DYNAMIC
-            | Opcode::INVOKE
-            | Opcode::INVOKE_INDIRECT
-            | Opcode::INVOKE_VIRTUAL
-            | Opcode::INVOKE_DYNAMIC
-            | Opcode::TAIL_CALL
-            | Opcode::TAIL_CALL_INDIRECT
-            | Opcode::TAIL_CALL_VIRTUAL
-            | Opcode::TAIL_CALL_DYNAMIC => {
-                self.execute_call(instruction, instruction_offset)?;
-
-                Ok(None)
-            }
-            Opcode::RETURN => {
-                let outcome = self
-                    .execute_return(instruction)?
-                    .map(|value| Outcome::Completed { value });
-
-                Ok(outcome)
-            }
-            Opcode::YIELD => self
-                .execute_yield(instruction, instruction_offset)
-                .map(Some),
-            Opcode::PANIC | Opcode::PANIC_VALUE => {
-                self.execute_panic(instruction)?;
-
-                Ok(None)
-            }
-            Opcode::UNWIND_RESUME => {
-                self.execute_unwind_resume()?;
-
-                Ok(None)
-            }
-            // observation
-            Opcode::PROFILE_INCREMENT | Opcode::PROFILE_SAMPLE => {
-                if PROFILE {
-                    self.execute_profile(instruction)?;
+                    // unsupported
+                    opcode => return Err(Error::unsupported_opcode(opcode.code())),
+                },
+                0x01 => {
+                    self.execute_constant(instruction)?;
                 }
+                0x02 => {
+                    self.execute_boolean(instruction)?;
+                }
+                0x03 | 0x04 => {
+                    let Some((operation, scalar)) = opcode.integer_operation() else {
+                        unreachable!("linked integer opcodes carry one exact operation");
+                    };
+                    self.execute_integer(instruction, operation, scalar)?;
+                }
+                0x05 => {
+                    let Some((operation, is_signed)) = opcode.integer128_operation() else {
+                        unreachable!("linked wide integer opcodes carry one exact operation");
+                    };
+                    self.execute_integer128(instruction, operation, is_signed)?;
+                }
+                0x06 => {
+                    let Some((operation, scalar)) = opcode.float_operation() else {
+                        unreachable!("linked float opcodes carry one exact operation");
+                    };
+                    self.execute_float(instruction, operation, scalar)?;
+                }
+                0x07..=0x09 => {
+                    let Some((operation, source, target)) = opcode.cast_operation() else {
+                        unreachable!("linked cast opcodes carry one exact conversion");
+                    };
+                    self.execute_cast(instruction, operation, source, target)?;
+                }
+                0x0a => {
+                    let Some((operation, scalar)) = opcode.memory_operation() else {
+                        unreachable!("linked memory opcodes carry one exact operation");
+                    };
+                    let access = match operation {
+                        MemoryOperation::Load => MemoryAccess::Read,
+                        MemoryOperation::Store => MemoryAccess::Write,
+                    };
+                    let needs_range = WATCH
+                        && self
+                            .watch_points
+                            .is_some_and(|points| points.requires_memory_range());
+                    let address = if needs_range {
+                        Some(self.memory_address(instruction, operation, scalar)?)
+                    } else {
+                        None
+                    };
+                    self.execute_memory(instruction, operation, scalar)?;
 
-                Ok(None)
-            }
-            Opcode::BREAKPOINT => self.stop_after(instruction_offset).map(Some),
-            // traps
-            Opcode::UNREACHABLE => Err(Error::trap(Trap::Unreachable)),
-            Opcode::TRAP => {
-                self.execute_trap(instruction)?;
+                    if WATCH
+                        && let Some(outcome) =
+                            self.watch_after(self.frame(), operation_pc, access, address)?
+                    {
+                        return Ok(outcome);
+                    }
+                }
+                0x0b => {
+                    let Some((operation, scalar)) = opcode.atomic_operation() else {
+                        unreachable!("linked atomic opcodes carry one exact operation");
+                    };
+                    let access = match operation {
+                        AtomicOperation::Load => MemoryAccess::Read,
+                        AtomicOperation::Store => MemoryAccess::Write,
+                        _ => MemoryAccess::ReadWrite,
+                    };
+                    let needs_range = WATCH
+                        && self
+                            .watch_points
+                            .is_some_and(|points| points.requires_memory_range());
+                    let address = if needs_range {
+                        Some(self.atomic_address(instruction, operation, scalar)?)
+                    } else {
+                        None
+                    };
+                    self.execute_atomic(instruction, operation, scalar)?;
 
-                Ok(None)
+                    if WATCH
+                        && let Some(outcome) =
+                            self.watch_after(self.frame(), operation_pc, access, address)?
+                    {
+                        return Ok(outcome);
+                    }
+                }
+                0x0c => match opcode.code() & 0x00ff {
+                    0x00..=0x1f => {
+                        let Some(operation) = opcode.new_operation() else {
+                            unreachable!("linked new opcodes carry one exact operation");
+                        };
+                        self.cursor.set_position(position);
+                        self.execute_new::<PROFILE>(instruction, operation)?;
+                        position = self.cursor.position();
+                    }
+                    0x20..=0x9f => {
+                        let Some((check, scalar)) = opcode.scalar_check() else {
+                            unreachable!("linked check opcodes carry one exact operation");
+                        };
+                        if let Some(displacement) =
+                            self.execute_check(instruction, check, scalar)?
+                        {
+                            position.branch(displacement);
+                        }
+                    }
+                    0xa0..=0xff => {
+                        let Some((comparison, scalar)) = opcode.comparison() else {
+                            unreachable!("linked branch opcodes carry one exact comparison");
+                        };
+                        let displacement =
+                            self.execute_comparison(instruction, comparison, scalar)?;
+                        position.branch(displacement);
+                    }
+                    _ => unreachable!("masked operation codes fit one byte"),
+                },
+                0x0d => {
+                    let Some(operation) = opcode.vector_operation() else {
+                        unreachable!("linked vector opcodes carry one exact operation");
+                    };
+                    let access = match operation {
+                        VectorOperation::Load => Some(MemoryAccess::Read),
+                        VectorOperation::Store => Some(MemoryAccess::Write),
+                        _ => None,
+                    };
+                    let needs_range = WATCH
+                        && access.is_some()
+                        && self
+                            .watch_points
+                            .is_some_and(|points| points.requires_memory_range());
+                    let address = if needs_range {
+                        Some(self.vector_address(instruction, operation)?)
+                    } else {
+                        None
+                    };
+                    self.execute_vector(instruction, operation)?;
+
+                    if WATCH
+                        && let Some(access) = access
+                        && let Some(outcome) =
+                            self.watch_after(self.frame(), operation_pc, access, address)?
+                    {
+                        return Ok(outcome);
+                    }
+                }
+                0x0e | 0x0f => {
+                    let Some(operation) = opcode.tensor_operation() else {
+                        unreachable!("linked tensor opcodes carry one exact operation");
+                    };
+                    let access = self.execute_tensor(instruction, operation)?;
+                    if WATCH
+                        && let Some((access, address)) = access
+                        && let Some(outcome) =
+                            self.watch_after(self.frame(), operation_pc, access, Some(address))?
+                    {
+                        return Ok(outcome);
+                    }
+                }
+                _ => return Err(Error::unsupported_opcode(opcode.code())),
             }
-            // unsupported
-            opcode => Err(Error::unsupported_opcode(opcode.code())),
         }
     }
 }
