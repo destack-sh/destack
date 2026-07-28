@@ -575,9 +575,18 @@ impl ProgramQueryContext<'_> {
         entries.dedup();
     }
 
-    /// Sort reference entries.
+    /// Sort reference entries by source position and identity.
     fn sort_reference_entries(entries: &mut [dir::ReferenceEntry]) {
-        entries.sort_by_key(|entry| (entry.span.file, entry.span.start, entry.span.end));
+        entries.sort_by_key(|entry| {
+            (
+                entry.span.file,
+                entry.span.start,
+                entry.span.end,
+                entry.source,
+                entry.symbol,
+                entry.is_import_alias,
+            )
+        });
     }
 
     /// Return module ordinals whose string keys contain the query.

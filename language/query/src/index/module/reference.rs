@@ -11,7 +11,7 @@ use crate::ModuleQueryContext;
 pub(super) struct ReferenceIndexer<'context, 'query> {
     /// The indexed module context.
     module: &'context ModuleQueryContext<'query>,
-    /// References keyed by their final semantic target.
+    /// References keyed by their final resolved target.
     target_entries: Vec<dir::ReferenceEntry>,
     /// References keyed by their lexical declaration.
     declaration_entries: Vec<dir::ReferenceEntry>,
@@ -81,6 +81,12 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
     fn collect_resolutions(&mut self) -> ProviderResult<()> {
         // collect resolved names
         for (source, resolution) in self.module.resolutions().name_entries() {
+            // dependency names use their exact imported-name occurrence
+            if source.local_id.ty == dir::NodeType::DependencyItem {
+                continue;
+            }
+
+            // final call, construction, and instantiation selections replace inner resolutions
             if self.selected_sources.contains(&source) {
                 continue;
             }
@@ -133,6 +139,7 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
             for declaration in declarations {
                 self.declaration_entries.push(dir::ReferenceEntry {
                     symbol: *declaration,
+                    source: *source,
                     span,
                     is_import_alias: false,
                 });
@@ -264,8 +271,9 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
             };
 
             // emit the authored remote name for every exact bound declaration
+            // FUGU #Incomplete: retain export selector chains for rename propagation
             for target in targets {
-                self.push_entry(*target, *target, span);
+                self.push_dependency(*target, *source, span);
             }
         }
 
@@ -286,9 +294,7 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
             return Ok(());
         }
 
-        let Some(span) = self.reference_span(source, source_id, target)? else {
-            return Ok(());
-        };
+        let span = self.reference_span(source, source_id, target)?;
 
         // record explicit local aliases without interpreting dependency chains
         let declarations = self.module.resolved().references.declarations(source);
@@ -299,6 +305,7 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
         });
         self.target_entries.push(dir::ReferenceEntry {
             symbol: target,
+            source,
             span,
             is_import_alias,
         });
@@ -329,13 +336,13 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
             })
     }
 
-    /// Return the authored span carrying one checked reference target.
+    /// Return the authored span carrying one resolved reference target.
     fn reference_span(
         &self,
         source: dir::GlobalNodeIdAny,
         source_id: u32,
         target: dir::GlobalSymbolId,
-    ) -> ProviderResult<Option<Span>> {
+    ) -> ProviderResult<Span> {
         // projected type paths bind the final namespace prefix, not the final source segment
         if source.local_id.ty == dir::NodeType::TypeExpression
             && let Some(dir::Reference::Projected { base, from }) =
@@ -366,19 +373,19 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
                 ))
             })?;
 
-            return Ok(Some(span));
+            return Ok(span);
         }
 
-        let span = self.module.source_index().get_main(source_id);
-        if span.is_none() {
-            return Err(ProviderError::internal(format!(
-                "authored reference {source:?} to {target:?} has no main span at source node \
+        self.module
+            .source_index()
+            .get_main(source_id)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "authored reference {source:?} to {target:?} has no main span at source node \
                  {source_id}"
-            ))
-            .into());
-        }
-
-        Ok(span)
+                ))
+                .into()
+            })
     }
 
     /// Return the lexical root span of one qualified type path.
@@ -416,20 +423,22 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
         Ok(Some(span))
     }
 
-    /// Push one target and declaration reference row.
-    fn push_entry(
+    /// Push one imported target and declaration occurrence.
+    fn push_dependency(
         &mut self,
-        target: dir::GlobalSymbolId,
-        declaration: dir::GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
+        source: dir::GlobalNodeIdAny,
         span: Span,
     ) {
         self.target_entries.push(dir::ReferenceEntry {
-            symbol: target,
+            symbol,
+            source,
             span,
             is_import_alias: false,
         });
         self.declaration_entries.push(dir::ReferenceEntry {
-            symbol: declaration,
+            symbol,
+            source,
             span,
             is_import_alias: false,
         });
@@ -451,9 +460,9 @@ impl<'context, 'query> ReferenceIndexer<'context, 'query> {
                     self.push(candidate.symbol, source)?;
                 }
             }
-            // FUGU #Incomplete: retain exact authored identities for structural field declarations
-            dir::MemberTarget::Field(_) => {}
-            dir::MemberTarget::Element(_) | dir::MemberTarget::Index(_) => {}
+            dir::MemberTarget::Field(_)
+            | dir::MemberTarget::Element(_)
+            | dir::MemberTarget::Index(_) => {}
         }
 
         Ok(())

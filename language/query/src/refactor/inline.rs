@@ -38,7 +38,7 @@ struct InlineTarget {
 struct InlineValue {
     /// The emitted source text.
     text: String,
-    /// The expression precedence after any checked projection.
+    /// The expression precedence after any resolved projection.
     precedence: dir::OperatorPrecedence,
     /// Whether postfix use requires explicit grouping.
     needs_postfix_group: bool,
@@ -117,9 +117,9 @@ impl ModuleQueryContext<'_> {
         if indexed.is_empty() || indexed.iter().any(|entry| entry.span.file != file) {
             return Ok(None);
         }
-        let references = self.inline_references(program, symbol, &indexed)?;
+        let references = self.inline_references(symbol, &indexed)?;
 
-        // build the checked replacement value
+        // build the replacement value
         let Some(value) = target.value(source_file.as_ref(), program, self)? else {
             return Ok(None);
         };
@@ -155,7 +155,7 @@ impl ModuleQueryContext<'_> {
         Ok(Some(edit))
     }
 
-    /// Return whether checked assignment targets write one symbol.
+    /// Return whether assignment targets write one symbol.
     fn symbol_is_assigned(&self, symbol: dir::GlobalSymbolId) -> bool {
         self.writable_places().any(|place| {
             matches!(
@@ -168,7 +168,6 @@ impl ModuleQueryContext<'_> {
     /// Resolve exact indexed references to their authored expression nodes.
     fn inline_references(
         &self,
-        program: &ProgramQueryContext<'_>,
         symbol: dir::GlobalSymbolId,
         entries: &[dir::ReferenceEntry],
     ) -> QueryResult<Vec<InlineReference>> {
@@ -176,7 +175,7 @@ impl ModuleQueryContext<'_> {
 
         // retain one replacement per exact occurrence
         for entry in entries {
-            let expression = self.inline_reference_expression(program, symbol, entry.span)?;
+            let expression = self.inline_reference_expression(symbol, entry)?;
             let shorthand = self.inline_shorthand_name(expression)?;
             references.push(InlineReference {
                 expression,
@@ -184,49 +183,48 @@ impl ModuleQueryContext<'_> {
                 shorthand,
             });
         }
-        references.sort_by_key(|reference| (reference.span.start, reference.span.end));
-        references.dedup_by_key(|reference| reference.span);
+        references.sort_by_key(|reference| {
+            (
+                reference.span.start,
+                reference.span.end,
+                reference.expression.id,
+            )
+        });
+
+        // require one exact DIR expression for each edited source occurrence
+        for pair in references.windows(2) {
+            if pair[0].span == pair[1].span && pair[0].expression != pair[1].expression {
+                return Err(QueryError::conflict(format!(
+                    "inline reference source: {:?}, {:?}",
+                    pair[0].expression, pair[1].expression
+                )));
+            }
+        }
+        references.dedup_by_key(|reference| (reference.span, reference.expression));
 
         Ok(references)
     }
 
-    /// Resolve one persisted reference span to its exact checked expression.
+    /// Resolve one indexed reference to its exact DIR expression.
     fn inline_reference_expression(
         &self,
-        program: &ProgramQueryContext<'_>,
         symbol: dir::GlobalSymbolId,
-        span: Span,
+        entry: &dir::ReferenceEntry,
     ) -> QueryResult<dir::LocalNodeId<dir::Expression>> {
-        let view = self.view();
-        let offsets = [span.start, span.end.saturating_sub(1)];
-        let enclosing = self.enclosing_spans_at_offsets(span.file, offsets);
-
-        // match the indexed name span and checked target together
-        for enclosing_span in enclosing {
-            let Some(node) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
-                continue;
-            };
-            if node.ty != dir::NodeType::Expression {
-                continue;
-            }
-            let expression = dir::LocalNodeId::<dir::Expression>::new(node.id);
-            if self.node_selection_span(view, node) != Some(span) {
-                continue;
-            }
-            let Some(targets) = self.recorded_symbol_targets(node.into_global(self.module_id()))
-            else {
-                continue;
-            };
-            let targets = canonical_symbols(program, targets)?;
-            let is_target = targets.contains(&symbol);
-            if is_target {
-                return Ok(expression);
-            }
+        if entry.symbol != symbol || entry.source.module_id != self.module_id() {
+            return Err(QueryError::invalid(format!(
+                "inline reference: {symbol:?}, {:?}",
+                entry.source
+            )));
         }
 
-        Err(QueryError::missing(format!(
-            "inline reference: {symbol:?}, {span:?}"
-        )))
+        entry
+            .source
+            .local_id
+            .try_into_typed::<dir::Expression>()
+            .map_err(|_| {
+                QueryError::invalid(format!("inline reference source: {:?}", entry.source))
+            })
     }
 
     /// Return the retained key for one exact object shorthand reference.
@@ -440,7 +438,7 @@ impl InlineTarget {
             return Ok(None);
         };
 
-        // append the exact checked destructuring projection
+        // append the exact destructuring projection
         if let (Some(field), Some(object)) = (self.field, self.object) {
             let Some(access) = self.projection_access(field, object, program, module)? else {
                 return Ok(None);
@@ -457,7 +455,7 @@ impl InlineTarget {
         Ok(Some(value))
     }
 
-    /// Return source access for the checked projection of one object field.
+    /// Return source access for the resolved projection of one object field.
     fn projection_access(
         &self,
         field: dir::LocalNodeId<dir::PatternField>,
@@ -609,7 +607,7 @@ impl InlineTarget {
 }
 
 impl InlineValue {
-    /// Classify one checked initializer for safe movement and duplication.
+    /// Classify one initializer for safe movement and duplication.
     fn from_expression(
         text: String,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -969,7 +967,7 @@ fn node_is_within(
     false
 }
 
-/// Canonicalize and order one checked symbol selection.
+/// Canonicalize and order one symbol selection.
 fn canonical_symbols(
     program: &ProgramQueryContext<'_>,
     symbols: Vec<dir::GlobalSymbolId>,

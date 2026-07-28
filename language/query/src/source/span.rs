@@ -1,6 +1,5 @@
 use destack_dir as dir;
 use destack_source::{EnclosingSpan, FileId, Span};
-use rustc_hash::FxHashSet;
 
 use crate::{ModuleQueryContext, QueryError, QueryResult};
 
@@ -110,46 +109,6 @@ impl ModuleQueryContext<'_> {
         enclosing.sort_by_key(|span| span.length);
 
         enclosing
-    }
-
-    /// Collect and sort enclosing spans for a set of probe offsets.
-    pub(crate) fn enclosing_spans_at_offsets(
-        &self,
-        file_id: FileId,
-        offsets: impl IntoIterator<Item = u32>,
-    ) -> Vec<EnclosingSpan> {
-        let mut enclosing = Vec::new();
-        let mut seen = FxHashSet::default();
-
-        // gather the enclosing spans for each probe offset
-        for offset in offsets {
-            let spans = self
-                .source_index()
-                .get_enclosing_spans(file_id, offset, offset);
-            for span in spans {
-                if seen.insert(span.source_id) {
-                    enclosing.push(span);
-                }
-            }
-        }
-
-        enclosing.sort_by_key(|span| span.length);
-
-        enclosing
-    }
-
-    /// Collect enclosing spans at the cursor and previous byte.
-    pub(crate) fn enclosing_spans_with_previous(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> Vec<EnclosingSpan> {
-        let mut offsets = vec![offset];
-        if offset > 0 {
-            offsets.push(offset - 1);
-        }
-
-        self.enclosing_spans_at_offsets(file_id, offsets)
     }
 }
 
