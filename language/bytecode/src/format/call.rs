@@ -186,24 +186,15 @@ impl InstructionFormatter<'_, '_, '_> {
                     self.formatter,
                     [&ValueType::reference(reference.kind(), reference.space())]
                 )?;
-                write!(
-                    self.formatter,
-                    [token(","), space(), token("dispatch"), space()]
-                )?;
+                self.write_comma()?;
                 self.write_text(&dispatch_offset)?;
-                write!(
-                    self.formatter,
-                    [token(","), space(), token("slot"), space()]
-                )?;
+                self.write_comma()?;
                 self.write_text(&slot)
             }
             CallTarget::Dynamic { receiver, slot, .. } => {
                 let slot = slot.to_string();
                 self.write_span(*receiver)?;
-                write!(
-                    self.formatter,
-                    [token(","), space(), token("slot"), space()]
-                )?;
+                self.write_comma()?;
                 self.write_text(&slot)?;
 
                 Ok(())

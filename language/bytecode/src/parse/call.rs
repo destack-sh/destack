@@ -161,10 +161,8 @@ impl Parser<'_> {
                 .reference_type()
                 .ok_or_else(|| ParseError::new("expected reference type", self.previous().span))?;
             self.eat_token(TokenType::Comma)?;
-            self.eat_name("dispatch")?;
             let dispatch_offset = self.parse_u32()?;
             self.eat_token(TokenType::Comma)?;
-            self.eat_name("slot")?;
             let slot = self.parse_u16()?;
             self.eat_token(TokenType::Comma)?;
             let arguments = self.parse_argument_span()?;
@@ -181,7 +179,6 @@ impl Parser<'_> {
         // dynamic dispatch
         let receiver = self.parse_register_span()?;
         self.eat_token(TokenType::Comma)?;
-        self.eat_name("slot")?;
         let slot = self.parse_u16()?;
         self.eat_token(TokenType::Comma)?;
         let arguments = self.parse_argument_span()?;
