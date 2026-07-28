@@ -55,10 +55,10 @@ pub enum MemoryError {
         /// The released byte length.
         byte_len: usize,
     },
-    /// One durable memory offset does not fit the current machine.
-    OffsetOverflow {
-        /// The durable byte offset.
-        offset: u64,
+    /// One serialized memory image is malformed or incompatible.
+    InvalidImage {
+        /// The invalid image context.
+        context: String,
     },
     /// One internal memory error occurred.
     Internal {
@@ -93,6 +93,13 @@ impl MemoryError {
     /// Create one internal memory error.
     pub fn internal(context: impl Into<String>) -> Self {
         Self::Internal {
+            context: context.into(),
+        }
+    }
+
+    /// Create one invalid memory image error.
+    pub fn invalid_image(context: impl Into<String>) -> Self {
+        Self::InvalidImage {
             context: context.into(),
         }
     }
@@ -183,8 +190,8 @@ impl Display for MemoryError {
                     "invalid memory range release: offset {offset}, length {byte_len}"
                 )
             }
-            Self::OffsetOverflow { offset } => {
-                write!(formatter, "memory offset exceeds machine width: {offset}")
+            Self::InvalidImage { context } => {
+                write!(formatter, "invalid memory image: {context}")
             }
             Self::Internal { context } => {
                 write!(formatter, "internal memory error: {context}")

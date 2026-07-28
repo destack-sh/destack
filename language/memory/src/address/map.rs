@@ -1,9 +1,12 @@
 use std::collections::BTreeMap;
 use std::ops::Range;
 use std::ptr::{copy_nonoverlapping, from_ref, write_bytes};
+use std::slice;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
+use serde::ser::{SerializeSeq, SerializeStruct};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::table::{PageState, PageTable};
 use crate::platform::{self, PageFrame, PageFrameAllocator, VirtualSpace, WriteWatchRegistration};
@@ -32,8 +35,17 @@ pub struct MemoryMap {
     range_allocator: Mutex<RangeAllocator>,
 }
 
+/// One immutable copy-on-write memory image.
+///
+/// Serialization retains exact target pointer and mapping-frame geometry.
+#[derive(Debug, Clone)]
+pub struct MemoryImage {
+    /// The retained memory map.
+    memory: Arc<MemoryMap>,
+}
+
 /// One allocated logical byte range.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MemoryRange {
     /// The byte offset inside the memory map.
     pub offset: usize,
@@ -50,6 +62,42 @@ struct RangeAllocator {
     frontier: usize,
     /// Released byte ranges keyed by offset.
     free_ranges: BTreeMap<usize, usize>,
+}
+
+/// Deserialized target-specific state for one memory map.
+#[derive(Debug, Deserialize)]
+struct MemorySnapshot {
+    /// The reserved virtual byte length.
+    byte_len: usize,
+    /// The fixed mapping frame width.
+    frame_size_bytes: usize,
+    /// The next never allocated byte offset.
+    frontier: usize,
+    /// Released byte ranges keyed by offset.
+    free_ranges: BTreeMap<usize, usize>,
+    /// The materialized virtual mappings.
+    mappings: Box<[MappingSnapshot]>,
+}
+
+/// One deserialized contiguous mapping.
+#[derive(Debug, Deserialize)]
+struct MappingSnapshot {
+    /// The first byte offset inside the memory map.
+    offset: usize,
+    /// The mapped bytes.
+    bytes: Box<[u8]>,
+}
+
+/// Materialized mappings serialized directly from one memory map.
+struct Mappings<'a>(&'a MemoryMap);
+
+/// One borrowed contiguous mapping.
+#[derive(Serialize)]
+struct Mapping<'a> {
+    /// The first byte offset inside the memory map.
+    offset: usize,
+    /// The mapped bytes.
+    bytes: &'a [u8],
 }
 
 /// One contiguous virtual page and backing frame run.
@@ -126,6 +174,15 @@ impl MemoryMap {
         fork.make_mapped_frame_range_writable(first_frame, end_frame)?;
 
         Ok(fork)
+    }
+
+    /// Capture one immutable copy-on-write image.
+    ///
+    /// No native writes may race with remapping.
+    pub fn capture(&self) -> MemoryResult<MemoryImage> {
+        let memory = Arc::new(self.fork_lazy()?);
+
+        Ok(MemoryImage { memory })
     }
 
     /// Return the reserved virtual byte length.
@@ -709,6 +766,172 @@ impl MemoryMap {
     }
 }
 
+impl Serialize for MemoryImage {
+    /// Serialize this image as exact allocator state and mapped frames.
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let memory = self.memory.as_ref();
+        let _lock = memory.lock.lock();
+        let ranges = memory.range_allocator.lock();
+        let mappings = Mappings(memory);
+        let mut state = serializer.serialize_struct("MemoryImage", 5)?;
+
+        state.serialize_field("byte_len", &memory.byte_len)?;
+        state.serialize_field("frame_size_bytes", &memory.frame_size_bytes)?;
+        state.serialize_field("frontier", &ranges.frontier)?;
+        state.serialize_field("free_ranges", &ranges.free_ranges)?;
+        state.serialize_field("mappings", &mappings)?;
+
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for MemoryImage {
+    /// Deserialize one exact immutable memory image.
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let snapshot = MemorySnapshot::deserialize(deserializer)?;
+        let memory = snapshot.restore().map_err(serde::de::Error::custom)?;
+
+        Ok(Self {
+            memory: Arc::new(memory),
+        })
+    }
+}
+
+impl MemoryImage {
+    /// Restore this image into one independently writable memory map.
+    pub fn restore(&self) -> MemoryResult<MemoryMap> {
+        self.memory.fork_lazy()
+    }
+
+    /// Return the reserved virtual byte length.
+    pub fn byte_len(&self) -> usize {
+        self.memory.byte_len()
+    }
+
+    /// Return the memory mapping frame width.
+    pub fn frame_size_bytes(&self) -> usize {
+        self.memory.frame_size_bytes()
+    }
+
+    /// Return one owned byte vector from this image.
+    pub fn read_bytes(&self, offset: usize, byte_len: usize) -> MemoryResult<Vec<u8>> {
+        self.memory.read_bytes(offset, byte_len)
+    }
+}
+
+impl Serialize for Mappings<'_> {
+    /// Serialize contiguous mapped page runs without copying their bytes first.
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let memory = self.0;
+        let mut sequence = serializer.serialize_seq(Some(self.len()))?;
+        let mut mapped = memory.pages.mapped_pages().peekable();
+
+        // serialize each contiguous mapping directly from virtual memory
+        while let Some(first_page) = mapped.next() {
+            let mut end_page = first_page + 1;
+            while mapped.peek().is_some_and(|page| *page == end_page) {
+                mapped.next();
+                end_page += 1;
+            }
+
+            let offset = first_page * memory.frame_size_bytes;
+            let byte_len = (end_page - first_page) * memory.frame_size_bytes;
+
+            // SAFETY: mapped page iteration proves the complete virtual range is readable
+            let bytes = unsafe { slice::from_raw_parts(memory.mapped_address(offset), byte_len) };
+            sequence.serialize_element(&Mapping { offset, bytes })?;
+        }
+
+        sequence.end()
+    }
+}
+
+impl Mappings<'_> {
+    /// Return the number of contiguous mapped page runs.
+    fn len(&self) -> usize {
+        let mut run_count = 0;
+        let mut previous_page = None;
+
+        // count each transition into one mapped page run
+        for page in self.0.pages.mapped_pages() {
+            if previous_page.is_none_or(|previous| page != previous + 1) {
+                run_count += 1;
+            }
+
+            previous_page = Some(page);
+        }
+
+        run_count
+    }
+}
+
+impl MemorySnapshot {
+    /// Restore this snapshot into one live memory map.
+    fn restore(self) -> MemoryResult<MemoryMap> {
+        let memory = MemoryMap::reserve(self.byte_len, self.frame_size_bytes)?;
+
+        // require the exact target geometry captured by this snapshot
+        if memory.byte_len != self.byte_len || memory.frame_size_bytes != self.frame_size_bytes {
+            return Err(MemoryError::invalid_image(
+                "memory geometry does not match this target",
+            ));
+        }
+
+        // validate mapped bytes before consuming allocator fields
+        self.validate_mappings()?;
+
+        // reconstruct logical allocation state from target geometry
+        let ranges = RangeAllocator::restore(
+            self.frontier,
+            self.free_ranges,
+            memory.frame_size_bytes,
+            memory.byte_len,
+        )?;
+
+        // restore logical allocation state before materialized bytes
+        *memory.range_allocator.lock() = ranges;
+        for mapping in self.mappings {
+            memory.write_bytes(mapping.offset, &mapping.bytes)?;
+        }
+
+        Ok(memory)
+    }
+
+    /// Validate mapped runs against this snapshot's exact geometry.
+    fn validate_mappings(&self) -> MemoryResult<()> {
+        let mut previous_end = 0;
+
+        // require aligned, ordered, disjoint mappings inside the reservation
+        for mapping in &self.mappings {
+            let byte_len = mapping.bytes.len();
+            if byte_len == 0
+                || mapping.offset % self.frame_size_bytes != 0
+                || byte_len % self.frame_size_bytes != 0
+                || mapping.offset > self.byte_len
+                || byte_len > self.byte_len - mapping.offset
+                || mapping.offset < previous_end
+            {
+                return Err(MemoryError::invalid_image(
+                    "mapped memory ranges are malformed",
+                ));
+            }
+
+            previous_end = mapping.offset + byte_len;
+        }
+
+        Ok(())
+    }
+}
+
 impl MemoryRange {
     /// The empty memory range.
     pub const EMPTY: Self = Self {
@@ -787,6 +1010,53 @@ impl RangeAllocator {
             frontier: first_offset,
             free_ranges: BTreeMap::new(),
         }
+    }
+
+    /// Restore logical range allocation state against one memory map.
+    fn restore(
+        frontier: usize,
+        free_ranges: BTreeMap<usize, usize>,
+        first_offset: usize,
+        capacity: usize,
+    ) -> MemoryResult<Self> {
+        // accept the canonical allocator state for an empty reservation
+        let is_empty_map = capacity == 0 && frontier == first_offset && free_ranges.is_empty();
+        if is_empty_map {
+            return Ok(Self {
+                first_offset,
+                frontier,
+                free_ranges,
+            });
+        }
+
+        // require one bounded allocation frontier above the null range
+        if frontier < first_offset || frontier > capacity {
+            return Err(MemoryError::invalid_image(
+                "logical range bounds are malformed",
+            ));
+        }
+
+        // require ordered, nonempty, disjoint free ranges below the frontier
+        let mut previous_end = first_offset;
+        for (&offset, &byte_len) in &free_ranges {
+            if byte_len == 0
+                || offset < previous_end
+                || offset > frontier
+                || byte_len > frontier - offset
+            {
+                return Err(MemoryError::invalid_image(
+                    "logical free ranges are malformed",
+                ));
+            }
+
+            previous_end = offset + byte_len;
+        }
+
+        Ok(Self {
+            first_offset,
+            frontier,
+            free_ranges,
+        })
     }
 
     /// Allocate one aligned range from released storage or the unused tail.
@@ -1412,5 +1682,80 @@ mod tests {
 
         assert_eq!(first.offset, first_offset);
         assert_eq!(fork_next, parent_next);
+    }
+
+    /// Restore sparse bytes, range allocation, and copy-on-write behavior from serialization.
+    #[test]
+    fn test_restore_serialized_memory_image() {
+        let (memory, frame_size_bytes) = test_map(5);
+        let first = memory
+            .allocate(frame_size_bytes, frame_size_bytes)
+            .expect("first range should allocate");
+        let reusable = memory
+            .allocate(frame_size_bytes, frame_size_bytes)
+            .expect("reusable range should allocate");
+        let last = memory
+            .allocate(frame_size_bytes, frame_size_bytes)
+            .expect("last range should allocate");
+
+        // retain two noncontiguous mappings and one reusable logical range
+        memory
+            .write_bytes(first.offset, &[1, 2, 3, 4])
+            .expect("first mapping should write");
+        memory
+            .write_bytes(last.offset, &[5, 6, 7, 8])
+            .expect("last mapping should write");
+        memory
+            .release(reusable)
+            .expect("middle range should release");
+
+        // capture immutable bytes before mutating the live memory
+        let image = memory.capture().expect("memory image should capture");
+        memory
+            .write_bytes(first.offset, &[9, 9, 9, 9])
+            .expect("live mapping should diverge");
+
+        // restore through the exact public serialization boundary
+        let bytes = destack_serde::to_vec(&image).expect("memory image should serialize");
+        let image: MemoryImage =
+            destack_serde::from_slice(&bytes).expect("memory image should deserialize");
+        let restored = image.restore().expect("memory image should restore");
+
+        assert_eq!(restored.byte_len(), memory.byte_len());
+        assert_eq!(restored.frame_size_bytes(), frame_size_bytes);
+        assert_eq!(
+            restored
+                .read_bytes(first.offset, 4)
+                .expect("first mapping should read"),
+            [1, 2, 3, 4]
+        );
+        assert_eq!(
+            restored
+                .read_bytes(last.offset, 4)
+                .expect("last mapping should read"),
+            [5, 6, 7, 8]
+        );
+        assert!(!restored.pages.is_mapped(reusable.offset / frame_size_bytes));
+
+        // preserve allocator reuse and isolate later child writes
+        let allocated = restored
+            .allocate(frame_size_bytes, frame_size_bytes)
+            .expect("restored free range should allocate");
+        assert_eq!(allocated, reusable);
+
+        let fork = restored.fork_lazy().expect("restored map should fork");
+        fork.write_bytes(first.offset, &[9, 8, 7, 6])
+            .expect("fork mapping should write");
+        assert_eq!(
+            restored
+                .read_bytes(first.offset, 4)
+                .expect("restored mapping should read"),
+            [1, 2, 3, 4]
+        );
+        assert_eq!(
+            fork.read_bytes(first.offset, 4)
+                .expect("fork mapping should read"),
+            [9, 8, 7, 6]
+        );
     }
 }

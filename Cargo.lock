@@ -1187,6 +1187,7 @@ dependencies = [
 name = "destack_memory"
 version = "0.55.4"
 dependencies = [
+ "destack_serde",
  "libc",
  "parking_lot",
  "serde",
