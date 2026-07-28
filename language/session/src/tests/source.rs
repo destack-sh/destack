@@ -1,10 +1,12 @@
 use std::path::PathBuf;
 
-use destack_repository::{DestackLayoutOverride, Environment, Ref, Settings};
+use destack_repository::{
+    DestackLayoutOverride, Environment, Ref, Settings, open_repository_from_memory,
+};
 use destack_source::{ByteRange, Edit, FileId, TextPatch};
 
 use super::TestSession;
-use destack_repository::open_repository_from_memory;
+use crate::SessionError;
 
 #[test]
 fn test_open_imports_root_package_sources() {
@@ -35,7 +37,7 @@ Not hot dog.
 "#,
         ),
     ])
-    .unwrap();
+    .expect("open test session");
 
     test.assert_files(&["destack.json", "src/index.ds", "src/nested/user.ds"]);
 }
@@ -186,6 +188,48 @@ export const value = 1;
     test.assert_revision_changed(before);
     test.assert_update_paths(&updates, &["src/index.ds"]);
     test.assert_files(&["destack.json", "src/index.ds"]);
+}
+
+/// Keep prepared revisions private and reject publication over a changed Ref.
+#[test]
+fn test_prepare_edit_guards_publication() {
+    let test = TestSession::open(&[
+        (
+            "destack.json",
+            r#"{
+  "name": "@test/app"
+}
+"#,
+        ),
+        ("src/index.ds", "export const value = 1;\n"),
+    ])
+    .expect("open test session");
+    let before = test.revision();
+    let prepared = test.prepare_text("src/index.ds", "export const value = 2;\n");
+
+    assert_eq!(test.revision(), before);
+
+    let commit = prepared.publish().expect("publish prepared edit");
+
+    assert_eq!(commit.before, before);
+    assert_ne!(commit.after, before);
+    assert_eq!(commit.after, test.revision());
+
+    let prepared = test.prepare_text("src/index.ds", "export const value = 3;\n");
+    let concurrent = test.edit_text("src/index.ds", "export const value = 4;\n");
+    let error = prepared
+        .publish()
+        .expect_err("reject stale prepared revision");
+
+    assert!(matches!(
+        error,
+        SessionError::StaleRevision {
+            expected,
+            current,
+            ..
+        } if expected == concurrent.before && current == concurrent.after
+    ));
+    assert_eq!(test.revision(), concurrent.after);
 }
 
 #[test]

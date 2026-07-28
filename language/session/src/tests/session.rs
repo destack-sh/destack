@@ -8,7 +8,7 @@ use destack_repository::{
 };
 use destack_source::{Edit, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 
-use crate::{Change, Commit, Session, SessionError};
+use crate::{Change, Commit, PreparedCommit, Session, SessionError};
 
 const DEFAULT_ROOT: &str = "/workspace";
 
@@ -135,6 +135,19 @@ impl TestSession {
         };
 
         self.edit(vec![edit])
+    }
+
+    /// Prepare one source file replacement without publishing it.
+    pub(crate) fn prepare_text(&self, path: &str, text: &str) -> PreparedCommit<'_> {
+        let edit = Edit::SetText {
+            path: path.into(),
+            text: text.into(),
+        };
+        let revision = self.revision();
+
+        self.session
+            .prepare_edit(&self.head(), revision, vec![edit])
+            .expect("test session should prepare edit")
     }
 
     /// Load one module from the memory filesystem.

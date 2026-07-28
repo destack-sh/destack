@@ -1,10 +1,48 @@
-use destack_repository::{Ref, Revision};
+use std::collections::HashSet;
+
+use destack_repository::{Ref, Revision, RevisionPin};
 use destack_source::{
     Content, Edit, FileId, FilePatch, Patch, Span, TextPatch, Uri, apply_file_patch,
 };
-use std::collections::HashSet;
 
 use crate::{Change, Session, SessionError};
+
+/// One complete source commit awaiting publication.
+#[derive(Debug)]
+pub struct PreparedCommit<'session> {
+    /// The session publishing the commit.
+    session: &'session Session,
+    /// The ref advanced by publication.
+    reference: Ref,
+    /// The pinned base revision.
+    before: RevisionPin,
+    /// The pinned edited revision.
+    after: RevisionPin,
+    /// The changed files.
+    changes: Vec<Change>,
+}
+
+impl PreparedCommit<'_> {
+    /// Publish the edited revision through its session ref.
+    pub fn publish(self) -> Result<Commit, SessionError> {
+        let Self {
+            session,
+            reference,
+            before,
+            after,
+            changes,
+        } = self;
+        let before = before.revision();
+        let after = after.revision();
+        session.publish_revision(&reference, before, after)?;
+
+        Ok(Commit {
+            before,
+            after,
+            changes,
+        })
+    }
+}
 
 /// One committed edit batch.
 #[derive(Debug, Clone)]
@@ -22,7 +60,7 @@ impl Session {
     pub fn edit(&self, reference: &Ref, edits: Vec<Edit>) -> Result<Commit, SessionError> {
         let before = self.revision(reference)?;
 
-        self.edit_if_current(reference, before, edits)
+        self.prepare_edit(reference, before, edits)?.publish()
     }
 
     /// Patch files when one ref still points at one revision.
@@ -32,6 +70,16 @@ impl Session {
         revision: Revision,
         edits: Vec<Edit>,
     ) -> Result<Commit, SessionError> {
+        self.prepare_edit(reference, revision, edits)?.publish()
+    }
+
+    /// Prepare source edits when one ref still points at one revision.
+    pub fn prepare_edit(
+        &self,
+        reference: &Ref,
+        revision: Revision,
+        edits: Vec<Edit>,
+    ) -> Result<PreparedCommit<'_>, SessionError> {
         let current = self.revision(reference)?;
         if current != revision {
             return Err(SessionError::StaleRevision {
@@ -41,34 +89,24 @@ impl Session {
             });
         }
 
-        self.commit_edits(reference, revision, edits)
-    }
-
-    /// Commit edits through one ref at one known revision.
-    fn commit_edits(
-        &self,
-        reference: &Ref,
-        before: Revision,
-        edits: Vec<Edit>,
-    ) -> Result<Commit, SessionError> {
         let repository = self.repository();
+
         // build repository edits before pinning outputs
-        let edits = self.repository_edits_for_edits(before, edits)?;
+        let edits = self.repository_edits_for_edits(revision, edits)?;
         let file_ids = repository_file_ids(&edits);
-        let before_pin = repository.pin(before)?;
-        let revision = repository.commit_edits(before, edits)?;
-        let revision_pin = repository.pin(revision)?;
+        let before = repository.pin(revision)?;
+        let after = repository.commit_edits(revision, edits)?;
+        let after = repository.pin(after)?;
 
-        // publish when the ref still points at the edited base
-        self.publish_revision(reference, before, revision)?;
+        // project changes while both immutable revisions are pinned
+        let changes = self.project_file_changes(before.revision(), after.revision(), file_ids)?;
 
-        let files =
-            self.project_file_changes(before_pin.revision(), revision_pin.revision(), file_ids)?;
-
-        Ok(Commit {
-            before: before_pin.revision(),
-            after: revision_pin.revision(),
-            changes: files,
+        Ok(PreparedCommit {
+            session: self,
+            reference: reference.clone(),
+            before,
+            after,
+            changes,
         })
     }
 
