@@ -63,13 +63,23 @@ function update(state: &State): void {
 
     state.count = 1;
     /// @resolution.name source=state target=update.state
-    /// @resolution.pattern.assign source=state.count kind=place place=field(State.count) type=int32
+    /// @resolution.place source=state placement="local" lifetime=update.'a access="mutable"
+    /// @resolution.access source=state root=update.state
+    /// @resolution.pattern.assign source=state.count kind=place
+    /// @resolution.assignment source=state.count write="receiver=&update.'a State, target=field(receiver=&update.'a State, target=State.count, type=int32), type=int32" type=int32
 
     state.user = state.user;
     /// @resolution.name source=state target=update.state
-    /// @resolution.pattern.assign source=state.user kind=place place=field(State.user) type=User
+    /// @resolution.place source=state placement="local" lifetime=update.'a access="mutable"
+    /// @resolution.access source=state root=update.state
+    /// @resolution.pattern.assign source=state.user kind=place
+    /// @resolution.assignment source=state.user write="receiver=&update.'a State, target=field(receiver=&update.'a State, target=State.user, type=User), type=User" type=User
     /// @resolution.name source=state target=update.state
-    /// @resolution.member source=state.user receiver=&update.'a State kind=symbol target=State.user
+    /// @resolution.member source=state.user receiver=&update.'a State type=User kind=field target_receiver=&update.'a State key=user target=State.user target_type=User
+    /// @resolution.place source=state placement="local" lifetime=update.'a access="mutable"
+    /// @resolution.access source=state root=update.state
+    /// @resolution.place source=state.user placement="local" lifetime=update.'a access="mutable"
+    /// @resolution.access source=state.user root=update.state keys=[user]
 
 }
 "#,
@@ -139,13 +149,23 @@ function update(state: &State): void {
 
     state.count = 1;
     /// @resolution.name source=state target=update.state
-    /// @resolution.pattern.assign source=state.count kind=place place=field(State.count) type=int32
+    /// @resolution.place source=state placement="shared" lifetime=update.'a access="mutable"
+    /// @resolution.access source=state root=update.state
+    /// @resolution.pattern.assign source=state.count kind=place
+    /// @resolution.assignment source=state.count write="receiver=&update.'a State, target=field(receiver=&update.'a State, target=State.count, type=int32), type=int32" type=int32
 
     state.user = state.user;
     /// @resolution.name source=state target=update.state
-    /// @resolution.pattern.assign source=state.user kind=place place=field(State.user) type=Placed<User, "shared">
+    /// @resolution.place source=state placement="shared" lifetime=update.'a access="mutable"
+    /// @resolution.access source=state root=update.state
+    /// @resolution.pattern.assign source=state.user kind=place
+    /// @resolution.assignment source=state.user write="receiver=&update.'a State, target=field(receiver=&update.'a State, target=State.user, type=Placed<User, \"shared\">), type=Placed<User, \"shared\">" type=Placed<User, "shared">
     /// @resolution.name source=state target=update.state
-    /// @resolution.member source=state.user receiver=&update.'a State kind=symbol target=State.user
+    /// @resolution.member source=state.user receiver=&update.'a State type=Placed<User, "shared"> kind=field target_receiver=&update.'a State key=user target=State.user target_type=Placed<User, "shared">
+    /// @resolution.place source=state placement="shared" lifetime=update.'a access="mutable"
+    /// @resolution.access source=state root=update.state
+    /// @resolution.place source=state.user placement="shared" lifetime=update.'a access="mutable"
+    /// @resolution.access source=state.user root=update.state keys=[user]
 
 }
 "#,
@@ -208,9 +228,12 @@ function update(state: &State): void {
 
     state.status = Status.Busy;
     /// @resolution.name source=state target=update.state
-    /// @resolution.pattern.assign source=state.status kind=place place=field(State.status) type=Status
+    /// @resolution.place source=state placement="local" lifetime=update.'a access="mutable"
+    /// @resolution.access source=state root=update.state
+    /// @resolution.pattern.assign source=state.status kind=place
+    /// @resolution.assignment source=state.status write="receiver=&update.'a State, target=field(receiver=&update.'a State, target=State.status, type=Status), type=Status" type=Status
     /// @resolution.name source=Status target=Status
-    /// @resolution.member source=Status.Busy receiver=Status kind=symbol target=Status.Busy
+    /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 
 }
 "#,
@@ -279,9 +302,12 @@ function update(state: &exclusive State): void {
 
     state.status = Status.Busy;
     /// @resolution.name source=state target=update.state
-    /// @resolution.pattern.assign source=state.status kind=place place=field(State.status) type=Status
+    /// @resolution.place source=state placement="local" lifetime=update.'a access="exclusive"
+    /// @resolution.access source=state root=update.state
+    /// @resolution.pattern.assign source=state.status kind=place
+    /// @resolution.assignment source=state.status write="receiver=&update.'a exclusive State, target=field(receiver=&update.'a exclusive State, target=State.status, type=Status), type=Status" type=Status
     /// @resolution.name source=Status target=Status
-    /// @resolution.member source=Status.Busy receiver=Status kind=symbol target=Status.Busy
+    /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 
 }
 "#,
@@ -314,8 +340,11 @@ function update(value: &int32): void {
 /// @type.symbol symbol=update.value source="value: &int32" type=&update.'a int32
 
     *value = 1;
-    /// @resolution.pattern.assign source=*value kind=place place=dereference(direct) type=int32
+    /// @resolution.pattern.assign source=*value kind=place
+    /// @resolution.assignment source=*value write="&update.'a int32 => direct -> int32" type=int32
     /// @resolution.name source=value target=update.value
+    /// @resolution.place source=value placement="local" lifetime=update.'a access="mutable"
+    /// @resolution.access source=value root=update.value
 
 }
 "#,
@@ -364,10 +393,13 @@ function update(value: &Status): void {
 /// @resolution.name source=Status target=Status
 
     *value = Status.Busy;
-    /// @resolution.pattern.assign source=*value kind=place place=dereference(direct) type=Status
+    /// @resolution.pattern.assign source=*value kind=place
+    /// @resolution.assignment source=*value write="&update.'a Status => direct -> Status" type=Status
     /// @resolution.name source=value target=update.value
+    /// @resolution.place source=value placement="local" lifetime=update.'a access="mutable"
+    /// @resolution.access source=value root=update.value
     /// @resolution.name source=Status target=Status
-    /// @resolution.member source=Status.Busy receiver=Status kind=symbol target=Status.Busy
+    /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 
 }
 "#,
@@ -407,6 +439,8 @@ function update(value: &readonly int32): void {
 
     *value = 1;
     /// @resolution.name source=value target=update.value
+    /// @resolution.place source=value placement="local" lifetime=update.'a access="readonly"
+    /// @resolution.access source=value root=update.value
 
 }
 "#,
@@ -552,7 +586,7 @@ class State {
     /// @type.symbol symbol=State.status source="status: Status = Status.Idle" type=Status
     /// @resolution.name source=Status target=Status
     /// @resolution.name source=Status target=Status
-    /// @resolution.member source=Status.Idle receiver=Status kind=symbol target=Status.Idle
+    /// @resolution.member source=Status.Idle receiver=Status type=Status.Idle kind=symbol target_receiver=Status target=Status.Idle
 
 }
 
@@ -568,15 +602,21 @@ declare const sharedState: shared State;
 
 localState.status = Status.Busy;
 /// @resolution.name source=localState target=localState
-/// @resolution.pattern.assign source=localState.status kind=place place=field(State.status) type=Status
+/// @resolution.place source=localState placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localState root=localState
+/// @resolution.pattern.assign source=localState.status kind=place
+/// @resolution.assignment source=localState.status write="receiver=Placed<State, \"local\">, target=field(receiver=Placed<State, \"local\">, target=State.status, type=Status), type=Status" type=Status
 /// @resolution.name source=Status target=Status
-/// @resolution.member source=Status.Busy receiver=Status kind=symbol target=Status.Busy
+/// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 
 sharedState.status = Status.Busy;
 /// @resolution.name source=sharedState target=sharedState
-/// @resolution.pattern.assign source=sharedState.status kind=place place=field(State.status) type=Placed<Status, "shared">
+/// @resolution.place source=sharedState placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedState root=sharedState
+/// @resolution.pattern.assign source=sharedState.status kind=place
+/// @resolution.assignment source=sharedState.status write="receiver=Placed<State, \"shared\">, target=field(receiver=Placed<State, \"shared\">, target=State.status, type=Placed<Status, \"shared\">), type=Placed<Status, \"shared\">" type=Placed<Status, "shared">
 /// @resolution.name source=Status target=Status
-/// @resolution.member source=Status.Busy receiver=Status kind=symbol target=Status.Busy
+/// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 "#,
         r#"
 /// @diagnostic.error id=overwrite-stability-not-satisfied message="type 'shared Status' is not safe to overwrite through non-exclusive access"
@@ -642,9 +682,12 @@ declare const state: ^State;
 
 state.status = Status.Busy;
 /// @resolution.name source=state target=state
-/// @resolution.pattern.assign source=state.status kind=place place=field(State.status) type=Status
+/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state root=state
+/// @resolution.pattern.assign source=state.status kind=place
+/// @resolution.assignment source=state.status write="receiver=State, target=field(receiver=State, target=State.status, type=Status), type=Status" type=Status
 /// @resolution.name source=Status target=Status
-/// @resolution.member source=Status.Busy receiver=Status kind=symbol target=Status.Busy
+/// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 "#,
         r#"
 "#,
@@ -698,8 +741,13 @@ shared class Cell<T> {
 
         this.value = value;
         /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T>
-        /// @resolution.pattern.assign source=this.value kind=place place=field(Cell.value) type=T
+        /// @resolution.place source=this placement="shared" lifetime="frame" access="mutable"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value write="receiver=Cell<T>, target=field(receiver=Cell<T>, target=Cell.value, type=T), type=T" type=T
         /// @resolution.name source=value target=Cell.constructor.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Cell.constructor.value
 
     }
 }

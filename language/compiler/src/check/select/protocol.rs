@@ -600,6 +600,7 @@ impl BodyState<'_, '_> {
             implementation,
             lookup_receiver,
             definition_members,
+            &substitution,
             interface_module,
             &interface,
         )?);
@@ -1042,6 +1043,7 @@ impl BodyState<'_, '_> {
                 implemented,
                 application_type,
                 &definition_members,
+                &substitution,
                 interface_module,
                 &interface,
             )?);

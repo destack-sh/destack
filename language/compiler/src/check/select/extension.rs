@@ -542,7 +542,7 @@ impl BodyState<'_, '_> {
                 written => written,
             };
 
-            let generic_arguments = substitution.bindings.clone();
+            let generic_arguments = self.settled_argument_bindings(&substitution.bindings)?;
 
             candidates.push(MemberCandidate {
                 symbol: member.symbol,
@@ -553,7 +553,7 @@ impl BodyState<'_, '_> {
                 callable,
                 is_optional: member.is_optional,
                 is_readonly: member.is_readonly,
-                generic_arguments: generic_arguments.to_vec(),
+                generic_arguments,
                 value: member.value,
                 value_type: written,
                 receiver: LookupReceiver::Direct(ReceiverSteps::new()),

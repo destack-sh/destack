@@ -123,6 +123,7 @@ interface Pending<T> {
 /// @generic.template symbol=Pending parameters=(in out T#1)
 /// @type.symbol symbol=Pending type=Pending
 /// @definition.interface symbol=Pending template=(in out T#1)
+/// @definition.where symbol=Pending relation=satisfies left=this right=Pending<T#1>
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.reactions source="reactions: T[]" key=reactions type=Array<T#1>
 /// @type.symbol symbol=Pending.T source=T type=T#1
@@ -140,6 +141,7 @@ interface Done<T> {
 /// @generic.template symbol=Done parameters=(in out T#2)
 /// @type.symbol symbol=Done type=Done
 /// @definition.interface symbol=Done template=(in out T#2)
+/// @definition.where symbol=Done relation=satisfies left=this right=Done<T#2>
 /// @definition.field symbol=Done.kind source="kind: \"done\"" key=kind type="done"
 /// @definition.field symbol=Done.value source="value: T" key=value type=T#2
 /// @type.symbol symbol=Done.T source=T type=T#2
@@ -183,7 +185,7 @@ function pending<T>(): State<T> {
 /// @generic.instance id=Pending<T#4> template=Pending arguments=(T#4)
 /// @generic.instance id=State<T#4> template=State arguments=(T#4)
 
-/// @check.stats.solve variables=0 types=25 constraints=0 obligations=4 solutions=0 bounds=0 decisions=8
+/// @check.stats.solve variables=0 types=26 constraints=0 obligations=4 solutions=0 bounds=0 decisions=8
 "#,
     );
 }

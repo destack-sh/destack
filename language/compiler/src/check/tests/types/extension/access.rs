@@ -71,8 +71,12 @@ export extension<comptime A: Access = "readonly"> of Grid {
         this.size
         /// @type.node source=this type=WithAccess<&view.'a Grid, A> reduced=Borrowed<Grid, view.'a, A>
         /// @type.node source=this.size type=int32
-        /// @resolution.member source=this.size receiver=Borrowed<Grid, view.'a, A> kind=symbol target=Grid.size
+        /// @resolution.member source=this.size receiver=Borrowed<Grid, view.'a, A> type=int32 kind=field target_receiver=Borrowed<Grid, view.'a, A> key=size target=Grid.size target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<&view.'a Grid, A>
+        /// @resolution.place source=this placement="local" lifetime=view.'a access=A
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.size placement="local" lifetime=view.'a access=A
+        /// @resolution.access source=this.size root=this keys=[size]
         /// @generic.instance source=this id="WithAccess<&view.'a Grid, A>"
 
     }
@@ -89,9 +93,11 @@ export extension<comptime A: Access = "readonly"> of Grid {
         /// @type.node source=this type=WithAccess<&peek.'a Grid, A> reduced=Borrowed<Grid, peek.'a, A>
         /// @type.node source=this.view type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32 reduced=<view.'a>(this: Borrowed<Grid, view.'a, A>) => int32
         /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=Borrowed<Grid, peek.'a, A> kind=symbol target=view
+        /// @resolution.member source=this.view receiver=Borrowed<Grid, peek.'a, A> type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32 kind=symbol target_receiver=Borrowed<Grid, peek.'a, A> target=view
         /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=view receiver=Borrowed<Grid, peek.'a, A> instance=Grid.<extension#1>.view
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<&peek.'a Grid, A>
+        /// @resolution.place source=this placement="local" lifetime=peek.'a access=A
+        /// @resolution.access source=this root=this
         /// @generic.instance source=this id="WithAccess<&peek.'a Grid, A>"
         /// @generic.instance source=this.view id="WithAccess<&view.'a Grid, A>"
         /// @generic.instance source=this.view() id=Grid.<extension#1>.view
@@ -184,8 +190,12 @@ export extension<comptime A: Access = "readonly"> of Grid {
         this.size
         /// @type.node source=this type=WithAccess<&view.'a Grid, A> reduced=Borrowed<Grid, view.'a, A>
         /// @type.node source=this.size type=int32
-        /// @resolution.member source=this.size receiver=Borrowed<Grid, view.'a, A> kind=symbol target=Grid.size
+        /// @resolution.member source=this.size receiver=Borrowed<Grid, view.'a, A> type=int32 kind=field target_receiver=Borrowed<Grid, view.'a, A> key=size target=Grid.size target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=WithAccess<&view.'a Grid, A>
+        /// @resolution.place source=this placement="local" lifetime=view.'a access=A
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.size placement="local" lifetime=view.'a access=A
+        /// @resolution.access source=this.size root=this keys=[size]
         /// @generic.instance source=this id="WithAccess<&view.'a Grid, A>"
 
     }
@@ -202,8 +212,10 @@ function read(grid: &readonly Grid): int32 {
     /// @type.node source=grid.view type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32 reduced=<view.'a>(this: Borrowed<Grid, view.'a, A>) => int32
     /// @type.node source=grid.view() type=int32
     /// @resolution.name source=grid target=read.grid
-    /// @resolution.member source=grid.view receiver=&read.'a readonly Grid kind=symbol target=view
+    /// @resolution.member source=grid.view receiver=&read.'a readonly Grid type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32 kind=symbol target_receiver=&read.'a readonly Grid target=view
     /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=&read.'a readonly Grid instance=Grid.<extension#1>.view
+    /// @resolution.place source=grid placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=grid root=read.grid
     /// @generic.instance source=grid.view id="WithAccess<&view.'a Grid, A>"
     /// @generic.instance source=grid.view() id=Grid.<extension#1>.view
 
@@ -220,8 +232,10 @@ function write(grid: &exclusive Grid): int32 {
     /// @type.node source=grid.view type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32 reduced=<view.'a>(this: Borrowed<Grid, view.'a, A>) => int32
     /// @type.node source=grid.view() type=int32
     /// @resolution.name source=grid target=write.grid
-    /// @resolution.member source=grid.view receiver=&write.'a exclusive Grid kind=symbol target=view
+    /// @resolution.member source=grid.view receiver=&write.'a exclusive Grid type=<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32 kind=symbol target_receiver=&write.'a exclusive Grid target=view
     /// @resolution.call source=grid.view() parameters=() return=int32 kind=symbol target=view receiver=&write.'a exclusive Grid instance=Grid.<extension#1>.view
+    /// @resolution.place source=grid placement="local" lifetime=write.'a access="exclusive"
+    /// @resolution.access source=grid root=write.grid
     /// @generic.instance source=grid.view id="WithAccess<&view.'a Grid, A>"
     /// @generic.instance source=grid.view() id=Grid.<extension#1>.view
 
@@ -304,11 +318,13 @@ export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "r
 
         this.view()
         /// @type.node source=this type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A> reduced=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.'a, A>
-        /// @type.node source=this.view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 | <comptime collections.array.view.A#1: Access = "readonly", collections.array.view#1.'a>(this: WithAccess<&collections.array.view#1.'a FixedArray<T, N>, collections.array.view.A#1>, usize, usize | undefined) => WithAccess<&collections.array.view#1.'a Slice<T>, collections.array.view.A#1> reduced=<FixedArrayAccess.view.'a>(this: Borrowed<FixedArray<T, N>, FixedArrayAccess.view.'a, A>) => int32 | <comptime collections.array.view.A#1: Access = "readonly", collections.array.view#1.'a>(this: Borrowed<FixedArray<T, N>, collections.array.view#1.'a, collections.array.view.A#1>, usize, usize | undefined) => Borrowed<Slice<T>, collections.array.view#1.'a, collections.array.view.A#1>
+        /// @type.node source=this.view type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <comptime collections.array.view.A#1: Access = "readonly", collections.array.view#1.'a>(this: WithAccess<&collections.array.view#1.'a FixedArray<T, N>, collections.array.view.A#1>, usize, usize | undefined?) => WithAccess<&collections.array.view#1.'a Slice<T>, collections.array.view.A#1> reduced=<FixedArrayAccess.view.'a>(this: Borrowed<FixedArray<T, N>, FixedArrayAccess.view.'a, A>) => int32 & <comptime collections.array.view.A#1: Access = "readonly", collections.array.view#1.'a>(this: Borrowed<FixedArray<T, N>, collections.array.view#1.'a, collections.array.view.A#1>, usize, usize | undefined?) => Borrowed<Slice<T>, collections.array.view#1.'a, collections.array.view.A#1>
         /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.'a, A> kind=existential targets=[FixedArrayAccess.view, collections.array.view#1]
+        /// @resolution.member source=this.view receiver=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.'a, A> type=<FixedArrayAccess.view.'a>(this: WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>) => int32 & <comptime collections.array.view.A#1: Access = "readonly", collections.array.view#1.'a>(this: WithAccess<&collections.array.view#1.'a FixedArray<T, N>, collections.array.view.A#1>, usize, usize | undefined?) => WithAccess<&collections.array.view#1.'a Slice<T>, collections.array.view.A#1> kind=existential targets=[FixedArrayAccess.view, collections.array.view#1]
         /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=FixedArrayAccess.view receiver=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.'a, A> instance="FixedArrayAccess<T, N, A>.view"
         /// @resolution.receiver source=this kind=this declaration=FixedArrayAccess type=WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>
+        /// @resolution.place source=this placement="local" lifetime=FixedArrayAccess.peek.'a access=A
+        /// @resolution.access source=this root=this
         /// @generic.instance source=this id="WithAccess<&FixedArrayAccess.peek.'a FixedArray<T, N>, A>"
         /// @generic.instance source=this.view id="WithAccess<&FixedArrayAccess.view.'a FixedArray<T, N>, A>"
         /// @generic.instance source=this.view id="WithAccess<&collections.array.view#1.'a FixedArray<T, N>, collections.array.view.A#1>"
@@ -396,11 +412,13 @@ export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
 
         this.view()
         /// @type.node source=this type=WithAccess<&ArrayAccess.peek.'a Array<T>, A> reduced=Borrowed<Array<T>, ArrayAccess.peek.'a, A>
-        /// @type.node source=this.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 | <comptime collections.array.view.A#2: Access = "readonly", collections.array.view#2.'a>(this: WithAccess<&collections.array.view#2.'a Array<T>, collections.array.view.A#2>, usize, usize | undefined) => WithAccess<&collections.array.view#2.'a Slice<T>, collections.array.view.A#2> reduced=<ArrayAccess.view.'a>(this: Borrowed<Array<T>, ArrayAccess.view.'a, A>) => int32 | <comptime collections.array.view.A#2: Access = "readonly", collections.array.view#2.'a>(this: Borrowed<Array<T>, collections.array.view#2.'a, collections.array.view.A#2>, usize, usize | undefined) => Borrowed<Slice<T>, collections.array.view#2.'a, collections.array.view.A#2>
+        /// @type.node source=this.view type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <comptime collections.array.view.A#2: Access = "readonly", collections.array.view#2.'a>(this: WithAccess<&collections.array.view#2.'a Array<T>, collections.array.view.A#2>, usize, usize | undefined?) => WithAccess<&collections.array.view#2.'a Slice<T>, collections.array.view.A#2> reduced=<ArrayAccess.view.'a>(this: Borrowed<Array<T>, ArrayAccess.view.'a, A>) => int32 & <comptime collections.array.view.A#2: Access = "readonly", collections.array.view#2.'a>(this: Borrowed<Array<T>, collections.array.view#2.'a, collections.array.view.A#2>, usize, usize | undefined?) => Borrowed<Slice<T>, collections.array.view#2.'a, collections.array.view.A#2>
         /// @type.node source=this.view() type=int32
-        /// @resolution.member source=this.view receiver=Borrowed<Array<T>, ArrayAccess.peek.'a, A> kind=existential targets=[ArrayAccess.view, collections.array.view#2]
+        /// @resolution.member source=this.view receiver=Borrowed<Array<T>, ArrayAccess.peek.'a, A> type=<ArrayAccess.view.'a>(this: WithAccess<&ArrayAccess.view.'a Array<T>, A>) => int32 & <comptime collections.array.view.A#2: Access = "readonly", collections.array.view#2.'a>(this: WithAccess<&collections.array.view#2.'a Array<T>, collections.array.view.A#2>, usize, usize | undefined?) => WithAccess<&collections.array.view#2.'a Slice<T>, collections.array.view.A#2> kind=existential targets=[ArrayAccess.view, collections.array.view#2]
         /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=ArrayAccess.view receiver=Borrowed<Array<T>, ArrayAccess.peek.'a, A> instance="ArrayAccess<T, A>.view"
         /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<&ArrayAccess.peek.'a Array<T>, A>
+        /// @resolution.place source=this placement="local" lifetime=ArrayAccess.peek.'a access=A
+        /// @resolution.access source=this root=this
         /// @generic.instance source=this id="WithAccess<&ArrayAccess.peek.'a Array<T>, A>"
         /// @generic.instance source=this id=Array<T>
         /// @generic.instance source=this.view id="WithAccess<&ArrayAccess.view.'a Array<T>, A>"

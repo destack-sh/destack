@@ -26,13 +26,13 @@ function total(base: int32): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.total(v0: int32): int32 {
+function test.main.total(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call math.add(v0, v0)
+    v1: int32 = call test.math.add(v0, v0)
     return v1
 }
 
-external function math.add(int32, int32): int32
+external function test.math.add(int32, int32): int32
 "#,
     );
 }
@@ -70,29 +70,29 @@ function stretch(by: int32): int32 {
         "main.ds",
         r#"
 @copy
-type point.Point {
+type test.point.Point {
     x: int32;
     y: int32;
 }
 
-function main.stretch(v0: int32): int32 {
-    local l0: point.Point
+function test.main.stretch(v0: int32): int32 {
+    local l0: test.point.Point
 
 entry(v0: int32):
-    v1: point.Point = call point.diagonal(v0, v0)
+    v1: test.point.Point = call test.point.diagonal(v0, v0)
     local.set l0, v1
-    v2: point.Point = local.get l0
+    v2: test.point.Point = local.get l0
     v3: int32 = field.get v2, 0
-    v4: point.Point = local.get l0
+    v4: test.point.Point = local.get l0
     v5: int32 = field.get v4, 1
     v6: int32 = int.add v3, v5
     return v6
 }
 
-external function point.diagonal(int32, int32): point.Point
-/// @layout.struct name=point.Point size=8 align=4
-/// @layout.field owner=point.Point index=0 name=x offset=0 size=4 align=4
-/// @layout.field owner=point.Point index=1 name=y offset=4 size=4 align=4
+external function test.point.diagonal(int32, int32): test.point.Point
+/// @layout.struct name=test.point.Point size=8 align=4
+/// @layout.field owner=test.point.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=test.point.Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }
@@ -130,26 +130,26 @@ function measure(by: int32): int32 {
         "main.ds",
         r#"
 @copy
-type point.Point {
+type test.point.Point {
     x: int32;
     y: int32;
 }
 
-function main.measure(v0: int32): int32 {
-    local l0: point.Point
+function test.main.measure(v0: int32): int32 {
+    local l0: test.point.Point
 
 entry(v0: int32):
-    v1: point.Point = aggregate (v0, v0)
+    v1: test.point.Point = aggregate (v0, v0)
     local.set l0, v1
-    v2: ref<point.Point, borrowed, exclusive> = local.address l0
-    v3: int32 = call point.Point.length(v2)
+    v2: ref<test.point.Point, borrowed, exclusive> = local.address l0
+    v3: int32 = call test.point.Point.length(v2)
     return v3
 }
 
-external function point.Point.length<'a>(ref<point.Point, borrowed, 'a, exclusive>): int32
-/// @layout.struct name=point.Point size=8 align=4
-/// @layout.field owner=point.Point index=0 name=x offset=0 size=4 align=4
-/// @layout.field owner=point.Point index=1 name=y offset=4 size=4 align=4
+external function test.point.Point.length<'a>(ref<test.point.Point, borrowed, 'a, exclusive>): int32
+/// @layout.struct name=test.point.Point size=8 align=4
+/// @layout.field owner=test.point.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=test.point.Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }

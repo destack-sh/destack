@@ -23,7 +23,8 @@ let value: string | int32 = "hello";
 /// @resolution.pattern source=value kind=binding target=value
 
 value = 42;
-/// @resolution.pattern.assign source=value kind=place place=binding(value) type=string | int32
+/// @resolution.pattern.assign source=value kind=place
+/// @resolution.assignment source=value write=binding(value) type=string | int32
 "#,
     );
 }
@@ -54,6 +55,8 @@ const value: string | int32 = text;
 /// @type.symbol symbol=value source=value type=string | int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=text target=text
+/// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=text root=text
 "#,
     );
 }
@@ -78,7 +81,7 @@ value satisfies { a: int32 } | { b: string } | { c: boolean };
 type A = { a: int32 } | { b: string };
 type B = A | { c: boolean };
 
-const value: B = { c: true } as B;
+const value: B = { c: true } as A | { c: boolean };
 value satisfies { a: int32 } | { b: string } | { c: boolean };
 
 === checked ===
@@ -98,6 +101,8 @@ const value: B = { c: true };
 
 value satisfies { a: int32 } | { b: string } | { c: boolean };
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }
@@ -135,6 +140,8 @@ const value: A = "hello";
 
 value satisfies string;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }
@@ -172,6 +179,8 @@ const value: Value = ();
 
 value satisfies void;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
     );
 }
@@ -241,8 +250,10 @@ let shape: Rectangle | Circle = Rectangle {};
 
 shape.draw();
 /// @resolution.name source=shape target=shape
-/// @resolution.member source=shape.draw receiver=Rectangle | Circle kind=universal targets=[Rectangle.draw, Circle.draw]
-/// @resolution.call source=shape.draw() parameters=() return=void kind=universal targets=[Rectangle.draw, Circle.draw]
+/// @resolution.member source=shape.draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive Rectangle) => void | <Circle.draw.'a>(this: &Circle.draw.'a exclusive Circle) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive Rectangle) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive Circle) => void]
+/// @resolution.call source=shape.draw() return=void kind=union arms=[Rectangle.draw(parameters=(), arguments=(), return=void), Circle.draw(parameters=(), arguments=(), return=void)]
+/// @resolution.place source=shape placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=shape root=shape
 "#);
 }
 
@@ -321,8 +332,10 @@ function draw(shape: Shape): void {
 
     shape.draw();
     /// @resolution.name source=shape target=draw.shape
-    /// @resolution.member source=shape.draw receiver=Rectangle | Circle kind=universal targets=[Rectangle.draw, Circle.draw]
-    /// @resolution.call source=shape.draw() parameters=() return=void kind=universal targets=[Rectangle.draw, Circle.draw]
+    /// @resolution.member source=shape.draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive Rectangle) => void | <Circle.draw.'a>(this: &Circle.draw.'a exclusive Circle) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a exclusive Rectangle) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a>(this: &Circle.draw.'a exclusive Circle) => void]
+    /// @resolution.call source=shape.draw() return=void kind=union arms=[Rectangle.draw(parameters=(), arguments=(), return=void), Circle.draw(parameters=(), arguments=(), return=void)]
+    /// @resolution.place source=shape placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=shape root=draw.shape
 
 }
 "#);

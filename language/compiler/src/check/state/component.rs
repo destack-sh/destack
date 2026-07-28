@@ -9,8 +9,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Cause, CauseId, CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable,
-    DecoratorApplication, FailedCheck, FunctionBody, GenericIndex, GenericScope, GenericTemplateId,
-    Origin,
+    DecoratorApplication, FailedCheck, FunctionBody, GenericIndex, Origin,
     OriginId, Solver, TryPropagationTarget, VarianceForm, VarianceState,
     should_stream_check_events,
 };
@@ -76,8 +75,6 @@ pub(in crate::check) struct CheckState<'a> {
     // generic state
     /// Generic instances, argument variables, and induction bookkeeping.
     pub(in crate::check) generics: GenericIndex,
-    /// Flattened generic scopes computed once per template.
-    pub(in crate::check) scopes: FxIndexMap<GenericTemplateId, Arc<GenericScope>>,
     /// Generic parameter variance derivations per handle context.
     pub(in crate::check) variances:
         FxIndexMap<(dir::GlobalGenericParameterId, VarianceForm), VarianceState>,
@@ -164,7 +161,6 @@ impl<'a> CheckState<'a> {
             node_types: FxIndexMap::default(),
             decisions: DecisionTable::new(),
             generics: GenericIndex::new(),
-            scopes: FxIndexMap::default(),
             variances: FxIndexMap::default(),
             walked_declarations: FxIndexSet::default(),
             walking_declarations: Vec::new(),

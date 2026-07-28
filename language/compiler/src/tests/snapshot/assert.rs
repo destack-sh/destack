@@ -38,7 +38,10 @@ fn is_blessing() -> bool {
 
 /// Rewrite the raw snapshot nearest one call site.
 fn bless_snapshot(file: &str, line: u32, expected: &str, actual: &str) {
-    let mut deltas = BLESS_DELTAS.lock().expect("lock snapshot blessing");
+    // recover from panics under the lock; they occur before any delta mutation
+    let mut deltas = BLESS_DELTAS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let deltas = deltas.get_or_insert_with(HashMap::new);
     let path = source_path(file);
     let source = std::fs::read_to_string(&path).expect("read snapshot source");

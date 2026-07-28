@@ -20,7 +20,7 @@ function sample(): float64 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.sample(): float64 {
+function test.main.sample(): float64 {
 entry:
     v0: float64 = call destack.clock.now()
     return v0
@@ -60,7 +60,7 @@ type User {
     id: int32;
 }
 
-function main.read<'a>(v0: ref<User, borrowed, 'a, readonly>): int32 {
+function test.main.read<'a>(v0: ref<User, borrowed, 'a, readonly>): int32 {
 entry(v0: ref<User, borrowed, 'a, readonly>):
     v1: int32 = call host.user.inspect(v0)
     return v1
@@ -89,15 +89,15 @@ function run(): void {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.greet(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }): void {
+function test.main.greet(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }): void {
 entry(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }):
     return
 }
 
-function main.run(): void {
+function test.main.run(): void {
 entry:
     v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } = variant.new 1
-    call main.greet(v0)
+    call test.main.greet(v0)
     return
 }
 /// @layout.variant name=type@3 size=1 align=1

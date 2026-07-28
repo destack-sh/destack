@@ -571,7 +571,7 @@ const converted: { readonly x: float64 } = scalar;
 /// @resolution.access source=scalar root=scalar
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ x: 1 }' is not assignable to type '{ x: float64 }'"
+/// @diagnostic.error id=not-assignable message="type '{ x: 1 }' is not assignable to type '{ readonly x: float64 }'"
 /// @diagnostic.label line=9 column=44 span="scalar" line_source="const converted: { readonly x: float64 } = scalar;"
 /// @diagnostic.related line=9 column=18 span="{ readonly x: float64 }" line_source="const converted: { readonly x: float64 } = scalar;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in field 'x': expected 'float64', found '1'"

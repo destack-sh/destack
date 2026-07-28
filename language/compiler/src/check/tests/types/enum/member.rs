@@ -48,7 +48,7 @@ const selected = Mode.Read;
 /// @type.node source=Mode type=Mode
 /// @type.node source=Mode.Read type=Mode.Read
 /// @resolution.name source=Mode target=Mode
-/// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
+/// @resolution.member source=Mode.Read receiver=Mode type=Mode.Read kind=symbol target_receiver=Mode target=Mode.Read
 "#,
     );
 }
@@ -117,19 +117,22 @@ declare const mode: Mode;
 switch (mode) {
 /// @type.node source=mode type=Mode
 /// @resolution.name source=mode target=mode
+/// @resolution.place source=mode placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=mode root=mode
 
     case Mode.Read:
-    /// @resolution.operator kind=builtin
+    /// @resolution.operator type=boolean operator="===" kind=builtin operands=[mode as Mode families=(Mode), Mode.Read as Mode.Read families=(Mode)]
     /// @type.node source=Mode type=Mode
     /// @type.node source=Mode.Read type=Mode.Read
     /// @resolution.name source=Mode target=Mode
-    /// @resolution.member source=Mode.Read receiver=Mode kind=symbol target=Mode.Read
+    /// @resolution.member source=Mode.Read receiver=Mode type=Mode.Read kind=symbol target_receiver=Mode target=Mode.Read
 
         const selected = mode;
         /// @type.symbol symbol=selected source=selected type=Mode.Read
         /// @resolution.pattern source=selected kind=binding target=selected
         /// @type.node source=mode type=Mode.Read
         /// @resolution.name source=mode target=mode
+        /// @resolution.access source=mode root=mode
 
         break;
         /// @type.node source=break type=never
@@ -140,6 +143,7 @@ switch (mode) {
         /// @resolution.pattern source=remaining kind=binding target=remaining
         /// @type.node source=mode type=Mode.Write
         /// @resolution.name source=mode target=mode
+        /// @resolution.access source=mode root=mode
 
 }
 "#,
@@ -192,7 +196,7 @@ enum Status {
     static Default = Status.Active;
     /// @type.symbol symbol=Status.Default source="static Default = Status.Active" type=Status
     /// @resolution.name source=Status target=Status
-    /// @resolution.member source=Status.Active receiver=Status kind=symbol target=Status.Active
+    /// @resolution.member source=Status.Active receiver=Status type=Status.Active kind=symbol target_receiver=Status target=Status.Active
 
 }
 
@@ -201,7 +205,8 @@ const value: Status = Status.Default;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Status target=Status
 /// @resolution.name source=Status target=Status
-/// @resolution.member source=Status.Default receiver=Status kind=symbol target=Status.Default
+/// @resolution.member source=Status.Default receiver=Status type=Status kind=field target_receiver=Status key=Default target=Status.Default target_type=Status
+/// @resolution.place source=Status.Default placement="local" lifetime="frame" access="exclusive"
 "#,
     );
 }
@@ -233,7 +238,7 @@ enum Status {
     Inactive = 2,
 
     isActive(): boolean {
-        return this == Status.Active;
+        return (this as Status) == Status.Active;
     }
 }
 
@@ -262,12 +267,14 @@ enum Status {
         return this == Status.Active;
         /// @type.node source="this == Status.Active" type=boolean
         /// @type.node source=this type=&Status.isActive.'a exclusive Status
-        /// @resolution.operator source="this == Status.Active" kind=builtin
+        /// @resolution.operator source="this == Status.Active" type=boolean operator="==" kind=builtin operands=[this as Status families=(Status), Status.Active as Status.Active families=(Status)]
         /// @resolution.receiver source=this kind=this declaration=Status type=&Status.isActive.'a exclusive Status
+        /// @resolution.place source=this placement="local" lifetime=Status.isActive.'a access="exclusive"
+        /// @resolution.access source=this root=this
         /// @type.node source=Status type=Status
         /// @type.node source=Status.Active type=Status.Active
         /// @resolution.name source=Status target=Status
-        /// @resolution.member source=Status.Active receiver=Status kind=symbol target=Status.Active
+        /// @resolution.member source=Status.Active receiver=Status type=Status.Active kind=symbol target_receiver=Status target=Status.Active
 
     }
 }
@@ -280,9 +287,9 @@ const value = Status.Active.isActive();
 /// @type.node source=Status.Active.isActive type=<Status.isActive.'a>(this: &Status.isActive.'a exclusive Status.Active) => boolean
 /// @type.node source=Status.Active.isActive() type=boolean
 /// @resolution.name source=Status target=Status
-/// @resolution.member source=Status.Active receiver=Status kind=symbol target=Status.Active
-/// @resolution.member source=Status.Active.isActive receiver=Status.Active kind=symbol target=Status.isActive
-/// @resolution.call source=Status.Active.isActive() parameters=() return=boolean kind=symbol target=Status.isActive receiver=Status.Active adjustments=(borrow)
+/// @resolution.member source=Status.Active receiver=Status type=Status.Active kind=symbol target_receiver=Status target=Status.Active
+/// @resolution.member source=Status.Active.isActive receiver=Status.Active type=<Status.isActive.'a>(this: &Status.isActive.'a exclusive Status.Active) => boolean kind=symbol target_receiver=Status.Active target=Status.isActive
+/// @resolution.call source=Status.Active.isActive() parameters=() return=boolean kind=symbol target=Status.isActive receiver=Status.Active adjustments=(borrow(&'frame exclusive Status.Active))
 "#,
     );
 }
@@ -316,10 +323,10 @@ enum Status {
 /// @definition.variant symbol=Status.Ready#2 source=Ready key=Ready value=1
 
     Ready,
-    /// @type.symbol symbol=Status.Ready#1 source=Ready type=Status.Ready#1
+    /// @type.symbol symbol=Status.Ready#1 source=Ready type=Status.Ready
 
     Ready,
-    /// @type.symbol symbol=Status.Ready#2 source=Ready type=Status.Ready#2
+    /// @type.symbol symbol=Status.Ready#2 source=Ready type=Status.Ready
 
 }
 "#,

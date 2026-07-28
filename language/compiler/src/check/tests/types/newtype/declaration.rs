@@ -68,7 +68,10 @@ struct Buffer {
 
         bytes.length
         /// @resolution.name source=bytes target=Buffer.write.bytes
-        /// @resolution.member source=bytes.length receiver=readonly Array<uint8> kind=symbol target=collections.array.length#2
+        /// @resolution.member source=bytes.length receiver=readonly Array<uint8> type=usize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=usize)"
+        /// @resolution.place source=bytes placement="local" lifetime="frame" access="readonly"
+        /// @resolution.access source=bytes root=Buffer.write.bytes
+        /// @generic.instance source=bytes.length id=Array<uint8>.<extension#6>.length#2
 
     }
 }
@@ -78,6 +81,8 @@ const writer: NamedWriter = Buffer {};
 /// @resolution.pattern source=writer kind=binding target=writer
 /// @resolution.name source=NamedWriter target=NamedWriter
 /// @resolution.name source=Buffer target=Buffer
+
+/// @generic.instance id=Array<uint8>.<extension#6>.length#2 template=collections.array.length#2 arguments=(uint8)
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'Buffer' is not assignable to type 'NamedWriter'"

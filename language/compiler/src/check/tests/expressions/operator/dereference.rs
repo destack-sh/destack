@@ -25,8 +25,10 @@ declare const shared: &readonly int32;
 const value = *shared;
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
-/// @resolution.operator source=*shared kind=builtin
+/// @resolution.operator source=*shared type=int32 operator="*" kind=builtin operands=[shared as &'static readonly int32]
 /// @resolution.name source=shared target=shared
+/// @resolution.place source=shared placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=shared root=shared
 "#,
     );
 }

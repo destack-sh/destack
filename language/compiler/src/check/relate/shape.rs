@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, TypeSubstitution, answer};
+use crate::check::{Answer, CheckState, Dependency, Origin, Relation, TypeSubstitution, answer};
 
 impl CheckState<'_> {
     /// Return whether one type can be used as a property key.
@@ -698,6 +698,24 @@ impl CheckState<'_> {
         //  so both sides compare over the same rigid parameters and
         //  bound arguments must satisfy their declared constraints
         let mut source = answer!(self.reduce_type_head(origin, source)?);
+
+        // any overload of an intersected callable may satisfy the contract
+        if let dir::Type::Intersection(intersection) = self.ty(source)? {
+            let elements = self
+                .type_ids(source.module_id, intersection.elements)?
+                .to_vec();
+            let mut blockers = SmallVec::<[Dependency; 2]>::new();
+            for element in elements {
+                match self.decide_method_relation(origin, relation, element, target)? {
+                    Answer::Ready(true) => return Ok(Answer::Ready(true)),
+                    Answer::Ready(false) => {}
+                    Answer::Pending(pending) => blockers.extend(pending),
+                }
+            }
+
+            return Ok(Answer::ready_unless_blocked(false, blockers));
+        }
+
         if !matches!(
             (self.ty(source)?, self.ty(target)?),
             (
@@ -715,11 +733,35 @@ impl CheckState<'_> {
                 let Some(pairs) = self.signature_match_pairs(source, target)? else {
                     return Ok(Answer::Ready(false));
                 };
-                let substitution =
-                    answer!(self.match_generic_pairs(origin, &parameters, &pairs)?);
-                let Some(substitution) = substitution else {
+
+                // receivers bind slots when their shapes align, and adapters
+                //  bridge the shapes that do not
+                let mut substitution = TypeSubstitution::default();
+                if let (Some(signature), Some(required)) = (
+                    self.signature_head(source)?,
+                    self.signature_head(target)?,
+                ) && let (Some(source_this), Some(target_this)) =
+                    (signature.this_parameter, required.this_parameter)
+                {
+                    let mut scratch = substitution.clone();
+                    if let Answer::Ready(true) = self.extend_generic_substitution(
+                        origin,
+                        &parameters,
+                        &mut scratch,
+                        &[(source_this, target_this)],
+                    )? {
+                        substitution = scratch;
+                    }
+                }
+
+                if !answer!(self.extend_generic_substitution(
+                    origin,
+                    &parameters,
+                    &mut substitution,
+                    &pairs,
+                )?) {
                     return Ok(Answer::Ready(false));
-                };
+                }
                 if !answer!(self.decide_substitution_constraints(
                     origin,
                     template,
@@ -738,7 +780,75 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(false));
         };
 
-        self.decide_each(origin, relation, &pairs)
+        // adapters materialize copies across closed readonly borrows, so
+        //  conformance sees through them on either side of each pair
+        let mut decision = Answer::Ready(true);
+        for (source, target) in pairs {
+            let source = answer!(self.lent_payload(origin, source)?);
+            let target = answer!(self.lent_payload(origin, target)?);
+            decision = decision.and(self.decide_relation(origin, relation, source, target)?);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Return the payload behind one closed readonly borrow of a copyable value.
+    fn lent_payload(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let reduced = answer!(self.reduce_type_head(origin, ty)?);
+
+        // union contracts lend arm by arm, one level deep
+        if let dir::Type::Union(union) = self.ty(reduced)? {
+            let elements =
+                SmallVec::<[_; 4]>::from_slice(self.type_ids(reduced.module_id, union.elements)?);
+            let mut lent = Vec::with_capacity(elements.len());
+            let mut changed = false;
+            for element in elements {
+                let payload = answer!(self.lent_borrow_payload(origin, element)?);
+                changed |= payload != element;
+                lent.push(payload);
+            }
+            if !changed {
+                return Ok(Answer::Ready(ty));
+            }
+
+            return Ok(Answer::Ready(
+                self.normalized_union_type(reduced.module_id, lent)?,
+            ));
+        }
+
+        self.lent_borrow_payload(origin, reduced)
+    }
+
+    /// Return the payload behind one closed readonly borrow of a copyable value.
+    fn lent_borrow_payload(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let reduced = answer!(self.reduce_type_head(origin, ty)?);
+        let dir::Type::Form(dir::FormType {
+            form: dir::Form::Borrowed(borrow),
+            value,
+        }) = self.ty(reduced)?
+        else {
+            return Ok(Answer::Ready(ty));
+        };
+        let access = self.type_borrow(reduced.module_id, borrow)?.access;
+        if answer!(self.access_literal(origin, access)?) != Some(dir::Access::Readonly) {
+            return Ok(Answer::Ready(ty));
+        }
+        if !answer!(self.satisfies_auto_interface(origin, value, dir::AutoInterface::Copy)?) {
+            return Ok(Answer::Ready(ty));
+        }
+
+        Ok(Answer::Ready(value))
     }
 
     /// Return positional signature pairs for generic parameter matching.

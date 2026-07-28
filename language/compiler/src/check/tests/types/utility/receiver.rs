@@ -34,7 +34,11 @@ const ok: Receiver = { id: "u1" };
 
 ok.id satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.member source=ok.id receiver={ id: string } kind=field key=id
+/// @resolution.member source=ok.id receiver={ id: string } type=string kind=field target_receiver={ id: string } key=id target_type=string
+/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ok root=ok
+/// @resolution.place source=ok.id placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ok.id root=ok keys=[id]
 
 /// @generic.instance id="ThisParameterType<Function<(float64,), void>>" template=types.function.ThisParameterType arguments=(Function<(float64,), void>)
 "#,
@@ -58,7 +62,7 @@ const ok: Receiver = { anything: true };
 === annotated ===
 type Receiver = ThisParameterType<(value: number) => void>;
 
-const ok: Receiver = { anything: true } as Receiver;
+const ok: Receiver = { anything: true } as Dynamic<unknown>;
 
 === checked ===
 type Receiver = ThisParameterType<(value: number) => void>;
@@ -110,11 +114,14 @@ const fn: Fn = (value) => `${value}`;
 /// @type.symbol symbol=symbol6 source="(value) => `${value}`" type=Function<(string,), string>
 /// @type.symbol symbol=symbol6.value source=value type=string
 /// @resolution.name source=value target=symbol6.value
-/// @resolution.operator source=value kind=builtin
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol6.value
 
 fn("one") satisfies string;
 /// @resolution.name source=fn target=fn
-/// @resolution.call source="fn(\"one\")" parameters=(string) arguments=(provided("one") as string) return=string kind=expression
+/// @resolution.call source="fn(\"one\")" parameters=(string) arguments=(provided("one") as string) return=string kind=expression target=expression
+/// @resolution.place source=fn placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=fn root=fn
 
 /// @generic.instance id="OmitThisParameter<Function<(string,), string>>" template=types.function.OmitThisParameter arguments=(Function<(string,), string>)
 "#,
@@ -155,7 +162,9 @@ declare const fn: Fn;
 
 fn("bad");
 /// @resolution.name source=fn target=fn
-/// @resolution.call source="fn(\"bad\")" parameters=(float64) arguments=(provided("bad") as float64) return=string kind=expression
+/// @resolution.call source="fn(\"bad\")" parameters=(float64) arguments=(provided("bad") as float64) return=string kind=expression target=expression
+/// @resolution.place source=fn placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=fn root=fn
 
 /// @generic.instance id="OmitThisParameter<Function<(float64,), string>>" template=types.function.OmitThisParameter arguments=(Function<(float64,), string>)
 "#,

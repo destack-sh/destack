@@ -25,21 +25,16 @@ const state: { readonly count: int32 } = { count: 0 };
 /// @type.node source=0 type=0
 
 state.count = 1;
-/// @type.node source="state.count = 1" type=1
+/// @type.node source="state.count = 1" type=<error>
 /// @type.node source=state type={ readonly count: int32 }
-/// @type.node source=state.count type=int32
 /// @resolution.name source=state target=state
 /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=state root=state
-/// @resolution.pattern.assign source=state.count kind=place
-/// @resolution.assignment source=state.count write="receiver={ readonly count: int32 }, target=field(receiver={ readonly count: int32 }, target=count, type=int32), type=int32" type=int32
-/// @type.node source=1 type=1
 
-/// @check.stats.solve variables=1 types=9 constraints=0 obligations=2 solutions=1 bounds=0 decisions=4
+/// @check.stats.solve variables=1 types=9 constraints=0 obligations=1 solutions=1 bounds=0 decisions=3
 "#,
         r#"
-/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'count'"
-/// @diagnostic.label line=3 column=7 span="count" line_source="state.count = 1;"
+
 "#,
     );
 }

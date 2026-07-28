@@ -16,7 +16,7 @@ function pick(flag: boolean, count: int32): int32 | boolean {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.pick(v0: boolean, v1: int32): variant<uint8, int32> { 0uint8 = int32; 1uint8 = boolean; } {
+function test.main.pick(v0: boolean, v1: int32): variant<uint8, int32> { 0uint8 = int32; 1uint8 = boolean; } {
 entry(v0: boolean, v1: int32):
     branch v0, b1, b2
 
@@ -78,7 +78,7 @@ type Square {
 @copy
 type Shape = variant<uint8, Circle> { 0uint8 = Circle; 1uint8 = Square; };
 
-function main.keep(v0: Shape): Shape {
+function test.main.keep(v0: Shape): Shape {
 entry(v0: Shape):
     return v0
 }
@@ -113,12 +113,12 @@ function forget(): boolean | undefined {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function main.keep(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }): variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } {
+function test.main.keep(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }): variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } {
 entry(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }):
     return v0
 }
 
-function main.forget(): variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } {
+function test.main.forget(): variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } {
 entry:
     v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } = variant.new 1
     return v0
@@ -172,7 +172,7 @@ type Square {
 @copy
 type Shape = variant<uint8, Circle> { 0uint8 = Circle; 1uint8 = Square; };
 
-function main.make(v0: float64): Shape {
+function test.main.make(v0: float64): Shape {
 entry(v0: float64):
     v1: Circle = aggregate (v0)
     v2: Shape = variant.new 0, v1

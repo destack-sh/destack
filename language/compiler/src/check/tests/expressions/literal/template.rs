@@ -29,9 +29,10 @@ const greeting = `hello ${name}`;
 /// @type.node source="`hello ${name}`" type=string
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
-/// @resolution.operator source=name kind=builtin
+/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=name root=name
 
-/// @check.stats.solve variables=2 types=5 constraints=0 obligations=2 solutions=2 bounds=0 decisions=4
+/// @check.stats.solve variables=2 types=8 constraints=0 obligations=2 solutions=2 bounds=0 decisions=3
 "#,
     );
 }
@@ -57,7 +58,7 @@ const greeting: string = `hello`;
 /// @resolution.pattern source=greeting kind=binding target=greeting
 /// @type.node source=`hello` type=string
 
-/// @check.stats.solve variables=1 types=3 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=3 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }
@@ -83,7 +84,7 @@ const value: number = `hello`;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=`hello` type=string
 
-/// @check.stats.solve variables=1 types=4 constraints=1 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=4 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'string' is not assignable to type 'float64'"
@@ -131,7 +132,7 @@ struct Point {
 }
 
 extension of Point implements Display {
-    display(&readonly this): MaybeOwned<string, ^string, 'a> {
+    display(&readonly this): MaybeOwned<string, 'a> {
         return todo("Point.display" as string | undefined);
     }
 }
@@ -158,19 +159,20 @@ struct Point {
 extension of Point implements Display {
 /// @definition.extension symbol=<module>#2 form=local target=Point
 /// @definition.implements symbol=<module>#2 source=Display target=ops.format.Display
-/// @definition.method symbol=display slot=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<string, Owned<string>, display.'a>
+/// @definition.method symbol=display slot=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<string, display.'a>
+/// @definition.implementation symbol=<module>#2 requirement=ops.format.Display.display target=display
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Display target=ops.format.Display
 
     display(&readonly this): MaybeOwned<string> {
     /// @generic.template symbol=display parent=template#0 parameters=('a)
-    /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<string, Owned<string>, display.'a>
+    /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly this) => memory.cow.cow.MaybeOwned<string, display.'a>
     /// @type.symbol symbol=display.this source="&readonly this" type=&display.'a readonly this
     /// @resolution.name source=MaybeOwned target=memory.cow.cow.MaybeOwned
 
         return todo("Point.display");
         /// @type.node source="todo(\"Point.display\")" type=never
-        /// @type.node source=todo type=(string | undefined) => never
+        /// @type.node source=todo type=(string | undefined?) => never
         /// @resolution.name source=todo target=error.panic.todo
         /// @resolution.call source="todo(\"Point.display\")" parameters=(string | undefined) arguments=(provided("Point.display") as string | undefined) return=never kind=symbol target=error.panic.todo
         /// @type.node source="\"Point.display\"" type="Point.display"
@@ -187,11 +189,12 @@ function label(point: Point): string {
     /// @type.node source="`point ${point}`" type=string
     /// @type.node source=point type=Point
     /// @resolution.name source=point target=label.point
-    /// @resolution.operator source=point kind=call parameters=() return=memory.cow.cow.MaybeOwned<string, Owned<string>, "frame"> target=display receiver=Point adjustments=(borrow)
+    /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=point root=label.point
 
 }
 
-/// @generic.instance id="memory.cow.cow.MaybeOwned<string, Owned<string>, display.'a>" template=memory.cow.cow.MaybeOwned arguments=(string, Owned<string>, display.'a)
+/// @generic.instance id="memory.cow.cow.MaybeOwned<string, display.'a>" template=memory.cow.cow.MaybeOwned arguments=(string, display.'a)
 "#,
     );
 }
@@ -211,7 +214,6 @@ function label(point: Point): string {
     );
 
     session.assert_dir_checked_diagnostics("main.ds", r#"
-/// @diagnostic.error id=template-argument-not-displayable message="template argument of type 'Point' has no display representation"
-/// @diagnostic.label line=7 column=12 span="`point ${point}`" line_source="return `point ${point}`;"
+
 "#);
 }

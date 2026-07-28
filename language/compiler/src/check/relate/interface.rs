@@ -303,7 +303,7 @@ impl CheckState<'_> {
 
             // require presence when an associated type stays abstract
             let Some(member_type) = member.ty else {
-                if lookup.is_found() {
+                if lookup.is_found() || member.has_default || member.is_optional {
                     continue;
                 }
 
@@ -329,6 +329,8 @@ impl CheckState<'_> {
                 }
                 _ => self.decide_relation(origin, Relation::Assignable, found, member_type)?,
             };
+            if matches!(member_decision, Answer::Ready(false)) {
+            }
             decision = decision.and(member_decision);
             if decision.is_ready_false() {
                 return Ok(decision);
@@ -354,9 +356,9 @@ impl CheckState<'_> {
         instance: &dir::GenericApplication,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<InterfaceRequirements>> {
-        let substitution = self
-            .instance_substitution(instance_module, instance)?
-            .with_receiver(receiver);
+        // qualify so this inside applied arguments resolves to the receiver
+        let substitution =
+            self.qualified_instance_substitution(instance_module, instance, receiver)?;
 
         self.interface_requirements_with_substitution(origin, instance.symbol, &substitution)
     }
@@ -428,10 +430,20 @@ impl CheckState<'_> {
             let Some(key) = member.key() else {
                 continue;
             };
-            let ty = match answer!(self.definition_member_type(&member)?) {
-                Some(ty) => Some(self.substitute_type(origin.module(), ty, substitution)?),
-                ty => ty,
+            // associated types bound implementers by constraint; a written
+            //  value is a default the implementer may override
+            let (declared, has_default) = match &member {
+                dir::DefinitionMember::AssociatedType(associated) => {
+                    (associated.constraint, associated.value.is_some())
+                }
+                _ => (
+                    answer!(self.definition_member_type(&member)?),
+                    member.is_default(),
+                ),
             };
+            let ty = declared
+                .map(|ty| self.substitute_type(origin.module(), ty, substitution))
+                .transpose()?;
             let (is_optional, is_readonly) = match &member {
                 dir::DefinitionMember::Field(field) => (field.is_optional, field.is_readonly),
                 _ => (false, false),
@@ -442,7 +454,7 @@ impl CheckState<'_> {
                 key,
                 ty,
                 role,
-                has_default: member.is_default(),
+                has_default,
                 is_optional,
                 is_readonly,
             });

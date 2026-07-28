@@ -66,13 +66,21 @@ extension of Point {
         /// @type.node source="this.x + this.y" type=int32
         /// @type.node source=this type=Point
         /// @type.node source=this.x type=int32
-        /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
-        /// @resolution.operator source="this.x + this.y" kind=builtin
+        /// @resolution.member source=this.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+        /// @resolution.operator source="this.x + this.y" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), this.y as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Point
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.x placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.x root=this keys=[x]
         /// @type.node source=this type=Point
         /// @type.node source=this.y type=int32
-        /// @resolution.member source=this.y receiver=Point kind=symbol target=Point.y
+        /// @resolution.member source=this.y receiver=Point type=int32 kind=field target_receiver=Point key=y target=Point.y target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Point
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.y placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.y root=this keys=[y]
 
     }
 }
@@ -89,8 +97,10 @@ const value = point.sum();
 /// @type.node source=point.sum type=(this: Point) => int32
 /// @type.node source=point.sum() type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.sum receiver=Point kind=symbol target=sum
+/// @resolution.member source=point.sum receiver=Point type=(this: Point) => int32 kind=symbol target_receiver=Point target=sum
 /// @resolution.call source=point.sum() parameters=() return=int32 kind=symbol target=sum receiver=Point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#);
 }
 
@@ -160,13 +170,21 @@ extension of Point {
         /// @type.node source="this.x + this.y" type=int32
         /// @type.node source=this type=Point
         /// @type.node source=this.x type=int32
-        /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
-        /// @resolution.operator source="this.x + this.y" kind=builtin
+        /// @resolution.member source=this.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+        /// @resolution.operator source="this.x + this.y" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), this.y as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Point
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.x placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.x root=this keys=[x]
         /// @type.node source=this type=Point
         /// @type.node source=this.y type=int32
-        /// @resolution.member source=this.y receiver=Point kind=symbol target=Point.y
+        /// @resolution.member source=this.y receiver=Point type=int32 kind=field target_receiver=Point key=y target=Point.y target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Point
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.y placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.y root=this keys=[y]
 
     }
 }
@@ -181,6 +199,8 @@ point.length();
 /// @type.node source=point.length type=<error>
 /// @type.node source=point.length() type=<error>
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'length' does not exist on type 'Point'"
@@ -258,8 +278,12 @@ extension<T> of Slice<T> {
     /// @resolution.name source=T target=T
 
         this.length
-        /// @resolution.member source=this.length receiver=&size.'a readonly Slice<T#2> kind=symbol target=Slice.length
+        /// @resolution.member source=this.length receiver=&size.'a readonly Slice<T#2> type=usize kind=field target_receiver=&size.'a readonly Slice<T#2> key=length target=Slice.length target_type=usize
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&size.'a readonly Slice<T#2>
+        /// @resolution.place source=this placement="local" lifetime=size.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.length placement="local" lifetime=size.'a access="readonly"
+        /// @resolution.access source=this.length root=this keys=[length]
 
     }
 
@@ -271,13 +295,17 @@ extension<T> of Slice<T> {
     /// @resolution.name source=T target=T
 
         this.size
-        /// @resolution.member source=this.size receiver=&first.'a readonly Slice<T#2> kind=symbol target=size
+        /// @resolution.member source=this.size receiver=&first.'a readonly Slice<T#2> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&first.'a readonly Slice<T#2>
+        /// @resolution.place source=this placement="local" lifetime=first.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @generic.instance source=this.size id=Slice<T#2>.<extension#1>.size
 
     }
 }
 
 /// @generic.instance id=Slice<T#2> template=Slice arguments=(T#2)
+/// @generic.instance id=Slice<T#2>.<extension#1>.size template=size arguments=(T#2)
 "#,
         r#""#,
     );
@@ -348,9 +376,11 @@ extension of Buffer {
     /// @resolution.name source=Buffer target=Buffer
 
         this.grow()
-        /// @resolution.member source=this.grow receiver=&peek.'a readonly Buffer kind=symbol target=grow
+        /// @resolution.member source=this.grow receiver=&peek.'a readonly Buffer type=<grow.'a>(this: &grow.'a exclusive Buffer) => void kind=symbol target_receiver=&peek.'a readonly Buffer target=grow
         /// @resolution.call source=this.grow() parameters=() return=void kind=symbol target=grow receiver=&peek.'a readonly Buffer
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&peek.'a readonly Buffer
+        /// @resolution.place source=this placement="local" lifetime=peek.'a access="readonly"
+        /// @resolution.access source=this root=this
 
     }
 }

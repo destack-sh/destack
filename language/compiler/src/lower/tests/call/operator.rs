@@ -36,7 +36,7 @@ type Vector {
     y: int32;
 }
 
-function main.Vector.add<'a>(v0: ref<Vector, borrowed, 'a, exclusive>, v1: Vector): Vector {
+function test.main.Vector.add<'a>(v0: ref<Vector, borrowed, 'a, exclusive>, v1: Vector): Vector {
 entry(v0: ref<Vector, borrowed, 'a, exclusive>, v1: Vector):
     v2: ref<int32, borrowed, exclusive> = field.address v0, 0
     v3: int32 = load v2
@@ -50,7 +50,7 @@ entry(v0: ref<Vector, borrowed, 'a, exclusive>, v1: Vector):
     return v10
 }
 
-function main.combine(): int32 {
+function test.main.combine(): int32 {
     local l0: Vector
     local l1: Vector
     local l2: Vector
@@ -66,7 +66,7 @@ entry:
     local.set l1, v5
     v6: ref<Vector, borrowed, exclusive> = local.address l0
     v7: Vector = local.get l1
-    v8: Vector = call main.Vector.add(v6, v7)
+    v8: Vector = call test.main.Vector.add(v6, v7)
     local.set l2, v8
     v9: Vector = local.get l2
     v10: int32 = field.get v9, 0
@@ -109,7 +109,7 @@ type Charge {
     amount: int32;
 }
 
-function main.Charge.negate<'a>(v0: ref<Charge, borrowed, 'a, exclusive>): Charge {
+function test.main.Charge.negate<'a>(v0: ref<Charge, borrowed, 'a, exclusive>): Charge {
 entry(v0: ref<Charge, borrowed, 'a, exclusive>):
     v1: ref<int32, borrowed, exclusive> = field.address v0, 0
     v2: int32 = load v1
@@ -118,7 +118,7 @@ entry(v0: ref<Charge, borrowed, 'a, exclusive>):
     return v4
 }
 
-function main.invert(): int32 {
+function test.main.invert(): int32 {
     local l0: Charge
     local l1: Charge
 
@@ -127,7 +127,7 @@ entry:
     v1: Charge = aggregate (v0)
     local.set l0, v1
     v2: ref<Charge, borrowed, exclusive> = local.address l0
-    v3: Charge = call main.Charge.negate(v2)
+    v3: Charge = call test.main.Charge.negate(v2)
     local.set l1, v3
     v4: Charge = local.get l1
     v5: int32 = field.get v4, 0

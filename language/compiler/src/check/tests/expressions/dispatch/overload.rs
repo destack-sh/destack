@@ -279,20 +279,18 @@ struct Buffer {
 
 extension of Buffer {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
-/// @definition.method symbol=capacity source="get capacity(): usize" slot=capacity role=getter type=<capacity.'l0>(this: &capacity.'l0 readonly this) => usize
-/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=<trailing.'l0>(this: &trailing.'l0 exclusive this) => usize
+/// @definition.method symbol=capacity source="get capacity(): usize" slot=capacity role=getter type=(this: this) => usize
+/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=(this: this) => usize
 /// @resolution.name source=Buffer target=Buffer
 
     @intrinsic("buffer.capacity")
     /// @resolution.name source=intrinsic target=decorator.intrinsic.intrinsic
 
     get capacity(): usize;
-    /// @generic.template symbol=capacity parameters=('l0)
-    /// @type.symbol symbol=capacity source="get capacity(): usize" type=<capacity.'l0>(this: &capacity.'l0 readonly this) => usize
+    /// @type.symbol symbol=capacity source="get capacity(): usize" type=(this: this) => usize
 
     trailing(): usize;
-    /// @generic.template symbol=trailing parameters=('l0)
-    /// @type.symbol symbol=trailing source="trailing(): usize" type=<trailing.'l0>(this: &trailing.'l0 exclusive this) => usize
+    /// @type.symbol symbol=trailing source="trailing(): usize" type=(this: this) => usize
 
 }
 "#,

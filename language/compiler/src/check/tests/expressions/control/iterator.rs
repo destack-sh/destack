@@ -37,11 +37,14 @@ for (const value of values) {
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=values type=Array<int32>
 /// @resolution.name source=values target=values
+/// @resolution.access source=values root=values
 
     value satisfies int32;
     /// @type.node source="value satisfies int32" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=value
 
 }
 "#,
@@ -76,13 +79,17 @@ for (const value of 1) {
     value;
     /// @type.node source=value type=<error>
     /// @resolution.name source=value target=value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=value
 
 }
-
 "#,
         r#"
 /// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
 /// @diagnostic.label line=2 column=1 span="for (const value of 1) {\n    value;\n}" line_source="for (const value of 1) {"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=2 column=1 span="for (const value of 1) {\n    value;\n}" line_source="for (const value of 1) {"
+/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }
@@ -114,7 +121,7 @@ for (const key in target) {
 const target = { a: 1, b: 2 };
 /// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
 /// @resolution.pattern source=target kind=binding target=target
-/// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
+/// @type.node source={ a: 1, b: 2 } type={ a: float64; b: float64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -123,11 +130,14 @@ for (const key in target) {
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type={ a: float64; b: float64 }
 /// @resolution.name source=target target=target
+/// @resolution.access source=target root=target
 
     key satisfies string;
     /// @type.node source="key satisfies string" type=string
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,
@@ -161,7 +171,7 @@ for (const key in target) {
 const target = { a: 1, b: 2 };
 /// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
 /// @resolution.pattern source=target kind=binding target=target
-/// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
+/// @type.node source={ a: 1, b: 2 } type={ a: float64; b: float64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -170,11 +180,14 @@ for (const key in target) {
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type={ a: float64; b: float64 }
 /// @resolution.name source=target target=target
+/// @resolution.access source=target root=target
 
     key satisfies "a" | "b";
     /// @type.node source="key satisfies \"a\" | \"b\"" type=string
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,
@@ -218,11 +231,14 @@ for (const key in target) {
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type={ a: int32 } | { b: int32 }
 /// @resolution.name source=target target=target
+/// @resolution.access source=target root=target
 
     key satisfies string;
     /// @type.node source="key satisfies string" type=string
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,
@@ -256,7 +272,7 @@ for (const key in &readonly target) {
 const target = { a: 1, b: 2 };
 /// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
 /// @resolution.pattern source=target kind=binding target=target
-/// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
+/// @type.node source={ a: 1, b: 2 } type={ a: float64; b: float64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -266,11 +282,15 @@ for (const key in &readonly target) {
 /// @type.node source="&readonly target" type=&'static readonly { a: float64; b: float64 }
 /// @type.node source=target type={ a: float64; b: float64 }
 /// @resolution.name source=target target=target
+/// @resolution.place source=target placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=target root=target
 
     key satisfies string;
     /// @type.node source="key satisfies string" type=string
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,
@@ -305,9 +325,10 @@ for (const key in 1) {
     key;
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
-
 "#,
         r#"
 /// @diagnostic.error id=for-in-source-not-object-shaped message="for-in source must be object-shaped"
@@ -333,7 +354,7 @@ for (const key in target) {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare const target: unknown;
+declare const target: Dynamic<unknown>;
 
 for (const key in target) {
     key;
@@ -341,18 +362,21 @@ for (const key in target) {
 
 === checked ===
 declare const target: unknown;
-/// @type.symbol symbol=target source=target type=unknown
+/// @type.symbol symbol=target source=target type=Dynamic<unknown>
 /// @resolution.pattern source=target kind=binding target=target
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=target type=unknown
+/// @type.node source=target type=Dynamic<unknown>
 /// @resolution.name source=target target=target
+/// @resolution.access source=target root=target
 
     key;
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,
@@ -386,7 +410,7 @@ for (const key in [1, 2, 3]) {
 for (const key in [1, 2, 3]) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
+/// @type.node source=[1, 2, 3] type=Array<float64>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
@@ -394,6 +418,8 @@ for (const key in [1, 2, 3]) {
     key;
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,
@@ -462,11 +488,14 @@ for (const key in point) {
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
+/// @resolution.access source=point root=point
 
     key satisfies string;
     /// @type.node source="key satisfies string" type=string
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,
@@ -526,11 +555,14 @@ for (const key in user) {
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
+/// @resolution.access source=user root=user
 
     key satisfies string;
     /// @type.node source="key satisfies string" type=string
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,
@@ -576,11 +608,14 @@ for (const key in target) {
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type={ name: string; readonly [token]: int32 }
 /// @resolution.name source=target target=target
+/// @resolution.access source=target root=target
 
     key satisfies string;
     /// @type.node source="key satisfies string" type=string
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,
@@ -620,11 +655,14 @@ for (const key in target) {
 /// @resolution.pattern source=key kind=binding target=key
 /// @type.node source=target type={ name?: string; active: boolean }
 /// @resolution.name source=target target=target
+/// @resolution.access source=target root=target
 
     key satisfies string;
     /// @type.node source="key satisfies string" type=string
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=key root=key
 
 }
 "#,

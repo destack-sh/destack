@@ -1,12 +1,10 @@
 use destack_core::{FxIndexMap, FxIndexSet};
-use std::sync::Arc;
 
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{
-    TypeSubstitution,CheckState, Origin, VariableRole};
+use crate::check::{CheckState, Origin, TypeSubstitution, VariableRole};
 use crate::{CompilerError, CompilerResult};
 
 /// Stable id for one declaration-side generic parameter.
@@ -14,15 +12,6 @@ pub(in crate::check) type GenericParameterId = dir::GlobalGenericParameterId;
 
 /// Stable id for one generic binding site.
 pub(in crate::check) type GenericTemplateId = dir::GlobalGenericTemplateId;
-
-/// Generic parameters and predicates visible from one template.
-#[derive(Debug, Default)]
-pub(in crate::check) struct GenericScope {
-    /// Every parameter the scope declares or encloses.
-    pub(in crate::check) parameters: SmallVec<[GenericParameterId; 8]>,
-    /// Every where predicate the scope assumes, own and enclosing.
-    pub(in crate::check) predicates: SmallVec<[dir::WherePredicate; 4]>,
-}
 
 /// One declaration type scanned for induced memory variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -791,58 +780,52 @@ impl CheckState<'_> {
         origin: Origin,
         subject: impl Fn(&dir::Type) -> bool,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
-        let scope = self.origin_scope(origin)?;
-        let scope = self.generic_scope(scope)?;
+        let predicates = self.assumed_predicates(origin)?;
 
-        // keep the bounds whose predicate subject matches
+        self.subject_bounds(&predicates, subject)
+    }
+
+    /// Collect the where predicates assumed at one origin.
+    pub(in crate::check) fn assumed_predicates(
+        &mut self,
+        origin: Origin,
+    ) -> CompilerResult<SmallVec<[dir::WherePredicate; 2]>> {
+        let mut template = self.origin_scope(origin)?;
+        let mut predicates = SmallVec::new();
+        while let Some(id) = template {
+            let declared = self.require_generic_template(id)?;
+            predicates.extend_from_slice(&declared.predicates);
+            template = self.parent_generic_template(id)?;
+        }
+
+        Ok(predicates)
+    }
+
+    /// Collect the bounds one predicate set grants a matching subject.
+    fn subject_bounds(
+        &self,
+        predicates: &[dir::WherePredicate],
+        subject: impl Fn(&dir::Type) -> bool,
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
         let mut bounds = SmallVec::new();
-        for predicate in scope.predicates.iter() {
+        for predicate in predicates {
             let left = self.ty(predicate.left)?;
             if subject(&left) {
-                bounds.push(predicate.right);
+                if !bounds.contains(&predicate.right) {
+                    bounds.push(predicate.right);
+                }
+            } else if predicate.relation == dir::WhereRelation::Equal {
+                // equality binds its subject from either side
+                let right = self.ty(predicate.right)?;
+                if subject(&right) && !bounds.contains(&predicate.left) {
+                    bounds.push(predicate.left);
+                }
             }
         }
 
         Ok(bounds)
     }
 
-    /// Return one template's flattened generic scope, computing it once.
-    pub(in crate::check) fn generic_scope(
-        &mut self,
-        scope: Option<GenericTemplateId>,
-    ) -> CompilerResult<Arc<GenericScope>> {
-        let Some(root) = scope else {
-            return Ok(Arc::new(GenericScope::default()));
-        };
-        if let Some(scope) = self.scopes.get(&root) {
-            return Ok(scope.clone());
-        }
-
-        // flatten the scope chain once, innermost first
-        let mut environment = GenericScope::default();
-        let mut scope = Some(root);
-        while let Some(id) = scope {
-            let Some(template) = self.generic_template(id) else {
-                break;
-            };
-            environment.parameters.extend(
-                template
-                    .parameters
-                    .iter()
-                    .map(|local| local.into_global(id.module_id)),
-            );
-            environment
-                .predicates
-                .extend(template.predicates.iter().cloned());
-
-            scope = self.parent_generic_template(id)?;
-        }
-
-        let environment = Arc::new(environment);
-        self.scopes.insert(root, environment.clone());
-
-        Ok(environment)
-    }
     /// Return a positional substitution for one complete template application.
     pub(in crate::check) fn template_substitution(
         &self,
@@ -929,19 +912,11 @@ impl CheckState<'_> {
 
         // collect predicates on the parameter's declaring template
         let template = binding.template.into_global(parameter.module_id);
-        for predicate in &self.require_generic_template(template)?.predicates {
-            let bound = if predicate.left == binding.ty {
-                Some(predicate.right)
-            } else if predicate.relation == dir::WhereRelation::Equal
-                && predicate.right == binding.ty
-            {
-                Some(predicate.left)
-            } else {
-                None
-            };
-            if let Some(bound) = bound
-                && !bounds.contains(&bound)
-            {
+        for bound in self.subject_bounds(
+            &self.require_generic_template(template)?.predicates.clone(),
+            |ty| matches!(ty, dir::Type::Parameter(subject) if *subject == parameter),
+        )? {
+            if !bounds.contains(&bound) {
                 bounds.push(bound);
             }
         }
@@ -1039,6 +1014,28 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("generic parameter {id:?} is not bound"),
             })
+    }
+
+    /// Settle applied generic argument bindings for checked DIR.
+    pub(in crate::check) fn settled_argument_bindings(
+        &mut self,
+        applied: &[dir::GenericArgumentBinding],
+    ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
+        let mut bindings = Vec::with_capacity(applied.len());
+        for applied in applied {
+            // lifetimes are proof-only and erase from instance identity,
+            //  though their arguments still settle like every other slot
+            let parameter = applied.parameter;
+            let argument = self.settled_root(applied.argument)?;
+            let binding = self.require_generic_parameter(parameter)?;
+            let is_lifetime = binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
+            if is_lifetime {
+                continue;
+            }
+            bindings.push(dir::GenericArgumentBinding::new(parameter, argument));
+        }
+
+        Ok(bindings)
     }
 
 }

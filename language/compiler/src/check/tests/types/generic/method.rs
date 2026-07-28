@@ -78,15 +78,19 @@ extension Arithmetic<T: Scalar> of T {
         /// @generic.instance source="checkedAdd(this, other)" id=checkedAdd<T#2>
         /// @type.node source=this type=T#2
         /// @resolution.receiver source=this kind=this declaration=Arithmetic type=T#2
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
         /// @type.node source=other type=T#2
         /// @resolution.name source=other target=Arithmetic.checkedAdd.other
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=Arithmetic.checkedAdd.other
 
     }
 }
 
 /// @generic.instance id=checkedAdd<T#2> template=checkedAdd arguments=(T#2)
 
-/// @check.stats.solve variables=1 types=14 constraints=7 obligations=5 solutions=1 bounds=2 decisions=12
+/// @check.stats.solve variables=1 types=17 constraints=2 obligations=5 solutions=1 bounds=3 decisions=12
 "#,
         r#"
 "#,
@@ -138,6 +142,8 @@ function choose<T>(a: T, b: T): T {
     a
     /// @type.node source=a type=T#1
     /// @resolution.name source=a target=choose.a
+    /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=a root=choose.a
 
 }
 
@@ -162,15 +168,19 @@ extension Forward<T> of T {
         /// @generic.instance source="choose(this, other)" id=choose<T#2>
         /// @type.node source=this type=T#2
         /// @resolution.receiver source=this kind=this declaration=Forward type=T#2
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
         /// @type.node source=other type=T#2
         /// @resolution.name source=other target=Forward.choose.other
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=Forward.choose.other
 
     }
 }
 
 /// @generic.instance id=choose<T#2> template=choose arguments=(T#2)
 
-/// @check.stats.solve variables=1 types=8 constraints=7 obligations=3 solutions=1 bounds=2 decisions=11
+/// @check.stats.solve variables=1 types=11 constraints=1 obligations=3 solutions=1 bounds=2 decisions=11
 "#,
         r#"
 "#,
@@ -231,11 +241,13 @@ function read<T>(source: &readonly Box<T>): &readonly T {
 
     return source.get();
     /// @type.node source=source type=&read.'a readonly Box<T#2>
-    /// @type.node source=source.get type=<Box.get.'a>(this: &Box.get.'a readonly &read.'a readonly Box<T#2>) => &Box.get.'a readonly T#2 reduced=<Box.get.'a>(this: &Box.get.'a readonly Box<T#2>) => &Box.get.'a readonly T#2
+    /// @type.node source=source.get type=<Box.get.'a>(this: &Box.get.'a readonly Box<T#2>) => &Box.get.'a readonly T#2
     /// @type.node source=source.get() type=&read.'a readonly T#2
     /// @resolution.name source=source target=read.source
-    /// @resolution.member source=source.get receiver=&read.'a readonly Box<T#2> kind=symbol target=Box.get
+    /// @resolution.member source=source.get receiver=&read.'a readonly Box<T#2> type=<Box.get.'a>(this: &Box.get.'a readonly Box<T#2>) => &Box.get.'a readonly T#2 kind=symbol target_receiver=&read.'a readonly Box<T#2> target=Box.get
     /// @resolution.call source=source.get() parameters=() return=&read.'a readonly T#2 kind=symbol target=Box.get receiver=&read.'a readonly Box<T#2> instance=Box<T#2>.get
+    /// @resolution.place source=source placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=source root=read.source
     /// @generic.instance source=source id=Box<T#2>
     /// @generic.instance source=source.get id=Box<T#2>
     /// @generic.instance source=source.get() id=Box<T#2>.get

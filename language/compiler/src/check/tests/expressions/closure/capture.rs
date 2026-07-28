@@ -34,7 +34,9 @@ const next = () => count + 1;
 /// @type.node source="count + 1" type=float64
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
-/// @resolution.operator source="count + 1" kind=builtin
+/// @resolution.operator source="count + 1" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), 1 as float64 families=(float)]
+/// @resolution.place source=count placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=count root=count
 /// @type.node source=1 type=1
 "#,
     );
@@ -108,15 +110,19 @@ const foo = () => {
     a += 1;
     /// @type.node source="a += 1" type=float64
     /// @type.node source=a type=float64
-    /// @resolution.operator source="a += 1" kind=builtin
-    /// @resolution.pattern.assign source=a kind=place place=binding(a) type=float64
+    /// @resolution.operator source="a += 1" type=float64 operator="+" kind=builtin operands=[a as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.pattern.assign source=a kind=place
+    /// @resolution.place source=a placement="local" lifetime="static" access="exclusive"
+    /// @resolution.assignment source=a read=binding(a) write=binding(a) type=float64
     /// @type.node source=1 type=1
 
     b += 1;
     /// @type.node source="b += 1" type=float64
     /// @type.node source=b type=float64
-    /// @resolution.operator source="b += 1" kind=builtin
-    /// @resolution.pattern.assign source=b kind=place place=binding(b) type=float64
+    /// @resolution.operator source="b += 1" type=float64 operator="+" kind=builtin operands=[b as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.pattern.assign source=b kind=place
+    /// @resolution.place source=b placement="local" lifetime="static" access="exclusive"
+    /// @resolution.assignment source=b read=binding(b) write=binding(b) type=float64
     /// @type.node source=1 type=1
 
 };
@@ -133,15 +139,19 @@ const boo = () => {
     b += 1;
     /// @type.node source="b += 1" type=float64
     /// @type.node source=b type=float64
-    /// @resolution.operator source="b += 1" kind=builtin
-    /// @resolution.pattern.assign source=b kind=place place=binding(b) type=float64
+    /// @resolution.operator source="b += 1" type=float64 operator="+" kind=builtin operands=[b as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.pattern.assign source=b kind=place
+    /// @resolution.place source=b placement="local" lifetime="static" access="exclusive"
+    /// @resolution.assignment source=b read=binding(b) write=binding(b) type=float64
     /// @type.node source=1 type=1
 
     c += 1;
     /// @type.node source="c += 1" type=float64
     /// @type.node source=c type=float64
-    /// @resolution.operator source="c += 1" kind=builtin
-    /// @resolution.pattern.assign source=c kind=place place=binding(c) type=float64
+    /// @resolution.operator source="c += 1" type=float64 operator="+" kind=builtin operands=[c as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.pattern.assign source=c kind=place
+    /// @resolution.place source=c placement="local" lifetime="static" access="exclusive"
+    /// @resolution.assignment source=c read=binding(c) write=binding(c) type=float64
     /// @type.node source=1 type=1
 
 };
@@ -192,7 +202,7 @@ let step = 2;
 @capture({
 /// @type.node source=capture type=capture
 /// @resolution.name source=capture target=decorator.capture.capture
-/// @type.node type={ default: "manage"; step: "copy" }
+/// @type.node type={ default?: decorator.capture.CaptureMode; [name: string]: decorator.capture.CaptureMode }
 
     default: "manage",
     /// @type.node source="\"manage\"" type="manage"
@@ -215,9 +225,13 @@ const next = () => count + step;
 /// @type.node source="count + step" type=float64
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
-/// @resolution.operator source="count + step" kind=builtin
+/// @resolution.operator source="count + step" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), step as float64 families=(float)]
+/// @resolution.place source=count placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=count root=count
 /// @type.node source=step type=float64
 /// @resolution.name source=step target=step
+/// @resolution.place source=step placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=step root=step
 "#,
     );
 }
@@ -260,10 +274,10 @@ let socket: Socket = Socket {};
     default: "manage",
     socket: "move",
 })
-const send: ^Function<(string,), void> = ((message: string): void => {
+const send: ^Function<(string,), void> = (message: string): void => {
     count += 1;
     socket.write(message);
-}) as ^Function<(string,), void>;
+};
 
 === checked ===
 struct Socket {
@@ -293,7 +307,7 @@ let socket = Socket {};
 @capture({
 /// @type.node source=capture type=capture
 /// @resolution.name source=capture target=decorator.capture.capture
-/// @type.node type={ default: "manage"; socket: "move" }
+/// @type.node type={ default?: decorator.capture.CaptureMode; [name: string]: decorator.capture.CaptureMode }
 
     default: "manage",
     /// @type.node source="\"manage\"" type="manage"
@@ -307,7 +321,7 @@ const send: ^Function<(string,), void> = (message) => {
 /// @resolution.pattern source=send kind=binding target=send
 /// @resolution.name source=Function target=types.function.Function
 /// @type.symbol symbol=symbol7 type=Function<(string,), void>
-/// @type.node type=Function<(string,), void>
+/// @type.node type=Owned<Function<(string,), void>>
 /// @capture.function function=symbol7 bindings=2 frames=(main.<frame0>)
 /// @capture.binding function=symbol7 symbol=count mode=manage type=float64 frame=main.<frame0>
 /// @capture.binding function=symbol7 symbol=socket mode=move type=Socket
@@ -319,8 +333,10 @@ const send: ^Function<(string,), void> = (message) => {
     count += 1;
     /// @type.node source="count += 1" type=float64
     /// @type.node source=count type=float64
-    /// @resolution.operator source="count += 1" kind=builtin
-    /// @resolution.pattern.assign source=count kind=place place=binding(count) type=float64
+    /// @resolution.operator source="count += 1" type=float64 operator="+" kind=builtin operands=[count as float64 families=(float), 1 as float64 families=(float)]
+    /// @resolution.pattern.assign source=count kind=place
+    /// @resolution.place source=count placement="local" lifetime="static" access="exclusive"
+    /// @resolution.assignment source=count read=binding(count) write=binding(count) type=float64
     /// @type.node source=1 type=1
 
     socket.write(message);
@@ -328,10 +344,14 @@ const send: ^Function<(string,), void> = (message) => {
     /// @type.node source=socket.write type=<Socket.write.'a>(this: &Socket.write.'a exclusive Socket, string) => void
     /// @type.node source=socket.write(message) type=void
     /// @resolution.name source=socket target=socket
-    /// @resolution.member source=socket.write receiver=Socket kind=symbol target=Socket.write
-    /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow)
+    /// @resolution.member source=socket.write receiver=Socket type=<Socket.write.'a>(this: &Socket.write.'a exclusive Socket, string) => void kind=symbol target_receiver=Socket target=Socket.write
+    /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'static exclusive Socket))
+    /// @resolution.place source=socket placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=socket root=socket
     /// @type.node source=message type=string
     /// @resolution.name source=message target=symbol7.message
+    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=message root=symbol7.message
 
 };
 
@@ -407,8 +427,10 @@ const load = async () => await client.read();
 /// @type.node source=client.read type=(this: Client) => Promise<string>
 /// @type.node source=client.read() type=Promise<string>
 /// @resolution.name source=client target=client
-/// @resolution.member source=client.read receiver=Client kind=symbol target=Client.read
+/// @resolution.member source=client.read receiver=Client type=(this: Client) => Promise<string> kind=symbol target_receiver=Client target=Client.read
 /// @resolution.call source=client.read() parameters=() return=Promise<string> kind=symbol target=Client.read receiver=Client
+/// @resolution.place source=client placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=client root=client
 /// @generic.instance source=client.read id=Promise<string>
 /// @generic.instance source=client.read() id=Promise<string>
 
@@ -467,7 +489,11 @@ class Counter {
         /// @type.node source=this type=Counter
         /// @type.node source=this.value type=int32
         /// @resolution.name source=this target=Counter.make.this
-        /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
+        /// @resolution.member source=this.value receiver=Counter type=int32 kind=field target_receiver=Counter key=value target=Counter.value target_type=int32
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=Counter.make.this
+        /// @resolution.place source=this.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.value root=Counter.make.this keys=[value]
 
     }
 }

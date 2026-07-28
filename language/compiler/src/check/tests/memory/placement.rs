@@ -119,12 +119,16 @@ const localFromShared: local User = sharedUser;
 /// @resolution.pattern source=localFromShared kind=binding target=localFromShared
 /// @resolution.name source=User target=User
 /// @resolution.name source=sharedUser target=sharedUser
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedUser root=sharedUser
 
 const sharedFromLocal: shared User = localUser;
 /// @type.symbol symbol=sharedFromLocal source=sharedFromLocal type=Placed<User, "shared">
 /// @resolution.pattern source=sharedFromLocal kind=binding target=sharedFromLocal
 /// @resolution.name source=User target=User
 /// @resolution.name source=localUser target=localUser
+/// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localUser root=localUser
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'shared User' is not assignable to type 'local User'"
@@ -209,11 +213,15 @@ declare const carrierPlace: CarrierPlace;
 
 localChoice satisfies local (User | shared Team);
 /// @resolution.name source=localChoice target=localChoice
+/// @resolution.place source=localChoice placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localChoice root=localChoice
 /// @resolution.name source=User target=User
 /// @resolution.name source=Team target=Team
 
 carrierPlace satisfies "local";
 /// @resolution.name source=carrierPlace target=carrierPlace
+/// @resolution.place source=carrierPlace placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=carrierPlace root=carrierPlace
 
 /// @generic.instance id=PlaceOf<LocalChoice> template=memory.type.PlaceOf arguments=(LocalChoice)
 "#,
@@ -270,12 +278,16 @@ const sharedFromLocal: shared ^User = localUser;
 /// @resolution.pattern source=sharedFromLocal kind=binding target=sharedFromLocal
 /// @resolution.name source=User target=User
 /// @resolution.name source=localUser target=localUser
+/// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localUser root=localUser
 
 const localFromShared: local ^User = sharedUser;
 /// @type.symbol symbol=localFromShared source=localFromShared type=Placed<Owned<User>, "local">
 /// @resolution.pattern source=localFromShared kind=binding target=localFromShared
 /// @resolution.name source=User target=User
 /// @resolution.name source=sharedUser target=sharedUser
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedUser root=sharedUser
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'local ^User' is not assignable to type 'shared ^User'"

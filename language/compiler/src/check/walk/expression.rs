@@ -319,7 +319,6 @@ impl WalkState<'_, '_> {
                 self.walk_expression(*tag, self.tree.get(*tag))?;
                 self.walk_template_literal(value)?;
 
-                // tagged template calls infer from their queued value use
             }
             // [a, b, c]
             dir::Expression::ArrayExpression { elements } => {
@@ -375,7 +374,6 @@ impl WalkState<'_, '_> {
                     }
                 }
 
-                // tree construction infers from its queued value use
             }
             // type T
             dir::Expression::Type { value } => {
@@ -452,14 +450,12 @@ impl WalkState<'_, '_> {
                 // increments invalidate narrowings under the target
                 self.clear_mutated_expression_narrowings(right);
 
-                // increment operation infers from its queued value use
             }
             // !value, -value
             dir::Expression::Unary { right, .. } => {
                 let right = *right;
                 self.walk_expression(right, self.tree.get(right))?;
 
-                // unary operation infers from its queued value use
             }
             // &value
             dir::Expression::BorrowOf { right, .. } => {
@@ -477,7 +473,6 @@ impl WalkState<'_, '_> {
                     self.walk_expression(index, self.tree.get(index))?;
                 }
 
-                // index expression infers from its queued value use
             }
             // value<T>
             dir::Expression::Instantiation {
@@ -514,7 +509,6 @@ impl WalkState<'_, '_> {
                     }
                 }
 
-                // call expression infers from its queued value use
             }
             // _
             dir::Expression::Infer { .. } => {}
@@ -530,7 +524,6 @@ impl WalkState<'_, '_> {
                     }
                 }
 
-                // construction infers from its queued value use
             }
             // new? Type<T>(argument)
             dir::Expression::NewMaybe { ty, arguments } => {
@@ -540,7 +533,6 @@ impl WalkState<'_, '_> {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
 
-                // construction infers from its queued value use
                 self.propagate_try(id.into_any())?;
             }
             // await? value
@@ -1298,7 +1290,6 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        // binary operation infers from its queued value use
 
         Ok(())
     }

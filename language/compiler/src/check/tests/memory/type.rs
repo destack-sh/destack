@@ -132,10 +132,14 @@ declare const payload: Payload;
 
 base satisfies Cell;
 /// @resolution.name source=base target=base
+/// @resolution.place source=base placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=base root=base
 /// @resolution.name source=Cell target=Cell
 
 payload satisfies Borrowed<Cell, "static">;
 /// @resolution.name source=payload target=payload
+/// @resolution.place source=payload placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=payload root=payload
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
 
@@ -228,9 +232,13 @@ declare const borrowedAccess: BorrowedAccess;
 
 borrowedLifetime satisfies "static";
 /// @resolution.name source=borrowedLifetime target=borrowedLifetime
+/// @resolution.place source=borrowedLifetime placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=borrowedLifetime root=borrowedLifetime
 
 borrowedAccess satisfies "mutable";
 /// @resolution.name source=borrowedAccess target=borrowedAccess
+/// @resolution.place source=borrowedAccess placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=borrowedAccess root=borrowedAccess
 
 /// @generic.instance id="Borrowed<Owned<Cell>, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Owned<Cell>, "static", "mutable")
 /// @generic.instance id=AccessOf<BorrowOwned> template=memory.type.AccessOf arguments=(BorrowOwned)
@@ -357,6 +365,8 @@ declare const cell: StaticCell;
 
 cell satisfies Borrowed<Cell, "static">;
 /// @resolution.name source=cell target=cell
+/// @resolution.place source=cell placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=cell root=cell
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
 
@@ -434,10 +444,14 @@ declare const sharedCell: PreservePlace<shared Cell>;
 
 localCell satisfies local Cell;
 /// @resolution.name source=localCell target=localCell
+/// @resolution.place source=localCell placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localCell root=localCell
 /// @resolution.name source=Cell target=Cell
 
 sharedCell satisfies shared Cell;
 /// @resolution.name source=sharedCell target=sharedCell
+/// @resolution.place source=sharedCell placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedCell root=sharedCell
 /// @resolution.name source=Cell target=Cell
 
 /// @generic.instance id="PreservePlace<Placed<Cell, \"local\">, \"local\">" template=PreservePlace arguments=(Placed<Cell, "local">, "local")
@@ -943,10 +957,14 @@ declare const borrowedCell: BorrowedCell;
 
 ownedCell satisfies ^Cell;
 /// @resolution.name source=ownedCell target=ownedCell
+/// @resolution.place source=ownedCell placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=ownedCell root=ownedCell
 /// @resolution.name source=Cell target=Cell
 
 borrowedCell satisfies Borrowed<Cell, "static">;
 /// @resolution.name source=borrowedCell target=borrowedCell
+/// @resolution.place source=borrowedCell placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=borrowedCell root=borrowedCell
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
 
@@ -1011,6 +1029,8 @@ declare const sharedOwned: SharedOwned;
 
 sharedOwned satisfies shared ^Cell;
 /// @resolution.name source=sharedOwned target=sharedOwned
+/// @resolution.place source=sharedOwned placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedOwned root=sharedOwned
 /// @resolution.name source=Cell target=Cell
 
 /// @generic.instance id="WithPlace<Placed<Owned<Cell>, \"local\">, \"shared\">" template=memory.type.WithPlace arguments=(Placed<Owned<Cell>, "local">, "shared")
@@ -1139,6 +1159,8 @@ declare const sharedOwned: SharedOwned;
 
 sharedOwned satisfies shared ^Cell;
 /// @resolution.name source=sharedOwned target=sharedOwned
+/// @resolution.place source=sharedOwned placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedOwned root=sharedOwned
 /// @resolution.name source=Cell target=Cell
 
 /// @generic.instance id="WithSpace<Owned<Cell>, \"shared\">" template=memory.type.WithSpace arguments=(Owned<Cell>, "shared")
@@ -1199,6 +1221,8 @@ declare const value: StillShared;
 
 value satisfies shared ^Cell;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=value root=value
 /// @resolution.name source=Cell target=Cell
 
 /// @generic.instance id="WithSpace<Placed<Owned<Cell>, \"shared\">, \"local\">" template=memory.type.WithSpace arguments=(Placed<Owned<Cell>, "shared">, "local")
@@ -1280,10 +1304,14 @@ declare const exclusiveBorrow: ExclusiveBorrow;
 
 readonlyOwned satisfies ^readonly Cell;
 /// @resolution.name source=readonlyOwned target=readonlyOwned
+/// @resolution.place source=readonlyOwned placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=readonlyOwned root=readonlyOwned
 /// @resolution.name source=Cell target=Cell
 
 exclusiveBorrow satisfies Borrowed<Cell, "static", "exclusive">;
 /// @resolution.name source=exclusiveBorrow target=exclusiveBorrow
+/// @resolution.place source=exclusiveBorrow placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=exclusiveBorrow root=exclusiveBorrow
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
 
@@ -1368,6 +1396,8 @@ declare const rebased: Rebased;
 
 rebased satisfies shared ^readonly Payload;
 /// @resolution.name source=rebased target=rebased
+/// @resolution.place source=rebased placement="shared" lifetime="static" access="readonly"
+/// @resolution.access source=rebased root=rebased
 /// @resolution.name source=Payload target=Payload
 
 /// @generic.instance id="WithBase<Placed<Owned<Readonly<Cell>>, \"shared\">, Payload>" template=memory.type.WithBase arguments=(Placed<Owned<Readonly<Cell>>, "shared">, Payload)
@@ -1431,6 +1461,8 @@ declare const borrow: ReadonlyBorrow;
 
 borrow satisfies Borrowed<Cell, "static", "readonly">;
 /// @resolution.name source=borrow target=borrow
+/// @resolution.place source=borrow placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=borrow root=borrow
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=Cell target=Cell
 

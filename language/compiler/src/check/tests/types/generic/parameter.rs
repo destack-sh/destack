@@ -645,6 +645,7 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T)
+/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T
 
@@ -764,6 +765,7 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1)
+/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -895,6 +897,7 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1)
+/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -1146,6 +1149,7 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(in T#1)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(in T#1)
+/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: this, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -2163,6 +2167,7 @@ interface Iterator<out T, out R = void> {}
 /// @generic.template symbol=Iterator parameters=(out T#1, out R#1 = void)
 /// @type.symbol symbol=Iterator source="interface Iterator<out T, out R = void> {}" type=Iterator
 /// @definition.interface symbol=Iterator source="interface Iterator<out T, out R = void> {}" template=(out T#1, out R#1 = void)
+/// @definition.where symbol=Iterator source="interface Iterator<out T, out R = void> {}" relation=satisfies left=this right=Iterator<T#1, R#1>
 /// @type.symbol symbol=Iterator.T source="out T" type=T#1
 /// @type.symbol symbol=Iterator.R source="out R = void" type=R#1
 
@@ -2170,6 +2175,7 @@ interface FromIterator<T> {
 /// @generic.template symbol=FromIterator parameters=(in out T#2)
 /// @type.symbol symbol=FromIterator type=FromIterator
 /// @definition.interface symbol=FromIterator template=(in out T#2)
+/// @definition.where symbol=FromIterator relation=satisfies left=this right=FromIterator<T#2>
 /// @definition.method symbol=FromIterator.fromIterator source="static fromIterator<R>(values: Iterator<T, R>): this" slot=fromIterator static=true type=<R#2>(Dynamic<Iterator<T#2, R#2>>) => this
 /// @type.symbol symbol=FromIterator.T source=T type=T#2
 

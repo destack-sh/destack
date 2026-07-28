@@ -49,7 +49,10 @@ const x = point.x;
 /// @type.node source=point type=Point
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=Point kind=symbol target=Point.x
+/// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
+/// @resolution.access source=point.x root=point keys=[x]
 "#,
     );
 }
@@ -104,8 +107,12 @@ struct Point {
         return this.x;
         /// @type.node source=this type=&Point.length.'a exclusive Point
         /// @type.node source=this.x type=int32
-        /// @resolution.member source=this.x receiver=&Point.length.'a exclusive Point kind=symbol target=Point.x
+        /// @resolution.member source=this.x receiver=&Point.length.'a exclusive Point type=int32 kind=field target_receiver=&Point.length.'a exclusive Point key=x target=Point.x target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Point type=&Point.length.'a exclusive Point
+        /// @resolution.place source=this placement="local" lifetime=Point.length.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.x placement="local" lifetime=Point.length.'a access="exclusive"
+        /// @resolution.access source=this.x root=this keys=[x]
 
     }
 }
@@ -124,8 +131,10 @@ const length = point.length();
 /// @type.node source=point.length type=<Point.length.'a>(this: &Point.length.'a exclusive Point) => int32
 /// @type.node source=point.length() type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.length receiver=Point kind=symbol target=Point.length
-/// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point adjustments=(borrow)
+/// @resolution.member source=point.length receiver=Point type=<Point.length.'a>(this: &Point.length.'a exclusive Point) => int32 kind=symbol target_receiver=Point target=Point.length
+/// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point adjustments=(borrow(&'static exclusive Point))
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
     );
 }
@@ -178,7 +187,10 @@ const x = point.x;
 /// @type.node source=point type=geometry.Point
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=geometry.Point kind=symbol target=geometry.Point.x
+/// @resolution.member source=point.x receiver=geometry.Point type=int32 kind=field target_receiver=geometry.Point key=x target=geometry.Point.x target_type=int32
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
+/// @resolution.access source=point.x root=point keys=[x]
 "#,
     );
 }
@@ -212,7 +224,12 @@ const length = values.length;
 /// @type.node source=values type=Array<int32>
 /// @type.node source=values.length type=usize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.length receiver=Array<int32> kind=symbol target=collections.array.length#2
+/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=usize)"
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @generic.instance source=values.length id=Array<int32>.<extension#6>.length#2
+
+/// @generic.instance id=Array<int32>.<extension#6>.length#2 template=collections.array.length#2 arguments=(int32)
 "#,
     );
 }
@@ -254,7 +271,12 @@ const length = values.length;
 /// @type.node source=values type=Array<int32>
 /// @type.node source=values.length type=usize
 /// @resolution.name source=values target=values.values
-/// @resolution.member source=values.length receiver=Array<int32> kind=symbol target=collections.array.length#2
+/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=usize)"
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values.values
+/// @generic.instance source=values.length id=Array<int32>.<extension#6>.length#2
+
+/// @generic.instance id=Array<int32>.<extension#6>.length#2 template=collections.array.length#2 arguments=(int32)
 "#,
     );
 }
@@ -308,7 +330,11 @@ function read(): int32 {
     /// @type.node source=state type=State
     /// @type.node source=state.value type=int32
     /// @resolution.name source=state target=state
-    /// @resolution.member source=state.value receiver=State kind=symbol target=State.value
+    /// @resolution.member source=state.value receiver=State type=int32 kind=field target_receiver=State key=value target=State.value target_type=int32
+    /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=state root=state
+    /// @resolution.place source=state.value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=state.value root=state keys=[value]
 
 }
 
@@ -347,11 +373,13 @@ let values: int32[] = [];
 
 values.push(1);
 /// @type.node source=values type=Array<int32>
-/// @type.node source=values.push type=<collections.array.push#1.'a>(this: &collections.array.push#1.'a exclusive Array<int32>, int32) => void | <collections.array.push#2.'a>(this: &collections.array.push#2.'a exclusive Array<int32>, ...int32[]) => float64
+/// @type.node source=values.push type=<collections.array.push#1.'a>(this: &collections.array.push#1.'a exclusive Array<int32>, int32) => void & <collections.array.push#2.'a>(this: &collections.array.push#2.'a exclusive Array<int32>, ...int32[]) => float64
 /// @type.node source=values.push(1) type=void
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=Array<int32> kind=existential targets=[collections.array.push#1, collections.array.push#2]
-/// @resolution.call source=values.push(1) parameters=(int32) arguments=(provided(1) as int32) return=void kind=symbol target=collections.array.push#1 receiver=Array<int32> adjustments=(borrow) instance=Array<int32>.<extension#6>.push#1
+/// @resolution.member source=values.push receiver=Array<int32> type=<collections.array.push#1.'a>(this: &collections.array.push#1.'a exclusive Array<int32>, int32) => void & <collections.array.push#2.'a>(this: &collections.array.push#2.'a exclusive Array<int32>, ...int32[]) => float64 kind=existential targets=[collections.array.push#1, collections.array.push#2]
+/// @resolution.call source=values.push(1) parameters=(int32) arguments=(provided(1) as int32) return=void kind=symbol target=collections.array.push#1 receiver=Array<int32> adjustments=(borrow(&'static exclusive Array<int32>)) instance=Array<int32>.<extension#6>.push#1
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 /// @generic.instance source=values.push(1) id=Array<int32>.<extension#6>.push#1
 /// @type.node source=1 type=1
 
@@ -399,6 +427,8 @@ function pending(): int32 {
 
     return value.field;
     /// @resolution.name source=value target=pending.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=pending.value
 
 }
 "#,

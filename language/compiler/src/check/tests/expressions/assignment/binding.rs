@@ -680,13 +680,13 @@ const b = a;
 /// @resolution.access source=a root=a
 "#,
         r#"
+/// @diagnostic.error id=use-before-assigned message="'b' is used before being assigned"
+/// @diagnostic.label line=2 column=11 span="b" line_source="const a = b;"
+/// @diagnostic.related line=3 column=7 span="b" line_source="const b = a;" message="declared here"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=2 column=7 span="a" line_source="const a = b;"
 /// @diagnostic.related line=3 column=7 span="b" line_source="const b = a;" message="it must equal '_' here"
 /// @diagnostic.help message="annotate the type explicitly"
-/// @diagnostic.error id=use-before-assigned message="'b' is used before being assigned"
-/// @diagnostic.label line=2 column=11 span="b" line_source="const a = b;"
-/// @diagnostic.related line=3 column=7 span="b" line_source="const b = a;" message="declared here"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=3 column=7 span="b" line_source="const b = a;"
 /// @diagnostic.related line=2 column=7 span="a" line_source="const a = b;" message="it must equal '_' here"

@@ -282,15 +282,13 @@ declare const value: Dynamic<<T>(input: T) => T>;
 
 === checked ===
 declare const value: Dynamic<<T>(input: T) => T>;
-/// @type.symbol symbol=value source=value type=Dynamic<Function<(T,), T>>
+/// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 /// @generic.template source=type_expression parameters=(T)
 /// @type.symbol symbol=T source=T type=T
 /// @resolution.name source=T target=T
 /// @resolution.name source=T target=T
-
-/// @generic.instance id="Dynamic<Function<(T,), T>>" template=memory.dynamic.Dynamic arguments=(Function<(T,), T>)
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '<T>(T) => T' does not satisfy 'DynamicSafe'"

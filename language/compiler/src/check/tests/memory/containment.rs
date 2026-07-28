@@ -72,7 +72,11 @@ const cache: local Cache = Cache { localUser, sharedUser };
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=localUser target=localUser
+/// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localUser root=localUser
 /// @resolution.name source=sharedUser target=sharedUser
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedUser root=sharedUser
 "#,
         r#"
 "#,
@@ -108,7 +112,7 @@ shared struct Cache {
 }
 
 declare const user: shared User;
-const cache: shared Cache = Cache { user, count: 1 };
+const cache: shared Cache = shared Cache { user, count: 1 };
 
 === checked ===
 class User {}
@@ -141,6 +145,8 @@ const cache: shared Cache = Cache { user, count: 1 };
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=user root=user
 "#,
         r#"
 "#,
@@ -209,18 +215,24 @@ const field: shared BoxedUser = BoxedUser { user };
 /// @resolution.name source=BoxedUser target=BoxedUser
 /// @resolution.name source=BoxedUser target=BoxedUser
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 
 const tuple: shared (local User, int32) = (user, 1);
 /// @type.symbol symbol=tuple source=tuple type=Placed<(Placed<User, "local">, int32), "shared">
 /// @resolution.pattern source=tuple kind=binding target=tuple
 /// @resolution.name source=User target=User
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 
 const union: shared (local User | undefined) = user;
 /// @type.symbol symbol=union source=union type=Placed<Placed<User, "local"> | undefined, "shared">
 /// @resolution.pattern source=union kind=binding target=union
 /// @resolution.name source=User target=User
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 "#,
         r#"
 /// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
@@ -349,7 +361,11 @@ declare const service: Service;
 
 service.user satisfies shared User;
 /// @resolution.name source=service target=service
-/// @resolution.member source=service.user receiver=Service kind=symbol target=Service.user
+/// @resolution.member source=service.user receiver=Service type=Placed<User, "shared"> kind=field target_receiver=Service key=user target=Service.user target_type=Placed<User, "shared">
+/// @resolution.place source=service placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=service root=service
+/// @resolution.place source=service.user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=service.user root=service keys=[user]
 /// @resolution.name source=User target=User
 "#,
     );
@@ -425,6 +441,8 @@ const rejected: shared Box<local User> = Box { value: localUser };
 /// @resolution.name source=User target=User
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=localUser target=localUser
+/// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localUser root=localUser
 
 const accepted: shared Box<shared User> = Box { value: sharedUser };
 /// @type.symbol symbol=accepted source=accepted type=Placed<Box<Placed<User, "shared">>, "shared">
@@ -433,6 +451,8 @@ const accepted: shared Box<shared User> = Box { value: sharedUser };
 /// @resolution.name source=User target=User
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=sharedUser target=sharedUser
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedUser root=sharedUser
 
 /// @generic.instance id="Box<Placed<User, \"local\">>" template=Box arguments=(Placed<User, "local">)
 /// @generic.instance id="Box<Placed<User, \"shared\">>" template=Box arguments=(Placed<User, "shared">)
@@ -563,6 +583,8 @@ const ownedBox: shared OwnedBox = OwnedBox { value: owned };
 /// @resolution.name source=OwnedBox target=OwnedBox
 /// @resolution.name source=OwnedBox target=OwnedBox
 /// @resolution.name source=owned target=owned
+/// @resolution.place source=owned placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=owned root=owned
 
 const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
 /// @type.symbol symbol=borrowedBox source=borrowedBox type=Placed<BorrowedBox, "shared">
@@ -570,6 +592,8 @@ const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
 /// @resolution.name source=BorrowedBox target=BorrowedBox
 /// @resolution.name source=BorrowedBox target=BorrowedBox
 /// @resolution.name source=borrowed target=borrowed
+/// @resolution.place source=borrowed placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=borrowed root=borrowed
 
 /// @generic.instance id="Borrowed<User, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(User, "static", "mutable")
 "#,
@@ -639,8 +663,13 @@ class Box {
     /// @type.symbol symbol=Box.constructor.user source="user: User" type=User
     /// @resolution.name source=User target=User
     /// @resolution.receiver source=this kind=this declaration=Box type=Box
-    /// @resolution.pattern.assign source=this.user kind=place place=field(Box.user) type=User
+    /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=this root=this
+    /// @resolution.pattern.assign source=this.user kind=place
+    /// @resolution.assignment source=this.user write="receiver=Box, target=field(receiver=Box, target=Box.user, type=User), type=User" type=User
     /// @resolution.name source=user target=Box.constructor.user
+    /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=user root=Box.constructor.user
 
 }
 
@@ -656,6 +685,8 @@ const box: shared Box = new Box(user);
 /// @resolution.construct source="new Box(user)" parameters=(Placed<User, "shared">) arguments=(provided(user) as Placed<User, "shared">) return=Placed<Box, "shared"> kind=class target=Box constructor=Box.constructor
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'local User' is not assignable to parameter of type 'shared User'"
@@ -796,6 +827,8 @@ publish<CleanEnvelope>(cleanEnvelope);
 /// @generic.instance source=publish<CleanEnvelope>(cleanEnvelope) id=publish<CleanEnvelope>
 /// @resolution.name source=CleanEnvelope target=CleanEnvelope
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
+/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=cleanEnvelope root=cleanEnvelope
 
 publish<LocalEnvelope>(localEnvelope);
 /// @resolution.name source=publish target=publish
@@ -809,15 +842,21 @@ publish(cleanEnvelope);
 /// @resolution.call source=publish(cleanEnvelope) parameters=(CleanEnvelope) arguments=(provided(cleanEnvelope) as CleanEnvelope) return=void kind=symbol target=publish instance=publish<CleanEnvelope>
 /// @generic.instance source=publish(cleanEnvelope) id=publish<CleanEnvelope>
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
+/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=cleanEnvelope root=cleanEnvelope
 
 publish(handle);
 /// @resolution.name source=publish target=publish
 /// @resolution.call source=publish(handle) parameters=(Handle) arguments=(provided(handle) as Handle) return=void kind=symbol target=publish instance=publish<Handle>
 /// @generic.instance source=publish(handle) id=publish<Handle>
 /// @resolution.name source=handle target=handle
+/// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handle root=handle
 
 cleanEnvelope satisfies SharedSafe;
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
+/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=cleanEnvelope root=cleanEnvelope
 /// @resolution.name source=SharedSafe target=memory.capability.SharedSafe
 
 /// @generic.instance id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
@@ -825,17 +864,18 @@ cleanEnvelope satisfies SharedSafe;
 /// @generic.instance id=publish<LocalEnvelope> template=publish arguments=(LocalEnvelope)
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'LocalEnvelope' does not satisfy 'SharedSafe'"
-/// @diagnostic.label line=23 column=1 span="publish<LocalEnvelope>(localEnvelope)" line_source="publish<LocalEnvelope>(localEnvelope);"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'Handle' does not satisfy 'SharedSafe'"
-/// @diagnostic.label line=25 column=1 span="publish(handle)" line_source="publish(handle);"
-/// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
 /// @diagnostic.error id=use-after-moved message="'cleanEnvelope' is used after being moved"
 /// @diagnostic.label line=24 column=9 span="cleanEnvelope" line_source="publish(cleanEnvelope);"
 /// @diagnostic.help message="reassign the binding before this use, or copy instead of moving"
 /// @diagnostic.error id=use-after-moved message="'cleanEnvelope' is used after being moved"
 /// @diagnostic.label line=26 column=1 span="cleanEnvelope" line_source="cleanEnvelope satisfies SharedSafe;"
 /// @diagnostic.help message="reassign the binding before this use, or copy instead of moving"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'LocalEnvelope' does not satisfy 'SharedSafe'"
+/// @diagnostic.label line=23 column=1 span="publish<LocalEnvelope>(localEnvelope)" line_source="publish<LocalEnvelope>(localEnvelope);"
+/// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Handle' does not satisfy 'SharedSafe'"
+/// @diagnostic.label line=25 column=1 span="publish(handle)" line_source="publish(handle);"
+/// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
 "#,
     );
 }

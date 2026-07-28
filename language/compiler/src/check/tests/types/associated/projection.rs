@@ -83,7 +83,9 @@ extension<T: Numeric> of Pair<T> implements Doubles {
 /// @definition.extension symbol=<module>#2 form=local target=Pair<T#2>
 /// @definition.implements symbol=<module>#2 source=Doubles target="Doubles<type Output = Pair<T#2>>"
 /// @definition.associated.type symbol=Output source="type Output = Pair<T>" key=Output value=Pair<T#2>
-/// @definition.method symbol=double slot=double type=<double.'l0>(this: &double.'l0 exclusive this) => this.Output
+/// @definition.method symbol=double slot=double type=(this: this) => this.Output
+/// @definition.implementation symbol=<module>#2 requirement=Doubles.Output target=Output
+/// @definition.implementation symbol=<module>#2 requirement=Doubles.double target=double
 /// @type.symbol symbol=T source="T: Numeric" type=T#2
 /// @resolution.name source=Numeric target=math.numeric.Numeric
 /// @resolution.name source=Pair target=Pair
@@ -96,8 +98,7 @@ extension<T: Numeric> of Pair<T> implements Doubles {
     /// @resolution.name source=T target=T
 
     double(): this.Output {
-    /// @generic.template symbol=double parent=template#2 parameters=('l0)
-    /// @type.symbol symbol=double type=<double.'l0>(this: &double.'l0 exclusive this) => this.Output
+    /// @type.symbol symbol=double type=(this: this) => this.Output
 
         Pair { x: this.x + this.x }
         /// @type.node source="Pair { x: this.x + this.x }" type=Pair<T#2>
@@ -105,19 +106,19 @@ extension<T: Numeric> of Pair<T> implements Doubles {
         /// @generic.instance source="Pair { x: this.x + this.x }" id=Pair<T#2>
         /// @type.node source="this.x + this.x" type=T#2
         /// @type.node source=this.x type=T#2
-        /// @resolution.member source=this.x receiver=&double.'l0 exclusive Pair<T#2> type=T#2 kind=field target_receiver=&double.'l0 exclusive Pair<T#2> key=x target=Pair.x target_type=T#2
+        /// @resolution.member source=this.x receiver=Pair<T#2> type=T#2 kind=field target_receiver=Pair<T#2> key=x target=Pair.x target_type=T#2
         /// @resolution.operator source="this.x + this.x" type=T#2 operator="+" kind=builtin operands=[this.x as T#2 families=(integer | float), this.x as T#2 families=(integer | float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&double.'l0 exclusive Pair<T#2>
-        /// @resolution.place source=this placement="local" lifetime=double.'l0 access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Pair<T#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement="local" lifetime=double.'l0 access="exclusive"
+        /// @resolution.place source=this.x placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this.x root=this keys=[x]
         /// @type.node source=this.x type=T#2
-        /// @resolution.member source=this.x receiver=&double.'l0 exclusive Pair<T#2> type=T#2 kind=field target_receiver=&double.'l0 exclusive Pair<T#2> key=x target=Pair.x target_type=T#2
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&double.'l0 exclusive Pair<T#2>
-        /// @resolution.place source=this placement="local" lifetime=double.'l0 access="exclusive"
+        /// @resolution.member source=this.x receiver=Pair<T#2> type=T#2 kind=field target_receiver=Pair<T#2> key=x target=Pair.x target_type=T#2
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Pair<T#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement="local" lifetime=double.'l0 access="exclusive"
+        /// @resolution.place source=this.x placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this.x root=this keys=[x]
 
     }

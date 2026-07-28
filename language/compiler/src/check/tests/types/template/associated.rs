@@ -96,6 +96,7 @@ interface EventShape<T> {
 /// @generic.template symbol=EventShape parameters=(in out T#1)
 /// @type.symbol symbol=EventShape type=EventShape
 /// @definition.interface symbol=EventShape template=(in out T#1)
+/// @definition.where symbol=EventShape relation=satisfies left=this right=EventShape<T#1>
 /// @definition.associated.type symbol=EventShape.Handlers key=Handlers value={ [K in keyof T#1 as `on-${K}`]: T#1[K] }
 /// @type.symbol symbol=EventShape.T source=T type=T#1
 

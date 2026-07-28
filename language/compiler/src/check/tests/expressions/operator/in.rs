@@ -25,7 +25,7 @@ hasX satisfies boolean;
 const point = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: float64; y: float64 }
 /// @resolution.pattern source=point kind=binding target=point
-/// @type.node source={ x: 1, y: 2 } type={ x: 1; y: 2 }
+/// @type.node source={ x: 1, y: 2 } type={ x: float64; y: float64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -37,11 +37,15 @@ const hasX = "x" in point;
 /// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver={ x: float64; y: float64 } predicate="membership({ x: float64; y: float64 }, x)" narrowed={ x: float64; y: float64 }
 /// @type.node source=point type={ x: float64; y: float64 }
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 
 hasX satisfies boolean;
 /// @type.node source="hasX satisfies boolean" type=boolean
 /// @type.node source=hasX type=boolean
 /// @resolution.name source=hasX target=hasX
+/// @resolution.place source=hasX placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=hasX root=hasX
 "#,
     );
 }
@@ -71,7 +75,7 @@ hasName satisfies boolean;
 const point = { x: 1, y: 2 };
 /// @type.symbol symbol=point source=point type={ x: float64; y: float64 }
 /// @resolution.pattern source=point kind=binding target=point
-/// @type.node source={ x: 1, y: 2 } type={ x: 1; y: 2 }
+/// @type.node source={ x: 1, y: 2 } type={ x: float64; y: float64 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -83,11 +87,15 @@ const hasName = "name" in point;
 /// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver={ x: float64; y: float64 } predicate="membership({ x: float64; y: float64 }, name)" narrowed=never
 /// @type.node source=point type={ x: float64; y: float64 }
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 
 hasName satisfies boolean;
 /// @type.node source="hasName satisfies boolean" type=boolean
 /// @type.node source=hasName type=boolean
 /// @resolution.name source=hasName target=hasName
+/// @resolution.place source=hasName placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=hasName root=hasName
 "#,
     );
 }
@@ -152,14 +160,18 @@ const found = "name" in bag;
 /// @resolution.pattern source=found kind=binding target=found
 /// @type.node source="\"name\" in bag" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in bag" kind=in key_type="name" receiver=Bag predicate="membership(Bag, name)" narrowed=never
+/// @resolution.guard source="\"name\" in bag" kind=in key_type="name" receiver=Bag predicate="membership(Bag, name)" narrowed=Bag & { readonly name: unknown }
 /// @type.node source=bag type=Bag
 /// @resolution.name source=bag target=bag
+/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bag root=bag
 
 found satisfies boolean;
 /// @type.node source="found satisfies boolean" type=boolean
 /// @type.node source=found type=boolean
 /// @resolution.name source=found target=found
+/// @resolution.place source=found placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=found root=found
 "#,
     );
 }
@@ -213,6 +225,8 @@ declare const user: User;
 /// @resolution.guard source="\"name\" in user" kind=in key_type="name" receiver=User predicate="membership(User, name)" narrowed=User
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 "#,
     );
 }
@@ -267,13 +281,19 @@ if ("name" in value) {
 /// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="membership(Named | Numbered, name)" narrowed={ name: string }
 /// @type.node source=value type=Named | Numbered
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
     value.name satisfies string;
     /// @type.node source="value.name satisfies string" type=string
     /// @type.node source=value type={ name: string }
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
-    /// @resolution.member source=value.name receiver={ name: string } kind=field key=name
+    /// @resolution.member source=value.name receiver={ name: string } type=string kind=field target_receiver={ name: string } key=name target_type=string
+    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value root=value
+    /// @resolution.place source=value.name placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value.name root=value keys=[name]
 
 }
 "#,
@@ -332,6 +352,8 @@ if ("name" in value) {
 /// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="membership(Named | Numbered, name)" narrowed={ name: string }
 /// @type.node source=value type=Named | Numbered
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 } else {
     value.id satisfies int32;
@@ -339,7 +361,11 @@ if ("name" in value) {
     /// @type.node source=value type={ id: int32 }
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.member source=value.id receiver={ id: int32 } kind=field key=id
+    /// @resolution.member source=value.id receiver={ id: int32 } type=int32 kind=field target_receiver={ id: int32 } key=id target_type=int32
+    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value root=value
+    /// @resolution.place source=value.id placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=value.id root=value keys=[id]
 
 }
 "#,
@@ -398,7 +424,7 @@ true in point;
 const point = { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: float64 }
 /// @resolution.pattern source=point kind=binding target=point
-/// @type.node source={ x: 1 } type={ x: 1 }
+/// @type.node source={ x: 1 } type={ x: float64 }
 /// @type.node source=1 type=1
 
 true in point;
@@ -407,6 +433,8 @@ true in point;
 /// @resolution.guard source="true in point" kind=in key_type=true receiver={ x: float64 } predicate="membership({ x: float64 }, true)"
 /// @type.node source=point type={ x: float64 }
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
         r#"
 /// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for 'true' and '{ x: float64 }'"
@@ -430,24 +458,26 @@ declare const value: unknown;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare const value: unknown;
+declare const value: Dynamic<unknown>;
 
 "name" in value;
 
 === checked ===
 declare const value: unknown;
-/// @type.symbol symbol=value source=value type=unknown
+/// @type.symbol symbol=value source=value type=Dynamic<unknown>
 /// @resolution.pattern source=value kind=binding target=value
 
 "name" in value;
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=unknown predicate="membership(unknown, name)" narrowed={ readonly name: unknown }
-/// @type.node source=value type=unknown
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Dynamic<unknown> predicate="membership(Dynamic<unknown>, name)" narrowed={ readonly name: unknown }
+/// @type.node source=value type=Dynamic<unknown>
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 "#,
         r#"
-/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for '\"name\"' and 'unknown'"
+/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for '\"name\"' and 'Dynamic<unknown>'"
 /// @diagnostic.label line=4 column=8 span="in" line_source="\"name\" in value;"
 "#,
     );

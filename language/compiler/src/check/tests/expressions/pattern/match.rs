@@ -1243,7 +1243,7 @@ declare const value: { left: int32 } | { right: int32 };
 /// @resolution.pattern source=value kind=binding target=value
 
 match (value) {
-/// @type.node type=int32
+/// @type.node type=int32 & unknown
 /// @type.node source=value type={ left: int32 } | { right: int32 }
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
@@ -1252,12 +1252,12 @@ match (value) {
     { left: item } | { right: item } => item satisfies int32
     /// @resolution.pattern source={ left: item } kind=object fields={ left: item }
     /// @resolution.pattern source={ left: item } | { right: item } kind=union patterns=[pattern, pattern]
-    /// @type.symbol symbol=item source=item type=int32
+    /// @type.symbol symbol=item source=item type=int32 & unknown
     /// @resolution.pattern source=item kind=binding target=item
     /// @resolution.pattern source={ right: item } kind=object fields={ right: item }
     /// @resolution.pattern source=item kind=binding target=item
-    /// @type.node source="item satisfies int32" type=int32
-    /// @type.node source=item type=int32
+    /// @type.node source="item satisfies int32" type=int32 & unknown
+    /// @type.node source=item type=int32 & unknown
     /// @resolution.name source=item target=item
     /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=item root=item

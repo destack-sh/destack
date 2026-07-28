@@ -60,8 +60,13 @@ local class Counter {
 
         this.name = name;
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
-        /// @resolution.pattern.assign source=this.name kind=place place=field(Counter.name) type=string
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.name kind=place
+        /// @resolution.assignment source=this.name write="receiver=Counter, target=field(receiver=Counter, target=Counter.name, type=string), type=string" type=string
         /// @resolution.name source=name target=Counter.constructor.name
+        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=name root=Counter.constructor.name
 
     }
 
@@ -73,8 +78,12 @@ local class Counter {
         label(this.name)
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter kind=symbol target=Counter.name
+        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter type=string kind=field target_receiver=&Counter.describe.'a readonly Counter key=name target=Counter.name target_type=string
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'a readonly Counter
+        /// @resolution.place source=this placement="local" lifetime=Counter.describe.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.name placement="local" lifetime=Counter.describe.'a access="readonly"
+        /// @resolution.access source=this.name root=this keys=[name]
 
     }
 }
@@ -180,8 +189,13 @@ local class Meter {
 
         this.sink = sink;
         /// @resolution.receiver source=this kind=this declaration=Meter type=Meter
-        /// @resolution.pattern.assign source=this.sink kind=place place=field(Meter.sink) type=Dynamic<Sink>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.sink kind=place
+        /// @resolution.assignment source=this.sink write="receiver=Meter, target=field(receiver=Meter, target=Meter.sink, type=Dynamic<Sink>), type=Dynamic<Sink>" type=Dynamic<Sink>
         /// @resolution.name source=sink target=Meter.constructor.sink
+        /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=sink root=Meter.constructor.sink
 
     }
 
@@ -193,8 +207,12 @@ local class Meter {
         consume(this.sink)
         /// @resolution.name source=consume target=consume
         /// @resolution.call source=consume(this.sink) parameters=(Dynamic<Sink>) arguments=(provided(this.sink) as Dynamic<Sink>) return=void kind=symbol target=consume
-        /// @resolution.member source=this.sink receiver=&Meter.leak.'a readonly Meter kind=symbol target=Meter.sink
+        /// @resolution.member source=this.sink receiver=&Meter.leak.'a readonly Meter type=Readonly<Dynamic<Sink>> kind=field target_receiver=&Meter.leak.'a readonly Meter key=sink target=Meter.sink target_type=Readonly<Dynamic<Sink>>
         /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.leak.'a readonly Meter
+        /// @resolution.place source=this placement="local" lifetime=Meter.leak.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.sink placement="local" lifetime=Meter.leak.'a access="readonly"
+        /// @resolution.access source=this.sink root=this keys=[sink]
 
     }
 
@@ -206,8 +224,12 @@ local class Meter {
         inspect(this.sink)
         /// @resolution.name source=inspect target=inspect
         /// @resolution.call source=inspect(this.sink) parameters=(Readonly<Dynamic<Sink>>) arguments=(provided(this.sink) as Readonly<Dynamic<Sink>>) return=void kind=symbol target=inspect
-        /// @resolution.member source=this.sink receiver=&Meter.forward.'a readonly Meter kind=symbol target=Meter.sink
+        /// @resolution.member source=this.sink receiver=&Meter.forward.'a readonly Meter type=Readonly<Dynamic<Sink>> kind=field target_receiver=&Meter.forward.'a readonly Meter key=sink target=Meter.sink target_type=Readonly<Dynamic<Sink>>
         /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.forward.'a readonly Meter
+        /// @resolution.place source=this placement="local" lifetime=Meter.forward.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.sink placement="local" lifetime=Meter.forward.'a access="readonly"
+        /// @resolution.access source=this.sink root=this keys=[sink]
 
     }
 }
@@ -276,8 +298,13 @@ local class Counter {
 
         this.name = name;
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
-        /// @resolution.pattern.assign source=this.name kind=place place=field(Counter.name) type=string
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.name kind=place
+        /// @resolution.assignment source=this.name write="receiver=Counter, target=field(receiver=Counter, target=Counter.name, type=string), type=string" type=string
         /// @resolution.name source=name target=Counter.constructor.name
+        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=name root=Counter.constructor.name
 
     }
 
@@ -289,8 +316,12 @@ local class Counter {
         label(this.name)
         /// @resolution.name source=label target=label
         /// @resolution.call source=label(this.name) parameters=(string) arguments=(provided(this.name) as string) return=void kind=symbol target=label
-        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter kind=symbol target=Counter.name
+        /// @resolution.member source=this.name receiver=&Counter.describe.'a readonly Counter type=string kind=field target_receiver=&Counter.describe.'a readonly Counter key=name target=Counter.name target_type=string
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'a readonly Counter
+        /// @resolution.place source=this placement="local" lifetime=Counter.describe.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.name placement="local" lifetime=Counter.describe.'a access="readonly"
+        /// @resolution.access source=this.name root=this keys=[name]
 
     }
 }
@@ -363,8 +394,13 @@ declare const person: readonly Person;
 
 person.profile.count = 5;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.profile receiver=Readonly<Person> kind=symbol target=Person.profile
-/// @resolution.pattern.assign source=person.profile.count kind=place place=field(Profile.count) type=int32
+/// @resolution.member source=person.profile receiver=Readonly<Person> type=Profile kind=field target_receiver=Readonly<Person> key=profile target=Person.profile target_type=Profile
+/// @resolution.place source=person placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=person root=person
+/// @resolution.place source=person.profile placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=person.profile root=person keys=[profile]
+/// @resolution.pattern.assign source=person.profile.count kind=place
+/// @resolution.assignment source=person.profile.count write="receiver=Readonly<Profile>, target=field(receiver=Readonly<Profile>, target=Profile.count, type=int32), type=int32" type=int32
 "#, r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'count'"
 /// @diagnostic.label line=12 column=16 span="count" line_source="person.profile.count = 5;"

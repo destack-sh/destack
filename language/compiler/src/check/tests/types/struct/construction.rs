@@ -49,6 +49,8 @@ const point = Point { x: 1, y: 2 };
 
 point satisfies Point;
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 /// @resolution.name source=Point target=Point
 "#,
     );
@@ -110,12 +112,14 @@ function wrap<T>(value: T): Box<T> {
     /// @generic.instance source="Box { value }" id=Box<T#2>
     /// @type.node source=value type=T#2
     /// @resolution.name source=value target=wrap.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=wrap.value
 
 }
 
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 
-/// @check.stats.solve variables=0 types=8 constraints=4 obligations=2 solutions=0 bounds=0 decisions=6
+/// @check.stats.solve variables=0 types=11 constraints=0 obligations=2 solutions=0 bounds=0 decisions=6
 "#,
     );
 }
@@ -191,7 +195,7 @@ function make<T: Zero>(): Box<T> {
     Box { value: T.zero() }
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=T target=make.T
-    /// @resolution.member source=T.zero receiver=T#2 kind=symbol target=Zero.zero
+    /// @resolution.member source=T.zero receiver=T#2 type=() => T#2 kind=symbol target_receiver=T#2 target=Zero.zero
     /// @resolution.call source=T.zero() parameters=() return=T#2 kind=symbol target=Zero.zero receiver=T#2
 
 }
@@ -237,12 +241,12 @@ function doubled<T: Float>(value: T): Box<T> {
 import { Float } from "destack:math";
 
 struct Box<T: Float> {
-/// @generic.template symbol=Box parameters=(out T#1: math.scalar.Float)
+/// @generic.template symbol=Box parameters=(out T#1: math.float.Float)
 /// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(out T#1: math.scalar.Float)
+/// @definition.struct symbol=Box template=(out T#1: math.float.Float)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Box.T source="T: Float" type=T#1
-/// @resolution.name source=Float target=math.scalar.Float
+/// @resolution.name source=Float target=math.float.Float
 
     value: T;
     /// @type.symbol symbol=Box.value source="value: T" type=T#1
@@ -251,10 +255,10 @@ struct Box<T: Float> {
 }
 
 function doubled<T: Float>(value: T): Box<T> {
-/// @generic.template symbol=doubled parameters=(T#2: math.scalar.Float)
-/// @type.symbol symbol=doubled type=<T#2: math.scalar.Float>(T#2) => Box<T#2>
+/// @generic.template symbol=doubled parameters=(T#2: math.float.Float)
+/// @type.symbol symbol=doubled type=<T#2: math.float.Float>(T#2) => Box<T#2>
 /// @type.symbol symbol=doubled.T source="T: Float" type=T#2
-/// @resolution.name source=Float target=math.scalar.Float
+/// @resolution.name source=Float target=math.float.Float
 /// @type.symbol symbol=doubled.value source="value: T" type=T#2
 /// @resolution.name source=T target=doubled.T
 /// @resolution.name source=Box target=Box
@@ -263,8 +267,12 @@ function doubled<T: Float>(value: T): Box<T> {
     Box { value: value + value }
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=value target=doubled.value
-    /// @resolution.operator source="value + value" kind=builtin
+    /// @resolution.operator source="value + value" type=T#2 operator="+" kind=builtin operands=[value as T#2 families=(float), value as T#2 families=(float)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=doubled.value
     /// @resolution.name source=value target=doubled.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=doubled.value
 
 }
 
@@ -324,9 +332,13 @@ struct Counter {
 
         Counter { value: this.value + 1 }
         /// @resolution.name source=Counter target=Counter
-        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter kind=symbol target=Counter.value
-        /// @resolution.operator source="this.value + 1" kind=builtin
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
+        /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
+        /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
 
     }
 }
@@ -335,11 +347,13 @@ const next = Counter { value: 1 }.increment();
 /// @type.symbol symbol=next source=next type=Counter
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Counter target=Counter
-/// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter kind=symbol target=Counter.increment
-/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow)
+/// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => Counter kind=symbol target_receiver=Counter target=Counter.increment
+/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'frame exclusive Counter))
 
 next satisfies Counter;
 /// @resolution.name source=next target=next
+/// @resolution.place source=next placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=next root=next
 /// @resolution.name source=Counter target=Counter
 "#,
     );
@@ -555,14 +569,25 @@ struct Counter {
 
         this.value = this.value + 1;
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
-        /// @resolution.pattern.assign source=this.value kind=place place=field(Counter.value) type=int32
-        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter kind=symbol target=Counter.value
-        /// @resolution.operator source="this.value + 1" kind=builtin
+        /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value write="receiver=&Counter.increment.'a exclusive Counter, target=field(receiver=&Counter.increment.'a exclusive Counter, target=Counter.value, type=int32), type=int32" type=int32
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
+        /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
+        /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
 
         this.value
-        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter kind=symbol target=Counter.value
+        /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
+        /// @resolution.place source=this placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
 
     }
 }
@@ -576,11 +601,15 @@ const next = counter.increment();
 /// @type.symbol symbol=next source=next type=int32
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=counter target=counter
-/// @resolution.member source=counter.increment receiver=Counter kind=symbol target=Counter.increment
-/// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow)
+/// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => int32 kind=symbol target_receiver=Counter target=Counter.increment
+/// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'static exclusive Counter))
+/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=counter root=counter
 
 next satisfies int32;
 /// @resolution.name source=next target=next
+/// @resolution.place source=next placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=next root=next
 "#,
     );
 }

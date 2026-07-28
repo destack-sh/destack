@@ -32,13 +32,13 @@ struct Pack<out T> {
 }
 
 export extension<T: Compare<T>> of Pack<T> {
-    static from(values: Dynamic<Iterable<T>>): ^Pack<T> {
+    static from(values: Dynamic<Iterable<T, void>>): ^Pack<T> {
         todo("Pack.from" as string | undefined)
     }
 }
 
 export extension<T: Compare<T>> of ^Pack<T> {
-    static from(values: Dynamic<Iterable<T>>): ^Pack<T> {
+    static from(values: Dynamic<Iterable<T, void>>): ^Pack<T> {
         Pack.from<T>(values)
     }
 }
@@ -60,7 +60,7 @@ struct Pack<T> {
 export extension<T: Compare<T>> of Pack<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2: Compare<T#2>)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
-/// @definition.method symbol=from#1 slot=from static=true type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>>
+/// @definition.method symbol=from#1 slot=from static=true type=(Dynamic<Iterable<T#2, void>>) => Owned<Pack<T#2>>
 /// @type.symbol symbol=T#1 source="T: Compare<T>" type=T#2
 /// @resolution.name source=Compare target=ops.comparison.Compare
 /// @resolution.name source=T target=T#1
@@ -68,8 +68,8 @@ export extension<T: Compare<T>> of Pack<T> {
 /// @resolution.name source=T target=T#1
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @type.symbol symbol=from#1 type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> reduced=(Dynamic<Iterable<T#2>>) => Pack<T#2>
-    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2>>
+    /// @type.symbol symbol=from#1 type=(Dynamic<Iterable<T#2, void>>) => Owned<Pack<T#2>> reduced=(Dynamic<Iterable<T#2, void>>) => Pack<T#2>
+    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2, void>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=Pack target=Pack
@@ -77,7 +77,7 @@ export extension<T: Compare<T>> of Pack<T> {
 
         todo("Pack.from")
         /// @type.node source="todo(\"Pack.from\")" type=never
-        /// @type.node source=todo type=(string | undefined) => never
+        /// @type.node source=todo type=(string | undefined?) => never
         /// @resolution.name source=todo target=error.panic.todo
         /// @resolution.call source="todo(\"Pack.from\")" parameters=(string | undefined) arguments=(provided("Pack.from") as string | undefined) return=never kind=symbol target=error.panic.todo
         /// @type.node source="\"Pack.from\"" type="Pack.from"
@@ -88,7 +88,7 @@ export extension<T: Compare<T>> of Pack<T> {
 export extension<T: Compare<T>> of ^Pack<T> {
 /// @generic.template symbol=<module>#3 parameters=(T#3: Compare<T#3>)
 /// @definition.extension symbol=<module>#3 form=exported target=Owned<Pack<T#3>>
-/// @definition.method symbol=from#2 slot=from static=true type=(Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>>
+/// @definition.method symbol=from#2 slot=from static=true type=(Dynamic<Iterable<T#3, void>>) => Owned<Pack<T#3>>
 /// @type.symbol symbol=T#2 source="T: Compare<T>" type=T#3
 /// @resolution.name source=Compare target=ops.comparison.Compare
 /// @resolution.name source=T target=T#2
@@ -96,8 +96,8 @@ export extension<T: Compare<T>> of ^Pack<T> {
 /// @resolution.name source=T target=T#2
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @type.symbol symbol=from#2 type=(Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#3>>) => Pack<T#3>
-    /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Dynamic<Iterable<T#3>>
+    /// @type.symbol symbol=from#2 type=(Dynamic<Iterable<T#3, void>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#3, void>>) => Pack<T#3>
+    /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Dynamic<Iterable<T#3, void>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#2
     /// @resolution.name source=Pack target=Pack
@@ -105,26 +105,28 @@ export extension<T: Compare<T>> of ^Pack<T> {
 
         Pack.from(values)
         /// @type.node source=Pack type=Pack
-        /// @type.node source=Pack.from type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> | (Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#2>>) => Pack<T#2> | (Dynamic<Iterable<T#3>>) => Pack<T#3>
+        /// @type.node source=Pack.from type=(Dynamic<Iterable<T#2, void>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3, void>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#2, void>>) => Pack<T#2> & (Dynamic<Iterable<T#3, void>>) => Pack<T#3>
         /// @type.node source=Pack.from(values) type=Owned<Pack<T#3>> reduced=Pack<T#3>
         /// @resolution.name source=Pack target=Pack
-        /// @resolution.member source=Pack.from receiver=Pack kind=existential targets=[from#1, from#2]
-        /// @resolution.call source=Pack.from(values) parameters=(Dynamic<Iterable<T#3>>) arguments=(provided(values) as Dynamic<Iterable<T#3>>) return=Owned<Pack<T#3>> kind=symbol target=from#1 receiver=Pack instance=Pack<T#3>.<extension#1>.from#1
-        /// @generic.instance source=Pack.from id=Iterable<T#2>
-        /// @generic.instance source=Pack.from id=Iterable<T#3>
+        /// @resolution.member source=Pack.from receiver=Pack type=(Dynamic<Iterable<T#2, void>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3, void>>) => Owned<Pack<T#3>> kind=existential targets=[from#1, from#2]
+        /// @resolution.call source=Pack.from(values) parameters=(Dynamic<Iterable<T#3, void>>) arguments=(provided(values) as Dynamic<Iterable<T#3, void>>) return=Owned<Pack<T#3>> kind=symbol target=from#1 receiver=Pack instance=Pack<T#3>.<extension#1>.from#1
+        /// @generic.instance source=Pack.from id="Iterable<T#2, void>"
+        /// @generic.instance source=Pack.from id="Iterable<T#3, void>"
         /// @generic.instance source=Pack.from id=Pack<T#2>
         /// @generic.instance source=Pack.from id=Pack<T#3>
         /// @generic.instance source=Pack.from(values) id=Pack<T#3>
         /// @generic.instance source=Pack.from(values) id=Pack<T#3>.<extension#1>.from#1
-        /// @type.node source=values type=Dynamic<Iterable<T#3>>
+        /// @type.node source=values type=Dynamic<Iterable<T#3, void>>
         /// @resolution.name source=values target=from.values#2
-        /// @generic.instance source=values id=Iterable<T#3>
+        /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=values root=from.values#2
+        /// @generic.instance source=values id="Iterable<T#3, void>"
 
     }
 }
 
-/// @generic.instance id=Iterable<T#2> template=iter.iterator.Iterable arguments=(T#2)
-/// @generic.instance id=Iterable<T#3> template=iter.iterator.Iterable arguments=(T#3)
+/// @generic.instance id="Iterable<T#2, void>" template=iter.iterator.Iterable arguments=(T#2, void)
+/// @generic.instance id="Iterable<T#3, void>" template=iter.iterator.Iterable arguments=(T#3, void)
 /// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 /// @generic.instance id=Pack<T#3>.<extension#1>.from#1 template=from#1 arguments=(T#3)
@@ -333,6 +335,8 @@ export extension<T, E> of Outcome<T, E> {
         /// @generic.instance source="Ok { value }" id=Ok<T#3>
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=ok.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=ok.value
 
     }
 
@@ -355,6 +359,8 @@ export extension<T, E> of Outcome<T, E> {
         /// @generic.instance source="Err { error }" id=Err<E#3>
         /// @type.node source=error type=E#3
         /// @resolution.name source=error target=err.error
+        /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=error root=err.error
 
     }
 
@@ -373,6 +379,8 @@ export extension<T, E> of Outcome<T, E> {
         /// @type.node type=Outcome<U, E#3>
         /// @type.node source=this type=Outcome<T#3, E#3>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Outcome<T#3, E#3>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
         /// @generic.instance source=this id="Outcome<T#3, E#3>"
 
             Ok { value } => Outcome.ok(f(value))
@@ -384,7 +392,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @type.node source=Outcome.ok type=(T#3) => Outcome<T#3, E#3>
             /// @type.node source=Outcome.ok(f(value)) type=Outcome<U, E#3>
             /// @resolution.name source=Outcome target=Outcome
-            /// @resolution.member source=Outcome.ok receiver=Outcome kind=symbol target=ok
+            /// @resolution.member source=Outcome.ok receiver=Outcome type=(T#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=ok
             /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok receiver=Outcome instance="Outcome<U, E#3>.<extension#1>.ok"
             /// @generic.instance source=Outcome.ok id="Outcome<T#3, E#3>"
             /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>"
@@ -392,9 +400,13 @@ export extension<T, E> of Outcome<T, E> {
             /// @type.node source=f type=Function<(T#3,), U>
             /// @type.node source=f(value) type=U
             /// @resolution.name source=f target=map.f
-            /// @resolution.call source=f(value) parameters=(T#3) arguments=(provided(value) as T#3) return=U kind=expression
+            /// @resolution.call source=f(value) parameters=(T#3) arguments=(provided(value) as T#3) return=U kind=expression target=expression
+            /// @resolution.place source=f placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=f root=map.f
             /// @type.node source=value type=T#3
             /// @resolution.name source=value target=map.value#2
+            /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=value root=map.value#2
 
             Err { error } => Outcome.err(error)
             /// @resolution.name source=Err target=Err
@@ -405,13 +417,15 @@ export extension<T, E> of Outcome<T, E> {
             /// @type.node source=Outcome.err type=(E#3) => Outcome<T#3, E#3>
             /// @type.node source=Outcome.err(error) type=Outcome<U, E#3>
             /// @resolution.name source=Outcome target=Outcome
-            /// @resolution.member source=Outcome.err receiver=Outcome kind=symbol target=err
+            /// @resolution.member source=Outcome.err receiver=Outcome type=(E#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=err
             /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err receiver=Outcome instance="Outcome<U, E#3>.<extension#1>.err"
             /// @generic.instance source=Outcome.err id="Outcome<T#3, E#3>"
             /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>"
             /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>.<extension#1>.err"
             /// @type.node source=error type=E#3
             /// @resolution.name source=error target=map.error
+            /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=error root=map.error
 
         }
     }
@@ -470,7 +484,7 @@ export extension<T> of Pack<T> {
 export type Packed<T> = Pack<T>;
 
 function wrap(): Packed<string> {
-    Packed.of<"text">("text")
+    Packed.of<string>("text")
 }
 
 === checked ===
@@ -508,6 +522,8 @@ export extension<T> of Pack<T> {
         /// @generic.instance source="Pack { value }" id=Pack<T#2>
         /// @type.node source=value type=T#2
         /// @resolution.name source=value target=of.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=of.value
 
     }
 }
@@ -525,23 +541,23 @@ function wrap(): Packed<string> {
 /// @resolution.name source=Packed target=Packed
 
     Packed.of("text")
-    /// @type.node source="Packed.of(\"text\")" type=Pack<"text">
+    /// @type.node source="Packed.of(\"text\")" type=Pack<string>
     /// @type.node source=Packed type=Packed
     /// @type.node source=Packed.of type=(T#2) => Pack<T#2>
     /// @resolution.name source=Packed target=Packed
-    /// @resolution.member source=Packed.of receiver=Packed kind=symbol target=of
-    /// @resolution.call source="Packed.of(\"text\")" parameters=("text") arguments=(provided("text") as "text") return=Pack<"text"> kind=symbol target=of receiver=Packed instance="Pack<\"text\">.<extension#1>.of"
-    /// @generic.instance source="Packed.of(\"text\")" id="Pack<\"text\">"
-    /// @generic.instance source="Packed.of(\"text\")" id="Pack<\"text\">.<extension#1>.of"
+    /// @resolution.member source=Packed.of receiver=Packed type=(T#2) => Pack<T#2> kind=symbol target_receiver=Packed target=of
+    /// @resolution.call source="Packed.of(\"text\")" parameters=(string) arguments=(provided("text") as string) return=Pack<string> kind=symbol target=of receiver=Packed instance=Pack<string>.<extension#1>.of
+    /// @generic.instance source="Packed.of(\"text\")" id=Pack<string>
+    /// @generic.instance source="Packed.of(\"text\")" id=Pack<string>.<extension#1>.of
     /// @generic.instance source=Packed.of id=Pack<T#2>
     /// @type.node source="\"text\"" type="text"
 
 }
 
-/// @generic.instance id="Pack<\"text\">" template=Pack arguments=("text")
-/// @generic.instance id="Pack<\"text\">.<extension#1>.of" template=of arguments=("text")
 /// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
+/// @generic.instance id=Pack<string> template=Pack arguments=(string)
+/// @generic.instance id=Pack<string>.<extension#1>.of template=of arguments=(string)
 /// @generic.instance id=Packed<string> template=Packed arguments=(string)
 "#,
         r#""#,
@@ -602,7 +618,11 @@ function read<T>(pack: &readonly Pack<T>): readonly T {
     /// @type.node source=pack type=&read.'a readonly Pack<T#2>
     /// @type.node source=pack.value type=Readonly<T#2>
     /// @resolution.name source=pack target=read.pack
-    /// @resolution.member source=pack.value receiver=&read.'a readonly Pack<T#2> kind=symbol target=Pack.value
+    /// @resolution.member source=pack.value receiver=&read.'a readonly Pack<T#2> type=Readonly<T#2> kind=field target_receiver=&read.'a readonly Pack<T#2> key=value target=Pack.value target_type=Readonly<T#2>
+    /// @resolution.place source=pack placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=pack root=read.pack
+    /// @resolution.place source=pack.value placement="local" lifetime=read.'a access="readonly"
+    /// @resolution.access source=pack.value root=read.pack keys=[value]
     /// @generic.instance source=pack id=Pack<T#2>
 
 }
@@ -676,7 +696,7 @@ function same<T>(actual: readonly T | T, expected: T): void {
 
     todo("same")
     /// @type.node source="todo(\"same\")" type=never
-    /// @type.node source=todo type=(string | undefined) => never
+    /// @type.node source=todo type=(string | undefined?) => never
     /// @resolution.name source=todo target=error.panic.todo
     /// @resolution.call source="todo(\"same\")" parameters=(string | undefined) arguments=(provided("same") as string | undefined) return=never kind=symbol target=error.panic.todo
     /// @type.node source="\"same\"" type="same"
@@ -702,10 +722,16 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
     /// @type.node source=pack type=&check.'a readonly Pack<T#3>
     /// @type.node source=pack.value type=Readonly<T#3>
     /// @resolution.name source=pack target=check.pack
-    /// @resolution.member source=pack.value receiver=&check.'a readonly Pack<T#3> kind=symbol target=Pack.value
+    /// @resolution.member source=pack.value receiver=&check.'a readonly Pack<T#3> type=Readonly<T#3> kind=field target_receiver=&check.'a readonly Pack<T#3> key=value target=Pack.value target_type=Readonly<T#3>
+    /// @resolution.place source=pack placement="local" lifetime=check.'a access="readonly"
+    /// @resolution.access source=pack root=check.pack
+    /// @resolution.place source=pack.value placement="local" lifetime=check.'a access="readonly"
+    /// @resolution.access source=pack.value root=check.pack keys=[value]
     /// @generic.instance source=pack id=Pack<T#3>
     /// @type.node source=expected type=T#3
     /// @resolution.name source=expected target=check.expected
+    /// @resolution.place source=expected placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=expected root=check.expected
 
 }
 

@@ -67,6 +67,8 @@ const shapes: Holder<Shape> = circles;
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
 
 /// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
 /// @generic.instance id=Holder<Shape> template=Holder arguments=(Shape)
@@ -150,6 +152,8 @@ const either: Holder<Circle | Square> = circles;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
 
 /// @generic.instance id="Holder<Circle | Square>" template=Holder arguments=(Circle | Square)
 /// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
@@ -212,6 +216,8 @@ const wide: Holder<int32> = one;
 /// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=one target=one
+/// @resolution.place source=one placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=one root=one
 
 /// @generic.instance id=Holder<1> template=Holder arguments=(1)
 /// @generic.instance id=Holder<int32> template=Holder arguments=(int32)
@@ -283,6 +289,8 @@ const opaque: Holder<unknown> = circles;
 /// @resolution.pattern source=opaque kind=binding target=opaque
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
 
 /// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
 /// @generic.instance id=Holder<unknown> template=Holder arguments=(unknown)
@@ -365,6 +373,8 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 /// @resolution.name source=Draw target=Draw
 /// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
 
 /// @generic.instance id=Dynamic<Draw> template=memory.dynamic.Dynamic arguments=(Draw)
 /// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
@@ -446,6 +456,8 @@ const widened: Holder<() => Shape> = makers;
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=makers target=makers
+/// @resolution.place source=makers placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=makers root=makers
 
 /// @generic.instance id="Holder<Function<(), Circle>>" template=Holder arguments=(Function<(), Circle>)
 /// @generic.instance id="Holder<Function<(), Shape>>" template=Holder arguments=(Function<(), Shape>)
@@ -529,6 +541,8 @@ const either: Holder<() => Circle | Square> = makers;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=makers target=makers
+/// @resolution.place source=makers placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=makers root=makers
 
 /// @generic.instance id="Holder<Function<(), Circle | Square>>" template=Holder arguments=(Function<(), Circle | Square>)
 /// @generic.instance id="Holder<Function<(), Circle>>" template=Holder arguments=(Function<(), Circle>)
@@ -609,6 +623,8 @@ const widened: Box<Shape> = boxed;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=boxed target=boxed
+/// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=boxed root=boxed
 
 /// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
 /// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
@@ -689,6 +705,8 @@ const widened: Label<Shape> = labeled;
 /// @resolution.name source=Label target=Label
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=labeled target=labeled
+/// @resolution.place source=labeled placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=labeled root=labeled
 
 /// @generic.instance id=Label<Circle> template=Label arguments=(Circle)
 /// @generic.instance id=Label<Shape> template=Label arguments=(Shape)
@@ -763,6 +781,8 @@ const widened: ^Box<Shape> = boxed;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=boxed target=boxed
+/// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=boxed root=boxed
 
 /// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
 /// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
@@ -848,6 +868,8 @@ const widened: ^Pipe<Shape> = pipe;
 /// @resolution.name source=Pipe target=Pipe
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=pipe target=pipe
+/// @resolution.place source=pipe placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=pipe root=pipe
 
 /// @generic.instance id=Pipe<Circle> template=Pipe arguments=(Circle)
 /// @generic.instance id=Pipe<Shape> template=Pipe arguments=(Shape)
@@ -944,8 +966,13 @@ extension<T> of Stack<T> {
 
         this.items = [value];
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Stack<T#2>
-        /// @resolution.pattern.assign source=this.items kind=place place=field(Stack.items) type=Array<T#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.items kind=place
+        /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=Array<T#2>), type=Array<T#2>" type=Array<T#2>
         /// @resolution.name source=value target=refill.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=refill.value
 
     }
 }
@@ -962,6 +989,8 @@ const widened: Stack<Shape> = circles;
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
 
 /// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
 /// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
@@ -1058,8 +1087,13 @@ extension<T> of Stack<T> {
 
         this.items = [value];
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Stack<T#2>
-        /// @resolution.pattern.assign source=this.items kind=place place=field(Stack.items) type=Array<T#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.items kind=place
+        /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=Array<T#2>), type=Array<T#2>" type=Array<T#2>
         /// @resolution.name source=value target=refill.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=refill.value
 
     }
 }
@@ -1076,6 +1110,8 @@ const view: readonly Stack<Shape> = circles;
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
 
 /// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
 /// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
@@ -1153,8 +1189,13 @@ class Bag<T> {
 
         this.items = [value];
         /// @resolution.receiver source=this kind=this declaration=Bag type=Bag<T>
-        /// @resolution.pattern.assign source=this.items kind=place place=field(Bag.items) type=Array<T>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.items kind=place
+        /// @resolution.assignment source=this.items write="receiver=Bag<T>, target=field(receiver=Bag<T>, target=Bag.items, type=Array<T>), type=Array<T>" type=Array<T>
         /// @resolution.name source=value target=Bag.refill.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Bag.refill.value
 
     }
 }
@@ -1171,6 +1212,8 @@ const view: readonly Bag<Shape> = circles;
 /// @resolution.name source=Bag target=Bag
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
 
 /// @generic.instance id=Bag<Circle> template=Bag arguments=(Circle)
 /// @generic.instance id=Bag<Shape> template=Bag arguments=(Shape)
@@ -1239,6 +1282,8 @@ const widened: Handle<Shape> = handle;
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=handle target=handle
+/// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handle root=handle
 
 /// @generic.instance id=Handle<Circle> template=Handle arguments=(Circle)
 /// @generic.instance id=Handle<Shape> template=Handle arguments=(Shape)
@@ -1311,6 +1356,8 @@ const either: Handle<Circle | Square> = handle;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=handle target=handle
+/// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handle root=handle
 
 /// @generic.instance id="Handle<Circle | Square>" template=Handle arguments=(Circle | Square)
 /// @generic.instance id=Handle<Circle> template=Handle arguments=(Circle)
@@ -1382,6 +1429,8 @@ const widened: Managed<Handle<Shape>> = handle;
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=handle target=handle
+/// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handle root=handle
 
 /// @generic.instance id=Handle<Circle> template=Handle arguments=(Circle)
 /// @generic.instance id=Handle<Shape> template=Handle arguments=(Shape)
@@ -1475,6 +1524,8 @@ const view: &readonly Holder<Shape> = &readonly holder;
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=holder target=holder
+/// @resolution.place source=holder placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=holder root=holder
 
 const either: &readonly Holder<Circle | Square> = &readonly holder;
 /// @type.symbol symbol=either source=either type=&'static readonly Holder<Circle | Square>
@@ -1483,13 +1534,15 @@ const either: &readonly Holder<Circle | Square> = &readonly holder;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=holder target=holder
+/// @resolution.place source=holder placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=holder root=holder
 
 /// @generic.instance id="Holder<Circle | Square>" template=Holder arguments=(Circle | Square)
 /// @generic.instance id=Holder<Circle> template=Holder arguments=(Circle)
 /// @generic.instance id=Holder<Shape> template=Holder arguments=(Shape)
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&readonly Holder<Circle>' is not assignable to type '&'static readonly Holder<Circle | Square>'"
+/// @diagnostic.error id=not-assignable message="type '&'static readonly Holder<Circle>' is not assignable to type '&'static readonly Holder<Circle | Square>'"
 /// @diagnostic.label line=12 column=51 span="&readonly holder" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;"
 /// @diagnostic.related line=12 column=15 span="&" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Circle | Square', found 'Circle'"

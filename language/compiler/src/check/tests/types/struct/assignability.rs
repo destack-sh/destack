@@ -282,6 +282,7 @@ interface Base<in out T> {}
 /// @generic.template symbol=Base parameters=(in out T)
 /// @type.symbol symbol=Base source="interface Base<in out T> {}" type=Base
 /// @definition.interface symbol=Base source="interface Base<in out T> {}" template=(in out T)
+/// @definition.where symbol=Base source="interface Base<in out T> {}" relation=satisfies left=this right=Base<T>
 /// @type.symbol symbol=Base.T source="in out T" type=T
 
 interface Left extends Base<string> {}

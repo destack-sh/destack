@@ -655,7 +655,7 @@ impl BodyState<'_, '_> {
         };
 
         let return_type = function.return_type.or(Some(target));
-        let carried = substitution.bindings.clone();
+        let carried = self.settled_argument_bindings(&substitution.bindings)?;
         self.match_signature(
             origin,
             module,

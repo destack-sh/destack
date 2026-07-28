@@ -3,8 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckState, InterfaceMember, MemberCandidate, MemberLookup, MemberRole,
-    ObligationCheck,
+    Answer, CheckState, InterfaceMember, MemberCandidate, MemberLookup, ObligationCheck,
     ObligationFailure, Origin, Relation, TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
@@ -48,6 +47,27 @@ impl CheckState<'_> {
         for declared in implementations {
             let heritage = declared.interface;
             let (interface_module, interface) = self.require_nominal_application(heritage.ty)?;
+
+            // declared members prove the contract; selection below only
+            //  records the declarations behind each requirement
+            let conforms = answer!(self.conform_declared_implementation(
+                origin,
+                heritage.ty,
+                target,
+                &members,
+                interface_module,
+                &interface,
+            )?);
+            if !conforms {
+                failures.push(ObligationFailure::InterfaceNotImplemented {
+                    source: heritage.source,
+                    ty: target,
+                    interface: heritage.ty,
+                });
+                continue;
+            }
+
+            let instantiation = TypeSubstitution::default().with_receiver(target);
             let implementation = answer!(self.select_interface_implementation(
                 origin,
                 symbol,
@@ -55,12 +75,15 @@ impl CheckState<'_> {
                 heritage.ty,
                 target,
                 &members,
+                &instantiation,
                 interface_module,
                 &interface,
             )?);
             match implementation {
                 Ok(implementation) => selected.push(implementation),
-                Err(failure) => failures.push(failure),
+                Err(failure) => {
+                    failures.push(failure);
+                }
             }
         }
         self.commit_interface_implementations(symbol, selected)?;
@@ -182,6 +205,120 @@ impl CheckState<'_> {
             .is_none()
     }
 
+    /// Decide whether declared members conform to one applied interface.
+    fn conform_declared_implementation(
+        &mut self,
+        origin: Origin,
+        implementation: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        members: &[dir::DefinitionMember],
+        interface_module: ModuleId,
+        interface: &dir::GenericApplication,
+    ) -> CompilerResult<Answer<bool>> {
+        let Some(definition @ dir::Definition::Interface(_)) = self.definition(interface.symbol)?
+        else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "implementation target has no interface definition: {:?}",
+                    interface.symbol,
+                ),
+            });
+        };
+        let interface_members = definition.members().to_vec();
+
+        // the refined receiver resolves this-projections through the
+        //  declared associated types before any record commits
+        let instantiation = TypeSubstitution::default().with_receiver(target);
+        let Some((_, receiver)) = answer!(self.instantiate_implemented_interface(
+            origin,
+            implementation,
+            target,
+            members,
+            &instantiation,
+            interface_module,
+            interface,
+            &interface_members,
+        )?) else {
+            return Ok(Answer::Ready(false));
+        };
+        let interface_substitution =
+            self.qualified_instance_substitution(interface_module, interface, receiver)?;
+        let requirements = answer!(self.interface_requirements_with_substitution(
+            origin,
+            interface.symbol,
+            &interface_substitution,
+        )?);
+        let substitution = TypeSubstitution::default().with_receiver(receiver);
+
+        // any declared overload may satisfy each named requirement
+        for requirement in requirements.members {
+            let mut candidates = SmallVec::<[_; 2]>::new();
+            for member in members {
+                let member = match self.body().declared_member(member)? {
+                    Answer::Ready(Some(member)) => member,
+                    Answer::Ready(None) => continue,
+                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                };
+                if member.matches(requirement.space, requirement.key) {
+                    candidates.push(member);
+                }
+            }
+            if candidates.is_empty() {
+                if requirement.has_default || requirement.is_optional {
+                    continue;
+                }
+
+                return Ok(Answer::Ready(false));
+            }
+
+            // abstract associated requirements satisfy by presence
+            let Some(required) = requirement.ty else {
+                continue;
+            };
+
+            let mut satisfied = false;
+            for candidate in candidates {
+                let Some(found) = candidate.ty else {
+                    continue;
+                };
+                let found = self.substitute_type(origin.module(), found, &substitution)?;
+                let decision = self.decide_member_relation(
+                    origin,
+                    Relation::Assignable,
+                    requirement.role,
+                    found,
+                    required,
+                )?;
+                if answer!(decision) {
+                    satisfied = true;
+                    break;
+                }
+            }
+            if !satisfied {
+                return Ok(Answer::Ready(false));
+            }
+        }
+
+        // inherited interfaces conform through the same declared members
+        for application in requirements.inherited {
+            let (application_module, application_instance) =
+                self.require_nominal_application(application.ty)?;
+            let inherited = answer!(self.conform_declared_implementation(
+                origin,
+                application.ty,
+                target,
+                members,
+                application_module,
+                &application_instance,
+            )?);
+            if !inherited {
+                return Ok(Answer::Ready(false));
+            }
+        }
+
+        Ok(Answer::Ready(true))
+    }
+
     /// Select one declaration's implementation of an applied interface.
     pub(in crate::check) fn select_interface_implementation(
         &mut self,
@@ -191,6 +328,7 @@ impl CheckState<'_> {
         declared_interface: dir::GlobalTypeId,
         implementer_type: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
+        instantiation: &TypeSubstitution,
         interface_module: ModuleId,
         interface: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Result<dir::InterfaceImplementation, ObligationFailure>>> {
@@ -211,6 +349,7 @@ impl CheckState<'_> {
             declared_interface,
             implementer_type,
             members,
+            instantiation,
             interface_module,
             interface,
             &interface_members,
@@ -264,20 +403,34 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(Err(failure)));
             }
 
-            let declarations = answer!(self.interface_member_implementations(
-                origin,
-                &candidates,
-                &interface_member,
-            )?);
-            let Some(declarations) = declarations else {
-                let failure = ObligationFailure::InterfaceNotImplemented {
-                    source,
-                    ty: implementer_type,
-                    interface: declared_interface,
-                };
+            // overloads select in declaration order, first conforming wins
+            let mut chosen = None;
+            if candidates.len() > 1 && let Some(required) = interface_member.ty {
+                for candidate in &candidates {
+                    let found = candidate.callable.unwrap_or(candidate.access_type);
+                    let conforms = self.decide_member_relation(
+                        origin,
+                        Relation::Assignable,
+                        interface_member.role,
+                        found,
+                        required,
+                    )?;
+                    if answer!(conforms) {
+                        chosen = Some(candidate.symbol);
+                        break;
+                    }
+                }
+            }
 
-                return Ok(Answer::Ready(Err(failure)));
-            };
+            let mut declarations = Vec::with_capacity(candidates.len());
+            match chosen {
+                Some(symbol) => declarations.push(self.symbol_source(symbol)?),
+                None => {
+                    for candidate in &candidates {
+                        declarations.push(self.symbol_source(candidate.symbol)?);
+                    }
+                }
+            }
             selected.push(dir::InterfaceMemberImplementation {
                 requirement: interface_member.source,
                 declarations,
@@ -295,6 +448,7 @@ impl CheckState<'_> {
                 declared_interface,
                 implementer_type,
                 members,
+                instantiation,
                 application_module,
                 &application_instance,
             )?);
@@ -384,6 +538,7 @@ impl CheckState<'_> {
         implementation: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
+        instantiation: &TypeSubstitution,
         interface_module: ModuleId,
         interface: &dir::GenericApplication,
         interface_members: &[dir::DefinitionMember],
@@ -410,14 +565,18 @@ impl CheckState<'_> {
                 _ => None,
             });
             let declared = declared
+                .map(|value| self.substitute_type(origin.module(), value, instantiation))
+                .transpose()?
                 .map(|value| self.substitute_type(origin.module(), value, &receiver_substitution))
                 .transpose()?;
 
-            // two authored bindings must denote the same type
-            if let (Some(written), Some(declared)) = (written, declared)
-                && !answer!(self.decide_equal(origin, written, declared)?)
-            {
-                return Ok(Answer::Ready(None));
+            // two authored bindings must denote the same reduced type
+            if let (Some(written), Some(declared)) = (written, declared) {
+                let written = answer!(self.reduce_type(origin, written)?);
+                let reduced = answer!(self.reduce_type(origin, declared)?);
+                if !answer!(self.decide_equal(origin, written, reduced)?) {
+                    return Ok(Answer::Ready(None));
+                }
             }
 
             // explicit bindings override an interface default
@@ -623,48 +782,4 @@ impl CheckState<'_> {
 
         source.local_id.id > other_source.local_id.id
     }
-    /// Select the candidate declarations implementing one interface member.
-    fn interface_member_implementations(
-        &mut self,
-        origin: Origin,
-        candidates: &[MemberCandidate],
-        requirement: &InterfaceMember,
-    ) -> CompilerResult<Answer<Option<Vec<dir::GlobalNodeIdAny>>>> {
-        // abstract associated members satisfy by presence
-        let Some(member_type) = requirement.ty else {
-            let mut declarations = Vec::new();
-            for candidate in candidates {
-                declarations.push(self.symbol_source(candidate.symbol)?);
-            }
-
-            return Ok(Answer::Ready(
-                (!declarations.is_empty()).then_some(declarations),
-            ));
-        };
-
-        let mut declarations = Vec::new();
-        for candidate in candidates {
-            let found = candidate.callable.unwrap_or(candidate.access_type);
-            let conforms = match requirement.role {
-                // setters accept writes flowing back into the implementation
-                MemberRole::Setter => {
-                    self.decide_relation(origin, Relation::Assignable, member_type, found)?
-                }
-                role if role.is_callable() => {
-                    self.decide_method_relation(origin, Relation::Assignable, found, member_type)?
-                }
-                _ => self.decide_relation(origin, Relation::Assignable, found, member_type)?,
-            };
-            match conforms {
-                Answer::Ready(true) => declarations.push(self.symbol_source(candidate.symbol)?),
-                Answer::Ready(false) => {}
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-            }
-        }
-
-        Ok(Answer::Ready(
-            (!declarations.is_empty()).then_some(declarations),
-        ))
-    }
-
 }

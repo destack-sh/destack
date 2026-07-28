@@ -80,8 +80,12 @@ async function double(): Promise<int32> {
 
     return count + count;
     /// @resolution.name source=count target=double.count
-    /// @resolution.operator source="count + count" kind=builtin
+    /// @resolution.operator source="count + count" type=int32 operator="+" kind=builtin operands=[count as int32 families=(integer), count as int32 families=(integer)]
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=double.count
     /// @resolution.name source=count target=double.count
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=double.count
 
 }
 
@@ -119,13 +123,21 @@ function* count(limit: int32): Generator<int32, void, void> {
     /// @type.symbol symbol=count.value source=value type=int32
     /// @resolution.pattern source=value kind=binding target=count.value
     /// @resolution.name source=value target=count.value
-    /// @resolution.operator source="value < limit" kind=builtin
+    /// @resolution.operator source="value < limit" type=boolean operator="<" kind=builtin operands=[value as int32 families=(integer), limit as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=count.value
     /// @resolution.name source=limit target=count.limit
-    /// @resolution.operator source="value += 1" kind=builtin
-    /// @resolution.pattern.assign source=value kind=place place=binding(count.value) type=int32
+    /// @resolution.place source=limit placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=limit root=count.limit
+    /// @resolution.operator source="value += 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
+    /// @resolution.pattern.assign source=value kind=place
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.assignment source=value read=binding(count.value) write=binding(count.value) type=int32
 
         yield value;
         /// @resolution.name source=value target=count.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=count.value
 
     }
 }
@@ -191,13 +203,19 @@ async function sum(): Promise<int32> {
     /// @resolution.call source=stream() parameters=() return=AsyncGenerator<int32, void, void> kind=symbol target=stream
 
         total += value;
-        /// @resolution.pattern.assign source=total kind=place place=binding(sum.total) type=int32
+        /// @resolution.pattern.assign source=total kind=place
+        /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.assignment source=total read=binding(sum.total) write=binding(sum.total) type=int32
         /// @resolution.name source=value target=sum.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=sum.value
 
     }
 
     return total;
     /// @resolution.name source=total target=sum.total
+    /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=total root=sum.total
 
 }
 
@@ -206,5 +224,8 @@ async function sum(): Promise<int32> {
 "#, r#"
 /// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
 /// @diagnostic.label line=8 column=5 span="for await (const value of stream()) {\n        total += value;\n    }" line_source="for await (const value of stream()) {"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=8 column=5 span="for await (const value of stream()) {\n        total += value;\n    }" line_source="for await (const value of stream()) {"
+/// @diagnostic.help message="annotate the type explicitly"
 "#);
 }

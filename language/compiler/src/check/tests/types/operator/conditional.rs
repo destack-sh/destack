@@ -290,8 +290,8 @@ newtype Vector<T, comptime N: int> = intrinsic;
 
 type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 /// @generic.template symbol=LaneCount parameters=(V)
-/// @type.symbol symbol=LaneCount source="type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never" type=V extends Vector<infer T, infer N extends int64> ? LaneCount.N : never
-/// @definition.type symbol=LaneCount source="type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never" template=(V) value=V extends Vector<infer T, infer N extends int64> ? LaneCount.N : never
+/// @type.symbol symbol=LaneCount source="type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never" type=V extends Vector<infer T, infer N> ? LaneCount.N : never
+/// @definition.type symbol=LaneCount source="type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never" template=(V) value=V extends Vector<infer T, infer N> ? LaneCount.N : never
 /// @type.symbol symbol=LaneCount.V source=V type=V
 /// @resolution.name source=V target=LaneCount.V
 /// @resolution.name source=Vector target=Vector
@@ -309,7 +309,7 @@ declare const count: Count;
 /// @resolution.name source=Count target=Count
 
 /// @generic.instance id="LaneCount<Vector<string, 4>>" template=LaneCount arguments=(Vector<string, 4>)
-/// @generic.instance id="Vector<infer T, infer N extends int64>" template=Vector arguments=(infer T, infer N extends int64)
+/// @generic.instance id="Vector<infer T, infer N>" template=Vector arguments=(infer T, infer N)
 /// @generic.instance id="Vector<string, 4>" template=Vector arguments=(string, 4)
 "#,
     );

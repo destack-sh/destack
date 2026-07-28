@@ -29,11 +29,11 @@ struct Point {
 }
 
 const modulePoint: ^Point = Point { x: 1 };
-const moduleBorrow: Borrowed<Point, "static", "readonly"> = &readonly modulePoint;
+const moduleBorrow: &'static readonly Point = &readonly modulePoint;
 
 function inspectFrame(): void {
     const framePoint: ^Point = Point { x: 2 };
-    const frameBorrow: Borrowed<Point, "frame", "readonly"> = &readonly framePoint;
+    const frameBorrow: &'frame readonly Point = &readonly framePoint;
 
     moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
     frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
@@ -56,6 +56,8 @@ const moduleBorrow = &readonly modulePoint;
 /// @type.symbol symbol=moduleBorrow source=moduleBorrow type=&'static readonly Point
 /// @resolution.pattern source=moduleBorrow kind=binding target=moduleBorrow
 /// @resolution.name source=modulePoint target=modulePoint
+/// @resolution.place source=modulePoint placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=modulePoint root=modulePoint
 
 function inspectFrame(): void {
 /// @type.symbol symbol=inspectFrame type=() => void
@@ -70,14 +72,20 @@ function inspectFrame(): void {
     /// @type.symbol symbol=inspectFrame.frameBorrow source=frameBorrow type=&'frame readonly Point
     /// @resolution.pattern source=frameBorrow kind=binding target=inspectFrame.frameBorrow
     /// @resolution.name source=framePoint target=inspectFrame.framePoint
+    /// @resolution.place source=framePoint placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=framePoint root=inspectFrame.framePoint
 
     moduleBorrow satisfies local Borrowed<Point, "static", "readonly">;
     /// @resolution.name source=moduleBorrow target=moduleBorrow
+    /// @resolution.place source=moduleBorrow placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=moduleBorrow root=moduleBorrow
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Point target=Point
 
     frameBorrow satisfies local Borrowed<Point, "frame", "readonly">;
     /// @resolution.name source=frameBorrow target=inspectFrame.frameBorrow
+    /// @resolution.place source=frameBorrow placement="local" lifetime="frame" access="readonly"
+    /// @resolution.access source=frameBorrow root=inspectFrame.frameBorrow
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
     /// @resolution.name source=Point target=Point
 
@@ -129,6 +137,8 @@ function first(a: &Node, b: &Node): &Node {
 
     return a;
     /// @resolution.name source=a target=first.a
+    /// @resolution.place source=a placement="local" lifetime=first.'a access="mutable"
+    /// @resolution.access source=a root=first.a
 
 }
 "#,
@@ -183,8 +193,14 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
 
     return flag ? a : b;
     /// @resolution.name source=flag target=choose.flag
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=flag root=choose.flag
     /// @resolution.name source=a target=choose.a
+    /// @resolution.place source=a placement="local" lifetime=choose.'a access="mutable"
+    /// @resolution.access source=a root=choose.a
     /// @resolution.name source=b target=choose.b
+    /// @resolution.place source=b placement="local" lifetime=choose.'b access="mutable"
+    /// @resolution.access source=b root=choose.b
 
 }
 "#,
@@ -476,7 +492,7 @@ type Options<'a> = {
 function log<'a>(options?: Options<'a>): void {}
 
 function warn(count?: int32, cause?: Dynamic<unknown>): void {
-    log({ count, error: cause as unknown } as Options<"frame"> | undefined);
+    log({ count, error: cause as Dynamic<unknown> } as Options<"frame"> | undefined);
 }
 
 === checked ===
@@ -492,12 +508,12 @@ type Options = {
 
 function log(options?: Options): void {}
 /// @generic.template symbol=log parameters=('a)
-/// @type.symbol symbol=log source="function log(options?: Options): void {}" type=<log.'a>(Options<log.'a> | undefined) => void
+/// @type.symbol symbol=log source="function log(options?: Options): void {}" type=<log.'a>(Options<log.'a> | undefined?) => void
 /// @type.symbol symbol=log.options source="options?: Options" type=Options<log.'a> | undefined
 /// @resolution.name source=Options target=Options
 
 function warn(count?: int32, cause?: unknown): void {
-/// @type.symbol symbol=warn type=(int32 | undefined, Dynamic<unknown> | undefined) => void
+/// @type.symbol symbol=warn type=(int32 | undefined?, Dynamic<unknown> | undefined?) => void
 /// @type.symbol symbol=warn.count source="count?: int32" type=int32 | undefined
 /// @type.symbol symbol=warn.cause source="cause?: unknown" type=Dynamic<unknown> | undefined
 
@@ -505,7 +521,11 @@ function warn(count?: int32, cause?: unknown): void {
     /// @resolution.name source=log target=log
     /// @resolution.call source="log({ count, error: cause })" parameters=(Options<"frame"> | undefined) arguments=(provided({ count, error: cause }) as Options<"frame"> | undefined) return=void kind=symbol target=log
     /// @resolution.name source=count target=warn.count
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=warn.count
     /// @resolution.name source=cause target=warn.cause
+    /// @resolution.place source=cause placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=cause root=warn.cause
 
 }
 
@@ -628,6 +648,8 @@ struct Pong {
         r#"
 /// @diagnostic.error id=circular-lifetime-induction message="cyclic borrowed fields between 'Ping' and 'Pong' need named lifetimes"
 /// @diagnostic.label line=2 column=8 span="Ping" line_source="struct Ping {"
+/// @diagnostic.error id=circular-lifetime-induction message="cyclic borrowed fields between 'Ping' and 'Pong' need named lifetimes"
+/// @diagnostic.label line=2 column=8 span="Ping" line_source="struct Ping {"
 "#,
     );
 }
@@ -706,11 +728,19 @@ function inspect(user: &readonly User): int32 {
     /// @resolution.name source=View target=View
     /// @resolution.name source=View target=View
     /// @resolution.name source=user target=inspect.user
+    /// @resolution.place source=user placement="local" lifetime=inspect.'a access="readonly"
+    /// @resolution.access source=user root=inspect.user
 
     return view.user.id;
     /// @resolution.name source=view target=inspect.view
-    /// @resolution.member source=view.user receiver=View<inspect.'a> kind=symbol target=View.user
-    /// @resolution.member source=view.user.id receiver=&inspect.'a readonly User kind=symbol target=User.id
+    /// @resolution.member source=view.user receiver=View<inspect.'a> type=&inspect.'a readonly User kind=field target_receiver=View<inspect.'a> key=user target=View.user target_type=&inspect.'a readonly User
+    /// @resolution.member source=view.user.id receiver=&inspect.'a readonly User type=int32 kind=field target_receiver=&inspect.'a readonly User key=id target=User.id target_type=int32
+    /// @resolution.place source=view placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=view root=inspect.view
+    /// @resolution.place source=view.user placement="local" lifetime=inspect.'a access="readonly"
+    /// @resolution.access source=view.user root=inspect.view keys=[user]
+    /// @resolution.place source=view.user.id placement="local" lifetime=inspect.'a access="readonly"
+    /// @resolution.access source=view.user.id root=inspect.view keys=[user, id]
 
 }
 
@@ -765,6 +795,8 @@ function first<'a>(a: &'a Node, b: &Node): &'a Node {
 
     return a;
     /// @resolution.name source=a target=first.a
+    /// @resolution.place source=a placement="local" lifetime='a access="mutable"
+    /// @resolution.access source=a root=first.a
 
 }
 "#,

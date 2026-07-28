@@ -219,6 +219,7 @@ interface Base<T> {
 /// @generic.template symbol=Base parameters=(out T)
 /// @type.symbol symbol=Base type=Base
 /// @definition.interface symbol=Base template=(out T)
+/// @definition.where symbol=Base relation=satisfies left=this right=Base<T>
 /// @definition.method symbol=Base.value source="value(): T" slot=value type=(this: this) => T
 /// @type.symbol symbol=Base.T source=T type=T
 
@@ -286,10 +287,10 @@ interface Right extends Left {}
 /// @resolution.name source=Left target=Left
 "#,
         r#"
-/// @diagnostic.error id=circular-heritage message="type 'Left' has circular heritage"
-/// @diagnostic.label line=2 column=24 span="Right" line_source="interface Left extends Right {}"
 /// @diagnostic.error id=circular-heritage message="type 'Right' has circular heritage"
 /// @diagnostic.label line=3 column=25 span="Left" line_source="interface Right extends Left {}"
+/// @diagnostic.error id=circular-heritage message="type 'Left' has circular heritage"
+/// @diagnostic.label line=2 column=24 span="Right" line_source="interface Left extends Right {}"
 "#,
     );
 }

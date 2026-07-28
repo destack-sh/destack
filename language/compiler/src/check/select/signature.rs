@@ -700,7 +700,7 @@ impl BodyState<'_, '_> {
                 is_rest: parameter.is_rest,
             });
         }
-        let arguments = substitution.bindings.clone();
+        let arguments = self.settled_argument_bindings(&substitution.bindings)?;
         let function_type = answer!(self.instantiate_signature_type(
             origin,
             signature_module,

@@ -27,8 +27,8 @@ class User {}
 declare const localUser: local User;
 declare const sharedUser: shared User;
 
-const localView: local Borrowed<User, "static", "readonly"> = &readonly localUser;
-const sharedView: shared Borrowed<User, "static", "readonly"> = &readonly sharedUser;
+const localView: local &'static readonly User = &readonly localUser;
+const sharedView: shared &'static readonly User = &readonly sharedUser;
 
 localView satisfies local &readonly User;
 sharedView satisfies shared &readonly User;
@@ -53,21 +53,29 @@ const localView = &readonly localUser;
 /// @resolution.pattern source=localView kind=binding target=localView
 /// @type.node source="&readonly localUser" type=Placed<&'static readonly User, "local">
 /// @resolution.name source=localUser target=localUser
+/// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localUser root=localUser
 
 const sharedView = &readonly sharedUser;
 /// @type.symbol symbol=sharedView source=sharedView type=Placed<&'static readonly User, "shared">
 /// @resolution.pattern source=sharedView kind=binding target=sharedView
 /// @type.node source="&readonly sharedUser" type=Placed<&'static readonly User, "shared">
 /// @resolution.name source=sharedUser target=sharedUser
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedUser root=sharedUser
 
 localView satisfies local &readonly User;
 /// @type.node source="localView satisfies local &readonly User" type=Placed<&'static readonly User, "local">
 /// @resolution.name source=localView target=localView
+/// @resolution.place source=localView placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=localView root=localView
 /// @resolution.name source=User target=User
 
 sharedView satisfies shared &readonly User;
 /// @type.node source="sharedView satisfies shared &readonly User" type=Placed<&'static readonly User, "shared">
 /// @resolution.name source=sharedView target=sharedView
+/// @resolution.place source=sharedView placement="shared" lifetime="static" access="readonly"
+/// @resolution.access source=sharedView root=sharedView
 /// @resolution.name source=User target=User
 "#,
     );
@@ -95,7 +103,7 @@ class User {}
 
 declare const user: local User;
 
-const projected: local Borrowed<User, "static", "readonly"> = &readonly user;
+const projected: local &'static readonly User = &readonly user;
 const coerced: local &'static readonly User = user as local &readonly User;
 
 === checked ===
@@ -113,12 +121,16 @@ const projected = &readonly user;
 /// @resolution.pattern source=projected kind=binding target=projected
 /// @type.node source="&readonly user" type=Placed<&'static readonly User, "local">
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 
 const coerced = user as local &readonly User;
 /// @type.symbol symbol=coerced source=coerced type=Placed<&'static readonly User, "local">
 /// @resolution.pattern source=coerced kind=binding target=coerced
 /// @type.node source="user as local &readonly User" type=Placed<&'static readonly User, "local">
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 /// @resolution.name source=User target=User
 "#,
     );
@@ -149,9 +161,9 @@ class User {}
 declare const sharedUser: shared User;
 declare const readonlyUser: local readonly User;
 
-const sharedExclusive: shared Borrowed<User, "static", "exclusive"> = &exclusive sharedUser;
-const readonlyMutable: local Borrowed<User, "static", "readonly"> = &readonlyUser;
-const readonlyExclusive: local Borrowed<User, "static", "readonly"> = &exclusive readonlyUser;
+const sharedExclusive: shared &'static exclusive User = &exclusive sharedUser;
+const readonlyMutable: local &'static readonly User = &readonlyUser;
+const readonlyExclusive: local &'static readonly User = &exclusive readonlyUser;
 
 === checked ===
 class User {}
@@ -172,16 +184,22 @@ const sharedExclusive = &exclusive sharedUser;
 /// @type.symbol symbol=sharedExclusive source=sharedExclusive type=Placed<&'static exclusive User, "shared">
 /// @resolution.pattern source=sharedExclusive kind=binding target=sharedExclusive
 /// @resolution.name source=sharedUser target=sharedUser
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=sharedUser root=sharedUser
 
 const readonlyMutable = &readonlyUser;
 /// @type.symbol symbol=readonlyMutable source=readonlyMutable type=Placed<&'static readonly User, "local">
 /// @resolution.pattern source=readonlyMutable kind=binding target=readonlyMutable
 /// @resolution.name source=readonlyUser target=readonlyUser
+/// @resolution.place source=readonlyUser placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=readonlyUser root=readonlyUser
 
 const readonlyExclusive = &exclusive readonlyUser;
 /// @type.symbol symbol=readonlyExclusive source=readonlyExclusive type=Placed<&'static readonly User, "local">
 /// @resolution.pattern source=readonlyExclusive kind=binding target=readonlyExclusive
 /// @resolution.name source=readonlyUser target=readonlyUser
+/// @resolution.place source=readonlyUser placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=readonlyUser root=readonlyUser
 "#,
         r#"
 /// @diagnostic.error id=borrow-access-not-granted message="'exclusive' access is not granted by a value of type 'shared User'"
@@ -261,6 +279,8 @@ inspect(&user);
 /// @resolution.call source=inspect(&user) parameters=(Placed<&'static readonly User, "local">) arguments=(provided(&user) as Placed<&'static readonly User, "local">) return=void kind=symbol target=inspect
 /// @type.node source=&user type=Placed<&'static User, "local">
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 
 modify(&user);
 /// @type.node source=modify(&user) type=void
@@ -268,6 +288,8 @@ modify(&user);
 /// @resolution.call source=modify(&user) parameters=(Placed<&'static User, "local">) arguments=(provided(&user) as Placed<&'static User, "local">) return=void kind=symbol target=modify
 /// @type.node source=&user type=Placed<&'static User, "local">
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 
 inspect(&exclusive user);
 /// @type.node source="inspect(&exclusive user)" type=void
@@ -275,6 +297,8 @@ inspect(&exclusive user);
 /// @resolution.call source="inspect(&exclusive user)" parameters=(Placed<&'static readonly User, "local">) arguments=(provided(&exclusive user) as Placed<&'static readonly User, "local">) return=void kind=symbol target=inspect
 /// @type.node source="&exclusive user" type=Placed<&'static exclusive User, "local">
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 
 modify(&exclusive user);
 /// @type.node source="modify(&exclusive user)" type=void
@@ -282,6 +306,8 @@ modify(&exclusive user);
 /// @resolution.call source="modify(&exclusive user)" parameters=(Placed<&'static User, "local">) arguments=(provided(&exclusive user) as Placed<&'static User, "local">) return=void kind=symbol target=modify
 /// @type.node source="&exclusive user" type=Placed<&'static exclusive User, "local">
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 "#,
     );
 }
@@ -350,27 +376,36 @@ modify(readonlyView);
 /// @resolution.name source=modify target=modify
 /// @resolution.call source=modify(readonlyView) parameters=(Placed<&'static User, "local">) arguments=(provided(readonlyView) as Placed<&'static User, "local">) return=void kind=symbol target=modify
 /// @resolution.name source=readonlyView target=readonlyView
+/// @resolution.place source=readonlyView placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=readonlyView root=readonlyView
 
 replace(readonlyView);
 /// @resolution.name source=replace target=replace
 /// @resolution.call source=replace(readonlyView) parameters=(Placed<&'static exclusive User, "local">) arguments=(provided(readonlyView) as Placed<&'static exclusive User, "local">) return=void kind=symbol target=replace
 /// @resolution.name source=readonlyView target=readonlyView
+/// @resolution.place source=readonlyView placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=readonlyView root=readonlyView
 
 replace(mutableView);
 /// @resolution.name source=replace target=replace
 /// @resolution.call source=replace(mutableView) parameters=(Placed<&'static exclusive User, "local">) arguments=(provided(mutableView) as Placed<&'static exclusive User, "local">) return=void kind=symbol target=replace
 /// @resolution.name source=mutableView target=mutableView
+/// @resolution.place source=mutableView placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=mutableView root=mutableView
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'local &'static readonly User' is not assignable to parameter of type 'local &User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local &'static readonly User' is not assignable to parameter of type 'local &'static User'"
 /// @diagnostic.label line=9 column=8 span="readonlyView" line_source="modify(readonlyView);"
 /// @diagnostic.related line=9 column=1 span="modify(readonlyView)" line_source="modify(readonlyView);" message="in this call"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'local &'static readonly User' is not assignable to parameter of type 'local &exclusive User'"
+/// @diagnostic.note message="expected '&'static User', found '&'static readonly User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local &'static readonly User' is not assignable to parameter of type 'local &'static exclusive User'"
 /// @diagnostic.label line=10 column=9 span="readonlyView" line_source="replace(readonlyView);"
 /// @diagnostic.related line=10 column=1 span="replace(readonlyView)" line_source="replace(readonlyView);" message="in this call"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'local &'static User' is not assignable to parameter of type 'local &exclusive User'"
+/// @diagnostic.note message="expected '&'static exclusive User', found '&'static readonly User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local &'static User' is not assignable to parameter of type 'local &'static exclusive User'"
 /// @diagnostic.label line=11 column=9 span="mutableView" line_source="replace(mutableView);"
 /// @diagnostic.related line=11 column=1 span="replace(mutableView)" line_source="replace(mutableView);" message="in this call"
+/// @diagnostic.note message="expected '&'static exclusive User', found '&'static User'"
 "#,
     );
 }
@@ -433,15 +468,27 @@ function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node):
 
     read.id;
     /// @resolution.name source=read target=access.read
-    /// @resolution.member source=read.id receiver=&access.'a readonly Node kind=symbol target=Node.id
+    /// @resolution.member source=read.id receiver=&access.'a readonly Node type=int32 kind=field target_receiver=&access.'a readonly Node key=id target=Node.id target_type=int32
+    /// @resolution.place source=read placement="local" lifetime=access.'a access="readonly"
+    /// @resolution.access source=read root=access.read
+    /// @resolution.place source=read.id placement="local" lifetime=access.'a access="readonly"
+    /// @resolution.access source=read.id root=access.read keys=[id]
 
     write.id;
     /// @resolution.name source=write target=access.write
-    /// @resolution.member source=write.id receiver=&access.'b Node kind=symbol target=Node.id
+    /// @resolution.member source=write.id receiver=&access.'b Node type=int32 kind=field target_receiver=&access.'b Node key=id target=Node.id target_type=int32
+    /// @resolution.place source=write placement="local" lifetime=access.'b access="mutable"
+    /// @resolution.access source=write root=access.write
+    /// @resolution.place source=write.id placement="local" lifetime=access.'b access="mutable"
+    /// @resolution.access source=write.id root=access.write keys=[id]
 
     exclusive.id;
     /// @resolution.name source=exclusive target=access.exclusive
-    /// @resolution.member source=exclusive.id receiver=&access.'c exclusive Node kind=symbol target=Node.id
+    /// @resolution.member source=exclusive.id receiver=&access.'c exclusive Node type=int32 kind=field target_receiver=&access.'c exclusive Node key=id target=Node.id target_type=int32
+    /// @resolution.place source=exclusive placement="local" lifetime=access.'c access="exclusive"
+    /// @resolution.access source=exclusive root=access.exclusive
+    /// @resolution.place source=exclusive.id placement="local" lifetime=access.'c access="exclusive"
+    /// @resolution.access source=exclusive.id root=access.exclusive keys=[id]
 
 }
 "#,
@@ -474,7 +521,7 @@ struct Point {
 }
 
 let point: ^Point = Point { x: 1 };
-let x: Borrowed<int32, "static", "readonly"> = &readonly point.x;
+let x: &'static readonly int32 = &readonly point.x;
 
 x satisfies &readonly int32;
 point.x satisfies local int32;
@@ -505,19 +552,29 @@ let x = &readonly point.x;
 /// @type.node source=point type=Owned<Point> reduced=Point
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=Point kind=symbol target=Point.x
+/// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
+/// @resolution.place source=point.x placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point.x root=point keys=[x]
 
 x satisfies &readonly int32;
 /// @type.node source="x satisfies &readonly int32" type=&'static readonly int32
 /// @type.node source=x type=&'static readonly int32
 /// @resolution.name source=x target=x
+/// @resolution.place source=x placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=x root=x
 
 point.x satisfies local int32;
 /// @type.node source="point.x satisfies local int32" type=int32
 /// @type.node source=point type=Owned<Point> reduced=Point
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=Point kind=symbol target=Point.x
+/// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
+/// @resolution.place source=point.x placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point.x root=point keys=[x]
 "#,
     );
 }
@@ -539,7 +596,7 @@ borrow satisfies &readonly [int32; 3];
         r#"
 === annotated ===
 let values: [int32; 3] = [1, 2, 3];
-let borrow: Borrowed<[int32; 3], "static", "readonly"> = &readonly values;
+let borrow: &'static readonly [int32; 3] = &readonly values;
 
 borrow satisfies &readonly [int32; 3];
 
@@ -558,11 +615,15 @@ let borrow = &readonly values;
 /// @type.node source="&readonly values" type=&'static readonly FixedArray<int32, 3>
 /// @type.node source=values type=FixedArray<int32, 3>
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 
 borrow satisfies &readonly [int32; 3];
 /// @type.node source="borrow satisfies &readonly [int32; 3]" type=&'static readonly FixedArray<int32, 3>
 /// @type.node source=borrow type=&'static readonly FixedArray<int32, 3>
 /// @resolution.name source=borrow target=borrow
+/// @resolution.place source=borrow placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=borrow root=borrow
 "#,
     );
 }

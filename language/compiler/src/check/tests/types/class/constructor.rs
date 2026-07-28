@@ -99,9 +99,14 @@ class Base {
         /// @type.node source=this type=Base
         /// @type.node source=this.value type=int32
         /// @resolution.receiver source=this kind=this declaration=Base type=Base
-        /// @resolution.pattern.assign source=this.value kind=place place=field(Base.value) type=int32
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value write="receiver=Base, target=field(receiver=Base, target=Base.value, type=int32), type=int32" type=int32
         /// @type.node source=value type=int32
         /// @resolution.name source=value target=Base.constructor.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Base.constructor.value
 
     }
 }
@@ -173,9 +178,14 @@ class Counter {
         /// @type.node source=this type=Counter
         /// @type.node source=this.value type=int32
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
-        /// @resolution.pattern.assign source=this.value kind=place place=field(Counter.value) type=int32
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value write="receiver=Counter, target=field(receiver=Counter, target=Counter.value, type=int32), type=int32" type=int32
         /// @type.node source=value type=int32
         /// @resolution.name source=value target=Counter.constructor.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Counter.constructor.value
 
     }
 }
@@ -252,9 +262,14 @@ class Box {
         /// @type.node source=this type=Box
         /// @type.node source=this.value type=string | int32
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
-        /// @resolution.pattern.assign source=this.value kind=place place=field(Box.value) type=string | int32
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value write="receiver=Box, target=field(receiver=Box, target=Box.value, type=string | int32), type=string | int32" type=string | int32
         /// @type.node source=value type=string
         /// @resolution.name source=value target=Box.constructor.value#1
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Box.constructor.value#1
 
     }
 
@@ -267,9 +282,14 @@ class Box {
         /// @type.node source=this type=Box
         /// @type.node source=this.value type=string | int32
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
-        /// @resolution.pattern.assign source=this.value kind=place place=field(Box.value) type=string | int32
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value write="receiver=Box, target=field(receiver=Box, target=Box.value, type=string | int32), type=string | int32" type=string | int32
         /// @type.node source=value type=int32
         /// @resolution.name source=value target=Box.constructor.value#2
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Box.constructor.value#2
 
     }
 }
@@ -352,9 +372,14 @@ class Box {
         /// @type.node source=this type=Box
         /// @type.node source=this.value type=string | int32
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
-        /// @resolution.pattern.assign source=this.value kind=place place=field(Box.value) type=string | int32
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value write="receiver=Box, target=field(receiver=Box, target=Box.value, type=string | int32), type=string | int32" type=string | int32
         /// @type.node source=value type=string
         /// @resolution.name source=value target=Box.constructor.value#1
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Box.constructor.value#1
 
     }
 
@@ -367,9 +392,14 @@ class Box {
         /// @type.node source=this type=Box
         /// @type.node source=this.value type=string | int32
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
-        /// @resolution.pattern.assign source=this.value kind=place place=field(Box.value) type=string | int32
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value write="receiver=Box, target=field(receiver=Box, target=Box.value, type=string | int32), type=string | int32" type=string | int32
         /// @type.node source=value type=int32
         /// @resolution.name source=value target=Box.constructor.value#2
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Box.constructor.value#2
 
     }
 }

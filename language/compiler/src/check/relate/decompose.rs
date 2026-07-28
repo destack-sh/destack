@@ -395,6 +395,10 @@ impl CheckState<'_> {
         pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<Answer<bool>> {
         for (pattern, actual) in pairs.iter().copied() {
+            // matching binds parameters; assignability judges the rest later
+            if !self.type_flags(pattern)?.has_parameter() {
+                continue;
+            }
             if !answer!(self.match_generic_type(
                 origin,
                 parameters,
@@ -474,6 +478,29 @@ impl CheckState<'_> {
                 pattern_elements,
                 actual_elements,
             );
+        }
+
+        // a union actual binds through whichever arm the pattern matches
+        if !matches!(pattern_type, dir::Type::Union(_))
+            && let dir::Type::Union(actual_union) = actual_type
+        {
+            let arms =
+                SmallVec::<[_; 4]>::from_slice(self.type_ids(actual.module_id, actual_union.elements)?);
+            let mut blockers = SmallVec::<[Dependency; 2]>::new();
+            for arm in arms {
+                let mut scratch = substitution.clone();
+                match self.match_generic_type(origin, parameters, &mut scratch, pattern, arm)? {
+                    Answer::Ready(true) => {
+                        *substitution = scratch;
+
+                        return Ok(Answer::Ready(true));
+                    }
+                    Answer::Ready(false) => {}
+                    Answer::Pending(pending) => blockers.extend(pending),
+                }
+            }
+
+            return Ok(Answer::ready_unless_blocked(false, blockers));
         }
 
         // decompose fixed slots beneath one shared constructor

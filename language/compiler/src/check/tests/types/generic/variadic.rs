@@ -101,6 +101,8 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
         /// @resolution.name source=T target=T
         /// @resolution.name source=Axes target=Axes
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Grid<T#3, Sharding<Axes#3>>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
 
     }
 }
@@ -208,6 +210,7 @@ extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
         /// @resolution.name source=T target=T
         /// @resolution.name source=Xs target=Xs
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=sharding.Grid<T#2, sharding.Wrap<Xs#2>>
+        /// @resolution.access source=this root=this
 
     }
 }
@@ -217,6 +220,7 @@ extension<T, comptime ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'Array<sharding.Axis>'"
 /// @diagnostic.label line=11 column=16 span="mesh<T, ...Xs>(this)" line_source="return mesh<T, ...Xs>(this);"
+/// @diagnostic.related line=4 column=29 span="Xs" line_source="declare function mesh<T, ...Xs: Axis[]>(" message="required by this bound on 'Xs'"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'sharding.Marker'"
 /// @diagnostic.label line=5 column=37 span="Xs" line_source="grid: &readonly Grid<T, Wrap<...Xs>>,"
 /// @diagnostic.related file="sharding.ds" line=6 column=33 span="Xs" line_source="export newtype Wrap<comptime ...Xs: Marker> = intrinsic;" message="required by this bound on 'Xs'"

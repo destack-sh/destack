@@ -51,19 +51,29 @@ function read(bag: Bag): int32 | undefined {
     /// @type.symbol symbol=read.x source=x type=int32 | undefined
     /// @resolution.pattern source=x kind=binding target=read.x
     /// @resolution.name source=bag target=read.bag
-    /// @resolution.member source="bag[\"x\"]" receiver={ readonly [key: string]: int32 } kind=index key=string
+    /// @resolution.access source="bag[\"x\"]" root=read.bag keys=[x]
+    /// @resolution.subscript source="bag[\"x\"]" type=int32 | undefined kind=member target="receiver={ readonly [key: string]: int32 }, target=index(string), type=int32 | undefined"
+    /// @resolution.place source=bag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=bag root=read.bag
 
     const missing = bag["missing"];
     /// @type.symbol symbol=read.missing source=missing type=int32 | undefined
     /// @resolution.pattern source=missing kind=binding target=read.missing
     /// @resolution.name source=bag target=read.bag
-    /// @resolution.member source="bag[\"missing\"]" receiver={ readonly [key: string]: int32 } kind=index key=string
+    /// @resolution.access source="bag[\"missing\"]" root=read.bag keys=[missing]
+    /// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver={ readonly [key: string]: int32 }, target=index(string), type=int32 | undefined"
+    /// @resolution.place source=bag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=bag root=read.bag
 
     missing satisfies int32 | undefined;
     /// @resolution.name source=missing target=read.missing
+    /// @resolution.place source=missing placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=missing root=read.missing
 
     return x;
     /// @resolution.name source=x target=read.x
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=read.x
 
 }
 
@@ -77,9 +87,13 @@ const x = read(point);
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 
 x satisfies int32 | undefined;
 /// @resolution.name source=x target=x#2
+/// @resolution.place source=x placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=x root=x#2
 "#,
     );
 }
@@ -129,6 +143,8 @@ const value = read(mixed);
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(mixed) parameters=(Bag) arguments=(provided(mixed) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=mixed target=mixed
+/// @resolution.place source=mixed placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=mixed root=mixed
 "#,
         r#"
 /// @diagnostic.error id=argument-not-assignable message="argument of type '{ x: int32; y: string }' is not assignable to parameter of type 'Bag'"
@@ -174,6 +190,8 @@ const missing = checked["missing"];
 /// @type.symbol symbol=missing source=missing type=<error>
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=checked target=checked
+/// @resolution.place source=checked placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=checked root=checked
 "#,
         r#"
 /// @diagnostic.error id=no-matching-operator message="operator '[]' is not defined for '{ x: 1 }' and '\"missing\"'"
@@ -227,12 +245,13 @@ const bad = write(point);
 /// @resolution.name source=write target=write
 /// @resolution.call source=write(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=write
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '{ x: int32; y: int32 }' is not assignable to parameter of type 'Bag'"
+/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32; y: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
 /// @diagnostic.label line=7 column=19 span="point" line_source="const bad = write(point);"
 /// @diagnostic.related line=7 column=13 span="write(point)" line_source="const bad = write(point);" message="in this call"
-/// @diagnostic.note message="'Bag' reduces to '{ [key: string]: int32 }'"
 "#,
     );
 }
@@ -284,11 +303,18 @@ function write(bag: Bag): int32 | undefined {
 
     bag["x"] = 1;
     /// @resolution.name source=bag target=write.bag
-    /// @resolution.pattern.assign source="bag[\"x\"]" kind=place place=subscript(member(index(string))) type=int32
+    /// @resolution.pattern.assign source="bag[\"x\"]" kind=place
+    /// @resolution.assignment source="bag[\"x\"]" write="member(receiver=Bag, target=index(string), type=int32)" type=int32
+    /// @resolution.place source=bag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=bag root=write.bag
 
     return bag["x"];
     /// @resolution.name source=bag target=write.bag
-    /// @resolution.member source="bag[\"x\"]" receiver={ [key: string]: int32 } kind=index key=string
+    /// @resolution.place source="bag[\"x\"]" placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source="bag[\"x\"]" root=write.bag keys=[x]
+    /// @resolution.subscript source="bag[\"x\"]" type=int32 | undefined kind=member target="receiver={ [key: string]: int32 }, target=index(string), type=int32 | undefined"
+    /// @resolution.place source=bag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=bag root=write.bag
 
 }
 
@@ -303,9 +329,13 @@ const value = write(map);
 /// @resolution.name source=write target=write
 /// @resolution.call source=write(map) parameters=(Bag) arguments=(provided(map) as Bag) return=int32 | undefined kind=symbol target=write
 /// @resolution.name source=map target=map
+/// @resolution.place source=map placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=map root=map
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
 "#,
@@ -391,11 +421,15 @@ struct Store {
 
 extension of Store implements Index<string>, IndexSet<string, int32> {
 /// @definition.extension symbol=<module>#2 form=local target=Store
-/// @definition.implements symbol=<module>#2 source="IndexSet<string, int32>" target=ops.subscript.IndexSet arguments=(string, int32)
-/// @definition.implements symbol=<module>#2 source=Index<string> target=ops.subscript.Index arguments=(string, "readonly")
+/// @definition.implements symbol=<module>#2 source="IndexSet<string, int32>" target="IndexSet<string, int32>"
+/// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\"><type Missing = never><type Output = int32 | undefined>"
 /// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
 /// @definition.method symbol=index slot=index type=(this: this, string) => this.Output
 /// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32) => void
+/// @definition.implementation symbol=<module>#2 requirement=ops.subscript.Index.Missing target=ops.subscript.Index.Missing
+/// @definition.implementation symbol=<module>#2 requirement=ops.subscript.Index.Output target=Output
+/// @definition.implementation symbol=<module>#2 requirement=ops.subscript.Index.index target=index
+/// @definition.implementation symbol=<module>#2 requirement=ops.subscript.IndexSet.indexSet target=indexSet
 /// @resolution.name source=Store target=Store
 /// @resolution.name source=Index target=ops.subscript.Index
 /// @resolution.name source=IndexSet target=ops.subscript.IndexSet
@@ -408,11 +442,17 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
     /// @type.symbol symbol=index.key source="key: string" type=string
 
         return this.storage[key];
-        /// @resolution.member source=this.storage receiver=Store kind=symbol target=Store.storage
-        /// @resolution.call source=this.storage[key] parameters=(string) arguments=(provided(key) as string) return=int32 | undefined kind=symbol target=collections.map.index receiver=Map<string, int32> instance="Map<string, int32>.<extension#3>.index"
+        /// @resolution.member source=this.storage receiver=Store type=Map<string, int32> kind=field target_receiver=Store key=storage target=Store.storage target_type=Map<string, int32>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Store
-        /// @generic.instance source=this.storage[key] id="Map<string, int32>.<extension#3>.index"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.storage placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.storage root=this keys=[storage]
+        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="collections.map.index(parameters=(string), arguments=(provided(key) as string), return=memory.type.WithAccess<&'frame int32, \"exclusive\"> | undefined)"
+        /// @generic.instance source=this.storage[key] id="Map<string, int32>.<extension#3>.index<\"exclusive\">"
         /// @resolution.name source=key target=index.key
+        /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=key root=index.key
 
     }
 
@@ -424,11 +464,20 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
     /// @type.symbol symbol=indexSet.value source="value: int32" type=int32
 
         this.storage[key] = value;
-        /// @resolution.member source=this.storage receiver=&indexSet.'a exclusive Store kind=symbol target=Store.storage
+        /// @resolution.member source=this.storage receiver=&indexSet.'a exclusive Store type=Map<string, int32> kind=field target_receiver=&indexSet.'a exclusive Store key=storage target=Store.storage target_type=Map<string, int32>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&indexSet.'a exclusive Store
-        /// @resolution.pattern.assign source=this.storage[key] kind=place place=subscript(collections.map.indexSet) type=int32
+        /// @resolution.place source=this placement="local" lifetime=indexSet.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.storage placement="local" lifetime=indexSet.'a access="exclusive"
+        /// @resolution.access source=this.storage root=this keys=[storage]
+        /// @resolution.pattern.assign source=this.storage[key] kind=place
+        /// @resolution.assignment source=this.storage[key] write="collections.map.indexSet(parameters=(string, int32), arguments=(provided(key) as string, write as int32), return=void)" type=int32
         /// @resolution.name source=key target=indexSet.key
+        /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=key root=indexSet.key
         /// @resolution.name source=value target=indexSet.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=indexSet.value
 
     }
 }
@@ -449,12 +498,16 @@ const value = write(store);
 /// @resolution.name source=write target=write
 /// @resolution.call source=write(store) parameters=(Bag) arguments=(provided(store) as Bag) return=int32 | undefined kind=symbol target=write
 /// @resolution.name source=store target=store
+/// @resolution.place source=store placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=store root=store
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
-/// @generic.instance id="Map<string, int32>.<extension#3>.index" template=collections.map.index arguments=(string, int32, string, int32)
+/// @generic.instance id="Map<string, int32>.<extension#3>.index<\"exclusive\">" template=collections.map.index arguments=(string, int32, "exclusive")
 "#,
     );
 }
@@ -505,14 +558,15 @@ const bad = read(point);
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '{ x: int32 }' is not assignable to parameter of type 'Bag'"
+/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
 /// @diagnostic.label line=7 column=18 span="point" line_source="const bad = read(point);"
 /// @diagnostic.related line=7 column=13 span="read(point)" line_source="const bad = read(point);" message="in this call"
-/// @diagnostic.note message="'Bag' reduces to '{ [P: string]: int32 }'"
 "#,
     );
 }
@@ -557,10 +611,15 @@ const value = bag["missing"];
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
-/// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=index key=string
+/// @resolution.access source="bag[\"missing\"]" root=bag keys=[missing]
+/// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver={ [P: string]: int32 }, target=index(string), type=int32 | undefined"
+/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bag root=bag
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
@@ -607,10 +666,15 @@ const value = bag[1];
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
-/// @resolution.member source=bag[1] receiver={ [P: usize]: int32 } kind=index key=usize
+/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bag root=bag
+/// @resolution.access source=bag[1] root=bag keys=[1]
+/// @resolution.subscript source=bag[1] type=int32 | undefined kind=member target="receiver={ [P: usize]: int32 }, target=index(usize), type=int32 | undefined"
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=value root=value
 
 /// @generic.instance id="Record<usize, int32>" template=types.object.Record arguments=(usize, int32)
 "#,
@@ -653,6 +717,8 @@ const value = bag.missing;
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
+/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bag root=bag
 
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
@@ -687,8 +753,8 @@ interface Bag<in out T> {
     [key: string]: T;
 }
 
-declare const bag: Bag<int32>;
-const value = bag["name"];
+declare const bag: Dynamic<Bag<int32>>;
+const value: int32 | undefined = bag["name"];
 
 === checked ===
 interface Bag<T> {
@@ -705,24 +771,26 @@ interface Bag<T> {
 }
 
 declare const bag: Bag<int32>;
-/// @type.symbol symbol=bag source=bag type=Bag<int32>
+/// @type.symbol symbol=bag source=bag type=Dynamic<Bag<int32>>
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
 const value = bag["name"];
-/// @type.symbol symbol=value source=value type=<error>
+/// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source="bag[\"name\"]" type=<error>
-/// @type.node source=bag type=Bag<int32>
+/// @type.node source="bag[\"name\"]" type=int32 | undefined
+/// @type.node source=bag type=Dynamic<Bag<int32>>
 /// @resolution.name source=bag target=bag
+/// @resolution.subscript source="bag[\"name\"]" type=int32 | undefined kind=call target="dynamic(Dynamic<Bag<int32>> as Bag<int32>, index.read([key: string]: T))(parameters=(string), arguments=(provided(\"name\") as string), return=int32 | undefined)"
+/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=bag root=bag
 /// @generic.instance source=bag id=Bag<int32>
 /// @type.node source="\"name\"" type="name"
 
 /// @generic.instance id=Bag<int32> template=Bag arguments=(int32)
 "#,
         r#"
-/// @diagnostic.error id=no-matching-operator message="operator '[]' is not defined for 'Bag<int32>' and '\"name\"'"
-/// @diagnostic.label line=7 column=15 span="bag[\"name\"]" line_source="const value = bag[\"name\"];"
+
 "#,
     );
 }

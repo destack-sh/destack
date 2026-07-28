@@ -109,10 +109,14 @@ extension<T> of Box<T> where T: Readable {
     /// @type.symbol symbol=read type=(this: this) => string
 
         return this.value.read();
-        /// @resolution.member source=this.value receiver=Box<T#2> kind=symbol target=Box.value
-        /// @resolution.member source=this.value.read receiver=T#2 kind=symbol target=Readable.read
+        /// @resolution.member source=this.value receiver=Box<T#2> type=T#2 kind=field target_receiver=Box<T#2> key=value target=Box.value target_type=T#2
+        /// @resolution.member source=this.value.read receiver=T#2 type=(this: T#2) => string kind=symbol target_receiver=T#2 target=Readable.read
         /// @resolution.call source=this.value.read() parameters=() return=string kind=symbol target=Readable.read receiver=T#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<T#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
 
     }
 }
@@ -127,8 +131,10 @@ const text = boxed.read();
 /// @type.symbol symbol=text source=text type=string
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=boxed target=boxed
-/// @resolution.member source=boxed.read receiver=Box<Document> kind=symbol target=read
+/// @resolution.member source=boxed.read receiver=Box<Document> type=(this: Box<Document>) => string kind=symbol target_receiver=Box<Document> target=read
 /// @resolution.call source=boxed.read() parameters=() return=string kind=symbol target=read receiver=Box<Document> instance=Box<Document>.<extension#1>.read
+/// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=boxed root=boxed
 /// @generic.instance source=boxed.read() id=Box<Document>.<extension#1>.read
 
 /// @generic.instance id=Box<Document> template=Box arguments=(Document)
@@ -184,7 +190,7 @@ extension<T> of Box<T> where T: Readable {
 }
 
 declare const boxed: Box<Token>;
-boxed.read();
+boxed.read<Token>();
 
 === checked ===
 interface Readable {
@@ -233,10 +239,14 @@ extension<T> of Box<T> where T: Readable {
         /// @type.node source=this.value type=T#2
         /// @type.node source=this.value.read type=(this: T#2) => string
         /// @type.node source=this.value.read() type=string
-        /// @resolution.member source=this.value receiver=Box<T#2> kind=symbol target=Box.value
-        /// @resolution.member source=this.value.read receiver=T#2 kind=symbol target=Readable.read
+        /// @resolution.member source=this.value receiver=Box<T#2> type=T#2 kind=field target_receiver=Box<T#2> key=value target=Box.value target_type=T#2
+        /// @resolution.member source=this.value.read receiver=T#2 type=(this: T#2) => string kind=symbol target_receiver=T#2 target=Readable.read
         /// @resolution.call source=this.value.read() parameters=() return=string kind=symbol target=Readable.read receiver=T#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<T#2>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @generic.instance source=this id=Box<T#2>
 
     }
@@ -250,17 +260,24 @@ declare const boxed: Box<Token>;
 
 boxed.read();
 /// @type.node source=boxed type=Box<Token>
-/// @type.node source=boxed.read type=<error>
-/// @type.node source=boxed.read() type=<error>
+/// @type.node source=boxed.read type=(this: Box<Token>) => string
+/// @type.node source=boxed.read() type=string
 /// @resolution.name source=boxed target=boxed
+/// @resolution.member source=boxed.read receiver=Box<Token> type=(this: Box<Token>) => string kind=symbol target_receiver=Box<Token> target=read
+/// @resolution.call source=boxed.read() parameters=() return=string kind=symbol target=read receiver=Box<Token> instance=Box<Token>.<extension#1>.read
+/// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=boxed root=boxed
 /// @generic.instance source=boxed id=Box<Token>
+/// @generic.instance source=boxed.read id=Box<Token>
+/// @generic.instance source=boxed.read() id=Box<Token>.<extension#1>.read
 
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 /// @generic.instance id=Box<Token> template=Box arguments=(Token)
+/// @generic.instance id=Box<Token>.<extension#1>.read template=read arguments=(Token)
 "#,
         r#"
-/// @diagnostic.error id=missing-member message="member 'read' does not exist on type 'Box<Token>'"
-/// @diagnostic.label line=19 column=7 span="read" line_source="boxed.read();"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Token' does not satisfy 'Readable'"
+/// @diagnostic.label line=19 column=1 span="boxed.read()" line_source="boxed.read();"
 "#,
     );
 }
@@ -356,9 +373,11 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
 /// @generic.template symbol=<module>#2 parameters=(K#2: ops.hash.Hash, V#2)
 /// @definition.extension symbol=<module>#2 form=local target=Table<K#2, V#2>
 /// @definition.where symbol=<module>#2 source="K: Equal<K>" relation=satisfies left=K#2 right=ops.equality.Equal<K#2>
-/// @definition.implements symbol=<module>#2 source=Keyed<K> target=Keyed arguments=(K#2)
+/// @definition.implements symbol=<module>#2 source=Keyed<K> target="Keyed<K#2><type Output = V#2 | undefined>"
 /// @definition.associated.type symbol=Output source="type Output = V | undefined" key=Output value="V#2 | undefined"
 /// @definition.method symbol=index slot=index type=(this: this, K#2) => V#2 | undefined
+/// @definition.implementation symbol=<module>#2 requirement=Keyed.Output target=Output
+/// @definition.implementation symbol=<module>#2 requirement=Keyed.index target=index
 /// @type.symbol symbol=K source="K: Hash" type=K#2
 /// @resolution.name source=Hash target=ops.hash.Hash
 /// @type.symbol symbol=V source=V type=V#2
@@ -475,7 +494,7 @@ export extension<T> of Pack<T> where T: Copy {
 
         todo("Pack.duplicate")
         /// @type.node source="todo(\"Pack.duplicate\")" type=never
-        /// @type.node source=todo type=(string | undefined) => never
+        /// @type.node source=todo type=(string | undefined?) => never
         /// @resolution.name source=todo target=error.panic.todo
         /// @resolution.call source="todo(\"Pack.duplicate\")" parameters=(string | undefined) arguments=(provided("Pack.duplicate") as string | undefined) return=never kind=symbol target=error.panic.todo
         /// @type.node source="\"Pack.duplicate\"" type="Pack.duplicate"
@@ -504,9 +523,11 @@ export extension<T> of Pack<T> where T: Copy {
         /// @type.node source=this type=&twice.'a readonly Pack<T#3>
         /// @type.node source=this.duplicate type=<duplicate.'a>(this: &duplicate.'a readonly Pack<T#3>) => T#3
         /// @type.node source=this.duplicate() type=T#3
-        /// @resolution.member source=this.duplicate receiver=&twice.'a readonly Pack<T#3> kind=symbol target=duplicate
+        /// @resolution.member source=this.duplicate receiver=&twice.'a readonly Pack<T#3> type=<duplicate.'a>(this: &duplicate.'a readonly Pack<T#3>) => T#3 kind=symbol target_receiver=&twice.'a readonly Pack<T#3> target=duplicate
         /// @resolution.call source=this.duplicate() parameters=() return=T#3 kind=symbol target=duplicate receiver=&twice.'a readonly Pack<T#3> instance=Pack<T#3>.<extension#1>.duplicate
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&twice.'a readonly Pack<T#3>
+        /// @resolution.place source=this placement="local" lifetime=twice.'a access="readonly"
+        /// @resolution.access source=this root=this
         /// @generic.instance source=this id=Pack<T#3>
         /// @generic.instance source=this.duplicate id=Pack<T#3>
         /// @generic.instance source=this.duplicate() id=Pack<T#3>.<extension#1>.duplicate

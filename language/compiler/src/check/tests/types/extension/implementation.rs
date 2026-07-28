@@ -66,6 +66,7 @@ extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
 /// @definition.method symbol=show#1 slot=show type=(this: this) => string
+/// @definition.implementation symbol=<module>#2 requirement=Show.show target=show#1
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
@@ -80,6 +81,7 @@ extension of User implements Show {
 /// @definition.extension symbol=<module>#3 form=local target=User
 /// @definition.implements symbol=<module>#3 source=Show target=Show
 /// @definition.method symbol=show#2 slot=show type=(this: this) => string
+/// @definition.implementation symbol=<module>#3 requirement=Show.show target=show#2
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
@@ -316,7 +318,7 @@ newtype interface Equal<T = this> extends PartialEqual<T> {}
 /// @type.symbol symbol=Equal source="newtype interface Equal<T = this> extends PartialEqual<T> {}" type=Equal
 /// @definition.interface symbol=Equal source="newtype interface Equal<T = this> extends PartialEqual<T> {}" template=(in T#2 = this) nominal=true
 /// @definition.where symbol=Equal source="newtype interface Equal<T = this> extends PartialEqual<T> {}" relation=satisfies left=this right=Equal<T#2>
-/// @definition.extends symbol=Equal source=PartialEqual<T> target=PartialEqual arguments=(T#2)
+/// @definition.extends symbol=Equal source=PartialEqual<T> target=PartialEqual<T#2>
 /// @type.symbol symbol=Equal.T source="T = this" type=T#2
 /// @resolution.name source=PartialEqual target=PartialEqual
 /// @resolution.name source=T target=Equal.T
@@ -327,8 +329,9 @@ struct Badge {}
 
 extension of Badge implements Equal<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
-/// @definition.implements symbol=<module>#2 source=Equal<Badge> target=Equal arguments=(Badge)
+/// @definition.implements symbol=<module>#2 source=Equal<Badge> target=Equal<Badge>
 /// @definition.method symbol=equal slot=equal type=(this: this, Badge) => boolean
+/// @definition.implementation symbol=<module>#2 requirement=PartialEqual.equal target=equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=Badge target=Badge
@@ -355,10 +358,14 @@ function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
 
     left.equal(right)
     /// @resolution.name source=left target=compare.left
-    /// @resolution.member source=left.equal receiver=T#3 kind=symbol target=PartialEqual.equal
+    /// @resolution.member source=left.equal receiver=T#3 type=(this: T#3, T#3) => boolean kind=symbol target_receiver=T#3 target=PartialEqual.equal
     /// @resolution.call source=left.equal(right) parameters=(T#3) arguments=(provided(right) as T#3) return=boolean kind=symbol target=PartialEqual.equal receiver=T#3 instance=PartialEqual<T#3>.equal
+    /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=left root=compare.left
     /// @generic.instance source=left.equal(right) id=PartialEqual<T#3>.equal
     /// @resolution.name source=right target=compare.right
+    /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=right root=compare.right
 
 }
 
@@ -629,9 +636,11 @@ interface Doubling {
 
 extension of int32 implements Doubling {
 /// @definition.extension symbol=<module>#2 form=local target=int32
-/// @definition.implements symbol=<module>#2 source=Doubling target=Doubling
+/// @definition.implements symbol=<module>#2 source=Doubling target="Doubling<type Output = int32>"
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=double slot=double type=(this: this) => this.Output
+/// @definition.implementation symbol=<module>#2 requirement=Doubling.Output target=Output
+/// @definition.implementation symbol=<module>#2 requirement=Doubling.double target=double
 /// @resolution.name source=Doubling target=Doubling
 
     type Output = int32;
@@ -715,7 +724,7 @@ interface Source<T> {
 interface Carrier extends Source<this.Error> {
 /// @type.symbol symbol=Carrier type=Carrier
 /// @definition.interface symbol=Carrier
-/// @definition.extends symbol=Carrier source=Source<this.Error> target=Source arguments=(this.Error)
+/// @definition.extends symbol=Carrier source=Source<this.Error> target=Source<this.Error>
 /// @definition.associated.type symbol=Carrier.Error source="type Error" key=Error
 /// @resolution.name source=Source target=Source
 
@@ -734,10 +743,13 @@ newtype Result<T, E> = T | E;
 extension<T, E> of Result<T, E> implements Source<E>, Carrier {
 /// @generic.template symbol=<module>#2 parameters=(T#3, E#2)
 /// @definition.extension symbol=<module>#2 form=local target=Result<T#3, E#2>
-/// @definition.implements symbol=<module>#2 source=Carrier target=Carrier
-/// @definition.implements symbol=<module>#2 source=Source<E> target=Source arguments=(E#2)
+/// @definition.implements symbol=<module>#2 source=Carrier target="Carrier<type Error = E#2>"
+/// @definition.implements symbol=<module>#2 source=Source<E> target=Source<E#2>
 /// @definition.associated.type symbol=Error source="type Error = E" key=Error value=E#2
 /// @definition.method symbol=from slot=from static=true type=(E#2) => Result<T#3, E#2>
+/// @definition.implementation symbol=<module>#2 requirement=Carrier.Error target=Error
+/// @definition.implementation symbol=<module>#2 requirement=Source.from target=from
+/// @definition.implementation symbol=<module>#2 requirement=Source.from target=from
 /// @type.symbol symbol=T source=T type=T#3
 /// @type.symbol symbol=E source=E type=E#2
 /// @resolution.name source=Result target=Result
@@ -823,9 +835,11 @@ interface Halving {
 
 extension of int32 implements Halving {
 /// @definition.extension symbol=<module>#2 form=local target=int32
-/// @definition.implements symbol=<module>#2 source=Halving target=Halving
+/// @definition.implements symbol=<module>#2 source=Halving target="Halving<type Output = int32>"
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=halve slot=halve type=<halve.'a>(this: &halve.'a readonly this) => this.Output
+/// @definition.implementation symbol=<module>#2 requirement=Halving.Output target=Output
+/// @definition.implementation symbol=<module>#2 requirement=Halving.halve target=halve
 /// @resolution.name source=Halving target=Halving
 
     type Output = int32;
@@ -959,9 +973,11 @@ struct Cell {
 
 extension of Cell implements Reading {
 /// @definition.extension symbol=<module>#2 form=local target=Cell
-/// @definition.implements symbol=<module>#2 source=Reading target=Reading
+/// @definition.implements symbol=<module>#2 source=Reading target="Reading<type Output = int32>"
 /// @definition.associated.type symbol=Output#1 source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=read slot=read type=(this: this) => this.Output
+/// @definition.implementation symbol=<module>#2 requirement=Reading.Output target=Output#1
+/// @definition.implementation symbol=<module>#2 requirement=Reading.read target=read
 /// @resolution.name source=Cell target=Cell
 /// @resolution.name source=Reading target=Reading
 
@@ -980,9 +996,11 @@ extension of Cell implements Reading {
 
 extension of Cell implements Writing {
 /// @definition.extension symbol=<module>#3 form=local target=Cell
-/// @definition.implements symbol=<module>#3 source=Writing target=Writing
+/// @definition.implements symbol=<module>#3 source=Writing target="Writing<type Output = float64>"
 /// @definition.associated.type symbol=Output#2 source="type Output = float64" key=Output value=float64
 /// @definition.method symbol=write slot=write type=(this: this) => this.Output
+/// @definition.implementation symbol=<module>#3 requirement=Writing.Output target=Output#2
+/// @definition.implementation symbol=<module>#3 requirement=Writing.write target=write
 /// @resolution.name source=Cell target=Cell
 /// @resolution.name source=Writing target=Writing
 
@@ -1038,8 +1056,8 @@ struct Channel {}
 
 extension of Channel implements Emits<int32>, Emits<string> {}
 /// @definition.extension symbol=<module>#2 source="extension of Channel implements Emits<int32>, Emits<string> {}" form=local target=Channel
-/// @definition.implements symbol=<module>#2 source=Emits<int32> target=Emits arguments=(int32)
-/// @definition.implements symbol=<module>#2 source=Emits<string> target=Emits arguments=(string)
+/// @definition.implements symbol=<module>#2 source=Emits<int32> target=Emits<int32>
+/// @definition.implements symbol=<module>#2 source=Emits<string> target=Emits<string>
 /// @resolution.name source=Channel target=Channel
 /// @resolution.name source=Emits target=Emits
 /// @resolution.name source=Emits target=Emits
@@ -1144,8 +1162,9 @@ struct Pack<T> {
 export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#4: Eq<T#4>)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#4>
-/// @definition.implements symbol=<module>#2 source=Has<T> target=Has arguments=(T#4)
+/// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#4>
 /// @definition.method symbol=has slot=has type=<Q: Eq<Q>, has.'a>(this: this, &has.'a readonly Q) => boolean
+/// @definition.implementation symbol=<module>#2 requirement=Has.has target=has
 /// @type.symbol symbol=T source="T: Eq<T>" type=T#4
 /// @resolution.name source=Eq target=Eq
 /// @resolution.name source=T target=T
@@ -1253,7 +1272,7 @@ struct Pack<T> {
 export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
-/// @definition.implements symbol=<module>#2 source=Has<T> target=Has arguments=(T#3)
+/// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#3>
 /// @definition.method symbol=has slot=has type=<Q: Marker, has.'a>(this: this, &has.'a readonly Q) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
@@ -1353,7 +1372,7 @@ struct Pack<T> {
 export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
-/// @definition.implements symbol=<module>#2 source=Has<T> target=Has arguments=(T#3)
+/// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#3>
 /// @definition.method symbol=has slot=has type=<Q, has.'a>(this: this, &has.'a exclusive Q) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
@@ -1438,13 +1457,13 @@ export extension<K, V, 'a, 'b> of Bag<K, V>
     implements
         Iterable<(K, V)>,
         Iterable<Entry<&readonly K, &V>> {
-    iterator(): Iterator<(K, V), unknown> {
+    iterator(): Iterator<(K, V), void> {
         todo("Bag.iterator" as string | undefined)
     }
 
     iterator<comptime A: Access = "readonly">(
         this: WithAccess<&Bag<K, V>, A>,
-    ): Iterator<Entry<&'a readonly K, WithAccess<&'a V, A>>, unknown> {
+    ): Iterator<Entry<&'a readonly K, WithAccess<&'a V, A>>, void> {
         todo("Bag.iterator" as string | undefined)
     }
 }
@@ -1495,10 +1514,12 @@ export class Bag<K, V> {
 export extension<K, V> of Bag<K, V>
 /// @generic.template symbol=<module>#2 parameters=(K#3, V#3, 'a, 'b)
 /// @definition.extension symbol=<module>#2 form=exported target=Bag<K#3, V#3>
-/// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target=iter.iterator.Iterable arguments=((K#3, V#3))
-/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target=iter.iterator.Iterable arguments=(Entry<&<module>#2.'a readonly K#3, &<module>#2.'b V#3>)
-/// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator<(K#3, V#3), unknown>
-/// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, unknown>
+/// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target="iter.iterator.Iterable<(K#3, V#3), void>"
+/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target="iter.iterator.Iterable<Entry<&<module>#2.'a readonly K#3, &<module>#2.'b V#3>, void>"
+/// @definition.method symbol=iterator#1 slot=iterator type=(this: this) => iter.iterator.Iterator<(K#3, V#3), void>
+/// @definition.method symbol=iterator#2 slot=iterator type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, void>
+/// @definition.implementation symbol=<module>#2 requirement=iter.iterator.Iterable.iterator target=iterator#1
+/// @definition.implementation symbol=<module>#2 requirement=iter.iterator.Iterable.iterator target=iterator#2
 /// @type.symbol symbol=K source=K type=K#3
 /// @type.symbol symbol=V source=V type=V#3
 /// @resolution.name source=Bag target=Bag
@@ -1518,7 +1539,7 @@ export extension<K, V> of Bag<K, V>
         /// @resolution.name source=V target=V
 
     iterator(): Iterator<(K, V)> {
-    /// @type.symbol symbol=iterator#1 type=(this: this) => iter.iterator.Iterator<(K#3, V#3), unknown>
+    /// @type.symbol symbol=iterator#1 type=(this: this) => iter.iterator.Iterator<(K#3, V#3), void>
     /// @resolution.name source=Iterator target=iter.iterator.Iterator
     /// @resolution.name source=K target=K
     /// @resolution.name source=V target=V
@@ -1531,7 +1552,7 @@ export extension<K, V> of Bag<K, V>
 
     iterator<comptime A: Access = "readonly">(
     /// @generic.template symbol=iterator#2 parent=template#2 parameters=(comptime A: memory.access.Access = "readonly", 'a)
-    /// @type.symbol symbol=iterator#2 type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, unknown> reduced=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: Borrowed<Bag<K#3, V#3>, iterator#2.'a, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, Borrowed<V#3, iterator#2.'a, A>>, unknown>
+    /// @type.symbol symbol=iterator#2 type=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, void> reduced=<comptime A: memory.access.Access = "readonly", iterator#2.'a>(this: Borrowed<Bag<K#3, V#3>, iterator#2.'a, A>) => iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, Borrowed<V#3, iterator#2.'a, A>>, void>
     /// @type.symbol symbol=iterator.A source="comptime A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=memory.access.Access
 
@@ -1560,8 +1581,8 @@ export extension<K, V> of Bag<K, V>
 
 /// @generic.instance id="Bag<K#3, V#3>" template=Bag arguments=(K#3, V#3)
 /// @generic.instance id="Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>" template=Entry arguments=(&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>)
-/// @generic.instance id="iter.iterator.Iterator<(K#3, V#3), unknown>" template=iter.iterator.Iterator arguments=((K#3, V#3), unknown)
-/// @generic.instance id="iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, unknown>" template=iter.iterator.Iterator arguments=(Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, unknown)
+/// @generic.instance id="iter.iterator.Iterator<(K#3, V#3), void>" template=iter.iterator.Iterator arguments=((K#3, V#3), void)
+/// @generic.instance id="iter.iterator.Iterator<Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, void>" template=iter.iterator.Iterator arguments=(Entry<&iterator#2.'a readonly K#3, memory.type.WithAccess<&iterator#2.'a V#3, A>>, void)
 /// @generic.instance id="memory.type.WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>" template=memory.type.WithAccess arguments=(&iterator#2.'a Bag<K#3, V#3>, A)
 /// @generic.instance id="memory.type.WithAccess<&iterator#2.'a V#3, A>" template=memory.type.WithAccess arguments=(&iterator#2.'a V#3, A)
 "#,

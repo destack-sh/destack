@@ -22,7 +22,7 @@ type User {
     id: int32;
 }
 
-function main.identity<'a>(v0: ref<User, borrowed, 'a, readonly>): ref<User, borrowed, 'a, readonly> {
+function test.main.identity<'a>(v0: ref<User, borrowed, 'a, readonly>): ref<User, borrowed, 'a, readonly> {
 entry(v0: ref<User, borrowed, 'a, readonly>):
     return v0
 }
@@ -56,7 +56,7 @@ type User {
     id: int32;
 }
 
-function main.identity<'a>(v0: ref<User, borrowed, 'a, readonly>): ref<User, borrowed, 'a, readonly> {
+function test.main.identity<'a>(v0: ref<User, borrowed, 'a, readonly>): ref<User, borrowed, 'a, readonly> {
 entry(v0: ref<User, borrowed, 'a, readonly>):
     return v0
 }
@@ -90,7 +90,7 @@ type User {
     id: int32;
 }
 
-function main.identity<'a, 'b>(v0: ref<User, borrowed, 'a | 'b, readonly>): ref<User, borrowed, 'a | 'b, readonly> {
+function test.main.identity<'a, 'b>(v0: ref<User, borrowed, 'a | 'b, readonly>): ref<User, borrowed, 'a | 'b, readonly> {
 entry(v0: ref<User, borrowed, 'a | 'b, readonly>):
     return v0
 }
@@ -139,18 +139,18 @@ type View<'a> {
     user: ref<User, borrowed, 'a, readonly>;
 }
 
-function main.retain<'a>(v0: View<'a>): View<'a> {
+function test.main.retain<'a>(v0: View<'a>): View<'a> {
 entry(v0: View<'a>):
     return v0
 }
 
-function main.get<'a>(v0: View<'a>): ref<User, borrowed, 'a, readonly> {
+function test.main.get<'a>(v0: View<'a>): ref<User, borrowed, 'a, readonly> {
 entry(v0: View<'a>):
     v1: ref<User, borrowed, 'a, readonly> = field.get v0, 0
     return v1
 }
 
-function main.retainStatic(v0: View<'static>): View<'static> {
+function test.main.retainStatic(v0: View<'static>): View<'static> {
 entry(v0: View<'static>):
     return v0
 }
@@ -202,7 +202,7 @@ type Holder<'a> {
     view: View<'a>;
 }
 
-function main.retain<'a>(v0: Holder<'a>): Holder<'a> {
+function test.main.retain<'a>(v0: Holder<'a>): Holder<'a> {
 entry(v0: Holder<'a>):
     return v0
 }
@@ -245,20 +245,20 @@ type User {
     id: int32;
 }
 
-function main.inspectBorrowed<'a>(v0: int32, v1: ref<User, borrowed, 'a, readonly>): int32 {
+function test.main.inspectBorrowed<'a>(v0: int32, v1: ref<User, borrowed, 'a, readonly>): int32 {
 entry(v0: int32, v1: ref<User, borrowed, 'a, readonly>):
-    v2: int32 = call main.inspect(v0, v1)
+    v2: int32 = call test.main.inspect(v0, v1)
     return v2
 }
 
-function main.inspectManaged(v0: int32, v1: ref<User, managed, mutable>): int32 {
+function test.main.inspectManaged(v0: int32, v1: ref<User, managed, mutable>): int32 {
 entry(v0: int32, v1: ref<User, managed, mutable>):
     v2: ref<User, borrowed, readonly> = cast.bit v1 -> ref<User, borrowed, readonly>
-    v3: int32 = call main.inspect(v0, v2)
+    v3: int32 = call test.main.inspect(v0, v2)
     return v3
 }
 
-function main.inspect<'a>(v0: int32, v1: ref<User, borrowed, 'a, readonly>): int32 {
+function test.main.inspect<'a>(v0: int32, v1: ref<User, borrowed, 'a, readonly>): int32 {
 entry(v0: int32, v1: ref<User, borrowed, 'a, readonly>):
     v2: ref<int32, borrowed, readonly> = field.address v1, 0
     v3: int32 = load v2

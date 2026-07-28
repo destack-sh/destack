@@ -74,9 +74,13 @@ const selected = select(user);
 /// @resolution.name source=select target=[select#1, select#2]
 /// @resolution.call source=select(user) parameters=(User) arguments=(provided(user) as User) return="managed" kind=symbol target=select#2
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 
 selected satisfies "managed";
 /// @resolution.name source=selected target=selected
+/// @resolution.place source=selected placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=selected root=selected
 "#,
         r#"
 
@@ -156,10 +160,14 @@ const selected = select(user);
 /// @resolution.name source=select target=[select#1, select#2]
 /// @resolution.call source=select(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return="readonly" kind=symbol target=select#1
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<User, "local"> adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
 selected satisfies "readonly";
 /// @resolution.name source=selected target=selected
+/// @resolution.place source=selected placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=selected root=selected
 "#, r#"
 
 "#);
@@ -240,9 +248,13 @@ const selected = select(user);
 /// @resolution.name source=select target=[select#1, select#2]
 /// @resolution.call source=select(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return="mutable" kind=symbol target=select#2
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=user root=user
 
 selected satisfies "mutable";
 /// @resolution.name source=selected target=selected
+/// @resolution.place source=selected placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=selected root=selected
 "#,
         r#"
 
@@ -319,18 +331,24 @@ inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
 /// @resolution.call source=modify(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: &'static User }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
 /// @resolution.call source=replace(user) parameters=(&'static exclusive User) arguments=(provided(user) as &'static exclusive User) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: &'static exclusive User }] origin=implicit
 "#,
     );
@@ -403,18 +421,24 @@ inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(Placed<&'static readonly User, "local">) arguments=(provided(user) as Placed<&'static readonly User, "local">) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<Owned<User>, "local"> adjustments=[{ kind: borrow, target: Placed<&'static readonly User, "local"> }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
 /// @resolution.call source=modify(user) parameters=(Placed<&'static User, "local">) arguments=(provided(user) as Placed<&'static User, "local">) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<Owned<User>, "local"> adjustments=[{ kind: borrow, target: Placed<&'static User, "local"> }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
 /// @resolution.call source=replace(user) parameters=(Placed<&'static exclusive User, "local">) arguments=(provided(user) as Placed<&'static exclusive User, "local">) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<Owned<User>, "local"> adjustments=[{ kind: borrow, target: Placed<&'static exclusive User, "local"> }] origin=implicit
 "#,
     );
@@ -465,6 +489,8 @@ inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<Readonly<User>, "local"> adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 "#,
     );
@@ -523,21 +549,27 @@ declare const user: local readonly User;
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(Placed<&'frame User, "local">) arguments=(provided(user) as Placed<&'frame User, "local">) return=void kind=symbol target=modify
+/// @resolution.call source=modify(user) parameters=(Placed<&'static User, "local">) arguments=(provided(user) as Placed<&'static User, "local">) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=user root=user
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(Placed<&'frame exclusive User, "local">) arguments=(provided(user) as Placed<&'frame exclusive User, "local">) return=void kind=symbol target=replace
+/// @resolution.call source=replace(user) parameters=(Placed<&'static exclusive User, "local">) arguments=(provided(user) as Placed<&'static exclusive User, "local">) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=user root=user
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'local readonly User' is not assignable to parameter of type 'local &User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local readonly User' is not assignable to parameter of type 'local &'static User'"
 /// @diagnostic.label line=8 column=8 span="user" line_source="modify(user);"
 /// @diagnostic.related line=8 column=1 span="modify(user)" line_source="modify(user);" message="in this call"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'local readonly User' is not assignable to parameter of type 'local &exclusive User'"
+/// @diagnostic.note message="expected '&'static User', found 'readonly User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'local readonly User' is not assignable to parameter of type 'local &'static exclusive User'"
 /// @diagnostic.label line=9 column=9 span="user" line_source="replace(user);"
 /// @diagnostic.related line=9 column=1 span="replace(user)" line_source="replace(user);" message="in this call"
+/// @diagnostic.note message="expected '&'static exclusive User', found 'readonly User'"
 "#,
     );
 }
@@ -607,12 +639,16 @@ inspect(explicit);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(explicit) parameters=(&'static readonly Cell) arguments=(provided(explicit) as &'static readonly Cell) return=void kind=symbol target=inspect
 /// @resolution.name source=explicit target=explicit
+/// @resolution.place source=explicit placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=explicit root=explicit
 /// @coercion.node source=explicit from=Managed<Cell> adjustments=[{ kind: borrow, target: &'static readonly Cell }] origin=implicit
 
 inspect(alias);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(alias) parameters=(&'static readonly Cell) arguments=(provided(alias) as &'static readonly Cell) return=void kind=symbol target=inspect
 /// @resolution.name source=alias target=alias
+/// @resolution.place source=alias placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=alias root=alias
 /// @coercion.node source=alias from=ManagedCell adjustments=[{ kind: borrow, target: &'static readonly Cell }] origin=implicit
 
 /// @generic.instance id=Managed<Cell> template=memory.managed.Managed arguments=(Cell)
@@ -678,6 +714,8 @@ inspect(cell);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(cell) parameters=(&'static readonly ManagedCellId) arguments=(provided(cell) as &'static readonly ManagedCellId) return=void kind=symbol target=inspect
 /// @resolution.name source=cell target=cell
+/// @resolution.place source=cell placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=cell root=cell
 /// @coercion.node source=cell from=ManagedCellId adjustments=[{ kind: borrow, target: &'static readonly ManagedCellId }] origin=implicit
 "#,
         r#"
@@ -742,12 +780,16 @@ inspect(localCell);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(localCell) parameters=(&'static readonly Cell) arguments=(provided(localCell) as &'static readonly Cell) return=void kind=symbol target=inspect
 /// @resolution.name source=localCell target=localCell
+/// @resolution.place source=localCell placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=localCell root=localCell
 /// @coercion.node source=localCell from=Placed<Managed<Cell>, "local"> adjustments=[{ kind: borrow, target: &'static readonly Cell }] origin=implicit
 
 inspect(readonlyCell);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(readonlyCell) parameters=(&'static readonly Cell) arguments=(provided(readonlyCell) as &'static readonly Cell) return=void kind=symbol target=inspect
 /// @resolution.name source=readonlyCell target=readonlyCell
+/// @resolution.place source=readonlyCell placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=readonlyCell root=readonlyCell
 /// @coercion.node source=readonlyCell from=Placed<Readonly<Managed<Cell>>, "local"> adjustments=[{ kind: borrow, target: &'static readonly Cell }] origin=implicit
 
 /// @generic.instance id=Managed<Cell> template=memory.managed.Managed arguments=(Cell)
@@ -862,28 +904,43 @@ inspect(state.user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(state.user) parameters=(&'static readonly User) arguments=(provided(state.user) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=state target=state
-/// @resolution.member source=state.user receiver=State kind=symbol target=State.user
+/// @resolution.member source=state.user receiver=State type=User kind=field target_receiver=State key=user target=State.user target_type=User
+/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state root=state
+/// @resolution.place source=state.user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state.user root=state keys=[user]
 /// @coercion.node source=state.user from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
 inspect(state.boxed.value);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(state.boxed.value) parameters=(&'static readonly User) arguments=(provided(state.boxed.value) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=state target=state
-/// @resolution.member source=state.boxed receiver=State kind=symbol target=State.boxed
-/// @resolution.member source=state.boxed.value receiver=Box<User> kind=symbol target=Box.value
+/// @resolution.member source=state.boxed receiver=State type=Box<User> kind=field target_receiver=State key=boxed target=State.boxed target_type=Box<User>
+/// @resolution.member source=state.boxed.value receiver=Box<User> type=User kind=field target_receiver=Box<User> key=value target=Box.value target_type=User
+/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state root=state
+/// @resolution.place source=state.boxed placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state.boxed root=state keys=[boxed]
+/// @resolution.place source=state.boxed.value placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state.boxed.value root=state keys=[boxed, value]
 /// @coercion.node source=state.boxed.value from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
 inspect(state.users[0]);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(state.users[0]) parameters=(&'static readonly User) arguments=(provided(state.users[0]) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=state target=state
-/// @resolution.member source=state.users receiver=State kind=symbol target=State.users
-/// @resolution.call source=state.users[0] parameters=(usize) arguments=(provided(0) as usize) return=User kind=symbol target=collections.array.index#4 receiver=Array<User> instance=Array<User>.<extension#6>.index#4
-/// @generic.instance source=state.users[0] id=Array<User>.<extension#6>.index#4
+/// @resolution.member source=state.users receiver=State type=Array<User> kind=field target_receiver=State key=users target=State.users target_type=Array<User>
+/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state root=state
+/// @resolution.place source=state.users placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state.users root=state keys=[users]
+/// @resolution.place source=state.users[0] placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=state.users[0] root=state keys=[users, 0]
+/// @resolution.subscript source=state.users[0] type=User kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static User, \"exclusive\">)"
+/// @generic.instance source=state.users[0] id="Array<User>.<extension#6>.index#3<\"exclusive\">"
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
-/// @coercion.node source=0 from=0 adjustments=[{ kind: widen, target: usize }] origin=implicit
 
-/// @generic.instance id=Array<User>.<extension#6>.index#4 template=collections.array.index#4 arguments=(User, User)
+/// @generic.instance id="Array<User>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(User, "exclusive")
 /// @generic.instance id=Box<User> template=Box arguments=(User)
 "#,
     );
@@ -942,9 +999,15 @@ const selected: &readonly User = condition ? first : second;
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=User target=User
 /// @resolution.name source=condition target=condition
+/// @resolution.place source=condition placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=condition root=condition
 /// @resolution.name source=first target=first
+/// @resolution.place source=first placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=first root=first
 /// @coercion.node source=first from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 /// @resolution.name source=second target=second
+/// @resolution.place source=second placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=second root=second
 /// @coercion.node source=second from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 "#,
     );
@@ -1007,15 +1070,21 @@ const selected: &readonly User = match (choice) {
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=User target=User
 /// @resolution.name source=choice target=choice
+/// @resolution.place source=choice placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=choice root=choice
 
     "first" => first
     /// @resolution.pattern source="\"first\"" kind=literal value="first"
     /// @resolution.name source=first target=first
+    /// @resolution.place source=first placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=first root=first
     /// @coercion.node source=first from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
     _ => second
     /// @resolution.pattern source=_ kind=wildcard
     /// @resolution.name source=second target=second
+    /// @resolution.place source=second placement="local" lifetime="static" access="exclusive"
+    /// @resolution.access source=second root=second
     /// @coercion.node source=second from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
 };
@@ -1072,8 +1141,12 @@ const selected: (&readonly User, &readonly User) = (first, second);
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 /// @resolution.name source=first target=first
+/// @resolution.place source=first placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=first root=first
 /// @coercion.node source=first from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 /// @resolution.name source=second target=second
+/// @resolution.place source=second placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=second root=second
 /// @coercion.node source=second from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 "#,
     );
@@ -1167,12 +1240,16 @@ inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(Placed<&'static readonly User, "shared">) arguments=(provided(user) as Placed<&'static readonly User, "shared">) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<User, "shared"> adjustments=[{ kind: borrow, target: Placed<&'static readonly User, "shared"> }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
 /// @resolution.call source=modify(user) parameters=(Placed<&'static User, "shared">) arguments=(provided(user) as Placed<&'static User, "shared">) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<User, "shared"> adjustments=[{ kind: borrow, target: Placed<&'static User, "shared"> }] origin=implicit
 "#,
     );
@@ -1221,13 +1298,16 @@ declare function replace(value: shared &exclusive User): void;
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(Placed<&'frame exclusive User, "shared">) arguments=(provided(user) as Placed<&'frame exclusive User, "shared">) return=void kind=symbol target=replace
+/// @resolution.call source=replace(user) parameters=(Placed<&'static exclusive User, "shared">) arguments=(provided(user) as Placed<&'static exclusive User, "shared">) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=user root=user
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'shared User' is not assignable to parameter of type 'shared &exclusive User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'shared User' is not assignable to parameter of type 'shared &'static exclusive User'"
 /// @diagnostic.label line=7 column=9 span="user" line_source="replace(user);"
 /// @diagnostic.related line=7 column=1 span="replace(user)" line_source="replace(user);" message="in this call"
+/// @diagnostic.note message="expected '&'static exclusive User', found 'User'"
 "#,
     );
 }
@@ -1263,7 +1343,7 @@ declare function replace<'a>(value: shared &'a exclusive User): void;
 
 inspect(user as shared &'static readonly User);
 modify(user as shared &'static User);
-replace(user as shared &'static exclusive User);
+replace(user);
 
 === checked ===
 class User {}
@@ -1297,19 +1377,24 @@ inspect(user);
 /// @resolution.name source=inspect target=inspect
 /// @resolution.call source=inspect(user) parameters=(Placed<&'static readonly User, "shared">) arguments=(provided(user) as Placed<&'static readonly User, "shared">) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<Owned<User>, "shared"> adjustments=[{ kind: borrow, target: Placed<&'static readonly User, "shared"> }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
 /// @resolution.call source=modify(user) parameters=(Placed<&'static User, "shared">) arguments=(provided(user) as Placed<&'static User, "shared">) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=user root=user
 /// @coercion.node source=user from=Placed<Owned<User>, "shared"> adjustments=[{ kind: borrow, target: Placed<&'static User, "shared"> }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
 /// @resolution.call source=replace(user) parameters=(Placed<&'static exclusive User, "shared">) arguments=(provided(user) as Placed<&'static exclusive User, "shared">) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
-/// @coercion.node source=user from=Placed<Owned<User>, "shared"> adjustments=[{ kind: borrow, target: Placed<&'static exclusive User, "shared"> }] origin=implicit
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=user root=user
 "#,
     );
 }
@@ -1384,12 +1469,16 @@ inspectPoint(point);
 /// @resolution.name source=inspectPoint target=inspectPoint
 /// @resolution.call source=inspectPoint(point) parameters=(&'static readonly Point) arguments=(provided(point) as &'static readonly Point) return=void kind=symbol target=inspectPoint
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 /// @coercion.node source=point from=Point adjustments=[{ kind: borrow, target: &'static readonly Point }] origin=implicit
 
 inspectValues(values);
 /// @resolution.name source=inspectValues target=inspectValues
 /// @resolution.call source=inspectValues(values) parameters=(&'static readonly Array<int32>) arguments=(provided(values) as &'static readonly Array<int32>) return=void kind=symbol target=inspectValues
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
 /// @coercion.node source=values from=Array<int32> adjustments=[{ kind: borrow, target: &'static readonly Array<int32> }] origin=implicit
 "#,
     );
@@ -1421,7 +1510,9 @@ declare const values: shared int32[];
 
 values.push(1);
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=Placed<Array<int32>, "shared"> kind=existential targets=[collections.array.push#1, collections.array.push#2]
+/// @resolution.member source=values.push receiver=Placed<Array<int32>, "shared"> type=<collections.array.push#1.'a>(this: &collections.array.push#1.'a exclusive Array<int32>, int32) => void & <collections.array.push#2.'a>(this: &collections.array.push#2.'a exclusive Array<int32>, ...int32[]) => float64 kind=existential targets=[collections.array.push#1, collections.array.push#2]
+/// @resolution.place source=values placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=values root=values
 "#,
         r#"
 /// @diagnostic.error id=no-matching-call message="no overload matches arguments ('1')"
@@ -1471,9 +1562,12 @@ const same = user;
 /// @type.symbol symbol=same source=same type=User
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=user target=user
+/// @resolution.access source=user root=user
 
 same satisfies User;
 /// @resolution.name source=same target=same
+/// @resolution.place source=same placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=same root=same
 /// @resolution.name source=User target=User
 "#,
     );
@@ -1519,6 +1613,8 @@ let owned: ^User = user;
 /// @resolution.name source=User target=User
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=user root=user
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'User' is not assignable to type '^User'"
@@ -1552,7 +1648,7 @@ struct Label {
 }
 
 declare const label: ^Label;
-let borrow: Borrowed<Label, "static", "mutable"> = &label;
+let borrow: &'static Label = &label;
 let owned: ^Label = borrow;
 
 === checked ===
@@ -1578,6 +1674,8 @@ let borrow = &label;
 /// @type.node source=&label type=&'static Label
 /// @type.node source=label type=Owned<Label> reduced=Label
 /// @resolution.name source=label target=label
+/// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=label root=label
 
 let owned: ^Label = borrow;
 /// @type.symbol symbol=owned source=owned type=Owned<Label> reduced=Label
@@ -1585,9 +1683,11 @@ let owned: ^Label = borrow;
 /// @resolution.name source=Label target=Label
 /// @type.node source=borrow type=&'static Label
 /// @resolution.name source=borrow target=borrow
+/// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=borrow root=borrow
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&Label' is not assignable to type '^Label'"
+/// @diagnostic.error id=not-assignable message="type '&'static Label' is not assignable to type '^Label'"
 /// @diagnostic.label line=7 column=21 span="borrow" line_source="let owned: ^Label = borrow;"
 /// @diagnostic.related line=7 column=12 span="^" line_source="let owned: ^Label = borrow;" message="expected due to this annotation"
 /// @diagnostic.note message="'^Label' reduces to 'Label'"
@@ -1620,7 +1720,7 @@ struct Point {
 }
 
 let point: ^Point = Point { x: 1 };
-let borrow: Borrowed<Point, "static", "mutable"> = &point;
+let borrow: &'static Point = &point;
 let copied: Point = borrow as Point;
 let owned: ^Point = borrow as Point;
 
@@ -1650,6 +1750,8 @@ let borrow = &point;
 /// @type.node source=&point type=&'static Point
 /// @type.node source=point type=Owned<Point> reduced=Point
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 
 let copied: Point = borrow;
 /// @type.symbol symbol=copied source=copied type=Point
@@ -1657,7 +1759,9 @@ let copied: Point = borrow;
 /// @resolution.name source=Point target=Point
 /// @type.node source=borrow type=&'static Point
 /// @resolution.name source=borrow target=borrow
-/// @coercion.node source=borrow from=&'static Point adjustments=[{ kind: carrier, target: Point }] origin=implicit
+/// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=borrow root=borrow
+/// @coercion.node source=borrow from=&'static Point adjustments=[{ kind: read, target: Point }] origin=implicit
 
 let owned: ^Point = borrow;
 /// @type.symbol symbol=owned source=owned type=Owned<Point> reduced=Point
@@ -1665,10 +1769,15 @@ let owned: ^Point = borrow;
 /// @resolution.name source=Point target=Point
 /// @type.node source=borrow type=&'static Point
 /// @resolution.name source=borrow target=borrow
-/// @coercion.node source=borrow from=&'static Point adjustments=[{ kind: carrier, target: Point }] origin=implicit
+/// @resolution.place source=borrow placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=borrow root=borrow
+/// @coercion.node source=borrow from=&'static Point adjustments=[{ kind: read, target: Point }] origin=implicit
 "#,
         r#"
-
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'shared ^User' is not assignable to parameter of type 'shared &'static exclusive User'"
+/// @diagnostic.label line=11 column=9 span="user" line_source="replace(user);"
+/// @diagnostic.related line=11 column=1 span="replace(user)" line_source="replace(user);" message="in this call"
+/// @diagnostic.note message="expected '&'static exclusive User', found '^User'"
 "#,
     );
 }
@@ -1760,6 +1869,8 @@ let owned: ^Point = point;
 /// @resolution.name source=Point target=Point
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
 "#,
         r#""#,
     );
@@ -1802,6 +1913,8 @@ function duplicate<T: Copy>(value: T): ^T {
 
     value
     /// @resolution.name source=value target=duplicate.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=duplicate.value
 
 }
 "#,
@@ -1872,6 +1985,8 @@ duplicate(session);
 /// @resolution.call source=duplicate(session) parameters=(Owned<Session>) arguments=(provided(session) as Owned<Session>) return=Owned<Owned<Session>> kind=symbol target=duplicate instance=duplicate<Owned<Session>>
 /// @generic.instance source=duplicate(session) id=duplicate<Owned<Session>>
 /// @resolution.name source=session target=session
+/// @resolution.place source=session placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=session root=session
 
 /// @generic.instance id=duplicate<32> template=duplicate arguments=(32)
 /// @generic.instance id=duplicate<Owned<Session>> template=duplicate arguments=(Owned<Session>)

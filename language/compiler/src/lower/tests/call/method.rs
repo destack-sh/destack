@@ -29,7 +29,7 @@ type Point {
     y: int32;
 }
 
-function main.Point.length<'a>(v0: ref<Point, borrowed, 'a, exclusive>): int32 {
+function test.main.Point.length<'a>(v0: ref<Point, borrowed, 'a, exclusive>): int32 {
 entry(v0: ref<Point, borrowed, 'a, exclusive>):
     v1: ref<int32, borrowed, exclusive> = field.address v0, 0
     v2: int32 = load v1
@@ -39,7 +39,7 @@ entry(v0: ref<Point, borrowed, 'a, exclusive>):
     return v5
 }
 
-function main.measure(): int32 {
+function test.main.measure(): int32 {
     local l0: Point
 
 entry:
@@ -48,7 +48,7 @@ entry:
     v2: Point = aggregate (v0, v1)
     local.set l0, v2
     v3: ref<Point, borrowed, exclusive> = local.address l0
-    v4: int32 = call main.Point.length(v3)
+    v4: int32 = call test.main.Point.length(v3)
     return v4
 }
 /// @layout.struct name=Point size=8 align=4
@@ -86,7 +86,7 @@ type Counter {
     count: int32;
 }
 
-function main.Counter.bump<'a>(v0: ref<Counter, borrowed, 'a, exclusive>, v1: int32): void {
+function test.main.Counter.bump<'a>(v0: ref<Counter, borrowed, 'a, exclusive>, v1: int32): void {
 entry(v0: ref<Counter, borrowed, 'a, exclusive>, v1: int32):
     v2: ref<int32, borrowed, exclusive> = field.address v0, 0
     v3: int32 = load v2
@@ -96,7 +96,7 @@ entry(v0: ref<Counter, borrowed, 'a, exclusive>, v1: int32):
     return
 }
 
-function main.tally(): int32 {
+function test.main.tally(): int32 {
     local l0: Counter
 
 entry:
@@ -105,7 +105,7 @@ entry:
     local.set l0, v1
     v2: ref<Counter, borrowed, exclusive> = local.address l0
     v3: int32 = 5
-    call main.Counter.bump(v2, v3)
+    call test.main.Counter.bump(v2, v3)
     v4: Counter = local.get l0
     v5: int32 = field.get v4, 0
     return v5
@@ -141,14 +141,14 @@ type User {
     id: int32;
 }
 
-function main.User.identity(v0: ref<User, managed, mutable>): ref<User, managed, mutable> {
+function test.main.User.identity(v0: ref<User, managed, mutable>): ref<User, managed, mutable> {
 entry(v0: ref<User, managed, mutable>):
     return v0
 }
 
-function main.keep(v0: ref<User, managed, mutable>): ref<User, managed, mutable> {
+function test.main.keep(v0: ref<User, managed, mutable>): ref<User, managed, mutable> {
 entry(v0: ref<User, managed, mutable>):
-    v1: ref<User, managed, mutable> = call main.User.identity(v0)
+    v1: ref<User, managed, mutable> = call test.main.User.identity(v0)
     return v1
 }
 /// @layout.struct name=User size=4 align=4
@@ -182,7 +182,7 @@ function probe(status: Status): boolean {
 @copy
 type Status = variant<int64, void> { 1int64 = void; 2int64 = void; };
 
-function main.Status.isActive<'a>(v0: ref<Status, borrowed, 'a, exclusive>): boolean {
+function test.main.Status.isActive<'a>(v0: ref<Status, borrowed, 'a, exclusive>): boolean {
 entry(v0: ref<Status, borrowed, 'a, exclusive>):
     v1: Status = load v0
     v2: int64 = variant.tag v1
@@ -192,13 +192,13 @@ entry(v0: ref<Status, borrowed, 'a, exclusive>):
     return v5
 }
 
-function main.probe(v0: Status): boolean {
+function test.main.probe(v0: Status): boolean {
     local l0: Status
 
 entry(v0: Status):
     local.set l0, v0
     v1: ref<Status, borrowed, exclusive> = local.address l0
-    v2: boolean = call main.Status.isActive(v1)
+    v2: boolean = call test.main.Status.isActive(v1)
     return v2
 }
 /// @layout.variant name=Status size=8 align=8

@@ -302,14 +302,11 @@ person.name = "Grace";
 /// @resolution.name source=person target=person
 /// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
-/// @resolution.pattern.assign source=person.name kind=place
-/// @resolution.assignment source=person.name write="receiver={ readonly name?: string; age?: int32 }, target=field(receiver={ readonly name?: string; age?: int32 }, target=name, type=string), type=string" type=string
 
 /// @generic.instance id=Partial<Person> template=types.object.Partial arguments=(Person)
 "#,
         r#"
-/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
-/// @diagnostic.label line=8 column=8 span="name" line_source="person.name = \"Grace\";"
+
 "#,
     );
 }

@@ -91,6 +91,9 @@ let [x, y] = point;
         r#"
 /// @diagnostic.error id=pattern-source-not-sequence-shaped message="type '{ x: int32; y: int32 }' cannot be destructured as a sequence pattern"
 /// @diagnostic.label line=4 column=5 span="[x, y]" line_source="let [x, y] = point;"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=4 column=5 span="[x, y]" line_source="let [x, y] = point;"
+/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }

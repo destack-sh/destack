@@ -846,6 +846,7 @@ shared newtype interface SharedQueue<T> {
 /// @generic.template symbol=SharedQueue parameters=(in T#2)
 /// @type.symbol symbol=SharedQueue type=SharedQueue
 /// @definition.interface symbol=SharedQueue template=(in T#2) nominal=true
+/// @definition.where symbol=SharedQueue relation=satisfies left=this right=SharedQueue<T#2>
 /// @definition.method symbol=SharedQueue.push source="push(this, value: T): void" slot=push type=(this: this, T#2) => void
 /// @type.symbol symbol=SharedQueue.T source=T type=T#2
 
