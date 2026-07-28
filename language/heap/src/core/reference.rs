@@ -628,14 +628,14 @@ pub fn visit_heap_root_slots(
 }
 
 impl TraceView<'_> {
-    /// Visit mutable frame pointer slots encoded in one value.
-    pub fn visit_frame_pointer_slots(
+    /// Visit mutable frame address slots encoded in one value.
+    pub fn visit_frame_address_slots(
         self,
         trace: TraceId,
         bytes: &mut [u8],
         visit: &mut dyn FnMut(&mut [u8]) -> HeapResult<()>,
     ) -> HeapResult<()> {
-        let mut walker = FramePointerSlotWalker { bytes, visit };
+        let mut walker = FrameAddressSlotWalker { bytes, visit };
 
         self.walk(trace, 0, ReferenceRange::All, &mut walker)
     }
@@ -940,15 +940,15 @@ struct ByteSlotWalker<'a> {
     visit: &'a mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 }
 
-/// Mutable frame pointer walker over caller-provided bytes.
-struct FramePointerSlotWalker<'a> {
+/// Mutable frame address walker over caller-provided bytes.
+struct FrameAddressSlotWalker<'a> {
     /// The byte window to mutate.
     bytes: &'a mut [u8],
-    /// The frame pointer slot visitor.
+    /// The frame address slot visitor.
     visit: &'a mut dyn FnMut(&mut [u8]) -> HeapResult<()>,
 }
 
-impl TraceVisitor for FramePointerSlotWalker<'_> {
+impl TraceVisitor for FrameAddressSlotWalker<'_> {
     fn fixed(
         &mut self,
         _local_offsets: &[u32],
