@@ -1,4 +1,4 @@
-use crate::{GlobalSymbolId, Postings};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, Postings};
 use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
@@ -113,6 +113,8 @@ impl ReferencePostings {
 pub struct ReferenceEntry {
     /// The symbol indexing this occurrence.
     pub symbol: GlobalSymbolId,
+    /// The DIR node carrying this occurrence.
+    pub source: GlobalNodeIdAny,
     /// The source range.
     pub span: Span,
     /// Whether the occurrence names an explicit local import alias.
@@ -127,6 +129,7 @@ impl ReferenceEntry {
             self.span.file,
             self.span.start,
             self.span.end,
+            self.source,
             self.is_import_alias,
         );
         let right = (
@@ -134,6 +137,7 @@ impl ReferenceEntry {
             other.span.file,
             other.span.start,
             other.span.end,
+            other.source,
             other.is_import_alias,
         );
 
