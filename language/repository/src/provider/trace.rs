@@ -132,9 +132,14 @@ impl Trace {
         value
     }
 
-    /// Record one operation-level counter.
-    pub fn record_counter(&self, name: &'static str, value: u64) {
-        self.counters.lock().push(TraceCounter { name, value });
+    /// Add to one operation-level counter.
+    pub fn add_counter(&self, name: &'static str, value: u64) {
+        let mut counters = self.counters.lock();
+        if let Some(counter) = counters.iter_mut().find(|counter| counter.name == name) {
+            counter.value += value;
+        } else {
+            counters.push(TraceCounter { name, value });
+        }
     }
 
     /// Finish this trace at the current clock reading.

@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::thread::{Builder, JoinHandle};
 
 use destack_artifact::{ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactVersion};
-use destack_repository::{Execution, Revision};
+use destack_repository::{Execution, Revision, Trace};
 
 use super::run::ArtifactRun;
 use super::scheduler::Scheduler;
@@ -73,6 +73,23 @@ impl Executor {
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> Result<(), SessionError> {
+        let trace = self.start_trace();
+        let result = self.provide_traced(revision, artifact_keys, trace.clone());
+
+        // publish the complete standalone operation trace
+        trace.finish();
+        self.state.set_last_trace(trace);
+
+        result
+    }
+
+    /// Provide root artifacts while recording into an existing operation trace.
+    pub(crate) fn provide_traced(
+        &self,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+        trace: Arc<Trace>,
+    ) -> Result<(), SessionError> {
         let root_tasks = artifact_keys
             .iter()
             .copied()
@@ -80,14 +97,8 @@ impl Executor {
             .collect::<Vec<_>>();
 
         let run_id = self.state.next_run_id();
-        let clock = self.state.repository().host().clock();
-        let workers = match self.execution {
-            Execution::Threaded => self.workers.len(),
-            Execution::Inline => 1,
-        };
-        let run = Arc::new(ArtifactRun::new(run_id, root_tasks, clock, workers));
-        let trace = Arc::clone(run.trace());
-        trace.record_counter("roots", artifact_keys.len() as u64);
+        let run = Arc::new(ArtifactRun::new(run_id, root_tasks, trace.clone()));
+        trace.add_counter("roots", artifact_keys.len() as u64);
 
         self.state.emit_event(SessionEvent::RunStarted { run_id });
 
@@ -103,16 +114,25 @@ impl Executor {
             Execution::Inline => self.run_inline(run.as_ref()),
         });
 
-        // detach scheduler state and publish the completed trace
+        // detach scheduler state
         trace.span("cleanup", || {
             self.scheduler.remove_run(run.id());
-            self.state.set_last_trace(Arc::clone(&trace));
             self.state
                 .emit_event(SessionEvent::RunFinished { run_id: run.id() });
         });
-        trace.finish();
 
         result
+    }
+
+    /// Start one trace configured for this executor.
+    pub(crate) fn start_trace(&self) -> Arc<Trace> {
+        let clock = self.state.repository().host().clock();
+        let workers = match self.execution {
+            Execution::Threaded => self.workers.len(),
+            Execution::Inline => 1,
+        };
+
+        Trace::new(clock, workers)
     }
 
     /// Require one artifact version for an immutable revision.
@@ -227,6 +247,11 @@ impl Drop for Executor {
 }
 
 impl Session {
+    /// Start one trace spanning multiple artifact requests.
+    pub fn start_trace(&self) -> Arc<Trace> {
+        self.executor.start_trace()
+    }
+
     /// Provide one root artifact slice for an immutable revision.
     pub fn provide(
         &self,
@@ -234,6 +259,16 @@ impl Session {
         artifact_keys: &[ArtifactKey],
     ) -> Result<(), SessionError> {
         self.executor.provide(revision, artifact_keys)
+    }
+
+    /// Provide root artifacts while recording into an existing operation trace.
+    pub fn provide_traced(
+        &self,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+        trace: Arc<Trace>,
+    ) -> Result<(), SessionError> {
+        self.executor.provide_traced(revision, artifact_keys, trace)
     }
 
     /// Require one root artifact for an immutable revision.
