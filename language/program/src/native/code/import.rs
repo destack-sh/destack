@@ -193,7 +193,7 @@ pub enum RuntimeBinding {
     /// Builtin context binding family lookup.
     ContextFamily = 0x0035,
 
-    /// Official host binding call through the active context implementation.
+    /// Runtime binding call through the active execution context.
     BindingCall = 0x0040,
 }
 

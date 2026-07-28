@@ -37,7 +37,7 @@ pub enum NativeExitKind {
 }
 
 /// Native exit code conversion error.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NativeExitError {
     /// The invalid status code.
     pub code: NativeExitCode,
