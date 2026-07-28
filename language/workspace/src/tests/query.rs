@@ -7,7 +7,7 @@ use crate::{Error, RevisionPolicy, RunQueryRequest};
 #[test]
 fn test_resolve_query_file_requires_target() {
     let test = TestWorkspace::new("query-file-target");
-    let config_source = "{}\n";
+    let config_source = "{ \"name\": \"test\" }\n";
     let config = test.write_text("destack.json", config_source);
     let _ = test.apply_text(&config, config_source);
     let source = "export const value = 1;\n";
@@ -119,6 +119,7 @@ fn empty_rename_files() -> destack_query::QueryRequest {
 /// Return one query configuration with an explicit semantic target.
 fn query_config() -> &'static str {
     r#"{
+  "name": "test",
   "targets": {
     "default": {
       "entry": ["main.ds"]

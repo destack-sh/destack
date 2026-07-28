@@ -11,6 +11,7 @@ use crate::workspace::Workspace;
 
 /// Manifest selecting one checked entry module.
 const ENTRY_CONFIG: &str = r#"{
+  "name": "test",
   "targets": {
     "default": {
       "entry": ["main.ds"]
@@ -22,6 +23,7 @@ const ENTRY_CONFIG: &str = r#"{
 
 /// Manifest selecting every authored module.
 const INCLUDE_CONFIG: &str = r#"{
+  "name": "test",
   "targets": {
     "default": {
       "include": ["**/*.ds"]

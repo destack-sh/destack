@@ -50,6 +50,17 @@ impl Repository {
         } else {
             Uri::logical(package_root.to_string_lossy())
         };
+
+        // require authored packages to declare their import name
+        let name = config
+            .and_then(|config| config.name.clone())
+            .filter(|name| !name.is_empty());
+        if name.is_none() && matches!(kind, PackageKind::Declared | PackageKind::Dependency) {
+            return Err(match config {
+                None => RepositoryError::MissingPackageConfig { path: config_path },
+                Some(_) => RepositoryError::MissingPackageName { path: config_path },
+            });
+        }
         let mut targets = IndexMap::new();
         let mut conditional_dependencies = Vec::new();
         let mut exports = IndexMap::new();
@@ -72,7 +83,7 @@ impl Repository {
             kind,
             uri,
             path: Some(package_root.to_path_buf()),
-            name: config.and_then(|config| config.name.clone()),
+            name,
             version: config.and_then(|config| config.version.clone()),
             dependencies: config
                 .map(|config| config.dependencies.clone())
