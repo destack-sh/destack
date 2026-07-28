@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::ptr;
 
 use crate::{
     CodeOffset, CounterId, Error, InstructionLayout, LayoutId, Opcode, Operand, Placement,
@@ -7,13 +8,22 @@ use crate::{
 };
 
 /// One borrowed instruction in a bytecode stream.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub struct Instruction<'a> {
-    /// The complete encoded instruction bytes.
-    bytes: &'a [u8],
-    /// The first encoded operand byte.
-    operand_offset: u8,
+    /// The first encoded instruction byte.
+    bytes: *const u8,
+    /// The borrowed byte stream lifetime.
+    marker: PhantomData<&'a [u8]>,
 }
+
+impl PartialEq for Instruction<'_> {
+    /// Compare exact encoded instruction bytes.
+    fn eq(&self, other: &Self) -> bool {
+        self.bytes() == other.bytes()
+    }
+}
+
+impl Eq for Instruction<'_> {}
 
 /// Registers decoded directly from one counted operand list.
 #[derive(Clone, Copy, Debug)]
@@ -179,8 +189,8 @@ impl<'a> Instruction<'a> {
         };
 
         Ok(Self {
-            bytes,
-            operand_offset: operand_offset as u8,
+            bytes: bytes.as_ptr(),
+            marker: PhantomData,
         })
     }
 
@@ -192,64 +202,99 @@ impl<'a> Instruction<'a> {
     #[inline(always)]
     pub unsafe fn read_unchecked(bytes: &'a [u8]) -> Self {
         // SAFETY: the caller guarantees one complete encoded instruction
-        let header =
-            unsafe { u16::from_le_bytes([*bytes.get_unchecked(0), *bytes.get_unchecked(1)]) };
-        let header = InstructionHeader(header);
-        let compact_code_unit_count = header.compact_code_unit_count();
+        unsafe { Self::read_raw(bytes.as_ptr()) }
+    }
 
-        // decode the compact or extended width without repeating load-time checks
-        let (code_unit_count, operand_offset) = if compact_code_unit_count == 0 {
-            // SAFETY: the caller guarantees one complete extended header
-            let bytes = unsafe { bytes.get_unchecked(2..4) };
-            let code_unit_count = u16::from_le_bytes([bytes[0], bytes[1]]) as usize;
-
-            (code_unit_count, InstructionHeader::EXTENDED_BYTE_LEN)
-        } else {
-            (
-                compact_code_unit_count as usize,
-                InstructionHeader::BYTE_LEN,
-            )
-        };
-        let byte_len = code_unit_count * Self::CODE_UNIT_BYTE_LEN;
-
-        // SAFETY: the caller guarantees the encoded instruction width is available
-        let bytes = unsafe { bytes.get_unchecked(..byte_len) };
-
+    /// Read one complete instruction from its first encoded byte.
+    ///
+    /// # Safety
+    ///
+    /// The pointer must address one complete instruction produced by the bytecode builder.
+    #[inline(always)]
+    pub unsafe fn read_raw(bytes: *const u8) -> Self {
         Self {
             bytes,
-            operand_offset: operand_offset as u8,
+            marker: PhantomData,
         }
     }
 
     /// Return this instruction's exact opcode.
     #[inline(always)]
     pub fn opcode(self) -> Opcode {
-        let header = u16::from_le_bytes([self.bytes[0], self.bytes[1]]);
-
-        InstructionHeader(header).opcode()
+        self.header().opcode()
     }
 
     /// Return this instruction's complete encoded bytes.
-    pub const fn bytes(self) -> &'a [u8] {
-        self.bytes
+    pub fn bytes(self) -> &'a [u8] {
+        // SAFETY: construction retains one complete borrowed instruction range
+        unsafe { std::slice::from_raw_parts(self.bytes, self.byte_len()) }
     }
 
     /// Return this instruction's complete encoded byte length.
     #[inline(always)]
-    pub const fn byte_len(self) -> usize {
-        self.bytes.len()
+    pub fn byte_len(self) -> usize {
+        self.code_unit_count() * Self::CODE_UNIT_BYTE_LEN
     }
 
     /// Return the encoded operand bytes.
     #[inline(always)]
     pub fn operand_bytes(self) -> &'a [u8] {
-        &self.bytes[self.operand_offset as usize..]
+        &self.bytes()[self.operand_offset()..]
     }
 
     /// Read this instruction's operands from the beginning.
     #[inline(always)]
     pub fn operands(self) -> Operands<'a> {
         Operands::new(self.operand_bytes())
+    }
+
+    /// Read operands without checking their encoded bounds.
+    ///
+    /// # Safety
+    ///
+    /// The instruction operands must match the exact layout of its opcode.
+    #[inline(always)]
+    pub unsafe fn operands_unchecked(self) -> Operands<'a, false> {
+        let operand_offset = self.operand_offset();
+        let byte_len = self.byte_len() - operand_offset;
+
+        // SAFETY: every valid instruction header ends before its complete byte range
+        let bytes = unsafe { std::slice::from_raw_parts(self.bytes.add(operand_offset), byte_len) };
+
+        Operands::new(bytes)
+    }
+
+    /// Return this instruction's encoded header.
+    #[inline(always)]
+    fn header(self) -> InstructionHeader {
+        // SAFETY: construction requires one complete encoded instruction
+        let bits = unsafe { ptr::read_unaligned(self.bytes.cast::<u16>()) };
+
+        InstructionHeader(u16::from_le(bits))
+    }
+
+    /// Return this instruction's encoded code-unit count.
+    #[inline(always)]
+    fn code_unit_count(self) -> usize {
+        let compact = self.header().compact_code_unit_count();
+        if compact != 0 {
+            return compact as usize;
+        }
+
+        // SAFETY: a zero compact count requires one complete extended header
+        let count = unsafe { ptr::read_unaligned(self.bytes.add(2).cast::<u16>()) };
+
+        u16::from_le(count) as usize
+    }
+
+    /// Return this instruction's encoded operand byte offset.
+    #[inline(always)]
+    fn operand_offset(self) -> usize {
+        if self.header().compact_code_unit_count() == 0 {
+            InstructionHeader::EXTENDED_BYTE_LEN
+        } else {
+            InstructionHeader::BYTE_LEN
+        }
     }
 
     /// Return the physical register ranges written by this instruction.
@@ -352,14 +397,14 @@ impl<'a> Instruction<'a> {
 
 /// One cursor over an instruction's encoded operands.
 #[derive(Clone, Copy, Debug)]
-pub struct Operands<'a> {
+pub struct Operands<'a, const CHECKED: bool = true> {
     /// The complete encoded operand bytes.
     bytes: &'a [u8],
     /// The first unread operand byte.
     byte_offset: usize,
 }
 
-impl<'a> Operands<'a> {
+impl<'a, const CHECKED: bool> Operands<'a, CHECKED> {
     /// Create one cursor at the first encoded operand.
     const fn new(bytes: &'a [u8]) -> Self {
         Self {
@@ -531,7 +576,19 @@ impl<'a> Operands<'a> {
     /// Read one exact fixed-width byte array.
     #[inline(always)]
     pub fn take<const N: usize>(&mut self) -> Result<[u8; N]> {
-        let bytes = Instruction::decode_bytes::<N>(self.bytes, self.byte_offset)?;
+        let mut bytes = [0; N];
+        if CHECKED {
+            bytes = Instruction::decode_bytes::<N>(self.bytes, self.byte_offset)?;
+        } else {
+            // SAFETY: the linked opcode layout guarantees every requested operand
+            unsafe {
+                ptr::copy_nonoverlapping(
+                    self.bytes.as_ptr().add(self.byte_offset),
+                    bytes.as_mut_ptr(),
+                    N,
+                );
+            }
+        }
         self.byte_offset += N;
 
         Ok(bytes)
@@ -542,13 +599,18 @@ impl<'a> Operands<'a> {
     fn list(&mut self, element_byte_len: usize) -> Result<&'a [u8]> {
         let count = self.u16()? as usize;
         let byte_len = count * element_byte_len;
-        let Some(bytes) = self
-            .bytes
-            .get(self.byte_offset..self.byte_offset + byte_len)
-        else {
-            return Err(Error::TruncatedInstruction);
+        let end = self.byte_offset + byte_len;
+        let bytes = if CHECKED {
+            let Some(bytes) = self.bytes.get(self.byte_offset..end) else {
+                return Err(Error::TruncatedInstruction);
+            };
+
+            bytes
+        } else {
+            // SAFETY: the linked opcode layout guarantees every counted operand list
+            unsafe { self.bytes.get_unchecked(self.byte_offset..end) }
         };
-        self.byte_offset += byte_len;
+        self.byte_offset = end;
 
         Ok(bytes)
     }
