@@ -184,7 +184,45 @@ impl<'a> Instruction<'a> {
         })
     }
 
+    /// Read one complete instruction without checking its encoded bounds.
+    ///
+    /// # Safety
+    ///
+    /// The byte slice must begin with one complete instruction produced by the bytecode builder.
+    #[inline(always)]
+    pub unsafe fn read_unchecked(bytes: &'a [u8]) -> Self {
+        // SAFETY: the caller guarantees one complete encoded instruction
+        let header =
+            unsafe { u16::from_le_bytes([*bytes.get_unchecked(0), *bytes.get_unchecked(1)]) };
+        let header = InstructionHeader(header);
+        let compact_code_unit_count = header.compact_code_unit_count();
+
+        // decode the compact or extended width without repeating load-time checks
+        let (code_unit_count, operand_offset) = if compact_code_unit_count == 0 {
+            // SAFETY: the caller guarantees one complete extended header
+            let bytes = unsafe { bytes.get_unchecked(2..4) };
+            let code_unit_count = u16::from_le_bytes([bytes[0], bytes[1]]) as usize;
+
+            (code_unit_count, InstructionHeader::EXTENDED_BYTE_LEN)
+        } else {
+            (
+                compact_code_unit_count as usize,
+                InstructionHeader::BYTE_LEN,
+            )
+        };
+        let byte_len = code_unit_count * Self::CODE_UNIT_BYTE_LEN;
+
+        // SAFETY: the caller guarantees the encoded instruction width is available
+        let bytes = unsafe { bytes.get_unchecked(..byte_len) };
+
+        Self {
+            bytes,
+            operand_offset: operand_offset as u8,
+        }
+    }
+
     /// Return this instruction's exact opcode.
+    #[inline(always)]
     pub fn opcode(self) -> Opcode {
         let header = u16::from_le_bytes([self.bytes[0], self.bytes[1]]);
 
@@ -197,16 +235,19 @@ impl<'a> Instruction<'a> {
     }
 
     /// Return this instruction's complete encoded byte length.
+    #[inline(always)]
     pub const fn byte_len(self) -> usize {
         self.bytes.len()
     }
 
     /// Return the encoded operand bytes.
+    #[inline(always)]
     pub fn operand_bytes(self) -> &'a [u8] {
         &self.bytes[self.operand_offset as usize..]
     }
 
     /// Read this instruction's operands from the beginning.
+    #[inline(always)]
     pub fn operands(self) -> Operands<'a> {
         Operands::new(self.operand_bytes())
     }
@@ -338,6 +379,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one register id.
+    #[inline(always)]
     pub fn register(&mut self) -> Result<RegisterId> {
         Ok(RegisterId(self.u16()?))
     }
@@ -357,6 +399,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one contiguous register span.
+    #[inline(always)]
     pub fn span(&mut self) -> Result<RegisterSpan> {
         let start = self.register()?;
         let word_count = self.u16()?;
@@ -365,6 +408,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one reference representation.
+    #[inline(always)]
     pub fn reference(&mut self) -> Result<ReferenceType> {
         let bits = self.u16()?;
 
@@ -372,6 +416,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one scalar representation.
+    #[inline(always)]
     pub fn scalar(&mut self) -> Result<Scalar> {
         let code = self.u16()?;
         let code = u8::try_from(code).map_err(|_| Error::InvalidOperand)?;
@@ -380,6 +425,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one complete value type.
+    #[inline(always)]
     pub fn value_type(&mut self) -> Result<ValueType> {
         let bytes = self.take::<{ ValueType::BYTE_LEN }>()?;
 
@@ -387,6 +433,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one tensor operand.
+    #[inline(always)]
     pub fn tensor(&mut self) -> Result<TensorOperand> {
         let registers = self.span()?;
         let layout = LayoutId(self.u32()?);
@@ -402,6 +449,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one fixed-width vector type.
+    #[inline(always)]
     pub fn vector_type(&mut self) -> Result<VectorType> {
         let bytes = self.take::<4>()?;
         if bytes[1] != 0 {
@@ -415,11 +463,13 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one function-local profile counter.
+    #[inline(always)]
     pub fn counter(&mut self) -> Result<CounterId> {
         Ok(CounterId(self.u32()?))
     }
 
     /// Read one function-local profile sampler.
+    #[inline(always)]
     pub fn sampler(&mut self) -> Result<SamplerId> {
         Ok(SamplerId(self.u32()?))
     }
@@ -439,6 +489,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one unsigned 16-bit value.
+    #[inline(always)]
     pub fn u16(&mut self) -> Result<u16> {
         let bytes = self.take::<2>()?;
 
@@ -446,6 +497,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one unsigned 32-bit value.
+    #[inline(always)]
     pub fn u32(&mut self) -> Result<u32> {
         let bytes = self.take::<4>()?;
 
@@ -453,6 +505,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one signed 32-bit value.
+    #[inline(always)]
     pub fn i32(&mut self) -> Result<i32> {
         let bytes = self.take::<4>()?;
 
@@ -460,6 +513,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one unsigned 64-bit value.
+    #[inline(always)]
     pub fn u64(&mut self) -> Result<u64> {
         let bytes = self.take::<8>()?;
 
@@ -467,6 +521,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one unsigned 128-bit value.
+    #[inline(always)]
     pub fn u128(&mut self) -> Result<u128> {
         let bytes = self.take::<16>()?;
 
@@ -474,6 +529,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Read one exact fixed-width byte array.
+    #[inline(always)]
     pub fn take<const N: usize>(&mut self) -> Result<[u8; N]> {
         let bytes = Instruction::decode_bytes::<N>(self.bytes, self.byte_offset)?;
         self.byte_offset += N;
@@ -482,6 +538,7 @@ impl<'a> Operands<'a> {
     }
 
     /// Borrow one counted list with a fixed element width.
+    #[inline(always)]
     fn list(&mut self, element_byte_len: usize) -> Result<&'a [u8]> {
         let count = self.u16()? as usize;
         let byte_len = count * element_byte_len;
