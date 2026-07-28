@@ -406,3 +406,62 @@ person.profile.count = 5;
 /// @diagnostic.label line=12 column=16 span="count" line_source="person.profile.count = 5;"
 "#);
 }
+
+#[test]
+fn test_interface_alias_uses_dynamic_storage() {
+    let session = TestSession::single(
+        r#"
+interface Sink {
+    write(value: string): void;
+}
+
+type SinkAlias = Sink;
+
+declare const sink: SinkAlias;
+function consume(value: SinkAlias): void {}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Sink {
+    write(value: string): void;
+}
+
+type SinkAlias = Sink;
+
+declare const sink: Dynamic<Sink>;
+function consume(value: Dynamic<Sink>): void {}
+
+=== checked ===
+interface Sink {
+/// @type.symbol symbol=Sink type=Sink
+/// @definition.interface symbol=Sink
+/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: this, string) => void
+
+    write(value: string): void;
+    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(this: this, string) => void
+    /// @type.symbol symbol=Sink.write.value source="value: string" type=string
+
+}
+
+type SinkAlias = Sink;
+/// @type.symbol symbol=SinkAlias source="type SinkAlias = Sink" type=Sink
+/// @definition.type symbol=SinkAlias source="type SinkAlias = Sink" value=Sink
+/// @resolution.name source=Sink target=Sink
+
+declare const sink: SinkAlias;
+/// @type.symbol symbol=sink source=sink type=Dynamic<Sink>
+/// @resolution.pattern source=sink kind=binding target=sink
+/// @resolution.name source=SinkAlias target=SinkAlias
+
+function consume(value: SinkAlias): void {}
+/// @type.symbol symbol=consume source="function consume(value: SinkAlias): void {}" type=(Dynamic<Sink>) => void
+/// @type.symbol symbol=consume.value source="value: SinkAlias" type=Dynamic<Sink>
+/// @resolution.name source=SinkAlias target=SinkAlias
+"#,
+    );
+}

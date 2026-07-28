@@ -484,8 +484,9 @@ impl CheckState<'_> {
         if !matches!(pattern_type, dir::Type::Union(_))
             && let dir::Type::Union(actual_union) = actual_type
         {
-            let arms =
-                SmallVec::<[_; 4]>::from_slice(self.type_ids(actual.module_id, actual_union.elements)?);
+            let arms = SmallVec::<[_; 4]>::from_slice(
+                self.type_ids(actual.module_id, actual_union.elements)?,
+            );
             let mut blockers = SmallVec::<[Dependency; 2]>::new();
             for arm in arms {
                 let mut scratch = substitution.clone();
@@ -554,7 +555,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // consume one unambiguous pair or wait for unresolved evidence
+            // consume one unambiguous pair, or wait for the unresolved ones
             if let Some((pattern_index, actual_index, matched)) = selected {
                 *substitution = matched;
                 patterns.remove(pattern_index);

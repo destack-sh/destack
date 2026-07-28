@@ -9,9 +9,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Cause, CauseId, CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable,
-    DecoratorApplication, FailedCheck, FunctionBody, GenericIndex, Origin,
-    OriginId, Solver, TryPropagationTarget, VarianceForm, VarianceState,
-    should_stream_check_events,
+    DecoratorApplication, FailedCheck, FunctionBody, GenericIndex, Origin, OriginId, Relation,
+    Solver, TryPropagationTarget, VarianceForm, VarianceState, should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -53,8 +52,6 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) external_components: FxIndexMap<ModuleId, CheckExternalComponent>,
     /// Inherent extension modules awaiting their first extension lookup.
     pub(in crate::check) inherent_externals: Option<FxIndexSet<ModuleId>>,
-    /// Inherent extension symbols carried by the component graph.
-    pub(in crate::check) inherent_extensions: Vec<dir::GlobalSymbolId>,
 
     // walk state
     /// Resolved decorators in component walk order.
@@ -80,6 +77,9 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) walked_declarations: FxIndexSet<dir::GlobalNodeIdAny>,
     /// Declarations currently walking, innermost last.
     pub(in crate::check) walking_declarations: Vec<dir::GlobalNodeIdAny>,
+    /// Extension applicability goals currently deciding, for cycle breaking.
+    pub(in crate::check) deciding_extensions:
+        FxIndexSet<(Relation, dir::GlobalTypeId, dir::GlobalTypeId)>,
     /// Declarations applied while still walking, keyed to their referents.
     pub(in crate::check) cyclic_inductions: FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalNodeIdAny>,
 
@@ -134,7 +134,6 @@ impl<'a> CheckState<'a> {
         environment: Arc<Environment>,
         external_components: FxIndexMap<ModuleId, CheckExternalComponent>,
         inherent_externals: FxIndexSet<ModuleId>,
-        inherent_extensions: Vec<dir::GlobalSymbolId>,
         inference_modules: FxIndexSet<ModuleId>,
         emit_events: bool,
     ) -> Self {
@@ -151,7 +150,6 @@ impl<'a> CheckState<'a> {
             templates_ready: false,
             external_components,
             inherent_externals: Some(inherent_externals),
-            inherent_extensions,
             decorators: Vec::new(),
             declaration_types: FxIndexMap::default(),
             binding_types: FxIndexMap::default(),
@@ -161,6 +159,7 @@ impl<'a> CheckState<'a> {
             variances: FxIndexMap::default(),
             walked_declarations: FxIndexSet::default(),
             walking_declarations: Vec::new(),
+            deciding_extensions: FxIndexSet::default(),
             cyclic_inductions: FxIndexMap::default(),
             reduced_heads: FxIndexMap::default(),
             reduced_graphs: FxIndexMap::default(),
@@ -701,7 +700,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::TypeListId> {
         Ok(self.module_mut(module).types_tail.intern_elements(values))
     }
-
 
     /// Intern one function parameter list into a module's working segment.
     pub(in crate::check) fn intern_parameters(
@@ -1417,5 +1415,4 @@ impl CheckState<'_> {
 
         Ok((id, bindings))
     }
-
 }

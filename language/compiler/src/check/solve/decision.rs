@@ -92,7 +92,7 @@ pub(in crate::check) enum DecisionKind {
 /// Decided node kinds for one checked component.
 ///
 /// Resolution payloads live in each module's resolution segment; this table
-/// only enforces the decide-once invariant and carries rejections.
+/// only enforces the decide-once invariant and records rejections.
 #[derive(Debug)]
 pub(in crate::check) struct DecisionTable {
     /// Decided kinds keyed by source node, in decide order.

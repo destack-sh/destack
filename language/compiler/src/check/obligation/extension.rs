@@ -48,8 +48,7 @@ impl CheckState<'_> {
             let heritage = declared.interface;
             let (interface_module, interface) = self.require_nominal_application(heritage.ty)?;
 
-            // declared members prove the contract; selection below only
-            //  records the declarations behind each requirement
+            // record the declarations behind each requirement
             let conforms = answer!(self.conform_declared_implementation(
                 origin,
                 heritage.ty,
@@ -81,9 +80,7 @@ impl CheckState<'_> {
             )?);
             match implementation {
                 Ok(implementation) => selected.push(implementation),
-                Err(failure) => {
-                    failures.push(failure);
-                }
+                Err(failure) => failures.push(failure),
             }
         }
         self.commit_interface_implementations(symbol, selected)?;
@@ -189,7 +186,7 @@ impl CheckState<'_> {
             return false;
         }
 
-        // blanket extensions are anchored by their bound interface
+        // accept a blanket extension, its bound interface names it
         if matches!(self.ty(target.r#type()), Ok(dir::Type::Parameter(_))) {
             return false;
         }
@@ -226,8 +223,7 @@ impl CheckState<'_> {
         };
         let interface_members = definition.members().to_vec();
 
-        // the refined receiver resolves this-projections through the
-        //  declared associated types before any record commits
+        // resolve this projections through the declared associated types
         let instantiation = TypeSubstitution::default().with_receiver(target);
         let Some((_, receiver)) = answer!(self.instantiate_implemented_interface(
             origin,
@@ -271,7 +267,7 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(false));
             }
 
-            // abstract associated requirements satisfy by presence
+            // accept an abstract associated requirement by presence
             let Some(required) = requirement.ty else {
                 continue;
             };
@@ -382,7 +378,7 @@ impl CheckState<'_> {
                 &interface_member,
             )?);
             if candidates.is_empty() {
-                // defaulted members satisfy their own contract
+                // accept a defaulted member as its own implementation
                 if interface_member.has_default {
                     selected.push(dir::InterfaceMemberImplementation {
                         requirement: interface_member.source,
@@ -405,7 +401,9 @@ impl CheckState<'_> {
 
             // overloads select in declaration order, first conforming wins
             let mut chosen = None;
-            if candidates.len() > 1 && let Some(required) = interface_member.ty {
+            if candidates.len() > 1
+                && let Some(required) = interface_member.ty
+            {
                 for candidate in &candidates {
                     let found = candidate.callable.unwrap_or(candidate.access_type);
                     let conforms = self.decide_member_relation(
@@ -570,8 +568,7 @@ impl CheckState<'_> {
                 .map(|value| self.substitute_type(origin.module(), value, &receiver_substitution))
                 .transpose()?;
 
-            // two authored bindings must denote the same reduced type; open
-            //  instantiations inherit the judgment from the declaration gate
+            // require both authored bindings to name one reduced type
             if let (Some(written), Some(declared)) = (written, declared)
                 && let Answer::Ready(written) = self.reduce_type(origin, written)?
                 && let Answer::Ready(reduced) = self.reduce_type(origin, declared)?
@@ -724,8 +721,7 @@ impl CheckState<'_> {
             }
         }
 
-        // reject overlapping receivers for one unifiable interface
-        //  instantiation: distinct interface arguments never conflict
+        // reject overlapping receivers under one unifiable interface instantiation
         for (other, other_ty, heritage, other_heritage) in candidates {
             if !answer!(self.types_may_overlap(origin, ty, other_ty)?) {
                 continue;

@@ -105,8 +105,8 @@ impl BodyState<'_, '_> {
 
         // dereference one memory form
         if let dir::Type::Form(form) = self.ty(head)? {
-            // an owned reference-family value never steps to its managed
-            // form: that conversion is an allocation the caller must spell
+            // stop at an owned value whose family defaults to managed,
+            //  stepping to the managed form would allocate
             if form.form == dir::Form::Owned
                 && answer!(self.check.defaults_to_managed(origin, form.value)?)
             {

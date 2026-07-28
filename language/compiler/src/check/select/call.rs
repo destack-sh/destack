@@ -105,7 +105,7 @@ impl BodyState<'_, '_> {
         let callee_node = callee_site.node;
         let callee = callee_node.into_typed::<dir::Expression>().local_id;
 
-        // reference and member callees carry decided declaration meanings
+        // use the recorded callee decision for reference and member callees
         let uses_callee_decision = {
             let view = self.module(module).view();
             let expression = view.get(callee);
@@ -136,9 +136,8 @@ impl BodyState<'_, '_> {
                     .copied()
                     .collect::<SmallVec<[_; 2]>>();
 
-                // value bindings call through their inferred node type,
-                //  which carries flow narrowing; declarations carry
-                //  their overload sets on the symbol
+                // call a value binding through its inferred node type,
+                //  and a declaration through its symbol's overload set
                 let value_binding = symbols
                     .iter()
                     .all(|symbol| matches!(self.symbol_kind(*symbol), dir::SymbolKind::Variable));
@@ -234,7 +233,7 @@ impl BodyState<'_, '_> {
 
                 Ok(Answer::Ready(Some(candidates)))
             }
-            // rejected callees already carry a diagnostic
+            // skip rejected callees, they already reported a diagnostic
             Some(DecisionKind::Rejected) => Ok(Answer::Ready(None)),
             Some(other) => Err(CompilerError::Internal {
                 message: format!("call callee {callee_node:?} decided as {other:?}"),
@@ -670,7 +669,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // materialize the best viable combination in runtime-arm order
+        // collect the best viable combination in runtime-arm order
         let indices = winner.map(|(_, indices)| indices).or(indeterminate);
         let mut candidates = SmallVec::new();
         if let Some(indices) = indices {
@@ -728,7 +727,7 @@ impl BodyState<'_, '_> {
             };
             rank = rank.max(signature.rank);
 
-            // every runtime arm must select one uniform argument conversion
+            // require one uniform argument conversion across every runtime arm
             for (node, coercion) in &signature.coercions {
                 match coercions.iter().find(|(source, _)| source == node) {
                     Some((_, selected)) if selected != coercion => {
@@ -754,6 +753,23 @@ impl BodyState<'_, '_> {
 }
 
 impl BodyState<'_, '_> {
+    /// Commit one rejected call node and produce its failed check.
+    fn reject_call(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        expectation: Option<Expectation>,
+    ) -> CompilerResult<ValueCheck> {
+        self.commit_decision(node, Decision::Rejected)?;
+        let source = self.commit_error_node(node)?;
+        let target = expectation.map_or(source, |expectation| expectation.target);
+
+        Ok(ValueCheck {
+            source,
+            outcome: CheckOutcome::Fails(CheckFailure::Relation),
+            target,
+        })
+    }
+
     /// Select the callable meaning of one call node.
     pub(in crate::check) fn select_call(
         &mut self,
@@ -793,15 +809,7 @@ impl BodyState<'_, '_> {
         // collect callable candidates from the callee
         let Some(callees) = answer!(self.callable_candidates(origin, module, callee_site)?) else {
             // rejected callees already reported their own diagnostic
-            self.commit_decision(node, Decision::Rejected)?;
-            let source = self.commit_error_node(node)?;
-            let target = expectation.map_or(source, |expectation| expectation.target);
-
-            return Ok(Answer::Ready(ValueCheck {
-                source,
-                outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                target,
-            }));
+            return Ok(Answer::Ready(self.reject_call(node, expectation)?));
         };
         // runtime union callees must accept the call through every arm
         if callees.arms.len() > 1 {
@@ -825,15 +833,7 @@ impl BodyState<'_, '_> {
             let callee_type = self.require_node_type(callee_site.node)?;
             let callee_type = answer!(self.flow_type_at(callee_site, callee_type)?);
             self.report_not_callable(origin, callee_type)?;
-            self.commit_decision(node, Decision::Rejected)?;
-            let source = self.commit_error_node(node)?;
-            let target = expectation.map_or(source, |expectation| expectation.target);
-
-            return Ok(Answer::Ready(ValueCheck {
-                source,
-                outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                target,
-            }));
+            return Ok(Answer::Ready(self.reject_call(node, expectation)?));
         }
 
         // newtype targets select their nominal constructor
@@ -935,35 +935,19 @@ impl BodyState<'_, '_> {
                     if is_single_candidate && rejection.is_precise() =>
                 {
                     self.report_signature_rejection(origin, rejection)?;
-                    self.commit_decision(node, Decision::Rejected)?;
-                    let source = self.commit_error_node(node)?;
-                    let target = expectation.map_or(source, |expectation| expectation.target);
-
-                    return Ok(Answer::Ready(ValueCheck {
-                        source,
-                        outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                        target,
-                    }));
+                    return Ok(Answer::Ready(self.reject_call(node, expectation)?));
                 }
                 SignatureMatch::Invalid { .. } => {}
                 SignatureMatch::Inapplicable(_) => {}
             }
         }
 
-        // no candidate matched the arguments
+        // report that no candidate matched the arguments
         let mut rejections = overload.rejections;
         rejections.truncate(4);
         let arguments = answer!(self.infer_argument_types(site, argument_nodes)?);
         self.report_no_matching_call(origin, &arguments, &rejections)?;
-        self.commit_decision(node, Decision::Rejected)?;
-        let source = self.commit_error_node(node)?;
-        let target = expectation.map_or(source, |expectation| expectation.target);
-
-        Ok(Answer::Ready(ValueCheck {
-            source,
-            outcome: CheckOutcome::Fails(CheckFailure::Relation),
-            target,
-        }))
+        Ok(Answer::Ready(self.reject_call(node, expectation)?))
     }
 
     /// Return whether one call head is an inference hole.
@@ -995,15 +979,9 @@ impl BodyState<'_, '_> {
         let callee = callee.into_global_any(origin.module());
         let Some(expectation) = expectation else {
             self.report_cannot_infer_node(node)?;
-            self.commit_decision(node, Decision::Rejected)?;
-            let source = self.commit_error_node(node)?;
             self.commit_error_node(callee)?;
 
-            return Ok(Answer::Ready(ValueCheck {
-                source,
-                outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                target: source,
-            }));
+            return Ok(Answer::Ready(self.reject_call(node, None)?));
         };
         let target = answer!(self.reduce_type_head(origin, expectation.target)?);
         let symbol = match self.ty(target)? {
@@ -1014,15 +992,9 @@ impl BodyState<'_, '_> {
             }
             _ => {
                 self.report_invalid_inferred_construct_target(origin, target)?;
-                self.commit_decision(node, Decision::Rejected)?;
-                let source = self.commit_error_node(node)?;
                 self.commit_error_node(callee)?;
 
-                return Ok(Answer::Ready(ValueCheck {
-                    source,
-                    outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                    target: expectation.target,
-                }));
+                return Ok(Answer::Ready(self.reject_call(node, Some(expectation))?));
             }
         };
 
@@ -1071,15 +1043,7 @@ impl BodyState<'_, '_> {
             let mut rejections = overload.rejections;
             rejections.truncate(4);
             self.report_no_matching_call(origin, &argument_types, &rejections)?;
-            self.commit_decision(node, Decision::Rejected)?;
-            let source = self.commit_error_node(node)?;
-            let target = expectation.map_or(source, |expectation| expectation.target);
-
-            return Ok(Answer::Ready(ValueCheck {
-                source,
-                outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                target,
-            }));
+            return Ok(Answer::Ready(self.reject_call(node, expectation)?));
         }
 
         // confirm the selected combination outside the ranking probes
@@ -1097,19 +1061,11 @@ impl BodyState<'_, '_> {
             CallMatch::Inapplicable(rejection) => {
                 let argument_types = answer!(self.infer_argument_types(site, argument_nodes)?);
                 self.report_no_matching_call(origin, &argument_types, &[rejection])?;
-                self.commit_decision(node, Decision::Rejected)?;
-                let source = self.commit_error_node(node)?;
-                let target = expectation.map_or(source, |expectation| expectation.target);
-
-                return Ok(Answer::Ready(ValueCheck {
-                    source,
-                    outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                    target,
-                }));
+                return Ok(Answer::Ready(self.reject_call(node, expectation)?));
             }
         };
 
-        // materialize the confirmed calls in runtime-arm order
+        // commit the confirmed calls in runtime-arm order
         for signature in &selection.signatures {
             for (source, coercion) in &signature.coercions {
                 self.commit_coercion(*source, coercion.clone())?;

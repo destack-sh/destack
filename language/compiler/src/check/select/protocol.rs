@@ -155,6 +155,8 @@ impl CheckState<'_> {
     }
 }
 
+// union arms recurse per receiver while the key stays fixed
+#[allow(clippy::only_used_in_recursion)]
 impl BodyState<'_, '_> {
     /// Infer one complete protocol application backed by a language item.
     fn infer_language_protocol(
@@ -325,10 +327,8 @@ impl BodyState<'_, '_> {
         let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
         let interface = protocol.instance(self, module)?;
         let interface = self.intern_type(module, dir::Type::Application(interface))?;
-        let members = protocol.members(self, origin, interface, lookup_receiver, key)?;
-        if let Answer::Pending(pending) = &members {
-        }
-        let requirements = answer!(members);
+        let requirements =
+            answer!(protocol.members(self, origin, interface, lookup_receiver, key)?);
         let extension = self.select_extension_protocol_call(
             origin,
             module,
@@ -338,8 +338,6 @@ impl BodyState<'_, '_> {
             protocol,
             argument_sources,
         )?;
-        if let Answer::Pending(pending) = &extension {
-        }
         if !matches!(extension, Answer::Ready(None)) {
             return Ok(extension);
         }
@@ -513,7 +511,7 @@ impl BodyState<'_, '_> {
                     indeterminate.get_or_insert(candidate);
                 }
                 Answer::Ready(CandidateVerdict::Rejected) => {}
-                // unresolved outer evidence keeps the candidate for commit
+                // keep a candidate whose outer variables are still open
                 Answer::Pending(pending) => {
                     indeterminate.get_or_insert(candidate);
                     blockers.extend(pending);
@@ -613,12 +611,8 @@ impl BodyState<'_, '_> {
         let Some((substitution, implementation, index)) = answer!(matched) else {
             return Ok(Answer::Ready(None));
         };
-        let candidates = self.extension_member_candidates(
-            origin,
-            extension_symbol,
-            &substitution,
-            members,
-        )?;
+        let candidates =
+            self.extension_member_candidates(origin, extension_symbol, &substitution, members)?;
         let candidates = answer!(candidates);
         if candidates.is_empty() {
             return Ok(Answer::Ready(None));
@@ -661,7 +655,7 @@ impl BodyState<'_, '_> {
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<(TypeSubstitution, dir::GlobalTypeId, usize)>>> {
         let template = self.symbol_template(extension_symbol)?;
-        let Some(substitution) =
+        let Some(mut substitution) =
             answer!(self.instantiate_extension(origin, lookup_receiver, template, target_type)?)
         else {
             return Ok(Answer::Ready(None));
@@ -674,7 +668,8 @@ impl BodyState<'_, '_> {
             Relation::Assignable,
             module,
             module,
-            &substitution,
+            &[],
+            &mut substitution,
             implementations,
             &interface,
         )?);
@@ -1053,13 +1048,14 @@ impl BodyState<'_, '_> {
             };
             let (application_module, application) =
                 self.require_nominal_application(application_type)?;
-            let substitution = self.instance_substitution(application_module, &application)?;
+            let mut substitution = self.instance_substitution(application_module, &application)?;
             let matched = answer!(self.match_implemented_interface(
                 origin,
                 Relation::Assignable,
                 module,
                 module,
-                &substitution,
+                &[],
+                &mut substitution,
                 &implementations,
                 &interface,
             )?);

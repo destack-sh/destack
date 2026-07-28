@@ -219,7 +219,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
-        // unresolved permutations wait for independent evidence
+        // wait for the unresolved variables on both sides
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for ty in source.into_iter().chain(target) {
             for variable in self.type_variables(ty)? {

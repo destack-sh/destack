@@ -145,9 +145,12 @@ impl<'context, 'query> CallIndexer<'context, 'query> {
         node_id: dir::GlobalNodeIdAny,
         family: &str,
     ) -> ProviderResult<dir::GlobalNodeId<dir::Expression>> {
-        node_id.try_into_typed::<dir::Expression>().map_err(|error| {
-            ProviderError::internal(format!("{family} source is not an expression: {error}")).into()
-        })
+        node_id
+            .try_into_typed::<dir::Expression>()
+            .map_err(|error| {
+                ProviderError::internal(format!("{family} source is not an expression: {error}"))
+                    .into()
+            })
     }
 
     /// Push call edges selected by one call resolution.

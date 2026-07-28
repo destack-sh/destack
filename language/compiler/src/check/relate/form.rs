@@ -228,7 +228,7 @@ impl CheckState<'_> {
             )?));
         }
 
-        // placement locates direct carriers without relocating references stored inside
+        // relate placement on the direct value, not on references stored inside
         if let dir::Type::Form(target_form) = self.ty(target)?
             && matches!(target_form.form, dir::Form::Placed { .. })
         {
@@ -540,8 +540,9 @@ impl CheckState<'_> {
     }
 
     /// Constrain one copyable payload read out of a view or borrow.
-    /// A copy read out of a view never lends past readonly, because writes
-    /// into the hidden copy would silently miss the viewed storage.
+    ///
+    /// A copy read out of a view never lends past readonly, since writes into the
+    /// hidden copy would miss the viewed storage.
     fn constrain_copyable_read_out(
         &mut self,
         origin: Origin,
@@ -644,7 +645,7 @@ impl CheckState<'_> {
                 dir::Type::Memory(dir::MemoryLiteral::Access(target)),
             ) => Ok(Answer::Ready(source.grants(target))),
 
-            // every possible source access must grant the requirement
+            // require every possible source access to grant the requirement
             (dir::Type::Union(union), _) => {
                 let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
                 let mut decision = Answer::Ready(true);
@@ -673,7 +674,7 @@ impl CheckState<'_> {
                 Ok(decision)
             }
 
-            // rigid access parameters grant what any carried bound proves
+            // grant what any declared bound proves for a rigid parameter
             (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
                 let mut decision = Answer::Ready(false);
                 for bound in self.parameter_bounds(origin, parameter)? {

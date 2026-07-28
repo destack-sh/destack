@@ -2201,6 +2201,16 @@ impl PropertyAccess {
             access => access,
         }
     }
+
+    /// Merge one key's accessor operations into a single access.
+    pub fn merged(self, other: PropertyAccess) -> PropertyAccess {
+        match (other.read().or(self.read()), other.write().or(self.write())) {
+            (Some(read), Some(write)) => Self::ReadWrite { read, write },
+            (Some(read), None) => Self::Read(read),
+            (None, Some(write)) => Self::Write(write),
+            (None, None) => self,
+        }
+    }
 }
 
 /// An index signature in an object type.

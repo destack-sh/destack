@@ -356,7 +356,7 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::Predicate>>> {
         match self.ty(value)? {
-            // erased values need a runtime witness predicate
+            // reject erased values, they have no testable type
             dir::Type::Dynamic(_) => Ok(Answer::Ready(None)),
 
             // tagged unions can still test their known arms

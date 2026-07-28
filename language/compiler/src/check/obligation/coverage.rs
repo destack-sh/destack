@@ -27,7 +27,7 @@ enum StaticRangeBound {
 }
 
 impl StaticRangeBound {
-    /// Return the literal value carried by this bound.
+    /// Return the literal value of this bound.
     fn literal(self) -> Option<dir::ScalarLiteral> {
         match self {
             Self::Open => None,
@@ -67,8 +67,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let value = answer!(self.reduce_type_head(origin, value)?);
 
-        // untagged newtypes match through their backing, like the
-        //  narrowing family they belong to
+        // match untagged newtypes through their backing
         if answer!(self.variant_discriminant_domain(origin, value)?).is_none()
             && let Some(instance) = self.decompose_newtype(origin, value)?
         {
@@ -137,7 +136,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<UncoveredValue>> {
         let value = answer!(self.reduce_type_head(origin, value)?);
 
-        // untagged newtypes witness through their backing
+        // test untagged newtypes through their backing
         if let Answer::Ready(None) = self.variant_discriminant_domain(origin, value)?
             && let Some(instance) = self.decompose_newtype(origin, value)?
         {
@@ -791,7 +790,7 @@ impl CheckState<'_> {
         end_kind: dir::RangeEnd,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // only scalar literal values sit inside intervals
+        // require a scalar literal value to test an interval
         let dir::Type::Literal(literal) = self.ty(value)? else {
             return Ok(Answer::Ready(false));
         };

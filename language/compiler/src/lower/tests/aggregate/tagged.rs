@@ -191,3 +191,57 @@ entry(v0: float64):
 "#,
     );
 }
+
+#[test]
+fn test_lower_payload_free_tagged_member() {
+    let session = TestSession::single(
+        r#"
+struct Ready {
+    state: "ready";
+}
+
+struct Pending {
+    state: "pending";
+}
+
+@derive(Tagged)
+newtype Status = Ready | Pending;
+
+function pending(): Status {
+    Status.Pending
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Ready {
+    state: void;
+}
+
+@copy
+type Pending {
+    state: void;
+}
+
+@copy
+type Status = variant<uint8, Ready> { 0uint8 = Ready; 1uint8 = Pending; };
+
+function test.main.pending(): Status {
+entry:
+    v0: Status = variant.new 1
+    return v0
+}
+/// @layout.struct name=Ready size=0 align=1
+/// @layout.field owner=Ready index=0 name=state offset=0 size=0 align=1
+/// @layout.struct name=Pending size=0 align=1
+/// @layout.field owner=Pending index=0 name=state offset=0 size=0 align=1
+/// @layout.variant name=Status size=1 align=1
+/// @layout.discriminant owner=Status kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=Status index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=Status index=1 discriminant=1 payload_offset=1
+"#,
+    );
+}

@@ -18,7 +18,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
-        // intrinsic newtype backings use their parameters as compiler storage
+        // accept intrinsic newtypes, their parameters are compiler storage
         let backing = match self.definition(symbol)? {
             Some(dir::Definition::Newtype(newtype)) => Some(newtype.backing),
             Some(_) => None,
@@ -38,7 +38,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // value parameters have no variance role to protect
+            // skip value parameters, they have no variance role
             if binding.induced_memory_parameter().is_some()
                 || binding.is_comptime()
                 || binding.is_const
@@ -49,7 +49,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // declared modifiers must admit the variance derived from usage
+            // require the declared modifier to admit the derived variance
             let form = self.parameter_variance_form(parameter)?;
             if let Some(declared) = binding.variance {
                 let derived = self.derive_variance(parameter, form)?;
@@ -101,7 +101,7 @@ impl CheckState<'_> {
         // collect member types, skipping synthetic self applications
         for member in definition.members() {
             match member {
-                // methods expose their inputs and non-constructing outputs
+                // expose method inputs and non-constructing outputs
                 dir::DefinitionMember::Method(method) => {
                     let Some(ty) = answer!(self.definition_member_type(member)?) else {
                         continue;
@@ -116,7 +116,7 @@ impl CheckState<'_> {
                         .to_vec();
                     types.extend(parameters.iter().map(|parameter| parameter.ty));
 
-                    // constructor returns restate the receiver instance
+                    // skip constructor returns, they restate the receiver instance
                     let constructs = matches!(
                         method.slot,
                         dir::MemberSlot::Constructor | dir::MemberSlot::New
@@ -125,17 +125,17 @@ impl CheckState<'_> {
                         types.extend(signature.return_type);
                     }
                 }
-                // associated types expose their value and constraint
+                // expose associated type values and constraints
                 dir::DefinitionMember::AssociatedType(associated) => {
                     types.extend(associated.value);
                     types.extend(associated.constraint);
                 }
-                // index signatures expose their key domain and value
+                // expose index signature key domains and values
                 dir::DefinitionMember::IndexSignature(signature) => {
                     types.push(signature.key_type);
                     types.push(signature.value_type);
                 }
-                // variant singletons restate the receiver instance
+                // skip variant singletons, they restate the receiver instance
                 dir::DefinitionMember::EnumVariant(_) | dir::DefinitionMember::TaggedVariant(_) => {
                 }
                 dir::DefinitionMember::Field(_)

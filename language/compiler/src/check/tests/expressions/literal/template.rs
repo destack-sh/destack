@@ -213,7 +213,9 @@ function label(point: Point): string {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", r#"
+    session.assert_dir_checked_diagnostics(
+        "main.ds", r#"
 
-"#);
+"#,
+    );
 }

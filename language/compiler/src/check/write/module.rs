@@ -32,7 +32,6 @@ impl CheckState<'_> {
             state.types_tail.set_type_reduction(source, target);
         }
 
-
         // write symbol values as final statics
         for (symbol, literal) in symbol_literals {
             let id = state
@@ -111,7 +110,7 @@ impl CheckState<'_> {
 
     /// Record representation marker conformance for each concrete nominal.
     fn write_auto_conformances(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // generic nominals conform per materialized instance
+        // record one conformance for each concrete nominal instance
         let mut nominals = Vec::new();
         for (symbol, definition) in self.module(module).definitions.iter_definitions() {
             let is_nominal = matches!(
@@ -541,5 +540,4 @@ impl CheckState<'_> {
 
         Ok(replacements)
     }
-
 }

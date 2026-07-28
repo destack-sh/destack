@@ -66,7 +66,7 @@ impl CheckState<'_> {
         self.solver.variable_role(variable)
     }
 
-    /// Settle every variable in one scope from accumulated evidence.
+    /// Settle every variable in one scope from its accumulated bounds.
     pub(in crate::check) fn settle_scope(
         &mut self,
         scope: InferenceScope,
@@ -114,7 +114,7 @@ impl CheckState<'_> {
         &mut self,
         scope: InferenceScope,
     ) -> CompilerResult<Answer<bool>> {
-        // yield newly available evidence to the task queue before defaulting
+        // yield newly available bounds to the task queue before defaulting
         match self.settle_scope(scope)? {
             Answer::Ready(true) => return Ok(Answer::Ready(true)),
             Answer::Ready(false) => {}
@@ -267,7 +267,7 @@ impl CheckState<'_> {
                 },
             };
             if let Some(default) = default {
-                // a usable default carries no open or component-own variable
+                // require a default without an open or component-own variable
                 let mut open = false;
                 for variable in self.type_variables(default)? {
                     if variables.contains(&variable) || self.solver.solution(variable)?.is_none() {
@@ -284,7 +284,7 @@ impl CheckState<'_> {
         Ok(defaults)
     }
 
-    /// Solve one variable component from evidence and declared defaults.
+    /// Solve one variable component from its bounds and declared defaults.
     fn solve_component(
         &mut self,
         variables: &[dir::TypeVariableId],
@@ -334,7 +334,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // apply this variable's literal policy to its closed evidence
+            // apply this variable's literal policy to its closed bounds
             let has_equation = variable_lower
                 .iter()
                 .any(|bound| bound.relation == Relation::Equal);
@@ -393,7 +393,7 @@ impl CheckState<'_> {
             }
         }
 
-        // choose the component solution from lower evidence, then upper context, then defaults
+        // choose the component solution from lower bounds, then upper context, then defaults
         let root = variables[0];
         let state = *self.solver.variable(root)?;
         let origin = self.solver.origin(state.origin);
@@ -402,7 +402,7 @@ impl CheckState<'_> {
             && contextual_types.is_empty()
             && blockers.is_empty();
 
-        // form the preferred evidence and contextual solutions once
+        // form the preferred lower and contextual solutions once
         let lower = match lower_types.is_empty() {
             true => None,
             false => Some(self.best_common(root, &lower_types)?),

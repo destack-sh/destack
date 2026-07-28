@@ -102,7 +102,7 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(types))
     }
 
-    /// Return callable arguments carried by source argument nodes.
+    /// Return callable arguments read from source argument nodes.
     pub(in crate::check) fn callable_arguments(
         &mut self,
         module: ModuleId,
@@ -136,7 +136,7 @@ impl BodyState<'_, '_> {
         Ok(values)
     }
 
-    /// Return callable arguments carried by selected argument sources.
+    /// Return callable arguments read from selected argument sources.
     pub(in crate::check) fn source_callable_arguments(
         &mut self,
         origin: Origin,
@@ -187,7 +187,7 @@ impl BodyState<'_, '_> {
         Ok(values)
     }
 
-    /// Return the expression carried by one argument node.
+    /// Return the expression of one argument node.
     pub(in crate::check) fn argument_expression(
         &self,
         module: ModuleId,

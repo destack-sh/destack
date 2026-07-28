@@ -162,7 +162,7 @@ impl CheckState<'_> {
         lookup: MemberLookup,
     ) -> CompilerResult<OperationReduction> {
         match lookup {
-            // a field contributes its value type
+            // contribute a field's value type
             MemberLookup::Field(field) => {
                 match field.read_type(origin.module(), &mut self.body())? {
                     Some(ty) => Ok(OperationReduction::Projected(ty)),
@@ -174,7 +174,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // a matching member contributes its static value or callable value type
+            // contribute a matching member's static value or callable value type
             MemberLookup::Found(candidates) => match candidates.as_slice() {
                 [candidate] => {
                     if let Some(written) = candidate.value_type {
@@ -451,7 +451,7 @@ impl CheckState<'_> {
         Ok(domain)
     }
 
-    /// Return whether one reduced index operand carries rigid material.
+    /// Return whether one reduced index operand has rigid material.
     fn is_rigid_index_operand(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         Ok(matches!(
             self.ty(ty)?,
@@ -499,7 +499,9 @@ impl CheckState<'_> {
             // structural object keys come from fields and index signatures
             dir::Type::Shape(shape) => {
                 let mut set = KeySet::default();
-                let fields = self.shape_properties(target.module_id, shape.properties)?.to_vec();
+                let fields = self
+                    .shape_properties(target.module_id, shape.properties)?
+                    .to_vec();
                 for field in fields {
                     set.insert_key(field.key);
                 }
@@ -784,9 +786,10 @@ impl CheckState<'_> {
                 let target = answer!(self.reduce_type_head(origin, target)?);
 
                 match self.ty(target)? {
-                    dir::Type::Shape(shape) => {
-                        Some(self.shape_properties(target.module_id, shape.properties)?.to_vec())
-                    }
+                    dir::Type::Shape(shape) => Some(
+                        self.shape_properties(target.module_id, shape.properties)?
+                            .to_vec(),
+                    ),
                     dir::Type::Application(instance) => {
                         answer!(self.interface_instance_fields(
                             origin,
@@ -830,10 +833,7 @@ impl CheckState<'_> {
 
             // identity projections carry the declared read type
             let value = match (is_identity, carried) {
-                (true, Some(field)) => field
-                    .access
-                    .read()
-                    .unwrap_or_else(|| field.access.store()),
+                (true, Some(field)) => field.access.read().unwrap_or_else(|| field.access.store()),
                 _ => {
                     let value = self.substitute_type(module, mapped.value, &substitution)?;
                     match self.reduce_type_head(origin, value)? {

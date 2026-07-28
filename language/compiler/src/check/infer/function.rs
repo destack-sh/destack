@@ -7,9 +7,8 @@ use crate::{CompilerError, CompilerResult};
 impl BodyState<'_, '_> {
     /// Check one function value's body in its receiving context.
     ///
-    /// Contextual flow is the ordinary relation: the structural decomposition
-    /// assigns parameters, equates the contextual return slot to its contract,
-    /// and evidence transmission routes body candidates into open inference.
+    /// The declared callable is constrained against the expected type, which fills in
+    /// the parameter and return types the body then checks against.
     pub(in crate::check) fn check_function_value(
         &mut self,
         site: FlowSite,
@@ -27,7 +26,7 @@ impl BodyState<'_, '_> {
         });
         let target = expectation.map_or(callable, |expectation| expectation.target);
 
-        // constrain the declaration callable against its contextual payload
+        // constrain the declared callable against its expected type
         let carrier = if let Some(expectation) = expectation {
             let origin = site.origin();
             let Some(target) = answer!(self.construction_value(origin, expectation.target)?) else {
@@ -58,7 +57,7 @@ impl BodyState<'_, '_> {
                 }));
             }
 
-            // construction takes storage forms while satisfies preserves the source
+            // keep the source under satisfies, take the storage form otherwise
             match expectation.relation {
                 Relation::Satisfies => callable,
                 _ => answer!(self.replace_form_value(origin, expectation.target, callable)?),

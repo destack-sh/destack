@@ -83,7 +83,7 @@ impl BodyState<'_, '_> {
                 .is_some_and(dir::ScalarFamilySet::is_numeric);
 
         let builtin = match operator {
-            // strict equality requires overlapping values and one common carrier
+            // require overlapping values with one common representation
             dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
                 let supported = answer!(self.supports_builtin_strict_equality(
                     origin,

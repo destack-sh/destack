@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, Cause, CauseKind, CheckState, MemberRole, Origin, Relation, TypeSubstitution,
-    answer,
+    Answer, Cause, CauseKind, CheckState, GenericParameterId, MemberRole, Origin, Relation,
+    TypeSubstitution, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -30,8 +30,6 @@ pub(in crate::check) struct InterfaceIndexSignature {
     pub(in crate::check) key_type: dir::GlobalTypeId,
     /// The declared value type.
     pub(in crate::check) value_type: dir::GlobalTypeId,
-    /// Whether lookups may miss.
-    pub(in crate::check) is_optional: bool,
     /// Whether writes are rejected.
     pub(in crate::check) is_readonly: bool,
 }
@@ -45,11 +43,11 @@ pub(in crate::check) struct InterfaceMember {
     pub(in crate::check) space: dir::MemberSpace,
     /// The member key.
     pub(in crate::check) key: dir::StaticKey,
-    /// The member type, when the member carries a value.
+    /// The member type, when the member has a value.
     pub(in crate::check) ty: Option<dir::GlobalTypeId>,
     /// How the member participates in assignability.
     pub(in crate::check) role: MemberRole,
-    /// Whether the member carries a default implementation.
+    /// Whether the member has a default implementation.
     pub(in crate::check) has_default: bool,
     /// Whether the member is optional on its declaration.
     pub(in crate::check) is_optional: bool,
@@ -204,7 +202,8 @@ impl CheckState<'_> {
         relation: Relation,
         module: ModuleId,
         interface_module: ModuleId,
-        substitution: &TypeSubstitution,
+        parameters: &[GenericParameterId],
+        substitution: &mut TypeSubstitution,
         implementations: &[dir::InterfaceImplementation],
         interface: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, usize)>>> {
@@ -212,60 +211,76 @@ impl CheckState<'_> {
         let interface_arguments = self
             .type_ids(interface_module, interface.arguments)?
             .to_vec();
+        let arguments = self.intern_type_ids(origin.module(), &interface_arguments)?;
+        let interface_type = self.intern_type(
+            origin.module(),
+            dir::Type::Application(dir::GenericApplication {
+                symbol: interface.symbol,
+                arguments,
+            }),
+        )?;
         for (index, implementation) in implementations.iter().enumerate() {
             let heritage = &implementation.interface;
-            let implemented = self.substitute_type(module, heritage.ty, substitution)?;
+
+            // matching binds open parameters; the relation judges below
+            let mut scratch = substitution.clone();
+            let seeded = self.substitute_type(module, heritage.ty, &scratch)?;
+            let _ = self.extend_generic_substitution(
+                origin,
+                parameters,
+                &mut scratch,
+                &[(seeded, interface_type)],
+            )?;
+            let implemented = self.substitute_type(module, heritage.ty, &scratch)?;
+
+            // walk to the row instance naming the requested interface
             let (implemented_module, implemented_instance) =
                 self.require_nominal_application(implemented)?;
-            let (matches, matched) = if implemented_instance.symbol == interface.symbol {
-                let implemented_arguments = self
-                    .type_ids(implemented_module, implemented_instance.arguments)?
-                    .to_vec();
-
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                let form = self.default_variance_form(interface.symbol);
-                let matches = self.relate_type_arguments(
-                    origin,
-                    cause,
-                    interface.symbol,
-                    form,
-                    relation,
-                    &implemented_arguments,
-                    &interface_arguments,
-                )?;
-
-                (matches, implemented)
+            let (instance, matched) = if implemented_instance.symbol == interface.symbol {
+                (
+                    Some((implemented_module, implemented_instance)),
+                    implemented,
+                )
             } else if let Some(inherited) = answer!(self.heritage_instance(
                 origin,
                 implemented_module,
                 &implemented_instance,
                 interface.symbol,
             )?) {
-                let (inherited_module, inherited_instance) =
-                    self.require_nominal_application(inherited)?;
-                let inherited_arguments = self
-                    .type_ids(inherited_module, inherited_instance.arguments)?
-                    .to_vec();
-
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                let form = self.default_variance_form(interface.symbol);
-                let matches = self.relate_type_arguments(
-                    origin,
-                    cause,
-                    interface.symbol,
-                    form,
-                    relation,
-                    &inherited_arguments,
-                    &interface_arguments,
-                )?;
-
-                (matches, inherited)
+                (
+                    Some(self.require_nominal_application(inherited)?),
+                    inherited,
+                )
             } else {
-                (Answer::Ready(false), implemented)
+                (None, implemented)
+            };
+
+            // relate the instance arguments under the declared variance
+            let matches = match instance {
+                Some((instance_module, instance)) => {
+                    let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
+                    let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                    let form = self.default_variance_form(interface.symbol);
+
+                    self.relate_type_arguments(
+                        origin,
+                        cause,
+                        interface.symbol,
+                        form,
+                        relation,
+                        &arguments,
+                        &interface_arguments,
+                    )?
+                }
+                None => Answer::Ready(false),
             };
 
             match matches {
-                Answer::Ready(true) => return Ok(Answer::Ready(Some((matched, index)))),
+                Answer::Ready(true) => {
+                    *substitution = scratch;
+
+                    return Ok(Answer::Ready(Some((matched, index))));
+                }
                 Answer::Ready(false) => {}
                 Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
             }
@@ -329,8 +344,6 @@ impl CheckState<'_> {
                 }
                 _ => self.decide_relation(origin, Relation::Assignable, found, member_type)?,
             };
-            if matches!(member_decision, Answer::Ready(false)) {
-            }
             decision = decision.and(member_decision);
             if decision.is_ready_false() {
                 return Ok(decision);
@@ -339,7 +352,8 @@ impl CheckState<'_> {
 
         // require each inherited interface through the ordinary relation
         for inherited in requirements.inherited {
-            decision = decision.and(self.decide_relation(origin, relation, source, inherited.ty)?);
+            decision =
+                decision.and(self.decide_relation(origin, relation, source, inherited.ty)?);
             if decision.is_ready_false() {
                 return Ok(decision);
             }
@@ -390,13 +404,16 @@ impl CheckState<'_> {
             };
             index_signatures.push(InterfaceIndexSignature {
                 source: signature.source,
-                key_type: self.substitute_type(origin.module(), signature.key_type, substitution)?,
+                key_type: self.substitute_type(
+                    origin.module(),
+                    signature.key_type,
+                    substitution,
+                )?,
                 value_type: self.substitute_type(
                     origin.module(),
                     signature.value_type,
                     substitution,
                 )?,
-                is_optional: signature.is_optional,
                 is_readonly: signature.is_readonly,
             });
         }
@@ -563,13 +580,8 @@ impl CheckState<'_> {
         // search inherited interfaces when the named interface misses
         if members.is_empty() {
             for inherited in requirements.inherited {
-                let nested = answer!(self.interface_members(
-                    origin,
-                    inherited.ty,
-                    receiver,
-                    space,
-                    key
-                )?);
+                let nested =
+                    answer!(self.interface_members(origin, inherited.ty, receiver, space, key)?);
                 members.extend(nested);
                 if !members.is_empty() {
                     break;
@@ -579,5 +591,4 @@ impl CheckState<'_> {
 
         Ok(Answer::Ready(members))
     }
-
 }

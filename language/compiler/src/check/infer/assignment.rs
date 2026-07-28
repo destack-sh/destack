@@ -69,7 +69,7 @@ impl BodyState<'_, '_> {
             answer!(self.infer_node_type(right_site, PlaceUse::Read)?)
         };
 
-        // destructuring assignment selects against the inferred right value
+        // select destructuring patterns against the inferred right value
         if !matches!(pattern, dir::AssignPattern::Place { .. }) {
             let selected = answer!(self.select_assign_pattern(
                 left_node,
@@ -101,7 +101,7 @@ impl BodyState<'_, '_> {
         let left_node = left.into_global(module);
         let right_node = right.into_global_any(module);
 
-        // update assignments always require a place target
+        // require a place target for update assignments
         let dir::AssignPattern::Place { expression: target } = self.module(module).view().get(left)
         else {
             self.report_invalid_assignment_target(module, left.into_any());
@@ -123,7 +123,7 @@ impl BodyState<'_, '_> {
             })?;
         let write_type = place.write.ty();
 
-        // compound operators select through the binary operator protocol
+        // select compound operators through the binary operator protocol
         if let Some(operator) = operator.binary_operator() {
             let right_site = self.node_site(right_node)?;
             let right_type = answer!(self.infer_node_type(right_site, PlaceUse::Read)?);
@@ -144,7 +144,7 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(()));
         }
 
-        // non-compound update assignments store directly into the target
+        // store non-compound update assignments directly into the target
         let right_site = self.node_site(right_node)?;
         let cause = self.intern_cause(Cause::root(
             Origin::Node(right_node, site.scope),

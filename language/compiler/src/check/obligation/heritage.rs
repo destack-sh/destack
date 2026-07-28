@@ -139,7 +139,8 @@ impl CheckState<'_> {
                 }
             }
         }
-        // extensions and aliases agree with their closure without carrying it
+
+        // record the placement on every declaration except aliases and extensions
         if let Some((_, _, space)) = placement
             && !matches!(
                 self.definition(symbol)?,
@@ -178,7 +179,6 @@ impl CheckState<'_> {
         let heritage = answer!(self.class_heritage(origin, extends)?);
 
         // decide every rule before reporting anything
-        //  (so pending re-runs never duplicate diagnostics)
         let mut failures = Vec::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for member in &own {
@@ -311,7 +311,7 @@ impl CheckState<'_> {
             let base_members = base.members.clone();
             extends = base.extends.clone();
 
-            // only the direct base can reject extension
+            // check extension rejection on the direct base only
             if depth == 1 && base.is_final {
                 final_base = Some(instance.symbol);
             }
@@ -339,12 +339,11 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GenericApplication> {
-        let parameters = match self
-            .symbol_template(symbol)? {
+        let parameters = match self.symbol_template(symbol)? {
             Some(template) => Some(self.generic_template_parameters(template)?),
             None => None,
         }
-            .unwrap_or_default();
+        .unwrap_or_default();
         let mut arguments = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             let ty = dir::Type::Parameter(parameter);

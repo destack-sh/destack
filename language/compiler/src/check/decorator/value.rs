@@ -80,11 +80,11 @@ impl CheckState<'_> {
             });
         };
 
-        // configured providers use their construction resolution
+        // evaluate a configured provider through its construction resolution
         if matches!(view.get(expression), dir::Expression::Call { .. }) {
             self.evaluate_static_expression(module, expression)
         }
-        // bare providers use the backing selected by derive
+        // otherwise evaluate a bare provider through the backing derive selected
         else {
             self.evaluate_selected_static_newtype(
                 module,
@@ -421,14 +421,14 @@ impl CheckState<'_> {
                 _ => return Ok(Err(StaticError::NotStatic(expression))),
             }
         }
-        // type declarations are first-class reflected values
+        // otherwise read a type declaration as a first-class value
         else if self.symbol_kind(symbol).can_be_used_as_type() {
             let ty = self.require_node_type(source)?;
             let ty = self.settled_root(ty)?;
 
             dir::StaticTerm::Type { ty }
         }
-        // runtime bindings are not static values
+        // reject runtime bindings, which hold no static value
         else {
             return Ok(Err(StaticError::NotStatic(expression)));
         };

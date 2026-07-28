@@ -497,8 +497,7 @@ impl WalkState<'_, '_> {
                     });
                 };
                 let source = id.into_global_any(self.module);
-                let template =
-                    self.open_signature_template(source, signature)?;
+                let template = self.open_signature_template(source, signature)?;
                 // open signature parameters under the signature's own scope
                 let _scope = self.enter_template_scope(template);
                 let header = self.walk_function_signature(template, signature)?;
@@ -791,8 +790,7 @@ impl WalkState<'_, '_> {
                         message: format!("type method member {id:?} has no declaration symbol"),
                     });
                 };
-                let template =
-                    self.open_signature_template(source, signature)?;
+                let template = self.open_signature_template(source, signature)?;
                 let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let induction = InducedParameterOwner::new(source, parent, Some(symbol));
 

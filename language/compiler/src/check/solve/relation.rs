@@ -10,8 +10,8 @@ pub(in crate::check) enum Relation {
     Subtype,
     /// The source operand is assignable to the target operand.
     Assignable,
-    /// The source operand is assignable to the target operand through
-    /// identity-witnessed widenings only: no coercion may be required.
+    /// The source operand is assignable to the target operand without
+    /// requiring any coercion.
     Widens,
     /// The source operand is castable to the target operand.
     Castable,

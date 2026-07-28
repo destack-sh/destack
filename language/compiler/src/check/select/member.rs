@@ -101,7 +101,7 @@ pub(in crate::check) struct DeclaredMember {
     pub(in crate::check) space: dir::MemberSpace,
     /// The member key.
     pub(in crate::check) key: Option<dir::StaticKey>,
-    /// The member type when the declaration carries a type.
+    /// The member type when the declaration has one.
     pub(in crate::check) ty: Option<dir::GlobalTypeId>,
     /// The member static value when it carries one.
     pub(in crate::check) value: Option<dir::GlobalStaticId>,
@@ -109,8 +109,6 @@ pub(in crate::check) struct DeclaredMember {
     pub(in crate::check) role: MemberRole,
     /// Whether the member may be absent.
     pub(in crate::check) is_optional: bool,
-    /// Whether the member rejects writes.
-    pub(in crate::check) is_readonly: bool,
 }
 
 impl MemberLookup {
@@ -354,8 +352,6 @@ pub(in crate::check) struct MemberCandidate {
     pub(in crate::check) callable: Option<dir::GlobalTypeId>,
     /// Whether the member may be absent.
     pub(in crate::check) is_optional: bool,
-    /// Whether the member rejects writes.
-    pub(in crate::check) is_readonly: bool,
     /// The generic arguments matched through the owner.
     pub(in crate::check) generic_arguments: Vec<dir::GenericArgumentBinding>,
     /// The member static value when it carries one.
@@ -537,10 +533,6 @@ impl BodyState<'_, '_> {
             is_optional: matches!(
                 member,
                 dir::DefinitionMember::Field(field) if field.is_optional
-            ),
-            is_readonly: matches!(
-                member,
-                dir::DefinitionMember::Field(field) if field.is_readonly
             ),
         })))
     }
@@ -1365,7 +1357,7 @@ impl BodyState<'_, '_> {
             _ => return Ok(Answer::Ready(false)),
         };
 
-        // the declaring interface carries its own abstract members
+        // accept the declaring interface, it owns its abstract members
         if candidate.owner == instance.symbol {
             return Ok(Answer::Ready(true));
         }

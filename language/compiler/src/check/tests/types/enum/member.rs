@@ -336,3 +336,64 @@ enum Status {
 "#,
     );
 }
+
+#[test]
+fn test_enum_static_member_access_selects_declared_field() {
+    let session = TestSession::single(
+        r#"
+enum Status {
+    Active = 1,
+    Inactive = 2,
+
+    static Default = Status.Active;
+}
+
+const value: Status = Status.Default;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+enum Status {
+    Active = 1,
+    Inactive = 2,
+
+    static Default: Status = Status.Active;
+}
+
+const value: Status = Status.Default;
+
+=== checked ===
+enum Status {
+/// @type.symbol symbol=Status type=Status
+/// @definition.enum symbol=Status
+/// @definition.variant symbol=Status.Active source="Active = 1" key=Active value=1
+/// @definition.field symbol=Status.Default source="static Default = Status.Active" key=Default static=true type=Status
+/// @definition.variant symbol=Status.Inactive source="Inactive = 2" key=Inactive value=2
+
+    Active = 1,
+    /// @type.symbol symbol=Status.Active source="Active = 1" type=Status.Active
+
+    Inactive = 2,
+    /// @type.symbol symbol=Status.Inactive source="Inactive = 2" type=Status.Inactive
+
+    static Default = Status.Active;
+    /// @type.symbol symbol=Status.Default source="static Default = Status.Active" type=Status
+    /// @resolution.name source=Status target=Status
+    /// @resolution.member source=Status.Active receiver=Status type=Status.Active kind=symbol target_receiver=Status target=Status.Active
+
+}
+
+const value: Status = Status.Default;
+/// @type.symbol symbol=value source=value type=Status
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=Status target=Status
+/// @resolution.name source=Status target=Status
+/// @resolution.member source=Status.Default receiver=Status type=Status kind=field target_receiver=Status key=Default target=Status.Default target_type=Status
+/// @resolution.place source=Status.Default placement="local" lifetime="frame" access="exclusive"
+"#,
+    );
+}

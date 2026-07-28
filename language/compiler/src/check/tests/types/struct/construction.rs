@@ -660,3 +660,97 @@ const counter: Counter = { value: 1 };
 "#,
     );
 }
+
+#[test]
+fn test_struct_literal_infers_omitted_borrow_lifetime_from_return() {
+    let session = TestSession::single(
+        r#"
+type Options = {
+    message?: string;
+};
+
+struct Entry {
+    logger?: &readonly string;
+    message?: string | undefined;
+}
+
+function make(options?: Options): Entry {
+    const entry = Entry { message: options?.message };
+
+    return entry;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Options = {
+    message?: string;
+};
+
+struct Entry<'a> {
+    logger?: &'a readonly string;
+    message?: string | undefined;
+}
+
+function make(options?: Options): Entry<"static"> {
+    const entry: Entry<"static"> = Entry<"static"> { message: options?.message };
+
+    return entry;
+}
+
+=== checked ===
+type Options = {
+/// @type.symbol symbol=Options type={ message?: string }
+/// @definition.type symbol=Options value={ message?: string }
+
+    message?: string;
+};
+
+struct Entry {
+/// @generic.template symbol=Entry parameters=('a)
+/// @type.symbol symbol=Entry type=Entry
+/// @definition.struct symbol=Entry template=('a)
+/// @definition.field symbol=Entry.logger source="logger?: &readonly string" key=logger type=&Entry.'a readonly string
+/// @definition.field symbol=Entry.message source="message?: string | undefined" key=message type=string | undefined
+
+    logger?: &readonly string;
+    /// @type.symbol symbol=Entry.logger source="logger?: &readonly string" type=&Entry.'a readonly string
+
+    message?: string | undefined;
+    /// @type.symbol symbol=Entry.message source="message?: string | undefined" type=string | undefined
+
+}
+
+function make(options?: Options): Entry {
+/// @type.symbol symbol=make type=(Options | undefined?) => Entry<"static">
+/// @type.symbol symbol=make.options source="options?: Options" type=Options | undefined
+/// @resolution.name source=Options target=Options
+/// @resolution.name source=Entry target=Entry
+
+    const entry = Entry { message: options?.message };
+    /// @type.symbol symbol=make.entry source=entry type=Entry<"static">
+    /// @resolution.pattern source=entry kind=binding target=make.entry
+    /// @resolution.name source=Entry target=Entry
+    /// @resolution.name source=options target=make.options
+    /// @resolution.member source=options?.message receiver={ message?: string } type=string | undefined kind=field target_receiver={ message?: string } key=message target_type=string | undefined
+    /// @resolution.place source=options placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=options root=make.options
+    /// @resolution.place source=options?.message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=options?.message root=make.options keys=[message]
+    /// @resolution.access source=options?.message root=make.options keys=[message]
+
+    return entry;
+    /// @resolution.name source=entry target=make.entry
+    /// @resolution.place source=entry placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=entry root=make.entry
+
+}
+
+/// @generic.instance id="Entry<\"static\">" template=Entry arguments=("static")
+"#,
+    );
+}

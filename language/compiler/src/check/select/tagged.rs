@@ -215,7 +215,7 @@ impl BodyState<'_, '_> {
                 return self.select_enum_member_pattern(node, origin, case, &owners, fields);
             }
 
-            // derived newtypes carry their checked tagged definition
+            // accept a derived newtype with its checked tagged definition
             Some(dir::Definition::Newtype(value)) if value.is_tagged() => {}
 
             // every other owner has no variant cases

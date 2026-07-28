@@ -35,7 +35,6 @@ struct BlameLeaf {
 }
 
 impl CheckState<'_> {
-
     /// Decorate one failure with its cause chain.
     pub(in crate::check) fn explain_cause<T>(
         &self,
@@ -59,7 +58,7 @@ impl CheckState<'_> {
                 .filter_map(|cause| self.describe_slot(cause.kind)),
         );
         let note = match (blame, slots.is_empty()) {
-            // a blamed leaf names the exact mismatched types
+            // name the exact mismatched types for a blamed leaf
             (Some(Blame::Slot { source, target, .. }), false) => Some(format!(
                 "the mismatch is in {}: expected '{}', found '{}'",
                 join_path(&slots),
@@ -102,14 +101,14 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Blame>> {
-        // open pairs blame through their constraint causes instead
+        // leave open pairs to their constraint causes
         if !self.type_variables(source)?.is_empty() || !self.type_variables(target)?.is_empty() {
             return Ok(None);
         }
 
         let leaf = self.blame_leaf(origin, relation, source, target, 0)?;
 
-        // a descent names the mismatched slot beneath the pair
+        // name the mismatched slot when the walk descended
         if leaf.descended {
             return Ok(Some(Blame::Slot {
                 path: leaf.path,
@@ -118,8 +117,7 @@ impl CheckState<'_> {
             }));
         }
 
-        // an in-place reduction reveals what the written types mean;
-        //  compare the module-relative displays the primary message uses
+        // note each written type that reduces to a different display
         let module = origin.module();
         let mut notes = Vec::new();
         for (written, reduced) in [(source, leaf.source), (target, leaf.target)] {
@@ -209,7 +207,7 @@ impl CheckState<'_> {
     > {
         let mut pairs = Vec::new();
         match (self.ty(source)?, self.ty(target)?) {
-            // shapes blame matching fields under their storage relations
+            // blame matching shape fields under their storage relations
             (dir::Type::Shape(source_shape), dir::Type::Shape(target_shape)) => {
                 let source_fields = self
                     .shape_properties(source.module_id, source_shape.properties)?
@@ -242,7 +240,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // tuples blame elements in position
+            // blame tuple elements in position
             (dir::Type::Tuple(source_tuple), dir::Type::Tuple(target_tuple))
                 if source_tuple.form == target_tuple.form
                     && source_tuple.elements.len() == target_tuple.elements.len() =>
@@ -269,7 +267,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // signatures blame parameters contravariantly, returns covariantly
+            // blame signature parameters contravariantly, returns covariantly
             (
                 dir::Type::FunctionSignature(source_function),
                 dir::Type::FunctionSignature(target_function),
@@ -309,7 +307,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // mutable collections alias their elements and stay invariant
+            // blame collection elements and lengths
             (dir::Type::Array(source_array), dir::Type::Array(target_array)) => {
                 pairs.push((
                     Some("the element type".to_string()),
@@ -341,15 +339,15 @@ impl CheckState<'_> {
                 ));
             }
 
-            // memory forms blame their payloads through transparent handles
+            // blame the payload beneath matching memory forms
             (dir::Type::Form(source_form), dir::Type::Form(target_form))
                 if source_form.form.same_constructor(&target_form.form) =>
             {
                 pairs.push((None, relation, source_form.value, target_form.value));
             }
 
-            // union sources blame the first element that misses the target;
-            //  only equations relate unions whole
+            // blame each source union element against the target;
+            //  equations relate unions whole instead
             (dir::Type::Union(elements), _) if relation != Relation::Equal => {
                 let elements = self.type_ids(source.module_id, elements.elements)?.to_vec();
                 for element in elements {
@@ -357,7 +355,7 @@ impl CheckState<'_> {
                 }
             }
 
-            // same-symbol applications blame arguments by variance
+            // blame arguments of same-symbol applications by variance
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol
                     && source_instance.arguments.len() == target_instance.arguments.len() =>

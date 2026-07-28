@@ -767,12 +767,12 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: UseAfterMoveObligation,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        // positions that preserve their source never consume
+        // skip positions that preserve their source
         if answer!(self.move_site_borrows(origin, &obligation.site)?) {
             return Ok(Answer::Ready(ObligationCheck::Holds));
         }
 
-        // only owned values vacate their source; managed handles copy freely
+        // require an owned value, managed handles copy freely
         let ty = answer!(self.symbol_type(obligation.symbol)?);
         let ownership = answer!(self.default_ownership(origin, ty)?);
         if ownership != Some(dir::Ownership::Owned) {
@@ -805,7 +805,7 @@ impl CheckState<'_> {
                 return self.call_position_borrows(origin, &resolution, site.node);
             }
             if let Some(resolution) = resolutions.construct_resolution(call) {
-                // constructor arguments lend through borrowing parameters
+                // lend constructor arguments through borrowing parameters
                 let binding = resolution.arguments.iter().find(|binding| {
                     matches!(
                         binding.argument,
@@ -829,7 +829,7 @@ impl CheckState<'_> {
             });
         }
 
-        // initializer and assignment positions lend into borrow bindings
+        // lend initializer and assignment positions into borrow bindings
         if let Some(target) = site.target {
             let ty = answer!(self.symbol_type(target)?);
 
@@ -869,7 +869,7 @@ impl CheckState<'_> {
         call: &dir::Call,
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<bool>> {
-        // argument positions borrow according to their selected parameter
+        // borrow an argument according to its selected parameter
         if let Some(binding) = call.arguments.iter().find(|binding| {
             matches!(
                 binding.argument,
@@ -879,7 +879,7 @@ impl CheckState<'_> {
             return self.type_head_borrows(origin, binding.ty);
         }
 
-        // the remaining marked position is the selected receiver
+        // treat the remaining marked position as the selected receiver
         let receiver = match &call.target {
             dir::CallTarget::Expression { .. } => return Ok(Answer::Ready(true)),
             dir::CallTarget::Symbol { function, .. } => function.receiver.as_ref(),

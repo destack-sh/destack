@@ -4,14 +4,14 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{Answer, BodyState, Origin, Relation, VariableRole, Widening, answer};
 
-/// Inference mode for literal materialization contexts.
+/// Inference mode for literal expressions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) enum InferMode {
     /// Preserve the expression's direct literal precision.
     Exact,
     /// Preserve scalar precision while widening mutable aggregate contents.
     Mutable,
-    /// Materialize literals through their default widened type.
+    /// Infer literals as their default widened type.
     Widen,
     /// Infer under `as const` literal-preserving rules.
     Const,

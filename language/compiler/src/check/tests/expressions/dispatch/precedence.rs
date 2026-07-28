@@ -741,3 +741,243 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
         r#""#,
     );
 }
+
+#[test]
+fn test_sibling_static_calls_instantiate_independently() {
+    let session = TestSession::single(
+        r#"
+struct Ok<T> {
+    value: T;
+}
+
+struct Err<E> {
+    error: E;
+}
+
+newtype Outcome<T, E> = Ok<T> | Err<E>;
+
+export extension<T, E> of Outcome<T, E> {
+    static ok(value: T): Outcome<T, E> {
+        Outcome(Ok { value })
+    }
+
+    static err(error: E): Outcome<T, E> {
+        Outcome(Err { error })
+    }
+
+    map<U>(f: (value: T) => U): Outcome<U, E> {
+        match (this) {
+            Ok { value } => Outcome.ok(f(value))
+            Err { error } => Outcome.err(error)
+        }
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+struct Ok<out T> {
+    value: T;
+}
+
+struct Err<out E> {
+    error: E;
+}
+
+newtype Outcome<out T, out E> = Ok<T> | Err<E>;
+
+export extension<T, E> of Outcome<T, E> {
+    static ok(value: T): Outcome<T, E> {
+        Outcome(Ok<T> { value })
+    }
+
+    static err(error: E): Outcome<T, E> {
+        Outcome(Err<E> { error })
+    }
+
+    map<U>(f: (arg0: T) => U): Outcome<U, E> {
+        match (this) {
+            Ok { value } => Outcome.ok<U, E>(f(value))
+            Err { error } => Outcome.err<U, E>(error)
+        }
+    }
+}
+
+=== checked ===
+struct Ok<T> {
+/// @generic.template symbol=Ok parameters=(out T#1)
+/// @type.symbol symbol=Ok type=Ok
+/// @definition.struct symbol=Ok template=(out T#1)
+/// @definition.field symbol=Ok.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Ok.T source=T type=T#1
+
+    value: T;
+    /// @type.symbol symbol=Ok.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Ok.T
+
+}
+
+struct Err<E> {
+/// @generic.template symbol=Err parameters=(out E#1)
+/// @type.symbol symbol=Err type=Err
+/// @definition.struct symbol=Err template=(out E#1)
+/// @definition.field symbol=Err.error source="error: E" key=error type=E#1
+/// @type.symbol symbol=Err.E source=E type=E#1
+
+    error: E;
+    /// @type.symbol symbol=Err.error source="error: E" type=E#1
+    /// @resolution.name source=E target=Err.E
+
+}
+
+newtype Outcome<T, E> = Ok<T> | Err<E>;
+/// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
+/// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
+/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2>
+/// @type.symbol symbol=Outcome.T source=T type=T#2
+/// @type.symbol symbol=Outcome.E source=E type=E#2
+/// @resolution.name source=Ok target=Ok
+/// @resolution.name source=T target=Outcome.T
+/// @resolution.name source=Err target=Err
+/// @resolution.name source=E target=Outcome.E
+
+export extension<T, E> of Outcome<T, E> {
+/// @generic.template symbol=<module>#2 parameters=(T#3, E#3)
+/// @definition.extension symbol=<module>#2 form=exported target=Outcome<T#3, E#3>
+/// @definition.method symbol=err slot=err static=true type=(E#3) => Outcome<T#3, E#3>
+/// @definition.method symbol=map slot=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
+/// @definition.method symbol=ok slot=ok static=true type=(T#3) => Outcome<T#3, E#3>
+/// @type.symbol symbol=T source=T type=T#3
+/// @type.symbol symbol=E source=E type=E#3
+/// @resolution.name source=Outcome target=Outcome
+/// @resolution.name source=T target=T
+/// @resolution.name source=E target=E
+
+    static ok(value: T): Outcome<T, E> {
+    /// @type.symbol symbol=ok type=(T#3) => Outcome<T#3, E#3>
+    /// @type.symbol symbol=ok.value source="value: T" type=T#3
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=Outcome target=Outcome
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=E target=E
+
+        Outcome(Ok { value })
+        /// @type.node source="Outcome(Ok { value })" type=Outcome<T#3, E#3>
+        /// @type.node source=Outcome type=Outcome
+        /// @resolution.name source=Outcome target=Outcome
+        /// @resolution.construct source="Outcome(Ok { value })" parameters=(Ok<T#3>) arguments=(provided(Ok { value }) as Ok<T#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Ok<T#3> instance="Outcome<T#3, E#3>"
+        /// @generic.instance source="Outcome(Ok { value })" id="Outcome<T#3, E#3>"
+        /// @type.node source="Ok { value }" type=Ok<T#3>
+        /// @resolution.name source=Ok target=Ok
+        /// @generic.instance source="Ok { value }" id=Ok<T#3>
+        /// @type.node source=value type=T#3
+        /// @resolution.name source=value target=ok.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=ok.value
+
+    }
+
+    static err(error: E): Outcome<T, E> {
+    /// @type.symbol symbol=err type=(E#3) => Outcome<T#3, E#3>
+    /// @type.symbol symbol=err.error source="error: E" type=E#3
+    /// @resolution.name source=E target=E
+    /// @resolution.name source=Outcome target=Outcome
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=E target=E
+
+        Outcome(Err { error })
+        /// @type.node source="Outcome(Err { error })" type=Outcome<T#3, E#3>
+        /// @type.node source=Outcome type=Outcome
+        /// @resolution.name source=Outcome target=Outcome
+        /// @resolution.construct source="Outcome(Err { error })" parameters=(Err<E#3>) arguments=(provided(Err { error }) as Err<E#3>) return=Outcome<T#3, E#3> kind=newtype target=Outcome backing=Err<E#3> instance="Outcome<T#3, E#3>"
+        /// @generic.instance source="Outcome(Err { error })" id="Outcome<T#3, E#3>"
+        /// @type.node source="Err { error }" type=Err<E#3>
+        /// @resolution.name source=Err target=Err
+        /// @generic.instance source="Err { error }" id=Err<E#3>
+        /// @type.node source=error type=E#3
+        /// @resolution.name source=error target=err.error
+        /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=error root=err.error
+
+    }
+
+    map<U>(f: (value: T) => U): Outcome<U, E> {
+    /// @generic.template symbol=map parent=template#3 parameters=(U)
+    /// @type.symbol symbol=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
+    /// @type.symbol symbol=map.U source=U type=U
+    /// @type.symbol symbol=map.f source="f: (value: T) => U" type=Function<(T#3,), U>
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=U target=map.U
+    /// @resolution.name source=Outcome target=Outcome
+    /// @resolution.name source=U target=map.U
+    /// @resolution.name source=E target=E
+
+        match (this) {
+        /// @type.node type=Outcome<U, E#3>
+        /// @type.node source=this type=Outcome<T#3, E#3>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Outcome<T#3, E#3>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @generic.instance source=this id="Outcome<T#3, E#3>"
+
+            Ok { value } => Outcome.ok(f(value))
+            /// @resolution.name source=Ok target=Ok
+            /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value }
+            /// @generic.instance source="Ok { value }" id=Ok<T#3>
+            /// @type.symbol symbol=map.value#2 source=value type=T#3
+            /// @type.node source=Outcome type=Outcome
+            /// @type.node source=Outcome.ok type=(T#3) => Outcome<T#3, E#3>
+            /// @type.node source=Outcome.ok(f(value)) type=Outcome<U, E#3>
+            /// @resolution.name source=Outcome target=Outcome
+            /// @resolution.member source=Outcome.ok receiver=Outcome type=(T#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=ok
+            /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok receiver=Outcome instance="Outcome<U, E#3>.<extension#1>.ok"
+            /// @generic.instance source=Outcome.ok id="Outcome<T#3, E#3>"
+            /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>"
+            /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>.<extension#1>.ok"
+            /// @type.node source=f type=Function<(T#3,), U>
+            /// @type.node source=f(value) type=U
+            /// @resolution.name source=f target=map.f
+            /// @resolution.call source=f(value) parameters=(T#3) arguments=(provided(value) as T#3) return=U kind=expression target=expression
+            /// @resolution.place source=f placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=f root=map.f
+            /// @type.node source=value type=T#3
+            /// @resolution.name source=value target=map.value#2
+            /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=value root=map.value#2
+
+            Err { error } => Outcome.err(error)
+            /// @resolution.name source=Err target=Err
+            /// @resolution.pattern source="Err { error }" kind=nominal_object target=Err instance=Err<E#3> fields={ Err.error }
+            /// @generic.instance source="Err { error }" id=Err<E#3>
+            /// @type.symbol symbol=map.error source=error type=E#3
+            /// @type.node source=Outcome type=Outcome
+            /// @type.node source=Outcome.err type=(E#3) => Outcome<T#3, E#3>
+            /// @type.node source=Outcome.err(error) type=Outcome<U, E#3>
+            /// @resolution.name source=Outcome target=Outcome
+            /// @resolution.member source=Outcome.err receiver=Outcome type=(E#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=err
+            /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err receiver=Outcome instance="Outcome<U, E#3>.<extension#1>.err"
+            /// @generic.instance source=Outcome.err id="Outcome<T#3, E#3>"
+            /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>"
+            /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>.<extension#1>.err"
+            /// @type.node source=error type=E#3
+            /// @resolution.name source=error target=map.error
+            /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.access source=error root=map.error
+
+        }
+    }
+}
+
+/// @generic.instance id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3)
+/// @generic.instance id="Outcome<U, E#3>" template=Outcome arguments=(U, E#3)
+/// @generic.instance id="Outcome<U, E#3>.<extension#1>.err" template=err arguments=(U, E#3)
+/// @generic.instance id="Outcome<U, E#3>.<extension#1>.ok" template=ok arguments=(U, E#3)
+/// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
+/// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
+"#,
+    );
+}

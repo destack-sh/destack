@@ -119,7 +119,7 @@ impl CheckState<'_> {
         if !matches!(borrow.form, dir::Form::Borrowed(_)) {
             return Ok(Answer::Ready(None));
         }
-        // only placeable values own storage a borrow can target
+        // require a placeable value, a borrow only targets owned storage
         if !self.ty(source.base())?.is_placeable() {
             return Ok(Answer::Ready(None));
         }
@@ -195,7 +195,7 @@ impl CheckState<'_> {
         Ok(space)
     }
 
-    /// Return the outer placement term carried by one type.
+    /// Return the outer placement term of one type.
     pub(in crate::check) fn type_place(
         &self,
         ty: dir::GlobalTypeId,
@@ -292,7 +292,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let chain = self.form_chain(origin, ty)?;
 
-        // dependent types carry placement through every surrounding form
+        // return an open form chain unchanged
         if chain.is_open {
             return Ok(Answer::Ready(ty));
         }
@@ -1174,7 +1174,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(MemoryRank::Borrowed));
         }
 
-        // only two existing borrows can differ by access alone
+        // require two existing borrows to differ by access alone
         let argument = self.form_chain(origin, argument)?;
         let parameter = self.form_chain(origin, parameter)?;
         let Some(dir::Form::Borrowed(argument_borrow)) =
@@ -1222,7 +1222,7 @@ impl CheckState<'_> {
             return Ok(false);
         }
 
-        // the chains must agree on every form other than placement
+        // require the chains to agree on every form other than placement
         let placeless = |chain: &FormChain| {
             chain
                 .forms

@@ -301,9 +301,8 @@ impl CheckState<'_> {
             return Ok(Variance::Invariant);
         };
 
-        // reference instances carry their constructed method instantiations,
-        //  so their methods constrain every context; value instances dispatch
-        //  methods statically at each use and read them covariantly
+        // measure class and interface methods as reference instances,
+        //  and every other declaration's methods as value instances
         let is_reference = matches!(
             definition,
             dir::Definition::Class(_) | dir::Definition::Interface(_)
@@ -463,7 +462,7 @@ impl CheckState<'_> {
                 measured
             }
 
-            // function carriers measure through their wrapped signatures
+            // measure functions through their signature and environment
             dir::Type::Function(function) => {
                 let signature = self.measure_type(function.signature, position, form, parameter)?;
                 let environment =
@@ -507,7 +506,9 @@ impl CheckState<'_> {
 
             // structural shapes measure reads forward and writes backward
             dir::Type::Shape(shape) => {
-                let fields = self.shape_properties(ty.module_id, shape.properties)?.to_vec();
+                let fields = self
+                    .shape_properties(ty.module_id, shape.properties)?
+                    .to_vec();
                 let mut measured = Variance::Bivariant;
                 for field in fields {
                     if let Some(read) = field.access.read() {
@@ -606,7 +607,7 @@ impl CheckState<'_> {
                 measured
             }
 
-            // leaves carry no occurrences
+            // stop at leaves, they have no occurrences
             _ => Variance::Bivariant,
         };
 
@@ -723,7 +724,7 @@ impl CheckState<'_> {
         relation: Relation,
     ) -> Relation {
         match self.symbol_kind(symbol) {
-            // interface applications share the uniform Dynamic carrier
+            // widen interface applications by assignability
             dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
                 if relation == Relation::Widens =>
             {

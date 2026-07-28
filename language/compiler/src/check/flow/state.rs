@@ -738,7 +738,7 @@ impl FlowState {
             self.mark_assigned(*place);
         }
 
-        // a place moved in either branch is maybe-moved, so it stays moved
+        // keep every place moved by either branch moved
         for (place, site) in left.moved.iter().chain(&right.moved) {
             self.mark_moved(*place, *site);
         }

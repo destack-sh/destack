@@ -1,14 +1,14 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
-use smallvec::SmallVec;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyForm, CauseKind, CheckError, CheckState, ClassInitializationObligation,
-    DeclarationHeritageObligation, InterfaceConformanceObligation, FlowBranch, FunctionHeader,
-    GenericTemplateId, ImplementationCoherenceObligation, InducedParameterOwner, Obligation,
-    Origin, ParameterUseObligation, Receiver, ReceiverBinding, Relation, RepresentationObligation,
-    TypeSubstitution, VariableRole, WalkState, Widening,
+    DeclarationHeritageObligation, FlowBranch, FunctionHeader, GenericTemplateId,
+    ImplementationCoherenceObligation, InducedParameterOwner, InterfaceConformanceObligation,
+    Obligation, Origin, ParameterUseObligation, Receiver, ReceiverBinding, Relation,
+    RepresentationObligation, TypeSubstitution, VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -217,8 +217,7 @@ impl WalkState<'_, '_> {
                     .implements_types()
                     .is_some_and(|types| !types.is_empty());
             if template.is_none() && assumes {
-                self.check
-                    .open_generic_template(source)?;
+                self.check.open_generic_template(source)?;
             }
 
             return Ok(());
@@ -295,8 +294,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
         let source = id.into_global_any(self.module);
-        let Some(template) = self.open_signature_template(source, signature)?
-        else {
+        let Some(template) = self.open_signature_template(source, signature)? else {
             return Ok(());
         };
 
@@ -494,8 +492,7 @@ impl WalkState<'_, '_> {
         } else {
             self.bind_symbol_type(symbol, value)?;
 
-            // induced lifetimes never surface as written consumer arity,
-            //  but committed arity must match the applications uses intern
+            // commit the induced owner template, whose arity matches interned applications
             let template = self.induced_owner_template(induction, template)?;
 
             dir::Definition::TypeAlias(dir::TypeAliasDefinition {
@@ -1380,8 +1377,7 @@ impl WalkState<'_, '_> {
         // open signature parameters before building the function type
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
-        let template =
-            self.open_signature_template(source, &declaration.signature)?;
+        let template = self.open_signature_template(source, &declaration.signature)?;
 
         let (header, result, tracked) = self.walk_signature_header(
             id.into_any(),
@@ -1391,7 +1387,7 @@ impl WalkState<'_, '_> {
         )?;
         let this_parameter = header.this_parameter;
 
-        // require a body unless ambience carries one
+        // require a body unless the declaration is ambient
         if declaration.body.is_none() && !declaration.is_ambient {
             let source = id.into_global_any(self.module);
             self.check

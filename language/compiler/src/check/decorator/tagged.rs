@@ -290,7 +290,9 @@ impl CheckState<'_> {
 
             // return one structural arm with its checked fields
             dir::Type::Shape(shape) => {
-                let fields = self.shape_properties(ty.module_id, shape.properties)?.to_vec();
+                let fields = self
+                    .shape_properties(ty.module_id, shape.properties)?
+                    .to_vec();
                 let arm = TaggedArm {
                     backing: ty,
                     declared_fields: fields.clone(),
@@ -336,7 +338,7 @@ impl CheckState<'_> {
                         Ok(Some(vec![arm]))
                     }
 
-                    // nested newtypes contribute their instantiated backing arms
+                    // flatten a nested newtype into its instantiated backing arms
                     Some(dir::Definition::Newtype(definition)) => {
                         let backing = definition.backing;
                         if !active.insert(instance.symbol) {
@@ -480,7 +482,7 @@ impl CheckState<'_> {
         discriminator: dir::StaticKey,
         discriminant: dir::StringId,
     ) -> CompilerResult<TaggedVariant> {
-        // retain every constructor field except the injected discriminator
+        // retain every constructor field except the discriminator
         let argument_fields: Vec<_> = arm
             .constructor_fields
             .iter()

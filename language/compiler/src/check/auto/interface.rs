@@ -30,7 +30,7 @@ impl CheckState<'_> {
             // TODO #Incomplete: the remaining auto interfaces never hold
             dir::AutoInterface::Unpin | dir::AutoInterface::Zeroable => Ok(Answer::Ready(false)),
             dir::AutoInterface::Concrete => self.satisfies_concrete(origin, ty),
-            // derivable interfaces hold only through their generated extensions
+            // leave derivable interfaces to their generated extensions
             dir::AutoInterface::Clone
             | dir::AutoInterface::Debug
             | dir::AutoInterface::Default
@@ -53,17 +53,17 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let root = answer!(self.reduce_type_head(origin, ty)?);
         let holds = match self.ty(root)? {
-            // concrete builtin formats carry their matching marker
+            // match the primitive's own domain
             dir::Type::Primitive(primitive) => primitive.scalar_domain() == domain,
 
-            // rigid parameters carry markers from their declared assumptions
+            // read a parameter's domain from its declared bounds
             dir::Type::Parameter(_) => {
                 let families = answer!(self.builtin_scalar_families(origin, root)?);
 
                 families.is_some_and(|families| families.is_only_domain(domain))
             }
 
-            // literals, ranges, unions, and nominal types are not scalar formats
+            // reject literals, ranges, unions, and nominal types
             _ => false,
         };
 

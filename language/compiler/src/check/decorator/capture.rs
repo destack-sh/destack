@@ -6,7 +6,7 @@ use crate::check::{
 };
 use crate::{CompilerError, CompilerResult};
 
-/// Fields carried by one capture directive object.
+/// The fields of one capture directive object.
 #[derive(Debug)]
 struct CaptureOptions {
     /// The default capture mode.
@@ -134,7 +134,7 @@ impl CheckState<'_> {
         };
         let mode = self.decode_capture_mode(value)?;
 
-        // replace object fields according to ordinary last-write semantics
+        // set the default mode, or overwrite the rule with the same name
         if self.strings().get(name) == "default" {
             options.default = mode;
         } else if let Some(rule) = options.rules.iter_mut().find(|rule| rule.name == name) {

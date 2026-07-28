@@ -460,7 +460,7 @@ impl BodyState<'_, '_> {
                 CandidateVerdict::Viable | CandidateVerdict::Indeterminate
             ) {
                 if selected.is_some() {
-                    return Ok(Answer::Ready(Err(CheckFailure::AmbiguousUnionInjection)));
+                    return Ok(Answer::Ready(Err(CheckFailure::AmbiguousUnionCoercion)));
                 }
                 selected = Some(target);
             }

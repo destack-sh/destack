@@ -135,7 +135,7 @@ impl CheckState<'_> {
         &mut self,
         explained: &FxIndexSet<dir::TypeVariableId>,
     ) -> CompilerResult<()> {
-        // every remaining root is a genuine inference failure
+        // report every remaining root as an inference failure
         let mut unresolved = Vec::new();
         for index in 0..self.solver.variable_count() {
             let variable = dir::TypeVariableId(index as u32);

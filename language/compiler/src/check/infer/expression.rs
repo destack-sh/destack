@@ -25,7 +25,7 @@ impl BodyState<'_, '_> {
 
         match expression {
             dir::Expression::Identifier { .. } => {
-                // name references decide during the walk
+                // read the name resolution recorded by the walk
                 let resolution = self
                     .resolutions(node.module_id)
                     .name_resolution(node.into_any())
@@ -39,7 +39,7 @@ impl BodyState<'_, '_> {
                 self.infer_name_expression(site, &resolution)
             }
             dir::Expression::Label { body, .. } => {
-                // labeled blocks own their output; labeled loops forward transparently
+                // check a labeled block against its recorded result, forward a labeled loop
                 if let Some(result) = self.check.control_results.get(&node.into_any()).copied() {
                     let body_site = self.node_site(body.into_global_any(node.module_id))?;
                     let expectation = Expectation::assignable(
@@ -375,7 +375,7 @@ impl BodyState<'_, '_> {
 
         let ty = match self.static_value(*symbol) {
             Some(value) => value,
-            // alias and class names type as their written declaration reference
+            // type alias and class names as their written declaration reference
             None if matches!(
                 self.symbol_kind(*symbol),
                 dir::SymbolKind::TypeAlias | dir::SymbolKind::Class
@@ -406,8 +406,8 @@ impl BodyState<'_, '_> {
         let module = site.node.module_id;
         let child_site = self.node_site(child.into_global_any(module))?;
         let ty = answer!(self.infer_node(child_site, PlaceUse::Read, InferMode::Exact)?);
-        // commit the raw child type: both nodes share one flow path,
-        //  so the parent read overlays the narrowing itself
+
+        // commit the raw child type, the parent read applies its own narrowing
         self.commit_node_type(site.node, ty)?;
 
         Ok(Answer::Ready(()))

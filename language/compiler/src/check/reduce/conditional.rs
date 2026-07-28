@@ -616,8 +616,12 @@ impl CheckState<'_> {
         actual_module: ModuleId,
         actual: dir::ShapeType,
     ) -> CompilerResult<Answer<bool>> {
-        let pattern_fields = self.shape_properties(pattern_module, pattern.properties)?.to_vec();
-        let actual_fields = self.shape_properties(actual_module, actual.properties)?.to_vec();
+        let pattern_fields = self
+            .shape_properties(pattern_module, pattern.properties)?
+            .to_vec();
+        let actual_fields = self
+            .shape_properties(actual_module, actual.properties)?
+            .to_vec();
         let fields = self.match_infer_shape_fields(
             origin,
             captures,

@@ -23,7 +23,7 @@ impl BodyState<'_, '_> {
             SmallVec::<[(dir::LocalNodeId<dir::Expression>, dir::GlobalTypeId); 2]>::new();
         let element_mode = mode.descend(false);
 
-        // infer explicit elements and spread carriers
+        // infer explicit elements and spread sources
         for argument in elements {
             match self.module(module).view().get(*argument) {
                 dir::Argument::Spread { value, .. } => {
@@ -115,7 +115,7 @@ impl BodyState<'_, '_> {
         };
         let array = self.intern_type(module, dir::Type::Array(dir::ArrayType { element }))?;
 
-        // spreads expand item by item into the new array's elements
+        // constrain each spread item to the array element type
         for (value, spread) in spreads {
             let item = self.spread_element_type(spread)?;
             let cause = self.intern_cause(Cause::root(
@@ -137,7 +137,7 @@ impl BodyState<'_, '_> {
             array
         };
 
-        // convert each authored value into the selected element carrier
+        // convert each authored value into the selected element type
         let dir::Type::Array(array) = self.ty(ty)? else {
             return Ok(Answer::Ready(ty));
         };
@@ -185,7 +185,7 @@ impl BodyState<'_, '_> {
         )?;
         self.commit_node_type(node.into_any(), array)?;
 
-        // convert the repeated value into the selected element carrier
+        // convert the repeated value into the selected element type
         if source_element == element {
             return Ok(Answer::Ready(()));
         }
@@ -259,7 +259,7 @@ impl BodyState<'_, '_> {
             }),
         )?;
 
-        // const tuple inference freezes the tuple value
+        // freeze the tuple value under const inference
         let ty = if mode == InferMode::Const {
             self.intern_type(
                 module,
@@ -406,7 +406,7 @@ impl BodyState<'_, '_> {
         };
         self.commit_node_type(node.into_any(), carrier)?;
 
-        // materialize check-only elements into their selected source storage
+        // convert check-only elements into their selected source storage
         if expectation.relation == Relation::Satisfies {
             for (index, (source, source_element)) in source_elements.into_iter().enumerate() {
                 let source_type = self.require_node_type(source)?;

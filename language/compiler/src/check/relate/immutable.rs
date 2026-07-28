@@ -35,7 +35,7 @@ impl CheckState<'_> {
 
         match self.ty(ty)? {
             dir::Type::Variable(variable) => Ok(Answer::pending([Dependency::Variable(variable)])),
-            // valueless and scalar types carry no capability at all
+            // reject valueless and scalar types, they have no capability
             dir::Type::Error
             | dir::Type::Never
             | dir::Type::Void
@@ -73,7 +73,7 @@ impl CheckState<'_> {
 
                 Ok(decision)
             }
-            // nominal immutability is seeded by language semantics
+            // read nominal immutability from the compiler known language items
             dir::Type::Application(instance) => Ok(Answer::Ready(matches!(
                 self.language_item(instance.symbol)?,
                 Some(dir::LanguageItem::String | dir::LanguageItem::BigInt)
@@ -99,7 +99,9 @@ impl CheckState<'_> {
                 {
                     return Ok(Answer::Ready(false));
                 }
-                let fields = self.shape_properties(ty.module_id, shape.properties)?.to_vec();
+                let fields = self
+                    .shape_properties(ty.module_id, shape.properties)?
+                    .to_vec();
                 if fields.iter().any(|field| field.access.is_writable()) {
                     return Ok(Answer::Ready(false));
                 }
@@ -110,8 +112,10 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(false));
                 }
 
-                let mut ids: SmallVec<[dir::GlobalTypeId; 8]> =
-                    fields.iter().flat_map(|field| field.access.types()).collect();
+                let mut ids: SmallVec<[dir::GlobalTypeId; 8]> = fields
+                    .iter()
+                    .flat_map(|field| field.access.types())
+                    .collect();
                 ids.extend(signatures.iter().map(|signature| signature.value_type));
 
                 self.all_immutable(origin, ids, active)

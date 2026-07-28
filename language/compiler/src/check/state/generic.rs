@@ -140,7 +140,7 @@ impl CheckState<'_> {
             return Ok(Some(template));
         }
 
-        // committed definitions carry their declared templates
+        // read the declared template from a committed definition
         let template = self
             .definition(symbol)?
             .and_then(|definition| definition.template());
@@ -352,7 +352,7 @@ impl CheckState<'_> {
             return Ok(argument);
         };
 
-        // preserve selected declaration parameters that did not receive evidence
+        // preserve selected declaration parameters that collected no bounds
         let state = self.solver.variable(variable)?;
         if !state.lower.is_empty() {
             return Ok(argument);
@@ -707,7 +707,7 @@ impl CheckState<'_> {
             });
         };
 
-        // skip predicates the declaration pass already carries
+        // skip predicates the declaration pass already recorded
         if !declared.predicates.contains(&predicate) {
             declared.predicates.push(predicate);
         }
@@ -726,7 +726,7 @@ impl CheckState<'_> {
             .unwrap_or_default()
     }
 
-    /// Return the assuming generic template carried by one work origin.
+    /// Return the assuming generic template of one work origin.
     pub(in crate::check) fn origin_scope(
         &mut self,
         origin: Origin,
@@ -836,10 +836,9 @@ impl CheckState<'_> {
         if arguments.len() != parameters.len() {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "generic template {template:?} received {} arguments for {} parameters\n{}",
+                    "generic template {template:?} received {} arguments for {} parameters",
                     arguments.len(),
                     parameters.len(),
-                    std::backtrace::Backtrace::force_capture(),
                 ),
             });
         }
@@ -931,7 +930,7 @@ impl CheckState<'_> {
         Ok(bounds)
     }
 
-    /// Collect the interface applications carried by `this` at one origin.
+    /// Collect the interface applications visible on `this` at one origin.
     pub(in crate::check) fn this_bounds(
         &mut self,
         origin: Origin,
@@ -1044,5 +1043,4 @@ impl CheckState<'_> {
 
         Ok(bindings)
     }
-
 }

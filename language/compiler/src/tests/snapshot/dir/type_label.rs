@@ -733,7 +733,10 @@ impl DirSnapshotBuilder<'_> {
                     return format!("get {key}(){signature}");
                 }
 
-                format!("readonly {key}{optional}: {}", self.type_id_label(types, ty))
+                format!(
+                    "readonly {key}{optional}: {}",
+                    self.type_id_label(types, ty)
+                )
             }
             dir::PropertyAccess::Write(ty) => {
                 format!("set {key}(value: {})", self.type_id_label(types, ty))

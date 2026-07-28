@@ -94,7 +94,7 @@ impl Compiler {
         let entry_module = self.module(context.revision(), entry)?;
         let options = self.workspace_compiler_options(context, entry_module.as_ref())?;
 
-        // check declarations and module state; callable bodies stay unwalked
+        // check declarations and module state without walking callable bodies
         let mut check = CheckState::new(
             self,
             context,
@@ -104,7 +104,6 @@ impl Compiler {
             environment,
             external_components.modules,
             external_components.inherent,
-            inherent_extension_symbols(&graph),
             FxIndexSet::default(),
             options.emit_events || context.emit_events(),
         );
@@ -290,7 +289,6 @@ impl Compiler {
             environment,
             externals,
             external_components.inherent,
-            inherent_extension_symbols(&graph),
             inference_modules,
             emit_events,
         );
@@ -409,7 +407,7 @@ impl Compiler {
         dependencies.project(graph_key, ComponentGraphProjection::InherentExtensions);
         dependencies.require(ArtifactKey::global_environment(profile));
 
-        // the external set follows the global environment's implicit modules
+        // follow the global environment's implicit modules
         let global = match artifacts.global_environment(profile) {
             Ok(global) => global,
             Err(ProviderError::Blocked { .. }) => {
@@ -506,15 +504,6 @@ impl Compiler {
             inherent,
         })
     }
-}
-
-/// Return the graph's inherent extension symbols.
-fn inherent_extension_symbols(graph: &ComponentGraph) -> Vec<destack_dir::GlobalSymbolId> {
-    graph
-        .inherent_extensions()
-        .iter()
-        .map(|extension| extension.symbol)
-        .collect()
 }
 
 /// External checked component inputs reached from one component.

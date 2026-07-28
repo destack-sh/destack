@@ -485,30 +485,11 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let Some(ty) = self.committed_node_type(node) else {
-            let mut open = Vec::new();
-            for index in 0..self.solver.variable_count() {
-                let variable = dir::TypeVariableId(index as u32);
-                if let Ok(record) = self.solver.variable(variable)
-                    && record.state.is_open()
-                {
-                    let default = self
-                        .solver
-                        .variables
-                        .variable_default(variable)
-                        .map(|default| self.format_type(default));
-                    open.push(format!(
-                        "{variable:?} origin={:?} bounds={}/{} default={default:?}",
-                        record.origin, record.lower.count, record.upper.count,
-                    ));
-                }
-            }
-
             return Err(CompilerError::Internal {
                 message: format!(
-                    "required node has no checked type: {}; decision={:?}; open variables: {}",
+                    "required node has no checked type: {}; decision={:?}",
                     self.node_label(node),
                     self.decisions.kind(node),
-                    open.join("; "),
                 ),
             });
         };
@@ -680,7 +661,13 @@ impl CheckState<'_> {
             let origin = self.intern_origin(Origin::Symbol(symbol));
             let origin = self.solver.origin(origin);
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.push_constraint(Constraint::r#type(origin, Relation::Equal, existing, ty, cause));
+            self.push_constraint(Constraint::r#type(
+                origin,
+                Relation::Equal,
+                existing,
+                ty,
+                cause,
+            ));
 
             return Ok(existing);
         }
@@ -732,9 +719,8 @@ impl CheckState<'_> {
         if !self.is_component_module(symbol.module_id) {
             return Err(CompilerError::Internal {
                 message: format!(
-                    "external symbol {} has no committed type\n{}",
+                    "external symbol {} has no committed type",
                     self.format_symbol(symbol),
-                    std::backtrace::Backtrace::force_capture(),
                 ),
             });
         }

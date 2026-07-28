@@ -108,7 +108,7 @@ pub(in crate::check) enum ValueUse {
 }
 
 impl ValueUse {
-    /// Return whether this use materializes a value in a storage destination.
+    /// Return whether this use writes a value into a storage destination.
     pub(in crate::check) fn requires_storage(self) -> bool {
         matches!(self, Self::Store | Self::Argument | Self::Output)
     }
@@ -312,7 +312,7 @@ pub(in crate::check) struct FailedCheck {
 }
 
 impl CheckState<'_> {
-    /// Decide the bounds and predicates carried by one matched substitution.
+    /// Decide the bounds and predicates of one matched substitution.
     pub(in crate::check) fn decide_substitution_constraints(
         &mut self,
         origin: Origin,
@@ -451,7 +451,7 @@ pub(in crate::check) enum CheckFailure {
     /// The relation itself did not hold.
     Relation,
     /// A value converts to more than one represented union case.
-    AmbiguousUnionInjection,
+    AmbiguousUnionCoercion,
     /// Direct property literal missed one required key.
     MissingRequiredProperty {
         /// The missing key.

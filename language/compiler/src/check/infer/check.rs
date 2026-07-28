@@ -169,7 +169,7 @@ impl BodyState<'_, '_> {
             .get(node.local_id)
             .clone();
 
-        // function values deduce their parameters from a callable target
+        // deduce function value parameters from a callable target
         if self.check.lambdas.contains_key(&site.node) {
             let check = answer!(self.check_function_value(site, Some(expectation))?);
 
@@ -230,7 +230,7 @@ impl BodyState<'_, '_> {
             | dir::Expression::FixedArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }
             | dir::Expression::ObjectExpression { .. }) => {
-                // open expectations provide no structural guidance
+                // resolve the target head before matching structural literals
                 let target = match self.check.reduce_type_head(origin, target)? {
                     Answer::Ready(target) => target,
                     Answer::Pending(blockers)

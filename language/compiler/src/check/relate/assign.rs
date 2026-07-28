@@ -7,8 +7,8 @@ use crate::check::{Answer, CheckState, Origin, Relation, answer};
 impl CheckState<'_> {
     /// Decide assignability from one reduced source to one reduced target.
     ///
-    /// `Widens` decides the same relation restricted to identity-witnessed
-    /// edges: conversions that would reify as coercions never widen.
+    /// `Widens` decides the same relation restricted to conversions that
+    /// require no coercion.
     pub(in crate::check) fn decide_assignable(
         &mut self,
         origin: Origin,
@@ -31,7 +31,7 @@ impl CheckState<'_> {
             {
                 Answer::Ready(true)
             }
-            // existential carriers box their values and never widen
+            // box values into an existential target, which never widens
             (_, dir::Type::Any) | (_, dir::Type::Unknown) => Answer::Ready(!widens),
             (dir::Type::Any, _) => Answer::Ready(!widens),
             (dir::Type::Never, _) => Answer::Ready(true),
@@ -47,7 +47,7 @@ impl CheckState<'_> {
 
                 self.decide_template_string(origin, &text, target.module_id, &template)?
             }
-            // every template literal instance is a string
+            // accept every template literal instance as a string
             (dir::Type::Operation(operation), dir::Type::Primitive(dir::PrimitiveType::String))
                 if matches!(
                     self.type_operation(source.module_id, operation)?,
@@ -96,7 +96,7 @@ impl CheckState<'_> {
                 decision
             }
 
-            // union carriers tag their values and never widen
+            // reject widening into or out of a union
             (dir::Type::Union(_), _) | (_, dir::Type::Union(_)) if widens => Answer::Ready(false),
 
             // union sources need every element assignable
@@ -157,7 +157,7 @@ impl CheckState<'_> {
 
                 self.decide_all_targets(origin, relation, source, &elements)?
             }
-            // existential carriers box their values and never widen
+            // box values into an existential target, which never widens
             (_, dir::Type::Dynamic(_)) | (dir::Type::Dynamic(_), _) if widens => {
                 Answer::Ready(false)
             }
@@ -165,13 +165,12 @@ impl CheckState<'_> {
             (_, dir::Type::Dynamic(dynamic)) => {
                 self.decide_dynamic_assignable(origin, source, dynamic.constraint)?
             }
-            // dynamic values carry their constraint's proof by construction
+            // relate a dynamic source through its constraint
             (dir::Type::Dynamic(dynamic), _) => {
                 self.decide_relation(origin, Relation::Assignable, dynamic.constraint, target)?
             }
 
-            // numeric literal storage has no single carrier and never widens;
-            //  uniform-carrier families like strings store identically
+            // reject widening for literals without a uniform carrier
             (dir::Type::Literal(literal), _) if widens && !literal.has_uniform_carrier() => {
                 Answer::Ready(false)
             }
@@ -204,7 +203,7 @@ impl CheckState<'_> {
 
                 element.and(count)
             }
-            // sized sequences view through their fat slice carrier
+            // view a fixed array through a slice of the same element
             (dir::Type::FixedArray(source), dir::Type::Slice(target)) if !widens => {
                 self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
@@ -302,7 +301,7 @@ impl CheckState<'_> {
         self.decide_relation(origin, Relation::Assignable, source, constraint)
     }
 
-    /// Decide whether one parameter's bounds carry one relation.
+    /// Decide whether one parameter's bounds prove one relation.
     pub(in crate::check) fn decide_parameter_relation(
         &mut self,
         origin: Origin,
@@ -322,14 +321,14 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Decide whether one assumed bound carries `this`.
+    /// Decide whether one assumed `this` bound proves one relation.
     pub(in crate::check) fn decide_this_relation(
         &mut self,
         origin: Origin,
         relation: Relation,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // prove through any bound carried by this
+        // prove through any assumed this bound
         let mut decision = Answer::Ready(false);
         for bound in self.this_bounds(origin)? {
             decision = decision.or(self.decide_relation(origin, relation, bound, target)?);

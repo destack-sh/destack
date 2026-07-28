@@ -75,12 +75,12 @@ impl BodyState<'_, '_> {
         owners: &[VariantOwner],
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
-        // enum members carry no payload to destructure
+        // reject fields, enum members have no payload to destructure
         if !fields.is_empty() {
             return self.reject_pattern(node, origin, owners[0].owner);
         }
 
-        // the written key selects the declared variant
+        // select the declared variant by the written key
         let variant = match self.definition(case.owner)? {
             Some(dir::Definition::Enum(definition)) => definition
                 .variant_by_key(case.key)

@@ -269,3 +269,37 @@ entry(v0: int32, v1: ref<User, borrowed, 'a, readonly>):
 "#,
     );
 }
+
+#[test]
+fn test_lower_lifetime_unions_to_combined_mir_provenance() {
+    let session = TestSession::single(
+        r#"
+struct User {
+    id: int32;
+}
+
+function identity<comptime L0: Lifetime, comptime L1: Lifetime>(
+    value: Borrowed<User, L0 | L1, "readonly">,
+): Borrowed<User, L0 | L1, "readonly"> {
+    return value;
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type User {
+    id: int32;
+}
+
+function test.main.identity<'L0, 'L1>(v0: ref<User, borrowed, 'L0 | 'L1, readonly>): ref<User, borrowed, 'L0 | 'L1, readonly> {
+entry(v0: ref<User, borrowed, 'L0 | 'L1, readonly>):
+    return v0
+}
+/// @layout.struct name=User size=4 align=4
+/// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
+"#,
+    );
+}

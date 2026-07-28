@@ -46,7 +46,7 @@ impl CheckState<'_> {
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<bool>> {
         match self.ty(ty)? {
-            // open constraints may be inhabited by values with additional members
+            // accept every open type, its values may hold additional members
             dir::Type::Any
             | dir::Type::Unknown
             | dir::Type::Object
@@ -59,7 +59,7 @@ impl CheckState<'_> {
             | dir::Type::Member(_)
             | dir::Type::Operation(_) => Ok(Answer::Ready(true)),
 
-            // index signatures open only the keys admitted by their domains
+            // accept a shape key admitted by one of its index signatures
             dir::Type::Shape(shape) => {
                 let key_type = self.static_key_type(origin.module(), key)?;
                 let signatures = self
@@ -92,7 +92,7 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(false))
             }
 
-            // any open conjunct may contribute another member
+            // accept when any conjunct may contribute the member
             dir::Type::Intersection(intersection) => {
                 let elements = self.type_ids(ty.module_id, intersection.elements)?.to_vec();
                 for element in elements {
@@ -105,7 +105,7 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(false))
             }
 
-            // wrappers preserve their payload's possible member set
+            // look through wrappers to the value they hold
             dir::Type::Form(form) => {
                 self.type_may_have_additional_member(origin, form.value, key, active)
             }
@@ -118,7 +118,7 @@ impl CheckState<'_> {
                 self.type_may_have_additional_member(origin, variant.owner, key, active)
             }
 
-            // nominal member sets follow the declaration's extensibility
+            // read extensibility from the nominal declaration
             dir::Type::Application(instance) => match self.definition(instance.symbol)?.cloned() {
                 Some(dir::Definition::Interface(_)) => Ok(Answer::Ready(true)),
                 Some(dir::Definition::Class(definition)) => Ok(Answer::Ready(!definition.is_final)),
@@ -132,7 +132,7 @@ impl CheckState<'_> {
                 _ => Ok(Answer::Ready(false)),
             },
 
-            // remaining represented types have closed member sets
+            // reject every remaining type, their member sets are closed
             _ => Ok(Answer::Ready(false)),
         }
     }

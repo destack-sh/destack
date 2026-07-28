@@ -39,7 +39,7 @@ impl CheckState<'_> {
             dir::Type::Variable(variable) => {
                 Ok(Answer::pending([Dependency::Variable(variable)]))
             }
-            // refinements constrain members without changing the base
+            // look through the refinement to its base
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
 

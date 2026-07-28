@@ -466,5 +466,4 @@ impl CheckState<'_> {
             None => Ok((ty, false)),
         }
     }
-
 }

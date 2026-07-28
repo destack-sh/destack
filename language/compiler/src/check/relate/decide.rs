@@ -258,7 +258,7 @@ impl CheckState<'_> {
                 self.decide_relation(origin, Relation::Subtype, variant.owner, target)?
             }
 
-            // dynamic carriers only include other dynamic carriers
+            // relate dynamic values only against other dynamic values
             (dir::Type::Dynamic(source), dir::Type::Dynamic(target)) => self.decide_relation(
                 origin,
                 Relation::Subtype,

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::{CompilerError, CompilerResult};
 use crate::check::{Answer, CheckState, Dependency, Origin};
+use crate::{CompilerError, CompilerResult};
 
 /// Working accumulator for merging shape elements of an intersection.
 #[derive(Default)]
@@ -19,7 +19,7 @@ struct ShapeMerge {
 }
 
 impl CheckState<'_> {
-    /// Return a flattened intersection type.
+    /// Return a flattened intersection type without redundant `unknown` elements.
     pub(in crate::check) fn normalized_intersection_type(
         &mut self,
         module: ModuleId,
@@ -37,12 +37,10 @@ impl CheckState<'_> {
                 _ => SmallVec::from_slice(&[element]),
             };
 
-            // keep exact elements once, dropping the unknown identity
+            // keep each element once, skipping unknown
             for element in elements {
-                if matches!(self.ty(element)?, dir::Type::Unknown) {
-                    continue;
-                }
-                if !kept.contains(&element) {
+                let is_unknown = matches!(self.ty(element)?, dir::Type::Unknown);
+                if !is_unknown && !kept.contains(&element) {
                     kept.push(element);
                 }
             }
@@ -230,5 +228,4 @@ impl CheckState<'_> {
             (left, right) => left.or(right),
         })
     }
-
 }

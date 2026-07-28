@@ -13,12 +13,12 @@ impl CheckState<'_> {
         site: FlowSite,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        // only expression occurrences participate in flow narrowing
+        // narrow expression occurrences only
         let dir::NodeType::Expression = site.node.local_id.ty else {
             return Ok(Answer::Ready(ty));
         };
 
-        // only selected stored accesses can carry durable flow information
+        // require a selected stored access path
         let Some(path) = self
             .module(site.node.module_id)
             .resolutions
@@ -88,7 +88,7 @@ impl CheckState<'_> {
             current = flow.parent;
         }
 
-        // no narrowing affects this path
+        // stop when no narrowing affects this path
         if predicates.is_empty() {
             return Ok(Answer::Ready(None));
         }
@@ -139,12 +139,12 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(None));
                 };
 
-                // positive branches use the exact narrowing selected by check
+                // return the exact narrowing check selected on positive branches
                 if is_positive {
                     return Ok(Answer::Ready(Some(narrowed)));
                 }
 
-                // negative branches remove the selected positive subset
+                // remove the selected positive subset on negative branches
                 self.resolve_type_predicate(site, source, narrowed, false)
             }
         }
@@ -204,7 +204,7 @@ impl CheckState<'_> {
             .resolutions(operation.module_id)
             .operator_resolution(operation);
 
-        // rejected operations cannot establish runtime equality
+        // skip rejected operations, which establish no runtime equality
         let Some(resolution) = resolution else {
             return match kind {
                 Some(DecisionKind::Rejected) => Ok(None),
@@ -224,24 +224,24 @@ impl CheckState<'_> {
         };
 
         match resolution {
-            // compiler equality carries the exact checked operand nodes
+            // return the exact checked operand nodes of compiler equality
             dir::OperationResolution::One(dir::OperatorApplication::Binary {
                 operator,
                 target: dir::OperatorTarget::Builtin(operands),
                 ..
             }) if operator.is_equality() => Ok(Some(operands.clone())),
 
-            // protocol equality has no compiler-defined flow meaning
+            // skip protocol equality, which has no compiler-defined narrowing
             dir::OperationResolution::One(dir::OperatorApplication::Binary {
                 operator,
                 target: dir::OperatorTarget::Call(_),
                 ..
             }) if operator.is_equality() => Ok(None),
 
-            // union dispatch cannot establish one stable equality operation
+            // skip union dispatch, which selects no single equality operation
             dir::OperationResolution::Union { .. } => Ok(None),
 
-            // flow only records equality operations
+            // fail on any other resolution, flow records equality only
             resolution => Err(CompilerError::Internal {
                 message: format!(
                     "flow equality {} selected non-equality resolution {resolution:?}",
@@ -264,7 +264,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let operand_path = access.path();
 
-        // direct equality narrows the value stored at this exact path
+        // narrow the value stored at this exact path
         if operand_path == path {
             return self.resolve_type_predicate(site, source, target, is_equal);
         }
@@ -285,7 +285,7 @@ impl CheckState<'_> {
         }
         let mut relative = relative;
 
-        // physical tag projections map discriminants back to precise variants
+        // map a discriminant back to its variant through a tag projection
         if let Some(dir::OperationResolution::One(access)) = self
             .resolutions(operand.module_id)
             .member_resolution(operand)
@@ -373,7 +373,7 @@ impl CheckState<'_> {
             .guard_resolution(guard.into_any())
             .cloned();
 
-        // rejected guards cannot establish runtime predicates
+        // skip rejected guards, which establish no runtime predicate
         match (kind, resolution) {
             (Some(DecisionKind::Guard), Some(resolution)) => Ok(resolution.predicate().narrowed),
             (Some(DecisionKind::Rejected), None) => Ok(None),
@@ -400,7 +400,7 @@ impl CheckState<'_> {
             .pattern_resolution(pattern.into_any())
             .cloned();
 
-        // rejected patterns cannot narrow their accepted value
+        // skip rejected patterns, which narrow nothing
         match (kind, resolution) {
             (Some(DecisionKind::Pattern), Some(resolution)) => {
                 self.pattern_resolution_predicate_target(origin, pattern, &resolution)
@@ -508,7 +508,7 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // predicates only read the tested field, so it stays covariant
+        // read the tested field covariantly
         let property = dir::TypeProperty {
             key,
             access: dir::PropertyAccess::Read(ty),

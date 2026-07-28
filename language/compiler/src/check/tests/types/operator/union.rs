@@ -340,3 +340,164 @@ function draw(shape: Shape): void {
 }
 "#);
 }
+
+#[test]
+fn test_union_member_call_selects_one_overload_per_variant() {
+    let session = TestSession::single(
+        r#"
+struct Left {
+    parse(value: string): "left-string" {
+        return "left-string";
+    }
+
+    parse(value: int32): "left-integer" {
+        return "left-integer";
+    }
+}
+
+struct Right {
+    parse(value: string): "right-string" {
+        return "right-string";
+    }
+
+    parse(value: int32): "right-integer" {
+        return "right-integer";
+    }
+}
+
+declare const parser: Left | Right;
+const result = parser.parse(1);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Left {
+    parse(value: string): "left-string" {
+        return "left-string";
+    }
+
+    parse(value: int32): "left-integer" {
+        return "left-integer";
+    }
+}
+
+struct Right {
+    parse(value: string): "right-string" {
+        return "right-string";
+    }
+
+    parse(value: int32): "right-integer" {
+        return "right-integer";
+    }
+}
+
+declare const parser: Left | Right;
+const result: "left-integer" | "right-integer" = parser.parse(1);
+
+=== checked ===
+struct Left {
+/// @type.symbol symbol=Left type=Left
+/// @definition.struct symbol=Left
+/// @definition.method symbol=Left.parse#1 slot=parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a exclusive this, string) => "left-string"
+/// @definition.method symbol=Left.parse#2 slot=parse type=<Left.parse#2.'a>(this: &Left.parse#2.'a exclusive this, int32) => "left-integer"
+
+    parse(value: string): "left-string" {
+    /// @generic.template symbol=Left.parse#1 parameters=('a)
+    /// @type.symbol symbol=Left.parse#1 type=<Left.parse#1.'a>(this: &Left.parse#1.'a exclusive this, string) => "left-string"
+    /// @type.symbol symbol=Left.parse.value#1 source="value: string" type=string
+
+        return "left-string";
+    }
+
+    parse(value: int32): "left-integer" {
+    /// @generic.template symbol=Left.parse#2 parameters=('a)
+    /// @type.symbol symbol=Left.parse#2 type=<Left.parse#2.'a>(this: &Left.parse#2.'a exclusive this, int32) => "left-integer"
+    /// @type.symbol symbol=Left.parse.value#2 source="value: int32" type=int32
+
+        return "left-integer";
+    }
+}
+
+struct Right {
+/// @type.symbol symbol=Right type=Right
+/// @definition.struct symbol=Right
+/// @definition.method symbol=Right.parse#1 slot=parse type=<Right.parse#1.'a>(this: &Right.parse#1.'a exclusive this, string) => "right-string"
+/// @definition.method symbol=Right.parse#2 slot=parse type=<Right.parse#2.'a>(this: &Right.parse#2.'a exclusive this, int32) => "right-integer"
+
+    parse(value: string): "right-string" {
+    /// @generic.template symbol=Right.parse#1 parameters=('a)
+    /// @type.symbol symbol=Right.parse#1 type=<Right.parse#1.'a>(this: &Right.parse#1.'a exclusive this, string) => "right-string"
+    /// @type.symbol symbol=Right.parse.value#1 source="value: string" type=string
+
+        return "right-string";
+    }
+
+    parse(value: int32): "right-integer" {
+    /// @generic.template symbol=Right.parse#2 parameters=('a)
+    /// @type.symbol symbol=Right.parse#2 type=<Right.parse#2.'a>(this: &Right.parse#2.'a exclusive this, int32) => "right-integer"
+    /// @type.symbol symbol=Right.parse.value#2 source="value: int32" type=int32
+
+        return "right-integer";
+    }
+}
+
+declare const parser: Left | Right;
+/// @type.symbol symbol=parser source=parser type=Left | Right
+/// @resolution.pattern source=parser kind=binding target=parser
+/// @resolution.name source=Left target=Left
+/// @resolution.name source=Right target=Right
+
+const result = parser.parse(1);
+/// @type.symbol symbol=result source=result type="left-integer" | "right-integer"
+/// @resolution.pattern source=result kind=binding target=result
+/// @resolution.name source=parser target=parser
+/// @resolution.member source=parser.parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a exclusive Left, string) => "left-string" & <Left.parse#2.'a>(this: &Left.parse#2.'a exclusive Left, int32) => "left-integer" | <Right.parse#1.'a>(this: &Right.parse#1.'a exclusive Right, string) => "right-string" & <Right.parse#2.'a>(this: &Right.parse#2.'a exclusive Right, int32) => "right-integer" kind=union arms=[receiver=Left, target=Left.parse#1 | Left.parse#2, type=<Left.parse#1.'a>(this: &Left.parse#1.'a exclusive Left, string) => "left-string" & <Left.parse#2.'a>(this: &Left.parse#2.'a exclusive Left, int32) => "left-integer", receiver=Right, target=Right.parse#1 | Right.parse#2, type=<Right.parse#1.'a>(this: &Right.parse#1.'a exclusive Right, string) => "right-string" & <Right.parse#2.'a>(this: &Right.parse#2.'a exclusive Right, int32) => "right-integer"]
+/// @resolution.call source=parser.parse(1) return="left-integer" | "right-integer" kind=union arms=[Left.parse#2(parameters=(int32), arguments=(provided(1) as int32), return="left-integer"), Right.parse#2(parameters=(int32), arguments=(provided(1) as int32), return="right-integer")]
+/// @resolution.place source=parser placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=parser root=parser
+"#,
+    );
+}
+
+#[test]
+fn test_union_subscript_selects_each_protocol_call() {
+    let session = TestSession::single(
+        r#"
+declare const values: int32[] | string[];
+const first = values[0];
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const values: int32[] | string[];
+const first: int32 | string = values[0];
+
+=== checked ===
+declare const values: int32[] | string[];
+/// @type.symbol symbol=values source=values type=Array<int32> | Array<string>
+/// @resolution.pattern source=values kind=binding target=values
+
+const first = values[0];
+/// @type.symbol symbol=first source=first type=int32 | string
+/// @resolution.pattern source=first kind=binding target=first
+/// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=values root=values
+/// @resolution.access source=values[0] root=values keys=[0]
+/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static int32, "exclusive">), collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static string, "exclusive">)]
+/// @generic.instance source=values[0] id="Array<int32>.<extension#6>.index#3<\"exclusive\">"
+/// @generic.instance source=values[0] id="Array<string>.<extension#6>.index#3<\"exclusive\">"
+
+/// @generic.instance id="Array<int32>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(int32, "exclusive")
+/// @generic.instance id="Array<string>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(string, "exclusive")
+"#,
+    );
+}

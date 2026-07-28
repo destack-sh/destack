@@ -15,7 +15,7 @@ pub(in crate::check) struct CheckExternalModuleState {
     pub(in crate::check) parsed: Arc<DirParsed>,
     /// The expanded external module, kept for diagnostic source spans.
     pub(in crate::check) expanded: Arc<DirExpanded>,
-    /// The resolved external module carrying import alias targets.
+    /// The resolved external module holding the import alias targets.
     pub(in crate::check) resolved: Arc<DirResolved>,
     /// The committed binding table.
     pub(in crate::check) bindings: dir::BindingTable<'static>,

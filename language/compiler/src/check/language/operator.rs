@@ -154,7 +154,7 @@ impl CheckState<'_> {
             return self.supports_builtin_strict_equality(origin, left, instance.backing);
         }
 
-        // disjoint types use builtin equality so the caller can report their empty overlap
+        // accept disjoint types, the caller reports their empty overlap
         if !answer!(self.types_may_overlap(origin, left, right)?) {
             return Ok(Answer::Ready(true));
         }
@@ -181,7 +181,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
-        // nullish values compare without inspecting the other payload
+        // accept a nullish operand without inspecting the other one
         let left_is_nullish = matches!(
             self.ty(left)?,
             dir::Type::Null | dir::Type::Undefined | dir::Type::Never

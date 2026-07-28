@@ -760,3 +760,66 @@ shared class Cell<T> {
 "#,
     );
 }
+
+#[test]
+fn test_reject_unstable_field_overwrite_through_generic_borrow() {
+    let session = TestSession::single(
+        r#"
+enum Status { Idle, Busy }
+
+function update<T: { status: Status }>(state: &T): void {
+    state.status = Status.Busy;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+enum Status {
+    Idle,
+    Busy,
+}
+
+function update<T: { status: Status }, 'a>(state: &'a T): void {
+    state.status = Status.Busy;
+}
+
+=== checked ===
+enum Status { Idle, Busy }
+/// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
+/// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
+/// @definition.variant symbol=Status.Busy source=Busy key=Busy value=1
+/// @definition.variant symbol=Status.Idle source=Idle key=Idle value=0
+/// @type.symbol symbol=Status.Idle source=Idle type=Status.Idle
+/// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
+
+function update<T: { status: Status }>(state: &T): void {
+/// @generic.template symbol=update parameters=(T: { status: Status }, 'a)
+/// @type.symbol symbol=update type=<T: { status: Status }, update.'a>(&update.'a T) => void
+/// @type.symbol symbol=update.T source="T: { status: Status }" type=T
+/// @resolution.name source=Status target=Status
+/// @type.symbol symbol=update.state source="state: &T" type=&update.'a T
+/// @resolution.name source=T target=update.T
+
+    state.status = Status.Busy;
+    /// @resolution.name source=state target=update.state
+    /// @resolution.place source=state placement="local" lifetime=update.'a access="mutable"
+    /// @resolution.access source=state root=update.state
+    /// @resolution.pattern.assign source=state.status kind=place
+    /// @resolution.assignment source=state.status write="receiver=&update.'a T, target=field(receiver=&update.'a T, target=status, type=Status), type=Status" type=Status
+    /// @resolution.name source=Status target=Status
+    /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=overwrite-stability-not-satisfied message="type 'Status' is not safe to overwrite through non-exclusive access"
+/// @diagnostic.label line=5 column=11 span="status" line_source="state.status = Status.Busy;"
+/// @diagnostic.note message="overwriting may invalidate live borrows of the old value"
+/// @diagnostic.help message="write through an exclusive or owned path or store an overwrite-stable type"
+"#,
+    );
+}

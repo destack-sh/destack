@@ -146,7 +146,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(self.types.tree)
     }
 
-    /// Reify type-expression holes that carry solved check facts.
+    /// Reify type expression holes from their solved check results.
     ///
     /// Example:
     /// ```ds
@@ -167,7 +167,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                 continue;
             }
 
-            // the hole's node type carries its solved variable
+            // read the hole's solved type from its node
             let ty = self
                 .check
                 .require_node_type(hole_id.into_global_any(module_id))?;
@@ -251,7 +251,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         declaration_id: dir::LocalNodeId<dir::Declaration>,
         parameters: &[dir::LocalGenericParameterId],
     ) -> CompilerResult<()> {
-        // only nominal type parameters carry a relating variance
+        // annotate variance on nominal type parameters only
         let written = match self.types.tree.get(declaration_id) {
             dir::Declaration::Struct(_)
             | dir::Declaration::Class(_)

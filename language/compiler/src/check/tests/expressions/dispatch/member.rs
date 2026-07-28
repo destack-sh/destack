@@ -438,3 +438,142 @@ function pending(): int32 {
 "#,
     );
 }
+
+#[test]
+fn test_function_valued_field_supports_repeated_calls() {
+    let session = TestSession::single(
+        r#"
+struct Handler {
+    readonly run: (value: int32) => int32;
+}
+
+const handler = Handler { run: (value) => value };
+const first = handler.run(1);
+const second = handler.run(2);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+struct Handler {
+    readonly run: (arg0: int32) => int32;
+}
+
+const handler: Handler = Handler { run: (value: int32): int32 => value };
+const first: int32 = handler.run(1);
+const second: int32 = handler.run(2);
+
+=== checked ===
+struct Handler {
+/// @type.symbol symbol=Handler type=Handler
+/// @definition.struct symbol=Handler
+/// @definition.field symbol=Handler.run source="readonly run: (value: int32) => int32" key=run type=Function<(int32,), int32>
+
+    readonly run: (value: int32) => int32;
+    /// @type.symbol symbol=Handler.run source="readonly run: (value: int32) => int32" type=Function<(int32,), int32>
+
+}
+
+const handler = Handler { run: (value) => value };
+/// @type.symbol symbol=handler source=handler type=Handler
+/// @resolution.pattern source=handler kind=binding target=handler
+/// @type.node source="Handler { run: (value) => value }" type=Handler
+/// @resolution.name source=Handler target=Handler
+/// @type.symbol symbol=symbol5 source="(value) => value" type=Function<(int32,), int32>
+/// @type.node source="(value) => value" type=Function<(int32,), int32>
+/// @type.symbol symbol=symbol5.value source=value type=int32
+/// @type.node source=value type=int32
+/// @resolution.name source=value target=symbol5.value
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol5.value
+
+const first = handler.run(1);
+/// @type.symbol symbol=first source=first type=int32
+/// @resolution.pattern source=first kind=binding target=first
+/// @type.node source=handler type=Handler
+/// @type.node source=handler.run type=Function<(int32,), int32>
+/// @type.node source=handler.run(1) type=int32
+/// @resolution.name source=handler target=handler
+/// @resolution.member source=handler.run receiver=Handler type=Function<(int32,), int32> kind=field target_receiver=Handler key=run target=Handler.run target_type=Function<(int32,), int32>
+/// @resolution.call source=handler.run(1) parameters=(int32) arguments=(provided(1) as int32) return=int32 kind=expression target=expression
+/// @resolution.place source=handler placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handler root=handler
+/// @resolution.access source=handler.run root=handler keys=[run]
+/// @type.node source=1 type=1
+
+const second = handler.run(2);
+/// @type.symbol symbol=second source=second type=int32
+/// @resolution.pattern source=second kind=binding target=second
+/// @type.node source=handler type=Handler
+/// @type.node source=handler.run type=Function<(int32,), int32>
+/// @type.node source=handler.run(2) type=int32
+/// @resolution.name source=handler target=handler
+/// @resolution.member source=handler.run receiver=Handler type=Function<(int32,), int32> kind=field target_receiver=Handler key=run target=Handler.run target_type=Function<(int32,), int32>
+/// @resolution.call source=handler.run(2) parameters=(int32) arguments=(provided(2) as int32) return=int32 kind=expression target=expression
+/// @resolution.place source=handler placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handler root=handler
+/// @resolution.access source=handler.run root=handler keys=[run]
+/// @type.node source=2 type=2
+"#,
+    );
+}
+
+#[test]
+fn test_struct_member_access_selects_declared_field() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+}
+
+const point = Point { x: 1 };
+const x = point.x;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+}
+
+const point: Point = Point { x: 1 };
+const x: int32 = point.x;
+
+=== checked ===
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+}
+
+const point = Point { x: 1 };
+/// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
+/// @type.node source="Point { x: 1 }" type=Point
+/// @resolution.name source=Point target=Point
+/// @type.node source=1 type=1
+
+const x = point.x;
+/// @type.symbol symbol=x source=x type=int32
+/// @resolution.pattern source=x kind=binding target=x
+/// @type.node source=point type=Point
+/// @type.node source=point.x type=int32
+/// @resolution.name source=point target=point
+/// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=point root=point
+/// @resolution.access source=point.x root=point keys=[x]
+"#,
+    );
+}

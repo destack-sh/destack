@@ -119,7 +119,7 @@ pub(in crate::check) struct Variable {
 /// Inference state of one variable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum VariableState {
-    /// The variable is awaiting evidence.
+    /// The variable is awaiting bounds.
     Open,
     /// The variable inferred one type.
     Resolved(dir::GlobalTypeId),
@@ -136,7 +136,7 @@ impl VariableState {
         }
     }
 
-    /// Return whether the variable still awaits evidence.
+    /// Return whether the variable still awaits bounds.
     pub(in crate::check) fn is_open(self) -> bool {
         matches!(self, Self::Open)
     }

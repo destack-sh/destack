@@ -240,7 +240,7 @@ impl CheckState<'_> {
             suggestion: best.as_ref().map(|best| best.candidate.clone()),
         };
 
-        // an exact declaration in a sibling module beats any spelling hint
+        // attach the spelling hint and any sibling module declaration
         let mut diagnostic = DiagnosticBuilder::new(error);
         if let Some(suggestion) = best
             .as_ref()
@@ -428,7 +428,7 @@ impl CheckState<'_> {
             ty: self.format_type_at(module, ty),
         };
 
-        // deleting the cast suffix needs both spans in one file
+        // offer to delete the cast suffix when both spans share a file
         let mut diagnostic = DiagnosticBuilder::new(warning);
         let state = self.module(module);
         if let (Some(node_span), Some(value_span)) = (
@@ -645,7 +645,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
 
-        // an exact key span anchors the name instead of the whole access
+        // anchor an exact key span instead of the whole access
         let anchor = match key_span {
             Some(span) if span.len() as usize == key.len() => DiagnosticAnchor::Span(span),
             _ => anchor,
@@ -1585,7 +1585,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         failure: CheckFailure,
     ) -> CompilerResult<()> {
-        // error operands suppress diagnostics derived from an earlier failure
+        // skip pairs with an error operand, an earlier failure reported already
         if self.type_flags(source)?.has_error() || self.type_flags(target)?.has_error() {
             return Ok(());
         }
@@ -1622,7 +1622,7 @@ impl CheckState<'_> {
                 );
                 let diagnostic = DiagnosticBuilder::new(error);
 
-                // relabeling storage placement is impossible by rule
+                // explain that a value never changes its storage placement
                 if is_place_relabel {
                     diagnostic.note("a value never changes its space").help(
                         "use a value in the destination placement or create a new value there",
@@ -1631,8 +1631,8 @@ impl CheckState<'_> {
                     diagnostic
                 }
             }
-            CheckFailure::AmbiguousUnionInjection => {
-                let error = CheckError::AmbiguousUnionInjection {
+            CheckFailure::AmbiguousUnionCoercion => {
+                let error = CheckError::AmbiguousUnionCoercion {
                     anchor: anchor.clone(),
                     module,
                     source,
@@ -2220,14 +2220,14 @@ impl CheckState<'_> {
         target: String,
     ) -> CheckError {
         match (relation, value_use) {
-            // equality requirements report their normalized operands
+            // report equality requirements with their normalized operands
             (Relation::Equal, _) => CheckError::EqualityRequirementNotSatisfied {
                 anchor,
                 module,
                 left: source,
                 right: target,
             },
-            // explicit casts report their own failure shape
+            // report explicit casts with their own failure shape
             (Relation::Castable, _) => CheckError::InvalidCast {
                 anchor,
                 module,
@@ -2253,14 +2253,14 @@ impl CheckState<'_> {
                 source,
                 target,
             },
-            // satisfies checks keep their own failure shape
+            // report satisfies checks with their own failure shape
             (_, Some(ValueUse::Satisfies)) => CheckError::ConstraintNotSatisfied {
                 anchor,
                 module,
                 source,
                 target,
             },
-            // value roles specialize assignability diagnostics
+            // specialize assignability diagnostics by value role
             (_, Some(ValueUse::Condition)) => CheckError::NonBooleanCondition {
                 anchor,
                 module,
@@ -2540,6 +2540,7 @@ impl CheckState<'_> {
         };
         self.report(module, error);
     }
+
     /// Report one lifetime bound spelled as a union.
     pub(in crate::check) fn report_disjunctive_lifetime_bound(
         &mut self,
@@ -2571,5 +2572,4 @@ impl CheckState<'_> {
 
         self.report(module, error);
     }
-
 }

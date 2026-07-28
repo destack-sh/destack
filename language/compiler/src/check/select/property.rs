@@ -269,7 +269,7 @@ impl BodyState<'_, '_> {
             return Ok(Answer::pending([Dependency::Variable(variable)]));
         }
 
-        // peel managed forms to the carried value
+        // peel managed forms down to the value they hold
         let mut current = root;
         while let dir::Type::Form(form) = self.ty(current)? {
             if form.form != dir::Form::Managed {
@@ -281,7 +281,8 @@ impl BodyState<'_, '_> {
         match self.ty(current)? {
             // structural shapes spread their fields directly
             dir::Type::Shape(shape) => Ok(Answer::Ready(Some(
-                self.shape_properties(current.module_id, shape.properties)?.to_vec(),
+                self.shape_properties(current.module_id, shape.properties)?
+                    .to_vec(),
             ))),
             // instances spread their visible fields
             dir::Type::Application(instance) => {

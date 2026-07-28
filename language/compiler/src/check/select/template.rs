@@ -40,7 +40,7 @@ impl BodyState<'_, '_> {
             }
         };
 
-        // the application produces the tag's return value
+        // produce the tag's return value
         let result = match return_type {
             Some(return_type) => return_type,
             None => self.intern_type(module, dir::Type::Void)?,

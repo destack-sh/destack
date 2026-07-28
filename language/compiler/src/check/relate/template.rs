@@ -100,7 +100,7 @@ impl CheckState<'_> {
         segments: &[String],
         spans: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<bool>> {
-        // the leading segment anchors the match
+        // anchor the match on the leading segment
         let Some(first) = segments.first() else {
             return Ok(Answer::Ready(text.is_empty()));
         };
@@ -357,7 +357,7 @@ impl CheckState<'_> {
         self.match_template_pieces(origin, &pieces, 0, "", &target_segments, &target_spans)
     }
 
-    /// Split one text into per-span captures with earliest-boundary rules.
+    /// Split one text into per-span captures with earliest delimiter rules.
     pub(in crate::check) fn split_template_captures(
         &mut self,
         origin: Origin,
@@ -371,7 +371,7 @@ impl CheckState<'_> {
             spans.push(answer!(self.template_span_head(origin, span)?));
         }
 
-        // the leading segment anchors the split
+        // anchor the split on the leading segment
         let Some(first) = segments.first() else {
             return Ok(Answer::Ready(text.is_empty().then(Vec::new)));
         };
@@ -396,7 +396,7 @@ impl CheckState<'_> {
             }
 
             let captured = if is_last {
-                // the last span runs up to the trailing segment
+                // run the last span up to the trailing segment
                 let Some(stripped) = rest.strip_suffix(next_segment.as_str()) else {
                     return Ok(Answer::Ready(None));
                 };
@@ -405,7 +405,7 @@ impl CheckState<'_> {
 
                 captured
             } else if !next_segment.is_empty() {
-                // interior spans stop at the earliest boundary occurrence
+                // stop an interior span at the earliest delimiter occurrence
                 let Some(found) = rest.find(next_segment.as_str()) else {
                     return Ok(Answer::Ready(None));
                 };
@@ -505,7 +505,7 @@ impl CheckState<'_> {
         let tail_segments = &segments[1..];
         let tail_spans = &spans[1..];
 
-        // a string span absorbs any run of pieces up to each boundary
+        // absorb any run of pieces up to each delimiter for a string span
         if matches!(
             self.ty(*span)?,
             dir::Type::Primitive(dir::PrimitiveType::String)
@@ -648,7 +648,7 @@ impl CheckState<'_> {
 struct TemplateText<'a>(&'a str);
 
 impl TemplateText<'_> {
-    /// Parse this text with number-literal semantics.
+    /// Parse this text as a number literal.
     fn number(self) -> Option<f64> {
         let text = self.0;
         if text.is_empty() || text.trim() != text {

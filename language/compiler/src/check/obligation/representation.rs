@@ -20,7 +20,7 @@ enum RepresentationCheck {
     Finite,
     /// Safe references reachable from shared storage must remain shared.
     Shared {
-        /// The containing carrier's concrete place.
+        /// The containing value's concrete place.
         place: dir::GlobalTypeId,
         /// Report fields when checking their own declaration.
         use_fields: bool,
@@ -64,7 +64,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // intrinsically local declarations never store shared
+        // reject intrinsically local declarations
         let value = answer!(self.strip_form(origin, ty)?);
         let value = answer!(self.reduce_type_head(origin, value)?);
         let symbol = match self.ty(value)? {
@@ -78,7 +78,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(false));
         }
 
-        // shared containment walks the stored representation
+        // walk the stored representation for shared containment
         let source = self.origin_source(origin)?;
         let place = self.intern_type(
             origin.module(),
@@ -117,7 +117,7 @@ impl CheckState<'_> {
             &mut visited,
         )?);
 
-        // shared reachability applies only to concretely shared roots
+        // check shared reachability only from concretely shared roots
         let failure = match failure {
             Some(failure) => Some(failure),
             None => {
@@ -189,7 +189,7 @@ impl CheckState<'_> {
                 let place = chain.place().unwrap_or(place);
                 let ownership = answer!(self.form_ownership(origin, &chain)?);
 
-                // raw pointers are an explicit unchecked escape hatch
+                // skip raw pointers, they are an explicit unchecked escape
                 if ownership == Some(dir::Ownership::Raw) {
                     return Ok(Answer::Ready(None));
                 }
@@ -205,7 +205,7 @@ impl CheckState<'_> {
             }
         };
 
-        // cycles fail inline storage and terminate shared graph traversal
+        // fail inline storage on a cycle and stop the shared walk
         if !visited.insert(ty) {
             let failure = match check {
                 RepresentationCheck::Concrete { .. } => None,
@@ -243,7 +243,7 @@ impl CheckState<'_> {
 
                 return Ok(holds.map(|holds| (!holds).then_some(RepresentationFailure::Abstract)));
             }
-            // abstract type expressions do not select one runtime representation
+            // skip abstract type expressions, they select no runtime representation
             dir::Type::Any
             | dir::Type::Unknown
             | dir::Type::Object

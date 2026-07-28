@@ -311,7 +311,7 @@ impl BodyState<'_, '_> {
             _ => return self.reject_not_constructible(node, origin, target, ""),
         };
 
-        // only classes construct through new
+        // require a class to construct through new
         let constructors = match self.definition(instance.symbol)? {
             Some(dir::Definition::Struct(_)) => {
                 return self.reject_not_constructible(

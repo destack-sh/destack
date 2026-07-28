@@ -128,7 +128,7 @@ impl CheckState<'_> {
                 dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
             )),
 
-            // every other source-built type already has a representation
+            // accept every other source-built type, it already has a representation
             _ => Ok(false),
         }
     }
@@ -469,7 +469,7 @@ impl CheckState<'_> {
                 self.reduce_intersection(origin, id, &elements)
             }
 
-            // every other root is already its simplest form
+            // return every other root unchanged, it is already simplest
             _ => Ok(Answer::Ready(id)),
         }
     }

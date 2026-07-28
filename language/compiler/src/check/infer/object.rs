@@ -137,7 +137,9 @@ impl BodyState<'_, '_> {
         let dir::Type::Shape(shape) = self.ty(ty)? else {
             return Ok(Answer::Ready(ty));
         };
-        let target_fields = self.shape_properties(ty.module_id, shape.properties)?.to_vec();
+        let target_fields = self
+            .shape_properties(ty.module_id, shape.properties)?
+            .to_vec();
         for (key, source) in sources {
             let Some(target) = target_fields.iter().find(|field| field.key == key) else {
                 continue;
@@ -348,6 +350,7 @@ impl BodyState<'_, '_> {
                 key: missing.key,
             }));
         }
+
         // preserve the authored shape for a check-only expression
         let carrier = if expectation.relation == Relation::Satisfies {
             let fields: Vec<_> = source_fields.into_values().collect();
@@ -389,16 +392,16 @@ impl BodyState<'_, '_> {
     > {
         match self.ty(target)? {
             dir::Type::Shape(shape) => {
-                let fields =
-                    SmallVec::from_slice(self.shape_properties(target.module_id, shape.properties)?);
+                let fields = SmallVec::from_slice(
+                    self.shape_properties(target.module_id, shape.properties)?,
+                );
                 let indexes = SmallVec::from_slice(
                     self.shape_index_signatures(target.module_id, shape.index_signatures)?,
                 );
 
                 Ok(Answer::Ready(Some((fields, indexes))))
             }
-            // structural interfaces type literals contextually; nominal
-            //  interfaces require their declared wrapper
+            // read fields from a structural interface, a nominal one needs its wrapper
             dir::Type::Application(instance)
                 if matches!(
                     self.definition(instance.symbol)?,

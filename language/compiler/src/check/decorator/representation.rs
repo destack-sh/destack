@@ -173,7 +173,7 @@ impl CheckState<'_> {
 
         // follow the single class heritage chain
         while let Some(current) = symbol {
-            // cyclic heritage has no finite C layout
+            // stop on cyclic heritage, which has no finite C layout
             if !visited.insert(current) {
                 return Ok(true);
             }
@@ -189,7 +189,7 @@ impl CheckState<'_> {
                 }
             };
 
-            // direct virtual methods require an object dispatch header
+            // stop at the first class declaring virtual methods
             if declares_virtual_dispatch {
                 return Ok(true);
             }

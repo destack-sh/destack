@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::check::{
     AssignedPlace, CauseKind, ConditionBranch, ControlTargetForm, ExpectedType, FlowBranch,
-    FlowCheckpoint, Obligation, Origin, PatternCoverage, PatternCoverageObligation,
-    PlaceUse, Relation, ValueUse, VariableRole, WalkState, Widening,
+    FlowCheckpoint, Obligation, Origin, PatternCoverage, PatternCoverageObligation, PlaceUse,
+    Relation, ValueUse, VariableRole, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -318,7 +318,6 @@ impl WalkState<'_, '_> {
             dir::Expression::TaggedTemplateExpression { tag, value, .. } => {
                 self.walk_expression(*tag, self.tree.get(*tag))?;
                 self.walk_template_literal(value)?;
-
             }
             // [a, b, c]
             dir::Expression::ArrayExpression { elements } => {
@@ -373,7 +372,6 @@ impl WalkState<'_, '_> {
                         }
                     }
                 }
-
             }
             // type T
             dir::Expression::Type { value } => {
@@ -449,13 +447,11 @@ impl WalkState<'_, '_> {
 
                 // increments invalidate narrowings under the target
                 self.clear_mutated_expression_narrowings(right);
-
             }
             // !value, -value
             dir::Expression::Unary { right, .. } => {
                 let right = *right;
                 self.walk_expression(right, self.tree.get(right))?;
-
             }
             // &value
             dir::Expression::BorrowOf { right, .. } => {
@@ -472,7 +468,6 @@ impl WalkState<'_, '_> {
                 if let Some(index) = *index {
                     self.walk_expression(index, self.tree.get(index))?;
                 }
-
             }
             // value<T>
             dir::Expression::Instantiation {
@@ -508,7 +503,6 @@ impl WalkState<'_, '_> {
                         self.mark_moved_argument(value, *argument, id);
                     }
                 }
-
             }
             // _
             dir::Expression::Infer { .. } => {}
@@ -523,7 +517,6 @@ impl WalkState<'_, '_> {
                         self.mark_moved_argument(value, *argument, id);
                     }
                 }
-
             }
             // new? Type<T>(argument)
             dir::Expression::NewMaybe { ty, arguments } => {
@@ -1289,7 +1282,6 @@ impl WalkState<'_, '_> {
         if operator == dir::BinaryOperator::In {
             return Ok(());
         }
-
 
         Ok(())
     }

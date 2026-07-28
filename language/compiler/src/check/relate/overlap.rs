@@ -143,8 +143,7 @@ impl CheckState<'_> {
 
         // compare known type constructors by their runtime inhabitants
         match (&source_type, &target_type) {
-            // owning forms materialize to their payload, while views only
-            //  overlap other views with an overlapping payload
+            // compare owning forms by their value, and views only against other views
             (dir::Type::Form(source_form), dir::Type::Form(target_form)) => {
                 if source_form.form.is_view() != target_form.form.is_view() {
                     Ok(Answer::Ready(false))
@@ -228,7 +227,9 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId)>,
     ) -> CompilerResult<Answer<bool>> {
-        let fields = self.shape_properties(source.module_id, shape.properties)?.to_vec();
+        let fields = self
+            .shape_properties(source.module_id, shape.properties)?
+            .to_vec();
 
         // incompatible required properties make the intersection empty
         for field in fields {
@@ -331,7 +332,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
-        // inherited applications share every inhabitant carried by the subtype
+        // accept inherited applications, the subtype's values are shared
         let source_is_subtype =
             answer!(self.decide_relation(origin, Relation::Subtype, source, target)?);
         let target_is_subtype =

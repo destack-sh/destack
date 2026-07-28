@@ -218,9 +218,12 @@ impl Compiler {
         let path = path.strip_suffix(".ds").unwrap_or(path);
         let path = path.trim_matches('/').replace('/', ".");
 
-        let name = package.name.as_deref().ok_or_else(|| CompilerError::Internal {
-            message: format!("package {:?} has no name for lowering", package.id),
-        })?;
+        let name = package
+            .name
+            .as_deref()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("package {:?} has no name for lowering", package.id),
+            })?;
 
         if path.is_empty() {
             Ok(name.to_string())

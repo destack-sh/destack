@@ -136,11 +136,11 @@ pub enum CheckError {
     /// const value: Value = source;
     /// ```
     #[diagnostic(
-        id = "ambiguous-union-injection",
+        id = "ambiguous-union-coercion",
         message = "type '{source}' converts to multiple cases of union '{target}'",
         help = "cast the value to one union member before assigning it"
     )]
-    AmbiguousUnionInjection {
+    AmbiguousUnionCoercion {
         /// Report the converted source value.
         anchor: DiagnosticAnchor,
         /// The module being checked.

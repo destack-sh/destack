@@ -142,7 +142,7 @@ impl BodyState<'_, '_> {
             expectation.mode,
         )?;
 
-        // continue conversion independently once the checked source is durable
+        // queue a pending conversion and report the source as checked
         let conversion = match conversion {
             Answer::Ready(conversion) => conversion,
             Answer::Pending(_) => {
@@ -238,7 +238,7 @@ impl BodyState<'_, '_> {
                 self.erase_inference_barriers(expectation.target.module_id, expectation.target)?;
         }
 
-        // inference barriers contextualize only after their target closes
+        // wait for a barrier target to close before contextualizing
         if let Some(no_infer) = self.no_infer_target(expectation.target)? {
             let blockers = self.variable_dependencies([no_infer])?;
             if !blockers.is_empty() {
@@ -302,22 +302,23 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(ty));
         }
 
-        // function values check their body in place, without a context
+        // check function value bodies in place, without a context
         if self.check.lambdas.contains_key(&node) {
             let check = answer!(self.check_function_value(site, None)?);
 
             return Ok(Answer::Ready(check.source));
-        } else {
-            match node.local_id.ty {
-                dir::NodeType::Expression => {
-                    answer!(self.infer_expression(site, use_, mode)?);
-                }
-                dir::NodeType::Block => {
-                    answer!(self.infer_block(site, node.into_typed().local_id)?);
-                }
-                dir::NodeType::TypeExpression => {}
-                other => return self.reject_untyped_node("infer", node, other),
+        }
+
+        // infer every other node by its syntax family
+        match node.local_id.ty {
+            dir::NodeType::Expression => {
+                answer!(self.infer_expression(site, use_, mode)?);
             }
+            dir::NodeType::Block => {
+                answer!(self.infer_block(site, node.into_typed().local_id)?);
+            }
+            dir::NodeType::TypeExpression => {}
+            other => return self.reject_untyped_node("infer", node, other),
         }
 
         let Some(ty) = self.node_types.get(&node).copied() else {
@@ -345,7 +346,7 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(ty))
     }
 
-    /// Reject inference on a node kind that never carries a checked type.
+    /// Reject inference on a node kind that never has a checked type.
     fn reject_untyped_node<T>(
         &self,
         verb: &'static str,

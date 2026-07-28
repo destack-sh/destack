@@ -279,7 +279,7 @@ impl CheckState<'_> {
         self.decide_shape_relation(origin, Relation::Assignable, source, target)
     }
 
-    /// Decide one structural pair under storage or read semantics.
+    /// Decide one structural pair under storage or read rules.
     pub(in crate::check) fn decide_shape_relation(
         &mut self,
         origin: Origin,
@@ -409,7 +409,7 @@ impl CheckState<'_> {
                     relations.push((Relation::Widens, target_write, source.access.write()?));
                 }
             }
-            // satisfies certifies reads without granting writes
+            // satisfies compares reads only and grants no writes
             Relation::Satisfies => {
                 if let Some(target_read) = target.access.read() {
                     relations.push((Relation::Satisfies, source.access.read()?, target_read));
@@ -647,10 +647,9 @@ impl CheckState<'_> {
 
         // prove each finite field covered by the readonly key domain
         let key_module = origin.module();
-        let source_fields =
-            SmallVec::<[dir::TypeProperty; 8]>::from_slice(
-                self.shape_properties(module, source.properties)?,
-            );
+        let source_fields = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
+            self.shape_properties(module, source.properties)?,
+        );
         let mut decision = Answer::Ready(true);
         for field in source_fields {
             let key = self.static_key_type(key_module, field.key)?;
@@ -687,7 +686,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(false));
         };
 
-        // value interiors have no wrapper witness and widen by identity
+        // widen interior slots without coercions
         self.decide_each(origin, relation.interior(), &pairs)
     }
 
@@ -705,7 +704,7 @@ impl CheckState<'_> {
         //  bound arguments must satisfy their declared constraints
         let mut source = answer!(self.reduce_type_head(origin, source)?);
 
-        // any overload of an intersected callable may satisfy the contract
+        // accept when any overload of an intersected callable satisfies it
         if let dir::Type::Intersection(intersection) = self.ty(source)? {
             let elements = self
                 .type_ids(source.module_id, intersection.elements)?
@@ -743,11 +742,10 @@ impl CheckState<'_> {
                 // receivers bind slots when their shapes align, and adapters
                 //  bridge the shapes that do not
                 let mut substitution = TypeSubstitution::default();
-                if let (Some(signature), Some(required)) = (
-                    self.signature_head(source)?,
-                    self.signature_head(target)?,
-                ) && let (Some(source_this), Some(target_this)) =
-                    (signature.this_parameter, required.this_parameter)
+                if let (Some(signature), Some(required)) =
+                    (self.signature_head(source)?, self.signature_head(target)?)
+                    && let (Some(source_this), Some(target_this)) =
+                        (signature.this_parameter, required.this_parameter)
                 {
                     let mut scratch = substitution.clone();
                     if let Answer::Ready(true) = self.extend_generic_substitution(
@@ -786,8 +784,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(false));
         };
 
-        // adapters materialize copies across closed readonly borrows, so
-        //  conformance sees through them on either side of each pair
+        // look through closed readonly borrows on either side of each pair
         let mut decision = Answer::Ready(true);
         for (source, target) in pairs {
             let source = answer!(self.lent_payload(origin, source)?);
@@ -801,7 +798,7 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Return the payload behind one closed readonly borrow of a copyable value.
+    /// Return the lent payload of one type, mapping union arms one level deep.
     fn lent_payload(
         &mut self,
         origin: Origin,
@@ -809,7 +806,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let reduced = answer!(self.reduce_type_head(origin, ty)?);
 
-        // union contracts lend arm by arm, one level deep
+        // lend union arms one by one, a single level deep
         if let dir::Type::Union(union) = self.ty(reduced)? {
             let elements =
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(reduced.module_id, union.elements)?);
@@ -954,7 +951,7 @@ impl CheckState<'_> {
 enum ThisParameterComparison {
     /// Compare `this` as a contravariant input.
     Compare,
-    /// Skip `this` because method receiver assignability was checked separately.
+    /// Skip `this`, which the method receiver check compares separately.
     Skip,
 }
 

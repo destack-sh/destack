@@ -173,3 +173,129 @@ const cleared: Options = { retries: undefined };
 "#,
     );
 }
+
+#[test]
+fn test_asymmetric_accessor_splits_read_and_write_types() {
+    let session = TestSession::single(
+        r#"
+type Meter = {
+    get reading(): string;
+    set reading(next: string | int32);
+};
+
+declare let meter: Meter;
+const shown = meter.reading;
+meter.reading = 5;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+type Meter = {
+    get reading(): string;
+    set reading(next: string | int32);
+};
+
+declare let meter: Meter;
+const shown: string = meter.reading;
+meter.reading = 5 as string | int32;
+
+=== checked ===
+type Meter = {
+/// @type.symbol symbol=Meter type={ get reading(): string; set reading(value: string | int32) }
+/// @definition.type symbol=Meter value={ get reading(): string; set reading(value: string | int32) }
+
+    get reading(): string;
+    set reading(next: string | int32);
+    /// @type.symbol symbol=Meter.reading.next source="next: string | int32" type=string | int32
+
+};
+
+declare let meter: Meter;
+/// @type.symbol symbol=meter source=meter type=Meter reduced={ get reading(): string; set reading(value: string | int32) }
+/// @resolution.pattern source=meter kind=binding target=meter
+/// @resolution.name source=Meter target=Meter
+
+const shown = meter.reading;
+/// @type.symbol symbol=shown source=shown type=string
+/// @resolution.pattern source=shown kind=binding target=shown
+/// @type.node source=meter type=Meter reduced={ get reading(): string; set reading(value: string | int32) }
+/// @type.node source=meter.reading type=string
+/// @resolution.name source=meter target=meter
+/// @resolution.member source=meter.reading receiver={ get reading(): string; set reading(value: string | int32) } type=string kind=field target_receiver={ get reading(): string; set reading(value: string | int32) } key=reading target_type=string
+/// @resolution.place source=meter placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=meter root=meter
+/// @resolution.access source=meter.reading root=meter keys=[reading]
+
+meter.reading = 5;
+/// @type.node source="meter.reading = 5" type=5
+/// @type.node source=meter type=Meter reduced={ get reading(): string; set reading(value: string | int32) }
+/// @type.node source=meter.reading type=string | int32
+/// @resolution.name source=meter target=meter
+/// @resolution.place source=meter placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=meter root=meter
+/// @resolution.pattern.assign source=meter.reading kind=place
+/// @resolution.assignment source=meter.reading write="receiver={ get reading(): string; set reading(value: string | int32) }, target=field(receiver={ get reading(): string; set reading(value: string | int32) }, target=reading, type=string | int32), type=string | int32" type=string | int32
+/// @type.node source=5 type=5
+"#,
+    );
+}
+
+#[test]
+fn test_writable_shape_widens_to_readonly_but_not_back() {
+    let session = TestSession::single(
+        r#"
+declare let mutable: { tag: string };
+declare let frozen: { readonly tag: string };
+
+const widened: { readonly tag: string } = mutable;
+const narrowed: { tag: string } = frozen;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+       r#"
+=== annotated ===
+declare let mutable: { tag: string };
+declare let frozen: { readonly tag: string };
+
+const widened: { readonly tag: string } = mutable;
+const narrowed: { tag: string } = frozen;
+
+=== checked ===
+declare let mutable: { tag: string };
+/// @type.symbol symbol=mutable source=mutable type={ tag: string }
+/// @resolution.pattern source=mutable kind=binding target=mutable
+
+declare let frozen: { readonly tag: string };
+/// @type.symbol symbol=frozen source=frozen type={ readonly tag: string }
+/// @resolution.pattern source=frozen kind=binding target=frozen
+
+const widened: { readonly tag: string } = mutable;
+/// @type.symbol symbol=widened source=widened type={ readonly tag: string }
+/// @resolution.pattern source=widened kind=binding target=widened
+/// @type.node source=mutable type={ tag: string }
+/// @resolution.name source=mutable target=mutable
+/// @resolution.place source=mutable placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=mutable root=mutable
+
+const narrowed: { tag: string } = frozen;
+/// @type.symbol symbol=narrowed source=narrowed type={ tag: string }
+/// @resolution.pattern source=narrowed kind=binding target=narrowed
+/// @type.node source=frozen type={ readonly tag: string }
+/// @resolution.name source=frozen target=frozen
+/// @resolution.place source=frozen placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=frozen root=frozen
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '{ readonly tag: string }' is not assignable to type '{ tag: string }'"
+/// @diagnostic.label line=6 column=35 span="frozen" line_source="const narrowed: { tag: string } = frozen;"
+/// @diagnostic.related line=6 column=17 span="{ tag: string }" line_source="const narrowed: { tag: string } = frozen;" message="expected due to this annotation"
+"#,
+    );
+}

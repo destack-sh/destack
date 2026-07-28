@@ -1,7 +1,7 @@
 use destack_core::StringPool;
 use destack_dir as dir;
-use smallvec::SmallVec;
 use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::CheckState;
@@ -54,7 +54,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         self.reify_depth(id, REIFY_DEPTH)
     }
 
-    /// Reify one parameter type, omitting undefined when `?` already carries it.
+    /// Reify one parameter type, omitting undefined when `?` already implies it.
     pub(in crate::check) fn reify_parameter_type(
         &mut self,
         id: dir::GlobalTypeId,
@@ -1203,7 +1203,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             return Some(self.language_item_name(item));
         }
 
-        // only plain name keys print as identifiers
+        // print plain name keys as identifiers
         let bindings = self.check.binding_table(symbol.module_id);
         match bindings.get_symbol(symbol.local_id).key {
             Some(dir::StaticKey::Name(name)) => Some(name),

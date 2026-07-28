@@ -794,3 +794,125 @@ const value = bag["name"];
 "#,
     );
 }
+
+#[test]
+fn test_subscript_update_assigns_read_result_to_write_type() {
+    let session = TestSession::single(
+        r#"
+struct Counter {}
+
+extension of Counter implements Index<string>, IndexSet<string, int32 | float64> {
+    type Output = int32;
+
+    index<comptime L: Lifetime>(
+        this: Borrowed<this, L, "readonly">,
+        key: string,
+    ): Borrowed<this.Output, L, "readonly"> {
+        return todo("Counter.index");
+    }
+
+    indexSet(&exclusive this, key: string, value: int32 | float64): void {}
+}
+
+declare let counter: Counter;
+counter["value"] += 1;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Counter {}
+
+extension of Counter implements Index<string>, IndexSet<string, int32 | float64> {
+    type Output = int32;
+
+    index<comptime L: Lifetime>(
+        this: Borrowed<this, L, "readonly">,
+        key: string,
+    ): Borrowed<this.Output, L, "readonly"> {
+        return todo("Counter.index" as string | undefined);
+    }
+
+    indexSet(&exclusive this, key: string, value: int32 | float64): void {}
+}
+
+declare let counter: Counter;
+(counter["value"] += 1) as int32 | float64;
+
+=== checked ===
+struct Counter {}
+/// @type.symbol symbol=Counter source="struct Counter {}" type=Counter
+/// @definition.struct symbol=Counter source="struct Counter {}"
+
+extension of Counter implements Index<string>, IndexSet<string, int32 | float64> {
+/// @definition.extension symbol=<module>#2 form=local target=Counter
+/// @definition.implements symbol=<module>#2 source="IndexSet<string, int32 | float64>" target="IndexSet<string, int32 | float64>"
+/// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\"><type Missing = never><type Output = int32>"
+/// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
+/// @definition.method symbol=index slot=index type=<comptime L>(this: Borrowed<this, L, "readonly">, string) => Borrowed<this.Output, L, "readonly">
+/// @definition.method symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32 | float64) => void
+/// @definition.implementation symbol=<module>#2 requirement=ops.subscript.Index.Missing target=ops.subscript.Index.Missing
+/// @definition.implementation symbol=<module>#2 requirement=ops.subscript.Index.Output target=Output
+/// @definition.implementation symbol=<module>#2 requirement=ops.subscript.Index.index target=index
+/// @definition.implementation symbol=<module>#2 requirement=ops.subscript.IndexSet.indexSet target=indexSet
+/// @resolution.name source=Counter target=Counter
+/// @resolution.name source=Index target=ops.subscript.Index
+/// @resolution.name source=IndexSet target=ops.subscript.IndexSet
+
+    type Output = int32;
+    /// @type.symbol symbol=Output source="type Output = int32" type=int32
+
+    index<comptime L: Lifetime>(
+    /// @generic.template symbol=index parent=template#0 parameters=(comptime L: Lifetime)
+    /// @type.symbol symbol=index type=<comptime L>(this: Borrowed<this, L, "readonly">, string) => Borrowed<this.Output, L, "readonly">
+    /// @type.symbol symbol=index.L source="comptime L: Lifetime" type=L
+    /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
+
+        this: Borrowed<this, L, "readonly">,
+        /// @type.symbol symbol=index.this source="this: Borrowed<this, L, \"readonly\">" type=Borrowed<this, L, "readonly">
+        /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+        /// @resolution.name source=L target=index.L
+
+        key: string,
+        /// @type.symbol symbol=index.key source="key: string" type=string
+
+    ): Borrowed<this.Output, L, "readonly"> {
+    /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+    /// @resolution.name source=L target=index.L
+
+        return todo("Counter.index");
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"Counter.index\")" parameters=(string | undefined) arguments=(provided("Counter.index") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+
+    indexSet(&exclusive this, key: string, value: int32 | float64): void {}
+    /// @generic.template symbol=indexSet parent=template#0 parameters=('a)
+    /// @type.symbol symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32 | float64) => void
+    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=&indexSet.'a exclusive this
+    /// @type.symbol symbol=indexSet.key source="key: string" type=string
+    /// @type.symbol symbol=indexSet.value source="value: int32 | float64" type=int32 | float64
+
+}
+
+declare let counter: Counter;
+/// @type.symbol symbol=counter source=counter type=Counter
+/// @resolution.pattern source=counter kind=binding target=counter
+/// @resolution.name source=Counter target=Counter
+
+counter["value"] += 1;
+/// @resolution.name source=counter target=counter
+/// @resolution.operator source="counter[\"value\"] += 1" type=int32 operator="+" kind=builtin operands=[counter["value"] as int32 families=(integer), 1 as int32 families=(integer)]
+/// @resolution.pattern.assign source="counter[\"value\"]" kind=place
+/// @resolution.assignment source="counter[\"value\"]" read="index(parameters=(string), arguments=(provided(\"value\") as string), return=Borrowed<Counter.Output, \"static\", \"readonly\">)" write="indexSet(parameters=(string, int32 | float64), arguments=(provided(\"value\") as string, write as int32 | float64), return=void)" type=int32 | float64
+/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=counter root=counter
+
+/// @generic.instance id="Borrowed<this, L, \"readonly\">" template=memory.borrow.Borrowed arguments=(this, L, "readonly")
+/// @generic.instance id="Borrowed<this.Output, L, \"readonly\">" template=memory.borrow.Borrowed arguments=(this.Output, L, "readonly")
+"#,
+    );
+}

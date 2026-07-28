@@ -78,7 +78,7 @@ impl BodyState<'_, '_> {
                     });
                     answer!(self.attempt_node(value_site, PlaceUse::Read, expectation)?);
                 }
-                // a bare return completes the body with void
+                // complete a bare return with void
                 else if let Some(return_type) = self.return_type {
                     let void = self.check.intern_type(module, dir::Type::Void)?;
                     let cause = self.check.intern_cause(Cause::root(
@@ -105,11 +105,11 @@ impl BodyState<'_, '_> {
                 if let Some(value) = value {
                     let value_site = self.check.node_site(value.into_global_any(module))?;
                     let target = match cardinality {
-                        // delegates check against their recorded protocol
+                        // check a delegate against its recorded protocol
                         dir::YieldCardinality::Generator => {
                             self.check.control_results.get(&value_site.node).copied()
                         }
-                        // scalar values flow to the yield target
+                        // send a scalar value to the yield target
                         dir::YieldCardinality::Scalar => generator.map(|targets| targets.yielded),
                     };
                     let expectation = target.map(|target| Expectation {
@@ -124,7 +124,7 @@ impl BodyState<'_, '_> {
                     });
                     answer!(self.attempt_node(value_site, PlaceUse::Read, expectation)?);
                 }
-                // a bare yield produces void
+                // produce void for a bare yield
                 else if let Some(targets) = generator {
                     let void = self.check.intern_type(module, dir::Type::Void)?;
                     let cause = self
@@ -139,12 +139,12 @@ impl BodyState<'_, '_> {
                     ));
                 }
 
-                // scalar yields resume, delegates evaluate to the inner return
+                // resume a scalar yield, evaluate a delegate to the inner return
                 let output = self.check.control_results.get(&node).copied();
                 let ty = match (output, generator) {
                     (Some(output), _) => output,
                     (None, Some(targets)) => targets.resumed,
-                    // yields outside generators were reported by the walk
+                    // fall back to error outside a generator
                     (None, None) => self.check.intern_type(module, dir::Type::Error)?,
                 };
                 self.check.commit_node_type(node, ty)?;
@@ -159,7 +159,7 @@ impl BodyState<'_, '_> {
                 let body_site = self.check.node_site(body.into_global_any(module))?;
                 answer!(self.attempt_node(body_site, PlaceUse::Read, None)?);
 
-                // while loops complete through their false condition with void
+                // complete the loop with void when the condition fails
                 let void = self.check.intern_type(module, dir::Type::Void)?;
                 self.check.commit_node_type(node, void)?;
 
@@ -170,7 +170,7 @@ impl BodyState<'_, '_> {
                 let body_site = self.check.node_site(body.into_global_any(module))?;
                 answer!(self.attempt_node(body_site, PlaceUse::Read, None)?);
 
-                // the walk joined break values into the loop output
+                // read the loop output joined from its break values
                 let Some(result) = self.check.control_results.get(&node).copied() else {
                     return Err(CompilerError::Internal {
                         message: format!("loop {node:?} has no walked control result"),
@@ -221,7 +221,7 @@ impl BodyState<'_, '_> {
                 if let Some(value) = value {
                     let value_site = self.check.node_site(value.into_global_any(module))?;
 
-                    // targetless break values were already rejected by the walk
+                    // expect the recorded break target, when the walk bound one
                     let expectation = self
                         .check
                         .control_results

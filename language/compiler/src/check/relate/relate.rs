@@ -10,7 +10,7 @@ use crate::check::{
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Return the call signature carried by one callable value representation.
+    /// Return the call signature of one callable value representation.
     pub(in crate::check) fn callable_signature(
         &self,
         ty: dir::GlobalTypeId,
@@ -78,7 +78,7 @@ impl CheckState<'_> {
         let check = match (holds, is_property_relation) {
             // successful relations are complete
             (true, _) => CheckOutcome::Holds,
-            // failed non-property relations only carry the relation failure
+            // report a failed non-property relation as the relation failure
             (false, false) => CheckOutcome::Fails(CheckFailure::Relation),
             // failed property relations explain the same order as relation checking
             (false, true) => {
@@ -533,8 +533,10 @@ impl CheckState<'_> {
 
             // shapes relate matching fields by target writeability
             (dir::Type::Shape(source_shape), dir::Type::Shape(target_shape)) => {
-                let source_fields = self.shape_properties(source.module_id, source_shape.properties)?;
-                let target_fields = self.shape_properties(target.module_id, target_shape.properties)?;
+                let source_fields =
+                    self.shape_properties(source.module_id, source_shape.properties)?;
+                let target_fields =
+                    self.shape_properties(target.module_id, target_shape.properties)?;
 
                 for target_field in target_fields {
                     let source_field = source_fields
@@ -774,7 +776,7 @@ impl CheckState<'_> {
             }
         }
 
-        // commit only one unambiguous arm, preferring established evidence
+        // commit only one unambiguous arm, preferring established bounds
         let selected = match (
             is_viable_ambiguous,
             viable,
@@ -790,7 +792,7 @@ impl CheckState<'_> {
             return self.constrain_type(origin, cause, relation, selected.0, selected.1);
         }
 
-        // wait until open evidence disambiguates otherwise applicable arms
+        // wait until open variables disambiguate otherwise applicable arms
         let dependencies = self.variable_dependencies(
             candidates
                 .iter()

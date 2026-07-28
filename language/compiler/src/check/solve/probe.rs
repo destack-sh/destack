@@ -92,7 +92,7 @@ impl BodyState<'_, '_> {
         self.check.settle_probe(mark, outcome)
     }
 
-    /// Run one candidate attempt, settling its evidence before deciding.
+    /// Run one candidate attempt, settling its bounds before deciding.
     ///
     /// A pending attempt may only await variables the candidate owns or
     /// touched, so one drain to quiescence either completes it or proves

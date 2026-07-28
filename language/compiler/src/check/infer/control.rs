@@ -21,7 +21,7 @@ impl BodyState<'_, '_> {
         let inner_site = self.node_site(inner.into_global_any(module))?;
         let ty = answer!(self.infer_node_type(inner_site, PlaceUse::Read)?);
 
-        // the short-circuit arm rejoins where the chain ends
+        // add undefined where the chain can short circuit
         let result = match answer!(self.chain_short_circuits(site.origin(), module, inner)?) {
             true => {
                 let undefined = self.check.intern_type(module, dir::Type::Undefined)?;
@@ -35,7 +35,7 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(()))
     }
 
-    /// Return whether one chain spine drops a nullish receiver arm.
+    /// Return whether one optional chain drops a nullish receiver.
     fn chain_short_circuits(
         &mut self,
         origin: Origin,
@@ -119,8 +119,7 @@ impl BodyState<'_, '_> {
             let else_type = else_check.source;
             check = check.and(else_check.outcome);
 
-            // branches are the adjustment sites: a produced value is the
-            //  target, while fully diverging branches produce nothing
+            // use the target when both branches hold and produce a value
             let joined = self.normalized_union_type(module, [then_type, else_type])?;
             match (relation, check) {
                 (Relation::Assignable, CheckOutcome::Holds)
@@ -156,7 +155,7 @@ impl BodyState<'_, '_> {
         let body_site = self.node_site(body.into_global_any(module))?;
         let body_type = answer!(self.infer_node_type(body_site, PlaceUse::Read)?);
 
-        // handler bodies check deferred, once the caught bindings are typed
+        // read the catch result recorded when the handler was checked
         let catch_type = catch.and_then(|catch| {
             self.check
                 .catch_results
@@ -258,7 +257,7 @@ impl BodyState<'_, '_> {
         let scrutinee = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
         let mut selectors = Vec::new();
 
-        // infer every selected case before choosing their shared carrier
+        // infer every case selector before selecting their shared equality
         for case in cases {
             let dir::SwitchSelector::Case(selected) =
                 self.module(module).view().get(*case).selector
@@ -347,7 +346,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // empty matches produce never and relate it directly
+        // return never for an empty match
         if arms.is_empty() {
             let never = self.intern_type(module, dir::Type::Never)?;
             self.commit_node_type(site.node, never)?;
@@ -374,8 +373,7 @@ impl BodyState<'_, '_> {
             values.push(body_check.source);
         }
 
-        // arms are the adjustment sites: a produced value is the target,
-        //  while fully diverging arms produce nothing
+        // use the target when every arm holds and produces a value
         let joined = self.normalized_union_type(module, values)?;
         let result = match (relation, check) {
             (Relation::Assignable, CheckOutcome::Holds)

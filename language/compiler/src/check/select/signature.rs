@@ -173,7 +173,7 @@ impl SignatureRejection {
 
 #[allow(clippy::too_many_arguments)]
 impl BodyState<'_, '_> {
-    /// Return the reduced signature type carried by one callable type.
+    /// Return the reduced signature type of one callable type.
     pub(in crate::check) fn callable_signature_type(
         &mut self,
         origin: Origin,
@@ -488,7 +488,7 @@ impl BodyState<'_, '_> {
                 }
             }
 
-            // apply contextual result evidence before contextualizing arguments
+            // apply the contextual result type before contextualizing arguments
             if let (Some(return_type), Some(expectation)) = (function_return, expectation) {
                 let return_type =
                     self.substitute_type(origin.module(), return_type, &substitution)?;

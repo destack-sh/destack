@@ -643,7 +643,7 @@ impl BodyState<'_, '_> {
         // runtime receiver unions seal each member under its own arm
         let is_receiver_union = self.settled_root(receiver)? == self.settled_root(subject)?;
 
-        // every element must expose the member
+        // require every element to expose the member
         for element in elements {
             let arm_receiver = if is_receiver_union {
                 *element
@@ -813,7 +813,6 @@ impl BodyState<'_, '_> {
                 access_type,
                 callable,
                 is_optional: member.is_optional,
-                is_readonly: member.is_readonly,
                 generic_arguments,
                 value: member.value,
                 value_type: written,
@@ -890,7 +889,7 @@ impl BodyState<'_, '_> {
                 access_type,
             )?);
 
-            // carry substituted static value types for projections
+            // substitute static value types for projections
             let written = match self.static_value(symbol) {
                 Some(written) => {
                     Some(self.substitute_type(origin.module(), written, &substitution)?)
@@ -909,7 +908,6 @@ impl BodyState<'_, '_> {
                 access_type,
                 callable,
                 is_optional: member.is_optional,
-                is_readonly: member.is_readonly,
                 generic_arguments,
                 value: member.value,
                 value_type: written,

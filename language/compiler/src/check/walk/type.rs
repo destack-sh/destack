@@ -1157,11 +1157,14 @@ impl WalkState<'_, '_> {
                             write: ty,
                         }
                     };
-                    properties.push(dir::TypeProperty {
-                        key,
-                        access,
-                        is_optional,
-                    });
+                    push_shape_property(
+                        &mut properties,
+                        dir::TypeProperty {
+                            key,
+                            access,
+                            is_optional,
+                        },
+                    );
                 }
                 dir::TypeMember::Method {
                     key,
@@ -1173,7 +1176,8 @@ impl WalkState<'_, '_> {
                     let Some(key) = self.static_key(*key)? else {
                         continue;
                     };
-                    let template = self.open_signature_template(member.into_global_any(self.module), &signature)?;
+                    let template = self
+                        .open_signature_template(member.into_global_any(self.module), &signature)?;
 
                     let (header, result, tracked) =
                         self.walk_signature_header(member.into_any(), template, &signature, None)?;
@@ -1199,11 +1203,14 @@ impl WalkState<'_, '_> {
                             write: ty,
                         },
                     };
-                    properties.push(dir::TypeProperty {
-                        key,
-                        access,
-                        is_optional,
-                    });
+                    push_shape_property(
+                        &mut properties,
+                        dir::TypeProperty {
+                            key,
+                            access,
+                            is_optional,
+                        },
+                    );
                 }
                 dir::TypeMember::CallSignature { signature } => {
                     let signature = signature.clone();
@@ -1212,8 +1219,7 @@ impl WalkState<'_, '_> {
                 }
                 dir::TypeMember::ConstructSignature { signature } => {
                     let signature = signature.clone();
-                    let ty =
-                        self.walk_constructor_type(member.into_any(), &signature, None)?;
+                    let ty = self.walk_constructor_type(member.into_any(), &signature, None)?;
                     construct_signatures.push(ty);
                 }
                 dir::TypeMember::IndexSignature {
@@ -1337,7 +1343,7 @@ impl WalkState<'_, '_> {
         end: Option<dir::LocalNodeId<dir::TypeExpression>>,
         end_kind: dir::RangeEnd,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // intervals carry both bounds
+        // require both interval bounds
         let (Some(start), Some(end)) = (start, end) else {
             self.check
                 .report_unbounded_interval_type(self.module, id.into_any());
@@ -1420,7 +1426,9 @@ impl WalkState<'_, '_> {
         let binder = match self.check.generics.parameter_by_symbol(symbol) {
             Some(binder) => binder,
             None => {
-                let template = self.check.open_generic_template(parameter.into_global_any(self.module))?;
+                let template = self
+                    .check
+                    .open_generic_template(parameter.into_global_any(self.module))?;
                 self.check.push_generic_parameter(
                     template,
                     parameter.into_global_any(self.module),
@@ -1448,8 +1456,8 @@ impl WalkState<'_, '_> {
             None => self.intern_type(dir::Type::Unknown)?,
         };
 
-        // capture the modifier-carrying source behind keyof constraints,
-        //  directly written or reached through the key parameter's bound
+        // find the source behind a keyof constraint, written directly
+        //  or reached through the key parameter's bound
         let modifiers_type = match self.check.ty(constraint)? {
             dir::Type::Operation(operation)
                 if let dir::TypeOperation::KeyOf(unary) =
@@ -1519,5 +1527,19 @@ impl WalkState<'_, '_> {
 
         Ok(parameter.ty)
     }
+}
 
+/// Push one shape property, merging accessor pairs sharing a key.
+fn push_shape_property(properties: &mut Vec<dir::TypeProperty>, property: dir::TypeProperty) {
+    if let Some(existing) = properties
+        .iter_mut()
+        .find(|existing| existing.key == property.key)
+    {
+        existing.access = existing.access.merged(property.access);
+        existing.is_optional &= property.is_optional;
+
+        return;
+    }
+
+    properties.push(property);
 }

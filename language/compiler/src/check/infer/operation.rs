@@ -20,7 +20,7 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         let value_site = self.node_site(value.into_global_any(module))?;
 
-        // the value checks against the target without taking its type
+        // check the value against the target without taking its type
         let target = self.require_node_type(target_type.into_global_any(module))?;
         let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
         let check = answer!(self.check_node_expected(
@@ -74,7 +74,7 @@ impl BodyState<'_, '_> {
         let check = answer!(self.check_node(value_site, expectation)?);
         let value_type = check.source;
 
-        // a cast onto the operand's own settled type has no effect
+        // warn when the cast target equals the operand's settled type
         let value_root = self.check.settled_root(value_type)?;
         let target_root = self.check.settled_root(target)?;
         if value_root == target_root && self.check.type_variables(value_root)?.is_empty() {
@@ -109,7 +109,8 @@ impl BodyState<'_, '_> {
             let end_site = self.node_site(end.into_global_any(module))?;
             bounds.push(answer!(self.infer_node_type(end_site, PlaceUse::Read)?));
         }
-        // bounds flow into one element hole so context can choose the element
+
+        // constrain every written bound into one element hole
         let element = match bounds.as_slice() {
             [] => None,
             bounds => {
@@ -146,7 +147,7 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(()))
     }
 
-    /// Infer one try projection expression from its carrier value.
+    /// Infer one try projection expression from its operand value.
     pub(in crate::check) fn infer_try_projection_expression(
         &mut self,
         site: FlowSite,

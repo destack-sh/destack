@@ -181,7 +181,7 @@ impl BodyState<'_, '_> {
         self.project_place(origin, ty, ty, place)
     }
 
-    /// Return the selected place or materialize one temporary value place.
+    /// Return the selected place, or create one temporary value place.
     pub(in crate::check) fn value_place(
         &mut self,
         origin: Origin,

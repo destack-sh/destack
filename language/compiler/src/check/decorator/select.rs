@@ -44,7 +44,7 @@ impl BodyState<'_, '_> {
         let reference = self.intern_type(module, reference)?;
         self.commit_node_type(target, reference)?;
 
-        // compiler-owned derive dispatch has an intrinsic backing
+        // dispatch compiler-owned derive to its intrinsic backing
         if self.global.language.item(application.symbol) == Some(dir::LanguageItem::Derive) {
             return self.select_derive_decorator(site, application);
         }
@@ -119,7 +119,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<Option<SelectedDecorator>>> {
         let module = site.node.module_id;
 
-        // derive has no generic parameters
+        // reject written generic arguments, derive takes none
         if !application.expression.generic_arguments.is_empty() {
             let name = self.format_symbol(application.symbol);
             self.report_wrong_generic_arity(
@@ -203,7 +203,7 @@ impl BodyState<'_, '_> {
         let origin = self.node_site(expression.into_global_any(module))?.origin();
         let node = self.module_view(module).get(expression).clone();
 
-        // configured providers select one exact newtype backing
+        // select the exact newtype backing of a configured provider
         let (selection, ty) = if let dir::Expression::Call {
             left,
             generic_arguments,
@@ -282,7 +282,7 @@ impl BodyState<'_, '_> {
 
             (selection, return_type)
         }
-        // bare providers select their zero-argument backing
+        // otherwise select the zero-argument backing of a bare provider
         else {
             let source = expression.into_global_any(module);
             let Some(symbol) = self.reference_symbol(source) else {

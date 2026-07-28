@@ -45,8 +45,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         tracked: Vec<dir::TypeVariableId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let parameters = header.parameters;
-        // elision reads the annotated receiver, which carries its borrow;
-        //  rung 3 may synthesize a readonly receiver borrow
+
+        // elide the result lifetime from the annotated or synthesized receiver
         let (return_type, synthesized_this) = self.apply_result_lifetime_elision(
             source,
             header.this_parameter,
@@ -442,9 +442,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let template = if generic_parameters.is_empty() {
             self.check.open_generic_template(source)?
         } else {
-            let Some(template) =
-                self.walk_generic_template(source, generic_parameters)?
-            else {
+            let Some(template) = self.walk_generic_template(source, generic_parameters)? else {
                 return Ok(None);
             };
 

@@ -243,7 +243,7 @@ impl CheckState<'_> {
         Ok(Answer::Ready(ObligationCheck::fail(failure)))
     }
 
-    /// Return whether one receiver carries exclusive access.
+    /// Return whether one receiver grants exclusive access.
     fn is_exclusive_receiver(
         &mut self,
         origin: Origin,
@@ -280,7 +280,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        // cross module symbols are imported into this module
+        // treat a cross module symbol as imported into this module
         if symbol.module_id != source.module_id {
             let failure = ObligationFailure::CannotAssignImportedBinding { source, symbol };
 
@@ -291,7 +291,7 @@ impl CheckState<'_> {
         let bindings = input.binding_table();
         let local_symbol = bindings.get_symbol(symbol.local_id);
 
-        // imported aliases never accept writes
+        // reject writes through imported aliases
         if input
             .resolved
             .imports
@@ -303,7 +303,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(ObligationCheck::fail(failure)));
         }
 
-        // immutable bindings reject writes
+        // reject writes to immutable bindings
         let is_mutable = local_symbol.binding_mutability.is_some_and(|mutability| {
             matches!(
                 mutability,

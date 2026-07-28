@@ -3,7 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, Decision, FlowSite, InferMode, InterfaceIndexSignature,     Origin, PlaceUse, Relation, SubscriptProtocol, Value, ValueUse, answer,
+    Answer, BodyState, Cause, CauseKind, Decision, FlowSite, InferMode, InterfaceIndexSignature,
+    Origin, PlaceUse, Relation, SubscriptProtocol, Value, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -473,16 +474,14 @@ impl BodyState<'_, '_> {
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Primitive(_)
-            | dir::Type::Literal(_) => {
-                self.select_protocol_subscript(
-                    origin,
-                    use_,
-                    receiver,
-                    receiver_type,
-                    index_node,
-                    index,
-                )
-            }
+            | dir::Type::Literal(_) => self.select_protocol_subscript(
+                origin,
+                use_,
+                receiver,
+                receiver_type,
+                index_node,
+                index,
+            ),
             _ => Ok(Answer::Ready(None)),
         }
     }
@@ -1090,12 +1089,20 @@ impl BodyState<'_, '_> {
         index_node: dir::GlobalNodeIdAny,
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
-        let read = answer!(
-            self.select_subscript_read(origin, receiver, lookup_receiver, index_node, index)?
-        );
-        let write = answer!(
-            self.select_subscript_write(origin, receiver, lookup_receiver, index_node, index)?
-        );
+        let read = answer!(self.select_subscript_read(
+            origin,
+            receiver,
+            lookup_receiver,
+            index_node,
+            index
+        )?);
+        let write = answer!(self.select_subscript_write(
+            origin,
+            receiver,
+            lookup_receiver,
+            index_node,
+            index
+        )?);
         let (Some(read), Some(write)) = (read, write) else {
             return Ok(Answer::Ready(None));
         };
