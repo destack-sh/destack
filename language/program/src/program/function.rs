@@ -246,7 +246,7 @@ pub struct Function {
     /// Function call signature.
     pub signature: SignatureId,
     /// The function coroutine behavior.
-    pub coroutine: Coroutine,
+    pub coroutine: CoroutineKind,
 }
 
 impl Function {
@@ -256,8 +256,8 @@ impl Function {
     }
 
     /// Return the coroutine behavior when this function may suspend.
-    pub const fn coroutine(&self) -> Option<Coroutine> {
-        if self.coroutine.0 == Coroutine::NONE.0 {
+    pub const fn coroutine(&self) -> Option<CoroutineKind> {
+        if self.coroutine.0 == CoroutineKind::NONE.0 {
             None
         } else {
             Some(self.coroutine)
@@ -270,9 +270,9 @@ impl Function {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
 )]
-pub struct Coroutine(pub u32);
+pub struct CoroutineKind(pub u32);
 
-impl Coroutine {
+impl CoroutineKind {
     /// A synchronous function.
     pub const NONE: Self = Self(0);
     /// A function that awaits promises.
@@ -411,7 +411,7 @@ const _: () = assert!(size_of::<FunctionTable>() == 80);
 const _: () = assert!(size_of::<FunctionExport>() == 16);
 const _: () = assert!(size_of::<FunctionBinding>() == 32);
 const _: () = assert!(size_of::<Function>() == 24);
-const _: () = assert!(size_of::<Coroutine>() == 4);
+const _: () = assert!(size_of::<CoroutineKind>() == 4);
 const _: () = assert!(size_of::<SignatureId>() == 4);
 const _: () = assert!(size_of::<SignatureEntry>() == 16);
 
@@ -427,7 +427,7 @@ pub struct FunctionBuilder {
     /// Runtime binding id attached to this function when one exists.
     binding: Option<BindingId>,
     /// The function coroutine behavior.
-    coroutine: Coroutine,
+    coroutine: CoroutineKind,
 }
 
 impl FunctionBuilder {
@@ -438,7 +438,7 @@ impl FunctionBuilder {
             signature,
             environment: None,
             binding: None,
-            coroutine: Coroutine::NONE,
+            coroutine: CoroutineKind::NONE,
         }
     }
 
@@ -457,7 +457,7 @@ impl FunctionBuilder {
     }
 
     /// Set the function coroutine behavior.
-    pub fn coroutine(mut self, coroutine: Coroutine) -> Self {
+    pub fn coroutine(mut self, coroutine: CoroutineKind) -> Self {
         self.coroutine = coroutine;
 
         self
