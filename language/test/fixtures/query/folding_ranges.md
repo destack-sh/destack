@@ -55,7 +55,7 @@ class Box {
 
 ### Fold module and global declaration blocks
 
-Module and global bodies retain their authored declaration ranges.
+Module and global bodies use their declaration ranges.
 
 ```ds main.ds
 module {

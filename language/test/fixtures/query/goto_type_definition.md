@@ -187,7 +187,7 @@ declare const shape: Circle | Square;
 
 ### Resolve the nominal member of a nullable union
 
-Null has no definition target, while the nominal member retains its declaration.
+Null has no definition target, while the nominal member resolves to its declaration.
 
 ```ds main.ds
 class User {}
@@ -397,7 +397,7 @@ declare const widget: Widget;
 
 ### Resolve borrowed, owned, and pointer values
 
-Memory forms retain the nominal declaration of their contained value.
+Memory forms resolve to the nominal declaration of their contained value.
 
 ```ds main.ds
 struct Buffer {
@@ -453,7 +453,7 @@ function read(this: Counter): Counter {
 
 ### Resolve an applied nominal type
 
-A generic application retains its nominal declaration.
+A generic application resolves to its nominal declaration.
 
 ```ds main.ds
 class Box<T> {

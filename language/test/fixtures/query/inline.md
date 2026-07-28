@@ -86,7 +86,7 @@ function scale(left: int32, right: int32): int32 {
 
 ### Expand a shorthand property
 
-A shorthand property expands to retain its property name.
+A shorthand property expands to preserve its property name.
 
 ```ds main.ds
 const value = 1;
@@ -285,7 +285,7 @@ const total = 10 + 1;
 
 ## Declarators
 
-### Remove only the selected declarator
+### Remove only one declarator
 
 Inlining one declarator preserves its siblings.
 

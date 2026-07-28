@@ -4,7 +4,7 @@
 
 ### Select the active argument
 
-Signature help shows the selected callable and active parameter.
+Signature help shows the callable and active parameter.
 
 ```ds main.ds
 function add(left: int32, right: int32): int32 {
@@ -57,7 +57,7 @@ ping();
 
 ### [ignored] Follow named argument bindings
 
-The active parameter follows the checker binding rather than authored argument order.
+The active parameter follows named argument binding rather than source order.
 
 ```ds main.ds
 function greet(name: string, greeting: string): void {}
@@ -93,9 +93,9 @@ const result = sum(1, 2, 3);
 
 ## Selection
 
-### Return the selected overload
+### Return the matching overload
 
-Signature help reports only the overload selected by checking.
+Signature help reports the overload that accepts the arguments.
 
 ```ds main.ds
 function parse(value: int32): int32 {
@@ -115,9 +115,9 @@ const value = parse("one");
 @signature_help.parameter signature=0 index=0 label="value: string" active=true
 ```
 
-### Apply selected generic arguments
+### Apply generic arguments
 
-Signature help displays the callable type selected for the concrete call.
+Signature help displays the callable type instantiated for the call.
 
 ```ds main.ds
 function identity<Value>(value: Value): Value {
@@ -138,7 +138,7 @@ const result = identity(name);
 
 ### [ignored] Include callable and parameter documentation
 
-Signature help retains documentation from the declaration and its parameters.
+Signature help includes documentation from the declaration and its parameters.
 
 ```ds main.ds
 /// Add two values.
@@ -187,7 +187,7 @@ const result = add(1, 2);
 
 ### Resolve a method call
 
-Method signature help uses the selected member declaration.
+Method signature help uses the method declaration.
 
 ```ds main.ds
 class Calculator {
@@ -210,7 +210,7 @@ function calculate(calculator: Calculator): int32 {
 
 ### Resolve an extension method call
 
-Extension signature help uses the exact selected extension member.
+Extension signature help uses the extension method declaration.
 
 ```ds main.ds
 struct Calculator {}
@@ -235,7 +235,7 @@ function total(calculator: Calculator): int32 {
 
 ### [ignored] Include method parameter documentation
 
-Method signature help includes documentation from the selected member.
+Method signature help includes documentation from the method declaration.
 
 ```ds main.ds
 class Calculator {
@@ -263,7 +263,7 @@ function calculate(calculator: Calculator): int32 {
 
 ### Resolve a namespace-imported callable
 
-Namespace calls retain the exported parameter names and types.
+Namespace calls use the exported parameter names and types.
 
 ```ds library.ds
 export function paint(color: string, coats: int32): void {}
@@ -358,7 +358,7 @@ const result = callback("ready");
 
 ### Resolve an explicit class constructor
 
-Class construction reports the selected constructor parameters and nominal result.
+Class construction reports its constructor parameters and nominal result.
 
 ```ds main.ds
 class User {
@@ -376,7 +376,7 @@ const user = new User("Ada");
 
 ### Resolve a default class constructor
 
-A class without an authored constructor still reports its zero-parameter construction signature.
+A class without a constructor declaration reports its zero-parameter construction signature.
 
 ```ds main.ds
 class User {}
@@ -391,7 +391,7 @@ const user = new User();
 
 ### Resolve a newtype constructor
 
-Newtype construction reports its backing value parameter and nominal result.
+Newtype construction reports its backing argument and nominal result.
 
 ```ds main.ds
 newtype UserId = string;
@@ -401,13 +401,13 @@ const userId = UserId("user-1");
 ```
 
 ```query signature_help main.ds#argument
-@signature_help.signature index=0 label="UserId(value: string): UserId" active=true
-@signature_help.parameter signature=0 index=0 label="value: string" active=true
+@signature_help.signature index=0 label="UserId(string): UserId" active=true
+@signature_help.parameter signature=0 index=0 label=string active=true
 ```
 
 ### Resolve a tagged variant constructor
 
-Tagged construction reports the selected case payload and nominal result.
+Tagged construction reports its case payload and nominal result.
 
 ```ds main.ds
 @derive(Tagged)

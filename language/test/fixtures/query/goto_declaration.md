@@ -168,7 +168,7 @@ utilities.ping();
 
 ### Resolve each segment of a namespace type path
 
-The namespace root resolves to its local import, while the selected type resolves to its declaration.
+The namespace root resolves to its local import, while the type segment resolves to its declaration.
 
 ```ds model.ds
 export struct Settings {
@@ -362,7 +362,7 @@ const value = buildWidget();
 
 ### Resolve a destructured binding declaration
 
-A destructured reference resolves to the exact binding introduced by its pattern.
+A destructured reference resolves to the binding introduced by its pattern.
 
 ```ds main.ds
 const pair = { left: 1, right: 2 };
@@ -399,7 +399,7 @@ function identity<T>(value: T): T {
 
 ### Resolve a member declaration
 
-A selected field access resolves to the member declaration.
+A field access resolves to the member declaration.
 
 ```ds main.ds
 struct Point {
@@ -418,9 +418,9 @@ function read(point: Point): int32 {
 @goto_declaration.target origin=main.ds#reference:field location=main.ds#target:field selection=main.ds#declaration:field symbol=main.ds#x@2
 ```
 
-### Resolve every exact member declaration selected through a union
+### Resolve every member declaration reached through a union
 
-A union receiver returns the finite member declaration set selected by checking.
+A union receiver returns every member declaration available at that access.
 
 ```ds main.ds
 class Alpha {
@@ -450,7 +450,7 @@ function start(service: Alpha | Beta): void {
 
 ### [ignored] Resolve a control label declaration
 
-A labeled break resolves to the exact enclosing label.
+A labeled break resolves to its enclosing label.
 
 ```ds main.ds
 function choose(): int32 {

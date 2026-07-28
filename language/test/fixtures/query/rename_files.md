@@ -106,7 +106,7 @@ const result = value;
 
 ### Rename multiple imported files
 
-One workspace edit updates every renamed file.
+One edit updates every renamed file.
 
 ```ds source/left.ds
 export const left = 1;

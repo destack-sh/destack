@@ -74,7 +74,7 @@ extension of UserId implements Display {}
 
 ### Return no targets for an unimplemented interface
 
-An interface without authored implementation edges has no implementation target.
+An interface without implementations has no implementation target.
 
 ```ds main.ds
 newtype interface Display {}
@@ -145,7 +145,7 @@ class SubDerived extends Derived {}
 
 ### [ignored] Find implementations of an interface method
 
-An interface method resolves to each exact member that implements it.
+An interface method resolves to every member that implements it.
 
 ```ds main.ds
 interface Renderable {
@@ -179,7 +179,7 @@ struct Document implements Renderable {
 
 ### [ignored] Find overrides of a class method
 
-An abstract class method resolves to each exact overriding member.
+An abstract class method resolves to every overriding member.
 
 ```ds main.ds
 abstract class Writer {
@@ -237,7 +237,7 @@ export struct Square implements Drawable {
 
 ### Find implementations through a re-exported interface
 
-A re-export alias retains the interface's implementation set.
+A re-export alias preserves the interface's implementation set.
 
 ```ds alias_library.ds
 export interface Renderable {

@@ -42,7 +42,7 @@ class Leaf extends Middle {}
 
 ### Find implementing classes and extending interfaces
 
-Direct interface subtypes retain declaration order.
+Direct interface subtypes follow declaration order.
 
 ```ds main.ds
 interface Base {}
@@ -62,7 +62,7 @@ class Implementation implements Base {}
 
 ### Find nominal interface children
 
-Nominal interfaces retain their direct extension edges.
+Nominal interfaces return their direct extension edges.
 
 ```ds main.ds
 newtype interface PartialEqual {}
@@ -80,7 +80,7 @@ newtype interface Equal extends PartialEqual {}
 
 ### Find struct and enum implementations
 
-Every authored implementation kind appears as a direct subtype.
+Every implementation kind appears as a direct subtype.
 
 ```ds main.ds
 interface Display {}
@@ -118,7 +118,7 @@ extension of UserId implements Display {}
 
 ## Generics
 
-### Retain generic declaration details
+### Include generic declaration details
 
 Generic subtype items display the parameters of their declarations.
 
@@ -138,7 +138,7 @@ struct Box<Value> implements Container<Value> {}
 
 ### Find a subtype in another module
 
-Program hierarchy indexes retain cross-module inheritance edges.
+Program hierarchy indexes include cross-module inheritance edges.
 
 ```ds base.ds
 export class Base {}

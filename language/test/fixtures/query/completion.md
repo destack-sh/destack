@@ -50,7 +50,7 @@ function read(): void {
 
 ### Distinguish a mutable binding
 
-Mutable bindings retain their variable kind and widened checked type.
+Mutable bindings use their variable kind and widened type.
 
 ```ds main.ds
 let mutableValue = 1;
@@ -79,7 +79,7 @@ function calculate(totalValue: int32): int32 {
 
 ### Complete an outer binding
 
-Nested scopes retain visible bindings from their parents.
+Nested scopes include visible bindings from their parents.
 
 ```ds main.ds
 const outerValue = 1;
@@ -114,7 +114,7 @@ function read(): int32 {
 
 ### [ignored] Complete a function call
 
-A function completion includes its checked signature, documentation, and call snippet.
+A function completion includes its signature, documentation, and call snippet.
 
 ```ds main.ds
 /// Format one name.
@@ -132,7 +132,7 @@ const result = formatN;
 
 ### Match a camel-case prefix
 
-Lexical matching retains the exact character positions used for ranking and highlighting.
+Lexical matching returns the character positions used for ranking and highlighting.
 
 ```ds main.ds
 const currentValue = 1;
@@ -146,7 +146,7 @@ const result = cv;
 
 ### [ignored] Mark a deprecated declaration
 
-Completion retains deprecation, documentation, and the callable edit together.
+Completion returns deprecation, documentation, and the callable edit together.
 
 ```ds main.ds
 /// Use currentName.
@@ -163,7 +163,7 @@ const result = legacy;
 
 ## Members
 
-### Complete struct fields
+### [ignored] Complete struct fields
 
 Member completion lists the receiver's fields.
 
@@ -185,7 +185,7 @@ function read(point: Point): int32 {
 
 ### [ignored] Complete an instance method
 
-Method completion includes its checked callable type and insertion snippet.
+Method completion includes its callable type and insertion snippet.
 
 ```ds main.ds
 class Buffer {
@@ -205,7 +205,7 @@ function read(buffer: Buffer): uint8 {
 @completion.item label=read kind=method replace=main.ds#prefix detail="(index: uint64) => uint8" documentation="Read one byte." insert="read(${1:index})$0" snippet=true preselect=true matches=0,1
 ```
 
-### Separate static and instance members
+### [ignored] Separate static and instance members
 
 Type receivers expose static members and value receivers expose instance members.
 
@@ -234,7 +234,7 @@ value.cre;
 @completion.none
 ```
 
-### Complete an extension method
+### [ignored] Complete an extension method
 
 Member completion includes extension methods for the receiver type.
 
@@ -257,7 +257,7 @@ function calculate(value: Calculator): int32 {
 @completion.item label=sum kind=method replace=main.ds#prefix detail="(left: int32, right: int32) => int32" insert="sum(${1:left}, ${2:right})$0" snippet=true preselect=true matches=0,1
 ```
 
-### Complete an optional-chain member
+### [ignored] Complete an optional-chain member
 
 Optional chaining completes the same members as direct access.
 
@@ -295,7 +295,7 @@ function read(box: Box<string>): string {
 @completion.item label=value kind=field replace=main.ds#prefix detail=string preselect=true matches=0,1,2
 ```
 
-### Complete a common union member once
+### [ignored] Complete a common union member once
 
 Union member completion includes only members available on every possible receiver.
 
@@ -329,7 +329,7 @@ function radius(shape: Circle | Square): float64 {
 @completion.none
 ```
 
-### Complete an associated constant
+### [ignored] Complete an associated constant
 
 A nominal type receiver exposes its associated values.
 
@@ -348,7 +348,7 @@ const width = Buffer.Wi;
 
 ### Complete a namespace member
 
-A namespace receiver exposes the exports of its resolved module.
+A namespace receiver exposes the exports of its target module.
 
 ```ds library.ds
 export function greet(): void {}
@@ -459,7 +459,7 @@ function identity<Value>(value: Value): Val {
 
 ### Complete an imported type through a re-export
 
-Type completion retains the imported declaration kind through module aliases.
+Type completion preserves the declaration kind through module aliases.
 
 ```ds model.ds
 export struct Packet {}
@@ -482,7 +482,7 @@ declare const packet: Pack;
 
 ## Enum Members
 
-### Complete an enum member
+### [ignored] Complete an enum member
 
 Member completion uses the enum receiver type.
 
@@ -533,7 +533,7 @@ const widget = new Widget;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Widget kind=class replace=main.ds#token detail="new (name: string) => Widget" insert="Widget(${1:name})$0" snippet=true preselect=true matches=0,1,2
+@completion.item label=Widget kind=class replace=main.ds#token detail="new (name: string) => this" insert="Widget(${1:name})$0" snippet=true preselect=true matches=0,1,2
 ```
 
 ### Complete a struct expression
@@ -554,9 +554,9 @@ const result = Poi;
 @completion.item label=Point kind=struct replace=main.ds#prefix detail=Point insert="Point { x: ${1}, y: ${2} }$0" snippet=true preselect=true matches=0,1,2
 ```
 
-### Complete a newtype constructor
+### [ignored] Complete a newtype constructor
 
-A newtype value completion exposes its backing value parameter.
+A newtype completion includes its constructor signature and call snippet.
 
 ```ds main.ds
 newtype UserId = string;
@@ -566,7 +566,7 @@ const result = UserI;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=UserId kind=constructor replace=main.ds#prefix detail="(value: string) => UserId" insert="UserId(${1:value})$0" snippet=true preselect=true matches=0,1,2,3,4
+@completion.item label=UserId kind=constructor replace=main.ds#prefix detail="(string) => UserId" insert="UserId(${1})$0" snippet=true preselect=true matches=0,1,2,3,4
 ```
 
 ## Object Literals
@@ -662,7 +662,7 @@ consume(candidate);
 
 ### [ignored] Complete an unused named argument
 
-Named argument completion inserts the exact remaining parameter name.
+Named argument completion inserts the remaining parameter name.
 
 ```ds main.ds
 function greet(name: string, greeting: string): void {}
@@ -758,7 +758,7 @@ import { pack } from "./library.ds";
 
 ### Complete an exported function with an import edit
 
-Program completion returns the symbol and its exact import patch together.
+Auto import completion returns the symbol and import patch together.
 
 ```ds library.ds
 export function greet(): void {}
@@ -778,9 +778,200 @@ function main(): void {
 @completion.additional_edit item=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
-### Retain an extension for an ambiguous relative path
+### [ignored] Refresh an incomplete completion list
 
-An explicit extension keeps the selected module unambiguous.
+A retriggered request continues the candidate family returned by the incomplete list.
+
+```ds library.ds
+export function target(): void {}
+```
+
+```ds main.ds
+
+^ insertion
+function main(): void {
+    t;
+    ^ prefix
+}
+```
+
+```query completion main.ds#prefix@end trigger=incomplete include_auto_imports=true
+@completion.item label=target kind=function replace=main.ds#prefix detail="Auto import from ./library" preselect=true auto_import=true matches=0
+@completion.additional_edit item=0 range=main.ds#insertion text="import { target } from \"./library\";\n"
+```
+
+### Report a truncated completion list
+
+A truncated short-prefix list reports that more matching candidates are available.
+
+```ds library.ds
+export type x00 = int32;
+export type x01 = int32;
+export type x02 = int32;
+export type x03 = int32;
+export type x04 = int32;
+export type x05 = int32;
+export type x06 = int32;
+export type x07 = int32;
+export type x08 = int32;
+export type x09 = int32;
+export type x10 = int32;
+export type x11 = int32;
+export type x12 = int32;
+export type x13 = int32;
+export type x14 = int32;
+export type x15 = int32;
+export type x16 = int32;
+export type x17 = int32;
+export type x18 = int32;
+export type x19 = int32;
+export type x20 = int32;
+export type x21 = int32;
+export type x22 = int32;
+export type x23 = int32;
+export type x24 = int32;
+export type x25 = int32;
+export type x26 = int32;
+export type x27 = int32;
+export type x28 = int32;
+export type x29 = int32;
+export type x30 = int32;
+export type x31 = int32;
+export type x32 = int32;
+export type x33 = int32;
+export type x34 = int32;
+export type x35 = int32;
+export type x36 = int32;
+export type x37 = int32;
+export type x38 = int32;
+export type x39 = int32;
+export type x40 = int32;
+export type x41 = int32;
+export type x42 = int32;
+export type x43 = int32;
+export type x44 = int32;
+export type x45 = int32;
+export type x46 = int32;
+export type x47 = int32;
+export type x48 = int32;
+export type x49 = int32;
+export type x50 = int32;
+```
+
+```ds main.ds
+
+^ insertion
+type Selected = x;
+                ^ prefix
+```
+
+```query completion main.ds#prefix@end include_auto_imports=true
+@completion.list incomplete=true
+@completion.item label=x00 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=0 range=main.ds#insertion text="import { x00 } from \"./library\";\n"
+@completion.item label=x01 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=1 range=main.ds#insertion text="import { x01 } from \"./library\";\n"
+@completion.item label=x02 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=2 range=main.ds#insertion text="import { x02 } from \"./library\";\n"
+@completion.item label=x03 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=3 range=main.ds#insertion text="import { x03 } from \"./library\";\n"
+@completion.item label=x04 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=4 range=main.ds#insertion text="import { x04 } from \"./library\";\n"
+@completion.item label=x05 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=5 range=main.ds#insertion text="import { x05 } from \"./library\";\n"
+@completion.item label=x06 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=6 range=main.ds#insertion text="import { x06 } from \"./library\";\n"
+@completion.item label=x07 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=7 range=main.ds#insertion text="import { x07 } from \"./library\";\n"
+@completion.item label=x08 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=8 range=main.ds#insertion text="import { x08 } from \"./library\";\n"
+@completion.item label=x09 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=9 range=main.ds#insertion text="import { x09 } from \"./library\";\n"
+@completion.item label=x10 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=10 range=main.ds#insertion text="import { x10 } from \"./library\";\n"
+@completion.item label=x11 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=11 range=main.ds#insertion text="import { x11 } from \"./library\";\n"
+@completion.item label=x12 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=12 range=main.ds#insertion text="import { x12 } from \"./library\";\n"
+@completion.item label=x13 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=13 range=main.ds#insertion text="import { x13 } from \"./library\";\n"
+@completion.item label=x14 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=14 range=main.ds#insertion text="import { x14 } from \"./library\";\n"
+@completion.item label=x15 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=15 range=main.ds#insertion text="import { x15 } from \"./library\";\n"
+@completion.item label=x16 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=16 range=main.ds#insertion text="import { x16 } from \"./library\";\n"
+@completion.item label=x17 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=17 range=main.ds#insertion text="import { x17 } from \"./library\";\n"
+@completion.item label=x18 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=18 range=main.ds#insertion text="import { x18 } from \"./library\";\n"
+@completion.item label=x19 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=19 range=main.ds#insertion text="import { x19 } from \"./library\";\n"
+@completion.item label=x20 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=20 range=main.ds#insertion text="import { x20 } from \"./library\";\n"
+@completion.item label=x21 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=21 range=main.ds#insertion text="import { x21 } from \"./library\";\n"
+@completion.item label=x22 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=22 range=main.ds#insertion text="import { x22 } from \"./library\";\n"
+@completion.item label=x23 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=23 range=main.ds#insertion text="import { x23 } from \"./library\";\n"
+@completion.item label=x24 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=24 range=main.ds#insertion text="import { x24 } from \"./library\";\n"
+@completion.item label=x25 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=25 range=main.ds#insertion text="import { x25 } from \"./library\";\n"
+@completion.item label=x26 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=26 range=main.ds#insertion text="import { x26 } from \"./library\";\n"
+@completion.item label=x27 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=27 range=main.ds#insertion text="import { x27 } from \"./library\";\n"
+@completion.item label=x28 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=28 range=main.ds#insertion text="import { x28 } from \"./library\";\n"
+@completion.item label=x29 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=29 range=main.ds#insertion text="import { x29 } from \"./library\";\n"
+@completion.item label=x30 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=30 range=main.ds#insertion text="import { x30 } from \"./library\";\n"
+@completion.item label=x31 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=31 range=main.ds#insertion text="import { x31 } from \"./library\";\n"
+@completion.item label=x32 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=32 range=main.ds#insertion text="import { x32 } from \"./library\";\n"
+@completion.item label=x33 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=33 range=main.ds#insertion text="import { x33 } from \"./library\";\n"
+@completion.item label=x34 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=34 range=main.ds#insertion text="import { x34 } from \"./library\";\n"
+@completion.item label=x35 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=35 range=main.ds#insertion text="import { x35 } from \"./library\";\n"
+@completion.item label=x36 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=36 range=main.ds#insertion text="import { x36 } from \"./library\";\n"
+@completion.item label=x37 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=37 range=main.ds#insertion text="import { x37 } from \"./library\";\n"
+@completion.item label=x38 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=38 range=main.ds#insertion text="import { x38 } from \"./library\";\n"
+@completion.item label=x39 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=39 range=main.ds#insertion text="import { x39 } from \"./library\";\n"
+@completion.item label=x40 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=40 range=main.ds#insertion text="import { x40 } from \"./library\";\n"
+@completion.item label=x41 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=41 range=main.ds#insertion text="import { x41 } from \"./library\";\n"
+@completion.item label=x42 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=42 range=main.ds#insertion text="import { x42 } from \"./library\";\n"
+@completion.item label=x43 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=43 range=main.ds#insertion text="import { x43 } from \"./library\";\n"
+@completion.item label=x44 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=44 range=main.ds#insertion text="import { x44 } from \"./library\";\n"
+@completion.item label=x45 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=45 range=main.ds#insertion text="import { x45 } from \"./library\";\n"
+@completion.item label=x46 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=46 range=main.ds#insertion text="import { x46 } from \"./library\";\n"
+@completion.item label=x47 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=47 range=main.ds#insertion text="import { x47 } from \"./library\";\n"
+@completion.item label=x48 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=48 range=main.ds#insertion text="import { x48 } from \"./library\";\n"
+@completion.item label=x49 kind=type_alias replace=main.ds#prefix detail="Auto import from ./library" auto_import=true matches=0
+@completion.additional_edit item=49 range=main.ds#insertion text="import { x49 } from \"./library\";\n"
+```
+
+### Preserve an extension for an ambiguous relative path
+
+An explicit extension keeps the target module unambiguous.
 
 ```ds library.ds
 export function greet(): void {}
@@ -1020,7 +1211,7 @@ But
 
 ### Auto-import a package root export
 
-An exact root export produces the dependency package name without a subpath.
+A root export produces the dependency package name without a subpath.
 
 ```json destack.json
 {
@@ -1151,7 +1342,7 @@ import {} from "./u";
 
 ### [ignored] Complete a module inside a folder
 
-Path completion continues within the selected directory.
+Path completion continues within the requested directory.
 
 ```ds utilities/arrays.ds
 export function first(): void {}

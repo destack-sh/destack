@@ -4,7 +4,7 @@
 
 ### Offer function references
 
-Functions receive a reference lens with the exact declaration and current reference count.
+Functions receive a lens with their reference count.
 
 ```ds main.ds
 function ping(): void {}
@@ -78,8 +78,8 @@ function verify(): void {}
 ```
 
 ```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=run_test test=verify
-@code_lenses.lens range=main.ds#declaration action=debug_test test=verify
+@code_lenses.lens range=main.ds#declaration action=run_test symbol=main.ds#verify@1
+@code_lenses.lens range=main.ds#declaration action=debug_test symbol=main.ds#verify@1
 ```
 
 ## Modules

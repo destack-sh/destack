@@ -23,7 +23,7 @@ function identity(value: int32): int32 {
 
 ### Classify nominal declarations and members
 
-Nominal declarations and their members retain distinct token kinds.
+Nominal declarations and their members use distinct token kinds.
 
 ```ds main.ds
 struct Point {
@@ -69,7 +69,7 @@ interface Drawable {
 
 ### Classify every nominal declaration kind
 
-Type aliases, newtypes, nominal interfaces, and extensions retain distinct roles.
+Type aliases, newtypes, nominal interfaces, and extensions use distinct roles.
 
 ```ds main.ds
 type Identifier = uint64;
@@ -155,7 +155,7 @@ render();
 
 ### Classify type and namespace imports
 
-Plain and namespace aliases retain their canonical symbol kinds.
+Plain and namespace aliases use their canonical symbol kinds.
 
 ```ds library.ds
 export struct Packet {}
@@ -242,9 +242,9 @@ const result = match (pair) {
 @semantic_tokens.token range=main.ds#right_reference type=variable modifiers=readonly
 ```
 
-### Classify exact member references
+### Classify member references
 
-Member references use checked member identities rather than generic property shapes.
+Member references use their declaration identities rather than generic property shapes.
 
 ```ds main.ds
 class Buffer {
@@ -401,7 +401,7 @@ validate();
 
 ### [ignored] Classify labels
 
-Label declarations and references retain their dedicated token kind.
+Label declarations and references use their dedicated token kind.
 
 ```ds main.ds
 outer: loop {

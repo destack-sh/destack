@@ -18,7 +18,7 @@ export const value = 1;
 
 ### Return an application and its owner
 
-Module scope retains the checked language item and decorated declaration.
+Module scope returns the language item and decorated declaration.
 
 ```ds main.ds
 @deprecated("use verifyNew")
@@ -39,7 +39,7 @@ function verify(): void {}
 
 ### Return a user-defined annotation
 
-A user-defined annotation retains its resolved symbol.
+A user-defined annotation returns its declaration symbol.
 
 ```ds main.ds
 newtype tracked = ();
@@ -57,7 +57,7 @@ class Service {}
 
 ### Preserve application source order
 
-Unfiltered results retain the order written on a shared owner.
+Unfiltered results follow source order on a shared owner.
 
 ```ds main.ds
 newtype tracked = ();

@@ -4,7 +4,7 @@
 
 ### Expand a nested arithmetic expression
 
-The selected identifier expands through its expression, statement, body, and declaration.
+An identifier expands through its expression, statement, body, and declaration.
 
 ```ds main.ds
 function compute(value: int32): int32 {
@@ -248,7 +248,7 @@ const value = 1;
 
 ### Select the enclosing declaration from whitespace
 
-Whitespace does not create a synthetic leaf range.
+Whitespace begins at its enclosing source range.
 
 ```ds main.ds
 const value = 1;
@@ -264,7 +264,7 @@ const value = 1;
 
 ### Expand each requested position
 
-Each requested position retains its own ordered selection chain.
+Each requested position returns its own ordered selection chain.
 
 ```ds main.ds
 const first = 1;

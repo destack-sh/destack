@@ -86,7 +86,7 @@ struct Rectangle {
 
 ### Distinguish member roles
 
-Constructors, accessors, and static members retain their authored roles and signatures.
+Constructors, accessors, and static members use their distinct roles and signatures.
 
 ```ds main.ds
 class Counter {
@@ -184,7 +184,7 @@ An empty module has no outline entries.
 
 ### Preserve module and global declaration ownership
 
-Module metadata and global declarations remain grouped under their authored owners.
+Module metadata and global declarations remain grouped under their declaration owners.
 
 ```ds main.ds
 module {
@@ -217,7 +217,7 @@ global {
 
 ### Outline structural types
 
-Interfaces retain their members, and type aliases remain top-level symbols.
+Interfaces contain their members, and type aliases remain top-level symbols.
 
 ```ds main.ds
 interface Drawable {
@@ -242,7 +242,7 @@ type UserId = string;
 
 ### Outline nominal types and extensions
 
-Newtypes, nominal interfaces, and named extensions retain their distinct kinds.
+Newtypes, nominal interfaces, and named extensions use distinct kinds.
 
 ```ds main.ds
 newtype UserId = int64;
@@ -289,7 +289,7 @@ extension Integer of int32 {
 
 ## Overloads
 
-### Preserve authored overloads
+### Preserve overload declarations
 
 Each overload remains a separate entry in source order.
 

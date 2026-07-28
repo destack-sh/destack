@@ -18,7 +18,7 @@ const next = count;
 
 ### Resolve a reference
 
-A reference retains its selected range while resolving the symbol.
+A reference reports its name range and symbol.
 
 ```ds main.ds
 const count = 1;
@@ -53,7 +53,7 @@ function read(counter: Counter): int32 {
 
 ### [ignored] Resolve a string-keyed field access
 
-A statically selected string key exposes only its identifier contents as the rename range.
+A string-keyed field access exposes only the identifier contents as its rename range.
 
 ```ds main.ds
 struct Counter {
@@ -74,7 +74,7 @@ function read(counter: Counter): int32 {
 
 ### Resolve a method access
 
-A selected method name is a rename target.
+A method name is a rename target.
 
 ```ds main.ds
 class Service {
@@ -93,7 +93,7 @@ function start(service: Service): void {
 
 ### Resolve an extension method access
 
-A selected extension call retains the concrete extension member identity.
+An extension call identifies its extension method.
 
 ```ds main.ds
 struct Calculator {}
@@ -118,7 +118,7 @@ function total(calculator: Calculator): int32 {
 
 ### Resolve an associated constant access
 
-A selected associated constant retains its member identity.
+An associated constant identifies its member declaration.
 
 ```ds main.ds
 struct Buffer {
@@ -137,7 +137,7 @@ const width = Buffer.Width;
 
 ### Resolve an enum member access
 
-An enum member occurrence retains its selected member identity.
+An enum member occurrence identifies its member declaration.
 
 ```ds main.ds
 enum Color {
@@ -154,7 +154,7 @@ const color = Color.Red;
 
 ### Resolve a tagged variant access
 
-A tagged construction retains the generated variant represented by its authored case name.
+A tagged construction identifies its variant declaration.
 
 ```ds main.ds
 @derive(Tagged)
@@ -189,7 +189,7 @@ struct Point {
 
 ### Resolve a type parameter reference
 
-A generic type reference retains its local parameter identity.
+A generic type reference identifies its local parameter.
 
 ```ds main.ds
 function identity<T>(value: T): T {
@@ -204,7 +204,7 @@ function identity<T>(value: T): T {
 
 ### Resolve a type parameter in a template literal
 
-A type parameter inside a template literal retains its local parameter identity.
+A type parameter inside a template literal identifies its local parameter.
 
 ```ds main.ds
 type Route<T extends string> = `api:${T}`;
@@ -217,7 +217,7 @@ type Route<T extends string> = `api:${T}`;
 
 ### [ignored] Resolve a comptime type parameter
 
-A comptime type parameter retains its local parameter identity.
+A comptime type parameter identifies its local parameter.
 
 ```ds main.ds
 type Buffer<comptime size: usize> = [uint8; size];
@@ -249,7 +249,7 @@ const value = left;
 
 ### [ignored] Resolve a match binding
 
-A match-arm name retains its arm-local identity.
+A match-arm name identifies its arm-local binding.
 
 ```ds main.ds
 declare const pair: (int32, int32);
@@ -282,9 +282,9 @@ const point = { horizontal };
 
 ## Overloads
 
-### Resolve the selected overload at a call
+### Resolve the matching overload at a call
 
-Rename preparation retains the overload declaration selected by checking.
+Rename preparation identifies the overload that accepts the call.
 
 ```ds main.ds
 function parse(value: int32): int32 {
@@ -326,7 +326,7 @@ const user = new User("Ada");
 
 ### [ignored] Resolve a control label reference
 
-A targeted break retains the exact enclosing label identity.
+A targeted break identifies its enclosing label.
 
 ```ds main.ds
 function choose(): int32 {
@@ -362,7 +362,7 @@ const query = sql`select ${1}`;
 
 ### Resolve a comptime call
 
-A comptime call retains the called function identity.
+A comptime call identifies the called function.
 
 ```ds main.ds
 function build(): int32 {
@@ -397,7 +397,7 @@ class Service {}
 
 ### Resolve a parameter annotation
 
-An annotation on a parameter retains the annotation value identity.
+An annotation on a parameter identifies the annotation value.
 
 ```ds main.ds
 newtype tracked = ();
@@ -452,7 +452,7 @@ welcome();
 
 ### Resolve a namespace import alias
 
-A namespace receiver retains the local import alias identity.
+A namespace receiver identifies its local import alias.
 
 ```ds library.ds
 export function ping(): void {}
@@ -511,7 +511,7 @@ declare const settings: Settings;
 
 ### Resolve the imported side of an alias
 
-The source name of an aliased import retains the exported symbol identity.
+The source name of an aliased import identifies the exported symbol.
 
 ```ds library.ds
 export function greet(): void {}
@@ -530,7 +530,7 @@ welcome();
 
 ### [ignored] Resolve a namespace re-export alias
 
-A namespace re-export alias retains one identity through a named import.
+A namespace re-export alias has one identity through a named import.
 
 ```ds base.ds
 export function ping(): void {}
@@ -610,9 +610,9 @@ class User {
 @rename_target.none
 ```
 
-### Reject a union member shared by unrelated declarations
+### [ignored] Reject a union member shared by unrelated declarations
 
-A shared occurrence with multiple exact member identities has no unambiguous rename target.
+A shared occurrence with multiple member identities has no unambiguous rename target.
 
 ```ds main.ds
 class Alpha {
@@ -652,7 +652,7 @@ function main(): void {
 
 ### [ignored] Resolve an associated type projection
 
-An associated type projection retains the selected member identity.
+An associated type projection identifies its member declaration.
 
 ```ds main.ds
 interface Envelope<T extends string> {

@@ -25,7 +25,7 @@ function total(left: int32, right: int32): int32 {
 
 ### Extract a subexpression
 
-A selected subexpression becomes a binding before its containing statement.
+A subexpression becomes a binding before its containing statement.
 
 ```ds main.ds
 function total(left: int32, right: int32): int32 {
@@ -109,7 +109,7 @@ const value = 10 + 20;
 
 ### Extract a call argument
 
-The new binding stays in the selected call's statement scope.
+The new binding stays in the call's statement scope.
 
 ```ds main.ds
 function consume(value: int32): void {}

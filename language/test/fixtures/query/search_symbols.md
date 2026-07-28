@@ -73,7 +73,7 @@ function completionEngine(): void {}
 
 ### Rank exact, prefix, then substring matches
 
-The response retains the search index's relevance order.
+The response follows relevance order.
 
 ```ds main.ds
 export function orbit(): void {}
@@ -178,7 +178,7 @@ function matched(): void {}
 
 ### Order identical symbols by their source module
 
-Equal names and kinds retain deterministic module order.
+Equal names and kinds follow deterministic module order.
 
 ```ds alpha.ds
 export function render(): void {}
@@ -220,7 +220,7 @@ class AlphaContainer {
 
 ### Return members with their containers
 
-Member results retain the owning nominal type.
+Member results include the owning nominal type.
 
 ```ds main.ds
 class Logger {
@@ -237,7 +237,7 @@ class Logger {
 
 ### Return enum variants with their containers
 
-Enum variants retain their owning enum.
+Enum variants include their owning enum.
 
 ```ds main.ds
 enum Color {
@@ -252,7 +252,7 @@ enum Color {
 
 ### Distinguish fields and properties
 
-Member results retain their editor-facing declaration kinds.
+Member results use their editor-facing declaration kinds.
 
 ```ds main.ds
 class Meter {
@@ -278,7 +278,7 @@ class Meter {
 
 ### Return non-exported module declarations
 
-Workspace search includes named module declarations regardless of export visibility.
+Program search includes named module declarations regardless of export visibility.
 
 ```ds main.ds
 function internalSearch(): void {}
@@ -291,7 +291,7 @@ function internalSearch(): void {}
 
 ### Omit local bindings and parameters
 
-Function parameters and body-local bindings do not participate in workspace search.
+Function parameters and body-local bindings do not participate in program search.
 
 ```ds main.ds
 function calculate(searchInput: int32): int32 {
@@ -310,7 +310,7 @@ function calculate(searchInput: int32): int32 {
 
 ### Omit import bindings
 
-Search returns the declaring workspace symbol without duplicating an importing binding.
+Search returns the declaring symbol without duplicating an importing binding.
 
 ```ds library.ds
 export function externalSearch(): void {}
@@ -408,7 +408,7 @@ export extension SearchExtension of SearchSubject {}
 
 ### Distinguish constants and variables
 
-Top-level value declarations retain their mutability-derived editor kinds.
+Top-level value declarations use mutability-derived editor kinds.
 
 ```ds main.ds
 export const searchValue = 1;

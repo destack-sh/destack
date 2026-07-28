@@ -27,7 +27,7 @@ callee();
 
 ### Return the same method item from its declaration and calls
 
-A method name and every statically selected call identify the same qualified callable declaration.
+A method name and its calls identify the same qualified declaration.
 
 ```ds main.ds
 class Service {
@@ -85,9 +85,9 @@ localTarget();
 
 ## Overloads
 
-### Return the selected overload
+### Return the matching overload
 
-Each call identifies the exact overload selected by checking.
+Each call identifies the overload that accepts its argument.
 
 ```ds main.ds
 function parse(value: int32): int32 {
@@ -120,9 +120,9 @@ const stringValue = parse("ok");
 
 ## Generic Functions
 
-### Retain the declared generic call shape
+### Return the declared generic function
 
-A generic declaration and a concrete call identify the same generic callable item.
+A generic declaration and an applied call identify the same generic callable item.
 
 ```ds main.ds
 function identity<T>(value: T): T {
@@ -146,9 +146,9 @@ const result = identity<string>("value");
 
 ## Extensions
 
-### Return the selected extension method
+### Return an extension method
 
-An extension call identifies the concrete extension member selected by checking.
+An extension call identifies its method declaration.
 
 ```ds main.ds
 struct Calculator {}
@@ -177,9 +177,9 @@ calculator.add(1, 2);
 
 ## Class Constructors
 
-### Return the declared constructor selected by construction
+### Return a declared constructor
 
-An explicit constructor declaration and every construction that selects it identify the same constructor member.
+A constructor declaration and its constructions identify the same constructor member.
 
 ```ds main.ds
 class User {
@@ -203,7 +203,7 @@ const user = new User("Ada");
 
 ### Return the class item for a default constructor
 
-A class without an authored constructor owns its implicit default construction item.
+A class without a constructor declaration owns its default construction item.
 
 ```ds main.ds
 class User {}
@@ -224,9 +224,23 @@ const user = new User();
 
 ## Newtype Constructors
 
-### Return the newtype construction item
+### [ignored] Return a newtype constructor from its declaration
 
-A newtype declaration and its construction identify the same nominal constructor.
+A newtype declaration identifies its constructor family.
+
+```ds main.ds
+newtype UserId = string;
+^^^^^^^^^^^^^^^^^^^^^^^ declaration
+        ^^^^^^ name
+```
+
+```query call_item main.ds#name
+@call_item.item name=UserId kind=constructor detail="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
+```
+
+### Return a newtype constructor from its construction
+
+A newtype construction identifies its constructor.
 
 ```ds main.ds
 newtype UserId = string;
@@ -237,19 +251,15 @@ const userId = UserId("user-1");
                ^^^^^^ call
 ```
 
-```query call_item main.ds#name
-@call_item.item name=UserId kind=constructor detail="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
-```
-
 ```query call_item main.ds#call
 @call_item.item name=UserId kind=constructor detail="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
 ```
 
 ## Tagged Variant Constructors
 
-### [ignored] Return a generated tagged variant item from its declaration
+### [ignored] Return a tagged variant constructor from its declaration
 
-An authored tagged variant identifies its generated nominal constructor.
+A tagged variant declaration identifies its constructor.
 
 ```ds main.ds
 @derive(Tagged)
@@ -262,9 +272,9 @@ newtype Status = Ok<string>;
 @call_item.item name=Ok kind=constructor detail="Status.Ok({ value: string }): Status" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Ok@3
 ```
 
-### [ignored] Return a generated tagged variant item from its construction
+### [ignored] Return a tagged variant constructor from its construction
 
-A checked tagged construction identifies its exact generated nominal constructor.
+A tagged construction identifies its variant constructor.
 
 ```ds main.ds
 @derive(Tagged)
@@ -284,7 +294,7 @@ const status = Status.Ok({ value: "ready" });
 
 ### Return no item for a function-valued binding
 
-A function-valued variable is not substituted for the callable identity that may flow through it.
+Calling through a variable does not identify a declaration-backed item.
 
 ```ds main.ds
 function callee(): void {}
@@ -300,7 +310,7 @@ callback();
 
 ## Union Dispatch
 
-### Return no item when a call has multiple exact targets
+### Return no item when a call has multiple targets
 
 A union receiver can select a finite set of methods, but it does not identify one hierarchy item.
 

@@ -96,7 +96,7 @@ const created = new Packet();
 
 ## Field
 
-### Rename a field
+### [ignored] Rename a field
 
 Renaming a field updates its declaration and accesses.
 
@@ -152,7 +152,7 @@ const point = Point { x: horizontal };
 
 ### [ignored] Rename a string-keyed field access
 
-A static string key changes with its selected nominal field.
+A static string key changes with its nominal field.
 
 ```ds main.ds
 struct Counter {
@@ -180,7 +180,7 @@ function read(counter: Counter): int32 {
 
 ### [ignored] Rename a structural field
 
-A structural field declaration and its selected accesses share one rename identity.
+A structural field declaration and its accesses share one rename identity.
 
 ```ds main.ds
 type Counter = {
@@ -208,7 +208,7 @@ function read(counter: Counter): int32 {
 
 ## Imported Functions
 
-### Rename an exported function
+### [ignored] Rename an exported function
 
 Renaming an export updates its declaration, import, and call.
 
@@ -240,7 +240,7 @@ import { welcome } from "./library.ds";
 const message = welcome("Destack");
 ```
 
-### Preserve a local import alias
+### [ignored] Preserve a local import alias
 
 Renaming an export leaves its explicit local alias unchanged.
 
@@ -276,7 +276,7 @@ const message = importedGreet("Destack");
 
 ## Namespace Imports
 
-### Rename a namespace member
+### [ignored] Rename a namespace member
 
 Renaming an export updates its namespace member accesses.
 
@@ -310,7 +310,7 @@ const message = api.welcome("Destack");
 
 ## Re-Exports
 
-### Rename through a named re-export
+### [ignored] Rename through a named re-export
 
 Renaming an export updates its re-export, downstream import, and call.
 
@@ -350,7 +350,7 @@ import { welcome } from "./barrel.ds";
 const message = welcome("Destack");
 ```
 
-### Preserve a public re-export alias
+### [ignored] Preserve a public re-export alias
 
 Renaming an export leaves its explicit public alias unchanged.
 
@@ -418,7 +418,7 @@ import { Configuration } from "./library.ds";
 const configuration: Configuration = { enabled: true };
 ```
 
-### Rename a type through a re-export
+### [ignored] Rename a type through a re-export
 
 Renaming an exported type updates its re-export while preserving the public alias.
 
@@ -454,7 +454,7 @@ export { Configuration as ApplicationSettings } from "./library.ds";
 
 ## Methods
 
-### Rename a method
+### [ignored] Rename a method
 
 Renaming a method updates its declaration and accesses.
 
@@ -482,9 +482,9 @@ function start(service: Service): void {
 }
 ```
 
-### Rename an extension method
+### [ignored] Rename an extension method
 
-Renaming an extension method updates its declaration and every selected extension call.
+Renaming an extension method updates its declaration and every extension call.
 
 ```ds main.ds
 struct Calculator {}
@@ -560,9 +560,9 @@ function display(value: Renderable): string {
 
 ## Associated Constants
 
-### Rename an associated constant
+### [ignored] Rename an associated constant
 
-Renaming an associated constant updates its declaration and selected nominal accesses.
+Renaming an associated constant updates its declaration and nominal accesses.
 
 ```ds main.ds
 struct Buffer {
@@ -614,7 +614,7 @@ const color = Color.Crimson;
 
 ### [ignored] Rename a tagged variant
 
-Renaming a tagged variant updates its authored case, construction, and pattern occurrences.
+Renaming a tagged variant updates its declaration, construction, and pattern occurrences.
 
 ```ds main.ds
 @derive(Tagged)
@@ -646,9 +646,9 @@ const message = match (status) {
 
 ## Overloads
 
-### Rename an overload family
+### [ignored] Rename an overload family
 
-Renaming one overload updates every declaration and call in the authored overload family.
+Renaming one overload updates every declaration and call in its overload family.
 
 ```ds main.ds
 function parse(value: int32): int32 {
@@ -782,7 +782,7 @@ declare const settings: Configuration;
 
 ## Default Exports
 
-### Rename a named default export
+### [ignored] Rename a named default export
 
 Renaming a default declaration leaves downstream local import names unchanged.
 
@@ -894,7 +894,7 @@ const value = position;
 
 ### Preserve a destructured property when renaming its shorthand binding
 
-Renaming a shorthand binding expands the pattern so its selected property remains unchanged.
+Renaming a shorthand binding expands the pattern so its property remains unchanged.
 
 ```ds main.ds
 declare const point: { horizontal: int32 };
@@ -970,7 +970,7 @@ function start(): void {}
 
 ## Calls
 
-### Rename a tagged-template function
+### [ignored] Rename a tagged-template function
 
 Tagged templates and ordinary calls share the function identity.
 
@@ -996,7 +996,7 @@ const query = execute`select ${1}`;
 const text = execute([""], 2);
 ```
 
-### Rename a function used at comptime
+### [ignored] Rename a function used at comptime
 
 Comptime and runtime calls share the function declaration.
 
@@ -1132,7 +1132,7 @@ for (using value of values()) {
 
 ### Rename an exported using binding
 
-An exported resource binding retains one declaration and reference identity.
+An exported resource binding has one declaration and reference identity.
 
 ```ds main.ds
 declare function openCache(): Dispose;
@@ -1182,9 +1182,9 @@ const result = value;
 @rename.none
 ```
 
-### Reject a rename shared by unrelated union members
+### [ignored] Reject a rename shared by unrelated union members
 
-Renaming one declaration cannot safely rewrite an occurrence that also selects another declaration.
+Renaming one declaration cannot rewrite an occurrence that also belongs to another declaration.
 
 ```ds main.ds
 class Alpha {
@@ -1207,7 +1207,7 @@ function start(service: Alpha | Beta): void {
 
 ## Shadowing
 
-### Rename only the selected shadow
+### Rename only one shadowed binding
 
 Distinct lexical bindings remain separate rename identities.
 

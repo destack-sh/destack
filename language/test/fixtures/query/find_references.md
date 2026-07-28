@@ -28,7 +28,7 @@ const second = value;
 
 ### Find read and write occurrences
 
-Assignments and reads retain the same lexical identity.
+Assignments and reads share one lexical identity.
 
 ```ds main.ds
 let value = 0;
@@ -81,7 +81,7 @@ const second = greet("two");
 
 ### Find field occurrences
 
-Field references include the declaration and every selected access.
+Field references include the declaration and every access.
 
 ```ds main.ds
 struct Point {
@@ -151,9 +151,9 @@ welcome();
 
 ## Shadowing
 
-### Find only the selected lexical binding
+### Find only one shadowed binding
 
-Shadowed names retain separate reference identities.
+Shadowed names have separate reference identities.
 
 ```ds main.ds
 const value = 1;
@@ -177,7 +177,7 @@ const outer = value;
 
 ### Find method occurrences
 
-Method references include the declaration and every selected call.
+Method references include the declaration and every call.
 
 ```ds main.ds
 class Service {
@@ -201,7 +201,7 @@ function start(service: Service): void {
 
 ### Find extension method occurrences
 
-Extension calls retain the selected extension member identity.
+Extension calls belong to their extension method.
 
 ```ds main.ds
 struct Calculator {}
@@ -228,7 +228,7 @@ function total(calculator: Calculator): int32 {
 
 ### Find associated constant occurrences
 
-Associated constant accesses retain the selected member identity.
+Associated constant accesses belong to their member declaration.
 
 ```ds main.ds
 struct Buffer {
@@ -248,9 +248,9 @@ const second = Buffer.Width;
 @find_references.reference location=main.ds#second_reference symbol=main.ds#Width@2
 ```
 
-### Retain every exact target of a union member access
+### Find every target of a union member access
 
-A union receiver contributes the shared occurrence to each member selected by checking.
+A union member access belongs to every member declaration it can reach.
 
 ```ds main.ds
 class Alpha {
@@ -289,7 +289,7 @@ function start(service: Alpha | Beta): void {
 
 ### Find enum member occurrences
 
-Enum member references retain the selected variant identity.
+Enum member references belong to their variant declaration.
 
 ```ds main.ds
 enum Color {
@@ -311,7 +311,7 @@ const second = Color.Red;
 
 ### [ignored] Find tagged variant occurrences
 
-Tagged construction and pattern selection retain the generated variant identity.
+Tagged construction and patterns belong to their variant declaration.
 
 ```ds main.ds
 @derive(Tagged)
@@ -358,9 +358,9 @@ const created = new User();
 
 ## Overloads
 
-### Find only occurrences of the selected overload
+### Find only occurrences of one overload
 
-Each overload declaration owns the calls selected against that declaration.
+Each overload declaration owns only the calls that match it.
 
 ```ds main.ds
 function parse(value: int32): int32 {
@@ -412,7 +412,7 @@ function identity<T>(value: T): T {
 
 ### Find a type parameter inside a template literal type
 
-Template literal spans retain their generic parameter references.
+Template literal types include their generic parameter references.
 
 ```ds main.ds
 type Route<T extends string> = `api:${T}`;
@@ -427,7 +427,7 @@ type Route<T extends string> = `api:${T}`;
 
 ### Find a comptime function parameter
 
-A comptime parameter retains its lexical identity inside the function body.
+A comptime parameter has one lexical identity inside the function body.
 
 ```ds main.ds
 function createBuffer<comptime size: int32>(): int32 {
@@ -444,7 +444,7 @@ function createBuffer<comptime size: int32>(): int32 {
 
 ### [ignored] Find a comptime type parameter
 
-A comptime parameter retains its lexical identity inside the declared type.
+A comptime parameter has one lexical identity inside the declared type.
 
 ```ds main.ds
 type Buffer<comptime size: usize> = [uint8; size];
@@ -461,7 +461,7 @@ type Buffer<comptime size: usize> = [uint8; size];
 
 ### Find destructured binding occurrences
 
-A destructured binding retains its own lexical reference set.
+A destructured binding has its own lexical reference set.
 
 ```ds main.ds
 const pair = { left: 1, right: 2 };
@@ -549,7 +549,7 @@ const second = sql(["select"], 2);
 
 ### Find comptime call occurrences
 
-Comptime and runtime calls retain the same function identity.
+Comptime and runtime calls share the same function identity.
 
 ```ds main.ds
 function scale(value: int32): int32 {
@@ -614,7 +614,7 @@ function start(): void {}
 
 ### Find decorator occurrences across attachment positions
 
-A decorator retains one identity across every supported attachment position.
+A decorator has one identity across every supported attachment position.
 
 ```ds main.ds
 newtype tracked = ();
@@ -699,7 +699,7 @@ async function run(): void {
 
 ### Find a for-using binding
 
-A for-using declaration retains one lexical identity inside the loop body.
+A for-using declaration has one lexical identity inside the loop body.
 
 ```ds main.ds
 declare function values(): Dispose[];
@@ -718,7 +718,7 @@ for (using item of values()) {
 
 ### Find an exported using binding
 
-An exported using declaration retains its local lexical identity.
+An exported using declaration keeps its local lexical identity.
 
 ```ds main.ds
 declare function openCache(): Dispose;
@@ -767,7 +767,7 @@ declare const second: Options;
 
 ### Find namespace import alias occurrences
 
-A namespace import alias retains a local declaration and receiver references.
+A namespace import alias has a local declaration and receiver references.
 
 ```ds library.ds
 export function ping(): void {}
@@ -846,7 +846,7 @@ const value = buildWidget();
 
 ### Find references through a named re-export
 
-A named export retains the original symbol through the re-export, import, and call.
+A named export preserves the original symbol through the re-export, import, and call.
 
 ```ds library.ds
 export function greet(): void {}
@@ -875,7 +875,7 @@ greet();
 
 ### [ignored] Find a namespace re-export alias
 
-A namespace re-export alias retains one identity through imports and local uses.
+A namespace re-export alias has one identity through imports and local uses.
 
 ```ds base.ds
 export function ping(): void {}
@@ -908,7 +908,7 @@ const same = api;
 
 ### [ignored] Find associated type occurrences
 
-An associated declaration includes each selected type projection.
+An associated declaration includes each type projection that names it.
 
 ```ds main.ds
 interface Envelope<T extends string> {

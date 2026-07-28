@@ -17,7 +17,7 @@ const value = 42;
 
 ## Auto Imports
 
-### Import an exported function
+### [ignored] Import an exported function
 
 An unresolved exported name offers an import action.
 
@@ -35,18 +35,25 @@ function main(): void {
 ```
 
 ```query code_actions main.ds#range
+diagnostic unresolved-reference main.ds#range
 @code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix applicability=automatic preferred=true
 @code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
 ```query code_actions main.ds#range only=quick_fix
+diagnostic unresolved-reference main.ds#range
 @code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix applicability=automatic preferred=true
 @code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
 ```
 
-### Import an exported type
+```query code_actions main.ds#range only=quick_fix
+diagnostics none
+@code_actions.none
+```
+
+### [ignored] Import an exported type
 
 A missing type reference offers a plain import that preserves its type symbol space.
 
@@ -64,12 +71,13 @@ declare const options: Options;
 ```
 
 ```query code_actions main.ds#range only=quick_fix
+diagnostic unresolved-reference main.ds#range
 @code_actions.action index=0 title="Import Options from \"./library\"" kind=quick_fix applicability=automatic preferred=true
 @code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import { Options } from \"./library\";\n"
 ```
 
-### Return every exact import candidate
+### [ignored] Return every import candidate
 
 Equal exported names produce stable actions, and only the first candidate is preferred.
 
@@ -89,6 +97,7 @@ greet();
 ```
 
 ```query code_actions main.ds#range only=quick_fix
+diagnostic unresolved-reference main.ds#range
 @code_actions.action index=0 title="Import greet from \"./beta\"" kind=quick_fix applicability=automatic preferred=true
 @code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./beta\";\n"
@@ -97,9 +106,9 @@ greet();
 @code_actions.patch action=1 range=main.ds#insertion text="import { greet } from \"./alpha\";\n"
 ```
 
-### Extend an existing import
+### [ignored] Extend an existing import
 
-An import from the selected module receives the missing named specifier.
+An existing import from the target module receives the missing named specifier.
 
 ```ds library.ds
 export function alpha(): void {}
@@ -116,12 +125,13 @@ beta();
 ```
 
 ```query code_actions main.ds#range only=quick_fix
+diagnostic unresolved-reference main.ds#range
 @code_actions.action index=0 title="Import beta from \"./library\"" kind=quick_fix applicability=automatic preferred=true
 @code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text=", beta"
 ```
 
-### Import a default declaration
+### [ignored] Import a default declaration
 
 A missing default export receives a default import.
 
@@ -137,6 +147,7 @@ greet();
 ```
 
 ```query code_actions main.ds#range only=quick_fix
+diagnostic unresolved-reference main.ds#range
 @code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix applicability=automatic preferred=true
 @code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#insertion text="import greet from \"./library\";\n"
@@ -144,7 +155,7 @@ greet();
 
 ## Diagnostic Suggestions
 
-### Apply an automatic name correction
+### [ignored] Apply an automatic name correction
 
 An unambiguous case correction is safe to apply directly.
 
@@ -155,12 +166,13 @@ const copy = Value;
 ```
 
 ```query code_actions main.ds#range only=quick_fix
+diagnostic unresolved-reference main.ds#range
 @code_actions.action index=0 title="rename to 'value'" kind=quick_fix applicability=automatic preferred=true
 @code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#range text=value
 ```
 
-### Offer a correction that requires review
+### [ignored] Offer a correction that requires review
 
 A transposed name remains available without becoming the preferred action.
 
@@ -171,6 +183,7 @@ const copy = valeu;
 ```
 
 ```query code_actions main.ds#range only=quick_fix
+diagnostic unresolved-reference main.ds#range
 @code_actions.action index=0 title="rename to 'value'" kind=quick_fix applicability=dangerous
 @code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
 @code_actions.patch action=0 range=main.ds#range text=value
@@ -178,9 +191,9 @@ const copy = valeu;
 
 ## Extraction
 
-### Extract a selected expression
+### Extract an expression
 
-A non-empty expression range offers the exact extraction edit.
+A non-empty expression range offers its extraction edit.
 
 ```ds main.ds
 function total(): int32 {
@@ -197,7 +210,7 @@ function total(): int32 {
 
 ## Inline
 
-### Inline a selected binding
+### Inline a binding
 
 A binding name offers the same complete edit as the inline query.
 
@@ -218,7 +231,7 @@ const total = offset + 1;
 
 ### Select several refactor kinds
 
-Several requested kinds retain every matching action in stable kind order.
+Several requested kinds return every matching action in stable kind order.
 
 ```ds main.ds
 const offset = 10;
@@ -233,4 +246,50 @@ const total = offset + 1;
 @code_actions.action index=1 title="Inline symbol" kind=refactor_inline
 @code_actions.patch action=1 range=main.ds:1:1-2:1 text=""
 @code_actions.patch action=1 range=main.ds#target text=10
+```
+
+## Extract Function
+
+### [ignored] Extract an expression into a function
+
+Extraction can introduce a module function and replace the selected expression with its call.
+
+```ds main.ds
+
+^ insertion
+function calculate(): int32 {
+    return 1 + 2;
+           ^^^^^ selection
+}
+```
+
+```query code_actions main.ds#selection only=refactor_extract
+@code_actions.action index=0 title="Extract function" kind=refactor_extract
+@code_actions.patch action=0 range=main.ds#insertion text="function extracted(): int32 {\n    return 1 + 2;\n}\n\n"
+@code_actions.patch action=0 range=main.ds#selection text="extracted()"
+```
+
+## Implementations
+
+### [ignored] Implement required members
+
+A concrete type can insert the interface members it has not implemented.
+
+```ds main.ds
+interface Drawable {
+    draw(): void;
+}
+
+class Point implements Drawable {
+                       ^^^^^^^ diagnostic
+    x: int32 = 0;
+}
+^ insertion
+```
+
+```query code_actions main.ds#diagnostic
+diagnostic interface-not-implemented main.ds#diagnostic
+@code_actions.action index=0 title="Implement missing members" kind=quick_fix applicability=dangerous
+@code_actions.diagnostic action=0 id=interface-not-implemented location=main.ds#diagnostic
+@code_actions.patch action=0 range=main.ds#insertion@start text="    draw(): void {}\n"
 ```

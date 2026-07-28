@@ -30,7 +30,7 @@ const count: int32 = 1;
 
 ### Show every inferred binding in the range
 
-Hints retain source order across multiple declarators.
+Hints follow source order across multiple declarators.
 
 ```ds main.ds
 const first = 1, second = 2;
@@ -61,7 +61,7 @@ const pet = new Dog();
 
 ### [ignored] Show an applied generic type
 
-An inferred generic value retains its selected type arguments.
+An inferred generic value displays its applied type arguments.
 
 ```ds main.ds
 struct Box<Value> {
@@ -78,7 +78,7 @@ const box = Box<string> { value: "ready" };
 
 ### Show an inferred union type
 
-An inferred branch value retains every checked union member.
+An inferred branch value displays every union member.
 
 ```ds main.ds
 struct Circle {}
@@ -178,11 +178,28 @@ const result = identity(1);
 @inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
 ```
 
+### Disable every hint family
+
+Disabling every hint family returns no hints.
+
+```ds main.ds
+function identity(value: int32): int32 {
+    return value;
+}
+
+const result = identity(1);
+^^^^^^^^^^^^^^^^^^^^^^^^^^^ call
+```
+
+```query inlay_hints main.ds#call type_hints=false parameter_hints=false
+@inlay_hints.none
+```
+
 ## Call Arguments
 
 ### Show parameter names for local call arguments
 
-Call arguments receive names from the selected callable.
+Call arguments receive names from their callable.
 
 ```ds main.ds
 function add(left: int32, right: int32): int32 {
@@ -204,7 +221,7 @@ const result = add(1, 2);
 
 ### Show parameter names for callable values
 
-Calls through inferred callable bindings retain the lambda parameter names.
+Calls through inferred callable bindings use the lambda parameter names.
 
 ```ds main.ds
 const transform = (value: int32): int32 => value;
@@ -220,7 +237,7 @@ transform(1);
 
 ### Show parameter names for imported call arguments
 
-Imported call arguments retain parameter names from the defining module.
+Imported call arguments use parameter names from the defining module.
 
 ```ds library.ds
 export function paint(color: string, coats: int32): void {}
@@ -242,7 +259,7 @@ paint("blue", 2);
 
 ### Show parameter names for method arguments
 
-Method arguments use names from the selected method.
+Method arguments use names from their method.
 
 ```ds main.ds
 class Greeter {
@@ -265,7 +282,7 @@ const message = greeter.greet("World");
 
 ### Show parameter names for extension arguments
 
-Extension calls use the parameter names from the selected extension member.
+Extension calls use the parameter names from their extension method.
 
 ```ds main.ds
 struct Buffer {}
@@ -286,9 +303,9 @@ buffer.read(4, 8);
 @inlay_hints.hint position=main.ds#length_argument label="length:" kind=parameter padding_right=true
 ```
 
-### Use the selected overload parameter
+### Use the matching overload parameter
 
-Overload calls use only the exact callable selected by checking.
+Overload calls use the parameters of the matching declaration.
 
 ```ds main.ds
 function parse(number: int32): int32 {
@@ -308,9 +325,9 @@ parse("one");
 @inlay_hints.hint position=main.ds#argument label="text:" kind=parameter padding_right=true
 ```
 
-### Use selected generic parameter names
+### Use generic parameter names
 
-Generic instantiation preserves the authored parameter name.
+Generic instantiation preserves the declared parameter name.
 
 ```ds main.ds
 function identity<Value>(value: Value): Value {
@@ -330,7 +347,7 @@ const result = identity("ready");
 
 ### Show one rest parameter for every bound argument
 
-Arguments bound into a rest parameter share its authored name.
+Arguments bound into a rest parameter share its declared name.
 
 ```ds main.ds
 function sum(first: int32, ...values: int32[]): int32 {
@@ -422,7 +439,7 @@ add(...arguments);
 
 ### Omit an ambiguous union parameter name
 
-When exact union call targets disagree on the parameter name, no name is invented.
+When union call targets disagree on a parameter name, no name is invented.
 
 ```ds main.ds
 struct TextSink {
@@ -445,7 +462,7 @@ function write(sink: TextSink | MessageSink): void {
 
 ### Show parameter names through namespace imports
 
-Namespace member calls retain the selected exported parameter names.
+Namespace member calls use the exported parameter names.
 
 ```ds library.ds
 export function paint(color: string, coats: int32): void {}
@@ -467,7 +484,7 @@ library.paint("blue", 2);
 
 ### Show parameter names through re-exports
 
-Re-export aliases retain the declared callable parameter names.
+Re-export aliases use the declared callable parameter names.
 
 ```ds library.ds
 export default function scale(value: int32, factor: int32): int32 {
@@ -495,7 +512,7 @@ scale(2, 3);
 
 ### Show parameter names through a default import
 
-Default import aliases retain the declaration's authored parameters.
+Default import aliases use the declaration's parameter names.
 
 ```ds library.ds
 export default function repeat(text: string, count: uint): string {
@@ -521,7 +538,7 @@ repeat("ready", 2);
 
 ### Show class constructor parameter names
 
-Class construction uses parameters from the selected constructor.
+Class construction uses parameters from its constructor.
 
 ```ds main.ds
 class User {
@@ -541,9 +558,9 @@ const user = new User("Ada", 42);
 @inlay_hints.hint position=main.ds#age_argument label="age:" kind=parameter padding_right=true
 ```
 
-### Show a newtype backing value parameter
+### Omit parameter hints for newtype construction
 
-Newtype construction exposes its single checked value parameter.
+A newtype constructor has no declared parameter name to display.
 
 ```ds main.ds
 newtype UserId = string;
@@ -551,12 +568,10 @@ newtype UserId = string;
 const userId = UserId("user-1");
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ construction
       ^^^^^^ user_id
-                      ^^^^^^^^ argument
 ```
 
 ```query inlay_hints main.ds#construction
 @inlay_hints.hint position=main.ds#user_id@end label=": UserId" kind=type
-@inlay_hints.hint position=main.ds#argument label="value:" kind=parameter padding_right=true
 ```
 
 ### Omit a tagged payload hint without a parameter name

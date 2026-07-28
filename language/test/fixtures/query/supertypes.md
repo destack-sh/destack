@@ -42,7 +42,7 @@ class Document extends Base implements Readable, Writable {}
 
 ### Return only direct parents
 
-Hierarchy expansion advances one authored edge at a time.
+Hierarchy expansion advances one declared edge at a time.
 
 ```ds main.ds
 class Root {}
@@ -60,7 +60,7 @@ class Leaf extends Middle {}
 
 ### Find an implemented interface
 
-An implementing class retains its direct interface edge.
+An implementing class returns its direct interface edge.
 
 ```ds main.ds
 interface Animal {}
@@ -76,7 +76,7 @@ class Dog implements Animal {}
 
 ### Find an extended interface
 
-An extending interface retains its direct interface edge.
+An extending interface returns its direct interface edge.
 
 ```ds main.ds
 interface Base {}
@@ -92,7 +92,7 @@ interface Derived extends Base {}
 
 ### Return multiple extended interfaces in declaration order
 
-An interface retains each direct parent in the order it was declared.
+An interface returns each direct parent in declaration order.
 
 ```ds main.ds
 interface Readable {}
@@ -111,7 +111,7 @@ interface Document extends Readable, Writable {}
 
 ### Find the parent of a nominal interface
 
-Nominal interfaces participate in the same authored interface hierarchy.
+Nominal interfaces participate in the same interface hierarchy.
 
 ```ds main.ds
 newtype interface PartialEqual {}
@@ -129,7 +129,7 @@ newtype interface Equal extends PartialEqual {}
 
 ### Find interfaces implemented by structs and enums
 
-Structs and enums retain their direct authored implementation edges.
+Structs and enums return their direct implementation edges.
 
 ```ds main.ds
 interface Display {}
@@ -170,7 +170,7 @@ extension of UserId implements Display {}
 
 ## Generics
 
-### Retain generic declaration details
+### Include generic declaration details
 
 Hierarchy items display the generic parameters of their declarations.
 

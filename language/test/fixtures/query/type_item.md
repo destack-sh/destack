@@ -77,7 +77,7 @@ interface Drawable {}
 
 ### Return a nominal interface item
 
-A newtype interface retains its distinct nominal interface kind.
+A newtype interface uses its distinct nominal interface kind.
 
 ```ds main.ds
 newtype interface Display {}
@@ -93,7 +93,7 @@ newtype interface Display {}
 
 ### Return a newtype item
 
-A concrete newtype identifies its nominal hierarchy item.
+A newtype identifies its nominal hierarchy item.
 
 ```ds main.ds
 newtype UserId = string;
@@ -121,9 +121,9 @@ struct Box<Value> {}
 @type_item.item name=Box kind=struct detail="<Value>" location=main.ds#declaration selection=main.ds#name symbol=main.ds#Box@1
 ```
 
-### Return the generic declaration from a concrete type use
+### Return the generic declaration from an applied type
 
-A concrete type argument does not replace the nominal hierarchy item.
+An applied type argument does not replace the nominal hierarchy item.
 
 ```ds main.ds
 struct Box<Value> {}

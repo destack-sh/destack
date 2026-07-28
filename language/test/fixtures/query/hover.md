@@ -4,7 +4,7 @@
 
 ### Hover over a function reference
 
-Hover shows the declaration signature at the selected reference.
+Hover shows a declaration signature at its reference.
 
 ```ds main.ds
 function greet(name: string): string {
@@ -22,7 +22,7 @@ const message = greet("Destack");
 
 ### Return the same declaration signature at its definition
 
-Hovering the function name itself reports the authored declaration.
+Hovering a function name reports its declaration.
 
 ```ds main.ds
 function greet(name: string): string {
@@ -35,9 +35,9 @@ function greet(name: string): string {
 @hover.item index=0 signature="function greet(name: string): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#definition
 ```
 
-### Return the selected overload
+### Return the matching overload
 
-A call reports the exact overload selected by checking.
+A call reports the overload that accepts its arguments.
 
 ```ds main.ds
 function parse(value: int32): int32 {
@@ -58,7 +58,7 @@ const value = parse("one");
 
 ### [ignored] Return an overload family
 
-A value reference that names an overload family retains every authored callable declaration.
+A value reference to an overload family reports every declaration.
 
 ```ds main.ds
 function parse(value: int32): int32 {
@@ -78,9 +78,9 @@ const parser = parse;
 @hover.item index=1 signature="function parse(value: string): string" location=main.ds:5:1-7:2 selection=main.ds:5:10-5:15 range=main.ds#reference
 ```
 
-### Include a selected generic instantiation
+### Include an applied generic instantiation
 
-The authored generic signature and selected callable type remain distinct.
+The generic declaration and applied callable type remain distinct.
 
 ```ds main.ds
 function identity<Value>(value: Value): Value {
@@ -98,7 +98,7 @@ const result = identity(name);
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="function identity<Value>(value: Value): Value" type="(arg: string) => string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
+@hover.item index=0 signature="function identity<Value>(value: Value): Value" type="(value: string) => string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
 ```
 
 ## Documentation
@@ -204,7 +204,7 @@ declare const user: UserId;
 
 ### Hover over every remaining nominal declaration kind
 
-Structs, enums, and nominal interfaces retain their distinct declaration signatures.
+Structs, enums, and nominal interfaces report distinct declaration signatures.
 
 ```ds main.ds
 struct Packet {}
@@ -272,7 +272,7 @@ function read(point: Point): int32 {
 
 ### Hover over a method
 
-A selected method reports its container-qualified signature.
+A method reports its container-qualified signature.
 
 ```ds main.ds
 class Service {
@@ -296,7 +296,7 @@ function start(service: Service): void {
 
 ### Hover over an extension method
 
-An extension call reports the selected extension member and target type.
+An extension call reports its method and target type.
 
 ```ds main.ds
 struct Calculator {}
@@ -319,7 +319,7 @@ function total(calculator: Calculator): int32 {
 
 ### Hover over an associated constant
 
-An associated constant access reports its container and checked type.
+An associated constant access reports its container and type.
 
 ```ds main.ds
 struct Buffer {
@@ -336,7 +336,7 @@ const width = Buffer.Width;
 
 ### [ignored] Include method documentation
 
-Method hover includes documentation from the selected member.
+Method hover includes documentation from the member declaration.
 
 ```ds main.ds
 class Service {
@@ -373,7 +373,7 @@ const color = Color.Red;
 
 ### [ignored] Hover over a tagged variant constructor
 
-A tagged case reports the exact generated construction signature selected by checking.
+A tagged case reports its constructor signature.
 
 ```ds main.ds
 @derive(Tagged)
@@ -471,7 +471,7 @@ const result = scale(2, 3);
 
 ### [ignored] Include documentation through a re-export
 
-A re-exported function retains its declaration signature and documentation.
+A re-exported function reports its declaration signature and documentation.
 
 ```ds library.ds
 /// Scale one value.
@@ -497,7 +497,7 @@ const result = scale(2, 3);
 
 ### Hover over a default import
 
-A default import retains the declaration signature from its defining module.
+A default import reports the declaration signature from its defining module.
 
 ```ds library.ds
 export default function greet(name: string): string {
@@ -518,7 +518,7 @@ const message = welcome("Destack");
 
 ### Hover over a namespace member
 
-A namespace member retains the declaration signature from its defining module.
+A namespace member reports the declaration signature from its defining module.
 
 ```ds library.ds
 export function greet(name: string): string {

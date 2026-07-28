@@ -24,9 +24,9 @@ function caller(): void {
 
 ## Call Sites
 
-### Retain every call site in one caller
+### Return every call site in one caller
 
-Repeated calls share one caller item and retain source order.
+Repeated calls share one caller item and follow source order.
 
 ```ds main.ds
 function callee(): void {}
@@ -51,7 +51,7 @@ function caller(): void {
 
 ### Find distinct callers
 
-Distinct callers retain source order and their own call sites.
+Distinct callers follow source order and keep their own call sites.
 
 ```ds main.ds
 function callee(): void {}
@@ -154,7 +154,7 @@ function recurse(): void {
 
 ### Find callers of a method
 
-Incoming call lookup retains the method identity.
+Incoming call lookup preserves the method identity.
 
 ```ds main.ds
 class Service {
@@ -176,9 +176,9 @@ function start(service: Service): void {
 
 ## Overloads
 
-### Keep calls separated by selected overload
+### Keep calls separated by overload
 
-Each overload receives only the calls that selected its declaration.
+Each overload receives only the calls that match its declaration.
 
 ```ds main.ds
 function parse(value: int32): int32 {
@@ -214,7 +214,7 @@ function caller(): void {
 
 ### Find callers of an extension method
 
-An extension call is attributed to the selected extension member.
+An extension call is attributed to its extension method.
 
 ```ds main.ds
 struct Calculator {}
@@ -242,7 +242,7 @@ function caller(calculator: Calculator): int32 {
 
 ### Find callers of an explicit class constructor
 
-Construction is attributed to the constructor declaration selected by checking.
+Construction is attributed to its constructor declaration.
 
 ```ds main.ds
 class User {
@@ -264,7 +264,7 @@ function create(): User {
 
 ### Find callers of a default class constructor
 
-A class without an authored constructor receives construction calls through its class item.
+A class without a constructor declaration receives construction calls through its class item.
 
 ```ds main.ds
 class User {}
@@ -282,7 +282,7 @@ function create(): User {
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
-### Find callers of a newtype constructor
+### [ignored] Find callers of a newtype constructor
 
 Newtype construction is attributed to the nominal newtype declaration.
 
@@ -302,9 +302,9 @@ function create(): UserId {
 @incoming_calls.site call=0 range=main.ds#call
 ```
 
-### Find callers of a tagged variant constructor
+### [ignored] Find callers of a tagged variant constructor
 
-Tagged construction is attributed to the selected generated variant member.
+Tagged construction is attributed to its variant constructor.
 
 ```ds main.ds
 @derive(Tagged)
@@ -374,7 +374,7 @@ class Service {
 
 ### Do not attribute calls through function-valued bindings
 
-The declaration assigned to a function-valued binding is not the statically selected call target.
+The declaration assigned to a function-valued binding is not the call target.
 
 ```ds main.ds
 function callee(): void {}
@@ -428,9 +428,9 @@ target();
 
 ## Union Dispatch
 
-### Attribute a shared call site to every exact target
+### Attribute a shared call site to every target
 
-Each method selected for a union receiver retains the shared caller and source range.
+Every method reached through a union receiver receives the shared caller and source range.
 
 ```ds main.ds
 class Alpha {

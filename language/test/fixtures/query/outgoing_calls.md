@@ -4,7 +4,7 @@
 
 ### Find direct callees
 
-Outgoing calls identify each callee and call site in the selected function.
+Outgoing calls identify each callee and call site in one function.
 
 ```ds main.ds
 function target(): void {}
@@ -26,7 +26,7 @@ function source(): void {
 
 ### Find each direct callee
 
-Distinct callees retain their first call order and exact call sites.
+Distinct callees follow first-call order and include every call site.
 
 ```ds main.ds
 function first(): void {}
@@ -52,9 +52,9 @@ function source(): void {
 
 ## Call Sites
 
-### Retain every call site for one callee
+### Return every call site for one callee
 
-Repeated calls share one callee item and retain source order.
+Repeated calls share one callee item and follow source order.
 
 ```ds main.ds
 function target(): void {}
@@ -80,7 +80,7 @@ function source(): void {
 
 ### Find an imported callee
 
-Outgoing call lookup retains the defining module target.
+Outgoing call lookup preserves the defining-module target.
 
 ```ds library.ds
 export function target(): void {}
@@ -177,7 +177,7 @@ function recurse(): void {
 
 ### Find a called method
 
-Outgoing call lookup retains the method identity.
+Outgoing call lookup preserves the method identity.
 
 ```ds main.ds
 class Service {
@@ -199,9 +199,9 @@ function start(service: Service): void {
 
 ## Overloads
 
-### Return each selected overload
+### Return each matching overload
 
-Calls to overloads retain their exact callable declarations.
+Calls to overloads identify their matching declarations.
 
 ```ds main.ds
 function parse(value: int32): int32 {
@@ -234,7 +234,7 @@ function caller(): void {
 
 ### Return the declared generic callee
 
-A concrete instantiation retains the generic callable declaration.
+An applied generic call identifies the generic callable declaration.
 
 ```ds main.ds
 function identity<T>(value: T): T {
@@ -258,9 +258,9 @@ function caller(): string {
 
 ## Extensions
 
-### Return a selected extension method
+### Return an extension method
 
-An extension call retains the concrete extension member selected by checking.
+An extension call identifies its extension method.
 
 ```ds main.ds
 struct Calculator {}
@@ -288,7 +288,7 @@ function caller(calculator: Calculator): int32 {
 
 ### Return an explicit class constructor
 
-Construction retains the constructor declaration selected by checking.
+Construction identifies its constructor declaration.
 
 ```ds main.ds
 class User {
@@ -310,7 +310,7 @@ function create(): User {
 
 ### Return a default class constructor
 
-Construction of a class without an authored constructor retains the class item.
+Construction of a class without a constructor declaration identifies the class item.
 
 ```ds main.ds
 class User {}
@@ -331,7 +331,7 @@ function create(): User {
 
 ### Return a newtype constructor
 
-Newtype construction retains the nominal newtype declaration.
+Newtype construction identifies the nominal newtype declaration.
 
 ```ds main.ds
 newtype UserId = string;
@@ -352,7 +352,7 @@ function create(): UserId {
 
 ### [ignored] Return a tagged variant constructor
 
-Tagged construction retains the selected generated variant member and its callable type.
+Tagged construction identifies its variant constructor and callable type.
 
 ```ds main.ds
 @derive(Tagged)
@@ -422,7 +422,7 @@ class Service {
 
 ### Return no declaration for an indirect call
 
-A call through a function-valued binding has no exact declaration-backed callee.
+A call through a function-valued binding has no declaration-backed callee.
 
 ```ds main.ds
 function callee(): void {}
@@ -489,9 +489,9 @@ function outer(): void {
 
 ## Union Dispatch
 
-### Return every exact target of a union call
+### Return every target of a union call
 
-A union receiver contributes one outgoing edge per method selected by checking.
+A union receiver contributes one outgoing edge per reachable method.
 
 ```ds main.ds
 class Alpha {

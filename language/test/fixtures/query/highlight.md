@@ -4,7 +4,7 @@
 
 ### Highlight local variable occurrences
 
-Highlights distinguish writes from reads of the selected local symbol.
+Highlights distinguish writes from reads of one local symbol.
 
 ```ds main.ds
 let foo = 1;
@@ -28,7 +28,7 @@ const bar = foo + foo;
 
 ### Highlight function occurrences
 
-A selected function includes its declaration and every call.
+A function includes its declaration and every call.
 
 ```ds main.ds
 function add(x: int32, y: int32): int32 {
@@ -51,7 +51,7 @@ const result = add(1, 2) + add(3, 4);
 
 ### Highlight parameter occurrences
 
-A selected parameter includes its declaration and references.
+A parameter includes its declaration and references.
 
 ```ds main.ds
 function greet(name: string): string {
@@ -70,7 +70,7 @@ function greet(name: string): string {
 
 ### Highlight struct field occurrences
 
-A selected field includes its declaration and every access.
+A field includes its declaration and every access.
 
 ```ds main.ds
 struct Point {
@@ -97,7 +97,7 @@ function main(point: Point) {
 
 ## Shadowing
 
-### Highlight only the selected shadow
+### Highlight only one shadowed binding
 
 Shadowed bindings remain separate symbols.
 
@@ -122,7 +122,7 @@ function read(): int32 {
 
 ### Highlight method occurrences
 
-A selected method includes its declaration and calls.
+A method includes its declaration and calls.
 
 ```ds main.ds
 class Service {
@@ -144,9 +144,9 @@ function start(service: Service): void {
 @highlight.range range=main.ds#occurrence:second kind=text
 ```
 
-### Highlight every exact method selected through a union
+### Highlight every method reached through a union
 
-A union member access combines the local occurrence sets of each selected method.
+A union member access combines the local occurrences of every reachable method.
 
 ```ds main.ds
 class Alpha {
@@ -175,7 +175,7 @@ function start(service: Alpha | Beta): void {
 
 ### Highlight enum member occurrences
 
-A selected enum member includes its declaration and accesses.
+An enum member includes its declaration and accesses.
 
 ```ds main.ds
 enum Color {
@@ -268,7 +268,7 @@ function choose(): int32 {
 
 ### Return no highlight for a literal
 
-A literal has no semantic occurrence set.
+A literal has no symbol occurrences.
 
 ```ds main.ds
 const value = 42;

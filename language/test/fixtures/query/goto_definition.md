@@ -112,7 +112,7 @@ function main() {
 
 ### Resolve a static method definition
 
-A call through a nominal type resolves to the selected static member.
+A call through a nominal type resolves to its static member.
 
 ```ds main.ds
 class Arithmetic {
@@ -132,9 +132,9 @@ const result = Arithmetic.twice(2);
 @goto_definition.target origin=main.ds#reference:twice location=main.ds#declaration:twice selection=main.ds#definition:twice symbol=main.ds#twice@2
 ```
 
-### Resolve every exact method selected through a union
+### Resolve every method reached through a union
 
-A union receiver returns the finite member set selected by checking.
+A union receiver returns every method declaration available at that call.
 
 ```ds main.ds
 class Alpha {
@@ -375,7 +375,7 @@ const user = new User("Ada");
 
 ### Resolve newtype construction to the newtype definition
 
-A newtype call retains the nominal declaration used by its authored name.
+A newtype call resolves to its nominal declaration.
 
 ```ds main.ds
 newtype UserId = string;
@@ -393,7 +393,7 @@ const userId = UserId("user-1");
 
 ### [ignored] Resolve tagged construction to the variant definition
 
-A tagged construction selects the exact generated variant represented by its authored case name.
+A tagged construction resolves to its variant declaration.
 
 ```ds main.ds
 @derive(Tagged)
@@ -684,7 +684,7 @@ const total = match (pair) {
 
 ### [ignored] Resolve a control label definition
 
-A labeled break resolves to the exact enclosing label.
+A labeled break resolves to its enclosing label.
 
 ```ds main.ds
 function choose(): int32 {
@@ -724,7 +724,7 @@ const query = sql`select ${1}`;
 
 ### Resolve a comptime call definition
 
-A comptime call retains the called function identity.
+A comptime call resolves to the called function.
 
 ```ds main.ds
 function build(): int32 {
