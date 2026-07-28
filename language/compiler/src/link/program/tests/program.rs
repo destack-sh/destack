@@ -1,5 +1,6 @@
 use destack_artifact::EmitFormat;
-use destack_bytecode::Opcode;
+use destack_bytecode::{Opcode, RegisterId, RegisterSpan};
+use destack_program::FramePoint;
 use destack_source::{ModuleId, PackageId, TargetId};
 
 use super::super::ProgramLinker;
@@ -41,6 +42,17 @@ entry:
     v1: int32 = load v0
     return v1
 }
+
+export function* generate(v0: int32): int32 {
+entry(v0: int32):
+    yield v0 => resumed | completed
+
+resumed(v1: int32):
+    return v1
+
+completed(v2: int32):
+    return v2
+}
 "#,
         [provider_module],
     );
@@ -80,11 +92,36 @@ entry:
     let read_answer = program
         .function_id_by_name("readAnswer")
         .expect("global reader export should exist");
+    let generate = program
+        .function_id_by_name("generate")
+        .expect("generator export should exist");
     let code = program.bytecode();
     let sections = program.sections();
     assert!(code.function(sections, caller.index()).is_some());
     assert!(code.function(sections, callee.index()).is_some());
     assert!(code.function(sections, read_answer.index()).is_some());
+
+    // match the generator entry layout to its physical registers
+    let state = program
+        .frame_state_at(FramePoint::entry(generate))
+        .expect("generator entry state should exist");
+    let frame = program
+        .frame_state(state)
+        .expect("generator entry frame should exist");
+    let layout = program
+        .frame_layout(frame.layout)
+        .expect("generator entry layout should exist");
+    let map = code
+        .frame(sections, state.index())
+        .expect("generator entry map should exist");
+    let parameters = program
+        .function_parameters(generate)
+        .expect("generator parameters should exist");
+    let slots = program.frame_slots(layout);
+    let registers = map.registers(code.registers(sections));
+    assert_eq!(slots.len(), 1);
+    assert_eq!(slots[0].ty, parameters[0]);
+    assert_eq!(registers, &[RegisterSpan::new(RegisterId(0), 1)]);
 
     // preserve the logical call point through object emission and program linking
     let call_site = program

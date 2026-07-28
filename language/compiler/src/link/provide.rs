@@ -40,7 +40,7 @@ impl Compiler {
 
         // declare the reachable artifact closure of the selected linker family
         match resolved.target.emit {
-            EmitFormat::Js | EmitFormat::Ts => self
+            EmitFormat::Js => self
                 .js_linker(package, &target, context, &artifacts, &resolved)?
                 .collect_modules(&resolved.modules, &mut dependencies)?,
             EmitFormat::Bytecode | EmitFormat::Wasm | EmitFormat::Native => {
@@ -203,7 +203,7 @@ impl Compiler {
 
         // dispatch through the selected linker family
         let output = match resolved.target.emit {
-            EmitFormat::Js | EmitFormat::Ts => self
+            EmitFormat::Js => self
                 .js_linker(package_id, target_id, context, artifacts, &resolved)?
                 .link_target(&resolved.modules)?,
             EmitFormat::Bytecode | EmitFormat::Wasm | EmitFormat::Native => {

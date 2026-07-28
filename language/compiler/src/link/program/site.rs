@@ -211,7 +211,7 @@ impl<'a> SiteLinker<'a> {
     ) -> LinkResult<SuspensionSite> {
         let frame_state = self
             .frames
-            .state(module, site.point)
+            .state(module, artifact::FramePoint::operation(site.point))
             .ok_or_else(|| self.program.invalid_input("missing suspension frame state"))?;
 
         Ok(SuspensionSite {

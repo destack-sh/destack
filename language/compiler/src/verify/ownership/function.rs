@@ -914,13 +914,13 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             let longer = self.sources_from_callee_lifetime(
                 &mir::Lifetime::slot(slot),
                 &parameter_types,
-                &arguments,
+                arguments,
                 &self.flow,
             );
             let shorter = self.sources_from_callee_lifetime(
                 &mir::Lifetime::slot(target.0),
                 &parameter_types,
-                &arguments,
+                arguments,
                 &self.flow,
             );
             // result-only slots bind no arguments and discharge through
@@ -1647,5 +1647,4 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     fn discard_diagnostics(&mut self) {
         self.diagnostics.clear();
     }
-
 }

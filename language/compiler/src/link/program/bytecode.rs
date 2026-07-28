@@ -36,9 +36,8 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
             object_code.push(self.link_code(*module, object)?);
         }
 
+        let (frames, registers) = self.link_frames()?;
         let mut functions = Vec::with_capacity(self.program.functions_by_id().len());
-        let mut frames = Vec::new();
-        let mut registers = Vec::new();
         let mut operations = Vec::new();
         let mut code = Vec::new();
 
@@ -48,13 +47,10 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
             let object = self.program.object(module);
             let source = self.function(object, function)?;
             let row = self.link_function(
-                module,
                 function,
                 object,
                 source,
                 &object_code[object_index],
-                &mut frames,
-                &mut registers,
                 &mut operations,
                 &mut code,
             )?;
@@ -115,16 +111,61 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         Ok(code)
     }
 
-    /// Link one physical function and append its owned sections.
+    /// Link physical frame maps into canonical Program frame state order.
+    fn link_frames(&self) -> LinkResult<(Vec<bytecode::FrameMap>, Vec<bytecode::RegisterSpan>)> {
+        let mut sources = Vec::new();
+
+        // resolve every object-local map to its canonical frame state
+        for (module, object) in self.program.objects() {
+            let bytecode = object.bytecode();
+            if object.frames().len() != bytecode.frames().len() {
+                return Err(self
+                    .program
+                    .invalid_input("logical and physical frame counts differ"));
+            }
+
+            for (state, map) in object.frames().iter().zip(bytecode.frames()) {
+                let state = self
+                    .frames
+                    .state(*module, state.point)
+                    .ok_or_else(|| self.program.invalid_input("linked frame state is absent"))?;
+                sources.push((state, map, bytecode.registers()));
+            }
+        }
+
+        // order source maps and prepare canonical output
+        sources.sort_unstable_by_key(|(state, _, _)| *state);
+        let mut frames = Vec::with_capacity(sources.len());
+        let mut registers = Vec::new();
+
+        // append each map under its matching dense Program frame state id
+        for (state, map, source_registers) in sources {
+            if state.index() != frames.len() {
+                return Err(self
+                    .program
+                    .invalid_input("bytecode frame maps are not canonical"));
+            }
+
+            // append the physical spans under their canonical state identity
+            let register_start = registers.len() as u32;
+            let source_registers = map.registers(source_registers);
+            registers.extend_from_slice(source_registers);
+            frames.push(bytecode::FrameMap::new(EntryRange::new(
+                register_start,
+                source_registers.len() as u32,
+            )));
+        }
+
+        Ok((frames, registers))
+    }
+
+    /// Link one physical function and append its operation and code sections.
     fn link_function(
         &self,
-        module: ModuleId,
         function: mir::FunctionId,
         object: &Object,
         source: &bytecode::Function,
         object_code: &[u8],
-        frames: &mut Vec<bytecode::FrameMap>,
-        registers: &mut Vec<bytecode::RegisterSpan>,
         operations: &mut Vec<bytecode::CodeOffset>,
         code: &mut Vec<u8>,
     ) -> LinkResult<bytecode::Function> {
@@ -135,37 +176,6 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         let source_operations = source.operations(bytecode.operations());
         operations.extend_from_slice(source_operations);
         let operation_count = operations.len() as u32 - operation_start;
-
-        // append frame maps in canonical Program frame state order
-        let frame_start = frames.len() as u32;
-        for index in source.frames.start..source.frames.start + source.frames.len {
-            let frame = bytecode
-                .frames()
-                .get(index as usize)
-                .ok_or_else(|| self.program.invalid_input("bytecode frame map is absent"))?;
-            let state = object
-                .frames()
-                .get(index as usize)
-                .ok_or_else(|| self.program.invalid_input("logical frame state is absent"))?;
-            let state = self
-                .frames
-                .state(module, state.point)
-                .ok_or_else(|| self.program.invalid_input("linked frame state is absent"))?;
-            if state.0 != frames.len() as u32 {
-                return Err(self
-                    .program
-                    .invalid_input("bytecode frame maps are not canonical"));
-            }
-
-            let register_start = registers.len() as u32;
-            let source_registers = frame.registers(bytecode.registers());
-            registers.extend_from_slice(source_registers);
-            frames.push(bytecode::FrameMap::new(
-                frame.code_offset,
-                EntryRange::new(register_start, source_registers.len() as u32),
-            ));
-        }
-        let frame_count = frames.len() as u32 - frame_start;
 
         // append the linked function body when this object defines it
         let code_range = source.code().map(|range| {
@@ -183,7 +193,6 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
 
         Ok(bytecode::Function::new(
             Optional::from(code_range),
-            EntryRange::new(frame_start, frame_count),
             EntryRange::new(operation_start, operation_count),
             register_count,
         ))

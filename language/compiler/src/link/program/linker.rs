@@ -140,7 +140,7 @@ impl<'a> ProgramLinker<'a> {
                     format: self.format.canonical_tag().to_string(),
                 });
             }
-            EmitFormat::Js | EmitFormat::Ts => {
+            EmitFormat::Js => {
                 return Err(LinkError::InvalidTarget {
                     anchor: self.package.into(),
                     package: self.package,
