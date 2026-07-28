@@ -1,7 +1,7 @@
 use destack_artifact as artifact;
 use destack_mir as mir;
 use destack_program::{
-    BindingId, Coroutine, FunctionBuilder, FunctionExport, FunctionTableBuilder,
+    BindingId, CoroutineKind, FunctionBuilder, FunctionExport, FunctionTableBuilder,
 };
 
 use crate::LinkResult;
@@ -82,11 +82,11 @@ impl<'a> FunctionLinker<'a> {
     }
 
     /// Project MIR coroutine behavior into its durable Program tag.
-    fn coroutine(coroutine: mir::Coroutine) -> Coroutine {
+    fn coroutine(coroutine: mir::CoroutineKind) -> CoroutineKind {
         match coroutine {
-            mir::Coroutine::Async => Coroutine::ASYNC,
-            mir::Coroutine::Generator => Coroutine::GENERATOR,
-            mir::Coroutine::AsyncGenerator => Coroutine::ASYNC_GENERATOR,
+            mir::CoroutineKind::Async => CoroutineKind::ASYNC,
+            mir::CoroutineKind::Generator => CoroutineKind::GENERATOR,
+            mir::CoroutineKind::AsyncGenerator => CoroutineKind::ASYNC_GENERATOR,
         }
     }
 }
