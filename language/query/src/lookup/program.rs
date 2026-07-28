@@ -267,7 +267,7 @@ impl ProgramQueryContext<'_> {
                 .names
                 .get(&name.to_string())
                 .to_vec(),
-            None => self.all_modules(),
+            None => self.module_ordinals(),
         };
 
         // collect decorators from the selected modules
@@ -368,6 +368,29 @@ impl ProgramQueryContext<'_> {
         entries.sort_by_key(|entry| {
             (
                 entry.root,
+                entry.declaration,
+                entry.file,
+                entry.span.start,
+                entry.span.end,
+                entry.ty,
+            )
+        });
+        entries.dedup();
+
+        Ok(entries)
+    }
+
+    /// Collect blanket extension index entries.
+    pub(crate) fn blanket_extensions(&self) -> QueryResult<Vec<dir::ExtensionEntry>> {
+        let mut entries = Vec::new();
+
+        // collect blanket declarations from every indexed blanket module
+        for ordinal in &self.index().extensions.blankets {
+            let (_, index) = self.module_index_at(*ordinal)?;
+            entries.extend(index.extensions.blanket_entries().copied());
+        }
+        entries.sort_by_key(|entry| {
+            (
                 entry.declaration,
                 entry.file,
                 entry.span.start,
@@ -617,7 +640,7 @@ impl ProgramQueryContext<'_> {
     }
 
     /// Return every module ordinal in this profile.
-    fn all_modules(&self) -> Vec<u32> {
+    fn module_ordinals(&self) -> Vec<u32> {
         (0..self.index().modules.len() as u32).collect()
     }
 }

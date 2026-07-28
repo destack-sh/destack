@@ -6,8 +6,8 @@ use crate::{ModuleQueryContext, QueryError, QueryResult};
 use super::{CompletionContext, CompletionReceiver, CursorToken};
 
 impl ModuleQueryContext<'_> {
-    /// Return member access context near the cursor.
-    pub(super) fn member_access_context(
+    /// Classify member access completion near the cursor.
+    pub(super) fn classify_member_access(
         &self,
         file_id: FileId,
         token: &Option<CursorToken>,
@@ -15,21 +15,20 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<CompletionContext>> {
         // detect member access inside an existing member name token
         if let Some(cursor_position) = offset.checked_sub(1)
-            && let Some(context) =
-                self.member_access_context_at_member_name(file_id, cursor_position)?
+            && let Some(context) = self.classify_member_access_name(file_id, cursor_position)?
         {
             return Ok(Some(context));
         }
 
         // resolve member access context when immediately after one dot boundary
-        if let Some(context) = self.member_access_context_after_dot(file_id, offset)? {
+        if let Some(context) = self.classify_member_access_dot(file_id, offset)? {
             return Ok(Some(context));
         }
 
         // resolve member access when the cursor is inside a member name
         if let Some(token_at_cursor) = token.as_ref()
             && let Some(context) =
-                self.member_access_context_after_dot(file_id, token_at_cursor.start)?
+                self.classify_member_access_dot(file_id, token_at_cursor.start)?
         {
             return Ok(Some(context));
         }
@@ -37,8 +36,8 @@ impl ModuleQueryContext<'_> {
         Ok(None)
     }
 
-    /// Return member access from an existing member name token.
-    fn member_access_context_at_member_name(
+    /// Classify member access from an existing member name.
+    fn classify_member_access_name(
         &self,
         file_id: FileId,
         cursor_position: u32,
@@ -84,9 +83,8 @@ impl ModuleQueryContext<'_> {
                 continue;
             };
 
-            let receiver_local: dir::LocalNodeIdAny = (*left).into();
-
-            let context = self.member_access_completion_context(receiver_local, *is_optional)?;
+            let receiver = CompletionReceiver::resolve((*left).into(), *is_optional, self)?;
+            let context = CompletionContext::MemberAccess { receiver };
 
             return Ok(Some(context));
         }
@@ -94,86 +92,8 @@ impl ModuleQueryContext<'_> {
         Ok(None)
     }
 
-    /// Return the type of a receiver expression.
-    fn receiver_type(&self, receiver_global: dir::GlobalNodeIdAny) -> Option<dir::GlobalTypeId> {
-        self.types().get_node_type_id(receiver_global)
-    }
-
-    /// Return the completion context for a member access receiver.
-    fn member_access_completion_context(
-        &self,
-        receiver_node: dir::LocalNodeIdAny,
-        is_optional: bool,
-    ) -> QueryResult<CompletionContext> {
-        let receiver_global = receiver_node.into_global(self.module_id());
-        let receiver = if let Some(module_id) = self.receiver_namespace_module(receiver_global)? {
-            CompletionReceiver::Namespace { module_id }
-        } else if let Some(type_id) = self.receiver_type(receiver_global) {
-            CompletionReceiver::Type {
-                type_id,
-                is_optional,
-            }
-        } else {
-            CompletionReceiver::Missing
-        };
-
-        Ok(CompletionContext::MemberAccess { receiver })
-    }
-
-    /// Return the imported namespace selected by one receiver expression.
-    fn receiver_namespace_module(
-        &self,
-        receiver: dir::GlobalNodeIdAny,
-    ) -> QueryResult<Option<ModuleId>> {
-        if let Some(dir::Reference::Namespace(module_id)) = self.resolved().references.get(receiver)
-        {
-            return Ok(Some(*module_id));
-        }
-
-        let Some(symbols) = self.recorded_symbol_targets(receiver) else {
-            return Ok(None);
-        };
-        let mut modules = Vec::new();
-
-        // follow exact namespace references on local dependency bindings
-        for symbol_id in symbols {
-            if symbol_id.module_id != self.module_id() {
-                continue;
-            }
-
-            let symbol = self.symbols().get_symbol(symbol_id.local_id);
-            let Some(declaration) = symbol.declaration else {
-                continue;
-            };
-            if declaration.local_id.ty != dir::NodeType::DependencyItem {
-                continue;
-            }
-
-            let reference =
-                self.resolved()
-                    .references
-                    .get(declaration)
-                    .ok_or(QueryError::missing(format!(
-                        "canonical reference: {declaration:?}"
-                    )))?;
-            if let dir::Reference::Namespace(module_id) = reference {
-                modules.push(*module_id);
-            }
-        }
-
-        modules.sort();
-        modules.dedup();
-        match modules.as_slice() {
-            [] => Ok(None),
-            [module_id] => Ok(Some(*module_id)),
-            _ => Err(QueryError::invalid(format!(
-                "completion namespace: {receiver:?}"
-            ))),
-        }
-    }
-
-    /// Resolve member access context for a receiver position.
-    fn member_access_context_at_offset(
+    /// Classify member access from a receiver position.
+    fn classify_member_access_receiver(
         &self,
         file_id: FileId,
         receiver_position: u32,
@@ -183,40 +103,33 @@ impl ModuleQueryContext<'_> {
 
         // scan for the nearest enclosing expression
         for enclosing_span in &enclosing {
-            let Some(dir_node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-            if dir_node_id.ty != dir::NodeType::Expression {
+            if node_id.ty != dir::NodeType::Expression {
                 continue;
             }
 
-            let expression_id = dir::LocalNodeId::<dir::Expression>::new(dir_node_id.id);
+            let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
             let expression = view.get::<dir::Expression>(expression_id);
 
             // prefer the member left operand as the receiver
-            if let dir::Expression::Member {
-                left, is_optional, ..
-            } = expression
-            {
-                let receiver_local: dir::LocalNodeIdAny = (*left).into();
+            let (receiver, is_optional) = match expression {
+                dir::Expression::Member {
+                    left, is_optional, ..
+                } => ((*left).into(), *is_optional),
+                _ => (node_id, false),
+            };
+            let receiver = CompletionReceiver::resolve(receiver, is_optional, self)?;
 
-                let context =
-                    self.member_access_completion_context(receiver_local, *is_optional)?;
-
-                return Ok(Some(context));
-            }
-
-            // otherwise treat the expression itself as the receiver
-            let context = self.member_access_completion_context(dir_node_id, false)?;
-
-            return Ok(Some(context));
+            return Ok(Some(CompletionContext::MemberAccess { receiver }));
         }
 
         Ok(None)
     }
 
-    /// Resolve member access context from one dot owned cursor.
-    fn member_access_context_after_dot(
+    /// Classify member access after one dot.
+    fn classify_member_access_dot(
         &self,
         file_id: FileId,
         offset: u32,
@@ -239,19 +152,105 @@ impl ModuleQueryContext<'_> {
                 receiver_token.span
             )))?;
 
-        let context = self.member_access_context_at_offset(file_id, receiver_offset)?;
-        let context = context.map(|context| match context {
-            CompletionContext::MemberAccess {
+        let context = self.classify_member_access_receiver(file_id, receiver_offset)?;
+        let context = context.map(|context| context.with_optional_access(is_optional));
+
+        Ok(context)
+    }
+}
+
+impl CompletionContext {
+    /// Return this context with optional access applied to a typed receiver.
+    fn with_optional_access(self, is_optional: bool) -> Self {
+        match self {
+            Self::MemberAccess {
                 receiver: CompletionReceiver::Type { type_id, .. },
-            } => CompletionContext::MemberAccess {
+            } => Self::MemberAccess {
                 receiver: CompletionReceiver::Type {
                     type_id,
                     is_optional,
                 },
             },
             context => context,
-        });
+        }
+    }
+}
 
-        Ok(context)
+impl CompletionReceiver {
+    /// Resolve one member receiver.
+    fn resolve(
+        node_id: dir::LocalNodeIdAny,
+        is_optional: bool,
+        module: &ModuleQueryContext<'_>,
+    ) -> QueryResult<Self> {
+        let global_id = node_id.into_global(module.module_id());
+        let receiver = if let Some(module_id) = Self::namespace(global_id, module)? {
+            Self::Namespace { module_id }
+        } else if let Some(type_id) = module.types().get_node_type_id(global_id) {
+            Self::Type {
+                type_id,
+                is_optional,
+            }
+        } else {
+            return Err(QueryError::missing(format!(
+                "completion receiver: {global_id:?}"
+            )));
+        };
+
+        Ok(receiver)
+    }
+
+    /// Return the imported namespace selected by one receiver expression.
+    fn namespace(
+        receiver: dir::GlobalNodeIdAny,
+        module: &ModuleQueryContext<'_>,
+    ) -> QueryResult<Option<ModuleId>> {
+        if let Some(dir::Reference::Namespace(module_id)) =
+            module.resolved().references.get(receiver)
+        {
+            return Ok(Some(*module_id));
+        }
+
+        let Some(symbols) = module.recorded_symbol_targets(receiver) else {
+            return Ok(None);
+        };
+        let mut modules = Vec::new();
+
+        // follow exact namespace references on local dependency bindings
+        for symbol_id in symbols {
+            if symbol_id.module_id != module.module_id() {
+                continue;
+            }
+
+            let symbol = module.symbols().get_symbol(symbol_id.local_id);
+            let Some(declaration) = symbol.declaration else {
+                continue;
+            };
+            if declaration.local_id.ty != dir::NodeType::DependencyItem {
+                continue;
+            }
+
+            let reference =
+                module
+                    .resolved()
+                    .references
+                    .get(declaration)
+                    .ok_or(QueryError::missing(format!(
+                        "canonical reference: {declaration:?}"
+                    )))?;
+            if let dir::Reference::Namespace(module_id) = reference {
+                modules.push(*module_id);
+            }
+        }
+
+        modules.sort();
+        modules.dedup();
+        match modules.as_slice() {
+            [] => Ok(None),
+            [module_id] => Ok(Some(*module_id)),
+            _ => Err(QueryError::invalid(format!(
+                "completion namespace: {receiver:?}"
+            ))),
+        }
     }
 }

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::{EnclosingSpan, FileId, Span};
 
-use crate::{ModuleQueryContext, QueryError, QueryResult};
+use crate::{ModuleQueryContext, QueryError, QueryResult, argument_binding_contains};
 
 use super::CompletionContext;
 
@@ -15,40 +15,41 @@ pub(super) struct CallSnippet {
 
 /// The shared call shape for one expression.
 struct CallExpression<'a> {
+    /// The call expression.
+    id: dir::LocalNodeId<dir::Expression>,
     /// The callee expression on the left side.
     left: dir::LocalNodeId<dir::Expression>,
     /// The argument nodes in source order.
     arguments: &'a [dir::LocalNodeId<dir::Argument>],
 }
 
-/// Generate a function-call snippet from one completion label and parameter list.
-pub(super) fn call_snippet(function_name: &str, parameter_names: &[String]) -> CallSnippet {
-    if parameter_names.is_empty() {
-        CallSnippet {
-            text: format!("{function_name}()"),
-            is_snippet: false,
-        }
-    } else {
-        let parameters = parameter_names
-            .iter()
-            .enumerate()
-            .map(|(index, parameter_name)| format!("${{{}:{}}}", index + 1, parameter_name))
-            .collect::<Vec<_>>()
-            .join(", ");
+impl CallSnippet {
+    /// Build a call insertion from one completion label and parameter list.
+    pub(super) fn new(function_name: &str, parameter_names: &[String]) -> Self {
+        if parameter_names.is_empty() {
+            Self {
+                text: format!("{function_name}()"),
+                is_snippet: false,
+            }
+        } else {
+            let parameters = parameter_names
+                .iter()
+                .enumerate()
+                .map(|(index, parameter_name)| format!("${{{}:{}}}", index + 1, parameter_name))
+                .collect::<Vec<_>>()
+                .join(", ");
 
-        CallSnippet {
-            text: format!("{function_name}({parameters})$0"),
-            is_snippet: true,
+            Self {
+                text: format!("{function_name}({parameters})$0"),
+                is_snippet: true,
+            }
         }
     }
 }
 
 impl<'a> CallExpression<'a> {
-    /// Resolve one call expression from one enclosing span.
-    fn enclosing(
-        view: dir::View<'a>,
-        span: &EnclosingSpan,
-    ) -> Option<(dir::LocalNodeId<dir::Expression>, Self)> {
+    /// Resolve one call expression from an enclosing span.
+    fn from_span(view: dir::View<'a>, span: &EnclosingSpan) -> Option<Self> {
         let node_id = view.get_node_id_by_source_id(span.source_id)?;
         if node_id.ty != dir::NodeType::Expression {
             return None;
@@ -63,27 +64,30 @@ impl<'a> CallExpression<'a> {
             return None;
         };
         let call = Self {
+            id: expression_id,
             left: *left,
             arguments,
         };
 
-        Some((expression_id, call))
+        Some(call)
     }
 }
 
 impl ModuleQueryContext<'_> {
-    /// Return the new expression context.
-    pub(super) fn new_expression_cursor_context(
+    /// Classify new expression completion at one offset.
+    pub(super) fn classify_new_expression(
         &self,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<CompletionContext>> {
         // resolve enclosing spans around the cursor boundary
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
 
         // scan spans for a new expression containing the cursor
         for enclosing_span in &enclosing {
-            if let Some(context) = self.new_expression_context(file_id, enclosing_span, offset)? {
+            if let Some(context) =
+                self.classify_new_expression_span(file_id, enclosing_span, offset)?
+            {
                 return Ok(Some(context));
             }
         }
@@ -91,8 +95,8 @@ impl ModuleQueryContext<'_> {
         Ok(None)
     }
 
-    /// Return the call argument context.
-    pub(super) fn call_argument_cursor_context(
+    /// Classify call argument completion at one offset.
+    pub(super) fn classify_call_argument(
         &self,
         file_id: FileId,
         offset: u32,
@@ -109,7 +113,7 @@ impl ModuleQueryContext<'_> {
 
         // scan spans for a call or new expression argument list
         for enclosing_span in &enclosing {
-            if let Some(context) = self.call_argument_context(view, enclosing_span, offset)? {
+            if let Some(context) = self.classify_call_argument_span(view, enclosing_span, offset)? {
                 return Ok(Some(context));
             }
         }
@@ -122,7 +126,7 @@ impl ModuleQueryContext<'_> {
             );
             if is_separator
                 && let Some(context) =
-                    self.call_argument_context_after_separator(file_id, view, separator.span.start)?
+                    self.classify_call_argument_separator(file_id, view, separator.span.start)?
             {
                 return Ok(Some(context));
             }
@@ -131,8 +135,8 @@ impl ModuleQueryContext<'_> {
         Ok(None)
     }
 
-    /// Build a new expression context from one enclosing span.
-    fn new_expression_context(
+    /// Classify new expression completion from one enclosing span.
+    fn classify_new_expression_span(
         &self,
         file_id: FileId,
         enclosing_span: &EnclosingSpan,
@@ -177,14 +181,14 @@ impl ModuleQueryContext<'_> {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Build a call argument context from one enclosing span.
-    fn call_argument_context(
+    /// Classify call argument completion from one enclosing span.
+    fn classify_call_argument_span(
         &self,
         view: dir::View<'_>,
         enclosing_span: &EnclosingSpan,
         offset: u32,
     ) -> QueryResult<Option<CompletionContext>> {
-        let Some((expression_id, call)) = CallExpression::enclosing(view, enclosing_span) else {
+        let Some(call) = CallExpression::from_span(view, enclosing_span) else {
             return Ok(None);
         };
         let left_span = self.left_expression_span(view, call.left)?;
@@ -195,10 +199,10 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         }
 
-        let Some(scope) = self.expression_scope_at_offset(expression_id) else {
+        let Some(scope) = self.expression_scope_at_offset(call.id) else {
             return Ok(None);
         };
-        let expected_type = self.call_argument_type(view, expression_id, call.arguments, offset)?;
+        let expected_type = self.call_argument_type(view, call.id, call.arguments, offset)?;
 
         Ok(Some(CompletionContext::CallArgument {
             scope,
@@ -206,8 +210,8 @@ impl ModuleQueryContext<'_> {
         }))
     }
 
-    /// Build a call argument context from a separator position inside a call.
-    fn call_argument_context_after_separator(
+    /// Classify call argument completion after one separator.
+    fn classify_call_argument_separator(
         &self,
         file_id: FileId,
         view: dir::View<'_>,
@@ -218,19 +222,16 @@ impl ModuleQueryContext<'_> {
         };
         let enclosing = self.sorted_enclosing_spans(file_id, lookup_position, lookup_position);
 
-        // read only checked call shapes
+        // read the exact authored call and its bound lexical scope
         for enclosing_span in &enclosing {
-            let Some((expression_id, call)) = CallExpression::enclosing(view, enclosing_span)
-            else {
+            let Some(call) = CallExpression::from_span(view, enclosing_span) else {
                 continue;
             };
             let left_span = self.left_expression_span(view, call.left)?;
-
             if separator_position <= left_span.end {
                 continue;
             }
-
-            let Some(scope) = self.expression_scope_at_offset(expression_id) else {
+            let Some(scope) = self.expression_scope_at_offset(call.id) else {
                 continue;
             };
 
@@ -240,7 +241,6 @@ impl ModuleQueryContext<'_> {
             }));
         }
 
-        // FUGU #Incomplete: bind edited call separators to their exact expression scope
         Ok(None)
     }
 
@@ -271,7 +271,7 @@ impl ModuleQueryContext<'_> {
         let binding = resolution
             .arguments
             .iter()
-            .find(|binding| binding_contains_argument(binding, argument))
+            .find(|binding| argument_binding_contains(binding, argument))
             .ok_or(QueryError::missing(format!(
                 "completion argument binding: {call_id:?}, {argument:?}"
             )))?;
@@ -290,18 +290,6 @@ impl ModuleQueryContext<'_> {
         let left_node_id: dir::LocalNodeIdAny = left.into();
 
         self.node_span(view, left_node_id)
-    }
-}
-
-/// Return whether one checked binding owns a source argument.
-fn binding_contains_argument(
-    binding: &dir::ArgumentBinding,
-    argument: dir::GlobalNodeIdAny,
-) -> bool {
-    match &binding.argument {
-        dir::ArgumentSource::Provided(source) => *source == argument,
-        dir::ArgumentSource::Rest(sources) => sources.contains(&argument),
-        dir::ArgumentSource::Static(_) | dir::ArgumentSource::Omitted => false,
     }
 }
 

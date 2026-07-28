@@ -37,11 +37,6 @@ impl QueryError {
     pub(crate) fn cycle(message: impl Into<String>) -> Self {
         Self::invalid(format!("cyclic {}", message.into()))
     }
-
-    /// Build a stale-input error.
-    pub(crate) fn stale(message: impl Into<String>) -> Self {
-        Self::invalid(format!("stale {}", message.into()))
-    }
 }
 
 impl Display for QueryError {

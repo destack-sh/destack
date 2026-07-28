@@ -8,7 +8,7 @@ use destack_source::{
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::source::{ImportBinding, is_simple_identifier};
+use crate::source::ImportBinding;
 use crate::{
     ImportCandidate, ImportOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange,
     QueryResult, SymbolUse,
@@ -271,44 +271,10 @@ impl ModuleQueryContext<'_> {
             {
                 continue;
             }
-            let diagnostic_span = diagnostic
-                .primary
-                .target
-                .span()
-                .ok_or_else(|| QueryError::invalid("unresolved-reference diagnostic target"))?;
-
-            // read the exact unresolved authored name
-            let source = self
-                .repository()
-                .file(self.revision(), diagnostic_span.file)?
-                .ok_or(QueryError::missing(format!(
-                    "source file: {:?}",
-                    diagnostic_span.file
-                )))?;
-            if source.content_id() != diagnostic.primary_label().content {
-                return Err(QueryError::stale(format!(
-                    "code action diagnostic: {:?}",
-                    diagnostic.id.clone()
-                )));
-            }
-            let name = source
-                .get_span_str(diagnostic_span)
-                .ok_or(QueryError::invalid(format!(
-                    "source span: {diagnostic_span:?}"
-                )))?;
-            if !is_simple_identifier(name) {
-                return Err(QueryError::invalid(format!(
-                    "unresolved-reference diagnostic span: {diagnostic_span:?}"
-                )));
-            }
-            let symbol_use = if self.is_type_position(diagnostic_span.file, diagnostic_span.start) {
-                SymbolUse::Type
-            } else {
-                SymbolUse::Value
-            };
+            let (diagnostic_span, name, symbol_use) = self.unresolved_reference(diagnostic)?;
 
             // produce one action per exact import plan
-            let imports = self.import_actions(program, diagnostic_span.file, name, symbol_use)?;
+            let imports = self.import_actions(program, diagnostic_span.file, &name, symbol_use)?;
             for (index, import) in imports.into_iter().enumerate() {
                 let title = format!("Import {name} from \"{}\"", import.specifier);
                 let mut file_edit = FilePatch::with_patches(diagnostic_span.file, import.patches);
@@ -325,6 +291,18 @@ impl ModuleQueryContext<'_> {
         }
 
         Ok(())
+    }
+
+    /// Return the unresolved reference selected by one diagnostic.
+    fn unresolved_reference(
+        &self,
+        diagnostic: &Diagnostic,
+    ) -> QueryResult<(Span, String, SymbolUse)> {
+        // FUGU #Incomplete: retain unresolved name uses in DIR
+        Err(QueryError::missing(format!(
+            "unresolved reference: {:?}",
+            diagnostic.primary.target
+        )))
     }
 
     /// Plan every exact import for one unresolved name.

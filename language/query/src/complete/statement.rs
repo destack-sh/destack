@@ -3,41 +3,9 @@ use destack_source::EnclosingSpan;
 
 use crate::{ModuleQueryContext, QueryResult};
 
-/// Return whether one expression still owns a trailing expression hole.
-fn has_trailing_expression_hole(
-    view: dir::View<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let expression = view.get(expression_id);
-
-    match expression {
-        dir::Expression::Let { declarators, .. } | dir::Expression::Using { declarators, .. } => {
-            let Some(last_declarator) = declarators.last() else {
-                return false;
-            };
-            let declarator = view.get(*last_declarator);
-            let Some(value) = declarator.value else {
-                return false;
-            };
-
-            matches!(view.get(value), dir::Expression::Missing)
-        }
-        dir::Expression::Assign { right, .. } => {
-            matches!(view.get(*right), dir::Expression::Missing)
-        }
-        dir::Expression::Return { value } | dir::Expression::Yield { value, .. } => {
-            value.is_some_and(|value| matches!(view.get(value), dir::Expression::Missing))
-        }
-        dir::Expression::Throw { value } => {
-            matches!(view.get(*value), dir::Expression::Missing)
-        }
-        _ => false,
-    }
-}
-
 impl ModuleQueryContext<'_> {
     /// Return whether the cursor is at a statement position inside one block.
-    pub(crate) fn is_block_statement_position(
+    pub(super) fn block_owns_statement_cursor(
         &self,
         enclosing: &EnclosingSpan,
         offset: u32,
@@ -86,11 +54,45 @@ impl ModuleQueryContext<'_> {
 
         // trailing missing slots still belong to the current statement
         if let Some(expression_id) = last_expression_before_cursor
-            && has_trailing_expression_hole(view, expression_id)
+            && self.has_trailing_expression_hole(expression_id)
         {
             return Ok(false);
         }
 
         Ok(true)
+    }
+
+    /// Return whether one expression still owns a trailing expression hole.
+    fn has_trailing_expression_hole(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let view = self.view();
+        let expression = view.get(expression_id);
+
+        match expression {
+            dir::Expression::Let { declarators, .. }
+            | dir::Expression::Using { declarators, .. } => {
+                let Some(last_declarator) = declarators.last() else {
+                    return false;
+                };
+                let declarator = view.get(*last_declarator);
+                let Some(value) = declarator.value else {
+                    return false;
+                };
+
+                matches!(view.get(value), dir::Expression::Missing)
+            }
+            dir::Expression::Assign { right, .. } => {
+                matches!(view.get(*right), dir::Expression::Missing)
+            }
+            dir::Expression::Return { value } | dir::Expression::Yield { value, .. } => {
+                value.is_some_and(|value| matches!(view.get(value), dir::Expression::Missing))
+            }
+            dir::Expression::Throw { value } => {
+                matches!(view.get(*value), dir::Expression::Missing)
+            }
+            _ => false,
+        }
     }
 }

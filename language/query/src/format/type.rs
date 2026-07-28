@@ -34,10 +34,9 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one global type id.
     pub(crate) fn global_type(&self, type_id: dir::GlobalTypeId) -> QueryResult<Option<String>> {
-        self.module
-            .read_global_type(self.program, type_id, |type_value, owner| {
-                Formatter::new(owner, self.program).local_type(type_value)
-            })?
+        self.program.read_type(type_id, |type_value, owner| {
+            Formatter::new(owner, self.program).local_type(type_value)
+        })
     }
 
     /// Format one type owned by this formatter's module.
@@ -207,10 +206,8 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one solved borrow lifetime.
     fn borrow_lifetime(&self, type_id: dir::GlobalTypeId) -> QueryResult<String> {
-        self.module.read_global_type(
-            self.program,
-            type_id,
-            |type_value, module| match type_value {
+        self.program
+            .read_type(type_id, |type_value, module| match type_value {
                 dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)) => {
                     Ok(String::new())
                 }
@@ -233,14 +230,13 @@ impl Formatter<'_, '_, '_> {
                     Ok(format!("{lifetime} "))
                 }
                 _ => Err(QueryError::invalid(format!("borrow lifetime: {type_id:?}"))),
-            },
-        )?
+            })
     }
 
     /// Format one solved borrow access.
     fn borrow_access(&self, type_id: dir::GlobalTypeId) -> QueryResult<&'static str> {
-        self.module
-            .read_global_type(self.program, type_id, |type_value, _| match type_value {
+        self.program
+            .read_type(type_id, |type_value, _| match type_value {
                 dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Mutable)) => Ok(""),
                 dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
                     Ok("readonly ")
@@ -249,18 +245,18 @@ impl Formatter<'_, '_, '_> {
                     Ok("exclusive ")
                 }
                 _ => Err(QueryError::invalid(format!("borrow access: {type_id:?}"))),
-            })?
+            })
     }
 
     /// Format one concrete placement form.
     fn placed_form(&self, type_id: dir::GlobalTypeId, value: &str) -> QueryResult<String> {
-        self.module
-            .read_global_type(self.program, type_id, |type_value, _| match type_value {
+        self.program
+            .read_type(type_id, |type_value, _| match type_value {
                 dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))) => {
                     Ok(format!("{} {value}", space.text()))
                 }
                 _ => Err(QueryError::invalid(format!("placed form: {type_id:?}"))),
-            })?
+            })
     }
 
     /// Format one scalar interval type.
@@ -403,8 +399,7 @@ impl Formatter<'_, '_, '_> {
         type_id: dir::GlobalTypeId,
         operand: TypeOperand,
     ) -> QueryResult<Option<String>> {
-        self.module.read_global_type(
-            self.program,
+        self.program.read_type(
             type_id,
             |type_value, module| -> QueryResult<Option<String>> {
                 let formatter = Formatter::new(module, self.program);
@@ -417,7 +412,7 @@ impl Formatter<'_, '_, '_> {
                     Ok(Some(text))
                 }
             },
-        )?
+        )
     }
 }
 

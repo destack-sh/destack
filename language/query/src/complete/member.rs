@@ -2,7 +2,7 @@ use destack_dir as dir;
 use rustc_hash::FxHashSet;
 
 use super::builder::CompletionBuilder;
-use super::call::call_snippet;
+use super::call::CallSnippet;
 use crate::{
     CompletionCandidate, CompletionItemKind, CompletionOrigin, Formatter, MemberCandidate,
     MemberKind, MemberName, QueryError, QueryResult, SORT_BUILTIN, SORT_LOCAL_SYMBOL,
@@ -104,7 +104,7 @@ impl CompletionBuilder<'_, '_, '_> {
             && let Some(symbol_id) = member.symbol_id
             && let Some(parameter_names) = self.program.symbol_parameter_names(symbol_id)?
         {
-            let snippet = call_snippet(&completion.label, &parameter_names);
+            let snippet = CallSnippet::new(&completion.label, &parameter_names);
             completion = completion.with_insert_text(snippet.text);
             if snippet.is_snippet {
                 completion = completion.with_snippet();
@@ -117,12 +117,9 @@ impl CompletionBuilder<'_, '_, '_> {
     /// Complete members of a type after `.`.
     pub(super) fn complete_members(
         &self,
-        receiver_type: Option<dir::GlobalTypeId>,
+        type_id: dir::GlobalTypeId,
         is_optional: bool,
     ) -> QueryResult<Vec<CompletionCandidate>> {
-        let Some(type_id) = receiver_type else {
-            return Ok(Vec::new());
-        };
         let members = self.module.resolve_type_members(
             self.program,
             self.environment,

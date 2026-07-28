@@ -64,11 +64,11 @@ impl ModuleQueryContext<'_> {
     pub fn inline(
         &self,
         program: &ProgramQueryContext<'_>,
-        file: FileId,
+        file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<PatchSet>> {
         // resolve one exact local symbol
-        let Some(occurrence) = self.symbol_at_offset(file, offset)? else {
+        let Some(occurrence) = self.symbol_at_offset(file_id, offset)? else {
             return Ok(None);
         };
         let Some(symbol) = occurrence.symbol() else {
@@ -93,7 +93,7 @@ impl ModuleQueryContext<'_> {
         let Some(definition_span) = program.symbol_definition_span(symbol)? else {
             return Ok(None);
         };
-        if definition_span.file != file {
+        if definition_span.file != file_id {
             return Ok(None);
         }
 
@@ -106,21 +106,21 @@ impl ModuleQueryContext<'_> {
         }
 
         // read the one source file used by this local refactor
-        let source_file = self
+        let file = self
             .repository()
-            .file(self.revision(), file)?
-            .ok_or(QueryError::missing(format!("source file: {file:?}")))?;
-        let source = source_file.text();
+            .file(self.revision(), file_id)?
+            .ok_or(QueryError::missing(format!("source file: {file_id:?}")))?;
+        let source = file.text();
 
         // resolve exact persisted references
         let indexed = program.symbol_reference_entries(symbol)?;
-        if indexed.is_empty() || indexed.iter().any(|entry| entry.span.file != file) {
+        if indexed.is_empty() || indexed.iter().any(|entry| entry.span.file != file_id) {
             return Ok(None);
         }
         let references = self.inline_references(symbol, &indexed)?;
 
         // build the replacement value
-        let Some(value) = target.value(source_file.as_ref(), program, self)? else {
+        let Some(value) = target.value(file.as_ref(), program, self)? else {
             return Ok(None);
         };
         if !self.inline_captures_are_preserved(program, target.value, &references)? {
@@ -140,7 +140,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // emit every replacement and remove the selected binding
-        let mut file_edit = FilePatch::new(file);
+        let mut file_edit = FilePatch::new(file_id);
         for reference in references {
             let replacement = reference.replacement(&value, self);
             file_edit.push(Patch::replace(reference.span, replacement));

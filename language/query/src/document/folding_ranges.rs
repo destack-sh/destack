@@ -175,7 +175,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         ranges: &mut Vec<FoldingRange>,
     ) -> QueryResult<()> {
-        let source_file = self.read_file(file_id)?;
+        let file = self.read_file(file_id)?;
         let view = self.view();
         let mut import_lines = None;
 
@@ -190,10 +190,10 @@ impl ModuleQueryContext<'_> {
             }
 
             let span = self.node_span(view, (*expression_id).into())?;
-            let (start_line, _) = source_file
+            let (start_line, _) = file
                 .get_position(span.start)
                 .ok_or(QueryError::invalid(format!("source span: {span:?}")))?;
-            let (end_line, _) = source_file
+            let (end_line, _) = file
                 .get_position(span.end)
                 .ok_or(QueryError::invalid(format!("source span: {span:?}")))?;
 
@@ -231,7 +231,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         ranges: &mut Vec<FoldingRange>,
     ) -> QueryResult<()> {
-        let source_file = self.read_file(file_id)?;
+        let file = self.read_file(file_id)?;
         let view = self.view();
 
         // collect declaration extents
@@ -247,7 +247,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
 
-            Self::push_folding_range(span, None, None, &source_file, ranges)?;
+            Self::push_folding_range(span, None, None, &file, ranges)?;
         }
 
         // collect block extents
@@ -260,7 +260,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             };
             if span.file == file_id {
-                Self::push_folding_range(span, None, None, &source_file, ranges)?;
+                Self::push_folding_range(span, None, None, &file, ranges)?;
             }
         }
 
@@ -284,7 +284,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             };
             if span.file == file_id {
-                Self::push_folding_range(span, None, None, &source_file, ranges)?;
+                Self::push_folding_range(span, None, None, &file, ranges)?;
             }
         }
 
@@ -301,7 +301,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             };
             if span.file == file_id {
-                Self::push_folding_range(span, None, None, &source_file, ranges)?;
+                Self::push_folding_range(span, None, None, &file, ranges)?;
             }
         }
 
@@ -321,7 +321,7 @@ impl ModuleQueryContext<'_> {
                     continue;
                 };
                 if span.file == file_id {
-                    Self::push_folding_range(span, None, None, &source_file, ranges)?;
+                    Self::push_folding_range(span, None, None, &file, ranges)?;
                 }
             }
         }
@@ -377,22 +377,17 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         ranges: &mut Vec<FoldingRange>,
     ) -> QueryResult<()> {
-        let source_file = self.read_file(file_id)?;
+        let file = self.read_file(file_id)?;
         let mut line_comment_blocks = LineCommentBlocks::default();
 
         // scan comments in source order
         for comment in self.comments(file_id)? {
-            if Self::region_marker(comment, &source_file)?.is_some() {
+            if Self::region_marker(comment, &file)?.is_some() {
                 line_comment_blocks.flush(ranges);
                 continue;
             }
 
-            self.collect_comment_folding_range(
-                ranges,
-                &mut line_comment_blocks,
-                comment,
-                &source_file,
-            )?;
+            self.collect_comment_folding_range(ranges, &mut line_comment_blocks, comment, &file)?;
         }
 
         line_comment_blocks.flush(ranges);
@@ -406,12 +401,11 @@ impl ModuleQueryContext<'_> {
         ranges: &mut Vec<FoldingRange>,
         line_comment_blocks: &mut LineCommentBlocks,
         comment: &dir::Comment,
-        source_file: &File,
+        file: &File,
     ) -> QueryResult<()> {
         if comment.is_line() {
             let (start_line, _) =
-                source_file
-                    .get_position(comment.span.start)
+                file.get_position(comment.span.start)
                     .ok_or(QueryError::invalid(format!(
                         "source span: {:?}",
                         comment.span
@@ -420,7 +414,7 @@ impl ModuleQueryContext<'_> {
             line_comment_blocks.insert(start_line, ranges);
         } else {
             line_comment_blocks.flush(ranges);
-            self.collect_block_comment_folding_range(ranges, comment, source_file)?;
+            self.collect_block_comment_folding_range(ranges, comment, file)?;
         }
 
         Ok(())
@@ -432,21 +426,20 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         ranges: &mut Vec<FoldingRange>,
     ) -> QueryResult<()> {
-        let source_file = self.read_file(file_id)?;
+        let file = self.read_file(file_id)?;
         let mut regions = Vec::new();
 
         // pair nested region markers in source order
         for comment in self.comments(file_id)? {
-            let Some(marker) = Self::region_marker(comment, &source_file)? else {
+            let Some(marker) = Self::region_marker(comment, &file)? else {
                 continue;
             };
-            let (line, _) =
-                source_file
-                    .get_position(comment.span.start)
-                    .ok_or(QueryError::invalid(format!(
-                        "source span: {:?}",
-                        comment.span
-                    )))?;
+            let (line, _) = file
+                .get_position(comment.span.start)
+                .ok_or(QueryError::invalid(format!(
+                    "source span: {:?}",
+                    comment.span
+                )))?;
 
             match marker {
                 RegionMarker::Start(collapsed_text) => regions.push((line, collapsed_text)),
@@ -472,15 +465,12 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Parse one line comment as a source region marker.
-    fn region_marker(
-        comment: &dir::Comment,
-        source_file: &File,
-    ) -> QueryResult<Option<RegionMarker>> {
+    fn region_marker(comment: &dir::Comment, file: &File) -> QueryResult<Option<RegionMarker>> {
         if !comment.is_line() {
             return Ok(None);
         }
 
-        let text = source_file
+        let text = file
             .get_span_str(comment.span)
             .ok_or(QueryError::invalid(format!(
                 "source span: {:?}",
@@ -511,13 +501,13 @@ impl ModuleQueryContext<'_> {
         span: Span,
         kind: Option<FoldingRangeKind>,
         collapsed_text: Option<String>,
-        source_file: &File,
+        file: &File,
         ranges: &mut Vec<FoldingRange>,
     ) -> QueryResult<()> {
-        let (start_line, _) = source_file
+        let (start_line, _) = file
             .get_position(span.start)
             .ok_or(QueryError::invalid(format!("source span: {span:?}")))?;
-        let (end_line, _) = source_file
+        let (end_line, _) = file
             .get_position(span.end)
             .ok_or(QueryError::invalid(format!("source span: {span:?}")))?;
         if end_line <= start_line {
@@ -541,22 +531,20 @@ impl ModuleQueryContext<'_> {
         &self,
         ranges: &mut Vec<FoldingRange>,
         comment: &dir::Comment,
-        source_file: &File,
+        file: &File,
     ) -> QueryResult<()> {
-        let (start_line, _) =
-            source_file
-                .get_position(comment.span.start)
-                .ok_or(QueryError::invalid(format!(
-                    "source span: {:?}",
-                    comment.span
-                )))?;
-        let (end_line, _) =
-            source_file
-                .get_position(comment.span.end)
-                .ok_or(QueryError::invalid(format!(
-                    "source span: {:?}",
-                    comment.span
-                )))?;
+        let (start_line, _) = file
+            .get_position(comment.span.start)
+            .ok_or(QueryError::invalid(format!(
+                "source span: {:?}",
+                comment.span
+            )))?;
+        let (end_line, _) = file
+            .get_position(comment.span.end)
+            .ok_or(QueryError::invalid(format!(
+                "source span: {:?}",
+                comment.span
+            )))?;
 
         if end_line > start_line {
             ranges.push(FoldingRange::comment(start_line, end_line));

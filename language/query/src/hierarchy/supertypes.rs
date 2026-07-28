@@ -38,13 +38,9 @@ impl ProgramQueryContext<'_> {
         // transcribe every exact indexed type item
         let mut items = Vec::with_capacity(supertype_ids.len());
         for symbol_id in supertype_ids {
-            let module = self.module(symbol_id.module_id)?;
-            let item =
-                module
-                    .type_item_from_symbol(self, symbol_id)?
-                    .ok_or(QueryError::invalid(format!(
-                        "type item symbol: {symbol_id:?}"
-                    )))?;
+            let item = TypeItem::from_symbol(self, symbol_id)?.ok_or(QueryError::invalid(
+                format!("type item symbol: {symbol_id:?}"),
+            ))?;
             items.push(item);
         }
 

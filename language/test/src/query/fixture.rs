@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_query::QueryMethodId;
+use destack_query::QueryMethod;
 use indexmap::IndexMap;
 
 use crate::core::MarkdownSuiteEntry;
@@ -81,12 +81,12 @@ impl MarkdownSuiteEntry for QueryFixture {
 }
 
 /// Return the query method named by one fixture file.
-fn fixture_method(path: &Path) -> Result<QueryMethodId, String> {
+fn fixture_method(path: &Path) -> Result<QueryMethod, String> {
     let method_name = path
         .file_stem()
         .and_then(|name| name.to_str())
         .ok_or_else(|| format!("query fixture path '{}' has no UTF-8 stem", path.display()))?;
-    let method = QueryMethodId::from_name(method_name).ok_or_else(|| {
+    let method = QueryMethod::from_name(method_name).ok_or_else(|| {
         format!(
             "query fixture '{}' has no registered method",
             path.display()
@@ -159,7 +159,7 @@ fn index_files(files: Vec<QueryFile>) -> Result<IndexMap<PathBuf, QueryFile>, St
 fn parse_assertions(
     markdown: &MdTestCase,
     files: &IndexMap<PathBuf, QueryFile>,
-    method: QueryMethodId,
+    method: QueryMethod,
 ) -> Result<Vec<QueryAssertion>, String> {
     if !markdown.bullet_items.is_empty() {
         return Err("query fixture has unsupported bullet expectations".to_string());

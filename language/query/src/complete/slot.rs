@@ -88,7 +88,7 @@ impl ExpressionSlotOwner {
                 *left == expression_id || *right == expression_id
             }
             dir::Expression::Assign { left, right, .. } => {
-                assign_pattern_contains_expression(view, *left, expression_id)
+                Self::assign_pattern_contains_expression(view, *left, expression_id)
                     || *right == expression_id
             }
             dir::Expression::Return { value } | dir::Expression::Yield { value, .. } => {
@@ -106,59 +106,59 @@ impl ExpressionSlotOwner {
             _ => false,
         }
     }
-}
 
-/// Return whether one assign pattern contains the expression.
-fn assign_pattern_contains_expression(
-    view: dir::View<'_>,
-    assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let assign_pattern = view.get(assign_pattern_id);
+    /// Return whether one assign pattern contains the expression.
+    fn assign_pattern_contains_expression(
+        view: dir::View<'_>,
+        assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let assign_pattern = view.get(assign_pattern_id);
 
-    match assign_pattern {
-        dir::AssignPattern::Place { expression: value } => *value == expression_id,
-        dir::AssignPattern::Default { pattern, value } => {
-            assign_pattern_contains_expression(view, *pattern, expression_id)
-                || *value == expression_id
+        match assign_pattern {
+            dir::AssignPattern::Place { expression: value } => *value == expression_id,
+            dir::AssignPattern::Default { pattern, value } => {
+                Self::assign_pattern_contains_expression(view, *pattern, expression_id)
+                    || *value == expression_id
+            }
+            dir::AssignPattern::Sequence { fields }
+            | dir::AssignPattern::Tuple { fields }
+            | dir::AssignPattern::Object { fields } => fields.iter().any(|field_id| {
+                Self::assign_pattern_field_contains_expression(view, *field_id, expression_id)
+            }),
         }
-        dir::AssignPattern::Sequence { fields }
-        | dir::AssignPattern::Tuple { fields }
-        | dir::AssignPattern::Object { fields } => fields.iter().any(|field_id| {
-            assign_pattern_field_contains_expression(view, *field_id, expression_id)
-        }),
     }
-}
 
-/// Return whether one assign pattern field contains the expression.
-fn assign_pattern_field_contains_expression(
-    view: dir::View<'_>,
-    assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let assign_pattern_field = view.get(assign_pattern_field_id);
+    /// Return whether one assign pattern field contains the expression.
+    fn assign_pattern_field_contains_expression(
+        view: dir::View<'_>,
+        assign_pattern_field_id: dir::LocalNodeId<dir::AssignPatternField>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let assign_pattern_field = view.get(assign_pattern_field_id);
 
-    match assign_pattern_field {
-        dir::AssignPatternField::Named { pattern, .. } => {
-            assign_pattern_contains_expression(view, *pattern, expression_id)
+        match assign_pattern_field {
+            dir::AssignPatternField::Named { pattern, .. } => {
+                Self::assign_pattern_contains_expression(view, *pattern, expression_id)
+            }
+            dir::AssignPatternField::Computed { key, pattern } => {
+                *key == expression_id
+                    || Self::assign_pattern_contains_expression(view, *pattern, expression_id)
+            }
+            dir::AssignPatternField::Positional { pattern } => {
+                Self::assign_pattern_contains_expression(view, *pattern, expression_id)
+            }
+            dir::AssignPatternField::Rest { pattern } => pattern.is_some_and(|pattern_id| {
+                Self::assign_pattern_contains_expression(view, pattern_id, expression_id)
+            }),
+            dir::AssignPatternField::Elision => false,
         }
-        dir::AssignPatternField::Computed { key, pattern } => {
-            *key == expression_id
-                || assign_pattern_contains_expression(view, *pattern, expression_id)
-        }
-        dir::AssignPatternField::Positional { pattern } => {
-            assign_pattern_contains_expression(view, *pattern, expression_id)
-        }
-        dir::AssignPatternField::Rest { pattern } => pattern.is_some_and(|pattern_id| {
-            assign_pattern_contains_expression(view, pattern_id, expression_id)
-        }),
-        dir::AssignPatternField::Elision => false,
     }
 }
 
 impl ModuleQueryContext<'_> {
     /// Return whether the cursor occupies a parser-authored expression slot.
-    pub(crate) fn is_expression_slot_at_offset(
+    pub(super) fn is_expression_slot_at_offset(
         &self,
         file_id: FileId,
         offset: u32,
@@ -169,7 +169,7 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Check whether the cursor sits in a declarator initializer hole.
-    pub(crate) fn is_declarator_value_hole_at_cursor(
+    pub(super) fn is_declarator_value_hole(
         &self,
         file_id: FileId,
         offset: u32,

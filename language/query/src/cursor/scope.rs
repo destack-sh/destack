@@ -29,7 +29,7 @@ impl ModuleQueryContext<'_> {
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<ScopeAtOffset>> {
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
         let view = self.view();
 
         // read the exact lexical cursor recorded by binding
@@ -45,7 +45,6 @@ impl ModuleQueryContext<'_> {
             return Ok(Some(ScopeAtOffset::new(scope.id, scope.mark)));
         }
 
-        // FUGU #Incomplete: bind cursor marks for source gaps with no authored node
         Ok(None)
     }
 

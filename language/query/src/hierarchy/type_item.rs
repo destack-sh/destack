@@ -57,6 +57,58 @@ pub(crate) struct TypeItemOrder<'a> {
 }
 
 impl TypeItem {
+    /// Build the hierarchy item for one type symbol.
+    pub(crate) fn from_symbol(
+        program: &ProgramQueryContext<'_>,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> QueryResult<Option<Self>> {
+        let Some(canonical_id) = program.canonical_symbol(symbol_id)? else {
+            return Ok(None);
+        };
+        let module = program.module(canonical_id.module_id)?;
+        let symbol = module.symbols().get_symbol(canonical_id.local_id);
+        let kind = match symbol.kind {
+            dir::SymbolKind::Class
+            | dir::SymbolKind::Struct
+            | dir::SymbolKind::Interface
+            | dir::SymbolKind::NewtypeInterface
+            | dir::SymbolKind::Enum
+            | dir::SymbolKind::Newtype => SymbolKind::try_from(symbol.kind)
+                .map_err(|_| QueryError::invalid(format!("type item symbol: {canonical_id:?}")))?,
+            _ => return Ok(None),
+        };
+        let name = program
+            .symbol_name(canonical_id)?
+            .ok_or(QueryError::invalid(format!(
+                "type item symbol: {canonical_id:?}"
+            )))?;
+
+        // resolve source ranges around the declaration name
+        let selection_range =
+            program
+                .symbol_definition_span(canonical_id)?
+                .ok_or(QueryError::missing(format!(
+                    "type item span: {canonical_id:?}"
+                )))?;
+        let range =
+            module
+                .symbol_local_declaration_span(canonical_id)?
+                .ok_or(QueryError::missing(format!(
+                    "type item span: {canonical_id:?}"
+                )))?;
+
+        let target = Target::new(module.module(), range).with_selection_span(selection_range)?;
+        let detail = Formatter::new(module, program).symbol_generics(canonical_id)?;
+
+        Ok(Some(Self {
+            name,
+            kind,
+            detail,
+            target,
+            symbol_id: canonical_id,
+        }))
+    }
+
     /// Return the stable protocol ordering for this item.
     pub(crate) fn order(&self) -> TypeItemOrder<'_> {
         TypeItemOrder {
@@ -86,65 +138,6 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         };
 
-        self.type_item_from_symbol(program, symbol_id)
-    }
-
-    /// Return the type item for one symbol.
-    pub(crate) fn type_item_from_symbol(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> QueryResult<Option<TypeItem>> {
-        let Some(canonical_id) = program.canonical_symbol(symbol_id)? else {
-            return Ok(None);
-        };
-        let canonical_module = program.module(canonical_id.module_id)?;
-        let (kind, name) = {
-            let symbols = canonical_module.symbols();
-            let symbol = symbols.get_symbol(canonical_id.local_id);
-            let kind = match symbol.kind {
-                dir::SymbolKind::Class
-                | dir::SymbolKind::Struct
-                | dir::SymbolKind::Interface
-                | dir::SymbolKind::NewtypeInterface
-                | dir::SymbolKind::Enum
-                | dir::SymbolKind::Newtype => SymbolKind::try_from(symbol.kind).map_err(|_| {
-                    QueryError::invalid(format!("type item symbol: {canonical_id:?}"))
-                })?,
-                _ => return Ok(None),
-            };
-            let name = program
-                .symbol_name(canonical_id)?
-                .ok_or(QueryError::invalid(format!(
-                    "type item symbol: {canonical_id:?}"
-                )))?;
-
-            (kind, name)
-        };
-
-        // resolve source ranges around the declaration name
-        let selection_range =
-            program
-                .symbol_definition_span(canonical_id)?
-                .ok_or(QueryError::missing(format!(
-                    "type item span: {canonical_id:?}"
-                )))?;
-        let range = canonical_module
-            .symbol_local_declaration_span(canonical_id)?
-            .ok_or(QueryError::missing(format!(
-                "type item span: {canonical_id:?}"
-            )))?;
-
-        let target =
-            Target::new(canonical_module.module(), range).with_selection_span(selection_range)?;
-        let detail = Formatter::new(self, program).symbol_generics(canonical_id)?;
-
-        Ok(Some(TypeItem {
-            name,
-            kind,
-            detail,
-            target,
-            symbol_id: canonical_id,
-        }))
+        TypeItem::from_symbol(program, symbol_id)
     }
 }

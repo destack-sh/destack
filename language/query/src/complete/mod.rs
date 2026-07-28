@@ -6,7 +6,10 @@ mod construct;
 mod context;
 mod import;
 mod member;
+mod object;
 mod rank;
+mod slot;
+mod statement;
 mod symbol;
 
 pub(crate) use builder::*;

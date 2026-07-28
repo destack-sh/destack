@@ -1,34 +1,26 @@
 use destack_dir as dir;
 use destack_source::FileId;
 
-use super::ScopeAtOffset;
+use super::CompletionContext;
 use crate::{ModuleQueryContext, QueryError, QueryResult};
 
-/// Describes the cursor position inside one object literal.
-#[derive(Debug, Clone)]
-pub(crate) enum ObjectLiteralCursorContext {
-    /// The cursor is in one object literal key position.
-    Key(ObjectLiteralKeyContext),
-    /// The cursor is in one object literal value position.
-    Value(ScopeAtOffset),
-}
-
-/// Object literal key completion context.
-#[derive(Debug, Clone)]
-pub(crate) struct ObjectLiteralKeyContext {
-    /// Field names already present in the literal.
-    pub existing_fields: Vec<String>,
-    /// The visible scope for the object literal expression.
-    pub scope: ScopeAtOffset,
+/// Source spans owned by one object literal.
+struct ObjectLiteralSpans<'a> {
+    /// The queried module.
+    module: &'a ModuleQueryContext<'a>,
+    /// The visible DIR.
+    view: dir::View<'a>,
+    /// The property node ids.
+    properties: &'a [dir::LocalNodeId<dir::Property>],
 }
 
 impl ModuleQueryContext<'_> {
-    /// Resolve the object literal cursor context at one offset.
-    pub(crate) fn object_literal_context_at_offset(
+    /// Classify object literal completion at one offset.
+    pub(super) fn classify_object_literal(
         &self,
         file_id: FileId,
         offset: u32,
-    ) -> QueryResult<Option<ObjectLiteralCursorContext>> {
+    ) -> QueryResult<Option<CompletionContext>> {
         // resolve enclosing spans from innermost to outermost
         let enclosing = self.sorted_enclosing_spans(file_id, offset, offset);
 
@@ -64,16 +56,15 @@ impl ModuleQueryContext<'_> {
 
             // property values stay in the surrounding expression scope
             if !object_spans.owns_key_cursor(offset)? {
-                return Ok(Some(ObjectLiteralCursorContext::Value(scope)));
+                return Ok(Some(CompletionContext::ObjectLiteralValue { scope }));
             }
 
             let existing_fields = self.object_property_names(properties);
-            return Ok(Some(ObjectLiteralCursorContext::Key(
-                ObjectLiteralKeyContext {
-                    existing_fields,
-                    scope,
-                },
-            )));
+
+            return Ok(Some(CompletionContext::ObjectLiteralKey {
+                existing_fields,
+                scope,
+            }));
         }
 
         Ok(None)
@@ -105,16 +96,6 @@ impl ModuleQueryContext<'_> {
 
         names
     }
-}
-
-/// Source spans owned by one object literal.
-struct ObjectLiteralSpans<'a> {
-    /// The queried module.
-    module: &'a ModuleQueryContext<'a>,
-    /// The visible DIR.
-    view: dir::View<'a>,
-    /// The property node ids.
-    properties: &'a [dir::LocalNodeId<dir::Property>],
 }
 
 impl ObjectLiteralSpans<'_> {

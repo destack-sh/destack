@@ -65,20 +65,20 @@ impl Server {
             )
         })?;
 
-        // capture request kind before dispatch
-        let request_method_id = request.request.method_id();
+        // capture the request method before dispatch
+        let request_method = request.request.method();
 
         let response = workspace
             .run_query(root, request)
             .map_err(|error| self.workspace_error("query", error))?;
 
         // keep query response variants aligned with query request variants
-        if response.response.method_id() != request_method_id {
+        if response.response.method() != request_method {
             return Err(self.protocol_error(
                 ProtocolErrorCode::Internal,
                 &format!(
-                    "query response kind mismatch: request={request_method_id:?} response={:?}",
-                    response.response.method_id(),
+                    "query response method mismatch: request={request_method:?} response={:?}",
+                    response.response.method(),
                 ),
             ));
         }

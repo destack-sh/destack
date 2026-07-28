@@ -54,26 +54,6 @@ impl ModuleQueryContext<'_> {
         Ok(candidate)
     }
 
-    /// Find the next significant token after or at the cursor.
-    pub(crate) fn next_significant_token(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<dir::TokenSpan>> {
-        // scan tokens in order for the first significant token after the offset
-        for token in self.tokens(file_id)? {
-            if is_trivia_token(token.token.ty()) {
-                continue;
-            }
-
-            if token.span.start >= offset {
-                return Ok(Some(token));
-            }
-        }
-
-        Ok(None)
-    }
-
     /// Resolve the member access dot before the given offset when present.
     pub(crate) fn member_access_dot_before_offset(
         &self,

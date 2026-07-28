@@ -137,3 +137,15 @@ impl ProgramQueryContext<'_> {
         Ok(names)
     }
 }
+
+/// Return whether one binding owns a source argument.
+pub(crate) fn argument_binding_contains(
+    binding: &dir::ArgumentBinding,
+    argument: dir::GlobalNodeIdAny,
+) -> bool {
+    match &binding.argument {
+        dir::ArgumentSource::Provided(source) => *source == argument,
+        dir::ArgumentSource::Rest(sources) => sources.contains(&argument),
+        dir::ArgumentSource::Static(_) | dir::ArgumentSource::Omitted => false,
+    }
+}

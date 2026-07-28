@@ -1,4 +1,3 @@
-mod docs;
 mod identifier;
 mod import;
 mod lexical;

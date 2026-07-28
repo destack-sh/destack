@@ -3,7 +3,7 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use destack_query::QueryMethodId;
+use destack_query::QueryMethod;
 
 use super::{QueryFixture, QueryWorkspace};
 use crate::core::{
@@ -183,7 +183,7 @@ fn is_blessing() -> bool {
 /// Require one fixture file for every registered query method.
 fn require_method_files(directory: &Path) -> Result<(), String> {
     // collect the canonical method files
-    let mut expected = QueryMethodId::ALL
+    let mut expected = QueryMethod::ALL
         .iter()
         .map(|method| format!("{}.md", method.name()))
         .collect::<Vec<_>>();

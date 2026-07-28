@@ -1,6 +1,6 @@
-/// One query method identifier.
+/// One public query method.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum QueryMethodId {
+pub enum QueryMethod {
     /// Completion query.
     Completion,
     /// Hover query.
@@ -65,7 +65,7 @@ pub enum QueryMethodId {
     CodeActions,
 }
 
-impl QueryMethodId {
+impl QueryMethod {
     /// Every public query method in canonical order.
     pub const ALL: [Self; 31] = [
         Self::Completion,
@@ -101,7 +101,7 @@ impl QueryMethodId {
         Self::CodeActions,
     ];
 
-    /// Return the exact method with one canonical name.
+    /// Return the method with one canonical name.
     pub fn from_name(name: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|method| method.name() == name)
     }

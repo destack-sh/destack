@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::QueryMethodId;
+use super::QueryMethod;
 use crate::{
     CallItemRequest, CallItemResponse, CodeActionsRequest, CodeActionsResponse, CodeLensesRequest,
     CodeLensesResponse, CompletionRequest, CompletionResponse, DecoratorsRequest,
@@ -91,41 +91,41 @@ pub enum QueryRequest {
 }
 
 impl QueryRequest {
-    /// Return the method identifier for this request.
-    pub fn method_id(&self) -> QueryMethodId {
-        // map request variants to protocol method ids
+    /// Return this request's query method.
+    pub fn method(&self) -> QueryMethod {
+        // map request variants to query methods
         match self {
-            Self::Completion(_) => QueryMethodId::Completion,
-            Self::Hover(_) => QueryMethodId::Hover,
-            Self::SignatureHelp(_) => QueryMethodId::SignatureHelp,
-            Self::InlayHints(_) => QueryMethodId::InlayHints,
-            Self::CodeLenses(_) => QueryMethodId::CodeLenses,
-            Self::FoldingRanges(_) => QueryMethodId::FoldingRanges,
-            Self::SemanticTokens(_) => QueryMethodId::SemanticTokens,
-            Self::SemanticTokensRange(_) => QueryMethodId::SemanticTokensRange,
-            Self::Outline(_) => QueryMethodId::Outline,
-            Self::SearchSymbols(_) => QueryMethodId::SearchSymbols,
-            Self::Links(_) => QueryMethodId::Links,
-            Self::Highlight(_) => QueryMethodId::Highlight,
-            Self::SelectionRanges(_) => QueryMethodId::SelectionRanges,
-            Self::GotoDefinition(_) => QueryMethodId::GotoDefinition,
-            Self::GotoDeclaration(_) => QueryMethodId::GotoDeclaration,
-            Self::GotoTypeDefinition(_) => QueryMethodId::GotoTypeDefinition,
-            Self::GotoImplementation(_) => QueryMethodId::GotoImplementation,
-            Self::FindReferences(_) => QueryMethodId::FindReferences,
-            Self::CallItem(_) => QueryMethodId::CallItem,
-            Self::IncomingCalls(_) => QueryMethodId::IncomingCalls,
-            Self::OutgoingCalls(_) => QueryMethodId::OutgoingCalls,
-            Self::TypeItem(_) => QueryMethodId::TypeItem,
-            Self::Supertypes(_) => QueryMethodId::Supertypes,
-            Self::Subtypes(_) => QueryMethodId::Subtypes,
-            Self::Decorators(_) => QueryMethodId::Decorators,
-            Self::RenameTarget(_) => QueryMethodId::RenameTarget,
-            Self::Rename(_) => QueryMethodId::Rename,
-            Self::RenameFiles(_) => QueryMethodId::RenameFiles,
-            Self::ExtractVariable(_) => QueryMethodId::ExtractVariable,
-            Self::Inline(_) => QueryMethodId::Inline,
-            Self::CodeActions(_) => QueryMethodId::CodeActions,
+            Self::Completion(_) => QueryMethod::Completion,
+            Self::Hover(_) => QueryMethod::Hover,
+            Self::SignatureHelp(_) => QueryMethod::SignatureHelp,
+            Self::InlayHints(_) => QueryMethod::InlayHints,
+            Self::CodeLenses(_) => QueryMethod::CodeLenses,
+            Self::FoldingRanges(_) => QueryMethod::FoldingRanges,
+            Self::SemanticTokens(_) => QueryMethod::SemanticTokens,
+            Self::SemanticTokensRange(_) => QueryMethod::SemanticTokensRange,
+            Self::Outline(_) => QueryMethod::Outline,
+            Self::SearchSymbols(_) => QueryMethod::SearchSymbols,
+            Self::Links(_) => QueryMethod::Links,
+            Self::Highlight(_) => QueryMethod::Highlight,
+            Self::SelectionRanges(_) => QueryMethod::SelectionRanges,
+            Self::GotoDefinition(_) => QueryMethod::GotoDefinition,
+            Self::GotoDeclaration(_) => QueryMethod::GotoDeclaration,
+            Self::GotoTypeDefinition(_) => QueryMethod::GotoTypeDefinition,
+            Self::GotoImplementation(_) => QueryMethod::GotoImplementation,
+            Self::FindReferences(_) => QueryMethod::FindReferences,
+            Self::CallItem(_) => QueryMethod::CallItem,
+            Self::IncomingCalls(_) => QueryMethod::IncomingCalls,
+            Self::OutgoingCalls(_) => QueryMethod::OutgoingCalls,
+            Self::TypeItem(_) => QueryMethod::TypeItem,
+            Self::Supertypes(_) => QueryMethod::Supertypes,
+            Self::Subtypes(_) => QueryMethod::Subtypes,
+            Self::Decorators(_) => QueryMethod::Decorators,
+            Self::RenameTarget(_) => QueryMethod::RenameTarget,
+            Self::Rename(_) => QueryMethod::Rename,
+            Self::RenameFiles(_) => QueryMethod::RenameFiles,
+            Self::ExtractVariable(_) => QueryMethod::ExtractVariable,
+            Self::Inline(_) => QueryMethod::Inline,
+            Self::CodeActions(_) => QueryMethod::CodeActions,
         }
     }
 }
@@ -201,41 +201,41 @@ pub enum QueryResponse {
 }
 
 impl QueryResponse {
-    /// Return the method identifier for this response.
-    pub fn method_id(&self) -> QueryMethodId {
-        // map response variants to protocol method ids
+    /// Return this response's query method.
+    pub fn method(&self) -> QueryMethod {
+        // map response variants to query methods
         match self {
-            Self::Completion(_) => QueryMethodId::Completion,
-            Self::Hover(_) => QueryMethodId::Hover,
-            Self::SignatureHelp(_) => QueryMethodId::SignatureHelp,
-            Self::InlayHints(_) => QueryMethodId::InlayHints,
-            Self::CodeLenses(_) => QueryMethodId::CodeLenses,
-            Self::FoldingRanges(_) => QueryMethodId::FoldingRanges,
-            Self::SemanticTokens(_) => QueryMethodId::SemanticTokens,
-            Self::SemanticTokensRange(_) => QueryMethodId::SemanticTokensRange,
-            Self::Outline(_) => QueryMethodId::Outline,
-            Self::SearchSymbols(_) => QueryMethodId::SearchSymbols,
-            Self::Links(_) => QueryMethodId::Links,
-            Self::Highlight(_) => QueryMethodId::Highlight,
-            Self::SelectionRanges(_) => QueryMethodId::SelectionRanges,
-            Self::GotoDefinition(_) => QueryMethodId::GotoDefinition,
-            Self::GotoDeclaration(_) => QueryMethodId::GotoDeclaration,
-            Self::GotoTypeDefinition(_) => QueryMethodId::GotoTypeDefinition,
-            Self::GotoImplementation(_) => QueryMethodId::GotoImplementation,
-            Self::FindReferences(_) => QueryMethodId::FindReferences,
-            Self::CallItem(_) => QueryMethodId::CallItem,
-            Self::IncomingCalls(_) => QueryMethodId::IncomingCalls,
-            Self::OutgoingCalls(_) => QueryMethodId::OutgoingCalls,
-            Self::TypeItem(_) => QueryMethodId::TypeItem,
-            Self::Supertypes(_) => QueryMethodId::Supertypes,
-            Self::Subtypes(_) => QueryMethodId::Subtypes,
-            Self::Decorators(_) => QueryMethodId::Decorators,
-            Self::RenameTarget(_) => QueryMethodId::RenameTarget,
-            Self::Rename(_) => QueryMethodId::Rename,
-            Self::RenameFiles(_) => QueryMethodId::RenameFiles,
-            Self::ExtractVariable(_) => QueryMethodId::ExtractVariable,
-            Self::Inline(_) => QueryMethodId::Inline,
-            Self::CodeActions(_) => QueryMethodId::CodeActions,
+            Self::Completion(_) => QueryMethod::Completion,
+            Self::Hover(_) => QueryMethod::Hover,
+            Self::SignatureHelp(_) => QueryMethod::SignatureHelp,
+            Self::InlayHints(_) => QueryMethod::InlayHints,
+            Self::CodeLenses(_) => QueryMethod::CodeLenses,
+            Self::FoldingRanges(_) => QueryMethod::FoldingRanges,
+            Self::SemanticTokens(_) => QueryMethod::SemanticTokens,
+            Self::SemanticTokensRange(_) => QueryMethod::SemanticTokensRange,
+            Self::Outline(_) => QueryMethod::Outline,
+            Self::SearchSymbols(_) => QueryMethod::SearchSymbols,
+            Self::Links(_) => QueryMethod::Links,
+            Self::Highlight(_) => QueryMethod::Highlight,
+            Self::SelectionRanges(_) => QueryMethod::SelectionRanges,
+            Self::GotoDefinition(_) => QueryMethod::GotoDefinition,
+            Self::GotoDeclaration(_) => QueryMethod::GotoDeclaration,
+            Self::GotoTypeDefinition(_) => QueryMethod::GotoTypeDefinition,
+            Self::GotoImplementation(_) => QueryMethod::GotoImplementation,
+            Self::FindReferences(_) => QueryMethod::FindReferences,
+            Self::CallItem(_) => QueryMethod::CallItem,
+            Self::IncomingCalls(_) => QueryMethod::IncomingCalls,
+            Self::OutgoingCalls(_) => QueryMethod::OutgoingCalls,
+            Self::TypeItem(_) => QueryMethod::TypeItem,
+            Self::Supertypes(_) => QueryMethod::Supertypes,
+            Self::Subtypes(_) => QueryMethod::Subtypes,
+            Self::Decorators(_) => QueryMethod::Decorators,
+            Self::RenameTarget(_) => QueryMethod::RenameTarget,
+            Self::Rename(_) => QueryMethod::Rename,
+            Self::RenameFiles(_) => QueryMethod::RenameFiles,
+            Self::ExtractVariable(_) => QueryMethod::ExtractVariable,
+            Self::Inline(_) => QueryMethod::Inline,
+            Self::CodeActions(_) => QueryMethod::CodeActions,
         }
     }
 }

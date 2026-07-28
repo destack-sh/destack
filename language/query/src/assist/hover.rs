@@ -69,7 +69,7 @@ impl ModuleQueryContext<'_> {
         for symbol in symbols {
             let module = program.module(symbol.module_id)?;
             let signature = Formatter::new(module, program).symbol_signature(symbol)?;
-            let documentation = program.symbol_doc_text(symbol)?;
+            let documentation = program.symbol_documentation(symbol)?;
             let target = module.symbol_target(symbol)?;
 
             items.push(HoverItem {

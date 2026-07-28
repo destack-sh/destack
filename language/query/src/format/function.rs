@@ -11,21 +11,20 @@ impl Formatter<'_, '_, '_> {
         type_id: dir::GlobalTypeId,
         parameter_names: &[String],
     ) -> QueryResult<Option<String>> {
-        self.module
-            .read_global_type(self.program, type_id, |type_value, owner| {
-                let formatter = Formatter::new(owner, self.program);
-                match type_value {
-                    dir::Type::FunctionSignature(function) => formatter
-                        .function_type(owner.types().signature(*function), Some(parameter_names)),
-                    dir::Type::Function(function) => {
-                        formatter.callable_type(function.signature, parameter_names)
-                    }
-                    dir::Type::FunctionPointer(function) => {
-                        formatter.callable_type(function.signature, parameter_names)
-                    }
-                    _ => formatter.local_type(type_value),
+        self.program.read_type(type_id, |type_value, owner| {
+            let formatter = Formatter::new(owner, self.program);
+            match type_value {
+                dir::Type::FunctionSignature(function) => formatter
+                    .function_type(owner.types().signature(*function), Some(parameter_names)),
+                dir::Type::Function(function) => {
+                    formatter.callable_type(function.signature, parameter_names)
                 }
-            })?
+                dir::Type::FunctionPointer(function) => {
+                    formatter.callable_type(function.signature, parameter_names)
+                }
+                _ => formatter.local_type(type_value),
+            }
+        })
     }
 
     /// Format one function signature type.

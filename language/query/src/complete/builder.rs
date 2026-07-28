@@ -6,8 +6,8 @@ use destack_source::{File, FileId};
 use rustc_hash::FxHashSet;
 
 use super::builtin::{keyword_completions, primitive_type_completions};
-use super::call::call_snippet;
-use super::{CompletionContext, CompletionReceiver, CursorToken};
+use super::call::CallSnippet;
+use super::{AutoImportSearch, CompletionContext, CompletionReceiver, CursorToken};
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
     CompletionTrigger, ModuleQueryContext, ProgramQueryContext, QueryResult, SORT_LOCAL_SYMBOL,
@@ -22,10 +22,10 @@ pub(crate) struct CompletionBuilder<'owner, 'module, 'program> {
     pub(super) program: &'owner ProgramQueryContext<'program>,
     /// The active profile language environment.
     pub(super) environment: &'owner GlobalEnvironment,
-    /// The physical source file being completed.
+    /// The source file being completed.
     pub(super) file_id: FileId,
-    /// The current file being completed.
-    pub(super) source_file: Arc<File>,
+    /// The source file contents.
+    pub(super) file: Arc<File>,
 }
 
 impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
@@ -36,19 +36,19 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
         environment: &'owner GlobalEnvironment,
         file_id: FileId,
     ) -> QueryResult<Self> {
-        let source_file = module.read_file(file_id)?;
+        let file = module.read_file(file_id)?;
 
         Ok(Self {
             module,
             program,
             environment,
             file_id,
-            source_file,
+            file,
         })
     }
 
     /// Collect the raw completion candidates for one context.
-    pub(crate) fn completion_candidates(
+    pub(crate) fn build(
         &self,
         trigger: CompletionTrigger,
         context: &CompletionContext,
@@ -67,13 +67,10 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                         type_id,
                         is_optional,
                     },
-            } => self.complete_members(Some(*type_id), *is_optional)?,
+            } => self.complete_members(*type_id, *is_optional)?,
             CompletionContext::MemberAccess {
                 receiver: CompletionReceiver::Namespace { module_id },
             } => self.complete_namespace_members(*module_id)?,
-            CompletionContext::MemberAccess {
-                receiver: CompletionReceiver::Missing,
-            } => Vec::new(),
             CompletionContext::TypePosition { scope } => self.complete_types(*scope)?,
             CompletionContext::ValuePosition { scope } => self.complete_values(*scope, false)?,
             CompletionContext::StatementPosition { scope } => {
@@ -96,24 +93,21 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 existing_names,
                 use_filter,
             } => self.complete_imports(*target_module, existing_names, *use_filter)?,
-            CompletionContext::Suppressed => Vec::new(),
         };
 
         let mut is_incomplete = false;
 
         // layer in auto imports when this context supports them
-        if include_auto_imports
-            && let Some((use_filter, scope, constructable_only)) = context.auto_import_settings()
-        {
+        if include_auto_imports && let Some(auto_import) = context.auto_import_search() {
             let auto_imports = self.complete_auto_imports_with_visibility(
                 prefix,
-                Some(use_filter),
-                scope,
+                Some(auto_import.symbol_use),
+                auto_import.scope,
                 allow_short_prefix,
             )?;
             let mut candidates = auto_imports.items;
 
-            if constructable_only {
+            if auto_import.is_constructable_only {
                 candidates.retain(|completion| completion.kind.is_constructable());
             }
 
@@ -297,7 +291,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
             if kind == CompletionItemKind::Function
                 && let Some(parameter_names) = self.program.symbol_parameter_names(symbol_id)?
             {
-                let snippet = call_snippet(&name, &parameter_names);
+                let snippet = CallSnippet::new(&name, &parameter_names);
                 completion = completion.with_insert_text(snippet.text);
                 if snippet.is_snippet {
                     completion = completion.with_snippet();
@@ -367,17 +361,27 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
 }
 
 impl CompletionContext {
-    /// Return auto import search settings for this completion context.
-    fn auto_import_settings(&self) -> Option<(SymbolUse, ScopeAtOffset, bool)> {
+    /// Return the auto import search selected by this completion context.
+    fn auto_import_search(&self) -> Option<AutoImportSearch> {
         match self {
             CompletionContext::ValuePosition { scope }
             | CompletionContext::StatementPosition { scope }
             | CompletionContext::ObjectLiteralValue { scope }
-            | CompletionContext::CallArgument { scope, .. } => {
-                Some((SymbolUse::Value, *scope, false))
-            }
-            CompletionContext::TypePosition { scope } => Some((SymbolUse::Type, *scope, false)),
-            CompletionContext::NewExpression { scope } => Some((SymbolUse::Value, *scope, true)),
+            | CompletionContext::CallArgument { scope, .. } => Some(AutoImportSearch {
+                symbol_use: SymbolUse::Value,
+                scope: *scope,
+                is_constructable_only: false,
+            }),
+            CompletionContext::TypePosition { scope } => Some(AutoImportSearch {
+                symbol_use: SymbolUse::Type,
+                scope: *scope,
+                is_constructable_only: false,
+            }),
+            CompletionContext::NewExpression { scope } => Some(AutoImportSearch {
+                symbol_use: SymbolUse::Value,
+                scope: *scope,
+                is_constructable_only: true,
+            }),
             _ => None,
         }
     }

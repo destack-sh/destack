@@ -253,7 +253,8 @@ impl ModuleQueryContext<'_> {
         trigger: CompletionTrigger,
         include_auto_imports: bool,
     ) -> QueryResult<CompletionResponse> {
-        let Some(CompletionCursor { context, token }) = self.completion_cursor(file_id, offset)?
+        let Some(CompletionCursor { context, token }) =
+            self.classify_completion(file_id, offset)?
         else {
             return Ok(CompletionResponse {
                 items: Vec::new(),
@@ -261,12 +262,7 @@ impl ModuleQueryContext<'_> {
             });
         };
         let builder = CompletionBuilder::new(self, program, environment, file_id)?;
-        let completions = builder.completion_candidates(
-            trigger,
-            &context,
-            token.as_ref(),
-            include_auto_imports,
-        )?;
+        let completions = builder.build(trigger, &context, token.as_ref(), include_auto_imports)?;
 
         let replacement_start = token.as_ref().map_or(offset, |token| token.start);
         let replacement_end = token.as_ref().map_or(offset, |token| token.end);
@@ -318,8 +314,8 @@ impl CompletionCandidate {
     }
 
     /// Set the documentation.
-    pub(crate) fn with_documentation(mut self, doc: impl Into<String>) -> Self {
-        self.documentation = Some(doc.into());
+    pub(crate) fn with_documentation(mut self, documentation: impl Into<String>) -> Self {
+        self.documentation = Some(documentation.into());
         self
     }
 

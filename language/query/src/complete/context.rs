@@ -2,17 +2,14 @@ use destack_dir as dir;
 use destack_source::{EnclosingSpan, FileId, ModuleId, NodeSpanRegion};
 
 use crate::source::token_text;
-use crate::{
-    ModuleQueryContext, ObjectLiteralCursorContext, QueryError, QueryResult, ScopeAtOffset,
-    SymbolUse,
-};
+use crate::{ModuleQueryContext, QueryError, QueryResult, ScopeAtOffset, SymbolUse};
 
 /// Describes the context for a completion request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum CompletionContext {
     /// Member access context such as `value.`.
     MemberAccess {
-        /// The exact checked receiver state.
+        /// The selected receiver.
         receiver: CompletionReceiver,
     },
     /// Type position context such as decorations or type expressions.
@@ -46,7 +43,7 @@ pub(crate) enum CompletionContext {
     CallArgument {
         /// The scope used for visible symbols.
         scope: ScopeAtOffset,
-        /// The selected parameter type when checking recorded one.
+        /// The selected parameter type.
         expected_type: Option<dir::GlobalTypeId>,
     },
     /// New expression context inside `new ...`.
@@ -68,14 +65,12 @@ pub(crate) enum CompletionContext {
         /// Optional use filter for the clause.
         use_filter: Option<SymbolUse>,
     },
-    /// Explicitly suppressed completion context.
-    Suppressed,
 }
 
-/// The checked receiver state for one member completion.
+/// The receiver for one member completion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CompletionReceiver {
-    /// A checked value or type receiver.
+    /// A typed value or type receiver.
     Type {
         /// The receiver type.
         type_id: dir::GlobalTypeId,
@@ -87,8 +82,6 @@ pub(crate) enum CompletionReceiver {
         /// The imported module.
         module_id: ModuleId,
     },
-    /// A receiver without checked semantic state.
-    Missing,
 }
 
 /// A token extracted at the cursor for prefix matching.
@@ -111,74 +104,57 @@ pub(crate) struct CompletionCursor {
     pub(crate) token: Option<CursorToken>,
 }
 
+/// Auto import search selected by one completion context.
+pub(crate) struct AutoImportSearch {
+    /// The symbol namespace accepted by this position.
+    pub(crate) symbol_use: SymbolUse,
+    /// The lexical scope used to exclude visible names.
+    pub(crate) scope: ScopeAtOffset,
+    /// Whether candidates must be constructable.
+    pub(crate) is_constructable_only: bool,
+}
+
 impl ModuleQueryContext<'_> {
-    /// Return the completion context at a given offset.
-    pub(crate) fn completion_cursor(
+    /// Classify completion at one offset.
+    pub(crate) fn classify_completion(
         &self,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<CompletionCursor>> {
-        let source_file = self.read_file(file_id)?;
-        let source = source_file.text();
+        let file = self.read_file(file_id)?;
+        let source = file.text();
 
         // resolve token prefix at the cursor
         let token = self.partial_identifier(file_id, source, offset)?;
 
         // import strings have their own completion language
-        if let Some(import_context) = self.import_context(file_id, source, offset)? {
-            return Ok(Some(CompletionCursor {
-                context: import_context,
-                token,
-            }));
+        if let Some(context) = self.classify_import(file_id, source, offset)? {
+            return Ok(Some(CompletionCursor { context, token }));
         }
 
         // ordinary comments and literals never contain language completions
         if self.is_lexically_suppressed(file_id, offset)? {
-            return Ok(Some(CompletionCursor {
-                context: CompletionContext::Suppressed,
-                token,
-            }));
+            return Ok(None);
         }
 
         // member access stays first because it is the most specific value position context
-        if let Some(context) = self.member_access_context(file_id, &token, offset)? {
+        if let Some(context) = self.classify_member_access(file_id, &token, offset)? {
             return Ok(Some(CompletionCursor { context, token }));
         }
 
         // check object literal context before general expression positions
-        if let Some(object_context) = self.object_literal_context_at_offset(file_id, offset)? {
-            let completion_context = match object_context {
-                ObjectLiteralCursorContext::Key(object_context) => {
-                    CompletionContext::ObjectLiteralKey {
-                        existing_fields: object_context.existing_fields,
-                        scope: object_context.scope,
-                    }
-                }
-                ObjectLiteralCursorContext::Value(scope) => {
-                    CompletionContext::ObjectLiteralValue { scope }
-                }
-            };
-
-            return Ok(Some(CompletionCursor {
-                context: completion_context,
-                token,
-            }));
+        if let Some(context) = self.classify_object_literal(file_id, offset)? {
+            return Ok(Some(CompletionCursor { context, token }));
         }
 
         // check for explicit constructor typing before call arguments
-        if let Some(new_context) = self.new_expression_cursor_context(file_id, offset)? {
-            return Ok(Some(CompletionCursor {
-                context: new_context,
-                token,
-            }));
+        if let Some(context) = self.classify_new_expression(file_id, offset)? {
+            return Ok(Some(CompletionCursor { context, token }));
         }
 
         // check for call argument context
-        if let Some(call_context) = self.call_argument_cursor_context(file_id, offset)? {
-            return Ok(Some(CompletionCursor {
-                context: call_context,
-                token,
-            }));
+        if let Some(context) = self.classify_call_argument(file_id, offset)? {
+            return Ok(Some(CompletionCursor { context, token }));
         }
 
         // check for type position via source spans
@@ -207,19 +183,13 @@ impl ModuleQueryContext<'_> {
         }
 
         // check for statement position
-        if let Some(statement_context) = self.statement_position(file_id, offset)? {
-            return Ok(Some(CompletionCursor {
-                context: statement_context,
-                token,
-            }));
+        if let Some(context) = self.classify_statement(file_id, offset)? {
+            return Ok(Some(CompletionCursor { context, token }));
         }
 
         // suppress unclaimed expression holes
         if self.is_suppressed_completion_position(file_id, &token, offset)? {
-            return Ok(Some(CompletionCursor {
-                context: CompletionContext::Suppressed,
-                token,
-            }));
+            return Ok(None);
         }
 
         let Some(scope) = self.scope_at_offset(file_id, offset)? else {
@@ -321,8 +291,8 @@ impl ModuleQueryContext<'_> {
 // ================================================================================
 
 impl ModuleQueryContext<'_> {
-    /// Return the statement position.
-    fn statement_position(
+    /// Classify statement completion at one offset.
+    fn classify_statement(
         &self,
         file_id: FileId,
         offset: u32,
@@ -335,12 +305,12 @@ impl ModuleQueryContext<'_> {
         }
 
         // skip declarator initializer holes
-        if self.is_declarator_value_hole_at_cursor(file_id, offset)? {
+        if self.is_declarator_value_hole(file_id, offset)? {
             return Ok(None);
         }
 
         // check block based statement gaps first
-        if let Some(scope) = self.statement_position_in_block(file_id, offset)? {
+        if let Some(scope) = self.statement_scope_in_block(file_id, offset)? {
             return Ok(Some(CompletionContext::StatementPosition { scope }));
         }
 
@@ -364,7 +334,7 @@ impl ModuleQueryContext<'_> {
 
     /// Return whether the cursor is in a type position.
     pub(crate) fn is_type_position(&self, file_id: FileId, offset: u32) -> bool {
-        let enclosing = self.enclosing_spans_with_previous(file_id, offset);
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
         let view = self.view();
 
         // check for type side spans that contain the cursor
@@ -397,12 +367,12 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Resolve a statement position inside a block expression.
-    fn statement_position_in_block(
+    fn statement_scope_in_block(
         &self,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<ScopeAtOffset>> {
-        let mut enclosing = self.enclosing_spans_with_previous(file_id, offset);
+        let mut enclosing = self.enclosing_spans_at_cursor(file_id, offset);
         enclosing.sort_by_key(|enclosing_span| enclosing_span.length);
 
         // bail out when there are no spans
@@ -412,7 +382,7 @@ impl ModuleQueryContext<'_> {
 
         // scan for the nearest block that opens one statement position
         for enclosing_span in &enclosing {
-            if self.is_block_statement_position(enclosing_span, offset)? {
+            if self.block_owns_statement_cursor(enclosing_span, offset)? {
                 return self.scope_at_offset(file_id, offset);
             }
         }

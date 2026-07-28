@@ -92,11 +92,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // visit authored source owners from smallest to largest
-        let mut enclosing = self
-            .source_index()
-            .get_enclosing_spans(file_id, offset, offset);
-        enclosing.sort_by_key(|span| (span.length, -(span.source_id as i64)));
-
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
         let view = self.view();
         for enclosing_span in enclosing {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
@@ -134,15 +130,15 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<Option<Span>> {
         if node_id.ty != dir::NodeType::TypeExpression {
-            return Ok(main_span.contains(offset).then_some(main_span));
+            return Ok(main_span.owns_cursor(offset).then_some(main_span));
         }
 
         let type_id = dir::LocalNodeId::<dir::TypeExpression>::new(node_id.id);
         let dir::TypeExpression::Reference { path, .. } = view.get(type_id) else {
-            return Ok(main_span.contains(offset).then_some(main_span));
+            return Ok(main_span.owns_cursor(offset).then_some(main_span));
         };
         if path.segments.len() == 1 {
-            return Ok(main_span.contains(offset).then_some(main_span));
+            return Ok(main_span.owns_cursor(offset).then_some(main_span));
         }
 
         let source_id = view.get_source(type_id);
@@ -157,7 +153,7 @@ impl ModuleQueryContext<'_> {
                     .ok_or(QueryError::missing(format!(
                         "type reference span: {node:?}, {index:?}"
                     )))?;
-            if span.contains(offset) {
+            if span.owns_cursor(offset) {
                 return Ok(Some(span));
             }
         }
@@ -198,7 +194,7 @@ impl ModuleQueryContext<'_> {
         // imported path roots retain their local declaration identities
         if let Some(symbols) = self.resolved().references.declarations(source) {
             let root_span = self.reference_root_span(view, node_id, span)?;
-            if root_span.contains(offset) {
+            if root_span.owns_cursor(offset) {
                 return Ok(Some(SymbolOccurrence {
                     symbols: symbols.to_vec(),
                     type_id: self.types().get_node_type_id(source),
@@ -229,10 +225,9 @@ impl ModuleQueryContext<'_> {
         let Some(symbol_id) = self.global_node_symbol(node_id) else {
             return Ok(None);
         };
-        let symbols = self.declaration_symbols(symbol_id)?;
 
         Ok(Some(SymbolOccurrence {
-            symbols,
+            symbols: vec![symbol_id],
             type_id: self.types().get_node_type_id(source),
             span,
         }))
@@ -333,65 +328,12 @@ impl ModuleQueryContext<'_> {
         let Some(symbol_id) = self.global_node_symbol(node_id) else {
             return Ok(None);
         };
-        let symbols = self.declaration_symbols(symbol_id)?;
 
         Ok(Some(SymbolOccurrence {
-            symbols,
+            symbols: vec![symbol_id],
             type_id: self.types().get_node_type_id(global_node_id),
             span,
         }))
-    }
-
-    /// Return the exact binding family containing one declaration symbol.
-    fn declaration_symbols(
-        &self,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
-        let symbols = self.symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        if symbol.kind != dir::SymbolKind::Function {
-            return Ok(vec![symbol_id]);
-        }
-        let Some(key) = symbol.key else {
-            return Ok(vec![symbol_id]);
-        };
-
-        // read lexical overloads from the declaration's complete scope
-        let lookup = if symbol.visibility != dir::SymbolVisibility::Member {
-            let scope = dir::LocalScope::new(symbol.scope.id, dir::LocalScopeMark::end());
-
-            symbols.lookup_symbol_from_scope(scope, key, dir::SymbolSpace::Declaration)
-        }
-        // read member overloads from their exact owner scope
-        else {
-            let scope = symbols.get_scope_by_id(symbol.scope.id);
-            let owner = scope.owner.ok_or(QueryError::missing(format!(
-                "function owner: {symbol_id:?}"
-            )))?;
-
-            symbols.lookup_key_member(owner, key)
-        };
-
-        let local_symbols = match lookup {
-            dir::SymbolLookup::Missing => {
-                return Err(QueryError::missing(format!(
-                    "function binding: {symbol_id:?}"
-                )));
-            }
-            dir::SymbolLookup::Found(symbol) => vec![symbol],
-            dir::SymbolLookup::Ambiguous(symbols) => symbols.into_vec(),
-        };
-        let family = local_symbols
-            .into_iter()
-            .map(|symbol| symbol.into_global(self.module_id()))
-            .collect::<Vec<_>>();
-        if !family.contains(&symbol_id) {
-            return Err(QueryError::invalid(format!(
-                "function family: {symbol_id:?}"
-            )));
-        }
-
-        Ok(family)
     }
 
     /// Return the selected segment in one qualified type reference.
@@ -562,7 +504,7 @@ impl ModuleQueryContext<'_> {
 
         // imported names use the resolved dependency target
         if let Some(span) = self.source_index().get_side(source_id, imported_name)
-            && span.contains(offset)
+            && span.owns_cursor(offset)
         {
             let symbols = self.dependency_symbol_targets(item_id)?;
             if symbols.is_empty() {
@@ -580,7 +522,7 @@ impl ModuleQueryContext<'_> {
         let Some(span) = self.source_index().get_main(source_id) else {
             return Ok(None);
         };
-        if !span.contains(offset) {
+        if !span.owns_cursor(offset) {
             return Ok(None);
         }
 

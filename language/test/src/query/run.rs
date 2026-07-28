@@ -159,12 +159,12 @@ impl<'a> QueryRun<'a> {
         is_blessing: bool,
     ) -> Result<Option<ResponseUpdate>, String> {
         let request = self.request(&assertion.call)?;
-        let method = request.method_id();
+        let method = request.method();
         let response = self.workspace.query(self.revision, request)?;
-        if response.method_id() != method {
+        if response.method() != method {
             return Err(format!(
                 "query method {method:?} returned response method {:?}",
-                response.method_id()
+                response.method()
             ));
         }
 

@@ -10,7 +10,7 @@ use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderResult, Repository, Revision};
 use destack_source::{File, FileId, ModuleId, ProfileId, SourceIndex, Span};
 
-use crate::{Module, ProgramQueryContext, QueryError, QueryResult};
+use crate::{Module, QueryError, QueryResult};
 
 /// Query context anchored to one module profile.
 #[derive(Debug)]
@@ -52,7 +52,7 @@ pub struct ModuleQueryContext<'a> {
 }
 
 /// Artifact payloads required to build one module query context.
-struct ModuleQueryArtifacts {
+struct ModuleArtifacts {
     /// The parsed module artifact.
     parsed: Arc<DirParsed>,
     /// The bound module artifact.
@@ -69,7 +69,7 @@ struct ModuleQueryArtifacts {
     checked: Arc<DirCheckedModule>,
 }
 
-impl ModuleQueryArtifacts {
+impl ModuleArtifacts {
     /// Read one coherent artifact set from a revision-bound reader.
     fn read(
         reader: &ArtifactReader<'_>,
@@ -95,7 +95,7 @@ impl<'a> ModuleQueryContext<'a> {
         revision: Revision,
         module_id: ModuleId,
         profile_id: ProfileId,
-        artifacts: ModuleQueryArtifacts,
+        artifacts: ModuleArtifacts,
     ) -> Self {
         // compose imported and checked table views
         let bindings = artifacts
@@ -156,7 +156,7 @@ impl<'a> ModuleQueryContext<'a> {
     ) -> ProviderResult<Self> {
         // read exact dependency-backed artifact payloads
         let reader = ArtifactReader::new(repository, revision);
-        let artifacts = ModuleQueryArtifacts::read(&reader, module_id, profile_id)?;
+        let artifacts = ModuleArtifacts::read(&reader, module_id, profile_id)?;
 
         Ok(Self::from_artifacts(
             repository, revision, module_id, profile_id, artifacts,
@@ -323,24 +323,5 @@ impl<'a> ModuleQueryContext<'a> {
         let global_node_id = node_id.into_global(self.module_id);
 
         self.types().get_node_type_id(global_node_id)
-    }
-
-    /// Read one checked global type through its owning module context.
-    pub(crate) fn read_global_type<R>(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        type_id: dir::GlobalTypeId,
-        read: impl FnOnce(&dir::Type, &ModuleQueryContext<'_>) -> R,
-    ) -> QueryResult<R> {
-        if type_id.module_id == self.module_id {
-            let checked_type = self.types.get_type(type_id.local_id);
-
-            return Ok(read(&checked_type, self));
-        }
-
-        let type_module = program.module(type_id.module_id)?;
-        let checked_type = type_module.types.get_type(type_id.local_id);
-
-        Ok(read(&checked_type, type_module))
     }
 }

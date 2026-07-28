@@ -1,7 +1,7 @@
 mod message;
-mod registry;
+mod method;
 mod target;
 
 pub use message::*;
-pub use registry::*;
+pub use method::*;
 pub use target::*;

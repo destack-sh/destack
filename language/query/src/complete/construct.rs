@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use super::CompletionBuilder;
-use super::call::call_snippet;
+use super::call::CallSnippet;
 use crate::{
     CompletionCandidate, CompletionItemKind, CompletionOrigin, Formatter, QueryError, QueryResult,
     SORT_LOCAL_SYMBOL,
@@ -50,7 +50,7 @@ impl CompletionBuilder<'_, '_, '_> {
                     "completion type formatting: {:?}",
                     constructor.ty
                 )))?;
-            let snippet = call_snippet(name, &parameter_names);
+            let snippet = CallSnippet::new(name, &parameter_names);
             let completion = CompletionCandidate::new(
                 name,
                 CompletionItemKind::Class,
@@ -145,9 +145,9 @@ impl CompletionBuilder<'_, '_, '_> {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<CompletionCandidate> {
-        // FUGU #Incomplete: retain checked newtype constructor signatures
+        // FUGU #Incomplete: retain newtype constructor signatures in DIR
         Err(QueryError::missing(format!(
-            "checked newtype constructor signature: {symbol_id:?}"
+            "newtype constructor signature: {symbol_id:?}"
         )))
     }
 }

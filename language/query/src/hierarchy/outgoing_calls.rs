@@ -30,14 +30,6 @@ pub struct OutgoingCallsResponse {
     pub calls: Vec<OutgoingCall>,
 }
 
-/// Indexed calls to one canonical callee.
-struct CalleeCalls {
-    /// The checked call expressions.
-    sources: Vec<dir::GlobalNodeId<dir::Expression>>,
-    /// The call expression ranges.
-    ranges: Vec<Span>,
-}
-
 impl ProgramQueryContext<'_> {
     /// Return outgoing calls from one call item.
     pub fn outgoing_calls(&self, item: &CallItem) -> QueryResult<Vec<OutgoingCall>> {
@@ -47,7 +39,7 @@ impl ProgramQueryContext<'_> {
             .ok_or(QueryError::invalid(format!(
                 "call hierarchy symbol: {symbol_id:?}"
             )))?;
-        let mut callees: FxHashMap<dir::GlobalSymbolId, CalleeCalls> = FxHashMap::default();
+        let mut callees: FxHashMap<dir::GlobalSymbolId, Vec<dir::CallEntry>> = FxHashMap::default();
 
         // collect call sites grouped by their exact canonical callee
         for entry in self.caller_calls(canonical_id)? {
@@ -57,39 +49,28 @@ impl ProgramQueryContext<'_> {
                     "call hierarchy symbol: {:?}",
                     entry.callee
                 )))?;
-            let calls = callees.entry(callee).or_insert_with(|| CalleeCalls {
-                sources: Vec::new(),
-                ranges: Vec::new(),
-            });
-            calls.sources.push(entry.source);
-            calls.ranges.push(entry.span);
+            callees.entry(callee).or_default().push(entry);
         }
 
         // transcribe exact indexed callees
         let mut calls = Vec::new();
-        for (callee, mut callee_calls) in callees {
-            sort_and_dedup_spans(&mut callee_calls.ranges);
-            let first_source = callee_calls
-                .sources
+        for (callee, entries) in callees {
+            let first_source = entries
                 .first()
-                .ok_or(QueryError::missing(format!(
-                    "outgoing call source: {callee:?}"
-                )))?;
+                .map(|entry| entry.source)
+                .ok_or(QueryError::missing(format!("outgoing call: {callee:?}")))?;
             let module = self.module(first_source.module_id)?;
-            let to = module
-                .call_item_from_call(self, first_source.local_id, callee)?
-                .ok_or(QueryError::invalid(format!(
-                    "call hierarchy symbol: {callee:?}"
-                )))?;
+            let to = CallItem::from_call(module, self, first_source.local_id, callee)?.ok_or(
+                QueryError::invalid(format!("call hierarchy symbol: {callee:?}")),
+            )?;
 
             // require one stable item across every grouped call selection
-            for source in &callee_calls.sources[1..] {
+            for entry in &entries[1..] {
+                let source = entry.source;
                 let module = self.module(source.module_id)?;
-                let selected = module
-                    .call_item_from_call(self, source.local_id, callee)?
-                    .ok_or(QueryError::invalid(format!(
-                        "call hierarchy symbol: {callee:?}"
-                    )))?;
+                let selected = CallItem::from_call(module, self, source.local_id, callee)?.ok_or(
+                    QueryError::invalid(format!("call hierarchy symbol: {callee:?}")),
+                )?;
                 if selected != to {
                     return Err(QueryError::conflict(format!(
                         "outgoing call item: {callee:?}"
@@ -97,9 +78,12 @@ impl ProgramQueryContext<'_> {
                 }
             }
 
+            let mut ranges = entries.iter().map(|entry| entry.span).collect::<Vec<_>>();
+            sort_and_dedup_spans(&mut ranges);
+
             calls.push(OutgoingCall {
                 to,
-                from_ranges: callee_calls.ranges,
+                from_ranges: ranges,
             });
         }
 

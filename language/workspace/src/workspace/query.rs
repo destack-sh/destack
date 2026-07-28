@@ -584,11 +584,9 @@ impl SessionPin {
         let mut required_artifacts = Vec::new();
         let mut programs = Vec::with_capacity(profile_ids.len());
 
-        // request every artifact read by each complete program context
+        // request the root artifacts for every program context
         for profile_id in profile_ids {
-            let artifacts = ProgramQueryContext::artifact_keys(repository, revision, *profile_id)
-                .map_err(QueryError::from)?;
-            required_artifacts.extend(artifacts);
+            required_artifacts.extend(ProgramQueryContext::artifact_keys(*profile_id));
         }
         required_artifacts.sort_unstable();
         required_artifacts.dedup();

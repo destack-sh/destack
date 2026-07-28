@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AppliedSignature, Formatter, ModuleQueryContext, ProgramQueryContext, QueryError,
-    QueryPosition, QueryResult,
+    QueryPosition, QueryResult, argument_binding_contains,
 };
 
 /// One parameter shown by signature help.
@@ -480,7 +480,7 @@ impl ModuleQueryContext<'_> {
 
         Ok(Some(SignatureItem {
             label,
-            documentation: program.symbol_doc_text(symbol_id)?,
+            documentation: program.symbol_documentation(symbol_id)?,
             parameters,
         }))
     }
@@ -504,7 +504,7 @@ impl ModuleQueryContext<'_> {
             let global_id = argument_id.into_global_any(self.module_id());
             let parameter = bindings
                 .iter()
-                .find(|binding| binding_contains_argument(binding, global_id))
+                .find(|binding| argument_binding_contains(binding, global_id))
                 .map(|binding| binding.parameter);
             let Some(parameter) = parameter else {
                 return Ok(None);
@@ -514,17 +514,5 @@ impl ModuleQueryContext<'_> {
         }
 
         Ok(None)
-    }
-}
-
-/// Return whether one binding owns a source argument.
-fn binding_contains_argument(
-    binding: &dir::ArgumentBinding,
-    argument: dir::GlobalNodeIdAny,
-) -> bool {
-    match &binding.argument {
-        dir::ArgumentSource::Provided(source) => *source == argument,
-        dir::ArgumentSource::Rest(sources) => sources.contains(&argument),
-        dir::ArgumentSource::Static(_) | dir::ArgumentSource::Omitted => false,
     }
 }

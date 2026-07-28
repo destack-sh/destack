@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use destack_query::{CodeActionKind, CompletionTrigger, FileRename, QueryMethodId};
+use destack_query::{CodeActionKind, CompletionTrigger, FileRename, QueryMethod};
 
 use super::{FixturePosition, FixtureRange};
 
@@ -211,14 +211,14 @@ impl QueryCall {
     pub(super) fn parse(
         language: &str,
         body: &str,
-        expected_method: QueryMethodId,
+        expected_method: QueryMethod,
     ) -> Result<Self, String> {
         let source = language
             .strip_prefix("query ")
             .ok_or_else(|| format!("query fence '{language}' must start with 'query '"))?;
         let mut parser = QueryCallParser::new(source)?;
         let method_name = parser.required("query method")?;
-        let method = QueryMethodId::from_name(&method_name)
+        let method = QueryMethod::from_name(&method_name)
             .ok_or_else(|| format!("unknown query method '{method_name}'"))?;
         if method != expected_method {
             return Err(format!(
@@ -228,106 +228,106 @@ impl QueryCall {
 
         // parse the exact request shape selected by the method
         let call = match method {
-            QueryMethodId::Completion => Self::Completion {
+            QueryMethod::Completion => Self::Completion {
                 position: parser.position()?,
                 trigger: parser.completion_trigger()?,
                 include_auto_imports: parser.boolean("include_auto_imports", false)?,
             },
-            QueryMethodId::Hover => Self::Hover {
+            QueryMethod::Hover => Self::Hover {
                 position: parser.position()?,
             },
-            QueryMethodId::SignatureHelp => Self::SignatureHelp {
+            QueryMethod::SignatureHelp => Self::SignatureHelp {
                 position: parser.position()?,
             },
-            QueryMethodId::InlayHints => Self::InlayHints {
+            QueryMethod::InlayHints => Self::InlayHints {
                 range: parser.range()?,
                 type_hints: parser.boolean("type_hints", true)?,
                 parameter_hints: parser.boolean("parameter_hints", true)?,
             },
-            QueryMethodId::CodeLenses => Self::CodeLenses {
+            QueryMethod::CodeLenses => Self::CodeLenses {
                 module: parser.module_path()?,
             },
-            QueryMethodId::FoldingRanges => Self::FoldingRanges {
+            QueryMethod::FoldingRanges => Self::FoldingRanges {
                 module: parser.module_path()?,
             },
-            QueryMethodId::SemanticTokens => Self::SemanticTokens {
+            QueryMethod::SemanticTokens => Self::SemanticTokens {
                 module: parser.module_path()?,
             },
-            QueryMethodId::SemanticTokensRange => Self::SemanticTokensRange {
+            QueryMethod::SemanticTokensRange => Self::SemanticTokensRange {
                 range: parser.range()?,
             },
-            QueryMethodId::Outline => Self::Outline {
+            QueryMethod::Outline => Self::Outline {
                 module: parser.module_path()?,
             },
-            QueryMethodId::SearchSymbols => Self::SearchSymbols {
+            QueryMethod::SearchSymbols => Self::SearchSymbols {
                 query: parser.required_value("query")?,
                 max_results: parser.unsigned_integer("max_results")?,
             },
-            QueryMethodId::Links => Self::Links {
+            QueryMethod::Links => Self::Links {
                 module: parser.module_path()?,
             },
-            QueryMethodId::Highlight => Self::Highlight {
+            QueryMethod::Highlight => Self::Highlight {
                 position: parser.position()?,
             },
-            QueryMethodId::SelectionRanges => Self::SelectionRanges {
+            QueryMethod::SelectionRanges => Self::SelectionRanges {
                 positions: parser.remaining_positions()?,
             },
-            QueryMethodId::GotoDefinition => Self::GotoDefinition {
+            QueryMethod::GotoDefinition => Self::GotoDefinition {
                 position: parser.position()?,
             },
-            QueryMethodId::GotoDeclaration => Self::GotoDeclaration {
+            QueryMethod::GotoDeclaration => Self::GotoDeclaration {
                 position: parser.position()?,
             },
-            QueryMethodId::GotoTypeDefinition => Self::GotoTypeDefinition {
+            QueryMethod::GotoTypeDefinition => Self::GotoTypeDefinition {
                 position: parser.position()?,
             },
-            QueryMethodId::GotoImplementation => Self::GotoImplementation {
+            QueryMethod::GotoImplementation => Self::GotoImplementation {
                 position: parser.position()?,
             },
-            QueryMethodId::FindReferences => Self::FindReferences {
+            QueryMethod::FindReferences => Self::FindReferences {
                 position: parser.position()?,
                 include_declaration: parser.boolean("include_declaration", false)?,
             },
-            QueryMethodId::CallItem => Self::CallItem {
+            QueryMethod::CallItem => Self::CallItem {
                 position: parser.position()?,
             },
-            QueryMethodId::IncomingCalls => Self::IncomingCalls {
+            QueryMethod::IncomingCalls => Self::IncomingCalls {
                 item: parser.position()?,
             },
-            QueryMethodId::OutgoingCalls => Self::OutgoingCalls {
+            QueryMethod::OutgoingCalls => Self::OutgoingCalls {
                 item: parser.position()?,
             },
-            QueryMethodId::TypeItem => Self::TypeItem {
+            QueryMethod::TypeItem => Self::TypeItem {
                 position: parser.position()?,
             },
-            QueryMethodId::Supertypes => Self::Supertypes {
+            QueryMethod::Supertypes => Self::Supertypes {
                 item: parser.position()?,
             },
-            QueryMethodId::Subtypes => Self::Subtypes {
+            QueryMethod::Subtypes => Self::Subtypes {
                 item: parser.position()?,
             },
-            QueryMethodId::Decorators => Self::Decorators {
+            QueryMethod::Decorators => Self::Decorators {
                 scope: parser.decorator_scope()?,
                 name: parser.optional_value("name")?,
             },
-            QueryMethodId::RenameTarget => Self::RenameTarget {
+            QueryMethod::RenameTarget => Self::RenameTarget {
                 position: parser.position()?,
             },
-            QueryMethodId::Rename => Self::Rename {
+            QueryMethod::Rename => Self::Rename {
                 position: parser.position()?,
                 new_name: parser.required_value("new_name")?,
             },
-            QueryMethodId::RenameFiles => Self::RenameFiles {
+            QueryMethod::RenameFiles => Self::RenameFiles {
                 renames: parse_file_renames(body)?,
             },
-            QueryMethodId::ExtractVariable => Self::ExtractVariable {
+            QueryMethod::ExtractVariable => Self::ExtractVariable {
                 range: parser.range()?,
                 new_name: parser.required_value("new_name")?,
             },
-            QueryMethodId::Inline => Self::Inline {
+            QueryMethod::Inline => Self::Inline {
                 position: parser.position()?,
             },
-            QueryMethodId::CodeActions => Self::CodeActions {
+            QueryMethod::CodeActions => Self::CodeActions {
                 range: parser.range()?,
                 only: parser.code_action_kinds()?,
                 diagnostics: parse_code_action_diagnostics(body)?,

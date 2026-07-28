@@ -45,24 +45,19 @@ impl ModuleQueryContext<'_> {
         let Some(selection) = self.resolve_rename_target(program, file_id, offset)? else {
             return Ok(None);
         };
+        selection.require_rename_group(program)?;
 
-        // reject no-op and incomplete target groups
+        // reject no-op names
         if selection.placeholder == new_name {
-            return Ok(None);
-        }
-        if !selection.can_rename_exactly(program)? {
             return Ok(None);
         }
 
         // collect the complete indexed occurrence set
-        let Some(occurrences) = self.collect_symbol_rename_occurrences(
+        let occurrences = self.collect_symbol_rename_occurrences(
             program,
             &selection.symbols,
             selection.is_local_declaration,
-        )?
-        else {
-            return Ok(None);
-        };
+        )?;
         let role = RenameRole::resolve(program, &selection.symbols)?;
 
         let edits = selection.edits(program, &occurrences, new_name, role)?;
@@ -84,12 +79,26 @@ pub(crate) struct RenameSelection {
 }
 
 impl RenameSelection {
-    /// Return whether every related member declaration is represented exactly.
-    fn can_rename_exactly(&self, program: &ProgramQueryContext<'_>) -> QueryResult<bool> {
-        // FUGU #Incomplete: expand member groups through checked implementation relations
+    /// Require every declaration that must participate in this rename.
+    fn require_rename_group(&self, program: &ProgramQueryContext<'_>) -> QueryResult<()> {
+        // FUGU #Incomplete: retain declaration and member rename groups in DIR
+        if self.symbols.len() > 1 {
+            return Err(QueryError::missing(format!(
+                "rename declaration group: {:?}",
+                self.symbols
+            )));
+        }
+
+        // reject declarations whose related declarations are not retained
         for symbol_id in &self.symbols {
             let module = program.module(symbol_id.module_id)?;
             let symbol = module.symbols().get_symbol(symbol_id.local_id);
+            if symbol.kind == dir::SymbolKind::Function {
+                return Err(QueryError::missing(format!(
+                    "function rename group: {symbol_id:?}"
+                )));
+            }
+
             let Some(declaration) = symbol.declaration else {
                 return Err(QueryError::missing(format!(
                     "rename declaration: {:?}",
@@ -97,44 +106,17 @@ impl RenameSelection {
                 )));
             };
 
-            // ignore declarations that do not participate in member heritage
-            if !matches!(
+            if matches!(
                 declaration.local_id.ty,
                 dir::NodeType::Member | dir::NodeType::TypeMember
             ) {
-                continue;
-            }
-
-            // reject members whose nominal owner participates in heritage
-            let Some(owner) = module.view().get_parent_any(declaration.local_id) else {
                 return Err(QueryError::missing(format!(
-                    "rename owner: {:?}",
-                    *symbol_id
+                    "member rename group: {symbol_id:?}"
                 )));
-            };
-            if owner.ty != dir::NodeType::Declaration {
-                continue;
-            }
-            let Some(owner) = module.global_node_symbol(owner) else {
-                return Err(QueryError::missing(format!(
-                    "rename owner: {:?}",
-                    *symbol_id
-                )));
-            };
-            let Some(owner) = program.canonical_symbol(owner)? else {
-                return Err(QueryError::missing(format!(
-                    "rename owner: {:?}",
-                    *symbol_id
-                )));
-            };
-            if !program.base_heritage(owner)?.is_empty()
-                || !program.derived_heritage(owner)?.is_empty()
-            {
-                return Ok(false);
             }
         }
 
-        Ok(true)
+        Ok(())
     }
 
     /// Build exact file edits from indexed occurrences.
@@ -153,7 +135,10 @@ impl RenameSelection {
             let module = program.module(occurrence.module.module_id)?;
             let authored_name = module.source_text(occurrence.span)?;
             if authored_name != self.placeholder {
-                continue;
+                return Err(QueryError::conflict(format!(
+                    "rename occurrence text: {:?}",
+                    occurrence.span
+                )));
             }
 
             // derive the exact edit form from authored shorthand structure
@@ -374,9 +359,6 @@ impl ModuleQueryContext<'_> {
         let Some(first) = symbols.first().copied() else {
             return Ok(None);
         };
-        if !Self::is_rename_group(program, &symbols)? {
-            return Ok(None);
-        }
         let Some(placeholder) = program.symbol_name(first)? else {
             return Ok(None);
         };
@@ -394,45 +376,14 @@ impl ModuleQueryContext<'_> {
             }
         }
 
-        Ok(Some(RenameSelection {
+        let selection = RenameSelection {
             occurrence,
             symbols,
             placeholder,
             is_local_declaration: false,
-        }))
-    }
-
-    /// Return whether symbols form one lexical declaration group.
-    fn is_rename_group(
-        program: &ProgramQueryContext<'_>,
-        symbols: &[dir::GlobalSymbolId],
-    ) -> QueryResult<bool> {
-        let [first, rest @ ..] = symbols else {
-            return Ok(false);
         };
-        if rest.is_empty() {
-            return Ok(true);
-        }
 
-        // multiple declarations must be one function overload binding
-        let module = program.module(first.module_id)?;
-        let first_symbol = module.symbols().get_symbol(first.local_id);
-        if first_symbol.kind != dir::SymbolKind::Function {
-            return Ok(false);
-        }
-
-        let is_group = rest.iter().all(|symbol| {
-            if symbol.module_id != first.module_id {
-                return false;
-            }
-            let symbol = module.symbols().get_symbol(symbol.local_id);
-
-            symbol.kind == dir::SymbolKind::Function
-                && symbol.key == first_symbol.key
-                && symbol.scope.id == first_symbol.scope.id
-        });
-
-        Ok(is_group)
+        Ok(Some(selection))
     }
 
     /// Collect all indexed occurrences for one declaration group.
@@ -441,7 +392,7 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
         symbols: &[dir::GlobalSymbolId],
         is_local_declaration: bool,
-    ) -> QueryResult<Option<Vec<RenameOccurrence>>> {
+    ) -> QueryResult<Vec<RenameOccurrence>> {
         let mut occurrences = Vec::new();
 
         // require every authored declaration targeted by this rename
@@ -496,40 +447,6 @@ impl ModuleQueryContext<'_> {
         });
         occurrences.dedup();
 
-        // require every rewritten occurrence to select only this rename group
-        for occurrence in &occurrences {
-            let module = program.module(occurrence.module.module_id)?;
-            let selected = if is_local_declaration {
-                module.declaration_at_offset(occurrence.span.file, occurrence.span.start)
-            } else {
-                module.reference_at_offset(occurrence.span.file, occurrence.span.start)
-            }?
-            .ok_or(QueryError::missing(format!(
-                "rename occurrence: {:?}",
-                occurrence.span
-            )))?;
-            if selected.span != occurrence.span {
-                return Err(QueryError::conflict(format!(
-                    "rename occurrence: {:?}, {:?}",
-                    occurrence.span, selected.span
-                )));
-            }
-
-            let selected = if is_local_declaration {
-                selected.symbols
-            } else {
-                let mut symbols = Vec::new();
-                for symbol in selected.symbols {
-                    symbols.extend(program.canonical_symbols(symbol)?);
-                }
-
-                symbols
-            };
-            if selected.iter().any(|selected| !symbols.contains(selected)) {
-                return Ok(None);
-            }
-        }
-
-        Ok(Some(occurrences))
+        Ok(occurrences)
     }
 }

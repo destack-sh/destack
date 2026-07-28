@@ -89,10 +89,8 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
         type_id: dir::GlobalTypeId,
     ) -> QueryResult<Vec<dir::GlobalSymbolId>> {
-        let (mut symbols, nested) = self.read_global_type(
-            program,
-            type_id,
-            |checked_type, module| match checked_type {
+        let (mut symbols, nested) = program.read_type(type_id, |type_value, module| {
+            let selected = match type_value {
                 dir::Type::Reference(reference) => (vec![reference.symbol], Vec::new()),
                 dir::Type::Application(application) => (vec![application.symbol], Vec::new()),
                 dir::Type::Form(form) => (Vec::new(), vec![form.value]),
@@ -104,8 +102,10 @@ impl ModuleQueryContext<'_> {
                     module.types().type_ids(intersection.elements).to_vec(),
                 ),
                 _ => (Vec::new(), Vec::new()),
-            },
-        )?;
+            };
+
+            Ok(selected)
+        })?;
 
         // descend through transparent checked type forms
         for nested_type_id in nested {

@@ -3,8 +3,8 @@ use destack_dir as dir;
 use crate::{ProgramQueryContext, QueryResult};
 
 impl ProgramQueryContext<'_> {
-    /// Return the checked documentation for one symbol declaration.
-    pub(crate) fn symbol_doc_text(
+    /// Return the documentation for one symbol declaration.
+    pub(crate) fn symbol_documentation(
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<String>> {

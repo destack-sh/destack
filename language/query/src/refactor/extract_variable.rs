@@ -38,14 +38,14 @@ impl ModuleQueryContext<'_> {
         }
 
         // resolve source text for edits
-        let source_file = self
+        let file = self
             .repository()
             .file(self.revision(), selection.file)?
             .ok_or(QueryError::missing(format!(
                 "source file: {:?}",
                 selection.file
             )))?;
-        let source = source_file.text();
+        let source = file.text();
 
         // resolve one exact checked expression target
         let Some(target) = ExtractionTarget::resolve(selection, self)? else {
@@ -57,8 +57,8 @@ impl ModuleQueryContext<'_> {
             .ok_or(QueryError::missing(format!(
                 "extraction type: {expression:?}"
             )))?;
-        let is_error = self.read_global_type(program, type_id, |checked_type, _| {
-            matches!(checked_type, dir::Type::Error)
+        let is_error = program.read_type(type_id, |type_value, _| {
+            Ok(matches!(type_value, dir::Type::Error))
         })?;
         if is_error {
             return Ok(None);
@@ -66,8 +66,7 @@ impl ModuleQueryContext<'_> {
 
         // preserve the exact authored expression text
         let expression_text =
-            source_file
-                .get_span_str(target.expression_span)
+            file.get_span_str(target.expression_span)
                 .ok_or(QueryError::invalid(format!(
                     "source span: {:?}",
                     target.expression_span
@@ -94,7 +93,7 @@ impl ModuleQueryContext<'_> {
         let declaration = format!("{}const {new_name} = {expression_text};\n", line.indent);
         let mut file_edit = FilePatch::new(selection.file);
         if let Some(split) = target.split {
-            let prefix = source_file
+            let prefix = file
                 .get_span_str(split.prefix)
                 .ok_or(QueryError::invalid(format!(
                     "source span: {:?}",

@@ -15,7 +15,7 @@ use crate::{
 use super::CompletionContext;
 use super::builder::CompletionBuilder;
 use super::builtin::length_ordering_text;
-use super::call::call_snippet;
+use super::call::CallSnippet;
 
 // auto import completion thresholds
 const AUTO_IMPORT_MIN_PREFIX: usize = 2;
@@ -40,15 +40,15 @@ impl ExportDeclaration {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Return import related context.
-    pub(super) fn import_context(
+    /// Classify import completion at one offset.
+    pub(super) fn classify_import(
         &self,
         file_id: FileId,
         source: &str,
         offset: u32,
     ) -> QueryResult<Option<CompletionContext>> {
         // resolve enclosing spans from innermost to outermost
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
         let view = self.view();
 
         // scan enclosing expressions for import nodes under the cursor
@@ -76,14 +76,14 @@ impl ModuleQueryContext<'_> {
                 return Ok(Some(CompletionContext::ImportPath { partial_path }));
             }
 
-            if let Some(span) = self.import_path_span_from_tokens(file_id, import_span, offset)? {
+            if let Some(span) = self.import_path_token_span(file_id, import_span, offset)? {
                 let partial_path = extract_string_literal_prefix(source, span, offset)?;
                 return Ok(Some(CompletionContext::ImportPath { partial_path }));
             }
 
             // detect import clause completions inside the brace list
-            if let Some(context) =
-                self.import_clause_context(expression, offset, import_span, main_span)?
+            if let Some(existing_names) =
+                self.import_clause_names(expression, offset, import_span, main_span)?
             {
                 let dir::Expression::Import { .. } = expression else {
                     continue;
@@ -93,7 +93,7 @@ impl ModuleQueryContext<'_> {
 
                 return Ok(Some(CompletionContext::ImportClause {
                     target_module,
-                    existing_names: context.existing_names,
+                    existing_names,
                     use_filter: None,
                 }));
             }
@@ -103,7 +103,7 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Resolve a string literal span for an import path at the cursor.
-    fn import_path_span_from_tokens(
+    fn import_path_token_span(
         &self,
         file_id: FileId,
         import_span: Span,
@@ -146,36 +146,15 @@ impl ModuleQueryContext<'_> {
     }
 }
 
-/// Import clause completion context.
-struct ImportClauseContext {
-    /// Existing names in the clause.
-    existing_names: Vec<String>,
-}
-
-impl ImportClauseContext {
-    /// Create an import clause context.
-    fn new(mut existing_names: Vec<String>) -> Self {
-        Self::deduplicate_names(&mut existing_names);
-
-        Self { existing_names }
-    }
-
-    /// Deduplicate names while preserving their first occurrence order.
-    fn deduplicate_names(names: &mut Vec<String>) {
-        let mut deduped = FxHashSet::default();
-        names.retain(|name| deduped.insert(name.clone()));
-    }
-}
-
 impl ModuleQueryContext<'_> {
-    /// Resolve import clause context at the given offset.
-    fn import_clause_context(
+    /// Return existing names when the cursor belongs to an import clause.
+    fn import_clause_names(
         &self,
         expression: &dir::Expression,
         offset: u32,
         import_span: Span,
         target_span: Option<Span>,
-    ) -> QueryResult<Option<ImportClauseContext>> {
+    ) -> QueryResult<Option<Vec<String>>> {
         // require an import expression
         let dir::Expression::Import { items, .. } = expression else {
             return Ok(None);
@@ -231,7 +210,11 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         }
 
-        Ok(Some(ImportClauseContext::new(existing_names)))
+        // retain names once in source order
+        let mut seen = FxHashSet::default();
+        existing_names.retain(|name| seen.insert(name.clone()));
+
+        Ok(Some(existing_names))
     }
 }
 
@@ -255,7 +238,7 @@ impl CompletionBuilder<'_, '_, '_> {
                 if kind == CompletionItemKind::Function
                     && let Some(parameter_names) = self.program.symbol_parameter_names(symbol)?
                 {
-                    let snippet = call_snippet(&completion.label, &parameter_names);
+                    let snippet = CallSnippet::new(&completion.label, &parameter_names);
                     completion = completion.with_insert_text(snippet.text);
                     if snippet.is_snippet {
                         completion = completion.with_snippet();
@@ -457,7 +440,7 @@ impl CompletionBuilder<'_, '_, '_> {
         let mut results = Vec::new();
 
         if partial.starts_with("./") || partial.starts_with("../") {
-            let path = self.source_file.path.as_deref();
+            let path = self.file.path.as_deref();
             if let Some(path) = path
                 && let Some(base_dir) = path.parent()
             {

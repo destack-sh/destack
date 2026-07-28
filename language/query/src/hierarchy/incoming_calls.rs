@@ -53,12 +53,9 @@ impl ProgramQueryContext<'_> {
         let mut calls = Vec::new();
         for (caller, mut ranges) in spans_by_caller {
             sort_and_dedup_spans(&mut ranges);
-            let module = self.module(caller.module_id)?;
-            let from = module
-                .call_item_from_symbol(self, caller)?
-                .ok_or(QueryError::invalid(format!(
-                    "call hierarchy symbol: {caller:?}"
-                )))?;
+            let from = CallItem::from_symbol(self, caller)?.ok_or(QueryError::invalid(format!(
+                "call hierarchy symbol: {caller:?}"
+            )))?;
             calls.push(IncomingCall {
                 from,
                 from_ranges: ranges,

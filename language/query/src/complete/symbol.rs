@@ -37,7 +37,7 @@ impl CompletionBuilder<'_, '_, '_> {
         }
 
         // transcribe exact declaration documentation
-        if let Some(documentation) = self.program.symbol_doc_text(symbol_id)? {
+        if let Some(documentation) = self.program.symbol_documentation(symbol_id)? {
             completion = completion.with_documentation(documentation);
         }
 

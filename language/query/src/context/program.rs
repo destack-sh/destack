@@ -1,6 +1,7 @@
 use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{ArtifactKey, ModuleIndex, PackageGraph, ProgramIndex};
+use destack_dir as dir;
 use destack_repository::{
     ArtifactReader, PackageKind, ProviderError, Repository, RepositoryError, Revision,
 };
@@ -28,28 +29,12 @@ pub struct ProgramQueryContext<'a> {
 }
 
 impl<'a> ProgramQueryContext<'a> {
-    /// Return artifacts required to build one complete program query context.
-    pub fn artifact_keys(
-        repository: &Repository,
-        revision: Revision,
-        profile_id: ProfileId,
-    ) -> Result<Vec<ArtifactKey>, ProviderError> {
-        let module_ids = repository.module_ids(revision).map_err(|error| {
-            ProviderError::internal(format!("failed to read program modules: {error}"))
-        })?;
-        let mut artifacts = vec![ArtifactKey::package_graph(profile_id)];
-
-        // request every module context and module index consumed by the program index
-        for module_id in module_ids {
-            artifacts.extend(ModuleQueryContext::artifact_keys(module_id, profile_id));
-            artifacts.push(ArtifactKey::module_index(module_id, profile_id));
-        }
-
-        artifacts.push(ArtifactKey::program_index(profile_id));
-        artifacts.sort_unstable();
-        artifacts.dedup();
-
-        Ok(artifacts)
+    /// Return the root artifacts required to build one program query context.
+    pub fn artifact_keys(profile_id: ProfileId) -> [ArtifactKey; 2] {
+        [
+            ArtifactKey::package_graph(profile_id),
+            ArtifactKey::program_index(profile_id),
+        ]
     }
 
     /// Iterate over the exact modules covered by this program context.
@@ -123,6 +108,18 @@ impl<'a> ProgramQueryContext<'a> {
             Ok(context) => Ok(context),
             Err(error) => Err(QueryError::from(error.clone())),
         }
+    }
+
+    /// Read one global type with its owning module.
+    pub(crate) fn read_type<R>(
+        &self,
+        type_id: dir::GlobalTypeId,
+        read: impl FnOnce(&dir::Type, &ModuleQueryContext<'_>) -> QueryResult<R>,
+    ) -> QueryResult<R> {
+        let module = self.module(type_id.module_id)?;
+        let type_value = module.types().get_type(type_id.local_id);
+
+        read(&type_value, module)
     }
 
     /// Return one module index selected by a program postings ordinal.
