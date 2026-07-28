@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
-use destack_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
+use destack_memory::{MemoryMap, MemoryRange, MemoryResult};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -114,9 +114,9 @@ impl StaticImage {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct StaticSpaceImage {
     /// The static byte offset inside world memory.
-    pub memory_offset: u64,
-    /// The captured static bytes.
-    pub bytes: Vec<u8>,
+    pub memory_offset: usize,
+    /// The static byte count inside world memory.
+    pub byte_len: usize,
 }
 
 /// Runtime-owned mutable static memory.
@@ -139,20 +139,13 @@ impl StaticSpace {
     }
 
     /// Restore static memory from one image.
-    pub fn from_image(memory: Arc<MemoryMap>, image: &StaticSpaceImage) -> MemoryResult<Self> {
-        let offset =
-            usize::try_from(image.memory_offset).map_err(|_| MemoryError::OffsetOverflow {
-                offset: image.memory_offset,
-            })?;
+    pub fn from_image(memory: Arc<MemoryMap>, image: &StaticSpaceImage) -> Self {
         let range = MemoryRange {
-            offset,
-            byte_len: image.bytes.len(),
+            offset: image.memory_offset,
+            byte_len: image.byte_len,
         };
-        memory.claim(range)?;
-        let space = Self { memory, range };
-        space.memory.write_bytes(space.range.offset, &image.bytes)?;
 
-        Ok(space)
+        Self { memory, range }
     }
 
     /// Fork static memory over an already forked world map.
@@ -164,15 +157,11 @@ impl StaticSpace {
     }
 
     /// Capture mutable static memory.
-    pub fn image(&self) -> MemoryResult<StaticSpaceImage> {
-        let bytes = self
-            .memory
-            .read_bytes(self.range.offset, self.range.byte_len)?;
-
-        Ok(StaticSpaceImage {
-            memory_offset: self.range.offset as u64,
-            bytes,
-        })
+    pub fn image(&self) -> StaticSpaceImage {
+        StaticSpaceImage {
+            memory_offset: self.range.offset,
+            byte_len: self.range.byte_len,
+        }
     }
 
     /// Borrow one mapped global byte range mutably.
@@ -268,18 +257,24 @@ mod tests {
         let source_memory = Arc::new(
             MemoryMap::reserve(64 * 1024, 8 * 1024).expect("source memory should reserve"),
         );
-        let source = StaticSpace::new(source_memory, &[1, 2, 3, 4])
+        let source = StaticSpace::new(source_memory.clone(), &[1, 2, 3, 4])
             .expect("source statics should materialize");
-        let image = source.image().expect("static image should capture");
-        let target_memory = Arc::new(
-            MemoryMap::reserve(64 * 1024, 8 * 1024).expect("target memory should reserve"),
-        );
+        let memory_image = source_memory
+            .capture()
+            .expect("memory image should capture");
+        let image = source.image();
+        let target_memory = Arc::new(memory_image.restore().expect("memory should restore"));
 
-        let restored =
-            StaticSpace::from_image(target_memory, &image).expect("static image should restore");
-        let restored_image = restored.image().expect("restored image should capture");
+        let restored = StaticSpace::from_image(target_memory.clone(), &image);
+        let restored_image = restored.image();
 
         assert_eq!(restored_image, image);
+        assert_eq!(
+            target_memory
+                .read_bytes(image.memory_offset, image.byte_len)
+                .expect("restored statics should read"),
+            [1, 2, 3, 4]
+        );
     }
 
     /// Isolate forked mutable static bytes on first write.
@@ -298,11 +293,15 @@ mod tests {
             .expect("fork statics should write");
 
         assert_eq!(
-            parent.image().expect("parent image should capture").bytes,
+            memory
+                .read_bytes(parent.range.offset, parent.range.byte_len)
+                .expect("parent statics should read"),
             [1, 2, 3, 4]
         );
         assert_eq!(
-            fork.image().expect("fork image should capture").bytes,
+            fork.memory
+                .read_bytes(fork.range.offset, fork.range.byte_len)
+                .expect("fork statics should read"),
             [9, 8, 7, 6]
         );
     }
