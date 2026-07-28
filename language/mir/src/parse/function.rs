@@ -4,9 +4,9 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::source::{Token, TokenType};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Block,
-    BlockParameter, BlockTarget, Call, Callee, CheckConstraint, Coroutine, Function, FunctionBody,
-    FunctionHeaderSpans, FunctionParameter, Instruction, Linkage, Local, LocalNodeId, Mutability,
-    SwitchCase, Terminator, TypeId, TypedValueSpan, Value,
+    BlockParameter, BlockTarget, Call, Callee, CheckConstraint, CoroutineKind, Function,
+    FunctionBody, FunctionHeaderSpans, FunctionParameter, Instruction, Linkage, Local, LocalNodeId,
+    Mutability, SwitchCase, Terminator, TypeId, TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -18,7 +18,7 @@ pub(super) struct ParsedFunctionHeader {
     /// The resolved function id.
     pub(super) function_id: LocalNodeId<Function>,
     /// The coroutine body form, absent for an ordinary callable function.
-    pub(super) coroutine: Option<Coroutine>,
+    pub(super) coroutine: Option<CoroutineKind>,
     /// The function keyword span.
     pub(super) keyword_span: Span,
     /// The parsed function name.
@@ -154,9 +154,9 @@ impl Parser {
         let is_generator = self.eat_token_if(TokenType::Star);
         let coroutine = match (is_async, is_generator) {
             (false, false) => None,
-            (true, false) => Some(Coroutine::Async),
-            (false, true) => Some(Coroutine::Generator),
-            (true, true) => Some(Coroutine::AsyncGenerator),
+            (true, false) => Some(CoroutineKind::Async),
+            (false, true) => Some(CoroutineKind::Generator),
+            (true, true) => Some(CoroutineKind::AsyncGenerator),
         };
         let (name, name_start) = self.parse_symbol_name()?;
         let name_span = self.span_at(name_start, name.len());

@@ -36,7 +36,7 @@ pub struct Function {
     /// Memory allocation restrictions for this function.
     pub allocation: AllocationMode,
     /// The coroutine body form, absent for an ordinary callable function.
-    pub coroutine: Option<Coroutine>,
+    pub coroutine: Option<CoroutineKind>,
 }
 
 impl Node for Function {
@@ -64,7 +64,7 @@ pub struct FunctionBody {
 
 /// The execution form of one coroutine body.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum Coroutine {
+pub enum CoroutineKind {
     /// A body owned by an asynchronous carrier that awaits values.
     Async,
     /// A body owned by a generator that yields values to its caller.
@@ -73,7 +73,7 @@ pub enum Coroutine {
     AsyncGenerator,
 }
 
-impl Coroutine {
+impl CoroutineKind {
     /// Return whether this coroutine may await asynchronous values.
     pub const fn is_async(self) -> bool {
         matches!(self, Self::Async | Self::AsyncGenerator)
@@ -683,7 +683,7 @@ impl Function {
     }
 
     /// Mark this function as a coroutine body.
-    pub fn with_coroutine(mut self, coroutine: Coroutine) -> Self {
+    pub fn with_coroutine(mut self, coroutine: CoroutineKind) -> Self {
         self.coroutine = Some(coroutine);
 
         self
