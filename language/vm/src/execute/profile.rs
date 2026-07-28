@@ -1,10 +1,10 @@
 use destack_bytecode::{Instruction, Opcode};
-use destack_program::{CounterId, SamplerId};
+use destack_program::{CounterId, Runtime, SamplerId};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one explicit profile operation.
     pub(crate) fn execute_profile(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let mut operands = self.operands(instruction);

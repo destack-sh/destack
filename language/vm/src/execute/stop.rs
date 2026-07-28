@@ -1,10 +1,10 @@
 use destack_bytecode::CodeOffset;
-use destack_program::{Outcome, StopReason, Word};
+use destack_program::{Outcome, Runtime, StopReason, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::{Activation, Frame};
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Stop before one externally selected instruction when required.
     pub(crate) fn stop_before(
         &mut self,

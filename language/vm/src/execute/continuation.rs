@@ -1,12 +1,12 @@
 use destack_bytecode::{CodeOffset, Instruction, Opcode};
-use destack_program::{Continuation, ContinuationId, FramePoint, FunctionId};
+use destack_program::{Continuation, ContinuationId, FramePoint, FunctionId, Runtime};
 
 use crate::diagnostic::Result;
 use crate::machine::{Activation, Return};
 
 use super::suspension::SuspensionEdge;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one continuation operation.
     pub(crate) fn execute_continuation(
         &mut self,

@@ -3,12 +3,12 @@ use std::{ptr, slice};
 
 use destack_bytecode::{Instruction, MemoryOperation, Opcode, Scalar};
 use destack_mir::Space;
-use destack_program::{GlobalAddress, GlobalId, GlobalLocation, Word};
+use destack_program::{GlobalAddress, GlobalId, GlobalLocation, Runtime, Word};
 
 use crate::diagnostic::{Error, Result};
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Construct one stable global address.
     pub(crate) fn execute_global_address(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let mut operands = self.operands(instruction);

@@ -1,12 +1,12 @@
 use destack_bytecode::{CodeOffset, Instruction, Opcode, ReferenceType, RegisterId, Space};
 use destack_heap::{HeapEdge, HeapReference, SharedHeapReference};
 use destack_mir as mir;
-use destack_program::{FunctionId, Word};
+use destack_program::{FunctionId, Runtime, Word};
 
 use crate::diagnostic::{Error, Result};
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Read one stable heap edge from a program storage space.
     pub(crate) fn read_edge(&self, register: RegisterId, space: mir::Space) -> Result<HeapEdge> {
         let bits = self.read(register.0).bits() as usize;

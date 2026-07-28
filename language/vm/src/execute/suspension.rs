@@ -1,7 +1,7 @@
 use destack_bytecode::{CodeOffset, Instruction, Opcode};
-use destack_program::{FrameStateId, FunctionId, Outcome, Suspension, Task, Word};
+use destack_program::{FrameStateId, FunctionId, Outcome, Runtime, Suspension, Task, Word};
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::{ExecutionError, ExecutionResult, Result};
 use crate::machine::{Activation, Return};
 
 /// Successor entered when restoring one suspension.
@@ -15,13 +15,13 @@ pub(super) enum SuspensionEdge {
     Cancel,
 }
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Suspend the active coroutine at one await or yield operation.
     pub(crate) fn execute_suspension(
         &mut self,
         pc: CodeOffset,
         instruction: Instruction<'_>,
-    ) -> Result<Option<Outcome<Vec<Word>>>> {
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
         let mut operands = self.operands(instruction);
         operands.span()?;
         let (operation, park, values) = match instruction.opcode() {
@@ -59,7 +59,7 @@ impl Activation<'_, '_> {
             Suspension::Yield => coroutine.is_generator(),
         };
         if !is_supported {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         }
         let (_, site) = self
             .machine
@@ -67,7 +67,7 @@ impl Activation<'_, '_> {
             .suspension(point)
             .ok_or_else(|| self.invalid_instruction())?;
         if site.operation != operation {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         }
         let state = site.frame_state;
         let value = self
@@ -92,7 +92,7 @@ impl Activation<'_, '_> {
         state: FrameStateId,
         park: Option<FunctionId>,
         value: Vec<Word>,
-    ) -> Result<Option<Outcome<Vec<Word>>>> {
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
         let park = park.ok_or_else(|| self.invalid_instruction())?;
         let Some(first_frame) = self
             .machine
@@ -120,7 +120,7 @@ impl Activation<'_, '_> {
             .and_then(|index| self.machine.frames.get(index))
             .copied()
         else {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         };
         let task = Task::from_bits(
             self.machine
@@ -132,7 +132,7 @@ impl Activation<'_, '_> {
             .activation
             .runtime
             .is_task_cancelled(task)
-            .map_err(Error::program)?;
+            .map_err(ExecutionError::runtime)?;
 
         // enter cleanup directly when cancellation was requested while running
         if is_cancelled {
@@ -154,7 +154,7 @@ impl Activation<'_, '_> {
         &mut self,
         state: FrameStateId,
         value: Vec<Word>,
-    ) -> Result<Option<Outcome<Vec<Word>>>> {
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
         let Some(first_frame) = self
             .machine
             .frames
@@ -178,7 +178,7 @@ impl Activation<'_, '_> {
             unreachable!("continuation boundary selection requires one continuation return");
         };
         if yielded_registers.word_count as usize != value.len() {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         }
         let continuation = self.machine.suspend_from(first_frame, state)?;
         self.activate();
@@ -197,21 +197,27 @@ impl Activation<'_, '_> {
     }
 
     /// Resume the restored coroutine through its normal edge.
-    pub(crate) fn resume(&mut self, values: &[Word]) -> Result<Outcome<Vec<Word>>> {
+    pub(crate) fn resume(
+        &mut self,
+        values: &[Word],
+    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
         self.enter_suspension(values, SuspensionEdge::Resume)?;
 
         self.execute()
     }
 
     /// Complete the restored generator through its explicit completion edge.
-    pub(crate) fn complete(&mut self, values: &[Word]) -> Result<Outcome<Vec<Word>>> {
+    pub(crate) fn complete(
+        &mut self,
+        values: &[Word],
+    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
         self.enter_suspension(values, SuspensionEdge::Complete)?;
 
         self.execute()
     }
 
     /// Cancel one restored asynchronous suspension through its cleanup edge.
-    pub(crate) fn cancel(&mut self) -> Result<Outcome<Vec<Word>>> {
+    pub(crate) fn cancel(&mut self) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
         self.enter_suspension(&[], SuspensionEdge::Cancel)?;
 
         self.execute()

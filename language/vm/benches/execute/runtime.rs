@@ -17,7 +17,7 @@ use destack_program::{
     TypeDescriptorBuilder, TypeId, Value, Word,
 };
 use destack_source::FileId;
-use destack_vm::{Machine, MachineLimits};
+use destack_vm::{Error, Machine, MachineLimits, Result};
 
 const MEMORY_BYTES: usize = 512 * 1024 * 1024;
 const MEMORY_FRAME_BYTES: usize = 16 * 1024 * 1024;
@@ -53,13 +53,26 @@ pub(crate) struct Runtime {
 struct BenchmarkRuntime;
 
 impl program::Runtime for BenchmarkRuntime {
+    type Error = Error;
+
+    /// Reject runtime bindings outside binding benchmarks.
+    fn call_binding(
+        &mut self,
+        _memory: program::Memory<'_>,
+        _binding: program::BindingId,
+        _arguments: &[Word],
+        _result: &mut [Word],
+    ) -> Result<()> {
+        unreachable!("direct execution benchmarks do not call runtime bindings")
+    }
+
     /// Reject waiter settlement outside asynchronous benchmarks.
-    fn queue_waiter(&mut self, _waiter: program::Waiter, _value: Value) -> program::Result<bool> {
+    fn queue_waiter(&mut self, _waiter: program::Waiter, _value: Value) -> Result<bool> {
         unreachable!("direct execution benchmarks do not await")
     }
 
     /// Reject waiter cancellation outside asynchronous benchmarks.
-    fn cancel_waiter(&mut self, _waiter: program::Waiter) -> program::Result<bool> {
+    fn cancel_waiter(&mut self, _waiter: program::Waiter) -> Result<bool> {
         unreachable!("direct execution benchmarks do not await")
     }
 
@@ -74,7 +87,7 @@ impl program::Runtime for BenchmarkRuntime {
     }
 
     /// Reject task cancellation requests outside asynchronous benchmarks.
-    fn cancel_task(&mut self, _task: program::Task) -> program::Result<()> {
+    fn cancel_task(&mut self, _task: program::Task) -> Result<()> {
         unreachable!("direct execution benchmarks do not create tasks")
     }
 
@@ -83,31 +96,27 @@ impl program::Runtime for BenchmarkRuntime {
         &mut self,
         _task: program::Task,
         _continuation: program::Continuation,
-    ) -> program::Result<program::Waiter> {
+    ) -> Result<program::Waiter> {
         unreachable!("direct execution benchmarks do not create tasks")
     }
 
     /// Reject task waiting outside asynchronous benchmarks.
-    fn park_task(&mut self, _task: program::Task, _waiter: program::Waiter) -> program::Result<()> {
+    fn park_task(&mut self, _task: program::Task, _waiter: program::Waiter) -> Result<()> {
         unreachable!("direct execution benchmarks do not create tasks")
     }
 
     /// Reject task cancellation queries outside asynchronous benchmarks.
-    fn is_task_cancelled(&mut self, _task: program::Task) -> program::Result<bool> {
+    fn is_task_cancelled(&mut self, _task: program::Task) -> Result<bool> {
         unreachable!("direct execution benchmarks do not create tasks")
     }
 
     /// Reject task detachment outside asynchronous benchmarks.
-    fn detach_task(&mut self, _task: program::Task) -> program::Result<()> {
+    fn detach_task(&mut self, _task: program::Task) -> Result<()> {
         unreachable!("direct execution benchmarks do not create tasks")
     }
 
     /// Reject terminal task outcomes outside asynchronous benchmarks.
-    fn finish_task(
-        &mut self,
-        _task: program::Task,
-        _outcome: program::TaskOutcome,
-    ) -> program::Result<()> {
+    fn finish_task(&mut self, _task: program::Task, _outcome: program::TaskOutcome) -> Result<()> {
         unreachable!("direct execution benchmarks do not create tasks")
     }
 }

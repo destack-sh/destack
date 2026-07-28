@@ -1,12 +1,12 @@
 use std::cmp::Ordering;
 
 use destack_bytecode::{Instruction, IntegerOperation, RegisterSpan, Scalar};
-use destack_program::Word;
+use destack_program::{Runtime, Word};
 
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one single-word integer operation.
     #[inline(always)]
     pub(crate) fn execute_integer(

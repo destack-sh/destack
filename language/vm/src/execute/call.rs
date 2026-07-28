@@ -1,9 +1,9 @@
 use std::ptr;
 
 use destack_bytecode::{CodeOffset, Instruction, Opcode, Operands};
-use destack_program::{DynamicTableId, FunctionId, Outcome, VirtualTableId, Word};
+use destack_program::{DynamicTableId, FunctionId, Outcome, Runtime, VirtualTableId, Word};
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::{Activation, Return};
 
 /// One executable bytecode callee.
@@ -14,13 +14,13 @@ struct Callee {
     environment: Option<Word>,
 }
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one direct, indirect, or dynamic bytecode call.
     pub(crate) fn execute_call(
         &mut self,
         pc: CodeOffset,
         instruction: Instruction<'_>,
-    ) -> Result<()> {
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
         let opcode = instruction.opcode();
         let mut operands = self.operands(instruction);
 
@@ -57,14 +57,16 @@ impl Activation<'_, '_> {
             },
             normal,
             unwind,
-        )
+        )?;
+
+        Ok(None)
     }
 
     /// Return one value range from the active frame.
     pub(crate) fn execute_return(
         &mut self,
         instruction: Instruction<'_>,
-    ) -> Result<Option<Outcome<Vec<Word>>>> {
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
         let mut operands = self.operands(instruction);
         let results = operands.span()?;
 

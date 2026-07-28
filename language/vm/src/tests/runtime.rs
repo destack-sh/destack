@@ -1,10 +1,24 @@
+use std::collections::HashMap;
 use std::mem;
 
 use destack_program as program;
 
+use crate::{Error, Result};
+
+/// One binding implementation used by bytecode execution tests.
+pub(crate) type TestBinding =
+    for<'a> fn(program::Memory<'a>, &[program::Word], &mut [program::Word]) -> Result<()>;
+
 /// One runtime boundary call made by bytecode execution.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum RuntimeCall {
+    /// Call one linked runtime binding.
+    Binding {
+        /// Stable binding identity.
+        binding: program::BindingId,
+        /// Flattened binding arguments.
+        arguments: Vec<program::Word>,
+    },
     /// Settle one waiter with a value.
     Queue {
         /// Waiter passed to the runtime.
@@ -57,6 +71,8 @@ pub(crate) enum RuntimeCall {
 /// Strict runtime probe used by bytecode execution tests.
 #[derive(Debug, Default)]
 pub(crate) struct TestRuntime {
+    /// Binding implementations keyed by stable identity.
+    bindings: HashMap<program::BindingId, TestBinding>,
     /// Next task slot issued by this runtime.
     next_task_index: u32,
     /// Next waiter slot issued by this runtime.
@@ -66,6 +82,12 @@ pub(crate) struct TestRuntime {
 }
 
 impl TestRuntime {
+    /// Register one binding implementation.
+    pub(crate) fn bind(&mut self, name: &'static str, binding: TestBinding) {
+        let id = program::BindingId::from_static_name(name);
+        self.bindings.insert(id, binding);
+    }
+
     /// Return and clear recorded runtime calls.
     pub(crate) fn take_calls(&mut self) -> Vec<RuntimeCall> {
         mem::take(&mut self.calls)
@@ -73,19 +95,36 @@ impl TestRuntime {
 }
 
 impl program::Runtime for TestRuntime {
-    /// Record one waiter settlement.
-    fn queue_waiter(
+    type Error = Error;
+
+    /// Call one registered binding implementation.
+    fn call_binding(
         &mut self,
-        waiter: program::Waiter,
-        value: program::Value,
-    ) -> program::Result<bool> {
+        memory: program::Memory<'_>,
+        binding: program::BindingId,
+        arguments: &[program::Word],
+        result: &mut [program::Word],
+    ) -> Result<()> {
+        let Some(invoke) = self.bindings.get(&binding).copied() else {
+            return Err(Error::invalid_instruction());
+        };
+        self.calls.push(RuntimeCall::Binding {
+            binding,
+            arguments: arguments.to_vec(),
+        });
+
+        invoke(memory, arguments, result)
+    }
+
+    /// Record one waiter settlement.
+    fn queue_waiter(&mut self, waiter: program::Waiter, value: program::Value) -> Result<bool> {
         self.calls.push(RuntimeCall::Queue { waiter, value });
 
         Ok(true)
     }
 
     /// Record one waiter cancellation.
-    fn cancel_waiter(&mut self, waiter: program::Waiter) -> program::Result<bool> {
+    fn cancel_waiter(&mut self, waiter: program::Waiter) -> Result<bool> {
         self.calls.push(RuntimeCall::CancelWaiter(waiter));
 
         Ok(true)
@@ -110,7 +149,7 @@ impl program::Runtime for TestRuntime {
     }
 
     /// Record one task cancellation request.
-    fn cancel_task(&mut self, task: program::Task) -> program::Result<()> {
+    fn cancel_task(&mut self, task: program::Task) -> Result<()> {
         self.calls.push(RuntimeCall::CancelTask(task));
 
         Ok(())
@@ -121,7 +160,7 @@ impl program::Runtime for TestRuntime {
         &mut self,
         task: program::Task,
         continuation: program::Continuation,
-    ) -> program::Result<program::Waiter> {
+    ) -> Result<program::Waiter> {
         let waiter = program::Waiter::new(self.next_waiter_index, 1);
         self.next_waiter_index += 1;
         self.calls.push(RuntimeCall::Suspend {
@@ -134,32 +173,28 @@ impl program::Runtime for TestRuntime {
     }
 
     /// Record one task result waiter.
-    fn park_task(&mut self, task: program::Task, waiter: program::Waiter) -> program::Result<()> {
+    fn park_task(&mut self, task: program::Task, waiter: program::Waiter) -> Result<()> {
         self.calls.push(RuntimeCall::Park { task, waiter });
 
         Ok(())
     }
 
     /// Record one cancellation query.
-    fn is_task_cancelled(&mut self, task: program::Task) -> program::Result<bool> {
+    fn is_task_cancelled(&mut self, task: program::Task) -> Result<bool> {
         self.calls.push(RuntimeCall::IsCancelled(task));
 
         Ok(false)
     }
 
     /// Record one detached task result.
-    fn detach_task(&mut self, task: program::Task) -> program::Result<()> {
+    fn detach_task(&mut self, task: program::Task) -> Result<()> {
         self.calls.push(RuntimeCall::Detach(task));
 
         Ok(())
     }
 
     /// Record one terminal task outcome.
-    fn finish_task(
-        &mut self,
-        task: program::Task,
-        outcome: program::TaskOutcome,
-    ) -> program::Result<()> {
+    fn finish_task(&mut self, task: program::Task, outcome: program::TaskOutcome) -> Result<()> {
         self.calls.push(RuntimeCall::Finish { task, outcome });
 
         Ok(())

@@ -5,14 +5,28 @@ use destack_bytecode::{CodeRange, Function};
 use destack_memory::MemoryMap;
 use destack_program as program;
 use destack_program::{
-    Continuation, ContinuationTable, FunctionId, Outcome, Profile, Program, ResumeSkip, StopSet,
-    SuspensionSite, Value, WatchSet, Word,
+    BindingId, Continuation, ContinuationTable, FunctionId, Outcome, Profile, Program, ResumeSkip,
+    Runtime, StopSet, SuspensionSite, Value, WatchSet, Word,
 };
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::{Error, ExecutionError, Result};
 use crate::options::MachineLimits;
 
 use super::{Activation, Frame, Return, Stack};
+
+/// One executable implementation of a Program function.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Implementation<'a> {
+    /// Linked bytecode function.
+    Bytecode {
+        /// Bytecode function metadata.
+        function: &'a Function,
+        /// Encoded function body.
+        code: CodeRange,
+    },
+    /// Registered runtime binding.
+    Binding(BindingId),
+}
 
 /// One bytecode machine bound to a Program and world memory.
 pub struct Machine {
@@ -24,6 +38,8 @@ pub struct Machine {
     pub(crate) frames: Vec<Frame>,
     /// The contiguous register stack.
     pub(crate) stack: Stack,
+    /// Reusable flattened runtime binding values.
+    pub(crate) binding_words: Vec<Word>,
 }
 
 impl Machine {
@@ -49,6 +65,7 @@ impl Machine {
             limits,
             frames: Vec::new(),
             stack,
+            binding_words: Vec::new(),
         })
     }
 
@@ -60,6 +77,7 @@ impl Machine {
             limits: self.limits,
             frames: self.frames.clone(),
             stack,
+            binding_words: Vec::new(),
         }
     }
 
@@ -72,73 +90,88 @@ impl Machine {
     pub fn clear(&mut self) {
         self.frames.clear();
         self.stack.clear();
+        self.binding_words.clear();
     }
 
     /// Execute one linked function.
-    pub fn run<'run>(
+    pub fn run<'run, R>(
         &mut self,
         continuations: &mut ContinuationTable,
-        activation: program::Activation<'run, 'run>,
+        activation: program::Activation<'run, 'run, R>,
         function: FunctionId,
         environment: Option<&Value>,
         arguments: &[Value],
         stop_points: Option<&'run StopSet>,
         watch_points: Option<&'run WatchSet>,
         profile: Option<&'run mut Profile>,
-    ) -> Result<Outcome<Value>> {
+    ) -> std::result::Result<Outcome<Value>, R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
         if !self.frames.is_empty() {
-            return Err(Error::execution_active());
+            return Err(Error::execution_active().into());
         }
         let arguments = self.encode_arguments(function, environment, arguments)?;
 
         // execute encoded arguments without crossing the typed host boundary again
         let outcome = Activation::new(self, continuations, activation)
             .instrument(stop_points, watch_points, profile, None)
-            .run(function, &arguments)?;
+            .run(function, &arguments)
+            .map_err(ExecutionError::into_error)?;
 
-        self.decode_outcome(function, outcome)
+        self.decode_outcome(function, outcome).map_err(Into::into)
     }
 
     /// Cancel one suspended asynchronous continuation through its cleanup path.
-    pub fn cancel<'run>(
+    pub fn cancel<'run, R>(
         &mut self,
         continuations: &mut ContinuationTable,
-        activation: program::Activation<'run, 'run>,
+        activation: program::Activation<'run, 'run, R>,
         continuation: Continuation,
         stop_points: Option<&'run StopSet>,
         watch_points: Option<&'run WatchSet>,
         profile: Option<&'run mut Profile>,
-    ) -> Result<Outcome<Value>> {
+    ) -> std::result::Result<Outcome<Value>, R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
         if !self.frames.is_empty() {
-            return Err(Error::execution_active());
+            return Err(Error::execution_active().into());
         }
         let (function, site) = self.suspension(&continuation)?;
         if site.operation != program::Suspension::Await {
-            return Err(Error::invalid_image());
+            return Err(Error::invalid_image().into());
         }
 
         // restore and enter the cancellation successor of the await
         self.restore_continuation_for_cancel(&continuation)?;
         let outcome = Activation::new(self, continuations, activation)
             .instrument(stop_points, watch_points, profile, None)
-            .cancel()?;
+            .cancel()
+            .map_err(ExecutionError::into_error)?;
 
-        self.decode_outcome(function, outcome)
+        self.decode_outcome(function, outcome).map_err(Into::into)
     }
 
     /// Resume one suspended coroutine with one value.
-    pub fn resume<'run>(
+    pub fn resume<'run, R>(
         &mut self,
         continuations: &mut ContinuationTable,
-        activation: program::Activation<'run, 'run>,
+        activation: program::Activation<'run, 'run, R>,
         continuation: Continuation,
         value: &Value,
         stop_points: Option<&'run StopSet>,
         watch_points: Option<&'run WatchSet>,
         profile: Option<&'run mut Profile>,
-    ) -> Result<Outcome<Value>> {
+    ) -> std::result::Result<Outcome<Value>, R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
         if !self.frames.is_empty() {
-            return Err(Error::execution_active());
+            return Err(Error::execution_active().into());
         }
         let (function, site) = self.suspension(&continuation)?;
         let values = self
@@ -150,28 +183,33 @@ impl Machine {
         self.restore_continuation(&continuation)?;
         let outcome = Activation::new(self, continuations, activation)
             .instrument(stop_points, watch_points, profile, None)
-            .resume(values)?;
+            .resume(values)
+            .map_err(ExecutionError::into_error)?;
 
-        self.decode_outcome(function, outcome)
+        self.decode_outcome(function, outcome).map_err(Into::into)
     }
 
     /// Complete one suspended generator with one value.
-    pub fn complete<'run>(
+    pub fn complete<'run, R>(
         &mut self,
         continuations: &mut ContinuationTable,
-        activation: program::Activation<'run, 'run>,
+        activation: program::Activation<'run, 'run, R>,
         continuation: Continuation,
         value: &Value,
         stop_points: Option<&'run StopSet>,
         watch_points: Option<&'run WatchSet>,
         profile: Option<&'run mut Profile>,
-    ) -> Result<Outcome<Value>> {
+    ) -> std::result::Result<Outcome<Value>, R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
         if !self.frames.is_empty() {
-            return Err(Error::execution_active());
+            return Err(Error::execution_active().into());
         }
         let (function, site) = self.suspension(&continuation)?;
         if site.operation != program::Suspension::Yield {
-            return Err(Error::invalid_image());
+            return Err(Error::invalid_image().into());
         }
         let ty = site.complete_type.get().ok_or_else(Error::invalid_image)?;
         let values = self
@@ -183,20 +221,25 @@ impl Machine {
         self.restore_continuation(&continuation)?;
         let outcome = Activation::new(self, continuations, activation)
             .instrument(stop_points, watch_points, profile, None)
-            .complete(values)?;
+            .complete(values)
+            .map_err(ExecutionError::into_error)?;
 
-        self.decode_outcome(function, outcome)
+        self.decode_outcome(function, outcome).map_err(Into::into)
     }
 
     /// Destroy one type-erased runtime value to completion.
-    pub fn destroy_value<'run>(
+    pub fn destroy_value<'run, R>(
         &mut self,
         continuations: &mut ContinuationTable,
-        activation: program::Activation<'run, 'run>,
+        activation: program::Activation<'run, 'run, R>,
         value: Value,
-    ) -> Result<()> {
+    ) -> std::result::Result<(), R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
         if !self.frames.is_empty() {
-            return Err(Error::execution_active());
+            return Err(Error::execution_active().into());
         }
         let ty = value.ty();
         let Some(function) = self.program.destructor(ty).map_err(Error::program)? else {
@@ -237,8 +280,8 @@ impl Machine {
                 | Outcome::Stopped { .. }
                 | Outcome::Awaited { .. }
                 | Outcome::Yielded { .. },
-            ) => Err(Error::invalid_destructor(function)),
-            Err(error) => Err(error),
+            ) => Err(Error::invalid_destructor(function).into()),
+            Err(error) => Err(error.into_error()),
         };
 
         // discard invalid retained execution before releasing its traced payload
@@ -249,26 +292,31 @@ impl Machine {
     }
 
     /// Continue execution retained at one debugger stop.
-    pub fn continue_execution<'run>(
+    pub fn continue_execution<'run, R>(
         &mut self,
         continuations: &mut ContinuationTable,
-        activation: program::Activation<'run, 'run>,
+        activation: program::Activation<'run, 'run, R>,
         stop_points: Option<&'run StopSet>,
         watch_points: Option<&'run WatchSet>,
         profile: Option<&'run mut Profile>,
         resume_skip: Option<ResumeSkip>,
-    ) -> Result<Outcome<Value>> {
+    ) -> std::result::Result<Outcome<Value>, R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
         let Some(frame) = self.frames.first().copied() else {
-            return Err(Error::execution_not_stopped());
+            return Err(Error::execution_not_stopped().into());
         };
         let function = frame.function;
 
         // continue the retained physical frame stack
         let outcome = Activation::new(self, continuations, activation)
             .instrument(stop_points, watch_points, profile, resume_skip)
-            .execute()?;
+            .execute()
+            .map_err(ExecutionError::into_error)?;
 
-        self.decode_outcome(function, outcome)
+        self.decode_outcome(function, outcome).map_err(Into::into)
     }
 
     /// Return the immutable Program.
@@ -289,17 +337,27 @@ impl Machine {
             .ok_or_else(|| Error::undefined_function(function))
     }
 
-    /// Return executable code for one bytecode function.
-    pub(crate) fn code(&self, function: FunctionId) -> Result<(&Function, CodeRange)> {
+    /// Resolve the executable implementation of one function.
+    pub(crate) fn implementation(&self, function: FunctionId) -> Result<Implementation<'_>> {
         let linked = self.function(function)?;
         if let Some(code) = linked.code() {
-            return Ok((linked, code));
+            return Ok(Implementation::Bytecode {
+                function: linked,
+                code,
+            });
         }
+        let Some(binding) = self.program.function_binding(function) else {
+            return Err(Error::undefined_function(function));
+        };
 
-        if let Some(binding) = self.program.function_binding(function) {
-            Err(Error::binding_unavailable(function, binding))
-        } else {
-            Err(Error::undefined_function(function))
+        Ok(Implementation::Binding(binding))
+    }
+
+    /// Return executable code for one bytecode function.
+    pub(crate) fn code(&self, function: FunctionId) -> Result<(&Function, CodeRange)> {
+        match self.implementation(function)? {
+            Implementation::Bytecode { function, code } => Ok((function, code)),
+            Implementation::Binding(_) => Err(Error::invalid_instruction()),
         }
     }
 

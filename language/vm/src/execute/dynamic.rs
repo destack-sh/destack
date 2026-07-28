@@ -1,10 +1,10 @@
 use destack_bytecode::{Instruction, Opcode};
-use destack_program::{DynamicTableId, Word};
+use destack_program::{DynamicTableId, Runtime, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one dynamic value operation.
     pub(crate) fn execute_dynamic(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let mut operands = self.operands(instruction);

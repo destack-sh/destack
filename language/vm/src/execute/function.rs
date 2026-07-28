@@ -1,10 +1,10 @@
 use destack_bytecode::{Instruction, Opcode};
-use destack_program::{FunctionId, Word};
+use destack_program::{FunctionId, Runtime, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one function value operation.
     pub(crate) fn execute_function(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let mut operands = self.operands(instruction);

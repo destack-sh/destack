@@ -1,11 +1,11 @@
 use destack_bytecode as bytecode;
 use destack_bytecode::{Comparison, Instruction, Opcode, Scalar, ScalarCheck};
-use destack_program::{TypeId, Word};
+use destack_program::{Runtime, TypeId, Word};
 
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one direct or conditional control transfer.
     #[inline(always)]
     pub(crate) fn execute_control(&self, instruction: Instruction<'_>) -> Result<i32> {

@@ -22,4 +22,4 @@ mod vector;
 
 pub(crate) use machine::TestMachine;
 pub(crate) use program::TestProgram;
-pub(crate) use runtime::{RuntimeCall, TestRuntime};
+pub(crate) use runtime::{RuntimeCall, TestBinding, TestRuntime};

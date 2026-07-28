@@ -1,13 +1,13 @@
 use destack_bytecode::{AtomicOperation, CodeOffset, Instruction, MemoryOperation, Opcode, Scalar};
 use destack_mir::Space;
 use destack_program::{
-    GlobalAddress, GlobalLocation, MemoryAccess, MemoryRange, Outcome, StopReason, Word,
+    GlobalAddress, GlobalLocation, MemoryAccess, MemoryRange, Outcome, Runtime, StopReason, Word,
 };
 
 use crate::diagnostic::{Error, Result};
 use crate::machine::{Activation, Frame};
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Return the touched native byte range for one scalar memory operation.
     pub(crate) fn memory_address(
         &self,

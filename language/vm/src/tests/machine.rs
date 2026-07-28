@@ -8,10 +8,11 @@ use destack_memory::MemoryMap;
 use destack_program as program;
 use destack_program::{FunctionId, Program, StopReason, StopSet, WatchSet, Word};
 
+use crate::diagnostic::ExecutionError;
 use crate::machine::Activation;
 use crate::{Machine, MachineImage, MachineLimits, Result};
 
-use super::{RuntimeCall, TestProgram, TestRuntime};
+use super::{RuntimeCall, TestBinding, TestProgram, TestRuntime};
 
 const MEMORY_BYTES: usize = 512 * 1024 * 1024;
 const MEMORY_FRAME_BYTES: usize = 16 * 1024 * 1024;
@@ -20,6 +21,8 @@ const MEMORY_FRAME_BYTES: usize = 16 * 1024 * 1024;
 pub(crate) struct TestMachine {
     /// The linked Program under test.
     program: Arc<Program>,
+    /// World memory used by runtime storage and the machine.
+    memory: Arc<MemoryMap>,
     /// Worker-local continuation storage.
     continuations: program::ContinuationTable,
     /// The bytecode machine under test.
@@ -73,11 +76,12 @@ impl TestMachine {
             .plan_allocations(heap.options(), shared_heap.options())
             .expect("test allocation plans should build")
             .into();
-        let machine = Machine::new(program.clone(), memory, MachineLimits::test())
+        let machine = Machine::new(program.clone(), memory.clone(), MachineLimits::test())
             .expect("test machine should build");
 
         Self {
             program,
+            memory,
             continuations: program::ContinuationTable::default(),
             machine,
             allocation_plans,
@@ -127,6 +131,7 @@ impl TestMachine {
 
         self.activation(stop_points, watch_points, profile, None)
             .run(function, arguments)
+            .map_err(ExecutionError::into_error)
     }
 
     /// Resume one suspended coroutine and return its raw machine outcome.
@@ -137,7 +142,9 @@ impl TestMachine {
     ) -> Result<program::Outcome<Vec<Word>>> {
         self.machine.restore_continuation(continuation)?;
 
-        self.activation(None, None, None, None).resume(values)
+        self.activation(None, None, None, None)
+            .resume(values)
+            .map_err(ExecutionError::into_error)
     }
 
     /// Complete one suspended generator and return its raw machine outcome.
@@ -148,7 +155,9 @@ impl TestMachine {
     ) -> Result<program::Outcome<Vec<Word>>> {
         self.machine.restore_continuation(continuation)?;
 
-        self.activation(None, None, None, None).complete(values)
+        self.activation(None, None, None, None)
+            .complete(values)
+            .map_err(ExecutionError::into_error)
     }
 
     /// Cancel one suspended asynchronous continuation.
@@ -157,7 +166,9 @@ impl TestMachine {
         continuation: &program::Continuation,
     ) -> Result<program::Outcome<Vec<Word>>> {
         self.machine.restore_continuation_for_cancel(continuation)?;
-        self.activation(None, None, None, None).cancel()
+        self.activation(None, None, None, None)
+            .cancel()
+            .map_err(ExecutionError::into_error)
     }
 
     /// Execute one function and require asynchronous suspension.
@@ -260,6 +271,7 @@ impl TestMachine {
     ) -> Result<program::Outcome<Vec<Word>>> {
         self.activation(stop_points, watch_points, profile, resume_skip)
             .execute()
+            .map_err(ExecutionError::into_error)
     }
 
     /// Continue one stopped execution and require normal completion.
@@ -277,19 +289,25 @@ impl TestMachine {
     }
 
     /// Capture the retained physical machine.
-    pub(crate) fn capture(&self) -> MachineImage {
-        self.machine.capture().expect("test machine should capture")
+    pub(crate) fn capture(&self) -> (MachineImage, Arc<MemoryMap>) {
+        let memory = Arc::new(
+            self.memory
+                .fork_lazy()
+                .expect("test machine memory should fork"),
+        );
+        let image = self.machine.capture().expect("test machine should capture");
+
+        (image, memory)
     }
 
-    /// Restore one retained physical machine into a fresh memory map.
-    pub(crate) fn restore(&mut self, image: &MachineImage) {
-        let memory = Arc::new(
-            MemoryMap::reserve(MEMORY_BYTES, MEMORY_FRAME_BYTES)
-                .expect("test memory should reserve"),
-        );
-        let mut machine = Machine::new(self.program.clone(), memory, MachineLimits::test())
+    /// Restore one retained physical machine over its captured memory image.
+    pub(crate) fn restore(&mut self, image: MachineImage, memory: Arc<MemoryMap>) {
+        let mut machine = Machine::new(self.program.clone(), memory.clone(), MachineLimits::test())
             .expect("test machine should build");
-        machine.restore(image).expect("test machine should restore");
+        machine
+            .restore(&image)
+            .expect("test machine should restore");
+        self.memory = memory;
         self.machine = machine;
     }
 
@@ -330,7 +348,7 @@ impl TestMachine {
         watch_points: Option<&'run WatchSet>,
         profile: Option<&'run mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
-    ) -> Activation<'machine, 'run>
+    ) -> Activation<'machine, 'run, TestRuntime>
     where
         'machine: 'run,
     {
@@ -359,6 +377,11 @@ impl TestMachine {
     /// Return the linked Program.
     pub(crate) fn program(&self) -> &Program {
         &self.program
+    }
+
+    /// Register one runtime binding implementation.
+    pub(crate) fn bind(&mut self, name: &'static str, binding: TestBinding) {
+        self.runtime.bind(name, binding);
     }
 
     /// Build one exact Program value for runtime call assertions.

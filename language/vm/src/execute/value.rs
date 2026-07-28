@@ -1,10 +1,10 @@
 use destack_bytecode::{Instruction, Opcode};
-use destack_program::{TypeId, Word};
+use destack_program::{Runtime, TypeId, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one exact scalar constant.
     #[inline(always)]
     pub(crate) fn execute_constant(&mut self, instruction: Instruction<'_>) -> Result<()> {

@@ -4,12 +4,12 @@ use destack_bytecode::{
     AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, FenceAccess, Instruction,
     Scalar,
 };
-use destack_program::Word;
+use destack_program::{Runtime, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one typed atomic memory operation.
     pub(crate) fn execute_atomic(
         &mut self,

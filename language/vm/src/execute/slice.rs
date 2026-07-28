@@ -1,10 +1,10 @@
 use destack_bytecode::{Instruction, Opcode};
-use destack_program::Word;
+use destack_program::{Runtime, Word};
 
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one slice descriptor operation.
     pub(crate) fn execute_slice(&mut self, instruction: Instruction<'_>) -> Result<()> {
         match instruction.opcode() {

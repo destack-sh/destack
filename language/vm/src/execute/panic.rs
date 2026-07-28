@@ -1,14 +1,17 @@
 use destack_bytecode::{Instruction, Opcode};
-use destack_program::{Task, TaskOutcome, TypeId};
+use destack_program::{Runtime, Task, TaskOutcome, TypeId};
 
-use crate::diagnostic::{Error, Panic, Result, Trap};
+use crate::diagnostic::{Error, ExecutionError, ExecutionResult, Panic, Trap};
 use crate::machine::{Activation, Return};
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Begin unwinding one language panic.
-    pub(crate) fn execute_panic(&mut self, instruction: Instruction<'_>) -> Result<()> {
+    pub(crate) fn execute_panic(
+        &mut self,
+        instruction: Instruction<'_>,
+    ) -> ExecutionResult<(), R::Error> {
         if self.panic.is_some() {
-            return Err(Error::trap(Trap::Abort));
+            return Err(Error::trap(Trap::Abort).into());
         }
         let panic = match instruction.opcode() {
             Opcode::PANIC => Panic::empty(),
@@ -30,16 +33,16 @@ impl Activation<'_, '_> {
     }
 
     /// Continue one pending panic beyond the active cleanup frame.
-    pub(crate) fn execute_unwind_resume(&mut self) -> Result<()> {
+    pub(crate) fn execute_unwind_resume(&mut self) -> ExecutionResult<(), R::Error> {
         if self.panic.is_none() {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         }
 
         self.unwind()
     }
 
     /// Unwind frames until cleanup or the host boundary is reached.
-    fn unwind(&mut self) -> Result<()> {
+    fn unwind(&mut self) -> ExecutionResult<(), R::Error> {
         loop {
             let Some(frame) = self.machine.frames.pop() else {
                 unreachable!("panic unwinding requires an active frame");
@@ -52,7 +55,7 @@ impl Activation<'_, '_> {
                     unreachable!("panic unwinding requires a retained payload");
                 };
 
-                return Err(error);
+                return Err(error.into());
             };
             self.activate();
 
@@ -62,7 +65,7 @@ impl Activation<'_, '_> {
                 self.activation
                     .runtime
                     .finish_task(task, TaskOutcome::Cancelled)
-                    .map_err(Error::program)?;
+                    .map_err(ExecutionError::runtime)?;
             }
 
             // enter the nearest explicit unwind cleanup

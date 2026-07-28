@@ -2,12 +2,12 @@ use std::ops::Range;
 
 use destack_bytecode::{Instruction, Opcode};
 use destack_mir::{DiscriminantField, VariantEncoding};
-use destack_program::{Layout, LayoutId, LayoutShape, VariantLayout};
+use destack_program::{Layout, LayoutId, LayoutShape, Runtime, VariantLayout};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one packed aggregate or variant operation.
     pub(crate) fn execute_aggregate(&mut self, instruction: Instruction<'_>) -> Result<()> {
         match instruction.opcode() {

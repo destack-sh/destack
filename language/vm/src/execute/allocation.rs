@@ -4,12 +4,12 @@ use bytecode::{Initialization, Instruction, New, NewKind, RegisterSpan};
 use destack_bytecode as bytecode;
 use destack_heap::{AllocationPlan, HeapEdge, HeapError, Payload};
 use destack_mir as mir;
-use destack_program::{AllocationSiteId, LayoutId, LayoutShape, VirtualTableId, Word};
+use destack_program::{AllocationSiteId, LayoutId, LayoutShape, Runtime, VirtualTableId, Word};
 
 use crate::diagnostic::{Error, Result};
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one local or shared heap allocation.
     pub(crate) fn execute_new<const PROFILE: bool>(
         &mut self,

@@ -1,10 +1,10 @@
 use destack_bytecode::{AtomicOperation, MemoryOperation, Opcode, VectorOperation};
-use destack_program::{MemoryAccess, Outcome, Word};
+use destack_program::{MemoryAccess, Outcome, Runtime, Word};
 
-use crate::diagnostic::{Error, Result, Trap};
+use crate::diagnostic::{Error, ExecutionResult, Trap};
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Dispatch instructions until the entry frame returns.
     #[inline(never)]
     pub(crate) fn dispatch<
@@ -14,7 +14,7 @@ impl Activation<'_, '_> {
         const BOUNDED: bool,
     >(
         &mut self,
-    ) -> Result<Outcome<Vec<Word>>> {
+    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
         let mut position = self.cursor.position();
 
         loop {
@@ -28,7 +28,7 @@ impl Activation<'_, '_> {
                     unreachable!("bounded dispatch requires an instruction limit");
                 };
                 if self.instruction_count >= limit {
-                    return Err(Error::instruction_limit_exceeded());
+                    return Err(Error::instruction_limit_exceeded().into());
                 }
                 self.instruction_count += 1;
             }
@@ -235,7 +235,9 @@ impl Activation<'_, '_> {
                     | Opcode::TAIL_CALL_VIRTUAL
                     | Opcode::TAIL_CALL_DYNAMIC => {
                         self.cursor.set_position(position);
-                        self.execute_call(operation_pc, instruction)?;
+                        if let Some(outcome) = self.execute_call(operation_pc, instruction)? {
+                            return Ok(outcome);
+                        }
                         position = self.cursor.position();
                     }
                     Opcode::RETURN => {
@@ -266,15 +268,15 @@ impl Activation<'_, '_> {
                     Opcode::BREAKPOINT => {
                         self.cursor.set_position(position);
 
-                        return self.stop_after(operation_pc);
+                        return self.stop_after(operation_pc).map_err(Into::into);
                     }
 
                     // traps
-                    Opcode::UNREACHABLE => return Err(Error::trap(Trap::Unreachable)),
+                    Opcode::UNREACHABLE => return Err(Error::trap(Trap::Unreachable).into()),
                     Opcode::TRAP => self.execute_trap(instruction)?,
 
                     // unsupported
-                    opcode => return Err(Error::unsupported_opcode(opcode.code())),
+                    opcode => return Err(Error::unsupported_opcode(opcode.code()).into()),
                 },
                 0x01 => {
                     self.execute_constant(instruction)?;
@@ -430,7 +432,7 @@ impl Activation<'_, '_> {
                         return Ok(outcome);
                     }
                 }
-                _ => return Err(Error::unsupported_opcode(opcode.code())),
+                _ => return Err(Error::unsupported_opcode(opcode.code()).into()),
             }
         }
     }

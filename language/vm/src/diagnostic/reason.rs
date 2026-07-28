@@ -5,7 +5,7 @@ use destack_heap::HeapError;
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use super::{BindingError, InstructionError, MachineError, Panic, ResourceError, Trap};
+use super::{InstructionError, MachineError, Panic, ResourceError, Trap};
 
 /// The exact reason one VM operation failed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -18,8 +18,6 @@ pub enum ErrorReason {
     Heap(Box<HeapError>),
     /// A bytecode instruction could not execute.
     Instruction(InstructionError),
-    /// A runtime binding could not execute.
-    Binding(BindingError),
     /// VM state or host compatibility prevented execution.
     Machine(MachineError),
     /// Execution reached a language trap.
@@ -59,7 +57,6 @@ impl fmt::Display for ErrorReason {
             Self::Program(error) => write!(formatter, "program operation failed: {error}"),
             Self::Heap(error) => write!(formatter, "heap operation failed: {error}"),
             Self::Instruction(error) => write!(formatter, "instruction failed: {error}"),
-            Self::Binding(error) => write!(formatter, "runtime binding failed: {error}"),
             Self::Machine(error) => write!(formatter, "machine operation failed: {error}"),
             Self::Trap(trap) => write!(formatter, "execution trapped: {trap}"),
             Self::Panic(panic) => write!(formatter, "execution panicked: {panic}"),
@@ -76,7 +73,6 @@ impl error::Error for ErrorReason {
             Self::Program(error) => Some(error.as_ref()),
             Self::Heap(error) => Some(error.as_ref()),
             Self::Instruction(error) => Some(error),
-            Self::Binding(error) => Some(error),
             Self::Machine(error) => Some(error),
             Self::Trap(error) => Some(error),
             Self::Panic(error) => Some(error),

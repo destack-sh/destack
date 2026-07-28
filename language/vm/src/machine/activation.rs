@@ -1,25 +1,30 @@
 use std::ops::Range;
 use std::ptr;
 
-use destack_bytecode::{CodeOffset, Instruction, Operands, RegisterSpan};
+use destack_bytecode::{CodeOffset, Instruction, Operands, RegisterId, RegisterSpan};
 use destack_program as program;
 use destack_program::{
     Completion, ContinuationTable, FrameStateId, FunctionId, Outcome, Profile, ProgramPoint,
-    ResumeSkip, StopSet, WatchSet, Word,
+    ResumeSkip, Runtime, StopSet, WatchSet, Word,
 };
 
-use crate::diagnostic::{DiagnosticAnchor, Error, ErrorReason, Result, StackTraceFrame};
+use crate::diagnostic::{
+    DiagnosticAnchor, Error, ErrorReason, ExecutionError, ExecutionResult, Result, StackTraceFrame,
+};
 
-use super::{Cursor, Frame, Machine, Return};
+use super::{Cursor, Frame, Implementation, Machine, Return};
 
 /// One active execution over mutable machine state.
-pub(crate) struct Activation<'machine, 'run> {
+pub(crate) struct Activation<'machine, 'run, R>
+where
+    R: Runtime + ?Sized,
+{
     /// The machine being executed.
     pub(crate) machine: &'machine mut Machine,
     /// Worker-local continuation storage.
     pub(crate) continuations: &'machine mut ContinuationTable,
     /// The runtime activation available to this execution.
-    pub(crate) activation: program::Activation<'run, 'run>,
+    pub(crate) activation: program::Activation<'run, 'run, R>,
     /// Native addresses derived for the active frame.
     pub(crate) cursor: Cursor,
     /// The number of instructions executed by this activation.
@@ -40,12 +45,15 @@ pub(crate) struct Activation<'machine, 'run> {
     pub(crate) is_retained: bool,
 }
 
-impl<'machine, 'run> Activation<'machine, 'run> {
+impl<'machine, 'run, R> Activation<'machine, 'run, R>
+where
+    R: Runtime + ?Sized,
+{
     /// Bind one activation to a machine.
     pub(crate) const fn new(
         machine: &'machine mut Machine,
         continuations: &'machine mut ContinuationTable,
-        activation: program::Activation<'run, 'run>,
+        activation: program::Activation<'run, 'run, R>,
     ) -> Self {
         Self {
             machine,
@@ -98,7 +106,18 @@ impl<'machine, 'run> Activation<'machine, 'run> {
         mut self,
         function: FunctionId,
         arguments: &[Word],
-    ) -> Result<Outcome<Vec<Word>>> {
+    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
+        if let Implementation::Binding(binding) = self.machine.implementation(function)? {
+            let result_count = self.binding_result_word_count(function)?;
+            let mut result = vec![Word::ZERO; result_count];
+            let memory = self.activation.memory.reborrow();
+            self.activation
+                .runtime
+                .call_binding(memory, binding, arguments, &mut result)
+                .map_err(ExecutionError::runtime)?;
+
+            return Ok(Outcome::Completed { value: result });
+        }
         let return_to = Return::Exit {
             completion: Completion::Return,
         };
@@ -108,7 +127,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
     }
 
     /// Dispatch through the exact configured execution loop.
-    pub(crate) fn execute(&mut self) -> Result<Outcome<Vec<Word>>> {
+    pub(crate) fn execute(&mut self) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
         self.activate();
 
         let is_stopping = self.stop_points.is_some_and(|points| !points.is_empty());
@@ -122,12 +141,12 @@ impl<'machine, 'run> Activation<'machine, 'run> {
             self.select_dispatch::<false>(is_stopping, is_watching, is_profiling)
         };
 
-        result.map_err(|error| {
-            if matches!(error.reason(), ErrorReason::Panic(_)) {
-                error
-            } else {
-                self.locate(error)
+        result.map_err(|error| match error {
+            ExecutionError::Machine(error) if matches!(error.reason(), ErrorReason::Panic(_)) => {
+                ExecutionError::Machine(error)
             }
+            ExecutionError::Machine(error) => ExecutionError::Machine(self.locate(error)),
+            ExecutionError::Runtime(error) => ExecutionError::Runtime(error),
         })
     }
 
@@ -137,7 +156,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
         is_stopping: bool,
         is_watching: bool,
         is_profiling: bool,
-    ) -> Result<Outcome<Vec<Word>>> {
+    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
         match (is_stopping, is_watching, is_profiling) {
             (false, false, false) => self.dispatch::<false, false, false, BOUNDED>(),
             (false, false, true) => self.dispatch::<false, false, true, BOUNDED>(),
@@ -156,7 +175,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
         function: FunctionId,
         arguments: &[Word],
         return_to: Return,
-    ) -> Result<()> {
+    ) -> ExecutionResult<(), R::Error> {
         let frame = self
             .machine
             .allocate_frame(function, arguments.len(), return_to)?;
@@ -182,14 +201,14 @@ impl<'machine, 'run> Activation<'machine, 'run> {
         return_to: Return,
         normal_displacement: Option<i32>,
         unwind_displacement: Option<i32>,
-    ) -> Result<()> {
+    ) -> ExecutionResult<(), R::Error> {
         if self
             .machine
             .program
             .function(function)
             .is_some_and(|function| function.coroutine().is_some())
         {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         }
         let caller = self.frame();
         let argument_start = caller.range(arguments);
@@ -205,7 +224,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
                 unwind,
             },
             Return::Exit { .. } | Return::Continuation { .. } | Return::Task { .. } => {
-                return Err(self.invalid_instruction());
+                return Err(self.invalid_instruction().into());
             }
             Return::Drop {
                 pc,
@@ -217,6 +236,28 @@ impl<'machine, 'run> Activation<'machine, 'run> {
                 frame_count,
             },
         };
+        if let Implementation::Binding(binding) = self.machine.implementation(function)? {
+            let Return::Call {
+                registers, normal, ..
+            } = return_to
+            else {
+                unreachable!("ordinary binding calls require one call return");
+            };
+            let result_count = registers.word_count as usize;
+            self.call_binding(binding, environment, arguments, result_count)?;
+
+            // publish binding results directly into the caller frame
+            for index in 0..result_count {
+                let value = self.machine.binding_words[index];
+                self.write(registers.start.0 + index as u16, value);
+            }
+            self.machine.binding_words.clear();
+            if let Some(normal) = normal {
+                self.jump(normal);
+            }
+
+            return Ok(());
+        }
         let frame = self
             .machine
             .allocate_frame(function, initialized_word_count, return_to)?;
@@ -275,23 +316,49 @@ impl<'machine, 'run> Activation<'machine, 'run> {
         function: FunctionId,
         arguments: RegisterSpan,
         environment: Option<Word>,
-    ) -> Result<()> {
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
         if self
             .machine
             .program
             .function(function)
             .is_some_and(|function| function.coroutine().is_some())
         {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         }
         let current = self.frame();
         let argument_start = current.range(arguments);
-        let (linked, code) = self.machine.code(function)?;
+        let implementation = self.machine.implementation(function)?;
+        if let Implementation::Binding(binding) = implementation {
+            let result_count = self.binding_result_word_count(function)?;
+            self.call_binding(binding, environment, arguments, result_count)?;
+            let Ok(result_word_count) = u16::try_from(result_count) else {
+                return Err(self.invalid_instruction().into());
+            };
+            let byte_len = result_count * Word::BYTE_LEN;
+            self.machine.stack.grow(current.byte_offset() + byte_len)?;
+            for index in 0..result_count {
+                let value = self.machine.binding_words[index];
+                self.machine
+                    .stack
+                    .write(current.register_offset + index, value);
+            }
+            self.machine.binding_words.clear();
+            let results = RegisterSpan::new(RegisterId(0), result_word_count);
+
+            return self.return_frame(results);
+        }
+        let Implementation::Bytecode {
+            function: linked,
+            code,
+        } = implementation
+        else {
+            unreachable!("binding implementation returned above");
+        };
         let register_count = linked.register_count;
         let environment_word_count = usize::from(environment.is_some());
         let initialized_word_count = arguments.word_count as usize + environment_word_count;
         if initialized_word_count > register_count as usize {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         }
 
         // resize the current register window for the replacement frame
@@ -325,14 +392,62 @@ impl<'machine, 'run> Activation<'machine, 'run> {
         self.cursor.replace_frame(frame);
         self.activate();
 
+        Ok(None)
+    }
+
+    /// Call one runtime binding with flattened frame arguments.
+    fn call_binding(
+        &mut self,
+        binding: program::BindingId,
+        environment: Option<Word>,
+        arguments: RegisterSpan,
+        result_count: usize,
+    ) -> ExecutionResult<(), R::Error> {
+        let frame = self.frame();
+        let argument_start = frame.range(arguments);
+        let environment_count = usize::from(environment.is_some());
+        let argument_count = environment_count + arguments.word_count as usize;
+        let words = &mut self.machine.binding_words;
+        words.clear();
+        words.reserve(argument_count + result_count);
+
+        // flatten the hidden environment before source arguments
+        words.extend(environment);
+        words.extend(
+            self.machine
+                .stack
+                .words(argument_start, arguments.word_count as usize),
+        );
+        words.resize(argument_count + result_count, Word::ZERO);
+
+        // invoke through the exact runtime error boundary
+        let (arguments, result) = words.split_at_mut(argument_count);
+        let memory = self.activation.memory.reborrow();
+        self.activation
+            .runtime
+            .call_binding(memory, binding, arguments, result)
+            .map_err(ExecutionError::runtime)?;
+
+        // retain only returned words in the existing allocation
+        words.copy_within(argument_count.., 0);
+        words.truncate(result_count);
+
         Ok(())
+    }
+
+    /// Return the exact result word count for one bound function.
+    fn binding_result_word_count(&self, function: FunctionId) -> Result<usize> {
+        self.machine
+            .program
+            .function_result_word_count(function)
+            .ok_or_else(|| self.invalid_instruction())
     }
 
     /// Return one register range from the current frame.
     pub(crate) fn return_frame(
         &mut self,
         results: RegisterSpan,
-    ) -> Result<Option<Outcome<Vec<Word>>>> {
+    ) -> ExecutionResult<Option<Outcome<Vec<Word>>>, R::Error> {
         let Some(frame) = self.machine.frames.pop() else {
             unreachable!("bytecode returns require an active frame");
         };
@@ -362,7 +477,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
                 registers, normal, ..
             } => {
                 if results.word_count != registers.word_count {
-                    return Err(self.invalid_instruction());
+                    return Err(self.invalid_instruction().into());
                 }
                 let Some(caller) = self.machine.frames.last().copied() else {
                     unreachable!("called frames require a caller");
@@ -386,7 +501,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
                 ..
             } => {
                 if results.word_count != returned_registers.word_count {
-                    return Err(self.invalid_instruction());
+                    return Err(self.invalid_instruction().into());
                 }
                 let Some(caller) = self.machine.frames.last().copied() else {
                     unreachable!("continued frames require a caller");
@@ -430,7 +545,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
                     .activation
                     .runtime
                     .is_task_cancelled(task)
-                    .map_err(Error::program)?;
+                    .map_err(ExecutionError::runtime)?;
 
                 // publish the exact terminal task state
                 let outcome = if is_cancelled {
@@ -441,7 +556,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
                 self.activation
                     .runtime
                     .finish_task(task, outcome)
-                    .map_err(Error::program)?;
+                    .map_err(ExecutionError::runtime)?;
                 self.machine.stack.truncate(frame.byte_offset());
 
                 Ok(None)
@@ -450,7 +565,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
             // release one destructor frame or its retained continuation frames
             Return::Drop { frame_count, .. } => {
                 if results.word_count != 0 {
-                    return Err(self.invalid_instruction());
+                    return Err(self.invalid_instruction().into());
                 }
                 let stack_byte_len = if frame_count == 0 {
                     frame.byte_offset()
@@ -462,7 +577,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
                         .checked_sub(frame_count as usize)
                         .ok_or_else(|| self.invalid_instruction())?;
                     let Some(first) = self.machine.frames.get(first_frame).copied() else {
-                        return Err(self.invalid_instruction());
+                        return Err(self.invalid_instruction().into());
                     };
                     self.machine.frames.truncate(first_frame);
 
@@ -633,7 +748,7 @@ impl<'machine, 'run> Activation<'machine, 'run> {
     }
 }
 
-impl Drop for Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Drop for Activation<'_, '_, R> {
     /// Release physical state after completed or failed execution.
     fn drop(&mut self) {
         // only debugger stops retain physical execution across activations

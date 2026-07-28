@@ -1,6 +1,6 @@
 mod anchor;
-mod binding;
 mod error;
+mod execution;
 mod instruction;
 mod machine;
 mod panic;
@@ -9,8 +9,8 @@ mod resource;
 mod trap;
 
 pub use anchor::*;
-pub use binding::*;
 pub use error::*;
+pub(crate) use execution::*;
 pub use instruction::*;
 pub use machine::*;
 pub use panic::*;

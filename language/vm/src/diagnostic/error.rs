@@ -3,12 +3,12 @@ use std::{error, fmt};
 use destack_bytecode as bytecode;
 use destack_heap::HeapError;
 use destack_program as program;
-use destack_program::{BindingId, FunctionId};
+use destack_program::FunctionId;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    BindingError, DiagnosticAnchor, ErrorReason, InstructionError, MachineError, Panic,
-    ResourceError, StackTraceFrame, Trap,
+    DiagnosticAnchor, ErrorReason, InstructionError, MachineError, Panic, ResourceError,
+    StackTraceFrame, Trap,
 };
 
 /// One VM execution error with its executable location.
@@ -67,14 +67,6 @@ impl Error {
     /// Create one heap operation error.
     pub fn heap(error: HeapError) -> Self {
         Self::new(ErrorReason::from(error))
-    }
-
-    /// Create one unavailable runtime binding error.
-    pub fn binding_unavailable(function: FunctionId, binding: BindingId) -> Self {
-        Self::new(ErrorReason::Binding(BindingError::Unavailable {
-            function,
-            binding,
-        }))
     }
 
     /// Create one undefined function error.

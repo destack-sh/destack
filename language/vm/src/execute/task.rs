@@ -1,18 +1,18 @@
 use destack_bytecode::{CodeOffset, Instruction, Opcode, RegisterSpan};
 use destack_program::{
-    Continuation, ContinuationId, FramePoint, FunctionId, Task, TypeId, Waiter, Word,
+    Continuation, ContinuationId, FramePoint, FunctionId, Runtime, Task, TypeId, Waiter, Word,
 };
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::{Error, ExecutionError, ExecutionResult, Result};
 use crate::machine::{Activation, Return};
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one task operation.
     pub(crate) fn execute_task(
         &mut self,
         pc: CodeOffset,
         instruction: Instruction<'_>,
-    ) -> Result<()> {
+    ) -> ExecutionResult<(), R::Error> {
         match instruction.opcode() {
             Opcode::TASK_RESOLVE => self.execute_task_resolve(instruction),
             Opcode::TASK_START => self.execute_task_start(pc, instruction),
@@ -24,7 +24,10 @@ impl Activation<'_, '_> {
     }
 
     /// Create one already completed task.
-    fn execute_task_resolve(&mut self, instruction: Instruction<'_>) -> Result<()> {
+    fn execute_task_resolve(
+        &mut self,
+        instruction: Instruction<'_>,
+    ) -> ExecutionResult<(), R::Error> {
         let mut operands = self.operands(instruction);
         let destination = operands.register()?;
         let ty = TypeId(operands.u32()?);
@@ -47,7 +50,11 @@ impl Activation<'_, '_> {
     }
 
     /// Start one ready continuation as an eager task.
-    fn execute_task_start(&mut self, pc: CodeOffset, instruction: Instruction<'_>) -> Result<()> {
+    fn execute_task_start(
+        &mut self,
+        pc: CodeOffset,
+        instruction: Instruction<'_>,
+    ) -> ExecutionResult<(), R::Error> {
         let mut operands = self.operands(instruction);
         let destination = operands.register()?;
         let continuation = operands.register()?;
@@ -60,7 +67,7 @@ impl Activation<'_, '_> {
             self.machine.continuation_point(&continuation)?,
             FramePoint::Entry { .. }
         ) {
-            return Err(self.invalid_instruction());
+            return Err(self.invalid_instruction().into());
         }
         let return_to = Return::Task {
             pc,
@@ -83,33 +90,39 @@ impl Activation<'_, '_> {
     }
 
     /// Park one waiter until a task completes or is cancelled.
-    fn execute_task_park(&mut self, instruction: Instruction<'_>) -> Result<()> {
+    fn execute_task_park(&mut self, instruction: Instruction<'_>) -> ExecutionResult<(), R::Error> {
         let (task, waiter) = self.task_and_waiter(instruction)?;
 
         self.activation
             .runtime
             .park_task(task, waiter)
-            .map_err(Error::program)
+            .map_err(ExecutionError::runtime)
     }
 
     /// Request cooperative cancellation of one task.
-    fn execute_task_cancel(&mut self, instruction: Instruction<'_>) -> Result<()> {
+    fn execute_task_cancel(
+        &mut self,
+        instruction: Instruction<'_>,
+    ) -> ExecutionResult<(), R::Error> {
         let task = self.task(instruction)?;
 
         self.activation
             .runtime
             .cancel_task(task)
-            .map_err(Error::program)
+            .map_err(ExecutionError::runtime)
     }
 
     /// Detach one task result.
-    fn execute_task_detach(&mut self, instruction: Instruction<'_>) -> Result<()> {
+    fn execute_task_detach(
+        &mut self,
+        instruction: Instruction<'_>,
+    ) -> ExecutionResult<(), R::Error> {
         let task = self.task(instruction)?;
 
         self.activation
             .runtime
             .detach_task(task)
-            .map_err(Error::program)
+            .map_err(ExecutionError::runtime)
     }
 
     /// Decode one task handle operand.
@@ -140,7 +153,7 @@ impl Activation<'_, '_> {
         task: Task,
         continuation: Continuation,
         first_frame: usize,
-    ) -> Result<()> {
+    ) -> ExecutionResult<(), R::Error> {
         let return_to = Return::Call {
             pc,
             registers: RegisterSpan::empty(),
@@ -159,7 +172,7 @@ impl Activation<'_, '_> {
                 Err(error) => {
                     self.machine.stack.grow(stack_byte_len)?;
 
-                    return Err(error);
+                    return Err(error.into());
                 }
             };
 
@@ -169,7 +182,7 @@ impl Activation<'_, '_> {
             Err(error) => {
                 self.machine.stack.grow(stack_byte_len)?;
 
-                return Err(Error::program(error));
+                return Err(ExecutionError::runtime(error));
             }
         };
         arguments.push(Word::from_bits(waiter.bits()));

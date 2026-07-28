@@ -8,7 +8,7 @@ use destack_bytecode as bytecode;
 use destack_heap::{AllocationShape, HeapEdge, Payload};
 use destack_mir as mir;
 use destack_program::{
-    AllocationSite, AllocationSiteId, LayoutId, LayoutShape, MemoryAccess, ScalarFormat,
+    AllocationSite, AllocationSiteId, LayoutId, LayoutShape, MemoryAccess, Runtime, ScalarFormat,
     TensorDimension, TensorLayout, TensorSharding, TensorViewLayout, TypeId, Word,
 };
 use mir::{TensorDimensionOrder, TensorFormat, TraceMap};
@@ -357,7 +357,7 @@ impl Coordinate {
     }
 }
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one tensor operation through the direct CPU engine.
     pub(crate) fn execute_tensor(
         &mut self,

@@ -9,12 +9,12 @@ use destack_bytecode::{
     ConvertMode, FloatOperation, Instruction, IntegerOperation, Operands, ReduceOperation,
     RegisterSpan, Scalar, VectorOperation, VectorType,
 };
-use destack_program::Word;
+use destack_program::{Runtime, Word};
 
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one packed vector operation.
     pub(crate) fn execute_vector(
         &mut self,

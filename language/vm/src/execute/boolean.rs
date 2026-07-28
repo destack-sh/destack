@@ -1,10 +1,10 @@
 use destack_bytecode::{BooleanOperation, Instruction};
-use destack_program::Word;
+use destack_program::{Runtime, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;
 
-impl Activation<'_, '_> {
+impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Execute one boolean operation.
     #[inline(always)]
     pub(crate) fn execute_boolean(&mut self, instruction: Instruction<'_>) -> Result<()> {
