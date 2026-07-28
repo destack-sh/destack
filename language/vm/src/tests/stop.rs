@@ -127,11 +127,11 @@ function f1 {
     // capture both physical frames before the callee dereferences its caller
     let stopped = machine.run_to_stop(0, &[Word::int32(41)], Some(&stops), None);
     assert_eq!(stopped, reason);
-    let image = machine.capture();
+    let (image, memory) = machine.capture();
     assert_eq!(image.frame_count(), 2);
 
     // restore into a distinct virtual memory map and follow the frame address
-    machine.restore(&image);
+    machine.restore(image, memory);
     let value = machine.continue_to_completion(Some(&stops), None, stopped.resume_skip());
     assert_eq!(value, vec![Word::int32(41)]);
 }
@@ -179,11 +179,11 @@ function owner {
 
     // stop while the destructor points into retained continuation storage
     machine.run_to_stop(2, &[Word::int32(47)], None, None);
-    let image = machine.capture();
+    let (image, memory) = machine.capture();
     assert_eq!(image.frame_count(), 3);
 
     // restore the owner, retained frame, and destructor into a fresh memory map
-    machine.restore(&image);
+    machine.restore(image, memory);
     let value = machine.continue_to_completion(None, None, None);
     assert_eq!(value, vec![Word::int32(47)]);
 }

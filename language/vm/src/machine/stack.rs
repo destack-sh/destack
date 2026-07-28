@@ -56,6 +56,33 @@ impl Stack {
         self.memory.clone()
     }
 
+    /// Return the reserved stack range inside world memory.
+    pub(crate) const fn range(&self) -> MemoryRange {
+        self.range
+    }
+
+    /// Attach this stack to one retained range inside the current memory image.
+    pub(crate) fn restore(&mut self, range: MemoryRange, byte_len: usize) -> Result<()> {
+        if byte_len > range.byte_len {
+            return Err(Error::invalid_image());
+        }
+
+        // release constructor storage when attaching a different retained range
+        if self.range != range {
+            self.memory
+                .release(self.range)
+                .map_err(|_| Error::invalid_image())?;
+        }
+        self.range = range;
+        self.base = self.memory.base_address() + range.offset;
+        self.materialized_byte_len = byte_len
+            .next_multiple_of(self.memory.frame_size_bytes())
+            .min(range.byte_len);
+        self.byte_len = byte_len;
+
+        Ok(())
+    }
+
     /// Remove every live stack byte.
     pub(crate) fn clear(&mut self) {
         self.byte_len = 0;

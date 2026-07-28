@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use destack_bytecode::{CodeOffset, FrameMap, RegisterSpan};
 use destack_heap::{HeapResult, RootSlot};
+use destack_memory::{MemoryImage, MemoryRange};
 use destack_program::{
     FrameLayout, FramePoint, FrameSlot, FrameStateId, FunctionId, Program, ProgramPoint, TypeId,
     Word,
@@ -17,8 +18,10 @@ use super::{Frame, FrameRestore, Machine};
 pub struct MachineImage {
     /// Physical frames in caller to callee order.
     frames: Arc<[FrameImage]>,
-    /// Sanitized live stack bytes at their physical offsets.
-    bytes: Arc<[u8]>,
+    /// Retained stack allocation inside world memory.
+    stack: MemoryRange,
+    /// Live byte prefix inside the retained stack allocation.
+    byte_len: usize,
 }
 
 /// One physical frame inside a machine image.
@@ -65,7 +68,8 @@ impl MachineImage {
     pub fn fork(&self) -> Self {
         Self {
             frames: self.frames.clone(),
-            bytes: self.bytes.clone(),
+            stack: self.stack,
+            byte_len: self.byte_len,
         }
     }
 
@@ -85,7 +89,12 @@ impl MachineImage {
     }
 
     /// Project one captured physical frame into its canonical live value layout.
-    pub fn frame_bytes(&self, program: &Program, index: usize) -> Result<Vec<u8>> {
+    pub fn frame_bytes(
+        &self,
+        memory: &MemoryImage,
+        program: &Program,
+        index: usize,
+    ) -> Result<Vec<u8>> {
         let image = self.frames.get(index).ok_or_else(Error::invalid_image)?;
         let state = program
             .frame_state(image.state)
@@ -110,17 +119,15 @@ impl MachineImage {
                 return Err(Error::invalid_image());
             }
             let source_offset = image.frame.range(*span) * Word::BYTE_LEN;
-            let source_end = source_offset + slot.byte_len as usize;
-            let source = self
-                .bytes
-                .get(source_offset..source_end)
-                .ok_or_else(Error::invalid_image)?;
+            let source = memory
+                .read_bytes(self.stack.offset + source_offset, slot.byte_len as usize)
+                .map_err(|_| Error::invalid_image())?;
             let target_offset = slot.offset as usize;
             let target_end = target_offset + slot.byte_len as usize;
             let target = bytes
                 .get_mut(target_offset..target_end)
                 .ok_or_else(Error::invalid_image)?;
-            target.copy_from_slice(source);
+            target.copy_from_slice(&source);
         }
 
         Ok(bytes)
@@ -169,22 +176,10 @@ impl Machine {
             })
             .collect::<Vec<_>>()
             .into();
-        let mut bytes = vec![0; self.stack.byte_len()];
-
-        // copy only typed live frame slots into their physical stack positions
-        for mapping in &mappings {
-            let (slots, spans) = mapping.values(&self.program)?;
-
-            for (slot, span) in slots.iter().zip(spans) {
-                let byte_offset = mapping.frame.range(*span) * Word::BYTE_LEN;
-                let target = Self::slot_bytes(&mut bytes, byte_offset, slot.byte_len as usize)?;
-                self.stack.read_bytes(byte_offset, target)?;
-            }
-        }
-
         Ok(MachineImage {
             frames,
-            bytes: bytes.into(),
+            stack: self.stack.range(),
+            byte_len: self.stack.byte_len(),
         })
     }
 
@@ -204,10 +199,14 @@ impl Machine {
 
     /// Restore one physical machine image after its Program was linked.
     fn restore_machine(&mut self, image: &MachineImage) -> Result<()> {
-        let stack_byte_len = image.bytes.len();
-        self.stack.grow(stack_byte_len)?;
+        if image.is_empty() {
+            return Ok(());
+        }
+
+        self.stack.restore(image.stack, image.byte_len)?;
         self.frames = image.frames.iter().map(|image| image.frame).collect();
-        self.stack.write_bytes(0, &image.bytes)
+
+        Ok(())
     }
 
     /// Visit mutable heap roots retained by the physical call stack.
