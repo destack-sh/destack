@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use destack_source::{NodeSpanType, Span};
+use destack_source::{FileId, NodeSpanType, Span};
 use indexmap::IndexSet;
 use smallvec::SmallVec;
 
@@ -333,6 +333,17 @@ impl<'a> View<'a> {
         }
 
         nodes
+    }
+
+    /// Iterate visible node ids whose source spans belong to one file.
+    pub fn iter_node_ids_in_file(&self, file: FileId) -> Vec<LocalNodeIdAny> {
+        self.iter_node_ids()
+            .into_iter()
+            .filter(|node| {
+                self.get_span_by_id(node.id)
+                    .is_some_and(|span| span.file == file)
+            })
+            .collect()
     }
 
     /// Iterate over visible node ids of a given type.

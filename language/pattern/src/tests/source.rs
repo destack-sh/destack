@@ -90,12 +90,7 @@ impl TestSource {
 
     /// Return a view over the candidate DIR.
     pub(crate) fn view(&self) -> dir::View<'_> {
-        match self {
-            Self::Parsed { tree, .. } => dir::View::new(tree),
-            Self::Checked {
-                module, program, ..
-            } => program.module(*module).expect("checked test module").view(),
-        }
+        dir::View::new(self.tree())
     }
 
     /// Return the checked program and candidate module when available.

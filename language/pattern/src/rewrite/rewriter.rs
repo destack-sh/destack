@@ -40,7 +40,7 @@ impl<'rewrite, 'candidate> Rewriter<'rewrite, 'candidate> {
         }
     }
 
-    /// Create a rewriter over one checked program module.
+    /// Create a rewriter over one checked program module's parsed DIR.
     pub fn in_module(
         rewrite: &'rewrite Rewrite,
         module: ModuleId,
@@ -48,13 +48,27 @@ impl<'rewrite, 'candidate> Rewriter<'rewrite, 'candidate> {
         source: &'candidate File,
     ) -> Result<Self, ContextError> {
         let context = program.module(module)?;
+        let candidate = dir::View::new(context.tree());
 
-        Ok(Self {
+        Ok(Self::with_module(
+            rewrite, candidate, context, program, source,
+        ))
+    }
+
+    /// Create a rewriter over an explicit DIR view and checked module.
+    pub fn with_module(
+        rewrite: &'rewrite Rewrite,
+        candidate: dir::View<'candidate>,
+        module: &'candidate ModuleContext,
+        program: &'candidate ProgramContext,
+        source: &'candidate File,
+    ) -> Self {
+        Self {
             rewrite,
-            candidate: context.view(),
+            candidate,
             source,
-            context: Some((context, program)),
-        })
+            context: Some((module, program)),
+        }
     }
 
     /// Rewrite non-overlapping matches in source order.
@@ -64,8 +78,7 @@ impl<'rewrite, 'candidate> Rewriter<'rewrite, 'candidate> {
     ) -> Result<FilePatch, DiagnosticCollection> {
         let matcher = match self.context {
             Some((module, program)) => {
-                Matcher::in_module(self.rewrite.pattern(), module.module(), program)
-                    .map_err(|error| RewriteError::internal(self.source, error))?
+                Matcher::with_module(self.rewrite.pattern(), self.candidate, module, program)
             }
             None => Matcher::new(self.rewrite.pattern(), self.candidate),
         };

@@ -40,17 +40,29 @@ impl<'pattern, 'candidate> Matcher<'pattern, 'candidate> {
         }
     }
 
-    /// Create an evaluator over one checked program module.
+    /// Create an evaluator over one checked program module's parsed DIR.
     pub fn in_module(
         pattern: &'pattern Pattern,
         module: ModuleId,
         program: &'candidate ProgramContext,
     ) -> Result<Self, ContextError> {
         let context = program.module(module)?;
-        let mut matcher = Self::new(pattern, context.view());
-        matcher.context = Some((context, program));
+        let candidate = dir::View::new(context.tree());
 
-        Ok(matcher)
+        Ok(Self::with_module(pattern, candidate, context, program))
+    }
+
+    /// Create an evaluator over an explicit DIR view and checked module.
+    pub fn with_module(
+        pattern: &'pattern Pattern,
+        candidate: dir::View<'candidate>,
+        module: &'candidate ModuleContext,
+        program: &'candidate ProgramContext,
+    ) -> Self {
+        let mut matcher = Self::new(pattern, candidate);
+        matcher.context = Some((module, program));
+
+        matcher
     }
 
     /// Match a candidate node.
