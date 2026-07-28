@@ -287,7 +287,7 @@ impl<'owner, 'module, 'program> CompletionBuilder<'owner, 'module, 'program> {
                 continue;
             }
             if kind == CompletionItemKind::Newtype {
-                results.push(self.complete_newtype(&name, symbol_id)?);
+                results.push(self.complete_newtype(symbol_id)?);
                 continue;
             }
 

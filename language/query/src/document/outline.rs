@@ -4,10 +4,7 @@ use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Module, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult,
-    format_function_detail, format_global_type,
-};
+use crate::{Formatter, Module, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 /// An editor-facing declaration kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
@@ -322,12 +319,12 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<String>> {
         match declaration {
             dir::Declaration::Function(declaration) => Ok(Some(
-                format_function_detail(&declaration.signature, self, program, false)?.ok_or(
-                    QueryError::invalid(format!(
+                Formatter::new(self, program)
+                    .call_signature("", &declaration.signature, false)?
+                    .ok_or(QueryError::invalid(format!(
                         "outline signature formatting: {:?}",
                         declaration_id.into_global_any(self.module_id())
-                    )),
-                )?,
+                    )))?,
             )),
             dir::Declaration::Type(declaration) => Ok(Some(
                 self.outline_node_type(declaration.value.into(), program)?,
@@ -387,10 +384,12 @@ impl ModuleQueryContext<'_> {
                         .ok_or(QueryError::missing(format!(
                             "outline symbol type: {symbol_id:?}"
                         )))?;
-                let detail = Some(self.outline_type(type_id, program)?);
+                let detail = Formatter::new(self, program).global_type(type_id)?.ok_or(
+                    QueryError::invalid(format!("outline type formatting: {type_id:?}")),
+                )?;
                 symbols.push(OutlineSymbol {
                     name: self.strings().get(name_id).to_string(),
-                    detail,
+                    detail: Some(detail),
                     kind,
                     range,
                     selection_range,
@@ -460,9 +459,10 @@ impl ModuleQueryContext<'_> {
                 };
                 let type_text =
                     self.outline_declared_type(*declared_type, member_id.into(), program)?;
-                let detail = Some(outline_field_detail(type_text, *is_static, *is_readonly));
+                let detail =
+                    Formatter::new(self, program).field_type(type_text, *is_static, *is_readonly);
 
-                (name, kind, detail)
+                (name, kind, Some(detail))
             }
             dir::Member::Method {
                 key,
@@ -475,23 +475,16 @@ impl ModuleQueryContext<'_> {
                     Some(key) => Some(self.outline_member_key(view, key)?),
                     None => None,
                 };
-                let (name, kind, role) =
-                    match outline_method_name(name, signature.role, *is_accessor) {
-                        Some(name) => name,
-                        None => return Ok(None),
-                    };
-                let mut detail = format_function_detail(signature, self, program, false)?.ok_or(
-                    QueryError::invalid(format!(
+                let (name, kind) = match outline_method_name(name, signature.role, *is_accessor) {
+                    Some(name) => name,
+                    None => return Ok(None),
+                };
+                let detail = Formatter::new(self, program)
+                    .method_signature(signature, *is_static)?
+                    .ok_or(QueryError::invalid(format!(
                         "outline signature formatting: {:?}",
                         member_id.into_global_any(self.module_id())
-                    )),
-                )?;
-                if matches!(signature.role, Some(dir::FunctionRole::Setter))
-                    && signature.return_type.is_none()
-                {
-                    detail.push_str(": void");
-                }
-                let detail = format!("{}{role}{detail}", outline_static_prefix(*is_static));
+                    )))?;
 
                 (name, kind, Some(detail))
             }
@@ -538,9 +531,10 @@ impl ModuleQueryContext<'_> {
                 let name = self.outline_member_key(view, key)?;
                 let type_text =
                     self.outline_declared_type(*declared_type, member_id.into(), program)?;
-                let detail = Some(outline_field_detail(type_text, *is_static, *is_readonly));
+                let detail =
+                    Formatter::new(self, program).field_type(type_text, *is_static, *is_readonly);
 
-                (name, SymbolKind::Field, detail)
+                (name, SymbolKind::Field, Some(detail))
             }
             dir::TypeMember::Method {
                 key,
@@ -549,13 +543,12 @@ impl ModuleQueryContext<'_> {
                 ..
             } => {
                 let name = self.outline_member_key(view, key)?;
-                let signature = format_function_detail(signature, self, program, false)?.ok_or(
-                    QueryError::invalid(format!(
+                let detail = Formatter::new(self, program)
+                    .method_signature(signature, *is_static)?
+                    .ok_or(QueryError::invalid(format!(
                         "outline signature formatting: {:?}",
                         member_id.into_global_any(self.module_id())
-                    )),
-                )?;
-                let detail = format!("{}{signature}", outline_static_prefix(*is_static));
+                    )))?;
 
                 (name, SymbolKind::Method, Some(detail))
             }
@@ -636,7 +629,7 @@ impl ModuleQueryContext<'_> {
         }
     }
 
-    /// Return the checked type shown beside one source node.
+    /// Return the type shown beside one source node.
     fn outline_node_type(
         &self,
         node_id: dir::LocalNodeIdAny,
@@ -648,18 +641,11 @@ impl ModuleQueryContext<'_> {
             .get_node_type_id(node_id)
             .ok_or(QueryError::missing(format!("outline type: {node_id:?}")))?;
 
-        self.outline_type(type_id, program)
-    }
-
-    /// Return one checked type represented as source text.
-    fn outline_type(
-        &self,
-        type_id: dir::GlobalTypeId,
-        program: &ProgramQueryContext<'_>,
-    ) -> QueryResult<String> {
-        format_global_type(type_id, self, program)?.ok_or(QueryError::invalid(format!(
-            "outline type formatting: {type_id:?}"
-        )))
+        Formatter::new(self, program)
+            .global_type(type_id)?
+            .ok_or(QueryError::invalid(format!(
+                "outline type formatting: {type_id:?}"
+            )))
     }
 
     /// Return an explicit type annotation or the inferred owner type.
@@ -676,17 +662,12 @@ impl ModuleQueryContext<'_> {
     }
 }
 
-/// Return one method's name, kind, and role prefix.
+/// Return one method's name and editor kind.
 fn outline_method_name(
     key: Option<String>,
     role: Option<dir::FunctionRole>,
     is_accessor: bool,
-) -> Option<(String, SymbolKind, &'static str)> {
-    let role_prefix = match role {
-        Some(dir::FunctionRole::Getter) => "get ",
-        Some(dir::FunctionRole::Setter) => "set ",
-        _ => "",
-    };
+) -> Option<(String, SymbolKind)> {
     let name = match (key, role) {
         (Some(name), _) => name,
         (None, Some(dir::FunctionRole::Constructor)) => "constructor".to_string(),
@@ -709,20 +690,7 @@ fn outline_method_name(
         SymbolKind::Method
     };
 
-    Some((name, kind, role_prefix))
-}
-
-/// Return the static modifier prefix.
-fn outline_static_prefix(is_static: bool) -> &'static str {
-    if is_static { "static " } else { "" }
-}
-
-/// Return one field's modifier and checked-type detail.
-fn outline_field_detail(type_text: String, is_static: bool, is_readonly: bool) -> String {
-    let static_prefix = outline_static_prefix(is_static);
-    let readonly_prefix = if is_readonly { "readonly " } else { "" };
-
-    format!("{static_prefix}{readonly_prefix}{type_text}")
+    Some((name, kind))
 }
 
 /// Collect every binding declaration inside one pattern.

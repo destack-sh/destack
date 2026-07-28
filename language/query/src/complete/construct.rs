@@ -2,9 +2,8 @@ use destack_dir as dir;
 
 use super::CompletionBuilder;
 use super::call::call_snippet;
-use crate::format::{format_global_constructor_type, format_global_type};
 use crate::{
-    CompletionCandidate, CompletionItemKind, CompletionOrigin, QueryError, QueryResult,
+    CompletionCandidate, CompletionItemKind, CompletionOrigin, Formatter, QueryError, QueryResult,
     SORT_LOCAL_SYMBOL,
 };
 
@@ -45,17 +44,12 @@ impl CompletionBuilder<'_, '_, '_> {
                     )))?,
                 None => Vec::new(),
             };
-            let signature = format_global_constructor_type(
-                constructor.ty,
-                &parameter_names,
-                name,
-                self.module,
-                self.program,
-            )?
-            .ok_or(QueryError::invalid(format!(
-                "completion type formatting: {:?}",
-                constructor.ty
-            )))?;
+            let signature = Formatter::new(self.module, self.program)
+                .callable_type(constructor.ty, &parameter_names)?
+                .ok_or(QueryError::invalid(format!(
+                    "completion type formatting: {:?}",
+                    constructor.ty
+                )))?;
             let snippet = call_snippet(name, &parameter_names);
             let completion = CompletionCandidate::new(
                 name,
@@ -149,34 +143,11 @@ impl CompletionBuilder<'_, '_, '_> {
     /// Build one nominal backing constructor completion.
     pub(super) fn complete_newtype(
         &self,
-        name: &str,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<CompletionCandidate> {
-        let definition = self
-            .module
-            .definitions()
-            .newtype_definition(symbol_id)
-            .ok_or(QueryError::missing(format!(
-                "completion definition: {symbol_id:?}"
-            )))?;
-        let backing = format_global_type(definition.backing, self.module, self.program)?.ok_or(
-            QueryError::invalid(format!(
-                "completion type formatting: {:?}",
-                definition.backing
-            )),
-        )?;
-        let parameter_names = vec!["value".to_string()];
-        let snippet = call_snippet(name, &parameter_names);
-        let completion = CompletionCandidate::new(
-            name,
-            CompletionItemKind::Constructor,
-            CompletionOrigin::Local,
-            SORT_LOCAL_SYMBOL,
-        )
-        .with_detail(format!("(value: {backing}) => {name}"))
-        .with_insert_text(snippet.text)
-        .with_snippet();
-
-        self.attach_symbol_completion(completion, symbol_id)
+        // FUGU #Incomplete: retain checked newtype constructor signatures
+        Err(QueryError::missing(format!(
+            "checked newtype constructor signature: {symbol_id:?}"
+        )))
     }
 }

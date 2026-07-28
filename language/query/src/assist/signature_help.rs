@@ -4,8 +4,8 @@ use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
-    format_global_type,
+    AppliedSignature, Formatter, ModuleQueryContext, ProgramQueryContext, QueryError,
+    QueryPosition, QueryResult,
 };
 
 /// One parameter shown by signature help.
@@ -13,7 +13,7 @@ use crate::{
 pub struct SignatureParameter {
     /// The formatted parameter label.
     pub label: String,
-    /// The checked parameter documentation when available.
+    /// The parameter documentation when available.
     pub documentation: Option<String>,
 }
 
@@ -22,13 +22,13 @@ pub struct SignatureParameter {
 pub struct SignatureItem {
     /// The full formatted signature.
     pub label: String,
-    /// The checked declaration documentation when available.
+    /// The declaration documentation when available.
     pub documentation: Option<String>,
     /// The formatted parameters in declaration order.
     pub parameters: Vec<SignatureParameter>,
 }
 
-/// Signature help for one checked call.
+/// Signature help for one selected call.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureHelp {
     /// The statically selected callable signatures.
@@ -54,7 +54,7 @@ pub struct SignatureHelpResponse {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Return signature help for the innermost checked call at one offset.
+    /// Return signature help for the innermost selected call at one offset.
     pub fn signature_help(
         &self,
         program: &ProgramQueryContext<'_>,
@@ -62,7 +62,7 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<Option<SignatureHelp>> {
         let view = self.view();
-        let enclosing = self.sorted_enclosing_spans(file_id, offset, offset);
+        let enclosing = self.enclosing_spans_at_cursor(file_id, offset);
 
         // select the innermost call with one recorded resolution
         for enclosing in enclosing {
@@ -269,8 +269,7 @@ impl ModuleQueryContext<'_> {
         )
     }
 
-    /// Format one selected declaration signature with checked call types.
-    #[allow(clippy::too_many_arguments)]
+    /// Format one selected declaration signature with applied call types.
     fn selected_signature_item(
         &self,
         program: &ProgramQueryContext<'_>,
@@ -282,21 +281,11 @@ impl ModuleQueryContext<'_> {
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
     ) -> QueryResult<Option<SignatureItem>> {
-        let mut formatted_arguments = Vec::with_capacity(generic_arguments.len());
-        for binding in generic_arguments {
-            let Some(argument) = format_global_type(binding.argument, self, program)? else {
-                return Ok(None);
-            };
-            formatted_arguments.push(argument);
-        }
-        let generic_arguments = formatted_arguments;
-        let generics = if generic_arguments.is_empty() {
-            String::new()
-        } else {
-            format!("<{}>", generic_arguments.join(", "))
-        };
-        let mut parameters = Vec::with_capacity(declared_parameters.len());
-        for (index, parameter_id) in declared_parameters.iter().enumerate() {
+        let mut names = Vec::with_capacity(declared_parameters.len());
+        let mut documentation = Vec::with_capacity(declared_parameters.len());
+
+        // retain authored parameter names and documentation
+        for parameter_id in declared_parameters {
             let parameter = declaration_module.view().get(*parameter_id);
             let Some(mut name) = declaration_module.parameter_name(parameter)? else {
                 return Ok(None);
@@ -304,14 +293,9 @@ impl ModuleQueryContext<'_> {
             if parameter.is_optional() {
                 name.push('?');
             }
-            let Some(binding) = bindings.iter().find(|binding| binding.parameter == index) else {
-                return Ok(None);
-            };
-            let Some(type_text) = format_global_type(binding.ty, self, program)? else {
-                return Ok(None);
-            };
-            let label = format!("{name}: {type_text}");
-            let documentation = declaration_module
+            names.push(Some(name));
+
+            let parameter_documentation = declaration_module
                 .view()
                 .get_documentation(*parameter_id)
                 .map(|documentation| {
@@ -320,25 +304,19 @@ impl ModuleQueryContext<'_> {
                         .get(documentation.text)
                         .to_string()
                 });
-            parameters.push(SignatureParameter {
-                label,
-                documentation,
-            });
+            documentation.push(parameter_documentation);
         }
-        let Some(return_type) = format_global_type(return_type, self, program)? else {
-            return Ok(None);
-        };
-        let parameter_text = parameters
-            .iter()
-            .map(|parameter| parameter.label.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
 
-        Ok(Some(SignatureItem {
-            label: format!("{name}{generics}({parameter_text}): {return_type}"),
-            documentation: program.symbol_doc_text(symbol_id)?,
-            parameters,
-        }))
+        self.signature_item(
+            program,
+            symbol_id,
+            name,
+            generic_arguments,
+            &names,
+            &documentation,
+            bindings,
+            return_type,
+        )
     }
 
     /// Format the exact constructor selected by checking.
@@ -359,14 +337,16 @@ impl ModuleQueryContext<'_> {
                 let Some(name) = program.symbol_name(candidate.symbol)? else {
                     return Ok(None);
                 };
-                let parameter_names = vec![Some("value")];
+                let parameter_names = vec![None; resolution.arguments.len()];
+                let parameter_documentation = vec![None; resolution.arguments.len()];
 
-                let Some(item) = self.synthetic_signature_item(
+                let Some(item) = self.signature_item(
                     program,
                     candidate.symbol,
                     &name,
                     &candidate.generic_arguments,
                     &parameter_names,
+                    &parameter_documentation,
                     &resolution.arguments,
                     resolution.return_type,
                 )?
@@ -393,13 +373,15 @@ impl ModuleQueryContext<'_> {
                 };
                 let name = format!("{container}.{}", member.name);
                 let parameter_names = vec![None; resolution.arguments.len()];
+                let parameter_documentation = vec![None; resolution.arguments.len()];
 
-                let Some(item) = self.synthetic_signature_item(
+                let Some(item) = self.signature_item(
                     program,
                     symbol_id,
                     &name,
                     &candidate.generic_arguments,
                     &parameter_names,
+                    &parameter_documentation,
                     &resolution.arguments,
                     resolution.return_type,
                 )?
@@ -425,11 +407,12 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         };
         let Some(constructor_symbol) = candidate.constructor.call_symbol() else {
-            return self.synthetic_signature_item(
+            return self.signature_item(
                 program,
                 candidate.symbol,
                 &name,
                 &candidate.generic_arguments,
+                &[],
                 &[],
                 &resolution.arguments,
                 resolution.return_type,
@@ -456,61 +439,47 @@ impl ModuleQueryContext<'_> {
         )
     }
 
-    /// Format one checked signature without an authored parameter declaration.
-    #[allow(clippy::too_many_arguments)]
-    fn synthetic_signature_item(
+    /// Build one signature help item from a selected call signature.
+    fn signature_item(
         &self,
         program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
         name: &str,
         generic_arguments: &[dir::GenericArgumentBinding],
-        parameter_names: &[Option<&str>],
+        parameter_names: &[Option<String>],
+        parameter_documentation: &[Option<String>],
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
     ) -> QueryResult<Option<SignatureItem>> {
-        let mut formatted_arguments = Vec::with_capacity(generic_arguments.len());
-        for binding in generic_arguments {
-            let Some(argument) = format_global_type(binding.argument, self, program)? else {
-                return Ok(None);
-            };
-            formatted_arguments.push(argument);
-        }
-        let generic_arguments = formatted_arguments;
-        let generics = if generic_arguments.is_empty() {
-            String::new()
-        } else {
-            format!("<{}>", generic_arguments.join(", "))
-        };
-        let mut bindings = bindings.iter().collect::<Vec<_>>();
-        bindings.sort_by_key(|binding| binding.parameter);
-        let mut parameters = Vec::with_capacity(bindings.len());
-        for (index, binding) in bindings.into_iter().enumerate() {
-            if binding.parameter != index {
-                return Ok(None);
-            }
-            let Some(type_text) = format_global_type(binding.ty, self, program)? else {
-                return Ok(None);
-            };
-            let label = match parameter_names.get(index).copied().flatten() {
-                Some(name) => format!("{name}: {type_text}"),
-                None => type_text,
-            };
-            parameters.push(SignatureParameter {
-                label,
-                documentation: None,
-            });
-        }
-        let Some(return_type) = format_global_type(return_type, self, program)? else {
+        let Some(formatted) = Formatter::new(self, program).applied_signature(
+            name,
+            generic_arguments,
+            parameter_names,
+            bindings,
+            return_type,
+        )?
+        else {
             return Ok(None);
         };
-        let parameter_text = parameters
-            .iter()
-            .map(|parameter| parameter.label.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
+        let AppliedSignature { label, parameters } = formatted;
+        if parameters.len() != parameter_documentation.len() {
+            return Err(QueryError::invalid(format!(
+                "signature parameter documentation: expected {}, found {}",
+                parameters.len(),
+                parameter_documentation.len()
+            )));
+        }
+        let parameters = parameters
+            .into_iter()
+            .zip(parameter_documentation.iter().cloned())
+            .map(|(label, documentation)| SignatureParameter {
+                label,
+                documentation,
+            })
+            .collect();
 
         Ok(Some(SignatureItem {
-            label: format!("{name}{generics}({parameter_text}): {return_type}"),
+            label,
             documentation: program.symbol_doc_text(symbol_id)?,
             parameters,
         }))
@@ -548,7 +517,7 @@ impl ModuleQueryContext<'_> {
     }
 }
 
-/// Return whether one checked binding owns a source argument.
+/// Return whether one binding owns a source argument.
 fn binding_contains_argument(
     binding: &dir::ArgumentBinding,
     argument: dir::GlobalNodeIdAny,

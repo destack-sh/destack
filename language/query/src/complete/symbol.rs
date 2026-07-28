@@ -1,28 +1,9 @@
 use destack_dir as dir;
 
 use super::builder::CompletionBuilder;
-use crate::format::{format_global_callable_type, format_global_type};
-use crate::{CompletionCandidate, CompletionItemKind, QueryResult};
+use crate::{CompletionCandidate, CompletionItemKind, Formatter, QueryResult};
 
 impl CompletionBuilder<'_, '_, '_> {
-    /// Format a type detail string for a symbol's declared or inferred type.
-    pub(super) fn format_symbol_type_detail(
-        &self,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> QueryResult<Option<String>> {
-        let module = self.program.module(symbol_id.module_id)?;
-        let Some(type_id) = module.types().get_symbol_type_id(symbol_id) else {
-            return Ok(None);
-        };
-
-        // retain authored parameter names on callable types
-        if let Some(parameter_names) = self.program.symbol_parameter_names(symbol_id)? {
-            format_global_callable_type(type_id, &parameter_names, module, self.program)
-        } else {
-            format_global_type(type_id, module, self.program)
-        }
-    }
-
     /// Attach symbol documentation and deprecation to one completion.
     pub(super) fn attach_symbol_completion(
         &self,
@@ -32,7 +13,8 @@ impl CompletionBuilder<'_, '_, '_> {
         // attach the exact checked type before following dependency aliases
         if completion.detail.is_none()
             && completion.kind.has_type_detail()
-            && let Some(detail) = self.format_symbol_type_detail(symbol_id)?
+            && let Some(detail) =
+                Formatter::new(self.module, self.program).symbol_type(symbol_id)?
         {
             completion = completion.with_detail(detail);
         }
@@ -70,7 +52,6 @@ impl CompletionItemKind {
             self,
             Self::AssociatedConst
                 | Self::Constant
-                | Self::Constructor
                 | Self::EnumMember
                 | Self::Field
                 | Self::Function

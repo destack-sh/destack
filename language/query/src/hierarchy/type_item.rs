@@ -4,8 +4,8 @@ use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult, SymbolKind,
-    Target, format_symbol_generics,
+    Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
+    SymbolKind, Target,
 };
 
 /// An item in the type hierarchy.
@@ -137,7 +137,7 @@ impl ModuleQueryContext<'_> {
 
         let target =
             Target::new(canonical_module.module(), range).with_selection_span(selection_range)?;
-        let detail = format_symbol_generics(program, canonical_id)?;
+        let detail = Formatter::new(self, program).symbol_generics(canonical_id)?;
 
         Ok(Some(TypeItem {
             name,

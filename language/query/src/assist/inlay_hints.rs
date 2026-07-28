@@ -3,8 +3,9 @@ use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::format::{format_global_callable_type, format_global_type};
-use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange, QueryResult};
+use crate::{
+    Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange, QueryResult,
+};
 
 /// Kind of inlay hint.
 #[derive(
@@ -146,8 +147,8 @@ impl ModuleQueryContext<'_> {
                 .ok_or(QueryError::missing(format!(
                     "inlay hint type: {global_symbol_id:?}"
                 )))?;
-            let type_text = self
-                .binding_type_text(program, declarator, type_id)?
+            let type_text = Formatter::new(self, program)
+                .binding_type(declarator, type_id)?
                 .ok_or(QueryError::invalid(format!(
                     "inlay hint type formatting: {type_id:?}"
                 )))?;
@@ -158,50 +159,14 @@ impl ModuleQueryContext<'_> {
         Ok(())
     }
 
-    /// Format one checked binding type with authored callable parameter names.
-    fn binding_type_text(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        declarator: &dir::Declarator,
-        type_id: dir::GlobalTypeId,
-    ) -> QueryResult<Option<String>> {
-        let Some(value_id) = declarator.value else {
-            return format_global_type(type_id, self, program);
-        };
-        let dir::Expression::Declaration(declaration_id) = self.view().get(value_id) else {
-            return format_global_type(type_id, self, program);
-        };
-        let dir::Declaration::Function(function) = self.view().get(*declaration_id) else {
-            return format_global_type(type_id, self, program);
-        };
-        if function.signature.form != dir::FunctionForm::Lambda {
-            return format_global_type(type_id, self, program);
-        }
-
-        // retain authored names on the inferred callable type
-        let parameter_names = function
-            .signature
-            .parameters
-            .iter()
-            .map(|parameter_id| self.parameter_name(self.view().get(*parameter_id)))
-            .collect::<QueryResult<Vec<_>>>()?
-            .into_iter()
-            .collect::<Option<Vec<_>>>();
-        let Some(parameter_names) = parameter_names else {
-            return Ok(None);
-        };
-
-        format_global_callable_type(type_id, &parameter_names, self, program)
-    }
-
-    /// Collect parameter hints from checked call and construction bindings.
+    /// Collect parameter hints from selected call and construction bindings.
     fn collect_parameter_inlay_hints(
         &self,
         program: &ProgramQueryContext<'_>,
         range: Span,
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
-        // collect checked calls
+        // collect selected calls
         for (call, resolution) in self.resolutions().call_entries() {
             // defer construct calls to their exact construct resolution
             if self.resolutions().construct_resolution(call).is_some() {
@@ -217,7 +182,7 @@ impl ModuleQueryContext<'_> {
             self.collect_argument_hints(call, &resolution.arguments, &names, range, hints)?;
         }
 
-        // collect checked constructions
+        // collect selected constructions
         for (call, resolution) in self.resolutions().construct_entries() {
             let call_span = self.node_span(self.view(), call.local_id)?;
             if !Self::span_overlaps_range(call_span, range) {
@@ -231,7 +196,7 @@ impl ModuleQueryContext<'_> {
         Ok(())
     }
 
-    /// Return parameter names for one checked call.
+    /// Return parameter names for one selected call.
     fn call_parameter_names(
         &self,
         program: &ProgramQueryContext<'_>,
@@ -252,30 +217,44 @@ impl ModuleQueryContext<'_> {
         for symbol in selected_symbols {
             symbols.extend(program.canonical_symbols(symbol)?);
         }
-        let Some(first_symbol) = symbols.first() else {
+        symbols.sort();
+        symbols.dedup();
+        if symbols.is_empty() {
             return Err(QueryError::missing(format!(
                 "inlay hint parameters: {call:?}"
             )));
-        };
-        let Some(first) = program.symbol_parameter_names(*first_symbol)? else {
-            return Err(QueryError::missing(format!(
-                "inlay hint parameters: {call:?}"
-            )));
-        };
-        let mut names = first.into_iter().map(Some).collect::<Vec<_>>();
+        }
 
-        // retain a name only while every selected declaration agrees
-        for symbol in &symbols[1..] {
-            let Some(signature) = program.symbol_parameter_names(*symbol)? else {
+        // read authored names for every exact selected declaration
+        let mut signatures = Vec::with_capacity(symbols.len());
+        for symbol in symbols {
+            let Some(signature) = program.symbol_parameter_names(symbol)? else {
                 return Err(QueryError::missing(format!(
                     "inlay hint parameters: {call:?}"
                 )));
             };
-            for (index, name) in names.iter_mut().enumerate() {
-                if signature.get(index) != name.as_ref() {
-                    *name = None;
-                }
-            }
+            signatures.push(signature);
+        }
+
+        // retain a name only when every selected declaration agrees
+        let parameter_count = resolution
+            .arguments
+            .iter()
+            .fold(0, |count, binding| count.max(binding.parameter + 1));
+        let first = signatures.first().ok_or(QueryError::missing(format!(
+            "inlay hint parameters: {call:?}"
+        )))?;
+        let mut names = Vec::with_capacity(parameter_count);
+        for index in 0..parameter_count {
+            let name = first.get(index);
+            let name = name
+                .filter(|name| {
+                    signatures[1..]
+                        .iter()
+                        .all(|signature| signature.get(index) == Some(*name))
+                })
+                .cloned();
+            names.push(name);
         }
 
         Ok(names)
@@ -339,7 +318,7 @@ impl ModuleQueryContext<'_> {
         Ok(names.into_iter().map(Some).collect())
     }
 
-    /// Return parameter names for one checked construction.
+    /// Return parameter names for one selected construction.
     fn construct_parameter_names(
         &self,
         program: &ProgramQueryContext<'_>,
@@ -364,12 +343,13 @@ impl ModuleQueryContext<'_> {
 
                 Ok(names.into_iter().map(Some).collect())
             }
-            dir::ConstructTarget::Newtype(_) => Ok(vec![Some("value".to_string())]),
-            dir::ConstructTarget::Variant(_) => Ok(vec![None; resolution.arguments.len()]),
+            dir::ConstructTarget::Newtype(_) | dir::ConstructTarget::Variant(_) => {
+                Ok(vec![None; resolution.arguments.len()])
+            }
         }
     }
 
-    /// Append source-visible hints for checked argument bindings.
+    /// Append source-visible hints for argument bindings.
     fn collect_argument_hints(
         &self,
         call: dir::GlobalNodeIdAny,

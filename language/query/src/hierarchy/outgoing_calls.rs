@@ -32,8 +32,8 @@ pub struct OutgoingCallsResponse {
 
 /// Indexed calls to one canonical callee.
 struct CalleeCalls {
-    /// The first checked call expression.
-    first_call: dir::GlobalNodeId<dir::Expression>,
+    /// The checked call expressions.
+    sources: Vec<dir::GlobalNodeId<dir::Expression>>,
     /// The call expression ranges.
     ranges: Vec<Span>,
 }
@@ -58,9 +58,10 @@ impl ProgramQueryContext<'_> {
                     entry.callee
                 )))?;
             let calls = callees.entry(callee).or_insert_with(|| CalleeCalls {
-                first_call: entry.source,
+                sources: Vec::new(),
                 ranges: Vec::new(),
             });
+            calls.sources.push(entry.source);
             calls.ranges.push(entry.span);
         }
 
@@ -68,12 +69,34 @@ impl ProgramQueryContext<'_> {
         let mut calls = Vec::new();
         for (callee, mut callee_calls) in callees {
             sort_and_dedup_spans(&mut callee_calls.ranges);
-            let module = self.module(callee_calls.first_call.module_id)?;
+            let first_source = callee_calls
+                .sources
+                .first()
+                .ok_or(QueryError::missing(format!(
+                    "outgoing call source: {callee:?}"
+                )))?;
+            let module = self.module(first_source.module_id)?;
             let to = module
-                .call_item_from_call(self, callee_calls.first_call.local_id, callee)?
+                .call_item_from_call(self, first_source.local_id, callee)?
                 .ok_or(QueryError::invalid(format!(
                     "call hierarchy symbol: {callee:?}"
                 )))?;
+
+            // require one stable item across every grouped call selection
+            for source in &callee_calls.sources[1..] {
+                let module = self.module(source.module_id)?;
+                let selected = module
+                    .call_item_from_call(self, source.local_id, callee)?
+                    .ok_or(QueryError::invalid(format!(
+                        "call hierarchy symbol: {callee:?}"
+                    )))?;
+                if selected != to {
+                    return Err(QueryError::conflict(format!(
+                        "outgoing call item: {callee:?}"
+                    )));
+                }
+            }
+
             calls.push(OutgoingCall {
                 to,
                 from_ranges: callee_calls.ranges,

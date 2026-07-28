@@ -3,11 +3,10 @@ use rustc_hash::FxHashSet;
 
 use super::builder::CompletionBuilder;
 use super::call::call_snippet;
-use crate::format::{format_global_callable_type, format_global_type};
 use crate::{
-    CompletionCandidate, CompletionItemKind, CompletionOrigin, MemberCandidate, MemberKind,
-    MemberName, QueryError, QueryResult, SORT_BUILTIN, SORT_LOCAL_SYMBOL, ScopeAtOffset, SymbolUse,
-    visible_symbols,
+    CompletionCandidate, CompletionItemKind, CompletionOrigin, Formatter, MemberCandidate,
+    MemberKind, MemberName, QueryError, QueryResult, SORT_BUILTIN, SORT_LOCAL_SYMBOL,
+    ScopeAtOffset, SymbolUse, visible_symbols,
 };
 
 impl From<MemberKind> for CompletionItemKind {
@@ -58,20 +57,19 @@ impl CompletionBuilder<'_, '_, '_> {
                 Some(symbol_id) => self.program.symbol_parameter_names(symbol_id)?,
                 None => None,
             };
+            let formatter = Formatter::new(self.module, self.program);
             let type_text = match parameter_names {
-                Some(parameter_names) => format_global_callable_type(
-                    member_type_id,
-                    &parameter_names,
-                    self.module,
-                    self.program,
-                )?,
-                None => format_global_type(member_type_id, self.module, self.program)?,
+                Some(parameter_names) => {
+                    formatter.callable_type(member_type_id, &parameter_names)?
+                }
+                None => formatter.global_type(member_type_id)?,
             };
             if let Some(type_text) = type_text {
                 completion = completion.with_detail(type_text);
             }
         } else if let Some(symbol_id) = member.symbol_id
-            && let Some(type_text) = self.format_symbol_type_detail(symbol_id)?
+            && let Some(type_text) =
+                Formatter::new(self.module, self.program).symbol_type(symbol_id)?
         {
             completion = completion.with_detail(type_text);
         }
