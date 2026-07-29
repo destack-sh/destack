@@ -13,12 +13,13 @@ impl TestProgram {
         state.insert_drops();
         self.store_elaborated(state.finish());
 
-        mir::format_mir(
+        mir::Formatter::new(
             &self.lowered.tree,
             self.lowered.target,
             &self.strings,
-            mir::MirFormatOptions::default(),
+            mir::FormatOptions::default(),
         )
+        .format()
         .expect("format MIR")
     }
 

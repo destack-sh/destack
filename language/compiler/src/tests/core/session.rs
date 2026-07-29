@@ -10,7 +10,7 @@ use destack_artifact::{
     ModuleGraph, NullArtifactStore,
 };
 use destack_dir as dir;
-use destack_mir::{MirFormatContext, MirFormatOptions, format_mir};
+use destack_mir::{FormatOptions, Formatter};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
     Revision, Settings, Trace, TraceAggregate, TraceReport, TraceSnapshot, TraceView,
@@ -430,12 +430,13 @@ impl TestSession {
         // format the MIR tree against the repository names
         let strings = self.repository.string_pool();
 
-        let formatted = format_mir(
+        let formatted = Formatter::new(
             &lowered.tree,
             lowered.target,
             strings.as_ref(),
-            MirFormatOptions::default(),
+            FormatOptions::default(),
         )
+        .format()
         .expect("test MIR should format");
 
         // append the aggregate layouts under their declared names
@@ -518,18 +519,17 @@ impl TestSession {
         layouts: &destack_mir::LayoutTable,
         strings: &destack_core::StringPool,
     ) -> String {
-        let context = MirFormatContext::new(tree, target, strings, MirFormatOptions::default())
-            .expect("test MIR layout names should format");
+        let formatter = Formatter::new(tree, target, strings, FormatOptions::default());
 
         // order named layouts by their declarations
         let mut named_types = BTreeSet::new();
         let mut owners = Vec::new();
         for (_, declaration) in tree.iter_nodes::<destack_mir::TypeDeclaration>() {
             named_types.insert(declaration.ty);
-            let name = context
-                .type_declaration_name(declaration.ty)
-                .unwrap_or_else(|| strings.get(declaration.name));
-            owners.push((declaration.ty, name.to_string()));
+            let name = formatter
+                .format_type(declaration.ty)
+                .expect("test MIR type should format");
+            owners.push((declaration.ty, name));
         }
 
         // follow named layouts with anonymous types in node order

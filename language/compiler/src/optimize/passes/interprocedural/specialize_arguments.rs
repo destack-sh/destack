@@ -524,12 +524,10 @@ fn clone_function(
     let mut block_map = HashMap::new();
     for block_id in original.blocks() {
         let block = tree.get(*block_id);
-        let name = block.name;
         let parameters = block.parameters.clone();
         let terminator = tree.get(block.terminator).clone();
         let terminator = tree.insert(terminator);
         let new_block = mir::Block {
-            name,
             parameters,
             instructions: Vec::new(),
             terminator,

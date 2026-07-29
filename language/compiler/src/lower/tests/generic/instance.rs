@@ -25,15 +25,15 @@ function test.main.choose(v0: int32, v1: int32, v2: boolean): float64 {
     local l0: int32
 
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.main.pick(v0, v1, v2): (int32, int32, boolean) => int32
+    v3: int32 = call test.main.pick<int32>(v0, v1, v2): (int32, int32, boolean) => int32
     local.set l0, v3
     v4: float64 = 1.5
     v5: float64 = 2.5
-    v6: float64 = call test.main.pick_1(v4, v5, v2): (float64, float64, boolean) => float64
+    v6: float64 = call test.main.pick<float64>(v4, v5, v2): (float64, float64, boolean) => float64
     return v6
 }
 
-function test.main.pick(v0: int32, v1: int32, v2: boolean): int32 {
+function test.main.pick<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -44,7 +44,7 @@ b2:
     return v1
 }
 
-function test.main.pick_1(v0: float64, v1: float64, v2: boolean): float64 {
+function test.main.pick<float64>(v0: float64, v1: float64, v2: boolean): float64 {
 entry(v0: float64, v1: float64, v2: boolean):
     branch v2, b1, b2
 
@@ -57,18 +57,20 @@ b2:
 "#,
     );
 
-    // assert distinct runtime representations survive display naming
+    // concrete arguments distinguish both textual and persistent identities
     let lowered = session.mir_lowered("main.ds");
     let strings = session.repository().string_pool();
-    let symbols: Vec<_> = lowered
+    let instances: Vec<_> = lowered
         .tree
         .iter_nodes::<destack_mir::Function>()
         .filter_map(|(_, function)| {
-            (strings.get(function.name) == "test.main.pick").then_some(function.symbol)
+            (strings.get(function.name) == "test.main.pick")
+                .then_some((&function.arguments, function.symbol))
         })
         .collect();
-    assert_eq!(symbols.len(), 2);
-    assert_ne!(symbols[0], symbols[1]);
+    assert_eq!(instances.len(), 2);
+    assert_ne!(instances[0].0, instances[1].0);
+    assert_ne!(instances[0].1, instances[1].1);
 }
 
 #[test]
@@ -90,11 +92,11 @@ function keep(value: (int32, boolean)): (int32, boolean) {
         r#"
 function test.main.keep(v0: (int32, boolean)): (int32, boolean) {
 entry(v0: (int32, boolean)):
-    v1: (int32, boolean) = call test.main.identity(v0): ((int32, boolean)) => (int32, boolean)
+    v1: (int32, boolean) = call test.main.identity<type (int32, boolean)>(v0): ((int32, boolean)) => (int32, boolean)
     return v1
 }
 
-function test.main.identity(v0: (int32, boolean)): (int32, boolean) {
+function test.main.identity<type (int32, boolean)>(v0: (int32, boolean)): (int32, boolean) {
 entry(v0: (int32, boolean)):
     return v0
 }
@@ -127,30 +129,30 @@ function readFloat(value: Box<float64>): float64 {
         "main.ds",
         r#"
 @copy
-type Box {
+type Box<int32> {
     value: int32;
 }
 
 @copy
-type Box_1 {
+type Box<float64> {
     value: float64;
 }
 
-function test.main.readInt(v0: Box): int32 {
-entry(v0: Box):
+function test.main.readInt(v0: Box<int32>): int32 {
+entry(v0: Box<int32>):
     v1: int32 = field.get v0, 0
     return v1
 }
 
-function test.main.readFloat(v0: Box_1): float64 {
-entry(v0: Box_1):
+function test.main.readFloat(v0: Box<float64>): float64 {
+entry(v0: Box<float64>):
     v1: float64 = field.get v0, 0
     return v1
 }
-/// @layout.struct name=Box size=4 align=4
-/// @layout.field owner=Box index=0 name=value offset=0 size=4 align=4
-/// @layout.struct name=Box_1 size=8 align=8
-/// @layout.field owner=Box_1 index=0 name=value offset=0 size=8 align=8
+/// @layout.struct name=Box<int32> size=4 align=4
+/// @layout.field owner=Box<int32> index=0 name=value offset=0 size=4 align=4
+/// @layout.struct name=Box<float64> size=8 align=8
+/// @layout.field owner=Box<float64> index=0 name=value offset=0 size=8 align=8
 "#,
     );
 
@@ -198,7 +200,7 @@ function test.main.narrow(v0: boolean): float64 {
 entry(v0: boolean):
     v1: float64 = 1
     v2: float64 = 2
-    v3: float64 = call test.main.pick(v1, v2, v0): (float64, float64, boolean) => float64
+    v3: float64 = call test.main.pick<float64>(v1, v2, v0): (float64, float64, boolean) => float64
     return v3
 }
 
@@ -206,11 +208,11 @@ function test.main.wide(v0: boolean): float64 {
 entry(v0: boolean):
     v1: float64 = 30.5
     v2: float64 = 40.5
-    v3: float64 = call test.main.pick(v1, v2, v0): (float64, float64, boolean) => float64
+    v3: float64 = call test.main.pick<float64>(v1, v2, v0): (float64, float64, boolean) => float64
     return v3
 }
 
-function test.main.pick(v0: float64, v1: float64, v2: boolean): float64 {
+function test.main.pick<float64>(v0: float64, v1: float64, v2: boolean): float64 {
 entry(v0: float64, v1: float64, v2: boolean):
     branch v2, b1, b2
 
@@ -250,17 +252,17 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
         r#"
 function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.main.retry(v0, v1, v2): (int32, int32, boolean) => int32
+    v3: int32 = call test.main.retry<int32>(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
-function test.main.retry(v0: int32, v1: int32, v2: boolean): int32 {
+function test.main.retry<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.main.pick(v0, v1, v2): (int32, int32, boolean) => int32
+    v3: int32 = call test.main.pick<int32>(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
-function test.main.pick(v0: int32, v1: int32, v2: boolean): int32 {
+function test.main.pick<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -305,11 +307,11 @@ function choose(low: int32, high: int32, flag: boolean): int32 {
         r#"
 function test.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.lib.pick(v0, v1, v2): (int32, int32, boolean) => int32
+    v3: int32 = call test.lib.pick<int32>(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
-function test.lib.pick(v0: int32, v1: int32, v2: boolean): int32 {
+function test.lib.pick<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -363,17 +365,17 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
         r#"
 function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.lib.retry(v0, v1, v2): (int32, int32, boolean) => int32
+    v3: int32 = call test.lib.retry<int32>(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
-function test.lib.retry(v0: int32, v1: int32, v2: boolean): int32 {
+function test.lib.retry<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call test.lib.pick(v0, v1, v2): (int32, int32, boolean) => int32
+    v3: int32 = call test.lib.pick<int32>(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
-function test.lib.pick(v0: int32, v1: int32, v2: boolean): int32 {
+function test.lib.pick<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 
@@ -423,11 +425,11 @@ function choose(low: int32, high: int32, flag: boolean): int32 {
         r#"
 function app.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
-    v3: int32 = call app.main.pick(v0, v1, v2): (int32, int32, boolean) => int32
+    v3: int32 = call app.main.pick<int32>(v0, v1, v2): (int32, int32, boolean) => int32
     return v3
 }
 
-function app.main.pick(v0: int32, v1: int32, v2: boolean): int32 {
+function app.main.pick<int32>(v0: int32, v1: int32, v2: boolean): int32 {
 entry(v0: int32, v1: int32, v2: boolean):
     branch v2, b1, b2
 

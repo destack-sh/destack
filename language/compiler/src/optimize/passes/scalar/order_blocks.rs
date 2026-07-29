@@ -948,18 +948,18 @@ b2:
         let expected = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    switch v0, b3, 0 => b2
+    switch v0, b3, 0 => b1
 
-b2:
+b1:
     v2: int32 = 1
     return v2
 
-b1:
+b2:
     v1: int32 = 2
     return v1
 
 b3:
-    jump b1
+    jump b2
 }
 "#;
 
@@ -1001,18 +1001,18 @@ function test(v0: uint32, v1: [uint32; 8]): int32 {
 entry(v0: uint32, v1: [uint32; 8]):
     v2: uint32 = 1
     v3: boolean = int.lt.u v0, v2
-    check bounds.u v0, v2, v1 => b2, b3
+    check bounds.u v0, v2, v1 => b1, b3
 
-b2:
+b1:
     v5: int32 = 1
     return v5
 
-b1:
+b2:
     v4: int32 = 2
     return v4
 
 b3:
-    jump b1
+    jump b2
 }
 "#;
 
@@ -1050,13 +1050,13 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b2
+    branch v0, b2, b1
 
-b2:
+b1:
     v2: int32 = 2
     return v2
 
-b1:
+b2:
     v1: int32 = 1
     return v1
 }
@@ -1095,7 +1095,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b1_1
+    branch v0, b1, b3
 
 b1:
     v2: int32 = 1
@@ -1105,7 +1105,7 @@ b2:
     v1: int32 = 1
     return v1
 
-b1_1:
+b3:
     jump b2
 }
 "#;
@@ -1148,17 +1148,17 @@ b3:
         let expected = r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
-    branch v0, b1, b3
+    branch v0, b1, b2
 
 b1:
     v1: int32 = 1
     return v1
 
-b3:
+b2:
     v3: int32 = 2
     return v3
 
-b2:
+b3:
     v2: int32 = 3
     return v2
 }

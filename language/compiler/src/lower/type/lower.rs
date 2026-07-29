@@ -256,23 +256,19 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         }
     }
 
-    /// Build the generic instance key from representation-relevant type arguments.
+    /// Build the generic instance key from concrete type arguments.
     pub(in crate::lower) fn generic_instance_key(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        arguments: &[dir::GlobalTypeId],
+        types: &[dir::GlobalTypeId],
     ) -> CompilerResult<GenericInstanceKey> {
-        let mut representations = Vec::with_capacity(arguments.len());
-        for argument in arguments {
-            let representation = self.lower(*argument)?;
-            let representation = self.tree.intern_representation(representation);
-            representations.push(representation);
+        let mut arguments = Vec::with_capacity(types.len());
+        for ty in types {
+            let ty = self.lower(*ty)?;
+            arguments.push(self.tree.intern_static(mir::Static::Type(ty)));
         }
 
-        Ok(GenericInstanceKey {
-            symbol,
-            representations,
-        })
+        Ok(GenericInstanceKey { symbol, arguments })
     }
 }
 

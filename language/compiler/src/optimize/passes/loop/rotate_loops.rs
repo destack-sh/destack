@@ -444,24 +444,24 @@ entry(v0: int32, v1: int32):
     branch v3, b2(v2, v3), b1(v2)
 
 b1(v14: int32):
-    jump b3(v14)
+    jump b6(v14)
 
 b2(v12: int32, v13: boolean):
-    jump b2_1(v12, v13)
+    jump b3(v12, v13)
 
-b2_1(v6: int32, v7: boolean):
+b3(v6: int32, v7: boolean):
     v8: int32 = 1
     v9: int32 = int.add v6, v8
     v10: boolean = int.lt.s v9, v1
     branch v10, b5(v9, v10), b4(v9)
 
 b4(v17: int32):
-    jump b3(v17)
+    jump b6(v17)
 
 b5(v15: int32, v16: boolean):
-    jump b2_1(v15, v16)
+    jump b3(v15, v16)
 
-b3(v11: int32):
+b6(v11: int32):
     return v11
 }
 "#;
@@ -688,24 +688,24 @@ entry(v0: int32, v1: int32):
     branch v4, b2(v2, v3, v4), b1(v2, v3)
 
 b1(v20: int32, v21: int32):
-    jump b3(v20, v21)
+    jump b6(v20, v21)
 
 b2(v17: int32, v18: int32, v19: boolean):
-    jump b2_1(v17, v18, v19)
+    jump b3(v17, v18, v19)
 
-b2_1(v8: int32, v9: int32, v10: boolean):
+b3(v8: int32, v9: int32, v10: boolean):
     v11: int32 = int.add v8, v9
     v12: int32 = int.add v9, v3
     v13: boolean = int.lt.s v11, v0
     branch v13, b5(v11, v12, v13), b4(v11, v12)
 
 b4(v25: int32, v26: int32):
-    jump b3(v25, v26)
+    jump b6(v25, v26)
 
 b5(v22: int32, v23: int32, v24: boolean):
-    jump b2_1(v22, v23, v24)
+    jump b3(v22, v23, v24)
 
-b3(v14: int32, v15: int32):
+b6(v14: int32, v15: int32):
     v16: int32 = int.add v14, v15
     return v16
 }

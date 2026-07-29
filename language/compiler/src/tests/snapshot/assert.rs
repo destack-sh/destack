@@ -14,7 +14,22 @@ static BLESS_DELTAS: Mutex<Option<HashMap<PathBuf, Vec<(u32, i64)>>>> = Mutex::n
 pub(crate) fn assert_snapshot(actual: impl AsRef<str>, expected: &str) {
     let actual = actual.as_ref().trim_matches('\n');
     let expected = expected.trim_matches('\n');
-    if actual == expected {
+    assert_snapshot_at(actual, expected, expected);
+}
+
+/// Assert one formatted inline snapshot and bless its original raw literal when requested.
+#[track_caller]
+pub(crate) fn assert_formatted_snapshot(actual: impl AsRef<str>, expected: &str, formatted: &str) {
+    let actual = actual.as_ref().trim_matches('\n');
+    let expected = expected.trim_matches('\n');
+    let formatted = formatted.trim_matches('\n');
+    assert_snapshot_at(actual, expected, formatted);
+}
+
+/// Compare one snapshot while retaining its source literal for blessing.
+#[track_caller]
+fn assert_snapshot_at(actual: &str, expected: &str, compared: &str) {
+    if actual == compared {
         return;
     }
 
@@ -26,7 +41,7 @@ pub(crate) fn assert_snapshot(actual: impl AsRef<str>, expected: &str) {
         return;
     }
 
-    let diff = format_diff(expected, actual, &DiffOptions::new());
+    let diff = format_diff(compared, actual, &DiffOptions::new());
 
     panic!("snapshot mismatch\n\n{diff}");
 }

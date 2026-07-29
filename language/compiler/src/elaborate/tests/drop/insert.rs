@@ -264,12 +264,12 @@ external function callee(): int32
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
     free v0
-    invoke callee(): () => int32 => b1 | cleanup
+    invoke callee(): () => int32 => b1 | b2
 
 b1(v1: int32):
     return v1
 
-cleanup:
+b2:
     unwind.resume
 }
 "#,
@@ -302,14 +302,14 @@ external function callee(): int32
 
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
-    invoke callee(): () => int32 => b1 | cleanup
+    invoke callee(): () => int32 => b1 | b2
 
 b1(v1: int32):
     v2: int32 = load v0
     free v0
     return v2
 
-cleanup:
+b2:
     free v0
     unwind.resume
 }
@@ -338,13 +338,13 @@ cleanup:
         r#"
 function test(v0: ref<int32, unique, mutable>, v1: int32): int32 {
 entry(v0: ref<int32, unique, mutable>, v1: int32):
-    yield v1 => b1(v0) | b1(v0) | cleanup
+    yield v1 => b1(v0) | b1(v0) | b2
 
 b1(v2: int32, v3: ref<int32, unique, mutable>):
     free v3
     return v2
 
-cleanup:
+b2:
     free v0
     unwind.resume
 }

@@ -10,21 +10,21 @@ use crate::lower::{
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// One runtime representation of a declaration instance.
+/// One concrete declaration instance.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(in crate::lower) struct GenericInstanceKey {
-    /// The declaration being represented.
+    /// The instantiated declaration.
     pub(in crate::lower) symbol: dir::GlobalSymbolId,
-    /// The runtime type of each representation-relevant argument.
-    pub(in crate::lower) representations: Vec<mir::TypeId>,
+    /// The concrete generic arguments.
+    pub(in crate::lower) arguments: Vec<mir::StaticId>,
 }
 
 impl GenericInstanceKey {
-    /// Create the representation key of one non-generic declaration.
+    /// Create the instance key of one non-generic declaration.
     pub(in crate::lower) fn non_generic(symbol: dir::GlobalSymbolId) -> Self {
         Self {
             symbol,
-            representations: Vec::new(),
+            arguments: Vec::new(),
         }
     }
 }
@@ -595,8 +595,11 @@ impl ModuleLowerer<'_> {
         let symbol = key.symbol;
         let name = self.symbol_path(symbol)?;
         let base = mir::Symbol::named(builder.intern(&name));
-        let instance = base.instantiate(&key.representations, builder.tree());
-        let header = builder.function_header(&name).symbol(instance);
+        let instance = base.instantiate(&key.arguments, builder.tree());
+        let header = builder
+            .function_header(&name)
+            .arguments(key.arguments.iter().cloned())
+            .symbol(instance);
         let header = lifetime_parameters.declare(header);
         let header = header
             .parameters(signature.parameters)

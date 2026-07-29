@@ -496,8 +496,10 @@ entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'c, mutabl
 }
 
 function caller<'L>(v0: ref<int32, borrowed, 'L, mutable>): void {
+    local l0: Box
+
 entry(v0: ref<int32, borrowed, 'L, mutable>):
-    v1: ref<Box, raw, mutable, space(frame)> = frame.alloc.zeroed Box
+    v1: ref<Box, raw, mutable, space(frame)> = local.address l0
     v2: ref<int32, borrowed, mutable> = field.address v1, 0
     call callee(v2, v0): <'a, 'c>(ref<int32, borrowed, 'a, mutable>, ref<int32, borrowed, 'c, mutable>) => void where 'a: 'c
     return

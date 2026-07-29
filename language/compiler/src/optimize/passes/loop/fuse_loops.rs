@@ -967,6 +967,7 @@ b6:
 function test(v0: uint32): void {
     local l0: [int32; 16]
     local l1: [int32; 16]
+
 entry(v0: uint32):
     v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l1
@@ -976,7 +977,7 @@ entry(v0: uint32):
 
 b1(v5: uint32):
     v6: boolean = int.lt.u v5, v0
-    branch v6, b2(v5), b6
+    branch v6, b2(v5), b3
 
 b2(v7: uint32):
     v8: ref<int32, raw, mutable, space(frame)> = element.address v1, v7
@@ -988,7 +989,7 @@ b2(v7: uint32):
     v10: uint32 = int.add v7, v4
     jump b1(v10)
 
-b6:
+b3:
     return
 }
 "#;
@@ -1045,6 +1046,7 @@ b6:
 function test(v0: uint32): void {
     local l0: [int32; 16]
     local l1: [int32; 16]
+
 entry(v0: uint32):
     v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l1
@@ -1055,7 +1057,7 @@ entry(v0: uint32):
 
 b1(v6: uint32, v7: uint32):
     v8: boolean = int.lt.u v6, v0
-    branch v8, b2(v6, v7), b6
+    branch v8, b2(v6, v7), b3
 
 b2(v9: uint32, v10: uint32):
     v11: ref<int32, raw, mutable, space(frame)> = element.address v1, v9
@@ -1065,7 +1067,7 @@ b2(v9: uint32, v10: uint32):
     v12: uint32 = int.add v9, v4
     jump b1(v12, v10)
 
-b6:
+b3:
     return
 }
 "#;

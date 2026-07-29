@@ -825,19 +825,19 @@ entry(v0: int32, v1: int32, v2: boolean):
 
 b1:
     v3: int32 = int.add v0, v1
-    jump b3_1(v3)
+    jump b4(v3)
 
 b2:
-    branch v2, b3, b4
+    branch v2, b3, b5
 
 b3:
     v6: int32 = int.add v0, v1
-    jump b3_1(v6)
+    jump b4(v6)
 
-b3_1(v5: int32):
+b4(v5: int32):
     return v5
 
-b4:
+b5:
     return v0
 }
 "#;
@@ -868,17 +868,17 @@ b2:
         let expected = r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
-    switch v2, b1, 0 => b1_1
+    switch v2, b1, 0 => b2
 
 b1:
     v6: int32 = int.add v0, v1
-    jump b2(v6)
+    jump b3(v6)
 
-b1_1:
+b2:
     v3: int32 = int.add v0, v1
-    jump b2(v3)
+    jump b3(v3)
 
-b2(v5: int32):
+b3(v5: int32):
     return v5
 }
 "#;
@@ -915,21 +915,21 @@ b3(v6: int32):
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
     v3: int32 = 7
-    switch v2, b2, 0 => b1_1, 1 => b1
+    switch v2, b3, 0 => b2, 1 => b1
 
 b1:
     v9: int32 = int.add v0, v1
-    jump b3(v3, v9)
-
-b1_1:
-    v4: int32 = int.add v0, v1
-    jump b3(v3, v4)
+    jump b4(v3, v9)
 
 b2:
+    v4: int32 = int.add v0, v1
+    jump b4(v3, v4)
+
+b3:
     v5: int32 = 0
     return v5
 
-b3(v6: int32, v8: int32):
+b4(v6: int32, v8: int32):
     return v8
 }
 "#;
@@ -967,24 +967,24 @@ b4:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
 entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, b2_1
+    branch v2, b1, b3
 
 b1:
     v4: uint32 = int.add v0, v1
     v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 => b2, b4
+    check bounds.u v0, v1, v3 => b2, b5
 
 b2:
-    jump b3(v4)
+    jump b4(v4)
 
-b2_1:
+b3:
     v8: uint32 = int.add v0, v1
-    jump b3(v8)
+    jump b4(v8)
 
-b3(v7: uint32):
+b4(v7: uint32):
     return v7
 
-b4:
+b5:
     unreachable
 }
 "#;
@@ -1022,24 +1022,24 @@ b4:
         let expected = r#"
 function test(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]): uint32 {
 entry(v0: uint32, v1: uint32, v2: boolean, v3: [uint8; 8]):
-    branch v2, b1, b2_1
+    branch v2, b1, b3
 
 b1:
     v4: uint32 = int.add v0, v1
     v5: boolean = int.lt.u v0, v1
-    check bounds.u v0, v1, v3 => b3, b2
+    check bounds.u v0, v1, v3 => b4, b2
 
 b2:
-    jump b4(v4)
-
-b2_1:
-    v8: uint32 = int.add v0, v1
-    jump b4(v8)
+    jump b5(v4)
 
 b3:
+    v8: uint32 = int.add v0, v1
+    jump b5(v8)
+
+b4:
     return v4
 
-b4(v7: uint32):
+b5(v7: uint32):
     return v7
 }
 "#;

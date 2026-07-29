@@ -583,6 +583,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): int32 {
     local l0: int32
+
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
@@ -697,6 +698,7 @@ external function readOnly(): void
         let expected = r#"
 function test(v0: boolean): int32 {
     local l0: int32
+
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
@@ -837,6 +839,7 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean): int32 {
     local l0: int32
+
 entry(v0: boolean, v1: boolean):
     v2: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
@@ -896,6 +899,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): int32 {
     local l0: int32
+
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     branch v0, b1, b2
@@ -957,29 +961,30 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean): int32 {
     local l0: int32
+
 entry(v0: boolean, v1: boolean):
     v2: ref<int32, raw, mutable, space(frame)> = local.address l0
-    branch v0, b1, b2_1
+    branch v0, b1, b3
 
 b1:
     v3: int32 = 1
     store v2, v3
-    branch v1, b2, b4
+    branch v1, b2, b5
 
 b2:
     v8: int32 = load v2
-    jump b3(v8)
+    jump b4(v8)
 
-b2_1:
+b3:
     v4: int32 = 2
     store v2, v4
     v9: int32 = load v2
-    jump b3(v9)
+    jump b4(v9)
 
-b3(v7: int32):
+b4(v7: int32):
     return v7
 
-b4:
+b5:
     v6: int32 = 0
     return v6
 }

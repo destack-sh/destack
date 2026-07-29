@@ -275,7 +275,6 @@ fn run_recognize_loop_idioms(
                         target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
                     });
                     let mem_block = tree.insert(mir::Block {
-                        name: None,
                         parameters: Vec::new(),
                         instructions: Vec::new(),
                         terminator,
@@ -429,7 +428,6 @@ fn run_recognize_loop_idioms(
                     target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
                 });
                 let mem_block = tree.insert(mir::Block {
-                    name: None,
                     parameters: Vec::new(),
                     instructions: Vec::new(),
                     terminator,

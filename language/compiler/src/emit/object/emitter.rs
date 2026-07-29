@@ -42,13 +42,17 @@ impl ObjectEmitter {
         let types = optimized.tree.iter_nodes::<mir::Type>().enumerate().map(
             |(index, (id, definition))| {
                 type_indices.insert(id, index);
+                let name = optimized
+                    .tree
+                    .type_declaration(id)
+                    .map(|declaration| optimized.tree.get(declaration).name);
 
                 Type {
                     id,
                     fingerprint: optimized.tree.type_fingerprint(id),
                     definition: definition.clone(),
-                    symbol: optimized.types.symbol(id),
-                    name: optimized.types.display_name(id),
+                    symbol: optimized.tree.type_symbol(id),
+                    name,
                     lineage: optimized.types.lineage(id).cloned(),
                 }
             },
@@ -68,6 +72,7 @@ impl ObjectEmitter {
                     name: function.name,
                     symbol: function.symbol,
                     linkage: function.linkage,
+                    coroutine: function.coroutine,
                     lifetimes: function.lifetimes.clone(),
                     parameters: function
                         .parameters
@@ -76,8 +81,7 @@ impl ObjectEmitter {
                         .collect(),
                     result: function.return_type,
                     environment: function.environment,
-                    binding: function.binding,
-                    coroutine: function.coroutine,
+                    binding: function.binding.clone(),
                 }
             });
 

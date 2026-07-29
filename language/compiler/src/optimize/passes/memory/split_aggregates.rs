@@ -833,6 +833,7 @@ type Point {
 function test(): int32 {
     local l0: int32
     local l1: int32
+
 entry:
     v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: ref<int32, raw, mutable, space(frame)> = local.address l1
@@ -869,6 +870,7 @@ entry:
 function test(): int32 {
     local l0: int32
     local l1: int64
+
 entry:
     v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v5: ref<int64, raw, mutable, space(frame)> = local.address l1
@@ -908,6 +910,7 @@ function test(): int32 {
     local l1: int32
     local l2: int32
     local l3: int32
+
 entry:
     v5: ref<int32, raw, mutable, space(frame)> = local.address l0
     v6: ref<int32, raw, mutable, space(frame)> = local.address l1
@@ -1039,6 +1042,7 @@ type Point {
 function test(): int32 {
     local l0: int32
     local l1: int32
+
 entry:
     v8: ref<int32, raw, mutable, space(frame)> = local.address l0
     v9: ref<int32, raw, mutable, space(frame)> = local.address l1
@@ -1100,6 +1104,7 @@ type Outer {
 function test(): int64 {
     local l0: Inner
     local l1: int64
+
 entry:
     v4: ref<Inner, raw, mutable, space(frame)> = local.address l0
     v5: ref<int64, raw, mutable, space(frame)> = local.address l1
@@ -1191,6 +1196,7 @@ type Wrapper {
 
 function test(): int32 {
     local l0: int32
+
 entry:
     v4: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 42
@@ -1258,6 +1264,7 @@ b1(v2: int64):
 function test(v0: boolean): int32 {
     local l0: int32
     local l1: int32
+
 entry(v0: boolean):
     v7: ref<int32, raw, mutable, space(frame)> = local.address l0
     v8: ref<int32, raw, mutable, space(frame)> = local.address l1
@@ -1308,6 +1315,7 @@ type Point {
 function test(): int32 {
     local l0: int32
     local l1: int32
+
 entry:
     v6: ref<int32, raw, mutable, space(frame)> = local.address l0
     v7: ref<int32, raw, mutable, space(frame)> = local.address l1
@@ -1353,6 +1361,7 @@ entry:
 function test(): int32 {
     local l0: int32
     local l1: int32
+
 entry:
     v7: ref<int32, raw, mutable, space(frame)> = local.address l0
     v8: ref<int32, raw, mutable, space(frame)> = local.address l1

@@ -829,7 +829,6 @@ fn clone_callee_blocks(
         // create the empty cloned block with its own terminator
         let new_terminator = tree.insert(mir::Terminator::Unreachable);
         let new_block = mir::Block {
-            name: None,
             parameters: new_params,
             instructions: Vec::new(),
             terminator: new_terminator,

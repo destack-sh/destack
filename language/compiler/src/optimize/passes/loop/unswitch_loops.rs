@@ -1259,7 +1259,8 @@ b5:
         // create a loop with > MAX_LOOP_SIZE (50) instructions
         let mut instructions = String::new();
         for i in 0..60 {
-            instructions.push_str(&format!("    value{}: int32 = {}int32\n", i + 2, i));
+            let value = i + 2;
+            instructions.push_str(&format!("    v{value}: int32 = {i}int32\n"));
         }
 
         let input = format!(

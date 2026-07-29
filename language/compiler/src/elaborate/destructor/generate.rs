@@ -260,6 +260,7 @@ impl ElaborateState<'_> {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         let name = self.drop_name(ty)?;
+        let arguments = self.destructor_arguments(ty);
         let pointer_type = mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
@@ -273,7 +274,10 @@ impl ElaborateState<'_> {
         let void = self.tree.void_type();
 
         // register a bodyless function first so recursive drops can call it
-        let function = mir::Function::declare(name, Vec::new(), parameters, void);
+        let symbol = mir::Symbol::named(name).instantiate(&arguments, &self.tree);
+        let function = mir::Function::declare(name, Vec::new(), parameters, void)
+            .with_arguments(arguments)
+            .with_symbol(symbol);
         let function = self.tree.insert(function);
 
         Some(function)
@@ -314,12 +318,70 @@ impl ElaborateState<'_> {
 
     /// Return a stable name stem for one generated destructor.
     fn drop_name_stem(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<String> {
-        // prefer source names when the type has one
-        if let Some(display_name) = self.types.display_name(ty) {
-            return Some(self.strings.get(display_name).to_string());
+        // prefer source names for nominal types
+        if let Some(declaration) = self.tree.type_declaration(ty) {
+            let declaration = self.tree.get(declaration);
+
+            return Some(self.strings.get(declaration.name).to_string());
         }
 
         self.structural_drop_name_stem(ty)
+    }
+
+    /// Return concrete arguments that uniquely identify one generated destructor.
+    fn destructor_arguments(&mut self, ty: mir::TypeId) -> Vec<mir::StaticId> {
+        let mut arguments = Vec::new();
+        self.collect_drop_arguments(ty, &mut arguments);
+
+        // nominal destructors mirror their declaration arguments directly
+        if self.tree.type_declaration(ty).is_some() || arguments.is_empty() {
+            return arguments;
+        }
+
+        // preserve structural nesting instead of flattening descendant arguments
+        let argument = self.tree.intern_static(mir::Static::Type(ty));
+
+        vec![argument]
+    }
+
+    /// Collect concrete arguments contributing to one generated destructor identity.
+    fn collect_drop_arguments(&self, ty: mir::TypeId, arguments: &mut Vec<mir::StaticId>) {
+        // nominal types own their concrete generic arguments
+        if let Some(declaration) = self.tree.type_declaration(ty) {
+            let declaration = self.tree.get(declaration);
+            arguments.extend_from_slice(&declaration.arguments);
+
+            return;
+        }
+
+        // structural wrappers inherit their nested nominal arguments
+        match self.tree.get(ty) {
+            mir::Type::Dynamic { constraint, .. } => {
+                self.collect_drop_arguments(*constraint, arguments);
+            }
+            mir::Type::Reference { pointee, .. } => {
+                self.collect_drop_arguments(*pointee, arguments);
+            }
+            mir::Type::Slice { element, .. } | mir::Type::FixedArray { element, .. } => {
+                self.collect_drop_arguments(*element, arguments);
+            }
+            mir::Type::Tuple { elements, .. } => {
+                for element in elements {
+                    self.collect_drop_arguments(*element, arguments);
+                }
+            }
+            mir::Type::Variant {
+                discriminant,
+                cases,
+                ..
+            } => {
+                self.collect_drop_arguments(*discriminant, arguments);
+                for case in cases {
+                    self.collect_drop_arguments(case.ty, arguments);
+                }
+            }
+            _ => {}
+        }
     }
 
     /// Return a stable name stem for unnamed structural types.
@@ -460,7 +522,6 @@ impl ElaborateState<'_> {
         let mut builder = mir::FunctionBuilder::from_declared(
             &mut self.tree,
             &mut self.effects,
-            self.strings,
             self.target.pointer_bits(),
             function,
         )

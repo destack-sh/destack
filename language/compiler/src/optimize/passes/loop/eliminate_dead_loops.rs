@@ -694,9 +694,9 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     v1: boolean = false
     v2: int32 = 0
-    jump b2(v2)
+    jump b1(v2)
 
-b2(v6: int32):
+b1(v6: int32):
     return v6
 }
 "#;

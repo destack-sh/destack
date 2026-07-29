@@ -1331,6 +1331,7 @@ b2:
         let expected = r#"
 function test(v0: boolean): int32 {
     local l0: int32
+
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 1

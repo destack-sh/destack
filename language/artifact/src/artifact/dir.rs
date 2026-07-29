@@ -223,12 +223,21 @@ impl DirResolved {
                 dir::Reference::Bound(references) => {
                     symbols.extend(references.iter().copied());
                 }
+                dir::Reference::Namespace(module) => namespaces.push(*module),
                 dir::Reference::Projected { base, .. } => match base {
                     dir::ImportTarget::Symbol(symbol) => symbols.push(*symbol),
                     dir::ImportTarget::Namespace(module) => namespaces.push(*module),
                 },
-                dir::Reference::Namespace(module) => namespaces.push(*module),
-                dir::Reference::Ambiguous(_) | dir::Reference::Missing => {}
+                dir::Reference::Ambiguous(targets) => {
+                    // retain every candidate because check may select any one
+                    for target in targets {
+                        match target {
+                            dir::ImportTarget::Symbol(symbol) => symbols.push(*symbol),
+                            dir::ImportTarget::Namespace(module) => namespaces.push(*module),
+                        }
+                    }
+                }
+                dir::Reference::Missing => {}
             }
         }
         symbols.sort_unstable();

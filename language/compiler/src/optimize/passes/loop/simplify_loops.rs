@@ -318,7 +318,6 @@ fn insert_preheader(
         target: mir::BlockTarget::new(header, preheader_args),
     });
     let preheader = mir::Block {
-        name: None,
         parameters: preheader_params.clone(),
         instructions: vec![],
         terminator: preheader_terminator,
@@ -576,7 +575,6 @@ fn merge_latches(
         target: mir::BlockTarget::new(header, latch_args),
     });
     let new_latch = mir::Block {
-        name: None,
         parameters: latch_params,
         instructions: vec![],
         terminator: latch_terminator,
@@ -631,7 +629,6 @@ fn insert_dedicated_exit(
         target: mir::BlockTarget::new(exit_block, dedicated_args),
     });
     let dedicated_exit = mir::Block {
-        name: None,
         parameters: dedicated_params,
         instructions: vec![],
         terminator: dedicated_terminator,

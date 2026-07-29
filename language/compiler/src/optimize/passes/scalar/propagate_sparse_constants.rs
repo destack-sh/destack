@@ -1269,9 +1269,9 @@ entry:
 
 b1:
     v1: int32 = 10
-    jump b3(v1)
+    jump b2(v1)
 
-b3(v3: int32):
+b2(v3: int32):
     v5: int32 = 10
     v4: int32 = 20
     return v4
@@ -1403,9 +1403,9 @@ b3:
 function test(): int32 {
 entry:
     v0: int32 = 2
-    jump b2
+    jump b1
 
-b2:
+b1:
     v2: int32 = 20
     return v2
 }
@@ -1571,9 +1571,9 @@ b2:
 function test(): int32 {
 entry:
     v0: uint64 = 18446744073709551615
-    jump b2
+    jump b1
 
-b2:
+b1:
     v2: int32 = 2
     return v2
 }

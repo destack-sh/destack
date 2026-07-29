@@ -247,18 +247,18 @@ type User {
 
 function test.main.inspectBorrowed<'a>(v0: int32, v1: ref<User, borrowed, 'a, readonly>): int32 {
 entry(v0: int32, v1: ref<User, borrowed, 'a, readonly>):
-    v2: int32 = call test.main.inspect(v0, v1)
+    v2: int32 = call test.main.inspect<int32>(v0, v1): <'a>(int32, ref<User, borrowed, 'a, readonly>) => int32
     return v2
 }
 
 function test.main.inspectManaged(v0: int32, v1: ref<User, managed, mutable>): int32 {
 entry(v0: int32, v1: ref<User, managed, mutable>):
     v2: ref<User, borrowed, readonly> = cast.bit v1 -> ref<User, borrowed, readonly>
-    v3: int32 = call test.main.inspect(v0, v2): (int32, ref<User, borrowed, lifetime(0), readonly>) => int32
+    v3: int32 = call test.main.inspect<int32>(v0, v2): <'a>(int32, ref<User, borrowed, 'a, readonly>) => int32
     return v3
 }
 
-function test.main.inspect<'a>(v0: int32, v1: ref<User, borrowed, 'a, readonly>): int32 {
+function test.main.inspect<int32, 'a>(v0: int32, v1: ref<User, borrowed, 'a, readonly>): int32 {
 entry(v0: int32, v1: ref<User, borrowed, 'a, readonly>):
     v2: ref<int32, borrowed, readonly> = field.address v1, 0
     v3: int32 = load v2

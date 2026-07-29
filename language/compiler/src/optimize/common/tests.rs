@@ -3,13 +3,12 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::{
-    DiffOptions, File, FileId, FileType, ModuleId, PackageId, ProfileId, TargetId, Uri, print_diff,
-};
+use destack_mir::{FunctionAnalysisCache, TreeAnalysisCache};
+use destack_source::{File, FileId, FileType, ModuleId, PackageId, ProfileId, TargetId, Uri};
 
 use crate::optimize::{FunctionPass, MirOptimized, ModulePass, PipelineContext, PipelineOptions};
+use crate::tests::assert_formatted_snapshot;
 use crate::{OptimizeError, OptimizeWarning};
-use destack_mir::{FunctionAnalysisCache, TreeAnalysisCache};
 
 /// Integer widths available to optimizer test inputs after lowering.
 const SUPPORTED_INTEGER_WIDTHS: [u16; 6] = [8, 16, 32, 64, 128, 256];
@@ -58,12 +57,13 @@ fn expected_mir_text(source: &str) -> String {
             panic!("expected MIR fixture is unparseable: {error:?}");
         }
     };
-    let formatted = mir::format_mir(
+    let formatted = mir::Formatter::new(
         &tree,
         mir::TargetLayout::default(),
         &strings,
-        mir::MirFormatOptions::default(),
+        mir::FormatOptions::default(),
     )
+    .format()
     .expect("format expected MIR");
 
     formatted.trim().to_string()
@@ -940,12 +940,13 @@ impl TestProgram {
     /// Format the MIR back to text.
     pub(crate) fn format(&self) -> String {
         let strings = self.strings_pool.clone();
-        mir::format_mir(
+        mir::Formatter::new(
             &self.optimized.tree,
             self.optimized.target,
             &strings,
-            mir::MirFormatOptions::default(),
+            mir::FormatOptions::default(),
         )
+        .format()
         .expect("format MIR")
     }
 
@@ -968,16 +969,11 @@ impl TestProgram {
     #[track_caller]
     pub(crate) fn assert_output(&self, expected: &str) {
         let actual = self.format();
-        let expected = expected_mir_text(expected);
+        let formatted = expected_mir_text(expected);
         let actual = actual.trim();
 
         assert_parseable_mir_text(actual);
-
-        if actual != expected.as_str() {
-            eprintln!("===ACTUAL_BEGIN===\n{actual}\n===ACTUAL_END===");
-            print_diff(&expected, actual, &DiffOptions::new());
-            panic!("optimization output mismatch");
-        }
+        assert_formatted_snapshot(actual, expected, &formatted);
     }
 
     /// Assert that the MIR is unchanged from the original source.
@@ -988,12 +984,13 @@ impl TestProgram {
             .expect("test MIR should be text")
             .finish()
             .expect("failed to parse expected MIR");
-        let expected = mir::format_mir(
+        let expected = mir::Formatter::new(
             &tree,
             mir::TargetLayout::default(),
             &strings,
-            mir::MirFormatOptions::default(),
+            mir::FormatOptions::default(),
         )
+        .format()
         .expect("format MIR");
 
         self.assert_output(&expected);

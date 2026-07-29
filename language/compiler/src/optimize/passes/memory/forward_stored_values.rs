@@ -682,6 +682,7 @@ entry:
         let expected = r#"
 function test(): int32 {
     local l0: int32
+
 entry:
     v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42
@@ -915,6 +916,7 @@ type Point {
 
 function test(): int32 {
     local l0: Point
+
 entry:
     v0: ref<Point, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
@@ -1052,6 +1054,7 @@ b3(v5: int32):
         let expected = r#"
 function test(v0: boolean): int32 {
     local l0: int32
+
 entry(v0: boolean):
     v1: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 42
@@ -1299,6 +1302,7 @@ entry:
 function test(): int32 {
     local l0: int32
     local l1: int32
+
 entry:
     v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: ref<int32, raw, mutable, space(frame)> = local.address l1
@@ -1511,6 +1515,7 @@ entry:
         let expected = r#"
 function test(): int32 {
     local l0: int32
+
 entry:
     v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v1: int32 = 42

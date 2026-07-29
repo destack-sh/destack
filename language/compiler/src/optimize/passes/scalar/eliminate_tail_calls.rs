@@ -392,7 +392,6 @@ fn clone_function_as_impl(
         let new_terminator = tree.get(old_block.terminator).clone();
         let new_terminator_id = tree.insert(new_terminator);
         let new_block = mir::Block {
-            name: None,
             parameters: old_block.parameters.clone(),
             instructions: new_instructions,
             terminator: new_terminator_id,
@@ -675,7 +674,6 @@ fn rewrite_as_wrapper(
         value: Some(result_value),
     });
     let new_entry = mir::Block {
-        name: None,
         parameters: entry.parameters.clone(),
         instructions: vec![const_id, call_id],
         terminator: entry_terminator,

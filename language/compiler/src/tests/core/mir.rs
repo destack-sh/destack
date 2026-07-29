@@ -152,9 +152,10 @@ impl TestProgram {
             .tree
             .iter_nodes::<mir::Type>()
             .find_map(|(id, _)| {
-                let display_name = self.lowered.types.display_name(id)?;
+                let declaration = self.lowered.tree.type_declaration(id)?;
+                let declaration = self.lowered.tree.get(declaration);
 
-                (self.strings.get(display_name) == name).then_some(id)
+                (self.strings.get(declaration.name) == name).then_some(id)
             })
             .unwrap_or_else(|| panic!("missing MIR type {name}"))
     }

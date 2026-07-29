@@ -805,6 +805,7 @@ b3:
 function test(v0: uint32): void {
     local l0: [int32; 16]
     local l1: [int32; 16]
+
 entry(v0: uint32):
     v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l1
@@ -960,6 +961,7 @@ function test(v0: uint32): void {
     local l0: [int32; 16]
     local l1: [int32; 16]
     local l2: [int32; 16]
+
 entry(v0: uint32):
     v1: ref<[int32; 16], raw, mutable, space(frame)> = local.address l0
     v2: ref<[int32; 16], raw, mutable, space(frame)> = local.address l1

@@ -182,7 +182,7 @@ impl TypeLowerer<'_, '_> {
         };
         let path = self.lowerer.symbol_path(symbol)?;
         let base = mir::Symbol::named(self.lowerer.strings.intern(&path));
-        let instance = base.instantiate(&arguments.key.representations, self.tree);
+        let instance = base.instantiate(&arguments.key.arguments, self.tree);
         let ty = self.tree.reserve_type(instance);
         let value = match &definition {
             dir::Definition::Class(_) => self.insert_managed_reference(ty),
@@ -273,7 +273,8 @@ impl TypeLowerer<'_, '_> {
             .lifetime_parameters
             .declarations(self.lowerer.strings);
         self.tree.set_type_lifetimes(ty, lifetimes.clone());
-        self.tree.insert_type_declaration(name, lifetimes, ty);
+        self.tree
+            .insert_type_declaration(name, arguments.key.arguments.clone(), lifetimes, ty);
 
         Ok(self.apply_nominal_arguments(arguments.key, ty, value, &arguments.lifetimes))
     }
@@ -341,7 +342,7 @@ impl TypeLowerer<'_, '_> {
         }
 
         let mut type_arguments = Vec::new();
-        let mut representations = Vec::new();
+        let mut concrete_types = Vec::new();
         let mut lifetimes = Vec::new();
         let mut supplied = arguments.iter();
         for (kind, is_induced) in parameters {
@@ -368,7 +369,7 @@ impl TypeLowerer<'_, '_> {
                 }
                 dir::GenericParameterKind::Type => {
                     type_arguments.push(*argument);
-                    representations.push(self.type_substitution.resolve(self.lowerer, *argument)?);
+                    concrete_types.push(self.type_substitution.resolve(self.lowerer, *argument)?);
                 }
                 dir::GenericParameterKind::Value | dir::GenericParameterKind::Memory(_) => {
                     return Err(LowerError::Unsupported {
@@ -387,7 +388,7 @@ impl TypeLowerer<'_, '_> {
             self.type_substitution,
         )?;
         let lifetime_parameters = LifetimeParameters::from_template(self.lowerer, template)?;
-        let key = self.generic_instance_key(symbol, &representations)?;
+        let key = self.generic_instance_key(symbol, &concrete_types)?;
 
         Ok(NominalArguments {
             key,

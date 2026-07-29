@@ -905,6 +905,7 @@ entry:
         let expected = r#"
 function test(): void {
     local l0: int32
+
 entry:
     v0: ref<int32, raw, mutable, space(frame)> = local.address l0
     v2: int32 = 2

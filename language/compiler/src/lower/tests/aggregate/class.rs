@@ -427,7 +427,7 @@ entry(v0: ref<Counter, borrowed, 'a, readonly>):
 function test.main.main(v0: ref<Counter, managed, mutable>): int32 {
 entry(v0: ref<Counter, managed, mutable>):
     v1: ref<Counter, borrowed, readonly> = cast.bit v0 -> ref<Counter, borrowed, readonly>
-    v2: int32 = call test.main.peek(v1): (ref<Counter, borrowed, lifetime(0), readonly>) => int32
+    v2: int32 = call test.main.peek(v1): <'a>(ref<Counter, borrowed, 'a, readonly>) => int32
     return v2
 }
 /// @layout.struct name=Counter size=4 align=4
