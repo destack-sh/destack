@@ -22,6 +22,12 @@ fn test_parse_index_postfix_explicit() {
     let index_id = parser
         .parse_index(recv, PostfixPosition::Direct, Default::default(), false)
         .unwrap();
+    let main_range = parser
+        .tree
+        .get_main_range(index_id)
+        .expect("missing index main range");
+    assert_eq!(parser.range_str(main_range), "[");
+
     assert_node!(parser.tree, index_id, Expression::Index { position, left, index, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_eq!(*left, recv);

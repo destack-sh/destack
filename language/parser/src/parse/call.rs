@@ -25,6 +25,7 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         let receiver_range = self.tree.get_range(receiver_id);
+        let operator_range = self.peek_token().range();
 
         // open bracket
         self.eat_token(TokenType::OpenBracket)?;
@@ -46,6 +47,8 @@ impl Parser {
                 },
                 range,
             );
+            self.tree.set_main_range(index_id, operator_range);
+
             return Ok(index_id);
         }
 
@@ -74,6 +77,8 @@ impl Parser {
             end: index_range.end,
         };
         let index_id = self.insert_node(index_expression, range);
+        self.tree.set_main_range(index_id, operator_range);
+
         Ok(index_id)
     }
 
