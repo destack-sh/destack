@@ -1,24 +1,48 @@
+use std::sync::Arc;
+
 use destack_artifact::{
-    ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticContext, DiagnosticError,
-    DiagnosticLike,
+    ArtifactDependency, ArtifactKey, ArtifactSidecar, ArtifactVersion, DiagnosticContext,
+    DiagnosticError, DiagnosticLike,
 };
 use destack_source::DiagnosticCollection;
+use smallvec::SmallVec;
 
 use crate::{ArtifactAttemptRecorder, Moment, Revision};
 
-/// Predecessor artifact binding selected for one provider attempt.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Retained predecessor artifact selected for one provider attempt.
+#[derive(Debug)]
 pub struct ArtifactBase {
-    /// The predecessor revision that owns the artifact binding.
-    pub revision: Revision,
     /// The predecessor artifact version.
     pub version: ArtifactVersion,
+    /// The exact predecessor dependency observations.
+    pub dependencies: Arc<[ArtifactDependency]>,
+    /// Dependency ordinals that may differ in the requested revision.
+    pub(crate) dirty_dependencies: SmallVec<[u32; 2]>,
+    /// The retained predecessor artifact binding.
+    _binding_pin: destack_artifact::ArtifactBindingPin,
 }
 
 impl ArtifactBase {
-    /// Build one artifact base.
-    pub const fn new(revision: Revision, version: ArtifactVersion) -> Self {
-        Self { revision, version }
+    /// Build one retained artifact base.
+    pub(crate) fn new(
+        version: ArtifactVersion,
+        dependencies: Arc<[ArtifactDependency]>,
+        dirty_dependencies: SmallVec<[u32; 2]>,
+        binding_pin: destack_artifact::ArtifactBindingPin,
+    ) -> Self {
+        Self {
+            version,
+            dependencies,
+            dirty_dependencies,
+            _binding_pin: binding_pin,
+        }
+    }
+
+    /// Return whether one predecessor dependency may differ in the requested revision.
+    pub(crate) fn is_dependency_dirty(&self, dependency: usize) -> bool {
+        self.dirty_dependencies
+            .binary_search(&(dependency as u32))
+            .is_ok()
     }
 }
 
@@ -31,7 +55,12 @@ pub trait ProviderContext: DiagnosticContext {
     fn artifact_key(&self) -> ArtifactKey;
 
     /// Return the predecessor artifact selected for this attempt.
-    fn artifact_base(&self) -> Option<ArtifactBase> {
+    fn artifact_base(&self) -> Option<&ArtifactBase> {
+        None
+    }
+
+    /// Return the frozen dependency observations during provider execution.
+    fn artifact_dependencies(&self) -> Option<&[ArtifactDependency]> {
         None
     }
 

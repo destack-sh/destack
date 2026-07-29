@@ -3,7 +3,7 @@ use destack_artifact::{
     ArtifactVersion,
 };
 
-use crate::provider::{ProviderError, ProviderResult};
+use crate::provider::{ArtifactBase, ProviderError, ProviderResult};
 use crate::repository::{Repository, Revision};
 
 /// The repository resolution of one collected artifact dependency set.
@@ -20,8 +20,6 @@ pub enum DependencySetResolution {
     },
     /// The dependency set resolved into exact dependencies.
     Resolved {
-        /// The predecessor artifact this artifact is derived from.
-        base: Option<ArtifactVersion>,
         /// The exact dependencies feeding this artifact's version.
         dependencies: Vec<ArtifactDependency>,
         /// The first terminally failed dependency, when one poisons the build.
@@ -35,29 +33,47 @@ impl Repository {
         &self,
         revision: Revision,
         set: ArtifactDependencySet,
+        base: Option<&ArtifactBase>,
     ) -> ProviderResult<DependencySetResolution> {
+        let base = base.filter(|base| set.matches(&base.dependencies));
         let artifact_keys = set
             .requirements
             .iter()
-            .map(ArtifactRequirement::artifact_key)
+            .enumerate()
+            .filter_map(|(dependency, requirement)| {
+                let is_dirty = base.is_none_or(|base| base.is_dependency_dirty(dependency));
+                is_dirty.then_some(requirement.artifact_key())
+            })
             .collect::<Vec<_>>();
         let versions = self
             .artifact_versions(revision, &artifact_keys)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
+        let mut versions = versions.into_iter();
 
         // classify each declared artifact requirement
         let capacity = set.requirements.len() + set.sources.len();
         let mut dependencies = Vec::with_capacity(capacity);
         let mut pending = Vec::new();
         let mut failed = None;
-        for (requirement, version) in set.requirements.iter().zip(versions) {
-            self.resolve_requirement(
-                *requirement,
-                version,
-                &mut dependencies,
-                &mut pending,
-                &mut failed,
-            )?;
+        for (dependency, requirement) in set.requirements.iter().enumerate() {
+            let previous = base
+                .filter(|base| !base.is_dependency_dirty(dependency))
+                .map(|base| base.dependencies[dependency].clone());
+
+            if let Some(previous) = previous {
+                dependencies.push(previous);
+            } else {
+                let version = versions.next().ok_or_else(|| {
+                    ProviderError::internal("resolved dependency versions are incomplete")
+                })?;
+                self.resolve_requirement(
+                    *requirement,
+                    version,
+                    &mut dependencies,
+                    &mut pending,
+                    &mut failed,
+                )?;
+            }
         }
 
         // fold in primitive source observations
@@ -68,7 +84,6 @@ impl Repository {
         // resolve immediately when a dependency already failed
         if let Some(failed) = failed {
             return Ok(DependencySetResolution::Resolved {
-                base: set.base,
                 dependencies,
                 failed: Some(failed),
             });
@@ -89,7 +104,6 @@ impl Repository {
         }
 
         Ok(DependencySetResolution::Resolved {
-            base: set.base,
             dependencies,
             failed: None,
         })
@@ -112,7 +126,12 @@ impl Repository {
         };
 
         match self.artifact_table().outcome(&version) {
-            None => pending.push(artifact_key),
+            None => {
+                return Err(ProviderError::internal(format!(
+                    "resolved artifact version is missing: {version:?}"
+                ))
+                .into());
+            }
             Some(ArtifactOutcome::Failed(_)) => {
                 failed.get_or_insert(artifact_key);
                 dependencies.push(ArtifactDependency::artifact(version));
@@ -133,7 +152,7 @@ impl Repository {
         dependencies: &mut Vec<ArtifactDependency>,
     ) -> ProviderResult<()> {
         match requirement {
-            ArtifactRequirement::Key(_) => {
+            ArtifactRequirement::Artifact(_) => {
                 dependencies.push(ArtifactDependency::artifact(version));
             }
             ArtifactRequirement::Projection(projection) => {
@@ -147,7 +166,7 @@ impl Repository {
                     })?;
                 dependencies.push(ArtifactDependency::projection(
                     version,
-                    projection,
+                    projection.key,
                     fingerprint,
                 ));
             }
