@@ -1,0 +1,164 @@
+import { As, Borrow } from "destack:convert";
+import { todo } from "destack:error";
+import { Iterable, Iterator } from "destack:iter";
+import { Access, Borrowed, Copy, WithAccess } from "destack:memory";
+import { Index, IndexSet } from "destack:ops";
+import { RangeBounds } from "destack:range";
+
+import { Array } from "./array.ds";
+import { Sequence } from "./sequence.ds";
+
+/// Fixed-size array alias.
+@languageItem("collections.FixedArray")
+export type FixedArray<T, comptime N: number> = [T; N];
+
+export extension<T, comptime N: number> of FixedArray<T, N>
+    implements
+        Sequence,
+        Index<usize>,
+        IndexSet<usize, T>,
+        Iterable<T> {
+    /// The indexed output type.
+    type Output = T;
+
+    /// The owned sequence produced by a rest pattern.
+    type Rest = ^Array<T>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        N as usize
+    }
+
+    /// Return the number of elements.
+    get size(): usize {
+        N as usize
+    }
+
+    /// Return whether this fixed array has no elements.
+    get isEmpty(): boolean {
+        N == 0
+    }
+
+    /// Borrow a view over `start..end`.
+    view<comptime A: Access = "readonly">(
+        this: WithAccess<&[T; N], A>,
+        start: usize,
+        end?: usize,
+    ): WithAccess<&[T], A> {
+        todo("FixedArray.view")
+    }
+
+    /// Move the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^Array<T> {
+        todo("FixedArray.rest")
+    }
+
+    /// Borrow the element at `index`.
+    index<comptime A: Access = "readonly">(
+        this: WithAccess<&[T; N], A>,
+        index: usize,
+    ): WithAccess<&T, A> {
+        todo("FixedArray.index")
+    }
+
+    /// Replace the element at `index`.
+    indexSet(&exclusive this, index: usize, value: T): void {
+        todo("FixedArray.indexSet");
+    }
+
+    /// Return the first element by value.
+    first(): T | undefined {
+        todo("FixedArray.first")
+    }
+
+    /// Borrow the first element.
+    first<comptime A: Access = "readonly">(
+        this: WithAccess<&[T; N], A>,
+    ): WithAccess<&T, A> | undefined {
+        todo("FixedArray.first")
+    }
+
+    /// Return the last element by value.
+    last(): T | undefined {
+        todo("FixedArray.last")
+    }
+
+    /// Borrow the last element.
+    last<comptime A: Access = "readonly">(
+        this: WithAccess<&[T; N], A>,
+    ): WithAccess<&T, A> | undefined {
+        todo("FixedArray.last")
+    }
+
+    /// Consume this fixed array into owned values.
+    iterator(): Iterator<T> {
+        todo("FixedArray.iterator")
+    }
+}
+
+export extension BorrowedFixedArray<T, comptime N: number, 'a, comptime A: Access> of
+    Borrowed<FixedArray<T, N>, 'a, A>
+    implements Iterable<Borrowed<T, 'a, A>>, Sequence {
+    /// The borrowed sequence produced by a rest pattern.
+    type Rest = ^Array<Borrowed<T, 'a, A>>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        N as usize
+    }
+
+    /// Borrow the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^Array<Borrowed<T, 'a, A>> {
+        todo("FixedArray.rest")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(): Iterator<Borrowed<T, 'a, A>> {
+        todo("FixedArray.iterator")
+    }
+}
+
+export extension<T, comptime N: number, comptime A: Access = "readonly"> of FixedArray<T, N>
+    implements
+        As<[T], A>,
+        Borrow<[T], A> {
+    /// Borrow this fixed array as a slice.
+    as(this: WithAccess<&[T; N], A>): WithAccess<&[T], A> {
+        todo("FixedArray.as")
+    }
+
+    /// Borrow this fixed array as a slice.
+    borrow(this: WithAccess<&[T; N], A>): WithAccess<&[T], A> {
+        this.as()
+    }
+}
+
+export extension<T, comptime N: number, R: RangeBounds<usize>, comptime A: Access = "readonly"> of
+    FixedArray<T, N>
+    implements Index<R, A> {
+    /// The indexed output type.
+    type Output = [T];
+
+    /// Borrow the selected range as a view.
+    index<'a>(this: Borrowed<FixedArray<T, N>, 'a, A>, range: R): Borrowed<[T], 'a, A> {
+        todo("FixedArray.indexRange")
+    }
+}
+
+export extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
+    implements
+        IndexSet<R, [T]> where T: Copy {
+    /// Copy `source` into the selected range.
+    indexSet(&exclusive this, range: R, source: [T]): void {
+        todo("FixedArray.indexSetRange");
+    }
+}
+
+export extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N>
+    implements
+        IndexSet<R, &readonly [T]> where T: Copy {
+    /// Copy `source` into the selected range.
+    indexSet(&exclusive this, range: R, source: &readonly [T]): void {
+        todo("FixedArray.indexSetRange");
+    }
+}

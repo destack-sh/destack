@@ -103,7 +103,7 @@ dep.value;
 /// @reference.bound source=dep.value targets=[dep.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
 /// @import.language item=collections.Slice symbol=collections.slice.Slice
 /// @import.language item=math.BigInt symbol=math.bigint.BigInt
 /// @import.language item=math.Number symbol=math.number.Number
@@ -149,7 +149,7 @@ dep.make().value;
 /// @reference.bound source=dep.make targets=[dep.make]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
 /// @import.language item=collections.Slice symbol=collections.slice.Slice
 /// @import.language item=math.BigInt symbol=math.bigint.BigInt
 /// @import.language item=math.Number symbol=math.number.Number
@@ -202,7 +202,7 @@ dep.api.value;
 /// @reference.bound source=dep.api.value targets=[api.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
 /// @import.language item=collections.Slice symbol=collections.slice.Slice
 /// @import.language item=math.BigInt symbol=math.bigint.BigInt
 /// @import.language item=math.Number symbol=math.number.Number
@@ -256,7 +256,7 @@ dep.api.value;
 /// @reference.bound source=dep.api.value targets=[api.value]
 
 /// @import.language item=collections.Array symbol=collections.array.Array
-/// @import.language item=collections.FixedArray symbol=collections.array.FixedArray
+/// @import.language item=collections.FixedArray symbol=collections.fixed-array.FixedArray
 /// @import.language item=collections.Slice symbol=collections.slice.Slice
 /// @import.language item=math.BigInt symbol=math.bigint.BigInt
 /// @import.language item=math.Number symbol=math.number.Number

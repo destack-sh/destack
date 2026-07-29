@@ -1,38 +1,76 @@
 import { As, Borrow, From } from "destack:convert";
 import { panic, todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Copy, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
-import { Index, IndexSet } from "destack:ops";
+import { Access, Borrowed, Copy, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
+import { Index, IndexSet, Ordering } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 
-import { Array, FixedArray } from "./array.ds";
+import { Array } from "./array.ds";
+import { FixedArray } from "./fixed-array.ds";
 import { Sequence } from "./sequence.ds";
 import { Slice } from "./slice.ds";
 
 /// A growable contiguous array with inline storage.
 export struct SmallArray<T, comptime N: number> {
     /// The inline storage.
-    inlineStorage: FixedArray<MaybeUninit<T>, N>;
+    private inlineStorage: FixedArray<MaybeUninit<T>, N>;
 
     /// The heap storage used after spilling past inline capacity.
-    spillStorage: Unique<[MaybeUninit<T>]> | undefined = undefined;
+    private spillStorage: Unique<[MaybeUninit<T>]> | undefined = undefined;
 
     /// The number of initialized elements.
-    count: usize = 0;
+    private count: usize = 0;
 
     /// The allocated spill element count.
-    spillCapacity: usize = 0;
+    private spillCapacity: usize = 0;
+}
+
+export extension<T, comptime N: number> of SmallArray<T, N> implements Iterable<T>, Sequence {
+    /// The owned sequence produced by a rest pattern.
+    type Rest = ^Array<T>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        this.count
+    }
+
+    /// Move the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^Array<T> {
+        todo("SmallArray.rest")
+    }
+
+    /// Consume this small array into owned values.
+    iterator(): Iterator<T> {
+        todo("SmallArray.iterator")
+    }
+}
+
+export extension BorrowedSmallArray<T, comptime N: number, 'a, comptime A: Access> of
+    Borrowed<SmallArray<T, N>, 'a, A>
+    implements Iterable<Borrowed<T, 'a, A>>, Sequence {
+    /// The borrowed sequence produced by a rest pattern.
+    type Rest = ^Array<Borrowed<T, 'a, A>>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        this.count
+    }
+
+    /// Borrow the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^Array<Borrowed<T, 'a, A>> {
+        todo("SmallArray.rest")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(): Iterator<Borrowed<T, 'a, A>> {
+        todo("SmallArray.iterator")
+    }
 }
 
 export extension<T, comptime N: number> of SmallArray<T, N>
     implements
-        Sequence<T>,
         Index<usize>,
         IndexSet<usize, T>,
-        Iterable<T>,
-        Iterable<&T>,
-        Iterable<&readonly T>,
-        Iterable<&exclusive T>,
         From<Iterable<T>>,
         FromIterator<T>,
         Extend<T, "exclusive">,
@@ -41,9 +79,6 @@ export extension<T, comptime N: number> of SmallArray<T, N>
         From<[T; N]> {
     /// The indexed output type.
     type Output = T;
-
-    /// The contiguous range view type.
-    type View = [T];
 
     /// Create an empty small array.
     static new(): SmallArray<T, N> {
@@ -124,11 +159,6 @@ export extension<T, comptime N: number> of SmallArray<T, N>
         todo("SmallArray.view")
     }
 
-    /// Return the elements from `start..end` as an owned array.
-    rest(start: usize, end?: usize): T[] {
-        todo("SmallArray.rest")
-    }
-
     /// Borrow the element at `index`.
     index<comptime A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
@@ -202,7 +232,7 @@ export extension<T, comptime N: number> of SmallArray<T, N>
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &T, index: usize) => boolean): void {
+    retain(&exclusive this, predicate: (value: &readonly T, index: usize) => boolean): void {
         todo("SmallArray.retain");
     }
 
@@ -212,7 +242,10 @@ export extension<T, comptime N: number> of SmallArray<T, N>
     }
 
     /// Remove elements accepted by `predicate` and return them.
-    extractIf(&exclusive this, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
+    extractIf(
+        &exclusive this,
+        predicate: (value: &readonly T, index: usize) => boolean,
+    ): Iterator<T> {
         todo("SmallArray.extractIf")
     }
 
@@ -231,7 +264,7 @@ export extension<T, comptime N: number> of SmallArray<T, N>
         todo("SmallArray.shrinkToFit");
     }
 
-    /// Return a copy of the selected range.
+    /// Move the selected range into a new small array.
     slice(start?: usize, end?: usize): SmallArray<T, N> {
         todo("SmallArray.slice")
     }
@@ -242,25 +275,8 @@ export extension<T, comptime N: number> of SmallArray<T, N>
     }
 
     /// Sort this array in place.
-    sort(&exclusive this, compare?: (a: &readonly T, b: &readonly T) => number): this {
+    sort(&exclusive this, compare?: (left: &readonly T, right: &readonly T) => Ordering): this {
         todo("SmallArray.sort")
-    }
-
-    /// Return an iterator over copied values.
-    iterator(): Iterator<T> {
-        todo("SmallArray.iterator")
-    }
-
-    /// Return an iterator over borrowed values.
-    iterator<comptime A: Access = "readonly">(
-        this: WithAccess<&SmallArray<T, N>, A>,
-    ): Iterator<WithAccess<&T, A>> {
-        todo("SmallArray.iterator")
-    }
-
-    /// Consume this array into owned values.
-    iterator(this): Iterator<T> {
-        todo("SmallArray.iterator")
     }
 }
 

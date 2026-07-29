@@ -1,21 +1,12 @@
-import { Access, WithAccess } from "destack:memory";
-
-/// Finite ordered indexed collection.
+/// Finite ordered collection destructured by sequence patterns.
 @languageItem("collections.Sequence")
-export newtype interface Sequence<T> {
-    /// The contiguous range view type.
-    type View;
+export newtype interface Sequence {
+    /// The sequence produced by a rest pattern.
+    type Rest;
 
     /// Return the number of elements.
     get length(): usize;
 
-    /// Borrow a view over `start..end`.
-    view<comptime A: Access = "readonly">(
-        this: WithAccess<&this, A>,
-        start: usize,
-        end?: usize,
-    ): WithAccess<&this.View, A>;
-
-    /// Return the elements from `start..end` as an owned array.
-    rest(start: usize, end?: usize): T[];
+    /// Return the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): this.Rest;
 }

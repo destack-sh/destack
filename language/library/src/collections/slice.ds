@@ -1,25 +1,18 @@
-import { From } from "destack:convert";
+import { From, ToOwned } from "destack:convert";
 import { panic, todo } from "destack:error";
 import { FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Copy, Default, Raw, WithAccess } from "destack:memory";
-import { Index, IndexSet } from "destack:ops";
+import { Access, Borrowed, Clone, Copy, Default, Raw, WithAccess } from "destack:memory";
+import { Index, IndexSet, Ordering } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 
+import { Array } from "./array.ds";
 import { Sequence } from "./sequence.ds";
 
 /// Well-known library type for the builtin slice descriptor form `[T]`.
 @languageItem("collections.Slice")
 export newtype Slice<T> = [T];
 
-export extension<T> of Slice<T>
-    implements
-        Iterable<T>,
-        Iterable<&T>,
-        Iterable<&readonly T>,
-        Iterable<&exclusive T>,
-        From<Iterable<T>>,
-        FromIterator<T>,
-        Default {
+export extension<T> of Slice<T> implements From<Iterable<T>>, FromIterator<T>, Default {
     /// Create an empty slice.
     static new(): [T] {
         todo("Slice.new")
@@ -58,7 +51,7 @@ export extension<T> of Slice<T>
 
     /// Load one element without bounds checks.
     @unsafe
-    unsafeGet(&readonly this, index: usize): T {
+    unsafeGet(&readonly this, index: usize): T where T: Copy {
         return sliceGet<T>(this, index);
     }
 
@@ -69,7 +62,7 @@ export extension<T> of Slice<T>
     }
 
     /// Return the first element by value.
-    first(): T | undefined {
+    first(&readonly this): T | undefined where T: Copy {
         if (this.size == 0) {
             return undefined;
         }
@@ -85,7 +78,7 @@ export extension<T> of Slice<T>
     }
 
     /// Return the last element by value.
-    last(): T | undefined {
+    last(&readonly this): T | undefined where T: Copy {
         let length = this.size;
 
         if (length == 0) {
@@ -129,7 +122,7 @@ export extension<T> of Slice<T>
     }
 
     /// Fill this slice with `value`.
-    fill(&exclusive this, value: T): void {
+    fill(&exclusive this, value: T): void where T: Clone {
         todo("Slice.fill");
     }
 
@@ -145,7 +138,7 @@ export extension<T> of Slice<T>
     }
 
     /// Swap two elements.
-    swap(&exclusive this, a: number, b: number): void {
+    swap(&exclusive this, left: usize, right: usize): void {
         todo("Slice.swap");
     }
 
@@ -155,34 +148,57 @@ export extension<T> of Slice<T>
     }
 
     /// Sort this slice in place.
-    sort(&exclusive this, compare?: (a: &readonly T, b: &readonly T) => number): void {
+    sort(&exclusive this, compare?: (left: &readonly T, right: &readonly T) => Ordering): void {
         todo("Slice.sort");
+    }
+}
+
+export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
+    /// The copied sequence produced by a rest pattern.
+    type Rest = ^Array<T>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        this.size
+    }
+
+    /// Copy the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^Array<T> {
+        todo("Slice.rest")
     }
 
     /// Return an iterator over copied values.
     iterator(): Iterator<T> {
         todo("Slice.iterator")
     }
-
-    /// Return an iterator over borrowed values.
-    iterator<comptime A: Access = "readonly">(
-        this: WithAccess<&[T], A>,
-    ): Iterator<WithAccess<&T, A>> {
-        todo("Slice.iterator")
-    }
 }
 
-export extension<T> of Slice<T> implements Sequence<T>, Index<usize>, IndexSet<usize, T> {
-    /// The indexed output type.
-    type Output = T;
-
-    /// The contiguous range view type.
-    type View = [T];
+export extension BorrowedSlice<T, 'a, comptime A: Access> of Borrowed<Slice<T>, 'a, A>
+    implements
+        Iterable<Borrowed<T, 'a, A>>,
+        Sequence {
+    /// The borrowed sequence produced by a rest pattern.
+    type Rest = ^Array<Borrowed<T, 'a, A>>;
 
     /// Return the number of elements.
     get length(): usize {
         this.size
     }
+
+    /// Borrow the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^Array<Borrowed<T, 'a, A>> {
+        todo("Slice.rest")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(): Iterator<Borrowed<T, 'a, A>> {
+        todo("Slice.iterator")
+    }
+}
+
+export extension<T> of Slice<T> implements Index<usize>, IndexSet<usize, T> {
+    /// The indexed output type.
+    type Output = T;
 
     /// Borrow a view over `start..end`.
     view<comptime A: Access = "readonly">(
@@ -191,11 +207,6 @@ export extension<T> of Slice<T> implements Sequence<T>, Index<usize>, IndexSet<u
         end?: usize,
     ): WithAccess<&[T], A> {
         this.slice(start, end)
-    }
-
-    /// Return the elements from `start..end` as an owned array.
-    rest(start: usize, end?: usize): T[] {
-        todo("Slice.rest")
     }
 
     /// Borrow the element at `index`.
@@ -266,7 +277,18 @@ export extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, &r
     }
 }
 
+export extension<T> of Slice<T> implements ToOwned where T: Clone {
+    /// The owned value type.
+    type Owned = ^Array<T>;
+
+    /// Copy this slice into owned array storage.
+    toOwned(&readonly this): ^Array<T> {
+        todo("Slice.toOwned")
+    }
+}
+
 /// Build a raw slice descriptor from raw parts.
+@unsafe
 @intrinsic("collections.slice.fromRaw")
 export declare function sliceFromRaw<T>(data: *T, length: usize): Raw<[T]>;
 
@@ -275,14 +297,17 @@ export declare function sliceFromRaw<T>(data: *T, length: usize): Raw<[T]>;
 export declare function sliceLength<T>(slice: &readonly [T]): usize;
 
 /// Load one element without bounds checks.
+@unsafe
 @intrinsic("collections.slice.get")
-export declare function sliceGet<T>(slice: &readonly [T], index: usize): T;
+export declare function sliceGet<T: Copy>(slice: &readonly [T], index: usize): T;
 
 /// Store one element without bounds checks.
+@unsafe
 @intrinsic("collections.slice.set")
 export declare function sliceSet<T>(slice: &exclusive [T], index: usize, value: T): void;
 
 /// Borrow a contiguous range of one slice as a view.
+@unsafe
 @intrinsic("collections.slice.subslice")
 export declare function sliceView<T, comptime A: Access = "readonly">(
     slice: WithAccess<&[T], A>,

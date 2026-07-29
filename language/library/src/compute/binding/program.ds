@@ -43,11 +43,7 @@ export interface ComputeProgramBinding {
         effect: "external",
         requires: ["host.compute.program.compile"],
     })
-    build(
-        device: &readonly Device,
-        source: ProgramSource,
-        options?: ProgramOptions,
-    ): ProgramReport;
+    build(device: &readonly Device, source: ProgramSource, options?: ProgramOptions): ProgramReport;
 
     /// Return a kernel entry point by name.
     @binding("destack.compute.program.kernel", {
