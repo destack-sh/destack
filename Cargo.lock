@@ -1136,11 +1136,13 @@ dependencies = [
  "destack_session",
  "destack_source",
  "destack_workspace",
+ "futures",
  "libc",
  "parking_lot",
  "serde",
  "serde_json",
  "tokio",
+ "tower",
 ]
 
 [[package]]

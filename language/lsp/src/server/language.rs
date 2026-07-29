@@ -18,12 +18,14 @@ use destack_source::{
     TextRange, Uri,
 };
 use destack_workspace::{
-    DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, LocalWorkspace, QueryFile,
-    ReloadReason, ReloadRequest, RevisionPolicy, RunQueryRequest, RunQueryResponse, Workspace,
+    DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, LocalWorkspace,
+    QueryFile, QueryRun, ReloadReason, ReloadRequest, RevisionPolicy, RunQueryRequest,
+    RunQueryResponse, Workspace,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value};
 
+use crate::server::artifact::ArtifactRunGuard;
 use crate::server::error::{internal_error, workspace_error};
 use crate::server::navigation::HierarchyContinuation;
 use crate::server::source::SourceFiles;
@@ -161,13 +163,15 @@ pub struct DestackLanguageServer {
     /// The client connection.
     pub(super) client: Client,
     /// Workspace used for semantic state.
-    workspace: OnceLock<Arc<dyn Workspace>>,
+    workspace: OnceLock<Arc<LocalWorkspace>>,
     /// The watch registration ID.
     watch_registration_id: OnceLock<String>,
     /// Features supported by the connected client.
     client_capabilities: OnceLock<ClientCapabilities>,
     /// LSP configuration settings.
     settings: LspSettings,
+    /// Pending diagnostic publications.
+    diagnostic_tasks: diagnostic::DiagnosticScheduler,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -181,12 +185,13 @@ impl DestackLanguageServer {
             watch_registration_id: OnceLock::new(),
             client_capabilities: OnceLock::new(),
             settings: LspSettings::default(),
+            diagnostic_tasks: diagnostic::DiagnosticScheduler::default(),
         }
     }
 
     /// Return the workspace after initialization.
     #[inline]
-    fn workspace(&self) -> jsonrpc::Result<&Arc<dyn Workspace>> {
+    fn workspace(&self) -> jsonrpc::Result<&Arc<LocalWorkspace>> {
         self.workspace
             .get()
             .ok_or_else(|| internal_error("language server is not initialized"))
@@ -306,7 +311,7 @@ impl DestackLanguageServer {
     }
 
     /// Execute one program query through the workspace.
-    fn query_program(
+    async fn query_program(
         &self,
         path: &Path,
         request: query::QueryRequest,
@@ -315,9 +320,11 @@ impl DestackLanguageServer {
         let workspace = self.workspace()?;
         let root = workspace.root(path).map_err(workspace_error)?;
         let request = RunQueryRequest { revision, request };
-        let result = workspace.run_query(&root, request);
+        let run = workspace
+            .start_query(&root, request)
+            .map_err(workspace_error)?;
 
-        result.map_err(workspace_error)
+        self.wait_query(root, run).await
     }
 
     /// Resolve one LSP document to exact workspace query state.
@@ -351,7 +358,7 @@ impl DestackLanguageServer {
     }
 
     /// Execute one module query against an exact file revision.
-    fn query_module(
+    async fn query_module(
         &self,
         file: &QueryFile,
         request: query::QueryRequest,
@@ -362,9 +369,29 @@ impl DestackLanguageServer {
             revision: RevisionPolicy::Current(file.revision),
             request,
         };
-        let result = workspace.run_query(&root, request);
+        let run = workspace
+            .start_query(&root, request)
+            .map_err(workspace_error)?;
 
-        result.map_err(workspace_error)
+        self.wait_query(root, run).await
+    }
+
+    /// Wait for one scheduled query without blocking the async server.
+    async fn wait_query(&self, root: PathBuf, run: QueryRun) -> jsonrpc::Result<RunQueryResponse> {
+        let mut guard = ArtifactRunGuard::new(run.cancellations());
+        let response = tokio::task::spawn_blocking(move || run.wait())
+            .await
+            .map_err(internal_error)?
+            .map_err(workspace_error)?;
+        guard.disarm();
+
+        // reject results invalidated while the query was running
+        let current = self.workspace()?.revision(&root).map_err(workspace_error)?;
+        if current != response.revision {
+            return Err(jsonrpc::Error::content_modified());
+        }
+
+        Ok(response)
     }
 
     /// Load source files from one exact query revision.
@@ -380,57 +407,45 @@ impl DestackLanguageServer {
 
     /// Load every source file referenced by one file's diagnostics.
     fn diagnostic_files(&self, diagnostics: &FileDiagnostics) -> jsonrpc::Result<SourceFiles> {
-        let mut file_ids = HashSet::new();
-        for diagnostic in &diagnostics.diagnostics {
-            for label in iter::once(&diagnostic.primary).chain(diagnostic.labels.iter()) {
-                file_ids.insert(label.target.file());
-            }
-        }
-        file_ids.remove(&diagnostics.file.id);
+        let publisher =
+            diagnostic::DiagnosticPublisher::new(self.client.clone(), self.workspace()?.clone());
 
-        // load cross-file labels from the same semantic revision
-        let mut files = SourceFiles::new();
-        files
-            .insert(diagnostics.file.clone())
+        publisher.files(diagnostics)
+    }
+
+    /// Read diagnostics without blocking the async server.
+    async fn read_diagnostics(
+        &self,
+        request: DiagnosticsRequest,
+    ) -> jsonrpc::Result<Vec<FileDiagnostics>> {
+        let workspace = self.workspace()?;
+        let run = workspace
+            .start_diagnostics(request)
             .map_err(workspace_error)?;
-        if !file_ids.is_empty() {
-            let path = diagnostics.file.path.as_deref().ok_or_else(|| {
-                internal_error(format!(
-                    "diagnostic source file {:?} has no workspace path",
-                    diagnostics.file.id
-                ))
-            })?;
-            let workspace = self.workspace()?;
-            let root = workspace.root(path).map_err(workspace_error)?;
-            let related = workspace
-                .read_files(
-                    &root,
-                    diagnostics.revision,
-                    file_ids.iter().copied().collect(),
-                )
-                .map_err(workspace_error)?;
 
-            // require exactly the requested related files
-            for file in &related {
-                if !file_ids.remove(&file.id) {
-                    return Err(internal_error(format!(
-                        "workspace returned unrequested diagnostic file {:?}",
-                        file.id
-                    )));
-                }
-            }
-            if let Some(file_id) = file_ids.into_iter().next() {
-                return Err(internal_error(format!(
-                    "workspace omitted diagnostic file {file_id:?}"
-                )));
-            }
+        self.wait_diagnostics(run).await
+    }
 
-            for file in related {
-                files.insert(file).map_err(workspace_error)?;
+    /// Wait for scheduled diagnostics and reject superseded revisions.
+    async fn wait_diagnostics(&self, run: DiagnosticRun) -> jsonrpc::Result<Vec<FileDiagnostics>> {
+        let revisions = run.revisions();
+        let mut guard = ArtifactRunGuard::new(run.cancellations());
+        let diagnostics = tokio::task::spawn_blocking(move || run.wait())
+            .await
+            .map_err(internal_error)?
+            .map_err(workspace_error)?;
+        guard.disarm();
+
+        // reject any root invalidated while diagnostics were running
+        let workspace = self.workspace()?;
+        for (root, revision) in revisions {
+            let current = workspace.revision(&root).map_err(workspace_error)?;
+            if current != revision {
+                return Err(jsonrpc::Error::content_modified());
             }
         }
 
-        Ok(files)
+        Ok(diagnostics)
     }
 
     /// Convert an LSP code action kind into service query kinds.
@@ -574,54 +589,44 @@ impl DestackLanguageServer {
         Ok(())
     }
 
-    /// Reload workspace source and read exact diagnostics.
-    fn reload_diagnostics(&self) -> jsonrpc::Result<Vec<FileDiagnostics>> {
-        let workspace = self.workspace()?;
-        workspace
+    /// Reload workspace source.
+    fn reload_workspace(&self) -> jsonrpc::Result<()> {
+        self.workspace()?
             .reload(ReloadRequest {
                 roots: Vec::new(),
                 reason: ReloadReason::Manual,
             })
             .map_err(workspace_error)?;
 
-        workspace
-            .diagnose(DiagnosticsRequest::All)
-            .map_err(workspace_error)
+        Ok(())
     }
 
-    /// Publish exact workspace diagnostics.
-    async fn publish_diagnostics(&self, diagnostics: Vec<FileDiagnostics>) -> jsonrpc::Result<()> {
-        for file_diagnostics in diagnostics {
-            let uri = uri::source(&file_diagnostics.uri).ok_or_else(|| {
-                internal_error(format!(
-                    "diagnostic URI is not representable by LSP: {}",
-                    file_diagnostics.uri
-                ))
-            })?;
-            let files = self.diagnostic_files(&file_diagnostics)?;
-            let diagnostics = file_diagnostics
-                .diagnostics
-                .into_iter()
-                .map(|diagnostic| diagnostic::item(&diagnostic, &files))
-                .collect::<jsonrpc::Result<Vec<_>>>()?;
+    /// Schedule diagnostics for one workspace root.
+    fn schedule_diagnostics(&self, root: PathBuf) -> jsonrpc::Result<()> {
+        self.diagnostic_tasks
+            .schedule(root, self.workspace()?.clone(), self.client.clone());
 
-            self.client
-                .publish_diagnostics(uri, diagnostics, file_diagnostics.version)
-                .await;
+        Ok(())
+    }
+
+    /// Schedule diagnostics for every workspace root.
+    fn schedule_workspace_diagnostics(&self) -> jsonrpc::Result<()> {
+        for root in self.workspace()?.roots() {
+            self.schedule_diagnostics(root)?;
         }
 
         Ok(())
     }
 
-    /// Reload configuration and publish diagnostics for every root.
+    /// Reload configuration and schedule diagnostics for every root.
     async fn change_configuration(&self) -> jsonrpc::Result<()> {
         self.refresh_configuration().await?;
-        let diagnostics = self.reload_diagnostics()?;
+        self.reload_workspace()?;
 
-        self.publish_diagnostics(diagnostics).await
+        self.schedule_workspace_diagnostics()
     }
 
-    /// Open one editor document and publish diagnostics for its root.
+    /// Open one editor document and schedule diagnostics for its root.
     async fn open_document(&self, params: lsp::DidOpenTextDocumentParams) -> jsonrpc::Result<()> {
         let path = params
             .text_document
@@ -642,14 +647,11 @@ impl DestackLanguageServer {
             .map_err(workspace_error)?;
 
         let root = workspace.root(&path).map_err(workspace_error)?;
-        let diagnostics = workspace
-            .diagnose(DiagnosticsRequest::Root(root))
-            .map_err(workspace_error)?;
 
-        self.publish_diagnostics(diagnostics).await
+        self.schedule_diagnostics(root)
     }
 
-    /// Apply one editor document change and publish diagnostics for its root.
+    /// Apply one editor document change and schedule diagnostics for its root.
     async fn change_document(
         &self,
         params: lsp::DidChangeTextDocumentParams,
@@ -677,14 +679,11 @@ impl DestackLanguageServer {
             .map_err(workspace_error)?;
 
         let root = workspace.root(&path).map_err(workspace_error)?;
-        let diagnostics = workspace
-            .diagnose(DiagnosticsRequest::Root(root))
-            .map_err(workspace_error)?;
 
-        self.publish_diagnostics(diagnostics).await
+        self.schedule_diagnostics(root)
     }
 
-    /// Save one editor document and publish diagnostics for its root.
+    /// Save one editor document and schedule diagnostics for its root.
     async fn save_document(&self, params: lsp::DidSaveTextDocumentParams) -> jsonrpc::Result<()> {
         let path = params
             .text_document
@@ -702,14 +701,11 @@ impl DestackLanguageServer {
             .map_err(workspace_error)?;
 
         let root = workspace.root(&path).map_err(workspace_error)?;
-        let diagnostics = workspace
-            .diagnose(DiagnosticsRequest::Root(root))
-            .map_err(workspace_error)?;
 
-        self.publish_diagnostics(diagnostics).await
+        self.schedule_diagnostics(root)
     }
 
-    /// Close one editor document and publish diagnostics for its root.
+    /// Close one editor document and schedule diagnostics for its root.
     async fn close_document(&self, params: lsp::DidCloseTextDocumentParams) -> jsonrpc::Result<()> {
         let path = params
             .text_document
@@ -723,15 +719,11 @@ impl DestackLanguageServer {
             .file(FileOperation::Close { path })
             .map_err(workspace_error)?;
 
-        let diagnostics = workspace
-            .diagnose(DiagnosticsRequest::Root(root))
-            .map_err(workspace_error)?;
-
-        self.publish_diagnostics(diagnostics).await
+        self.schedule_diagnostics(root)
     }
 
     /// Apply one workspace-folder change.
-    fn change_workspace_folders(
+    async fn change_workspace_folders(
         &self,
         params: lsp::DidChangeWorkspaceFoldersParams,
     ) -> jsonrpc::Result<()> {
@@ -762,16 +754,18 @@ impl DestackLanguageServer {
         // apply the validated root changes
         let workspace = self.workspace()?;
         for path in added {
-            workspace.open(path).map_err(workspace_error)?;
+            workspace.open(path.clone()).map_err(workspace_error)?;
+            self.schedule_diagnostics(path)?;
         }
         for path in removed {
             workspace.close(&path).map_err(workspace_error)?;
+            self.diagnostic_tasks.clear(&path, &self.client).await;
         }
 
         Ok(())
     }
 
-    /// Reload watched filesystem state and publish current diagnostics.
+    /// Reload watched filesystem state and schedule current diagnostics.
     async fn change_watched_files(
         &self,
         params: lsp::DidChangeWatchedFilesParams,
@@ -780,9 +774,9 @@ impl DestackLanguageServer {
             return Ok(());
         }
 
-        let diagnostics = self.reload_diagnostics()?;
+        self.reload_workspace()?;
 
-        self.publish_diagnostics(diagnostics).await
+        self.schedule_workspace_diagnostics()
     }
 
     /// Clear diagnostics for one renamed file when neither path remains open.
@@ -921,7 +915,7 @@ impl LanguageServer for DestackLanguageServer {
 
         let repository = Arc::new(repository);
         // open the semantic workspace for the editor session
-        let workspace: Arc<dyn Workspace> = Arc::new(
+        let workspace = Arc::new(
             LocalWorkspace::new(
                 repository.clone(),
                 Some(overlay_fs),
@@ -1175,7 +1169,7 @@ impl LanguageServer for DestackLanguageServer {
     }
 
     async fn did_change_workspace_folders(&self, params: lsp::DidChangeWorkspaceFoldersParams) {
-        if let Err(error) = self.change_workspace_folders(params) {
+        if let Err(error) = self.change_workspace_folders(params).await {
             self.report_error("failed to change workspace folders", error)
                 .await;
         }
@@ -1244,11 +1238,13 @@ impl LanguageServer for DestackLanguageServer {
 
         // build workspace edits for import specifiers
         let request = query::QueryRequest::RenameFiles(query::RenameFilesRequest { renames });
-        let response = self.query_program(
-            &query_root,
-            request,
-            RevisionPolicy::Current(query_revision),
-        )?;
+        let response = self
+            .query_program(
+                &query_root,
+                request,
+                RevisionPolicy::Current(query_revision),
+            )
+            .await?;
         let revision = response.revision;
         let query::QueryResponse::RenameFiles(response) = response.response else {
             return Err(internal_error("query did not return rename files"));
@@ -1315,9 +1311,8 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         let mut diagnostics = self
-            .workspace()?
-            .diagnose(DiagnosticsRequest::File(path.clone()))
-            .map_err(workspace_error)?;
+            .read_diagnostics(DiagnosticsRequest::File(path.clone()))
+            .await?;
         if diagnostics.len() > 1 {
             return Err(internal_error(format!(
                 "workspace returned {} diagnostic files for one path",
@@ -1379,10 +1374,7 @@ impl LanguageServer for DestackLanguageServer {
             .map(|entry| (entry.uri.to_string(), entry.value))
             .collect();
 
-        let diagnostics = self
-            .workspace()?
-            .diagnose(DiagnosticsRequest::All)
-            .map_err(workspace_error)?;
+        let diagnostics = self.read_diagnostics(DiagnosticsRequest::All).await?;
 
         let mut items = Vec::new();
         for file_diagnostics in diagnostics {
@@ -1441,8 +1433,8 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<lsp::LSPAny>> {
         match params.command.as_str() {
             "destack.reload" | "destack.reindex" => {
-                let diagnostics = self.reload_diagnostics()?;
-                self.publish_diagnostics(diagnostics).await?;
+                self.reload_workspace()?;
+                self.schedule_workspace_diagnostics()?;
 
                 Ok(None)
             }
@@ -1470,7 +1462,7 @@ impl LanguageServer for DestackLanguageServer {
         let position = query_file.position(offset);
         let request =
             query::QueryRequest::GotoDefinition(query::GotoDefinitionRequest { position });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::GotoDefinition(response) = response.response else {
             return Err(internal_error("query did not return goto definition"));
@@ -1505,7 +1497,7 @@ impl LanguageServer for DestackLanguageServer {
         let position = query_file.position(offset);
         let request =
             query::QueryRequest::GotoDeclaration(query::GotoDeclarationRequest { position });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::GotoDeclaration(response) = response.response else {
             return Err(internal_error("query did not return goto declaration"));
@@ -1540,7 +1532,7 @@ impl LanguageServer for DestackLanguageServer {
         let position = query_file.position(offset);
         let request =
             query::QueryRequest::GotoTypeDefinition(query::GotoTypeDefinitionRequest { position });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::GotoTypeDefinition(response) = response.response else {
             return Err(internal_error("query did not return goto type definition"));
@@ -1576,7 +1568,7 @@ impl LanguageServer for DestackLanguageServer {
             position,
             include_declaration: params.context.include_declaration,
         });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::FindReferences(response) = response.response else {
             return Err(internal_error("query did not return references"));
@@ -1611,7 +1603,7 @@ impl LanguageServer for DestackLanguageServer {
             module: query_file.module,
             file_id: query_file.file.id,
         });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::Outline(response) = response.response else {
             return Err(internal_error("query did not return outline"));
         };
@@ -1645,7 +1637,9 @@ impl LanguageServer for DestackLanguageServer {
                 query: params.query.clone(),
                 max_results: 100,
             });
-            let response = self.query_program(&root, request, RevisionPolicy::Latest)?;
+            let response = self
+                .query_program(&root, request, RevisionPolicy::Latest)
+                .await?;
             let revision = response.revision;
             let query::QueryResponse::SearchSymbols(response) = response.response else {
                 return Err(internal_error("query did not return symbol search"));
@@ -1719,7 +1713,7 @@ impl LanguageServer for DestackLanguageServer {
             position::offset(&source_file, &params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::Highlight(query::HighlightRequest { position });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::Highlight(response) = response.response else {
             return Err(internal_error("query did not return highlights"));
         };
@@ -1751,7 +1745,7 @@ impl LanguageServer for DestackLanguageServer {
             position::offset(&source_file, &params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::Hover(query::HoverRequest { position });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::Hover(response) = response.response else {
             return Err(internal_error("query did not return hover"));
@@ -1830,7 +1824,7 @@ impl LanguageServer for DestackLanguageServer {
             trigger,
             include_auto_imports,
         });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::Completion(response) = response.response else {
             return Err(internal_error("query did not return completion"));
         };
@@ -1969,7 +1963,7 @@ impl LanguageServer for DestackLanguageServer {
             position::offset(&source_file, &params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::SignatureHelp(query::SignatureHelpRequest { position });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::SignatureHelp(response) = response.response else {
             return Err(internal_error("query did not return signature help"));
         };
@@ -2031,7 +2025,7 @@ impl LanguageServer for DestackLanguageServer {
             module: query_file.module,
             file_id: query_file.file.id,
         });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::SemanticTokens(response) = response.response else {
             return Err(internal_error("query did not return semantic tokens"));
         };
@@ -2063,7 +2057,7 @@ impl LanguageServer for DestackLanguageServer {
             .ok_or_else(|| jsonrpc::Error::invalid_params("range is reversed"))?;
         let request =
             query::QueryRequest::SemanticTokensRange(query::SemanticTokensRangeRequest { range });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::SemanticTokensRange(response) = response.response else {
             return Err(internal_error("query did not return range semantic tokens"));
         };
@@ -2113,7 +2107,7 @@ impl LanguageServer for DestackLanguageServer {
             module: query_file.module,
             file_id: query_file.file.id,
         });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::FoldingRanges(response) = response.response else {
             return Err(internal_error("query did not return folding ranges"));
         };
@@ -2238,7 +2232,7 @@ impl LanguageServer for DestackLanguageServer {
             file_id: query_file.file.id,
             offsets: positions,
         });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::SelectionRanges(response) = response.response else {
             return Err(internal_error("query did not return selection ranges"));
         };
@@ -2267,7 +2261,7 @@ impl LanguageServer for DestackLanguageServer {
         let position = query_file.position(offset);
         let request =
             query::QueryRequest::GotoImplementation(query::GotoImplementationRequest { position });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::GotoImplementation(response) = response.response else {
             return Err(internal_error("query did not return goto implementation"));
@@ -2304,7 +2298,7 @@ impl LanguageServer for DestackLanguageServer {
             module: query_file.module,
             file_id: query_file.file.id,
         });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::Links(response) = response.response else {
             return Err(internal_error("query did not return links"));
         };
@@ -2354,7 +2348,7 @@ impl LanguageServer for DestackLanguageServer {
             .ok_or_else(|| jsonrpc::Error::invalid_params("range is reversed"))?;
         let request =
             query::QueryRequest::CodeActions(query::CodeActionsRequest { range, context });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::CodeActions(response) = response.response else {
             return Err(internal_error("query did not return code actions"));
@@ -2445,7 +2439,7 @@ impl LanguageServer for DestackLanguageServer {
             module: query_file.module,
             file_id: query_file.file.id,
         });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::CodeLenses(response) = response.response else {
             return Err(internal_error("query did not return code lenses"));
         };
@@ -2487,7 +2481,7 @@ impl LanguageServer for DestackLanguageServer {
             type_hints,
             parameter_hints,
         });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::InlayHints(response) = response.response else {
             return Err(internal_error("query did not return inlay hints"));
         };
@@ -2517,7 +2511,7 @@ impl LanguageServer for DestackLanguageServer {
         let offset = position::offset(&source_file, &params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::RenameTarget(query::RenameTargetRequest { position });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let query::QueryResponse::RenameTarget(response) = response.response else {
             return Err(internal_error("query did not return rename target"));
         };
@@ -2549,7 +2543,7 @@ impl LanguageServer for DestackLanguageServer {
             position,
             new_name: params.new_name.clone(),
         });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::Rename(response) = response.response else {
             return Err(internal_error("query did not return rename"));
@@ -2583,7 +2577,7 @@ impl LanguageServer for DestackLanguageServer {
             position::offset(&source_file, &params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::CallItem(query::CallItemRequest { position });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::CallItem(response) = response.response else {
             return Err(internal_error("query did not return call item"));
@@ -2615,7 +2609,9 @@ impl LanguageServer for DestackLanguageServer {
 
         // query incoming calls
         let request = query::QueryRequest::IncomingCalls(query::IncomingCallsRequest { item });
-        let response = self.query_program(&path, request, RevisionPolicy::Exact(revision))?;
+        let response = self
+            .query_program(&path, request, RevisionPolicy::Exact(revision))
+            .await?;
         let revision = response.revision;
         let query::QueryResponse::IncomingCalls(response) = response.response else {
             return Err(internal_error("query did not return incoming calls"));
@@ -2650,7 +2646,9 @@ impl LanguageServer for DestackLanguageServer {
 
         // query outgoing calls
         let request = query::QueryRequest::OutgoingCalls(query::OutgoingCallsRequest { item });
-        let response = self.query_program(&path, request, RevisionPolicy::Exact(revision))?;
+        let response = self
+            .query_program(&path, request, RevisionPolicy::Exact(revision))
+            .await?;
         let revision = response.revision;
         let query::QueryResponse::OutgoingCalls(response) = response.response else {
             return Err(internal_error("query did not return outgoing calls"));
@@ -2687,7 +2685,7 @@ impl LanguageServer for DestackLanguageServer {
             position::offset(&source_file, &params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::TypeItem(query::TypeItemRequest { position });
-        let response = self.query_module(&query_file, request)?;
+        let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::TypeItem(response) = response.response else {
             return Err(internal_error("query did not return type item"));
@@ -2718,7 +2716,9 @@ impl LanguageServer for DestackLanguageServer {
 
         // query supertypes
         let request = query::QueryRequest::Supertypes(query::SupertypesRequest { item });
-        let response = self.query_program(&path, request, RevisionPolicy::Exact(revision))?;
+        let response = self
+            .query_program(&path, request, RevisionPolicy::Exact(revision))
+            .await?;
         let revision = response.revision;
         let query::QueryResponse::Supertypes(response) = response.response else {
             return Err(internal_error("query did not return supertypes"));
@@ -2752,7 +2752,9 @@ impl LanguageServer for DestackLanguageServer {
 
         // query subtypes
         let request = query::QueryRequest::Subtypes(query::SubtypesRequest { item });
-        let response = self.query_program(&path, request, RevisionPolicy::Exact(revision))?;
+        let response = self
+            .query_program(&path, request, RevisionPolicy::Exact(revision))
+            .await?;
         let revision = response.revision;
         let query::QueryResponse::Subtypes(response) = response.response else {
             return Err(internal_error("query did not return subtypes"));

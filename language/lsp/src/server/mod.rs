@@ -1,3 +1,4 @@
+mod artifact;
 pub(crate) mod assist;
 pub(crate) mod completion;
 pub(crate) mod diagnostic;
@@ -12,3 +13,6 @@ pub(crate) mod symbol;
 pub(crate) mod token;
 
 pub use language::DestackLanguageServer;
+
+#[cfg(test)]
+mod tests;
