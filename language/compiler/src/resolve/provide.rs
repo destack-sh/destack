@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar};
 use destack_dir as dir;
-use destack_repository::{ArtifactReader, ProviderContext, ProviderError, Revision};
+use destack_repository::{ArtifactReader, ProviderContext, ProviderError};
 use destack_source::{Content, ModuleId, ProfileId};
 use indexmap::IndexSet;
 
@@ -26,7 +26,8 @@ impl Compiler {
         dependencies.require(ArtifactKey::global_environment(profile));
 
         // the re-export frontier is derived from expanded DIR once built
-        let targets = match self.module_clause_targets(module, profile, context.revision()) {
+        let artifacts = self.artifact_reader(context);
+        let targets = match self.module_clause_targets(module, profile, &artifacts) {
             Ok(targets) => targets,
             Err(CompilerError::Blocked { .. }) => {
                 dependencies.mark_partial();
@@ -35,7 +36,6 @@ impl Compiler {
             }
             Err(error) => return Err(error),
         };
-        let artifacts = self.artifact_reader(context.revision());
         self.collect_exported_modules(targets, profile, &artifacts, &mut dependencies)?;
 
         Ok(dependencies)
@@ -49,7 +49,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let bound = artifacts
             .dir_bound(module, profile)
@@ -144,9 +144,8 @@ impl Compiler {
         &self,
         module: ModuleId,
         profile: ProfileId,
-        revision: Revision,
+        artifacts: &ArtifactReader<'_>,
     ) -> CompilerResult<Vec<ModuleId>> {
-        let artifacts = self.artifact_reader(revision);
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let bound = artifacts
             .dir_bound(module, profile)
@@ -164,7 +163,7 @@ impl Compiler {
         let bindings = expanded.binding_table(&bound);
         let modules = expanded.module_table(&imported);
         let mut state = ResolveState::new(
-            artifacts,
+            (*artifacts).clone(),
             profile,
             module,
             view,

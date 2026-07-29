@@ -126,7 +126,7 @@ impl Compiler {
         }
 
         // emit script from the declared input
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let output = self.emit_target_script(
             module,
             profile,

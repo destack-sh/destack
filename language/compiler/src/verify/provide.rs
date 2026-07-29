@@ -29,7 +29,7 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let lowered = artifacts
             .mir_lowered(module, profile, target)
             .map_err(CompilerError::from)?;

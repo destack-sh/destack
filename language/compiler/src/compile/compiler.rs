@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{DiagnosticBuilder, DiagnosticLike};
 use destack_core::StringPool;
-use destack_repository::{ArtifactReader, ProviderContext, Repository, Revision, Target};
+use destack_repository::{ArtifactReader, ProviderContext, Repository, Target};
 use destack_source::DiagnosticRegistry;
 
 use crate::CompilerResult;
@@ -44,9 +44,14 @@ impl Compiler {
         self.repository.string_pool().as_ref()
     }
 
-    /// Return a read-only artifact reader for one pinned revision.
-    pub(crate) fn artifact_reader(&self, revision: Revision) -> ArtifactReader<'_> {
-        self.repository.artifact_reader(revision)
+    /// Return the artifact reader for one provider attempt.
+    pub(crate) fn artifact_reader<'a>(
+        &'a self,
+        context: &'a dyn ProviderContext,
+    ) -> ArtifactReader<'a> {
+        self.repository
+            .artifact_reader(context.revision())
+            .restrict(context.artifact_key(), context.artifact_dependencies())
     }
 
     /// Add one diagnostic produced during a provider attempt.

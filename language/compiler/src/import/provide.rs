@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar, GlobalEnvironment,
-    PackageGraphProjection,
 };
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
@@ -23,12 +22,13 @@ impl Compiler {
 
         // language item modules back the language environment
         for module in self.repository.builtin_module_ids(context.revision())? {
+            dependencies.require(ArtifactKey::dir_parsed(module));
             dependencies.require(ArtifactKey::dir_bound(module, profile));
         }
 
         // global module export surfaces back the global targets
         let globals = self.load_global_module_ids(profile, context)?;
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         self.collect_exported_modules(globals, profile, &artifacts, &mut dependencies)?;
 
         Ok(dependencies)
@@ -45,7 +45,7 @@ impl Compiler {
         let language_modules = self.repository.builtin_module_ids(context.revision())?;
 
         // build language environment for profile
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let language = self.build_language_environment(profile, &artifacts, &language_modules)?;
         let global_targets = self.build_global_targets(profile, &artifacts, &globals)?;
         let environment = GlobalEnvironment {
@@ -108,10 +108,7 @@ impl Compiler {
         let mut dependencies = ArtifactDependencySet::default();
         dependencies.require(ArtifactKey::dir_parsed(module));
         dependencies.require(ArtifactKey::dir_bound(module, profile));
-        dependencies.project(
-            ArtifactKey::package_graph(profile),
-            PackageGraphProjection::Nodes,
-        );
+        dependencies.require(ArtifactKey::package_graph(profile));
 
         Ok(dependencies)
     }
@@ -125,7 +122,7 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
         let profile_state = self.profile(context.revision(), profile)?;
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let bound = artifacts
             .dir_bound(module, profile)

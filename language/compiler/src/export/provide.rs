@@ -36,7 +36,7 @@ impl Compiler {
         // load provider inputs
         let profile_id = profile;
         let profile_state = self.profile(context.revision(), profile_id)?;
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let bound = artifacts
             .dir_bound(module, profile_id)

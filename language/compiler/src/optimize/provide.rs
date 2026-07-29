@@ -89,7 +89,7 @@ impl Compiler {
         let pipeline = default_pipeline(level, target_config.uses_native_emit_pipeline());
 
         // load provider inputs
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let elaborated = artifacts
             .mir_elaborated(module, profile, *target)
             .map_err(CompilerError::from)?;

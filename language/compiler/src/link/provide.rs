@@ -30,7 +30,7 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let setup = self.target_link_setup(package, &target, context)?;
         let mut dependencies = ArtifactDependencySet::default();
         self.observe_package_config(context, package, &mut dependencies)?;
@@ -56,7 +56,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let state = LinkState::new(package, target, context);
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let output = self.link_target(state.package, &state.target, state.context, &artifacts)?;
 
         Ok(ArtifactPayload::Bundle(Arc::new(output)))
@@ -93,7 +93,7 @@ impl Compiler {
         let setup = self.target_link_setup(package, &target, context)?;
         let module = Self::program_module(package, target, &setup)?;
         let profile = self.profile_id_for_target(context.revision(), module, &target)?;
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let optimized = artifacts
             .mir_optimized(module, profile, target)
             .map_err(CompilerError::from)?;
@@ -145,7 +145,7 @@ impl Compiler {
         product: ProductId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let output = ProductLinker::new(self, package, product, context)?.link(&artifacts)?;
 
         Ok(ArtifactPayload::Product(Arc::new(output)))

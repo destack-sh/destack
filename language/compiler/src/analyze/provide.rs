@@ -33,7 +33,7 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let elaborated = artifacts
             .mir_elaborated(module, profile, target)
             .map_err(CompilerError::from)?;
@@ -98,7 +98,7 @@ impl Compiler {
             })?
             .into_iter()
             .collect();
-        let artifacts = self.artifact_reader(revision);
+        let artifacts = self.artifact_reader(context);
 
         // load every module's link graph, seeding roots from each root module's exports
         let mut analyses: Vec<Arc<MirAnalyzed>> = Vec::new();
