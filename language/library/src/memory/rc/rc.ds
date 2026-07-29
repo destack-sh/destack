@@ -88,7 +88,7 @@ export extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Clone this strong handle.
-    clone(): Rc<T> {
+    clone(&readonly this): Rc<T> {
         todo("Rc.clone")
     }
 

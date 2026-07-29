@@ -22,12 +22,12 @@ export newtype interface SharedSafe {}
 @languageItem("memory.Clone")
 export newtype interface Clone {
     /// Clone this value.
-    clone(): ^this;
+    clone(&readonly this): ^this;
 }
 
 export extension<T> of T implements Clone where T: Copy {
     /// Clone this copyable value.
-    clone(): ^T {
+    clone(&readonly this): ^T {
         this
     }
 }

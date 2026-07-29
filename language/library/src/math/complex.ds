@@ -198,7 +198,7 @@ export extension<T: Float> of Complex<T>
     }
 
     /// Return whether both components are equal.
-    equal(other: Complex<T>): boolean {
+    equal(&readonly this, other: &readonly Complex<T>): boolean {
         this.real == other.real && this.imaginary == other.imaginary
     }
 }

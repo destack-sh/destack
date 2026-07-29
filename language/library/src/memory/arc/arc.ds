@@ -89,7 +89,7 @@ export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Clone this strong handle.
-    clone(): Arc<T> {
+    clone(&readonly this): Arc<T> {
         todo("Arc.clone")
     }
 

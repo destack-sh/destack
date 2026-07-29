@@ -6,7 +6,7 @@
 /// Some values, like floating-point NaN, do not have total equality.
 @languageItem("ops.PartialEqual")
 export newtype interface PartialEqual<T = this> {
-    equal(other: T): boolean;
+    equal(&readonly this, other: &readonly T): boolean;
 }
 
 /// Marker interface for total equality.

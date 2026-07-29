@@ -255,7 +255,7 @@ export extension of string implements Equal<string>, Hash {
     }
 
     /// Equality comparison.
-    equal(&readonly this, other: string): boolean {
+    equal(&readonly this, other: &readonly string): boolean {
         todo("String.equal")
     }
 

@@ -1,5 +1,4 @@
 import { todo } from "destack:error";
-
 import { MaybeOwned } from "destack:memory";
 
 /// Interface for user-facing string representation.
@@ -23,7 +22,7 @@ export newtype interface Debug {
     debug(&readonly this): MaybeOwned<string>;
 }
 
-export extension<T extends Display> of T {
+export extension<T: Display> of T {
     /// Return the owned user-facing string representation.
     toString(&readonly this): ^string {
         return todo("Display.toString");

@@ -145,12 +145,12 @@ export extension of bigint
     }
 
     /// Return whether this integer equals `other`.
-    equal(&readonly this, other: bigint): boolean {
+    equal(&readonly this, other: &readonly bigint): boolean {
         todo("BigInt.equal")
     }
 
     /// Compare partially with `other`.
-    partialCompare(&readonly this, other: bigint): Ordering | null {
+    partialCompare(&readonly this, other: &readonly bigint): Ordering | null {
         this.compare(other)
     }
 
@@ -160,7 +160,7 @@ export extension of bigint
     }
 
     /// Compare with `other`.
-    compare(&readonly this, other: bigint): Ordering {
+    compare(&readonly this, other: &readonly bigint): Ordering {
         todo("BigInt.compare")
     }
 

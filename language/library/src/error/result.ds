@@ -178,7 +178,7 @@ export extension<T, E> of Result<T, E> implements Try {
 
 export extension<T: Equal<T>, E: Equal<E>> of Result<T, E> implements Equal<Result<T, E>> {
     /// Compare two results.
-    equal(other: Result<T, E>): boolean {
+    equal(&readonly this, other: &readonly Result<T, E>): boolean {
         match (this) {
             Result.Ok { value: a } => {
                 match (other) {

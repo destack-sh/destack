@@ -15,7 +15,7 @@ export const enum Ordering {
 /// `partialCompare` returns `null` when comparison is undefined.
 @languageItem("ops.PartialCompare")
 export newtype interface PartialCompare<T = this> extends PartialEqual<T> {
-    partialCompare(other: T): Ordering | null;
+    partialCompare(&readonly this, other: &readonly T): Ordering | null;
 }
 
 /// Interface for total comparison and ordering.
@@ -26,5 +26,5 @@ export newtype interface PartialCompare<T = this> extends PartialEqual<T> {
 /// `a >= b` becomes `a.compare(b) != Ordering.Less`.
 @languageItem("ops.Compare")
 export newtype interface Compare<T = this> extends Equal<T>, PartialCompare<T> {
-    compare(other: T): Ordering;
+    compare(&readonly this, other: &readonly T): Ordering;
 }
