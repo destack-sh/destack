@@ -22,6 +22,13 @@ pub enum PackageKind {
     Implicit,
 }
 
+impl PackageKind {
+    /// Return whether this package contains authored workspace source.
+    pub const fn is_authored(self) -> bool {
+        matches!(self, Self::Declared | Self::Implicit)
+    }
+}
+
 /// One package of modules.
 #[derive(Debug, Clone)]
 pub struct Package {
