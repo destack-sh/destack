@@ -1,6 +1,7 @@
 mod context;
 mod error;
 mod recorder;
+mod report;
 mod resolve;
 mod timeline;
 mod trace;
@@ -8,6 +9,7 @@ mod trace;
 pub use context::*;
 pub use error::*;
 pub use recorder::*;
+pub use report::*;
 pub use resolve::*;
 pub use timeline::*;
 pub use trace::*;
