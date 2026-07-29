@@ -8,13 +8,19 @@ impl TypeLowerer<'_, '_> {
     /// Lower one newtype declaration to its MIR type.
     pub(in crate::lower) fn lower_newtype(
         &mut self,
-        _symbol: dir::GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         definition: dir::NewtypeDefinition,
         ty: mir::LocalNodeId<mir::Type>,
+        arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<NominalField>> {
         // tagged newtypes lower their checked variants directly
         if definition.is_tagged() {
             return self.lower_tagged_newtype(definition, ty);
+        }
+
+        // compiler-known newtypes take their intrinsic representations
+        if matches!(self.lowerer.ty(definition.backing)?, dir::Type::Intrinsic) {
+            return self.lower_intrinsic(symbol, ty, arguments);
         }
 
         // wrap the backing type transparently

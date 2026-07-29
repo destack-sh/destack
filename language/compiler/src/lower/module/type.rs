@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::lower::ModuleLowerer;
-use crate::{CompilerError, CompilerResult};
+use crate::{CompilerError, CompilerResult, LowerError};
 
 impl ModuleLowerer<'_> {
     /// Return the checked type table of one module.
@@ -77,4 +77,74 @@ impl ModuleLowerer<'_> {
         Ok((signature, owner))
     }
 
+    /// Return the library class item representing one compiler-primitive type.
+    pub(in crate::lower) fn representation_item(
+        ty: &dir::Type,
+    ) -> Option<(dir::LanguageItem, Vec<dir::GlobalTypeId>)> {
+        match ty {
+            dir::Type::Primitive(dir::PrimitiveType::String) => {
+                Some((dir::LanguageItem::String, Vec::new()))
+            }
+            dir::Type::Primitive(dir::PrimitiveType::Bigint) => {
+                Some((dir::LanguageItem::BigInt, Vec::new()))
+            }
+            dir::Type::Array(array) => Some((dir::LanguageItem::Array, vec![array.element])),
+            _ => None,
+        }
+    }
+
+    /// Return the slice one payload dereferences to, when its pointee is unsized.
+    ///
+    /// Transparent newtype identity over a slice erases into the descriptor.
+    /// Open elements resolve with their instances and stay opaque here.
+    pub(in crate::lower) fn slice_pointee(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::SliceType>> {
+        let reduced = self.reduced_type(id)?;
+        let slice = match self.ty(reduced)? {
+            dir::Type::Slice(slice) => slice,
+            // look through transparent newtype identity
+            dir::Type::Application(instance) => {
+                let Some(dir::Definition::Newtype(newtype)) = self.definition(instance.symbol)?
+                else {
+                    return Ok(None);
+                };
+                let backing = self.reduced_type(newtype.backing)?;
+                let dir::Type::Slice(slice) = self.ty(backing)? else {
+                    return Ok(None);
+                };
+
+                slice
+            }
+            _ => return Ok(None),
+        };
+
+        // open elements need their instance substitution to resolve
+        let element = self.reduced_type(slice.element)?;
+        if matches!(self.ty(element)?, dir::Type::Parameter(_)) {
+            return Ok(None);
+        }
+
+        Ok(Some(slice))
+    }
+
+    /// Return the element count behind one fixed array length singleton.
+    pub(in crate::lower) fn fixed_array_length(
+        &self,
+        count: dir::GlobalTypeId,
+    ) -> CompilerResult<u64> {
+        let count = self.reduced_type(count)?;
+        let dir::Type::Literal(dir::ScalarLiteral::Integer(length)) = self.ty(count)? else {
+            return Err(LowerError::Unsupported {
+                anchor: self.module.into(),
+                construct: "a fixed array with an open length".to_string(),
+            }
+            .into());
+        };
+
+        u64::try_from(length).map_err(|_| CompilerError::Internal {
+            message: "checked DIR closed a fixed array at a negative length".to_string(),
+        })
+    }
 }

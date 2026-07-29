@@ -5,8 +5,8 @@ use destack_source::ModuleId;
 use crate::lower::{ModuleLowerer, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
-/// One reference layer peeled from a sealed value type.
-pub(in crate::lower) struct ReferenceLayer {
+/// One reference layer peeled from a value type.
+pub(in crate::lower) struct Indirection {
     /// The type the reference stores.
     pub(in crate::lower) stored: dir::GlobalTypeId,
     /// The access exposed through the reference.
@@ -15,9 +15,6 @@ pub(in crate::lower) struct ReferenceLayer {
 
 impl TypeLowerer<'_, '_> {
     /// Lower one sealed form type through the memory form algebra.
-    ///
-    /// Forms nest: each ownership constructor wraps one reference layer around
-    /// the lowering of its payload, so `&&T` stores a reference to a reference.
     pub(in crate::lower) fn lower_form(
         &mut self,
         id: dir::GlobalTypeId,
@@ -38,17 +35,14 @@ impl TypeLowerer<'_, '_> {
             },
 
             // managed layers reference their stored payload on the local heap
-            dir::Form::Managed => {
-                let pointee = self.lower_stored(form.value)?;
+            dir::Form::Managed => self.lower_reference(
+                mir::ReferenceKind::Managed,
+                mir::Lifetime::empty(),
+                access.unwrap_or(mir::Access::Mutable),
+                form.value,
+            ),
 
-                Ok(self.insert_reference(
-                    mir::ReferenceKind::Managed,
-                    access.unwrap_or(mir::Access::Mutable),
-                    pointee,
-                ))
-            }
-
-            // borrowed layers carry their sealed lifetime and access
+            // borrowed layers carry their declared lifetime and access
             dir::Form::Borrowed(borrow) => {
                 let Some(borrow) = self.lowerer.types(id.module_id)?.borrow_form_maybe(borrow)
                 else {
@@ -61,31 +55,25 @@ impl TypeLowerer<'_, '_> {
                     .lowerer
                     .lower_lifetime(lifetime, self.lifetime_parameters)?;
                 let borrow_access = self.lowerer.borrow_access(borrow_access)?;
-                let pointee = self.lower_stored(form.value)?;
 
-                Ok(self.tree.intern_type(mir::Type::Reference {
-                    kind: mir::ReferenceKind::Borrowed,
+                self.lower_reference(
+                    mir::ReferenceKind::Borrowed,
                     lifetime,
-                    space: mir::Space::Local,
-                    access: access.unwrap_or(borrow_access),
-                    pointee,
-                    nullability: mir::Nullability::None,
-                }))
+                    access.unwrap_or(borrow_access),
+                    form.value,
+                )
             }
 
             // raw layers reference their payload without safety
-            dir::Form::Raw => {
-                let pointee = self.lower_stored(form.value)?;
-
-                Ok(self.insert_reference(
-                    mir::ReferenceKind::Raw,
-                    access.unwrap_or(mir::Access::Mutable),
-                    pointee,
-                ))
-            }
+            dir::Form::Raw => self.lower_reference(
+                mir::ReferenceKind::Raw,
+                mir::Lifetime::empty(),
+                access.unwrap_or(mir::Access::Mutable),
+                form.value,
+            ),
 
             // owned means holding the stored value itself
-            dir::Form::Owned => self.lower_stored(form.value),
+            dir::Form::Owned => self.lower_pointee(form.value),
 
             dir::Form::Placed { .. } => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -94,12 +82,61 @@ impl TypeLowerer<'_, '_> {
         }
     }
 
-    /// Lower one type as the storage behind a reference or owner.
-    fn lower_stored(
+
+    /// Lower one reference layer over its stored payload.
+    ///
+    /// Slice payloads fuse with the layer into one fat descriptor.
+    pub(in crate::lower) fn lower_reference(
+        &mut self,
+        kind: mir::ReferenceKind,
+        lifetime: mir::Lifetime,
+        access: mir::Access,
+        payload: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // fuse unsized pointees with the layer into one fat descriptor
+        if let Some(slice) = self.lowerer.slice_pointee(payload)? {
+            let element = self.lower(slice.element)?;
+
+            return Ok(self.tree.intern_type(mir::Type::Slice {
+                kind,
+                lifetime,
+                element,
+                space: mir::Space::Local,
+                access,
+                nullability: mir::Nullability::None,
+            }));
+        }
+        // otherwise reference the lowered pointee thinly
+        let pointee = self.lower_pointee(payload)?;
+
+        Ok(self.tree.intern_type(mir::Type::Reference {
+            kind,
+            lifetime,
+            space: mir::Space::Local,
+            access,
+            pointee,
+            nullability: mir::Nullability::None,
+        }))
+    }
+
+    /// Lower one type as the pointee behind a reference or owner.
+    ///
+    /// The pointee is the declared storage for nominal families and the
+    /// value form for value families.
+    pub(in crate::lower) fn lower_pointee(
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        match self.lowerer.ty(id)? {
+        let ty = self.lowerer.ty(id)?;
+
+        // reference primitives store as their representation classes
+        if let Some((item, arguments)) = ModuleLowerer::representation_item(&ty) {
+            let symbol = self.lowerer.language_item_symbol(item)?;
+
+            return Ok(self.lower_nominal(symbol, &arguments)?.storage);
+        }
+
+        match ty {
             // contextual this stores as the receiver's storage representation
             dir::Type::This => self.lower_receiver_storage(),
             // nominal storage is the declared type, not its value form
@@ -113,7 +150,7 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(nominal.storage)
             }
-            // any other type stores as its value carrier
+            // value families hold their value form directly
             _ => self.lower(id),
         }
     }
@@ -151,11 +188,11 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn peel_reference(
         &self,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<ReferenceLayer>> {
+    ) -> CompilerResult<Option<Indirection>> {
         match self.ty(id)? {
             // form layers reference their payload by constructor
             dir::Type::Form(form) => match form.form {
-                dir::Form::Managed | dir::Form::Raw => Ok(Some(ReferenceLayer {
+                dir::Form::Managed | dir::Form::Raw => Ok(Some(Indirection {
                     stored: form.value,
                     access: mir::Access::Mutable,
                 })),
@@ -167,7 +204,7 @@ impl ModuleLowerer<'_> {
                     };
                     let access = self.borrow_access(borrow.access)?;
 
-                    Ok(Some(ReferenceLayer {
+                    Ok(Some(Indirection {
                         stored: form.value,
                         access,
                     }))
@@ -176,7 +213,7 @@ impl ModuleLowerer<'_> {
                 dir::Form::Readonly => {
                     let layer = self.peel_reference(form.value)?;
 
-                    Ok(layer.map(|layer| ReferenceLayer {
+                    Ok(layer.map(|layer| Indirection {
                         access: mir::Access::Readonly,
                         ..layer
                     }))
@@ -187,7 +224,7 @@ impl ModuleLowerer<'_> {
 
             // reference-family nominals carry an implicit managed layer
             dir::Type::Application(_) => match self.has_reference_representation(id)? {
-                true => Ok(Some(ReferenceLayer {
+                true => Ok(Some(Indirection {
                     stored: id,
                     access: mir::Access::Mutable,
                 })),
@@ -264,6 +301,11 @@ impl ModuleLowerer<'_> {
                 }
                 _ => dir::Ownership::Owned,
             },
+
+            // string and bigint primitives are held through their representation classes
+            dir::Type::Primitive(dir::PrimitiveType::String | dir::PrimitiveType::Bigint) => {
+                dir::Ownership::Managed
+            }
 
             // value families are held directly
             dir::Type::Never

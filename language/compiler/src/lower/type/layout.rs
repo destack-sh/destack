@@ -158,6 +158,41 @@ impl<'tree> LayoutBuilder<'tree> {
                 Ok(mir::Layout::scalar(bytes, bytes))
             }
 
+            // slices occupy a pointer-aligned {data, length} descriptor
+            mir::Type::Slice { .. } => {
+                let bytes = self.pointer_bytes as u32;
+
+                Ok(mir::Layout {
+                    shape: mir::LayoutShape::Slice,
+                    size: 2 * bytes,
+                    alignment: bytes,
+                    trace_map: mir::TraceMap::Empty,
+                })
+            }
+
+            // fixed arrays repeat their element at its aligned stride
+            mir::Type::FixedArray {
+                element, length, ..
+            } => {
+                let id = self.layout_type(element)?;
+                let layout = self.layouts.entries[id.index()].clone();
+                let stride = layout.size.next_multiple_of(layout.alignment.max(1));
+                let count = u32::try_from(length).map_err(|_| CompilerError::Internal {
+                    message: "lowered fixed array length exceeds the layout range".to_string(),
+                })?;
+
+                Ok(mir::Layout {
+                    shape: mir::LayoutShape::Array(mir::ElementLayout {
+                        element,
+                        stride,
+                        count,
+                    }),
+                    size: stride * count,
+                    alignment: layout.alignment,
+                    trace_map: mir::TraceMap::Empty,
+                })
+            }
+
             // structs pack their named fields largest alignment first
             mir::Type::Struct { fields, .. } => {
                 let mut components = Vec::with_capacity(fields.len());

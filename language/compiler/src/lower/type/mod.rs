@@ -1,6 +1,7 @@
 mod class;
 mod r#enum;
 mod form;
+mod intrinsic;
 mod layout;
 mod lifetime;
 mod lower;

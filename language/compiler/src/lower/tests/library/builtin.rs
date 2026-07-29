@@ -9,20 +9,18 @@ fn test_lower_library() {
     let session = TestSession::builder().build();
     let repository = session.repository();
     let package = repository.embedded_builtin();
-    let target = TargetId::new(package.package_id(), "default");
+    let package_id = package.package_id();
+    let target = TargetId::new(package_id, "default");
     let profile = repository
         .profile_for_target(session.revision(), target)
         .expect("builtin library target profile should resolve")
         .id();
 
-    // lower every builtin module
-    let package_id = package.package_id();
-    let keys = package
+    let keys: Vec<_> = package
         .files()
         .iter()
         .map(|file| ArtifactKey::mir_lowered(file.module_id(package_id), profile, target))
-        .collect::<Vec<_>>();
-    // artifacts must provide; unsupported constructs still report recoverably
+        .collect();
     if let Err(error) = session.require_all(keys.iter().copied()) {
         panic!("{error}");
     }

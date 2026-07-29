@@ -1,3 +1,4 @@
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
@@ -20,6 +21,8 @@ pub(in crate::lower) struct TypeLowerer<'lower, 'module> {
     pub(in crate::lower) type_substitution: &'lower TypeSubstitution,
     /// The polymorphic lifetime parameters available during lowering.
     pub(in crate::lower) lifetime_parameters: &'lower LifetimeParameters,
+    /// The structural types being lowered, with reservations for revisits.
+    reservations: FxIndexMap<dir::GlobalTypeId, Option<mir::LocalNodeId<mir::Type>>>,
 }
 
 impl<'lower, 'module> TypeLowerer<'lower, 'module> {
@@ -37,6 +40,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             pointer_bytes,
             type_substitution,
             lifetime_parameters,
+            reservations: FxIndexMap::default(),
         }
     }
 
@@ -47,6 +51,51 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let id = self.lowerer.reduced_type(id)?;
 
+        // structural families can recurse through transparent aliases, so a
+        //  revisit reserves the identity and the first visit defines it
+        let compound = matches!(
+            self.lowerer.ty(id)?,
+            dir::Type::Union(_)
+                | dir::Type::Tuple(_)
+                | dir::Type::Slice(_)
+                | dir::Type::FixedArray(_)
+        );
+        if compound {
+            if let Some(entry) = self.reservations.get_mut(&id) {
+                if let Some(reserved) = entry {
+                    return Ok(*reserved);
+                }
+
+                // reserve the identity for the outer visit to define
+                let name = format!("recursive{}", id.local_id.0);
+                let name = self.lowerer.strings.intern(&name);
+                let reserved = self.tree.reserve_type(mir::Symbol::named(name));
+                *entry = Some(reserved);
+
+                return Ok(reserved);
+            }
+
+            self.reservations.insert(id, None);
+        }
+
+        // lower the family, then define any reservation a revisit created
+        let lowered = self.lower_reduced(id);
+        if compound
+            && let Some(reservation) = self.reservations.swap_remove(&id)
+            && let (Ok(result), Some(reserved)) = (&lowered, reservation)
+        {
+            let value = self.tree.get(*result).clone();
+            self.tree.define_type(reserved, value);
+        }
+
+        lowered
+    }
+
+    /// Lower one reduced checked type by family.
+    fn lower_reduced(
+        &mut self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         match self.lowerer.ty(id)? {
             // nominal instances lower through their concrete representation
             dir::Type::Application(instance) => {
@@ -100,6 +149,25 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             }
             // memory forms resolve through the form algebra
             dir::Type::Form(_) => self.lower_form(id, None),
+            // slice values are fat headers over managed element storage
+            dir::Type::Slice(_) => self.lower_reference(
+                mir::ReferenceKind::Managed,
+                mir::Lifetime::empty(),
+                mir::Access::Mutable,
+                id,
+            ),
+            // fixed arrays lower to their inline element storage
+            dir::Type::FixedArray(fixed) => {
+                let element = self.lower(fixed.element)?;
+                let length = self.lowerer.fixed_array_length(fixed.count)?;
+                let copy = self.tree.get(element).copy(self.tree);
+
+                Ok(self.tree.intern_type(mir::Type::FixedArray {
+                    element,
+                    length,
+                    copy,
+                }))
+            }
             // tuples lower their elements recursively
             dir::Type::Tuple(tuple) => {
                 let ids = self.lowerer.tuple_element_types(id.module_id, &tuple)?;
@@ -111,6 +179,13 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 Ok(self.insert_tuple(elements))
             }
             other => {
+                // reference primitives lower through their representation classes
+                if let Some((item, arguments)) = ModuleLowerer::representation_item(&other) {
+                    let symbol = self.lowerer.language_item_symbol(item)?;
+
+                    return Ok(self.lower_nominal(symbol, &arguments)?.value);
+                }
+                // fall back to the scalar families
                 let ty = self.lowerer.scalar_type(&other)?;
 
                 Ok(self.tree.intern_type(ty))
@@ -202,7 +277,7 @@ impl TypeLowerer<'_, '_> {
             ReceiverBinding::Application(receiver) => {
                 Ok(self.lower_receiver_nominal(receiver)?.storage)
             }
-            ReceiverBinding::Type(ty) => self.lower(ty),
+            ReceiverBinding::Type(ty) => self.lower_pointee(ty),
         }
     }
 

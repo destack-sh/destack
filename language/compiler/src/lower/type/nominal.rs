@@ -83,6 +83,8 @@ struct NominalArguments {
     lifetime_parameters: LifetimeParameters,
     /// The lifetime terms applied at this use.
     lifetimes: Vec<mir::Lifetime>,
+    /// The resolved type arguments in declaration order.
+    type_arguments: Vec<dir::GlobalTypeId>,
 }
 
 impl ModuleLowerer<'_> {
@@ -187,7 +189,9 @@ impl TypeLowerer<'_, '_> {
             );
             match definition {
                 dir::Definition::Struct(definition) => types.lower_struct(symbol, definition, ty),
-                dir::Definition::Newtype(definition) => types.lower_newtype(symbol, definition, ty),
+                dir::Definition::Newtype(definition) => {
+                    types.lower_newtype(symbol, definition, ty, &arguments.type_arguments)
+                }
                 dir::Definition::Enum(definition) => types.lower_enum(symbol, definition, ty),
                 dir::Definition::Class(definition) => types.lower_class(symbol, definition, ty),
                 _ => Err(CompilerError::Internal {
@@ -258,6 +262,7 @@ impl TypeLowerer<'_, '_> {
                 type_substitution: TypeSubstitution::default(),
                 lifetime_parameters: LifetimeParameters::default(),
                 lifetimes: Vec::new(),
+                type_arguments: Vec::new(),
             });
         };
 
@@ -318,6 +323,7 @@ impl TypeLowerer<'_, '_> {
             type_substitution,
             lifetime_parameters,
             lifetimes,
+            type_arguments: representations,
         })
     }
 
