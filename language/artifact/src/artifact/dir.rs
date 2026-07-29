@@ -184,6 +184,20 @@ impl DirExported {
             .reexport_modules()
             .chain(self.globals.reexport_modules())
     }
+
+    /// Return the fingerprint of exports that require inference.
+    pub(crate) fn inference_exports_fingerprint(&self) -> ArtifactProjectionFingerprint {
+        let mut symbols = self
+            .exports
+            .form_by_symbol
+            .iter()
+            .filter_map(|(symbol, form)| form.requires_inference().then_some(*symbol))
+            .collect::<Vec<_>>();
+        symbols.sort_unstable();
+        symbols.dedup();
+
+        ArtifactProjectionFingerprint::new(&symbols)
+    }
 }
 
 /// Resolved import targets for one module under one profile.
@@ -203,6 +217,42 @@ impl DirResolved {
         self.imports
             .target_modules()
             .chain(self.references.target_modules())
+    }
+
+    /// Return the fingerprint of relationships that determine component edges.
+    pub(crate) fn component_edges_fingerprint(&self) -> ArtifactProjectionFingerprint {
+        let mut modules = self.target_modules().collect::<Vec<_>>();
+        modules.sort_unstable();
+        modules.dedup();
+
+        // retain the exact symbol and namespace identities used for inference edges
+        let mut symbols = Vec::new();
+        let mut namespaces = Vec::new();
+        for (source, reference) in &self.references.target_by_node {
+            if source.local_id.ty == dir::NodeType::DependencyItem {
+                continue;
+            }
+
+            match reference {
+                dir::Reference::Bound(references) => {
+                    symbols.extend(references.iter().copied());
+                }
+                dir::Reference::Projected { base, .. } => symbols.push(*base),
+                dir::Reference::Namespace(module) => namespaces.push(*module),
+                dir::Reference::Ambiguous(_) | dir::Reference::Missing => {}
+            }
+        }
+        symbols.sort_unstable();
+        symbols.dedup();
+        namespaces.sort_unstable();
+        namespaces.dedup();
+
+        // retain inherent extension ownership relationships
+        let mut extensions = self.extensions.targets().collect::<Vec<_>>();
+        extensions.sort_unstable();
+        extensions.dedup();
+
+        ArtifactProjectionFingerprint::new(&(modules, symbols, namespaces, extensions))
     }
 }
 
@@ -344,6 +394,8 @@ pub struct DirCheckedModule {
 pub struct DirChecked {
     /// The inference component that owns this module's checked output.
     pub component: ComponentId,
+    /// The selected module output fingerprint.
+    pub fingerprint: ArtifactProjectionFingerprint,
 }
 
 impl DirCheckedModule {
