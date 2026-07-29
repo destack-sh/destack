@@ -29,10 +29,10 @@ const byte = bytes[1];
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.access source=bytes[1] root=bytes keys=[1]
-/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(1) as usize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
-/// @generic.instance source=bytes[1] id="FixedArray<uint8, 4>.<extension#1>.index#1<\"exclusive\">"
+/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="collections.fixed-array.index#1(parameters=(usize), arguments=(provided(1) as usize), return=memory.type.WithAccess<&'static uint8, \"exclusive\">)"
+/// @generic.instance source=bytes[1] id="FixedArray<uint8, 4>.<extension#2>.index#1<\"exclusive\">"
 
-/// @generic.instance id="FixedArray<uint8, 4>.<extension#1>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(uint8, 4, "exclusive")
+/// @generic.instance id="FixedArray<uint8, 4>.<extension#2>.index#1<\"exclusive\">" template=collections.fixed-array.index#1 arguments=(uint8, 4, "exclusive")
 "#,
     );
 }
@@ -111,12 +111,12 @@ const size = bytes.size;
 /// @type.node source=bytes type=FixedArray<uint8, 4>
 /// @type.node source=bytes.size type=usize
 /// @resolution.name source=bytes target=bytes
-/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=usize kind=call target="collections.array.size#1(parameters=(), arguments=(), return=usize)"
+/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=usize kind=call target="collections.fixed-array.size(parameters=(), arguments=(), return=usize)"
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
-/// @generic.instance source=bytes.size id="FixedArray<uint8, 4>.<extension#1>.size#1"
+/// @generic.instance source=bytes.size id="FixedArray<uint8, 4>.<extension#2>.size"
 
-/// @generic.instance id="FixedArray<uint8, 4>.<extension#1>.size#1" template=collections.array.size#1 arguments=(uint8, 4)
+/// @generic.instance id="FixedArray<uint8, 4>.<extension#2>.size" template=collections.fixed-array.size arguments=(uint8, 4)
 "#,
     );
 }

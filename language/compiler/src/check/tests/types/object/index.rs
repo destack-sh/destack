@@ -302,6 +302,7 @@ function write(bag: Bag): int32 | undefined {
     bag["x"] = 1;
     /// @resolution.name source=bag target=write.bag
     /// @resolution.pattern.assign source="bag[\"x\"]" kind=place
+    /// @resolution.access source="bag[\"x\"]" root=write.bag keys=[x]
     /// @resolution.assignment source="bag[\"x\"]" write="member(receiver=Bag, target=index(string), type=int32)" type=int32
     /// @resolution.place source=bag placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=bag root=write.bag
@@ -452,7 +453,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         /// @resolution.place source=this.storage placement="local" lifetime=index.'a access="exclusive"
         /// @resolution.access source=this.storage root=this keys=[storage]
         /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="collections.map.index(parameters=(string), arguments=(provided(key) as string), return=memory.type.WithAccess<&index.'a int32, \"exclusive\"> | undefined)"
-        /// @generic.instance source=this.storage[key] id="Map<string, int32>.<extension#3>.index<\"exclusive\">"
+        /// @generic.instance source=this.storage[key] id="Map<string, int32>.<extension#8>.index<\"exclusive\">"
         /// @resolution.name source=key target=index.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=key root=index.key
@@ -510,7 +511,7 @@ value satisfies int32 | undefined;
 /// @resolution.access source=value root=value
 
 /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
-/// @generic.instance id="Map<string, int32>.<extension#3>.index<\"exclusive\">" template=collections.map.index arguments=(string, int32, "exclusive")
+/// @generic.instance id="Map<string, int32>.<extension#8>.index<\"exclusive\">" template=collections.map.index arguments=(string, int32, "exclusive")
 "#,
     );
 }

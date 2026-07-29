@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_prefer_exact_managed_overload_over_earlier_borrow_overload() {
+fn test_call_selects_first_applicable_overload_after_borrowing() {
     let session = TestSession::single(
         r#"
 class User {}
@@ -17,13 +17,13 @@ function select(value: User): "managed" {
 declare const user: local User;
 const selected = select(user);
 
-selected satisfies "managed";
+selected satisfies "borrowed";
 "#,
     );
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked(),
+        DirRows::checked().with_coercion(),
         r#"
 === annotated ===
 class User {}
@@ -37,9 +37,9 @@ function select(value: User): "managed" {
 }
 
 declare const user: local User;
-const selected: "managed" = select(user);
+const selected: "borrowed" = select(user as &'static readonly User);
 
-selected satisfies "managed";
+selected satisfies "borrowed";
 
 === checked ===
 class User {}
@@ -69,15 +69,16 @@ declare const user: local User;
 /// @resolution.name source=User target=User
 
 const selected = select(user);
-/// @type.symbol symbol=selected source=selected type="managed"
+/// @type.symbol symbol=selected source=selected type="borrowed"
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
-/// @resolution.call source=select(user) parameters=(User) arguments=(provided(user) as User) return="managed" kind=symbol target=select#2
+/// @resolution.call source=select(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return="borrowed" kind=symbol target=select#1
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
+/// @coercion.node source=user from=Placed<User, "local"> adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
-selected satisfies "managed";
+selected satisfies "borrowed";
 /// @resolution.name source=selected target=selected
 /// @resolution.place source=selected placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=selected root=selected
@@ -89,7 +90,7 @@ selected satisfies "managed";
 }
 
 #[test]
-fn test_select_first_overload_within_managed_borrow_coercion_tier() {
+fn test_call_selects_first_applicable_overload_after_readonly_borrowing() {
     let session = TestSession::single(
         r#"
 class User {}
@@ -109,7 +110,10 @@ selected satisfies "readonly";
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked().with_coercion(), r#"
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
 === annotated ===
 class User {}
 
@@ -168,13 +172,15 @@ selected satisfies "readonly";
 /// @resolution.name source=selected target=selected
 /// @resolution.place source=selected placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=selected root=selected
-"#, r#"
+"#,
+        r#"
 
-"#);
+"#,
+    );
 }
 
 #[test]
-fn test_prefer_exact_borrow_overload_over_earlier_reborrow_overload() {
+fn test_call_selects_first_applicable_overload_after_access_weakening() {
     let session = TestSession::single(
         r#"
 class User {}
@@ -190,7 +196,7 @@ function select(value: &User): "mutable" {
 declare const user: &User;
 const selected = select(user);
 
-selected satisfies "mutable";
+selected satisfies "readonly";
 "#,
     );
 
@@ -210,9 +216,9 @@ function select<'a>(value: &'a User): "mutable" {
 }
 
 declare const user: &'static User;
-const selected: "mutable" = select(user);
+const selected: "readonly" = select(user);
 
-selected satisfies "mutable";
+selected satisfies "readonly";
 
 === checked ===
 class User {}
@@ -243,15 +249,15 @@ declare const user: &User;
 /// @resolution.name source=User target=User
 
 const selected = select(user);
-/// @type.symbol symbol=selected source=selected type="mutable"
+/// @type.symbol symbol=selected source=selected type="readonly"
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
-/// @resolution.call source=select(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return="mutable" kind=symbol target=select#2
+/// @resolution.call source=select(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return="readonly" kind=symbol target=select#1
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
 
-selected satisfies "mutable";
+selected satisfies "readonly";
 /// @resolution.name source=selected target=selected
 /// @resolution.place source=selected placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=selected root=selected
@@ -936,11 +942,11 @@ inspect(state.users[0]);
 /// @resolution.access source=state.users root=state keys=[users]
 /// @resolution.place source=state.users[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=state.users[0] root=state keys=[users, 0]
-/// @resolution.subscript source=state.users[0] type=User kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static User, \"exclusive\">)"
-/// @generic.instance source=state.users[0] id="Array<User>.<extension#6>.index#3<\"exclusive\">"
+/// @resolution.subscript source=state.users[0] type=User kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static User, \"exclusive\">)"
+/// @generic.instance source=state.users[0] id="Array<User>.<extension#4>.index#1<\"exclusive\">"
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
-/// @generic.instance id="Array<User>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(User, "exclusive")
+/// @generic.instance id="Array<User>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(User, "exclusive")
 /// @generic.instance id=Box<User> template=Box arguments=(User)
 "#,
     );
@@ -1502,7 +1508,7 @@ values.push(1);
 === annotated ===
 declare const values: shared int32[];
 
-values.push(1);
+values.push<int32>(1);
 
 === checked ===
 declare const values: shared int32[];
@@ -1511,15 +1517,17 @@ declare const values: shared int32[];
 
 values.push(1);
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=Placed<Array<int32>, "shared"> type=<collections.array.push#1.'a>(this: &collections.array.push#1.'a exclusive Array<int32>, int32) => void & <collections.array.push#2.'a>(this: &collections.array.push#2.'a exclusive Array<int32>, ...int32[]) => float64 kind=existential targets=[collections.array.push#1, collections.array.push#2]
+/// @resolution.member source=values.push receiver=Placed<Array<int32>, "shared"> type=<collections.array.push.'a>(this: Placed<&collections.array.push.'a exclusive Array<int32>, "shared">, ...int32[]) => usize kind=symbol target_receiver=Placed<Array<int32>, "shared"> target=collections.array.push
+/// @resolution.call source=values.push(1) parameters=(Placed<Array<int32>, "shared">) arguments=(rest(1) as Placed<Array<int32>, "shared">) return=usize kind=symbol target=collections.array.push receiver=Placed<Array<int32>, "shared"> instance=Array<int32>.<extension#4>.push
 /// @resolution.place source=values placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=values root=values
+/// @generic.instance source=values.push(1) id=Array<int32>.<extension#4>.push
+
+/// @generic.instance id=Array<int32>.<extension#4>.push template=collections.array.push arguments=(int32)
 "#,
         r#"
-/// @diagnostic.error id=no-matching-call message="no overload matches arguments ('1')"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'shared Array<int32>' is not assignable to the method's 'this' type 'shared &exclusive Array<int32>'"
 /// @diagnostic.label line=4 column=1 span="values.push(1)" line_source="values.push(1);"
-/// @diagnostic.note message="the candidate '<'a>(int32) => void' rejects the receiver: 'shared Array<int32>' is not assignable to '&exclusive Array<int32>'"
-/// @diagnostic.note message="the candidate '<'a>(...int32[]) => float64' rejects the receiver: 'shared Array<int32>' is not assignable to '&exclusive Array<int32>'"
 "#,
     );
 }

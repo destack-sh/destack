@@ -392,6 +392,7 @@ impl BodyState<'_, '_> {
                 )?) else {
                     return Ok(Answer::Ready(None));
                 };
+                let stored_key = selection.write.stored_key();
                 let read = selection.read.map(dir::ReadResolution::Member);
                 let write = dir::WriteResolution::Member(selection.write);
 
@@ -404,6 +405,11 @@ impl BodyState<'_, '_> {
                     receiver_place,
                     initializes,
                 )?);
+
+                // record the stored member path
+                if let Some(key) = stored_key {
+                    self.commit_projected_access(source, receiver_node, key)?;
+                }
 
                 Ok(Answer::Ready(Some(target)))
             }
@@ -433,6 +439,7 @@ impl BodyState<'_, '_> {
                     ..receiver_value
                 };
                 let index_node = index.into_global_any(module);
+                let index_key = self.module(module).view().get(index).static_key();
                 let index_site = self.node_site(index_node)?;
                 let index = answer!(self.infer_node_type(index_site, PlaceUse::Read)?);
                 let receiver_type = self.readable_value(receiver)?;
@@ -453,6 +460,7 @@ impl BodyState<'_, '_> {
                 if !answer!(self.check_subscript_key(index_site, index, selection.key_types())?) {
                     return Ok(Answer::Ready(None));
                 }
+                let writes_storage = selection.writes_storage();
                 let Some((read, write)) = selection.into_place() else {
                     return Ok(Answer::Ready(None));
                 };
@@ -466,6 +474,11 @@ impl BodyState<'_, '_> {
                     receiver_place,
                     initializes,
                 )?);
+
+                // record the stored subscript path
+                if writes_storage && let Some(key) = index_key {
+                    self.commit_projected_access(source, receiver_node, key)?;
+                }
 
                 Ok(Answer::Ready(Some(target)))
             }
@@ -731,7 +744,10 @@ impl BodyState<'_, '_> {
         let read = match use_ {
             PlaceUse::Update => match getters.as_slice() {
                 [getter] => {
-                    let call = answer!(self.select_getter_call(origin, receiver, getter)?);
+                    let Some(call) = answer!(self.select_getter_call(origin, receiver, getter)?)
+                    else {
+                        return Ok(Answer::Ready(None));
+                    };
                     let read = dir::MemberAccess::new(
                         receiver.ty,
                         dir::MemberTarget::Call(Box::new(call)),
@@ -857,6 +873,9 @@ impl BodyState<'_, '_> {
                     symbol: *symbol,
                     ty,
                 };
+
+                // record the binding path
+                self.commit_access(source, dir::AccessPath::symbol(*symbol))?;
 
                 Ok(Answer::Ready(Some(AssignmentSelection {
                     read,

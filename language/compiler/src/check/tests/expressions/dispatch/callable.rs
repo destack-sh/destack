@@ -93,7 +93,7 @@ const result = transform("value");
 }
 
 #[test]
-fn test_callable_union_uses_return_context_for_every_runtime_arm() {
+fn test_callable_union_ignores_expected_return_in_every_runtime_arm() {
     let session = TestSession::single(
         r#"
 declare const transform:
@@ -104,7 +104,7 @@ const result: "left" | "right" = transform(1);
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked()
             .with_node_types()
@@ -133,9 +133,9 @@ declare const transform:
 const result: "left" | "right" = transform(1);
 /// @type.symbol symbol=result source=result type="left" | "right"
 /// @resolution.pattern source=result kind=binding target=result
-/// @type.node source=transform(1) type="left" | "right"
+/// @type.node source=transform(1) type="common"
 /// @resolution.name source=transform target=transform
-/// @resolution.call source=transform(1) return="left" | "right" kind=union arms=[expression(parameters=(int32), arguments=(provided(1) as int32), return="left"), expression(parameters=(int32), arguments=(provided(1) as int32), return="right")]
+/// @resolution.call source=transform(1) return="common" kind=union arms=[expression(parameters=(int32), arguments=(provided(1) as int32), return="common"), expression(parameters=(int32), arguments=(provided(1) as int32), return="common")]
 /// @resolution.place source=transform placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=transform root=transform
 /// @type.node source=1 type=1
@@ -143,6 +143,11 @@ const result: "left" | "right" = transform(1);
 /// @generic.instance id="Function<(int32,), \"common\">" template=types.function.Function arguments=((int32,), "common")
 /// @generic.instance id="Function<(int32,), \"left\">" template=types.function.Function arguments=((int32,), "left")
 /// @generic.instance id="Function<(int32,), \"right\">" template=types.function.Function arguments=((int32,), "right")
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '\"common\"' is not assignable to type '\"left\" | \"right\"'"
+/// @diagnostic.label line=6 column=34 span="transform(1)" line_source="const result: \"left\" | \"right\" = transform(1);"
+/// @diagnostic.related line=6 column=22 span="|" line_source="const result: \"left\" | \"right\" = transform(1);" message="expected due to this annotation"
 "#,
     );
 }

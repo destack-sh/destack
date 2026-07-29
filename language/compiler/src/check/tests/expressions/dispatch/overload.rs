@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_call_selects_first_compatible_overload_in_declaration_order() {
+fn test_call_selects_first_applicable_overload_in_declaration_order() {
     let session = TestSession::single(
         r#"
 function parse(value: string): "string" {
@@ -64,98 +64,69 @@ const result = parse("id");
 }
 
 #[test]
-fn test_call_prefers_decisive_overload_over_undecidable_earlier() {
+fn test_call_selects_first_applicable_overload_ignoring_expected_return() {
     let session = TestSession::single(
         r#"
-struct Box<T> {
-    value: T;
+function choose(value: string): string {
+    return "text";
 }
 
-function apply<U>(run: (value: string) => Box<U>): "boxed" {
-    return "boxed";
+function choose(value: string): int32 {
+    return 0;
 }
 
-function apply<U>(run: (value: string) => U): "plain" {
-    return "plain";
-}
-
-const result = apply((value) => {});
+const result: int32 = choose("x");
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
         r#"
 === annotated ===
-struct Box<out T> {
-    value: T;
+function choose(value: string): string {
+    return "text";
 }
 
-function apply<U>(run: (arg0: string) => Box<U>): "boxed" {
-    return "boxed";
+function choose(value: string): int32 {
+    return 0;
 }
 
-function apply<U>(run: (arg0: string) => U): "plain" {
-    return "plain";
-}
-
-const result: "plain" = apply<void>((value: string): void => {});
+const result: int32 = choose("x");
 
 === checked ===
-struct Box<T> {
-/// @generic.template symbol=Box parameters=(out T)
-/// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(out T)
-/// @definition.field symbol=Box.value source="value: T" key=value type=T
-/// @type.symbol symbol=Box.T source=T type=T
+function choose(value: string): string {
+/// @type.symbol symbol=choose#1 type=(string) => string
+/// @type.symbol symbol=choose.value#1 source="value: string" type=string
 
-    value: T;
-    /// @type.symbol symbol=Box.value source="value: T" type=T
-    /// @resolution.name source=T target=Box.T
+    return "text";
+    /// @type.node source="\"text\"" type="text"
 
 }
 
-function apply<U>(run: (value: string) => Box<U>): "boxed" {
-/// @generic.template symbol=apply#1 parameters=(U#1)
-/// @type.symbol symbol=apply#1 type=<U#1>(Function<(string,), Box<U#1>>) => "boxed"
-/// @type.symbol symbol=apply.U#1 source=U type=U#1
-/// @type.symbol symbol=apply.run#1 source="run: (value: string) => Box<U>" type=Function<(string,), Box<U#1>>
-/// @resolution.name source=Box target=Box
-/// @resolution.name source=U target=apply.U#1
+function choose(value: string): int32 {
+/// @type.symbol symbol=choose#2 type=(string) => int32
+/// @type.symbol symbol=choose.value#2 source="value: string" type=string
 
-    return "boxed";
-    /// @type.node source="\"boxed\"" type="boxed"
+    return 0;
+    /// @type.node source=0 type=0
 
 }
 
-function apply<U>(run: (value: string) => U): "plain" {
-/// @generic.template symbol=apply#2 parameters=(U#2)
-/// @type.symbol symbol=apply#2 type=<U#2>(Function<(string,), U#2>) => "plain"
-/// @type.symbol symbol=apply.U#2 source=U type=U#2
-/// @type.symbol symbol=apply.run#2 source="run: (value: string) => U" type=Function<(string,), U#2>
-/// @resolution.name source=U target=apply.U#2
-
-    return "plain";
-    /// @type.node source="\"plain\"" type="plain"
-
-}
-
-const result = apply((value) => {});
-/// @type.symbol symbol=result source=result type="plain"
+const result: int32 = choose("x");
+/// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
-/// @type.node source="apply((value) => {})" type="plain"
-/// @resolution.name source=apply target=[apply#1, apply#2]
-/// @resolution.call source="apply((value) => {})" parameters=(Function<(string,), void>) arguments=(provided((value) => {}) as Function<(string,), void>) return="plain" kind=symbol target=apply#2 instance=apply#2<void>
-/// @generic.instance source="apply((value) => {})" id=apply#2<void>
-/// @type.symbol symbol=symbol13 source="(value) => {}" type=Function<(string,), void>
-/// @type.node source="(value) => {}" type=Function<(string,), void>
-/// @type.symbol symbol=symbol13.value source=value type=string
-
-/// @generic.instance id=Box<U#1> template=Box arguments=(U#1)
-/// @generic.instance id=apply#2<void> template=apply#2 arguments=(void)
+/// @type.node source="choose(\"x\")" type=string
+/// @resolution.name source=choose target=[choose#1, choose#2]
+/// @resolution.call source="choose(\"x\")" parameters=(string) arguments=(provided("x") as string) return=string kind=symbol target=choose#1
+/// @type.node source="\"x\"" type="x"
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type 'string' is not assignable to type 'int32'"
+/// @diagnostic.label line=10 column=23 span="choose(\"x\")" line_source="const result: int32 = choose(\"x\");"
+/// @diagnostic.related line=10 column=15 span="int32" line_source="const result: int32 = choose(\"x\");" message="expected due to this annotation"
 "#,
     );
 }

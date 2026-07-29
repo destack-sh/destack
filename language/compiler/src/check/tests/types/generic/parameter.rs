@@ -135,10 +135,10 @@ const first = values[0];
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
-/// @generic.instance source=values[0] id="Array<float64>.<extension#6>.index#3<\"exclusive\">"
+/// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
+/// @generic.instance source=values[0] id="Array<float64>.<extension#4>.index#1<\"exclusive\">"
 
-/// @generic.instance id="Array<float64>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(float64, "exclusive")
+/// @generic.instance id="Array<float64>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 /// @generic.instance id=id<Array<float64>> template=id arguments=(Array<float64>)
 "#,
     );
@@ -380,11 +380,11 @@ const kind = values[0].kind;
 /// @resolution.access source=values root=values
 /// @resolution.place source=values[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
+/// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
 /// @resolution.access source=values[0].kind root=values keys=[0, kind]
-/// @generic.instance source=values[0] id="Array<{ readonly kind: \"ready\" }>.<extension#6>.index#3<\"exclusive\">"
+/// @generic.instance source=values[0] id="Array<{ readonly kind: \"ready\" }>.<extension#4>.index#1<\"exclusive\">"
 
-/// @generic.instance id="Array<{ readonly kind: \"ready\" }>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=({ readonly kind: "ready" }, "exclusive")
+/// @generic.instance id="Array<{ readonly kind: \"ready\" }>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=({ readonly kind: "ready" }, "exclusive")
 /// @generic.instance id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
 "#,
     );
@@ -681,6 +681,7 @@ class Bucket<K: Equal<K>> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.key kind=place
+        /// @resolution.access source=this.key root=this keys=[key]
         /// @resolution.assignment source=this.key write="receiver=Bucket<K>, target=field(receiver=Bucket<K>, target=Bucket.key, type=K), type=K" type=K
         /// @resolution.name source=key target=Bucket.constructor.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
@@ -807,6 +808,7 @@ class Box<K> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.key kind=place
+        /// @resolution.access source=this.key root=this keys=[key]
         /// @resolution.assignment source=this.key write="receiver=Box<K#1>, target=field(receiver=Box<K#1>, target=Box.key, type=K#1), type=K#1" type=K#1
         /// @resolution.name source=key target=Box.constructor.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
@@ -940,6 +942,7 @@ class Box<K> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.key kind=place
+        /// @resolution.access source=this.key root=this keys=[key]
         /// @resolution.assignment source=this.key write="receiver=Box<K>, target=field(receiver=Box<K>, target=Box.key, type=K), type=K" type=K
         /// @resolution.name source=key target=Box.constructor.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
@@ -1041,6 +1044,7 @@ class Box<K> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.key kind=place
+        /// @resolution.access source=this.key root=this keys=[key]
         /// @resolution.assignment source=this.key write="receiver=Box<K#1>, target=field(receiver=Box<K#1>, target=Box.key, type=K#1), type=K#1" type=K#1
         /// @resolution.name source=key target=Box.constructor.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
@@ -1191,6 +1195,7 @@ class Box<K> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.key kind=place
+        /// @resolution.access source=this.key root=this keys=[key]
         /// @resolution.assignment source=this.key write="receiver=Box<K#1>, target=field(receiver=Box<K#1>, target=Box.key, type=K#1), type=K#1" type=K#1
         /// @resolution.name source=key target=Box.constructor.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
@@ -1839,6 +1844,7 @@ class Box<T> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Box<T#1>, target=field(receiver=Box<T#1>, target=Box.value, type=T#1), type=T#1" type=T#1
         /// @resolution.name source=value target=Box.constructor.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

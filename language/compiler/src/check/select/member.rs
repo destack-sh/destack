@@ -569,7 +569,12 @@ impl BodyState<'_, '_> {
                         continue;
                     };
                     let access = if candidate.role == MemberRole::Getter {
-                        let call = answer!(self.select_getter_call(origin, receiver, candidate)?);
+                        // rejecting receivers skip to the next declared candidate
+                        let Some(call) =
+                            answer!(self.select_getter_call(origin, receiver, candidate)?)
+                        else {
+                            continue;
+                        };
 
                         dir::MemberAccess::new(
                             receiver.ty,
@@ -716,7 +721,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: Value,
         candidate: &MemberCandidate,
-    ) -> CompilerResult<Answer<dir::Call>> {
+    ) -> CompilerResult<Answer<Option<dir::Call>>> {
         let symbol = candidate.symbol;
         let resolution = candidate.receiver.resolve(receiver.ty);
         let selection_type = match &resolution {
@@ -741,21 +746,15 @@ impl BodyState<'_, '_> {
             &arguments,
             None,
         )?);
-        let SignatureMatch::Selected(signature) = selected else {
-            let name = self.format_symbol_path(symbol);
-            let receiver = self.format_type(selection_receiver.ty);
-            let callable = self.format_type(callable);
 
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "selected getter '{name}' with type '{callable}' rejects receiver '{receiver}'",
-                ),
-            });
+        // a rejecting receiver skips to the next declared candidate
+        let SignatureMatch::Selected(signature) = selected else {
+            return Ok(Answer::Ready(None));
         };
         let arguments = Self::source_argument_bindings(&[], &signature.parameters);
         let resolution = signature.member_call(resolution, candidate.owner, symbol, arguments);
 
-        Ok(Answer::Ready(resolution))
+        Ok(Answer::Ready(Some(resolution)))
     }
 
     /// Select one setter invocation from a writable member candidate.

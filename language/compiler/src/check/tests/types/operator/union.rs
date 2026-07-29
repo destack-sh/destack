@@ -24,6 +24,7 @@ let value: string | int32 = "hello";
 
 value = 42;
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=string | int32
 "#,
     );
@@ -492,12 +493,12 @@ const first = values[0];
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static int32, "exclusive">), collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static string, "exclusive">)]
-/// @generic.instance source=values[0] id="Array<int32>.<extension#6>.index#3<\"exclusive\">"
-/// @generic.instance source=values[0] id="Array<string>.<extension#6>.index#3<\"exclusive\">"
+/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static int32, "exclusive">), collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static string, "exclusive">)]
+/// @generic.instance source=values[0] id="Array<int32>.<extension#4>.index#1<\"exclusive\">"
+/// @generic.instance source=values[0] id="Array<string>.<extension#4>.index#1<\"exclusive\">"
 
-/// @generic.instance id="Array<int32>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(int32, "exclusive")
-/// @generic.instance id="Array<string>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(string, "exclusive")
+/// @generic.instance id="Array<int32>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(int32, "exclusive")
+/// @generic.instance id="Array<string>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(string, "exclusive")
 "#,
     );
 }

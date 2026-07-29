@@ -191,7 +191,7 @@ extension<T> of Box<T> where T: Readable {
 }
 
 declare const boxed: Box<Token>;
-boxed.read<Token>();
+boxed.read();
 
 === checked ===
 interface Readable {
@@ -262,24 +262,19 @@ declare const boxed: Box<Token>;
 
 boxed.read();
 /// @type.node source=boxed type=Box<Token>
-/// @type.node source=boxed.read type=<read.'a>(this: &read.'a exclusive Box<Token>) => string
-/// @type.node source=boxed.read() type=string
+/// @type.node source=boxed.read type=<error>
+/// @type.node source=boxed.read() type=<error>
 /// @resolution.name source=boxed target=boxed
-/// @resolution.member source=boxed.read receiver=Box<Token> type=<read.'a>(this: &read.'a exclusive Box<Token>) => string kind=symbol target_receiver=Box<Token> target=read
-/// @resolution.call source=boxed.read() parameters=() return=string kind=symbol target=read receiver=Box<Token> adjustments=(borrow(&'static exclusive Box<Token>)) instance=Box<Token>.<extension#1>.read
 /// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=boxed root=boxed
 /// @generic.instance source=boxed id=Box<Token>
-/// @generic.instance source=boxed.read id=Box<Token>
-/// @generic.instance source=boxed.read() id=Box<Token>.<extension#1>.read
 
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 /// @generic.instance id=Box<Token> template=Box arguments=(Token)
-/// @generic.instance id=Box<Token>.<extension#1>.read template=read arguments=(Token)
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'Token' does not satisfy 'Readable'"
-/// @diagnostic.label line=19 column=1 span="boxed.read()" line_source="boxed.read();"
+/// @diagnostic.error id=missing-member message="member 'read' does not exist on type 'Box<Token>'"
+/// @diagnostic.label line=19 column=7 span="read" line_source="boxed.read();"
 "#,
     );
 }
@@ -524,9 +519,9 @@ export extension<T> of Pack<T> where T: Copy {
 
         this.duplicate()
         /// @type.node source=this type=&twice.'a readonly Pack<T#3>
-        /// @type.node source=this.duplicate type=<duplicate.'a>(this: &duplicate.'a readonly Pack<T#3>) => T#3
+        /// @type.node source=this.duplicate type=<duplicate.'a>(this: &duplicate.'a readonly &twice.'a readonly Pack<T#3>) => T#3 reduced=<duplicate.'a>(this: &duplicate.'a readonly Pack<T#3>) => T#3
         /// @type.node source=this.duplicate() type=T#3
-        /// @resolution.member source=this.duplicate receiver=&twice.'a readonly Pack<T#3> type=<duplicate.'a>(this: &duplicate.'a readonly Pack<T#3>) => T#3 kind=symbol target_receiver=&twice.'a readonly Pack<T#3> target=duplicate
+        /// @resolution.member source=this.duplicate receiver=&twice.'a readonly Pack<T#3> type=<duplicate.'a>(this: &duplicate.'a readonly &twice.'a readonly Pack<T#3>) => T#3 kind=symbol target_receiver=&twice.'a readonly Pack<T#3> target=duplicate
         /// @resolution.call source=this.duplicate() parameters=() return=T#3 kind=symbol target=duplicate receiver=&twice.'a readonly Pack<T#3> instance=Pack<T#3>.<extension#1>.duplicate
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&twice.'a readonly Pack<T#3>
         /// @resolution.place source=this placement="local" lifetime=twice.'a access="readonly"

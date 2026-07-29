@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Expectation,
-    MemoryRank, Origin, SignatureMatch, SignatureRejection, TypeSubstitution, ValueUse, answer,
+    Answer, BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, Expectation, Origin,
+    SignatureMatch, SignatureRejection, TypeSubstitution, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -119,15 +119,13 @@ impl BodyState<'_, '_> {
 
         // select according to the construction's ambiguity rule
         let is_single_candidate = candidates.len() == 1;
-        let mut winner: Option<(MemoryRank, NewtypeCandidate)> = None;
-        let mut indeterminate = None;
+        let mut selected_candidate = None;
         let mut notes = Vec::new();
         for candidate in candidates.iter().copied() {
             if is_single_candidate {
-                winner = Some((MemoryRank::Exact, candidate));
+                selected_candidate = Some(candidate);
                 break;
             }
-            let mut rank = MemoryRank::Exact;
             let (verdict, rejection) = answer!(self.probe_candidate_noted(
                 |state| {
                     let outcome = state.match_newtype_candidate(
@@ -138,13 +136,7 @@ impl BodyState<'_, '_> {
                         expectation,
                     )?;
                     match outcome {
-                        Answer::Ready(matched) => {
-                            if let SignatureMatch::Selected(selection) = &matched {
-                                rank = selection.rank;
-                            }
-
-                            Ok(Answer::Ready(matched.into_candidate()))
-                        }
+                        Answer::Ready(matched) => Ok(Answer::Ready(matched.into_candidate())),
                         Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
                     }
                 },
@@ -157,18 +149,17 @@ impl BodyState<'_, '_> {
             match verdict {
                 CandidateVerdict::Rejected => notes.extend(rejection),
                 CandidateVerdict::Viable => {
-                    if overload == NewtypeOverload::Unambiguous && winner.is_some() {
+                    if overload == NewtypeOverload::Unambiguous && selected_candidate.is_some() {
                         return Ok(Answer::Ready(NewtypeMatch::Rejected(
                             NewtypeRejection::Ambiguous,
                         )));
                     }
                     if overload == NewtypeOverload::Unambiguous {
-                        winner = Some((rank, candidate));
-                    } else if rank == MemoryRank::Exact {
-                        winner = Some((rank, candidate));
+                        selected_candidate = Some(candidate);
+                    } else {
+                        selected_candidate = Some(candidate);
+
                         break;
-                    } else if winner.is_none_or(|(best, _)| rank < best) {
-                        winner = Some((rank, candidate));
                     }
                 }
                 CandidateVerdict::Indeterminate => {
@@ -177,17 +168,18 @@ impl BodyState<'_, '_> {
                             NewtypeRejection::Ambiguous,
                         )));
                     }
-                    indeterminate.get_or_insert(candidate);
+                    selected_candidate = Some(candidate);
+
+                    break;
                 }
             }
         }
-        let winner = winner.map(|(_, candidate)| candidate);
 
         // confirm the selected candidate outside speculative state
         let mut selected = None;
         let mut is_return_mismatch = false;
         let mut signature_rejection = None;
-        if let Some(candidate) = winner.or(indeterminate) {
+        if let Some(candidate) = selected_candidate {
             let matched = answer!(self.confirm_candidate(|state| {
                 let matched = state.match_newtype_candidate(
                     origin,

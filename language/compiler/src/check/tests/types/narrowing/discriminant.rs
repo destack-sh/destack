@@ -646,8 +646,8 @@ function read(values: ("pending" | "ready")[]): "ready" {
     /// @resolution.access source=values root=read.values
     /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values[0] root=read.values keys=[0]
-    /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
-    /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#6>.index#3<\"exclusive\">"
+    /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
+    /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#4>.index#1<\"exclusive\">"
 
         return values[0];
         /// @resolution.name source=values target=read.values
@@ -655,15 +655,15 @@ function read(values: ("pending" | "ready")[]): "ready" {
         /// @resolution.access source=values root=read.values
         /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values[0] root=read.values keys=[0]
-        /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
-        /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#6>.index#3<\"exclusive\">"
+        /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
+        /// @generic.instance source=values[0] id="Array<\"pending\" | \"ready\">.<extension#4>.index#1<\"exclusive\">"
 
     }
 
     return "ready";
 }
 
-/// @generic.instance id="Array<\"pending\" | \"ready\">.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=("pending" | "ready", "exclusive")
+/// @generic.instance id="Array<\"pending\" | \"ready\">.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=("pending" | "ready", "exclusive")
 "#,
         r#"
 
@@ -1063,6 +1063,7 @@ function read(initial: State, next: State): int32 {
         /// @type.node source="state = next" type=Dynamic<Pending> | Dynamic<Fulfilled>
         /// @type.node source=state type=Dynamic<Pending> | Dynamic<Fulfilled>
         /// @resolution.pattern.assign source=state kind=place
+        /// @resolution.access source=state root=read.state
         /// @resolution.assignment source=state write=binding(read.state) type=Dynamic<Pending> | Dynamic<Fulfilled>
         /// @type.node source=next type=Dynamic<Pending> | Dynamic<Fulfilled>
         /// @resolution.name source=next target=read.next
@@ -1237,6 +1238,7 @@ class Waiter<T> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Waiter<T#1>, target=field(receiver=Waiter<T#1>, target=Waiter.value, type=T#1), type=T#1" type=T#1
         /// @resolution.name source=value target=Waiter.constructor.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -1247,6 +1249,7 @@ class Waiter<T> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.next kind=place
+        /// @resolution.access source=this.next root=this keys=[next]
         /// @resolution.assignment source=this.next write="receiver=Waiter<T#1>, target=field(receiver=Waiter<T#1>, target=Waiter.next, type=Waiter<T#1> | undefined), type=Waiter<T#1> | undefined" type=Waiter<T#1> | undefined
 
     }
@@ -1329,6 +1332,7 @@ class Cell<T> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.state kind=place
+        /// @resolution.access source=this.state root=this keys=[state]
         /// @resolution.assignment source=this.state write="receiver=Cell<T#5>, target=field(receiver=Cell<T#5>, target=Cell.state, type=State<T#5>), type=State<T#5>" type=State<T#5>
         /// @resolution.name source=pending target=Cell.constructor.pending
         /// @resolution.place source=pending placement="local" lifetime="frame" access="exclusive"
@@ -1406,6 +1410,7 @@ class Cell<T> {
             /// @resolution.place source=this.state placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
             /// @resolution.pattern.assign source=this.state.head kind=place
+            /// @resolution.access source=this.state.head root=this keys=[state, head]
             /// @resolution.assignment source=this.state.head write="receiver=Pending<T#5>, target=field(receiver=Pending<T#5>, target=Pending.head, type=Waiter<T#5> | undefined), type=Waiter<T#5> | undefined" type=Waiter<T#5> | undefined
             /// @resolution.name source=waiter target=Cell.poke.waiter
             /// @resolution.place source=waiter placement="local" lifetime="frame" access="exclusive"
@@ -1419,6 +1424,7 @@ class Cell<T> {
             /// @resolution.place source=this.state placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
             /// @resolution.pattern.assign source=this.state.tail kind=place
+            /// @resolution.access source=this.state.tail root=this keys=[state, tail]
             /// @resolution.assignment source=this.state.tail write="receiver=Pending<T#5>, target=field(receiver=Pending<T#5>, target=Pending.tail, type=Waiter<T#5> | undefined), type=Waiter<T#5> | undefined" type=Waiter<T#5> | undefined
             /// @resolution.name source=waiter target=Cell.poke.waiter
             /// @resolution.place source=waiter placement="local" lifetime="frame" access="exclusive"
@@ -1436,6 +1442,7 @@ class Cell<T> {
             /// @resolution.place source=this.state.tail placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=this.state.tail root=this keys=[state, tail]
             /// @resolution.pattern.assign source=this.state.tail.next kind=place
+            /// @resolution.access source=this.state.tail.next root=this keys=[state, tail, next]
             /// @resolution.assignment source=this.state.tail.next write="receiver=Waiter<T#5>, target=field(receiver=Waiter<T#5>, target=Waiter.next, type=Waiter<T#5> | undefined), type=Waiter<T#5> | undefined" type=Waiter<T#5> | undefined
             /// @resolution.name source=waiter target=Cell.poke.waiter
             /// @resolution.place source=waiter placement="local" lifetime="frame" access="exclusive"
@@ -1449,6 +1456,7 @@ class Cell<T> {
             /// @resolution.place source=this.state placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
             /// @resolution.pattern.assign source=this.state.tail kind=place
+            /// @resolution.access source=this.state.tail root=this keys=[state, tail]
             /// @resolution.assignment source=this.state.tail write="receiver=Pending<T#5>, target=field(receiver=Pending<T#5>, target=Pending.tail, type=Waiter<T#5> | undefined), type=Waiter<T#5> | undefined" type=Waiter<T#5> | undefined
             /// @resolution.name source=waiter target=Cell.poke.waiter
             /// @resolution.place source=waiter placement="local" lifetime="frame" access="exclusive"

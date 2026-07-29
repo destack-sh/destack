@@ -5,10 +5,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, CallableArgument, CandidateOutcome, CandidateVerdict, CheckFailure,
-    CheckOutcome, Decision, DecisionKind, Dependency, Expectation, FlowSite, InferMode, MemoryRank,
-    Origin, PlaceUse, SignatureMatch, SignatureSelection, TypeSubstitution, Value, ValueCheck,
-    ValueUse, answer,
+    Answer, BodyState, CallableArgument, CandidateVerdict, CheckFailure, CheckOutcome, Decision,
+    DecisionKind, Dependency, Expectation, FlowSite, InferMode, Origin, PlaceUse, SignatureMatch,
+    SignatureSelection, TypeSubstitution, Value, ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -529,7 +528,7 @@ impl BodyState<'_, '_> {
     }
 }
 
-/// The best overload combination selected across every runtime arm.
+/// The overload combination selected across every runtime arm.
 struct OverloadSelection<'candidate> {
     /// The selected callable for each runtime arm.
     candidates: SmallVec<[&'candidate CallableCandidate; 2]>,
@@ -537,20 +536,12 @@ struct OverloadSelection<'candidate> {
     rejections: Vec<String>,
 }
 
-/// The signatures selected across every runtime callee.
-struct CallSelection {
-    /// The selected signatures in runtime-arm order.
-    signatures: SmallVec<[SignatureSelection; 2]>,
-    /// The greatest memory conversion required by any selected arm.
-    rank: MemoryRank,
-}
-
 /// Result of matching one call across every possible runtime callee.
 enum CallMatch {
     /// Every runtime callee accepts the invocation and its expected result.
-    Selected(CallSelection),
+    Selected(SmallVec<[SignatureSelection; 2]>),
     /// Every runtime callee accepts the invocation but not its expected result.
-    ReturnMismatch(CallSelection),
+    ReturnMismatch(SmallVec<[SignatureSelection; 2]>),
     /// At least one runtime callee rejects the invocation.
     Inapplicable(String),
 }
@@ -579,7 +570,7 @@ impl BodyState<'_, '_> {
         Ok(Answer::Ready(matched))
     }
 
-    /// Select one jointly viable overload from every runtime arm.
+    /// Select the first applicable overload from every runtime arm.
     fn select_overloads<'candidate>(
         &mut self,
         origin: Origin,
@@ -595,11 +586,12 @@ impl BodyState<'_, '_> {
             }));
         }
 
-        // one declaration on one runtime arm needs no ranking probe
-        if let [CallableArm { overloads }] = arms
-            && let [candidate] = overloads.as_slice()
-        {
-            let candidates = SmallVec::from_slice(&[candidate]);
+        // one declaration per runtime arm needs no selection probe
+        if arms.iter().all(|arm| arm.overloads.len() == 1) {
+            let candidates = arms
+                .iter()
+                .map(|arm| &arm.overloads[0])
+                .collect::<SmallVec<[_; 2]>>();
 
             return Ok(Answer::Ready(OverloadSelection {
                 candidates,
@@ -607,90 +599,57 @@ impl BodyState<'_, '_> {
             }));
         }
 
-        let mut indices = vec![0; arms.len()];
-        let mut winner = None;
-        let mut indeterminate = None;
+        let mut candidates = SmallVec::with_capacity(arms.len());
         let mut rejections = Vec::new();
 
-        // rank complete overload combinations under one inference transaction
-        loop {
-            let selected = arms
-                .iter()
-                .zip(&indices)
-                .map(|(arm, index)| &arm.overloads[*index])
-                .collect::<SmallVec<[_; 2]>>();
-            let mut rank = MemoryRank::Exact;
-            let (verdict, rejection) = answer!(self.probe_candidate_noted(
-                |state| {
-                    let matched = state.attempt_calls(
-                        origin,
-                        &selected,
-                        arguments,
-                        argument_types,
-                        expectation,
-                    )?;
-                    match matched {
-                        Answer::Ready(CallMatch::Selected(selection)) => {
-                            rank = selection.rank;
+        // select the first viable declaration from each runtime arm, falling
+        //  back to the first undecided one when nothing decides; the
+        //  expected return never reorders overloads
+        for arm in arms {
+            let mut selected = None;
+            let mut undecided = None;
+            rejections.clear();
+            for candidate in &arm.overloads {
+                let (verdict, rejection) = answer!(self.probe_candidate_noted(
+                    |state| {
+                        let matched = state.attempt_call(
+                            origin,
+                            candidate,
+                            arguments,
+                            argument_types,
+                            expectation,
+                        )?;
+                        match matched {
+                            Answer::Ready(matched) => Ok(Answer::Ready(matched.into_candidate())),
+                            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                        }
+                    },
+                    |state, rejection| {
+                        state.check.describe_signature_rejection(
+                            origin.module(),
+                            candidate.ty,
+                            rejection,
+                        )
+                    },
+                )?);
+                match verdict {
+                    CandidateVerdict::Rejected => rejections.extend(rejection),
+                    CandidateVerdict::Viable => {
+                        selected = Some(candidate);
 
-                            Ok(Answer::Ready(CandidateOutcome::Accepted(())))
-                        }
-                        Answer::Ready(CallMatch::ReturnMismatch(selection)) => {
-                            rank = selection.rank;
-
-                            Ok(Answer::Ready(CandidateOutcome::Rejected(
-                                "return type does not satisfy the expected type".to_string(),
-                            )))
-                        }
-                        Answer::Ready(CallMatch::Inapplicable(rejection)) => {
-                            Ok(Answer::Ready(CandidateOutcome::Rejected(rejection)))
-                        }
-                        Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                        break;
                     }
-                },
-                |_state, rejection| Ok(rejection.clone()),
-            )?);
-            match verdict {
-                CandidateVerdict::Rejected => rejections.extend(rejection),
-                CandidateVerdict::Viable => {
-                    if winner
-                        .as_ref()
-                        .is_none_or(|(best, _): &(MemoryRank, Vec<usize>)| rank < *best)
-                    {
-                        winner = Some((rank, indices.clone()));
+                    CandidateVerdict::Indeterminate => {
+                        undecided.get_or_insert(candidate);
                     }
                 }
-                CandidateVerdict::Indeterminate => {
-                    indeterminate.get_or_insert_with(|| indices.clone());
-                }
             }
-            if rank == MemoryRank::Exact && matches!(verdict, CandidateVerdict::Viable) {
+            let Some(selected) = selected.or(undecided) else {
+                candidates.clear();
+
                 break;
-            }
-
-            // advance the declaration-order Cartesian traversal
-            let mut advanced = false;
-            for position in (0..indices.len()).rev() {
-                if indices[position] + 1 < arms[position].overloads.len() {
-                    indices[position] += 1;
-                    indices[position + 1..].fill(0);
-                    advanced = true;
-
-                    break;
-                }
-            }
-            if !advanced {
-                break;
-            }
-        }
-
-        // collect the best viable combination in runtime-arm order
-        let indices = winner.map(|(_, indices)| indices).or(indeterminate);
-        let mut candidates = SmallVec::new();
-        if let Some(indices) = indices {
-            for (arm, index) in arms.iter().zip(indices) {
-                candidates.push(&arm.overloads[index]);
-            }
+            };
+            candidates.push(selected);
         }
 
         Ok(Answer::Ready(OverloadSelection {
@@ -711,7 +670,6 @@ impl BodyState<'_, '_> {
         let mut signatures = SmallVec::with_capacity(candidates.len());
         let mut coercions = SmallVec::<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>::new();
         let mut has_return_mismatch = false;
-        let mut rank = MemoryRank::Exact;
 
         // require every runtime arm under the same inference state
         for candidate in candidates {
@@ -740,8 +698,6 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(CallMatch::Inapplicable(rejection)));
                 }
             };
-            rank = rank.max(signature.rank);
-
             // require one uniform argument conversion across every runtime arm
             for (node, coercion) in &signature.coercions {
                 match coercions.iter().find(|(source, _)| source == node) {
@@ -758,11 +714,10 @@ impl BodyState<'_, '_> {
             signatures.push(signature);
         }
 
-        let selection = CallSelection { signatures, rank };
         if has_return_mismatch {
-            Ok(Answer::Ready(CallMatch::ReturnMismatch(selection)))
+            Ok(Answer::Ready(CallMatch::ReturnMismatch(signatures)))
         } else {
-            Ok(Answer::Ready(CallMatch::Selected(selection)))
+            Ok(Answer::Ready(CallMatch::Selected(signatures)))
         }
     }
 }
@@ -877,7 +832,7 @@ impl BodyState<'_, '_> {
             );
         }
 
-        // select the best overload by memory rank and declaration order
+        // select the first applicable overload in declaration order
         let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
         let is_single_candidate = candidates.len() == 1;
         let overload = answer!(self.select_overloads(
@@ -888,7 +843,7 @@ impl BodyState<'_, '_> {
             expectation,
         )?);
 
-        // confirm the winner outside any probe
+        // confirm the selected declaration outside any probe
         if let Some(candidate) = overload.candidates.first().copied() {
             let attempt =
                 self.attempt_call(origin, candidate, &arguments, &argument_types, expectation)?;
@@ -1045,7 +1000,7 @@ impl BodyState<'_, '_> {
         let arguments =
             self.callable_arguments(origin.module(), argument_nodes, ValueUse::Argument)?;
 
-        // select one jointly viable overload from every runtime arm
+        // select the first applicable overload from every runtime arm
         let overload = answer!(self.select_overloads(
             origin,
             &candidates.arms,
@@ -1061,8 +1016,8 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(self.reject_call(node, expectation)?));
         }
 
-        // confirm the selected combination outside the ranking probes
-        let (selection, outcome) = match answer!(self.attempt_calls(
+        // confirm the selected combination outside the selection probes
+        let (signatures, outcome) = match answer!(self.attempt_calls(
             origin,
             &overload.candidates,
             &arguments,
@@ -1081,16 +1036,21 @@ impl BodyState<'_, '_> {
         };
 
         // commit the confirmed calls in runtime-arm order
-        for signature in &selection.signatures {
+        for signature in &signatures {
             for (source, coercion) in &signature.coercions {
                 self.commit_coercion(*source, coercion.clone())?;
             }
         }
         let mut calls = Vec::with_capacity(overload.candidates.len());
         let mut returns = SmallVec::<[_; 4]>::new();
-        for (candidate, signature) in overload.candidates.iter().zip(selection.signatures) {
-            let call =
-                self.call_resolution(origin.module(), candidate, argument_nodes, &signature)?;
+        for (candidate, signature) in overload.candidates.iter().zip(signatures) {
+            let call = self.call_resolution(
+                origin,
+                origin.module(),
+                candidate,
+                argument_nodes,
+                &signature,
+            )?;
             returns.push(call.return_type);
             calls.push(call);
         }
@@ -1161,7 +1121,14 @@ impl BodyState<'_, '_> {
             self.commit_node_type(callee, signature.callable)?;
         }
 
-        let call = self.call_resolution(node.module_id, candidate, argument_nodes, &signature)?;
+        let origin = Origin::Node(node, None);
+        let call = self.call_resolution(
+            origin,
+            node.module_id,
+            candidate,
+            argument_nodes,
+            &signature,
+        )?;
         let resolution = dir::OperationResolution::One(call);
 
         self.commit_call_selection(node, resolution)
@@ -1170,12 +1137,14 @@ impl BodyState<'_, '_> {
     /// Build one expression or symbol call resolution.
     fn call_resolution(
         &mut self,
+        origin: Origin,
         module: ModuleId,
         candidate: &CallableCandidate,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: &SignatureSelection,
     ) -> CompilerResult<dir::Call> {
-        let arguments = self.argument_bindings(module, argument_nodes, &signature.parameters);
+        let arguments =
+            self.argument_bindings(origin, module, argument_nodes, &signature.parameters)?;
         let return_type =
             self.select_call_return_type(module, candidate, argument_nodes, signature.return_type)?;
         let target = match &candidate.target {
@@ -1309,8 +1278,12 @@ impl BodyState<'_, '_> {
             discriminator,
             discriminant: dir::ScalarLiteral::String(variant.discriminant),
         });
-        let arguments =
-            self.argument_bindings(node.module_id, argument_nodes, &signature.parameters);
+        let arguments = self.argument_bindings(
+            Origin::Node(node, None),
+            node.module_id,
+            argument_nodes,
+            &signature.parameters,
+        )?;
         let resolution = dir::ConstructResolution::new(target, arguments, signature.return_type);
 
         self.commit_decision(node, Decision::Construct(resolution))?;

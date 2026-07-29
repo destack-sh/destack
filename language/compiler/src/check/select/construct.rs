@@ -4,9 +4,9 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, CallableArgument, CandidateVerdict, CheckFailure, CheckOutcome, Decision,
-    DecisionKind, Expectation, FlowSite, MemoryRank, NewtypeMatch, NewtypeOverload,
-    NewtypeRejection, NewtypeSignature, Origin, SignatureMatch, SignatureRejection,
-    SignatureSelection, TypeArgumentInference, TypeSubstitution, ValueCheck, ValueUse, answer,
+    DecisionKind, Expectation, FlowSite, NewtypeMatch, NewtypeOverload, NewtypeRejection,
+    NewtypeSignature, Origin, SignatureMatch, SignatureRejection, SignatureSelection,
+    TypeArgumentInference, TypeSubstitution, ValueCheck, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -380,17 +380,15 @@ impl BodyState<'_, '_> {
             })
         });
 
-        // winnow constructors in declaration order, then confirm the winner
+        // select the first applicable constructor in declaration order
         let is_single_candidate = constructors.len() == 1;
-        let mut winner: Option<(MemoryRank, dir::ClassConstructorDefinition)> = None;
-        let mut indeterminate = None;
+        let mut selected = None;
         let mut rejections = Vec::new();
         for constructor in constructors {
             if is_single_candidate {
-                winner = Some((MemoryRank::Exact, constructor));
+                selected = Some(constructor);
                 break;
             }
-            let mut rank = MemoryRank::Exact;
             let (verdict, rejection) = answer!(self.probe_candidate_noted(
                 |state| {
                     let outcome = state.attempt_construct(
@@ -405,13 +403,7 @@ impl BodyState<'_, '_> {
                         receiver,
                     )?;
                     match outcome {
-                        Answer::Ready(matched) => {
-                            if let SignatureMatch::Selected(selection) = &matched {
-                                rank = selection.rank;
-                            }
-
-                            Ok(Answer::Ready(matched.into_candidate()))
-                        }
+                        Answer::Ready(matched) => Ok(Answer::Ready(matched.into_candidate())),
                         Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
                     }
                 },
@@ -423,24 +415,16 @@ impl BodyState<'_, '_> {
             )?);
             match verdict {
                 CandidateVerdict::Rejected => rejections.extend(rejection),
-                CandidateVerdict::Viable => {
-                    if rank == MemoryRank::Exact {
-                        winner = Some((rank, constructor));
-                        break;
-                    }
-                    if winner.as_ref().is_none_or(|(best, _)| rank < *best) {
-                        winner = Some((rank, constructor));
-                    }
-                }
-                CandidateVerdict::Indeterminate => {
-                    indeterminate.get_or_insert(constructor);
+                CandidateVerdict::Viable | CandidateVerdict::Indeterminate => {
+                    selected = Some(constructor);
+
+                    break;
                 }
             }
         }
-        let winner = winner.map(|(_, constructor)| constructor);
 
-        // confirm the winner outside any probe
-        if let Some(constructor) = winner.or(indeterminate) {
+        // confirm the selected declaration outside any probe
+        if let Some(constructor) = selected {
             let attempt = self.attempt_construct(
                 origin,
                 module,
@@ -766,7 +750,7 @@ impl BodyState<'_, '_> {
         let target = dir::ConstructTarget::Newtype(selection);
         let resolution = dir::ConstructResolution::new(
             target,
-            self.argument_bindings(module, argument_nodes, &parameters),
+            self.argument_bindings(origin, module, argument_nodes, &parameters)?,
             return_type,
         );
         self.commit_decision(node, Decision::Construct(resolution))?;
@@ -824,7 +808,12 @@ impl BodyState<'_, '_> {
         }
         let resolution = dir::ConstructResolution::new(
             target,
-            self.argument_bindings(module, argument_nodes, &signature.parameters),
+            self.argument_bindings(
+                Origin::Node(node, None),
+                module,
+                argument_nodes,
+                &signature.parameters,
+            )?,
             produced,
         );
         self.commit_decision(node, Decision::Construct(resolution))?;

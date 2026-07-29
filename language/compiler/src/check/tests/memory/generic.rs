@@ -718,6 +718,7 @@ class Box<T> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Box<T>, target=field(receiver=Box<T>, target=Box.value, type=T), type=T" type=T
         /// @resolution.name source=value target=Box.constructor.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -870,7 +871,7 @@ extension<T> of Box<T> {
     /// @resolution.name source=T target=T
 
         this.borrow()
-        /// @resolution.member source=this.borrow receiver=&forward.'a readonly Box<T#2> type=<borrow.'a>(this: &borrow.'a readonly Box<T#2>) => &borrow.'a readonly T#2 kind=symbol target_receiver=&forward.'a readonly Box<T#2> target=borrow
+        /// @resolution.member source=this.borrow receiver=&forward.'a readonly Box<T#2> type=<borrow.'a>(this: &borrow.'a readonly &forward.'a readonly Box<T#2>) => &borrow.'a readonly T#2 kind=symbol target_receiver=&forward.'a readonly Box<T#2> target=borrow
         /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 kind=symbol target=borrow receiver=&forward.'a readonly Box<T#2> instance=Box<T#2>.<extension#1>.borrow
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'a readonly Box<T#2>
         /// @resolution.place source=this placement="local" lifetime=forward.'a access="readonly"

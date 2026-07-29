@@ -6,17 +6,6 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin, answer};
 
-/// Overload rank of one accepted memory relation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(in crate::check) enum MemoryRank {
-    /// Source and target memory forms match exactly.
-    Exact,
-    /// A mutable borrow weakens to readonly access.
-    Weakened,
-    /// Managed or owned storage is borrowed.
-    Borrowed,
-}
-
 /// Memory forms stacked over one base type.
 #[derive(Debug, Clone)]
 pub(in crate::check) struct FormChain {
@@ -1153,46 +1142,6 @@ impl CheckState<'_> {
         });
 
         Ok(Some(self.intern_memory_type(origin, formed)?))
-    }
-
-    /// Return the overload rank of one accepted memory relation.
-    pub(in crate::check) fn memory_rank(
-        &mut self,
-        origin: Origin,
-        argument: dir::GlobalTypeId,
-        parameter: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<MemoryRank>> {
-        // representation-changing borrows rank last
-        if answer!(self.borrow_conversion(origin, argument, parameter)?).is_some() {
-            return Ok(Answer::Ready(MemoryRank::Borrowed));
-        }
-
-        // require two existing borrows to differ by access alone
-        let argument = self.form_chain(origin, argument)?;
-        let parameter = self.form_chain(origin, parameter)?;
-        let Some(dir::Form::Borrowed(argument_borrow)) =
-            argument.ownership_form().map(|entry| entry.form)
-        else {
-            return Ok(Answer::Ready(MemoryRank::Exact));
-        };
-        let Some(dir::Form::Borrowed(parameter_borrow)) =
-            parameter.ownership_form().map(|entry| entry.form)
-        else {
-            return Ok(Answer::Ready(MemoryRank::Exact));
-        };
-
-        // access weakening between borrowed forms ranks in the middle
-        let argument_borrow = self.type_borrow(origin.module(), argument_borrow)?;
-        let parameter_borrow = self.type_borrow(origin.module(), parameter_borrow)?;
-        let argument_access = answer!(self.access_literal(origin, argument_borrow.access)?);
-        let parameter_access = answer!(self.access_literal(origin, parameter_borrow.access)?);
-        if let (Some(argument_access), Some(parameter_access)) = (argument_access, parameter_access)
-            && argument_access != parameter_access
-        {
-            return Ok(Answer::Ready(MemoryRank::Weakened));
-        }
-
-        Ok(Answer::Ready(MemoryRank::Exact))
     }
 
     /// Return whether two related types differ only by concrete placement.

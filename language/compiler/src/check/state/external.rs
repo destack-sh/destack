@@ -201,15 +201,6 @@ impl CheckState<'_> {
     /// Kinds are binder facts, so declaring reads a foreign module's bound tables without
     /// touching its declared types.
     /// Bound and expanded artifacts precede every declared artifact, so this read keeps the
-    /// declared artifact graph acyclic.
-    pub(in crate::check) fn external_binder_kind(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> dir::SymbolKind {
-        self.binding_table(symbol.module_id)
-            .get_symbol(symbol.local_id)
-            .kind
-    }
 
     /// Return one foreign symbol's bound key without loading its surface.
     pub(in crate::check) fn external_binder_key(

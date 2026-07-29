@@ -224,12 +224,14 @@ const length = values.length;
 /// @type.node source=values type=Array<int32>
 /// @type.node source=values.length type=usize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=usize)"
+/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=existential targets=[collections.array.length#2(parameters=(), arguments=(), return=usize), collections.array.length#4(parameters=(), arguments=(), return=usize)]
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instance source=values.length id=Array<int32>.<extension#6>.length#2
+/// @generic.instance source=values.length id=Array<int32>.<extension#2>.length#2
+/// @generic.instance source=values.length id=Array<int32>.<extension#4>.length#4
 
-/// @generic.instance id=Array<int32>.<extension#6>.length#2 template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=Array<int32>.<extension#2>.length#2 template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=Array<int32>.<extension#4>.length#4 template=collections.array.length#4 arguments=(int32)
 "#,
     );
 }
@@ -271,12 +273,14 @@ const length = values.length;
 /// @type.node source=values type=Array<int32>
 /// @type.node source=values.length type=usize
 /// @resolution.name source=values target=values.values
-/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=call target="collections.array.length#2(parameters=(), arguments=(), return=usize)"
+/// @resolution.member source=values.length receiver=Array<int32> type=usize kind=existential targets=[collections.array.length#2(parameters=(), arguments=(), return=usize), collections.array.length#4(parameters=(), arguments=(), return=usize)]
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values.values
-/// @generic.instance source=values.length id=Array<int32>.<extension#6>.length#2
+/// @generic.instance source=values.length id=Array<int32>.<extension#2>.length#2
+/// @generic.instance source=values.length id=Array<int32>.<extension#4>.length#4
 
-/// @generic.instance id=Array<int32>.<extension#6>.length#2 template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=Array<int32>.<extension#2>.length#2 template=collections.array.length#2 arguments=(int32)
+/// @generic.instance id=Array<int32>.<extension#4>.length#4 template=collections.array.length#4 arguments=(int32)
 "#,
     );
 }
@@ -373,17 +377,17 @@ let values: int32[] = [];
 
 values.push(1);
 /// @type.node source=values type=Array<int32>
-/// @type.node source=values.push type=<collections.array.push#1.'a>(this: &collections.array.push#1.'a exclusive Array<int32>, int32) => void & <collections.array.push#2.'a>(this: &collections.array.push#2.'a exclusive Array<int32>, ...int32[]) => float64
-/// @type.node source=values.push(1) type=void
+/// @type.node source=values.push type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Array<int32>, ...int32[]) => usize
+/// @type.node source=values.push(1) type=usize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=Array<int32> type=<collections.array.push#1.'a>(this: &collections.array.push#1.'a exclusive Array<int32>, int32) => void & <collections.array.push#2.'a>(this: &collections.array.push#2.'a exclusive Array<int32>, ...int32[]) => float64 kind=existential targets=[collections.array.push#1, collections.array.push#2]
-/// @resolution.call source=values.push(1) parameters=(int32) arguments=(provided(1) as int32) return=void kind=symbol target=collections.array.push#1 receiver=Array<int32> adjustments=(borrow(&'static exclusive Array<int32>)) instance=Array<int32>.<extension#6>.push#1
+/// @resolution.member source=values.push receiver=Array<int32> type=<collections.array.push.'a>(this: &collections.array.push.'a exclusive Array<int32>, ...int32[]) => usize kind=symbol target_receiver=Array<int32> target=collections.array.push
+/// @resolution.call source=values.push(1) parameters=(int32) arguments=(rest(1) as int32) return=usize kind=symbol target=collections.array.push receiver=Array<int32> adjustments=(borrow(&'static exclusive Array<int32>)) instance=Array<int32>.<extension#4>.push
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instance source=values.push(1) id=Array<int32>.<extension#6>.push#1
+/// @generic.instance source=values.push(1) id=Array<int32>.<extension#4>.push
 /// @type.node source=1 type=1
 
-/// @generic.instance id=Array<int32>.<extension#6>.push#1 template=collections.array.push#1 arguments=(int32)
+/// @generic.instance id=Array<int32>.<extension#4>.push template=collections.array.push arguments=(int32)
 "#,
     );
 }

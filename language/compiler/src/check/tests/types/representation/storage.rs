@@ -437,8 +437,8 @@ const first = shapes[0];
 /// @resolution.place source=shapes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=shapes root=shapes
 /// @resolution.access source=shapes[0] root=shapes keys=[0]
-/// @resolution.subscript source=shapes[0] type=Circle | Rectangle kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static Shape, \"exclusive\">)"
-/// @generic.instance source=shapes[0] id="Array<Shape>.<extension#6>.index#3<\"exclusive\">"
+/// @resolution.subscript source=shapes[0] type=Circle | Rectangle kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static Shape, \"exclusive\">)"
+/// @generic.instance source=shapes[0] id="Array<Shape>.<extension#4>.index#1<\"exclusive\">"
 
 first satisfies Shape;
 /// @resolution.name source=first target=first
@@ -446,7 +446,7 @@ first satisfies Shape;
 /// @resolution.access source=first root=first
 /// @resolution.name source=Shape target=Shape
 
-/// @generic.instance id="Array<Shape>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(Shape, "exclusive")
+/// @generic.instance id="Array<Shape>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(Shape, "exclusive")
 /// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
 "#,
     );

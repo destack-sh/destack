@@ -616,8 +616,8 @@ function first<T>(values: T[]): T {
     /// @resolution.access source=values root=first.values
     /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values[0] root=first.values keys=[0]
-    /// @resolution.subscript source=values[0] type=T kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame T, \"exclusive\">)"
-    /// @generic.instance source=values[0] id="Array<T>.<extension#6>.index#3<\"exclusive\">"
+    /// @resolution.subscript source=values[0] type=T kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame T, \"exclusive\">)"
+    /// @generic.instance source=values[0] id="Array<T>.<extension#4>.index#1<\"exclusive\">"
     /// @type.node source=0 type=0
 
 }
@@ -634,7 +634,7 @@ const value = first([1, 2]);
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @generic.instance id="Array<T>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(T, "exclusive")
+/// @generic.instance id="Array<T>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(T, "exclusive")
 /// @generic.instance id=first<float64> template=first arguments=(float64)
 "#,
     );
@@ -938,8 +938,8 @@ function parse<T>(value: T[]): T {
     /// @resolution.access source=value root=parse.value#2
     /// @resolution.place source=value[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value[0] root=parse.value#2 keys=[0]
-    /// @resolution.subscript source=value[0] type=T#2 kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame T#2, \"exclusive\">)"
-    /// @generic.instance source=value[0] id="Array<T#2>.<extension#6>.index#3<\"exclusive\">"
+    /// @resolution.subscript source=value[0] type=T#2 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'frame T#2, \"exclusive\">)"
+    /// @generic.instance source=value[0] id="Array<T#2>.<extension#4>.index#1<\"exclusive\">"
     /// @type.node source=0 type=0
 
 }
@@ -950,7 +950,7 @@ const parser = parse<int32>;
 /// @type.node source=parse<int32> type=<error>
 /// @resolution.name source=parse target=[parse#1, parse#2]
 
-/// @generic.instance id="Array<T#2>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(T#2, "exclusive")
+/// @generic.instance id="Array<T#2>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(T#2, "exclusive")
 "#,
         r#"
 /// @diagnostic.error id=ambiguous-reference message="ambiguous reference 'parse'"

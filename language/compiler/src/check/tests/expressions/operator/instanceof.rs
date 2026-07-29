@@ -507,9 +507,9 @@ function adopt<T>(value: T | Deferred<T>): void {
         /// @generic.instance source=value id=Deferred<T#2>
         /// @generic.instance source=value.then id=Deferred<*>
         /// @generic.instance source=value.then id=Deferred<T#2>
-        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(<error>,), void>
-        /// @type.node source="(value) => {}" type=Function<(<error>,), void>
-        /// @type.symbol symbol=adopt.symbol10.value source=value type=<error>
+        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(*,), void>
+        /// @type.node source="(value) => {}" type=Function<(*,), void>
+        /// @type.symbol symbol=adopt.symbol10.value source=value type=*
 
     }
 }
@@ -518,12 +518,9 @@ function adopt<T>(value: T | Deferred<T>): void {
 /// @generic.instance id=Deferred<T#2> template=Deferred arguments=(T#2)
 "#,
         r#"
-/// @diagnostic.error id=no-matching-call message="no overload matches arguments ('(_) => _')"
+/// @diagnostic.error id=no-matching-call message="no overload matches arguments ('(*) => void')"
 /// @diagnostic.label line=8 column=9 span="value.then((value) => {})" line_source="value.then((value) => {});"
 /// @diagnostic.note message="the candidate '((T) => void) => void' rejects argument 0: '(*) => void' is not assignable to '(T) => void'"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=8 column=21 span="value" line_source="value.then((value) => {});"
-/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }

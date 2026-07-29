@@ -644,7 +644,7 @@ extension of int32 implements Doubling {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Doubling target="Doubling<type Output = int32>"
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=double slot=double type=(this: this) => this.Output
+/// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a exclusive this) => this.Output
 /// @definition.implementation symbol=<module>#2 requirement=Doubling.Output target=Output
 /// @definition.implementation symbol=<module>#2 requirement=Doubling.double target=double
 /// @resolution.name source=Doubling target=Doubling
@@ -653,7 +653,8 @@ extension of int32 implements Doubling {
     /// @type.symbol symbol=Output source="type Output = int32" type=int32
 
     double(): this.Output {
-    /// @type.symbol symbol=double type=(this: this) => this.Output
+    /// @generic.template symbol=double parent=template#1 parameters=('a)
+    /// @type.symbol symbol=double type=<double.'a>(this: &double.'a exclusive this) => this.Output
 
         todo("double")
         /// @resolution.name source=todo target=error.panic.todo

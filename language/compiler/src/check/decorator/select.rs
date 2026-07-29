@@ -90,8 +90,16 @@ impl BodyState<'_, '_> {
                 symbol: application.symbol,
             },
         };
-        let arguments =
-            self.argument_bindings(module, &application.expression.arguments, &parameters);
+        let origin = Origin::Node(
+            application.expression.decorator.into_global_any(module),
+            None,
+        );
+        let arguments = self.argument_bindings(
+            origin,
+            module,
+            &application.expression.arguments,
+            &parameters,
+        )?;
 
         let resolution = dir::DecoratorResolution {
             target,
@@ -269,7 +277,12 @@ impl BodyState<'_, '_> {
             // retain the selected provider construction for static evaluation
             let resolution = dir::ConstructResolution::new(
                 dir::ConstructTarget::Newtype(selection.clone()),
-                self.argument_bindings(module, &arguments, &parameters),
+                self.argument_bindings(
+                    Origin::Node(expression.into_global_any(module), None),
+                    module,
+                    &arguments,
+                    &parameters,
+                )?,
                 return_type,
             );
             self.commit_decision(

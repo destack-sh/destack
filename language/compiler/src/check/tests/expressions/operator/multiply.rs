@@ -164,7 +164,7 @@ extension of Meters implements Multiply<Meters> {
 /// @definition.extension symbol=<module>#2 form=local target=Meters
 /// @definition.implements symbol=<module>#2 source=Multiply<Meters> target="Multiply<Meters><type Output = float64>"
 /// @definition.associated.type symbol=Output source="type Output = float64" key=Output value=float64
-/// @definition.method symbol=multiply slot=multiply type=(this: this, Meters) => float64
+/// @definition.method symbol=multiply slot=multiply type=<multiply.'a>(this: &multiply.'a exclusive this, Meters) => float64
 /// @definition.implementation symbol=<module>#2 requirement=ops.multiply.Multiply.Output target=Output
 /// @definition.implementation symbol=<module>#2 requirement=ops.multiply.Multiply.multiply target=multiply
 /// @resolution.name source=Meters target=Meters
@@ -175,7 +175,8 @@ extension of Meters implements Multiply<Meters> {
     /// @type.symbol symbol=Output source="type Output = float64" type=float64
 
     multiply(other: Meters): float64 {
-    /// @type.symbol symbol=multiply type=(this: this, Meters) => float64
+    /// @generic.template symbol=multiply parent=template#0 parameters=('a)
+    /// @type.symbol symbol=multiply type=<multiply.'a>(this: &multiply.'a exclusive this, Meters) => float64
     /// @type.symbol symbol=multiply.other source="other: Meters" type=Meters
     /// @resolution.name source=Meters target=Meters
 
@@ -200,7 +201,7 @@ const area = width * height;
 /// @type.symbol symbol=area source=area type=float64
 /// @resolution.pattern source=area kind=binding target=area
 /// @resolution.name source=width target=width
-/// @resolution.operator source="width * height" type=float64 operator="*" kind=call parameters=(Meters) arguments=(provided(height) as Meters) return=float64 kind=symbol target=multiply receiver=Meters
+/// @resolution.operator source="width * height" type=float64 operator="*" kind=call parameters=(Meters) arguments=(provided(height) as Meters) return=float64 kind=symbol target=multiply receiver=Meters adjustments=(borrow(&'static exclusive Meters))
 /// @resolution.place source=width placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=width root=width
 /// @resolution.name source=height target=height

@@ -6,7 +6,7 @@ use crate::CompilerResult;
 use crate::check::infer::InferMode;
 use crate::check::{
     Answer, BodyState, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
-    Constraint, Expectation, MemoryRank, Origin, ReceiverSteps, Relation, TypeArgumentInference,
+    Constraint, Expectation, Origin, ReceiverSteps, Relation, TypeArgumentInference,
     TypeSubstitution, Value, ValueUse, answer,
 };
 
@@ -24,16 +24,6 @@ pub(in crate::check) struct SignatureSelection {
     pub(in crate::check) receiver_steps: Option<ReceiverSteps>,
     /// Runtime coercions selected for the supplied arguments.
     pub(in crate::check) coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
-    /// The greatest memory conversion required by one argument.
-    pub(in crate::check) rank: MemoryRank,
-}
-
-/// Conversion selected for one callable argument.
-struct ArgumentConversion {
-    /// The required runtime coercion.
-    coercion: Option<dir::Coercion>,
-    /// The overload rank of the accepted memory relation.
-    rank: MemoryRank,
 }
 
 /// Result of matching one callable signature.
@@ -54,16 +44,17 @@ pub(in crate::check) enum SignatureMatch {
 }
 
 impl SignatureMatch {
-    /// Convert this match into an overload candidate outcome.
+    /// Convert this match into candidate applicability.
     pub(in crate::check) fn into_candidate(
         self,
     ) -> CandidateOutcome<SignatureSelection, SignatureRejection> {
         match self {
-            Self::Selected(selection) => CandidateOutcome::Accepted(selection),
+            Self::Selected(selection) | Self::ReturnMismatch(selection) => {
+                CandidateOutcome::Accepted(selection)
+            }
             Self::Invalid { rejection, .. } | Self::Inapplicable(rejection) => {
                 CandidateOutcome::Rejected(rejection)
             }
-            Self::ReturnMismatch(_) => CandidateOutcome::Rejected(SignatureRejection::Inapplicable),
         }
     }
 }
@@ -461,7 +452,6 @@ impl BodyState<'_, '_> {
         let mut is_return_mismatch = false;
         let mut receiver_steps = None;
         let mut coercions = SmallVec::new();
-        let mut rank = MemoryRank::Exact;
         let mut blockers = SmallVec::new();
 
         // constrain every invocation relation before settling candidate inference
@@ -509,8 +499,6 @@ impl BodyState<'_, '_> {
                 match converted {
                     Answer::Ready(converted) if !converted.outcome.is_holds() => {
                         is_return_mismatch = true;
-
-                        break 'invocation;
                     }
                     Answer::Ready(_) => {}
                     Answer::Pending(pending) => blockers.extend(pending),
@@ -592,8 +580,7 @@ impl BodyState<'_, '_> {
                     self.match_signature_argument(origin, index, argument, parameter_type)?;
                 match conversion {
                     Answer::Ready(Ok(conversion)) => {
-                        rank = rank.max(conversion.rank);
-                        if let Some(coercion) = conversion.coercion {
+                        if let Some(coercion) = conversion {
                             coercions.push((argument.source, coercion));
                         }
                     }
@@ -608,7 +595,7 @@ impl BodyState<'_, '_> {
         }
 
         // settle the complete candidate relation graph before selecting its result
-        if rejection.is_none() && !is_return_mismatch && !blockers.is_empty() {
+        if rejection.is_none() && !blockers.is_empty() {
             return Ok(Answer::Pending(blockers));
         }
 
@@ -623,7 +610,6 @@ impl BodyState<'_, '_> {
             receiver_steps,
         )?);
         selection.coercions = coercions;
-        selection.rank = rank;
 
         let matched = match rejection {
             Some(rejection) => SignatureMatch::Invalid {
@@ -711,7 +697,6 @@ impl BodyState<'_, '_> {
             generic_arguments: arguments.to_vec(),
             receiver_steps,
             coercions: SmallVec::new(),
-            rank: MemoryRank::Exact,
         }))
     }
 
@@ -722,7 +707,7 @@ impl BodyState<'_, '_> {
         index: usize,
         argument: CallableArgument,
         parameter_type: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Result<ArgumentConversion, SignatureRejection>>> {
+    ) -> CompilerResult<Answer<Result<Option<dir::Coercion>, SignatureRejection>>> {
         let source = argument.source;
         let call = self.origin_source(origin)?;
         let origin = self.origin_at(origin, source)?;
@@ -792,9 +777,8 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(Err(rejection)));
         }
 
-        let rank = answer!(self.memory_rank(origin, ty, conversion.target)?);
         let coercion = conversion.coercion.map(|coercion| *coercion);
 
-        Ok(Answer::Ready(Ok(ArgumentConversion { coercion, rank })))
+        Ok(Answer::Ready(Ok(coercion)))
     }
 }

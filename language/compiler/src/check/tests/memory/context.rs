@@ -406,10 +406,10 @@ values[0] satisfies shared int32;
 /// @resolution.access source=values root=values
 /// @resolution.place source=values[0] placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=Placed<memory.type.WithAccess<&'static int32, \"mutable\">, \"shared\">)"
-/// @generic.instance source=values[0] id="FixedArray<int32, 2>.<extension#1>.index#1<\"mutable\">"
+/// @resolution.subscript source=values[0] type=int32 kind=call target="collections.fixed-array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=Placed<memory.type.WithAccess<&'static int32, \"mutable\">, \"shared\">)"
+/// @generic.instance source=values[0] id="FixedArray<int32, 2>.<extension#2>.index#1<\"mutable\">"
 
-/// @generic.instance id="FixedArray<int32, 2>.<extension#1>.index#1<\"mutable\">" template=collections.array.index#1 arguments=(int32, 2, "mutable")
+/// @generic.instance id="FixedArray<int32, 2>.<extension#2>.index#1<\"mutable\">" template=collections.fixed-array.index#1 arguments=(int32, 2, "mutable")
 "#,
         r#"
 

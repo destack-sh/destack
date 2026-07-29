@@ -34,13 +34,13 @@ const first = values[0];
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
-/// @generic.instance source=values[0] id="Array<float64>.<extension#6>.index#3<\"exclusive\">"
+/// @resolution.subscript source=values[0] type=float64 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static float64, \"exclusive\">)"
+/// @generic.instance source=values[0] id="Array<float64>.<extension#4>.index#1<\"exclusive\">"
 /// @type.node source=0 type=0
 
-/// @generic.instance id="Array<float64>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(float64, "exclusive")
+/// @generic.instance id="Array<float64>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(float64, "exclusive")
 
-/// @check.stats.solve variables=13 types=100 constraints=4 obligations=2 solutions=13 bounds=9 decisions=4
+/// @check.stats.solve variables=7 types=88 constraints=1 obligations=2 solutions=7 bounds=3 decisions=4
 "#,
     );
 }
@@ -79,13 +79,13 @@ const first = values[0];
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="collections.array.index#3(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static 1 | 2, \"exclusive\">)"
-/// @generic.instance source=values[0] id="Array<1 | 2>.<extension#6>.index#3<\"exclusive\">"
+/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="collections.array.index#1(parameters=(usize), arguments=(provided(0) as usize), return=memory.type.WithAccess<&'static 1 | 2, \"exclusive\">)"
+/// @generic.instance source=values[0] id="Array<1 | 2>.<extension#4>.index#1<\"exclusive\">"
 /// @type.node source=0 type=0
 
-/// @generic.instance id="Array<1 | 2>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(1 | 2, "exclusive")
+/// @generic.instance id="Array<1 | 2>.<extension#4>.index#1<\"exclusive\">" template=collections.array.index#1 arguments=(1 | 2, "exclusive")
 
-/// @check.stats.solve variables=12 types=97 constraints=4 obligations=2 solutions=12 bounds=9 decisions=4
+/// @check.stats.solve variables=6 types=85 constraints=1 obligations=2 solutions=6 bounds=3 decisions=4
 "#,
     );
 }
