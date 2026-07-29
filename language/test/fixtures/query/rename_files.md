@@ -1,4 +1,3 @@
-# Rename Files
 
 ## Relative Import
 
@@ -425,6 +424,51 @@ source/value.ds -> source/result.ds
 
 ```ds main.ds after
 import { value } from './source/result';
+
+const result = value;
+```
+
+## Successive Renames
+
+### [ignored] Update an import across file moves
+
+Each rename starts from the paths in the current workspace revision.
+
+```ds source/value.ds
+export const value = 1;
+```
+
+```ds main.ds
+import { value } from "./source/value";
+
+const result = value;
+```
+
+```query rename_files
+source/value.ds -> source/result.ds
+```
+
+```ds main.ds after
+import { value } from "./source/result";
+
+const result = value;
+```
+
+```move source/value.ds source/result.ds
+```
+
+```ds main.ds change
+import { value } from "./source/result";
+
+const result = value;
+```
+
+```query rename_files
+source/result.ds -> source/final.ds
+```
+
+```ds main.ds after
+import { value } from "./source/final";
 
 const result = value;
 ```

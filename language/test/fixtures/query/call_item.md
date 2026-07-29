@@ -1,4 +1,3 @@
-# Call Item
 
 ## Functions
 
@@ -361,4 +360,44 @@ enum Status {
 
 ```query call_item main.ds#value
 @call_item.none
+```
+
+## Source changes
+
+### Follow a call after its target changes
+
+A call identifies the function selected in each revision.
+
+```ds main.ds
+function first(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
+         ^^^^^ name:first
+
+function second(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:second
+         ^^^^^^ name:second
+
+first();
+^^^^^ call
+```
+
+```query call_item main.ds#call
+@call_item.item name=first kind=function detail="first(): void" location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#first@1
+```
+
+```ds main.ds change
+function first(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
+         ^^^^^ name:first
+
+function second(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:second
+         ^^^^^^ name:second
+
+second();
+^^^^^^ call
+```
+
+```query call_item main.ds#call
+@call_item.item name=second kind=function detail="second(): void" location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#second@2
 ```

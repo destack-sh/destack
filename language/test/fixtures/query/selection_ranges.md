@@ -1,4 +1,3 @@
-# Selection Ranges
 
 ## Expressions
 
@@ -284,4 +283,61 @@ const second = 2;
 @selection_ranges.range selection=1 depth=0 range=main.ds#second
 @selection_ranges.range selection=1 depth=1 range=main.ds#second_declarator
 @selection_ranges.range selection=1 depth=2 range=main.ds#second_declaration
+```
+
+## Source changes
+
+### Preserve selection ancestry after lines are inserted
+
+Selection ranges follow the selected expression after its offsets move.
+
+```ds main.ds
+function compute(value: int32): int32 {
+                                      ^ body:start
+^ declaration:start
+    return (value + 1) * 2;
+            ^^^^^ cursor
+            ^^^^^^^^^ sum
+           ^^^^^^^^^^^ parentheses
+           ^^^^^^^^^^^^^^^ product
+    ^^^^^^^^^^^^^^^^^^^^^^ return
+}
+^ body:end
+^ declaration:end
+```
+
+```query selection_ranges main.ds#cursor
+@selection_ranges.range selection=0 depth=0 range=main.ds#cursor
+@selection_ranges.range selection=0 depth=1 range=main.ds#sum
+@selection_ranges.range selection=0 depth=2 range=main.ds#parentheses
+@selection_ranges.range selection=0 depth=3 range=main.ds#product
+@selection_ranges.range selection=0 depth=4 range=main.ds#return
+@selection_ranges.range selection=0 depth=5 range=main.ds#body
+@selection_ranges.range selection=0 depth=6 range=main.ds#declaration
+```
+
+```ds main.ds change
+// keep this calculation explicit
+function compute(value: int32): int32 {
+                                      ^ body:start
+^ declaration:start
+    return (value + 1) * 2;
+            ^^^^^ cursor
+            ^^^^^^^^^ sum
+           ^^^^^^^^^^^ parentheses
+           ^^^^^^^^^^^^^^^ product
+    ^^^^^^^^^^^^^^^^^^^^^^ return
+}
+^ body:end
+^ declaration:end
+```
+
+```query selection_ranges main.ds#cursor
+@selection_ranges.range selection=0 depth=0 range=main.ds#cursor
+@selection_ranges.range selection=0 depth=1 range=main.ds#sum
+@selection_ranges.range selection=0 depth=2 range=main.ds#parentheses
+@selection_ranges.range selection=0 depth=3 range=main.ds#product
+@selection_ranges.range selection=0 depth=4 range=main.ds#return
+@selection_ranges.range selection=0 depth=5 range=main.ds#body
+@selection_ranges.range selection=0 depth=6 range=main.ds#declaration
 ```

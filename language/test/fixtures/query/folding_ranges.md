@@ -1,4 +1,3 @@
-# Folding Ranges
 
 ## Declarations and Comments
 
@@ -263,4 +262,40 @@ const result = first + second;
 
 ```query folding_ranges main.ds
 @folding_ranges.range lines=0..3 kind=region collapsed=setup
+```
+
+## Source changes
+
+### Update folds after a declaration expands
+
+A declaration becomes foldable when its body spans multiple lines.
+
+```ds main.ds
+function run(): void {}
+```
+
+```query folding_ranges main.ds
+@folding_ranges.none
+```
+
+```ds main.ds change
+function run(): void {
+    const value = 1;
+}
+```
+
+```query folding_ranges main.ds
+@folding_ranges.range lines=0..2
+```
+
+```diff main.ds
+@@ -1,3 +1,3 @@
+ function run(): void {
+-    const value = 1;
++    const value = 2;
+ }
+```
+
+```query folding_ranges main.ds
+@folding_ranges.range lines=0..2
 ```

@@ -1,4 +1,3 @@
-# Type Item
 
 ## Classes
 
@@ -221,4 +220,42 @@ function render(): void {}
 
 ```query type_item main.ds#render
 @type_item.none
+```
+
+## Source changes
+
+### Follow a heritage reference after its target changes
+
+A heritage reference identifies the current nominal declaration.
+
+```ds main.ds
+class First {}
+^^^^^^^^^^^^^^ declaration:first
+      ^^^^^ name:first
+class Second {}
+^^^^^^^^^^^^^^^ declaration:second
+      ^^^^^^ name:second
+
+class Derived extends First {}
+                      ^^^^^ reference
+```
+
+```query type_item main.ds#reference
+@type_item.item name=First kind=class location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#First@1
+```
+
+```ds main.ds change
+class First {}
+^^^^^^^^^^^^^^ declaration:first
+      ^^^^^ name:first
+class Second {}
+^^^^^^^^^^^^^^^ declaration:second
+      ^^^^^^ name:second
+
+class Derived extends Second {}
+                      ^^^^^^ reference
+```
+
+```query type_item main.ds#reference
+@type_item.item name=Second kind=class location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#Second@2
 ```

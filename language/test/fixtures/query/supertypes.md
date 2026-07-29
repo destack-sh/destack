@@ -1,4 +1,3 @@
-# Supertypes
 
 ## Classes
 
@@ -225,4 +224,42 @@ class Root {}
 
 ```query supertypes main.ds#root
 @supertypes.none
+```
+
+## Source changes
+
+### Follow a changed direct supertype
+
+Supertype lookup follows the current heritage declaration.
+
+```ds main.ds
+class First {}
+^^^^^^^^^^^^^^ declaration:first
+      ^^^^^ first
+class Second {}
+^^^^^^^^^^^^^^^ declaration:second
+      ^^^^^^ second
+
+class Derived extends First {}
+      ^^^^^^^ derived
+```
+
+```query supertypes main.ds#derived
+@supertypes.item name=First kind=class location=main.ds#declaration:first selection=main.ds#first symbol=main.ds#First@1
+```
+
+```ds main.ds change
+class First {}
+^^^^^^^^^^^^^^ declaration:first
+      ^^^^^ first
+class Second {}
+^^^^^^^^^^^^^^^ declaration:second
+      ^^^^^^ second
+
+class Derived extends Second {}
+      ^^^^^^^ derived
+```
+
+```query supertypes main.ds#derived
+@supertypes.item name=Second kind=class location=main.ds#declaration:second selection=main.ds#second symbol=main.ds#Second@2
 ```

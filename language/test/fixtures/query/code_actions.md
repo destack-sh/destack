@@ -1,4 +1,3 @@
-# Code Actions
 
 ## No Action
 
@@ -292,4 +291,32 @@ diagnostic interface-not-implemented main.ds#diagnostic
 @code_actions.action index=0 title="Implement missing members" kind=quick_fix applicability=dangerous
 @code_actions.diagnostic action=0 id=interface-not-implemented location=main.ds#diagnostic
 @code_actions.patch action=0 range=main.ds#insertion@start text="    draw(): void {}\n"
+```
+
+## Source changes
+
+### Update available actions after an expression changes
+
+Code actions reflect the selected expression in the current revision.
+
+```ds main.ds
+const value = 42;
+      ^^^^^ range
+```
+
+```query code_actions main.ds#range only=refactor_extract
+@code_actions.none
+```
+
+```ds main.ds change
+function total(): int32 {
+    return 1 + 2;
+           ^^^^^ range
+}
+```
+
+```query code_actions main.ds#range only=refactor_extract
+@code_actions.action index=0 title="Extract constant" kind=refactor_extract
+@code_actions.patch action=0 range=main.ds:2:1 text="    const extracted = 1 + 2;\n"
+@code_actions.patch action=0 range=main.ds#range text=extracted
 ```

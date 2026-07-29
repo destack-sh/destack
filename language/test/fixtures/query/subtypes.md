@@ -1,4 +1,3 @@
-# Subtypes
 
 ## Classes
 
@@ -201,4 +200,40 @@ class Leaf extends Root {}
 
 ```query subtypes main.ds#leaf
 @subtypes.none
+```
+
+## Source changes
+
+### Add a direct subtype
+
+Subtype lookup includes declarations added in later revisions.
+
+```ds main.ds
+class Base {}
+      ^^^^ base
+
+class First extends Base {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
+      ^^^^^ first
+```
+
+```query subtypes main.ds#base
+@subtypes.item name=First kind=class location=main.ds#declaration:first selection=main.ds#first symbol=main.ds#First@2
+```
+
+```ds main.ds change
+class Base {}
+      ^^^^ base
+
+class First extends Base {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
+      ^^^^^ first
+class Second extends Base {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:second
+      ^^^^^^ second
+```
+
+```query subtypes main.ds#base
+@subtypes.item name=First kind=class location=main.ds#declaration:first selection=main.ds#first symbol=main.ds#First@2
+@subtypes.item name=Second kind=class location=main.ds#declaration:second selection=main.ds#second symbol=main.ds#Second@3
 ```

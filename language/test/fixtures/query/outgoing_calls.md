@@ -1,4 +1,3 @@
-# Outgoing Calls
 
 ## Functions
 
@@ -531,4 +530,50 @@ function leaf(): void {}
 
 ```query outgoing_calls main.ds#leaf
 @outgoing_calls.none
+```
+
+## Source changes
+
+### Follow an outgoing call after its target changes
+
+Outgoing calls identify the function selected in each revision.
+
+```ds main.ds
+function first(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
+         ^^^^^ name:first
+function second(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:second
+         ^^^^^^ name:second
+
+function source(): void {
+         ^^^^^^ source
+    first();
+    ^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#source
+@outgoing_calls.call index=0 name=first kind=function detail="first(): void" location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#first@1
+@outgoing_calls.site call=0 range=main.ds#call
+```
+
+```ds main.ds change
+function first(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
+         ^^^^^ name:first
+function second(): void {}
+^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:second
+         ^^^^^^ name:second
+
+function source(): void {
+         ^^^^^^ source
+    second();
+    ^^^^^^^^ call
+}
+```
+
+```query outgoing_calls main.ds#source
+@outgoing_calls.call index=0 name=second kind=function detail="second(): void" location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#second@2
+@outgoing_calls.site call=0 range=main.ds#call
 ```

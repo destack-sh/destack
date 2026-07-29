@@ -1,4 +1,3 @@
-# Goto Declaration
 
 ## Locals
 
@@ -481,4 +480,36 @@ function main(): void {
 
 ```query goto_declaration main.ds#reference
 @goto_declaration.none
+```
+
+## Source changes
+
+### Follow a reference after its binding changes
+
+A reference resolves to the declaration selected in each revision.
+
+```ds main.ds
+const first = 1;
+      ^^^^^ declaration:first
+const second = 2;
+      ^^^^^^ declaration:second
+const selected = first;
+                 ^^^^^ reference
+```
+
+```query goto_declaration main.ds#reference
+@goto_declaration.target origin=main.ds#reference location=main.ds#declaration:first symbol=main.ds#first@1
+```
+
+```ds main.ds change
+const first = 1;
+      ^^^^^ declaration:first
+const second = 2;
+      ^^^^^^ declaration:second
+const selected = second;
+                 ^^^^^^ reference
+```
+
+```query goto_declaration main.ds#reference
+@goto_declaration.target origin=main.ds#reference location=main.ds#declaration:second symbol=main.ds#second@2
 ```

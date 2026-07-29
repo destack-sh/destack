@@ -1,4 +1,3 @@
-# Semantic Tokens
 
 ## Symbols
 
@@ -451,4 +450,40 @@ true;
 
 ```query semantic_tokens main.ds
 @semantic_tokens.none
+```
+
+## Source changes
+
+### Update tokens after symbols are renamed
+
+Semantic roles remain attached to renamed declarations and references.
+
+```ds main.ds
+function identity(value: int32): int32 {
+         ^^^^^^^^ function
+                  ^^^^^ parameter
+    return value;
+           ^^^^^ reference
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#function type=function modifiers=declaration
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#reference type=parameter
+```
+
+```ds main.ds change
+function identity(item: int32): int32 {
+         ^^^^^^^^ function
+                  ^^^^ parameter
+    return item;
+           ^^^^ reference
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#function type=function modifiers=declaration
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#reference type=parameter
 ```

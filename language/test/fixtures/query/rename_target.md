@@ -1,4 +1,3 @@
-# Rename Target
 
 ## Local Bindings
 
@@ -667,4 +666,32 @@ type EventLabel = Message<"orders">.Label<"created">;
 
 ```query rename_target main.ds#reference
 @rename_target.target placeholder=Label location=main.ds#reference symbol=main.ds#Label@3
+```
+
+## Source changes
+
+### Follow a reference after its binding changes
+
+The rename target is the symbol selected in each revision.
+
+```ds main.ds
+const first = 1;
+const second = 2;
+const selected = first;
+                 ^^^^^ reference
+```
+
+```query rename_target main.ds#reference
+@rename_target.target placeholder=first location=main.ds#reference symbol=main.ds#first@1
+```
+
+```ds main.ds change
+const first = 1;
+const second = 2;
+const selected = second;
+                 ^^^^^^ reference
+```
+
+```query rename_target main.ds#reference
+@rename_target.target placeholder=second location=main.ds#reference symbol=main.ds#second@2
 ```

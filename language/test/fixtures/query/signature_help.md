@@ -1,4 +1,3 @@
-# Signature Help
 
 ## Function Calls
 
@@ -452,4 +451,39 @@ const callable = greet;
 
 ```query signature_help main.ds#reference
 @signature_help.none
+```
+
+## Source changes
+
+### Update a signature after its parameters change
+
+Signature help reflects the current callable declaration.
+
+```ds main.ds
+function format(value: string): string {
+    return value;
+}
+
+const result = format("ready");
+                            ^ argument
+```
+
+```query signature_help main.ds#argument
+@signature_help.signature index=0 label="format(value: string): string" active=true
+@signature_help.parameter signature=0 index=0 label="value: string" active=true
+```
+
+```ds main.ds change
+function format(value: string, radix: int32): string {
+    return value;
+}
+
+const result = format("ready", 10);
+                                ^^ argument
+```
+
+```query signature_help main.ds#argument
+@signature_help.signature index=0 label="format(value: string, radix: int32): string" active=true
+@signature_help.parameter signature=0 index=0 label="value: string"
+@signature_help.parameter signature=0 index=1 label="radix: int32" active=true
 ```

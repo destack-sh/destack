@@ -1,4 +1,3 @@
-# Semantic Tokens Range
 
 ## Source Range
 
@@ -65,4 +64,31 @@ A range containing only comments and literals has no semantic tokens.
 
 ```query semantic_tokens_range main.ds#lexical
 @semantic_tokens_range.none
+```
+
+## Source changes
+
+### Follow a selected token after earlier text changes
+
+The requested range resolves against the selected revision.
+
+```ds main.ds
+const first = 1;
+const second = 2;
+      ^^^^^^ second
+```
+
+```query semantic_tokens_range main.ds#second
+@semantic_tokens_range.token range=main.ds#second type=variable modifiers=declaration,readonly
+```
+
+```ds main.ds change
+const inserted = 0;
+const first = 1;
+const second = 2;
+      ^^^^^^ second
+```
+
+```query semantic_tokens_range main.ds#second
+@semantic_tokens_range.token range=main.ds#second type=variable modifiers=declaration,readonly
 ```

@@ -1,4 +1,3 @@
-# Find References
 
 ## Local Symbols
 
@@ -942,4 +941,37 @@ function main(): void {
 
 ```query find_references main.ds#reference include_declaration=true
 @find_references.none
+```
+
+## Source changes
+
+### Update references after a use is added
+
+References include every current occurrence in source order.
+
+```ds main.ds
+const value = 1;
+      ^^^^^ declaration
+const first = value;
+              ^^^^^ first
+```
+
+```query find_references main.ds#first include_declaration=true
+@find_references.reference location=main.ds#declaration symbol=main.ds#value@1
+@find_references.reference location=main.ds#first symbol=main.ds#value@1
+```
+
+```ds main.ds change
+const value = 1;
+      ^^^^^ declaration
+const first = value;
+              ^^^^^ first
+const second = value;
+               ^^^^^ second
+```
+
+```query find_references main.ds#first include_declaration=true
+@find_references.reference location=main.ds#declaration symbol=main.ds#value@1
+@find_references.reference location=main.ds#first symbol=main.ds#value@1
+@find_references.reference location=main.ds#second symbol=main.ds#value@1
 ```

@@ -1,85 +1,3 @@
-# Hover
-
-## Source changes
-
-### Update hover after successive source changes
-
-Hover uses the declaration from the selected revision.
-
-```ds main.ds
-type Value = int32;
-     ^^^^^ definition
-
-declare const value: Value;
-                     ^^^^^ reference
-```
-
-```query hover main.ds#reference
-@hover.item index=0 signature="type Value = int32" type=Value location=main.ds:1:1-1:19 selection=main.ds#definition range=main.ds#reference
-```
-
-```ds main.ds change
-type Value = string;
-     ^^^^^ definition
-
-declare const value: Value;
-                     ^^^^^ reference
-```
-
-```query hover main.ds#reference
-@hover.item index=0 signature="type Value = string" type=Value location=main.ds:1:1-1:20 selection=main.ds#definition range=main.ds#reference
-```
-
-```diff main.ds
-@@ -1,2 +1,2 @@
--type Value = string;
-+type Value = boolean;
-      ^^^^^ definition
-```
-
-```query hover main.ds#reference
-@hover.item index=0 signature="type Value = boolean" type=Value location=main.ds:1:1-1:21 selection=main.ds#definition range=main.ds#reference
-```
-
-### Keep hover after an implementation edit
-
-Changing a function body leaves its declaration hover unchanged.
-
-```ds main.ds
-function message(): string {
-         ^^^^^^^ definition
-    return "one";
-}
-
-const value = message();
-              ^^^^^^^ reference
-
-function unrelated(): int32 {
-    return 1;
-}
-```
-
-```query hover main.ds#reference
-@hover.item index=0 signature="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
-```
-
-```diff main.ds
-@@ -1,4 +1,4 @@
- function message(): string {
-          ^^^^^^^ definition
--    return "one";
-+    return "two";
- }
-@@ -9,3 +9,3 @@
- function unrelated(): int32 {
--    return 1;
-+    return 2;
- }
-```
-
-```query hover main.ds#reference
-@hover.item index=0 signature="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
-```
 
 ## Functions
 
@@ -631,4 +549,85 @@ const value = 42;
 
 ```query hover main.ds#literal
 @hover.none
+```
+
+## Source changes
+
+### Update hover after successive source changes
+
+Hover uses the declaration from the selected revision.
+
+```ds main.ds
+type Value = int32;
+     ^^^^^ definition
+
+declare const value: Value;
+                     ^^^^^ reference
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="type Value = int32" type=Value location=main.ds:1:1-1:19 selection=main.ds#definition range=main.ds#reference
+```
+
+```ds main.ds change
+type Value = string;
+     ^^^^^ definition
+
+declare const value: Value;
+                     ^^^^^ reference
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="type Value = string" type=Value location=main.ds:1:1-1:20 selection=main.ds#definition range=main.ds#reference
+```
+
+```diff main.ds
+@@ -1,2 +1,2 @@
+-type Value = string;
++type Value = boolean;
+      ^^^^^ definition
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="type Value = boolean" type=Value location=main.ds:1:1-1:21 selection=main.ds#definition range=main.ds#reference
+```
+
+### Keep hover after an implementation edit
+
+Changing a function body leaves its declaration hover unchanged.
+
+```ds main.ds
+function message(): string {
+         ^^^^^^^ definition
+    return "one";
+}
+
+const value = message();
+              ^^^^^^^ reference
+
+function unrelated(): int32 {
+    return 1;
+}
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
+```
+
+```diff main.ds
+@@ -1,4 +1,4 @@
+ function message(): string {
+          ^^^^^^^ definition
+-    return "one";
++    return "two";
+ }
+@@ -9,3 +9,3 @@
+ function unrelated(): int32 {
+-    return 1;
++    return 2;
+ }
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
 ```

@@ -1,4 +1,3 @@
-# Inline
 
 ## Expression
 
@@ -533,4 +532,37 @@ const value = library.value;
 
 ```query inline main.ds#target
 @inline.none
+```
+
+## Successive Inlining
+
+### Inline bindings across applied revisions
+
+Each inline operation uses the source produced by the preceding edit.
+
+```ds main.ds
+const first = 1;
+      ^^^^^ target:first
+const firstResult = first;
+const second = 2;
+      ^^^^^^ target:second
+const secondResult = second;
+```
+
+```query inline main.ds#target:first apply
+```
+
+```ds main.ds after
+const firstResult = 1;
+const second = 2;
+      ^^^^^^ target:second
+const secondResult = second;
+```
+
+```query inline main.ds#target:second
+```
+
+```ds main.ds after
+const firstResult = 1;
+const secondResult = 2;
 ```

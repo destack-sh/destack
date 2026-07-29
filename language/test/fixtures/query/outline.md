@@ -1,4 +1,3 @@
-# Outline
 
 ## Declarations
 
@@ -389,4 +388,39 @@ export const source = 1;
 ```query outline main.ds
 @outline.symbol depth=0 name=read kind=function detail="(value: int32): int32" range=main.ds#read_range selection=main.ds#read_selection
 @outline.symbol depth=0 name=exposed kind=constant detail=1 range=main.ds#exposed_range selection=main.ds#exposed_selection
+```
+
+## Source changes
+
+### Add declarations to the outline
+
+The outline follows declarations added to the selected revision.
+
+```ds main.ds
+function ping(): void {
+^ ping_range:start
+         ^^^^ ping_selection
+}
+^ ping_range:end
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=ping kind=function detail="(): void" range=main.ds#ping_range selection=main.ds#ping_selection
+```
+
+```ds main.ds change
+function ping(): void {
+^ ping_range:start
+         ^^^^ ping_selection
+}
+^ ping_range:end
+
+const answer = 42;
+^^^^^^^^^^^^^^^^^ answer_range
+      ^^^^^^ answer_selection
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=ping kind=function detail="(): void" range=main.ds#ping_range selection=main.ds#ping_selection
+@outline.symbol depth=0 name=answer kind=constant detail=42 range=main.ds#answer_range selection=main.ds#answer_selection
 ```

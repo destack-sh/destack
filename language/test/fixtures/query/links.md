@@ -1,4 +1,3 @@
-# Links
 
 ## Imports
 
@@ -110,4 +109,43 @@ export const value = 1;
 
 ```query links main.ds
 @links.link range=main.ds#library_specifier path=library.ds
+```
+
+## Source changes
+
+### Follow an import target across file changes
+
+Links follow the resolved module path in each revision.
+
+```ds main.ds
+import { value } from "./library.ds";
+                      ^^^^^^^^^^^^^^ specifier
+```
+
+```query links main.ds
+@links.none
+```
+
+```ds library.ds add
+export const value = 1;
+```
+
+```query links main.ds
+@links.link range=main.ds#specifier path=library.ds
+```
+
+```move library.ds moved.ds
+```
+
+```query links main.ds
+@links.none
+```
+
+```ds main.ds change
+import { value } from "./moved.ds";
+                      ^^^^^^^^^^^^ specifier
+```
+
+```query links main.ds
+@links.link range=main.ds#specifier path=moved.ds
 ```

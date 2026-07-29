@@ -1,4 +1,3 @@
-# Completion
 
 ## Local Symbols
 
@@ -1407,4 +1406,30 @@ declare const value: int3;
 ```query completion main.ds#prefix@end
 @completion.item label=int32 kind=builtin_type replace=main.ds#prefix matches=0,1,2,3
 @completion.item label=uint32 kind=builtin_type replace=main.ds#prefix matches=1,2,3,4
+```
+
+## Source changes
+
+### Update visible symbols after a declaration changes
+
+Completion reflects the declarations in the selected revision.
+
+```ds main.ds
+const alpha = 1;
+const result = al;
+               ^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=alpha kind=constant replace=main.ds#prefix detail=1 preselect=true matches=0,1
+```
+
+```ds main.ds change
+const alpine = 2;
+const result = al;
+               ^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=alpine kind=constant replace=main.ds#prefix detail=2 preselect=true matches=0,1
 ```

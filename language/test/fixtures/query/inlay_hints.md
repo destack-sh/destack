@@ -1,4 +1,3 @@
-# Inlay Hints
 
 ## Inferred Bindings
 
@@ -604,4 +603,28 @@ ping();
 
 ```query inlay_hints main.ds#call
 @inlay_hints.none
+```
+
+## Source changes
+
+### Update an inferred binding hint
+
+An inferred type hint reflects the current initializer.
+
+```ds main.ds
+const value = 1;
+      ^^^^^ binding
+```
+
+```query inlay_hints main.ds#binding
+@inlay_hints.hint position=main.ds#binding@end label=": 1" kind=type
+```
+
+```ds main.ds change
+const value = true;
+      ^^^^^ binding
+```
+
+```query inlay_hints main.ds#binding
+@inlay_hints.hint position=main.ds#binding@end label=": true" kind=type
 ```
