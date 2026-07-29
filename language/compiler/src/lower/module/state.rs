@@ -2,6 +2,10 @@ use std::sync::Arc;
 
 use destack_artifact::{DirBound, DirCheckedModule, DirExpanded, DirMaterialized, DirParsed};
 use destack_dir as dir;
+use destack_source::ModuleId;
+
+use crate::lower::ModuleLowerer;
+use crate::{CompilerError, CompilerResult};
 
 /// The sealed check output of one module, read during lowering.
 pub(crate) struct LowerModuleState {
@@ -57,5 +61,24 @@ impl LowerModuleState {
     /// Return the DIR tree.
     pub(in crate::lower) fn tree(&self) -> &dir::Tree {
         &self.parsed.tree
+    }
+}
+
+impl ModuleLowerer<'_> {
+    /// Return the checked output of one loaded module.
+    pub(in crate::lower) fn state(&self, module: ModuleId) -> CompilerResult<&LowerModuleState> {
+        self.modules
+            .get(&module)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("checked DIR referenced the unloaded module {module:?}"),
+            })
+    }
+
+    /// Return the checked output of the module being lowered.
+    pub(in crate::lower) fn local(&self) -> &LowerModuleState {
+        match self.modules.get(&self.module) {
+            Some(state) => state,
+            None => unreachable!("the lowered module is always loaded"),
+        }
     }
 }
