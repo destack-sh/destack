@@ -1,44 +1,62 @@
 use destack_serde::Reflect;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
-use destack_source::{Content, DiagnosticCollection, FileId};
+use destack_source::{Content, DiagnosticCollection};
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactVersion};
+use crate::{ArtifactDependency, ArtifactFailure, ArtifactInput, ArtifactPayload, ArtifactVersion};
+
+/// Dense in-process id for one artifact key.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ArtifactId(pub(crate) u32);
+
+/// Compact in-process id for one immutable artifact binding.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ArtifactBindingId(pub(crate) u32);
 
 /// One exact artifact version entry.
 #[derive(Debug, Clone)]
 pub(crate) struct ArtifactEntry {
     /// The exact terminal result.
     pub(crate) result: ArtifactResult,
-    /// The predecessor artifact this entry was incrementally built from.
-    pub(crate) base: Option<ArtifactVersion>,
-    /// The exact dependencies.
-    pub(crate) dependencies: Arc<[ArtifactDependency]>,
-    /// Source files this artifact transitively depends on.
-    pub(crate) sources: Arc<[FileId]>,
     /// The diagnostics for this exact artifact version.
     pub(crate) diagnostics: Arc<DiagnosticCollection>,
     /// The sidecars for this exact artifact version.
     pub(crate) sidecars: Arc<[ArtifactSidecar]>,
 }
 
+/// One immutable mapping from an artifact input to one result.
+#[derive(Debug, Clone)]
+pub struct ArtifactBinding {
+    /// The artifact input.
+    pub input: ArtifactInput,
+    /// The exact produced result.
+    pub version: ArtifactVersion,
+    /// The exact dependency observations.
+    pub dependencies: Arc<[ArtifactDependency]>,
+}
+
+/// Artifact inputs and result versions retained by selected bindings.
+#[derive(Debug)]
+pub struct ArtifactRetention {
+    /// The retained artifact inputs.
+    pub inputs: HashSet<ArtifactInput>,
+    /// The retained result versions.
+    pub versions: HashSet<ArtifactVersion>,
+}
+
 impl ArtifactEntry {
     /// Create one successful artifact entry.
     pub(crate) fn ok(
-        base: Option<ArtifactVersion>,
         payload: ArtifactPayload,
-        dependencies: impl Into<Arc<[ArtifactDependency]>>,
-        sources: impl Into<Arc<[FileId]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
     ) -> Self {
         Self {
             result: ArtifactResult::Ok(payload),
-            base,
-            dependencies: dependencies.into(),
-            sources: sources.into(),
             diagnostics: diagnostics.into(),
             sidecars: sidecars.into(),
         }
@@ -46,18 +64,12 @@ impl ArtifactEntry {
 
     /// Create one failed artifact entry.
     pub(crate) fn failed(
-        base: Option<ArtifactVersion>,
-        dependencies: impl Into<Arc<[ArtifactDependency]>>,
-        sources: impl Into<Arc<[FileId]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
     ) -> Self {
         Self {
             result: ArtifactResult::Failed(failure),
-            base,
-            dependencies: dependencies.into(),
-            sources: sources.into(),
             diagnostics: diagnostics.into(),
             sidecars: sidecars.into(),
         }

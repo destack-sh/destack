@@ -1,14 +1,10 @@
 use std::borrow::Cow;
-use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
-use destack_core::StableHasher;
 use destack_serde::Reflect;
 use destack_source::{ModuleId, PackageId, ProfileId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-
-use crate::{ArtifactProjectionFingerprint, PackageGraphProjection};
 
 /// Active package routes and import specifiers for one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -89,41 +85,6 @@ impl PackageGraph {
         self.package_specifiers[start..end]
             .iter()
             .map(|entry| entry.specifier.as_str())
-    }
-
-    /// Return the stable fingerprint of one package graph projection.
-    pub fn projection_fingerprint(
-        &self,
-        projection: PackageGraphProjection,
-    ) -> ArtifactProjectionFingerprint {
-        match projection {
-            PackageGraphProjection::Nodes => {
-                let mut hasher = StableHasher::new();
-                hasher.update_len_prefixed(b"destack.artifact.package_graph.nodes.v1");
-                self.nodes.len().hash(&mut hasher);
-
-                // hash package nodes in canonical package order
-                let mut nodes = self.nodes.iter().collect::<Vec<_>>();
-                nodes.sort_unstable_by_key(|(package, _)| **package);
-                for (package, node) in nodes {
-                    package.hash(&mut hasher);
-                    node.root.hash(&mut hasher);
-
-                    // hash dependency routes in canonical specifier order
-                    let mut dependencies = node.dependencies.iter().collect::<Vec<_>>();
-                    dependencies.sort_unstable_by(|left, right| left.0.cmp(right.0));
-                    dependencies.hash(&mut hasher);
-
-                    // hash exact exports canonically and retain pattern precedence
-                    let mut exact = node.exports.exact.iter().collect::<Vec<_>>();
-                    exact.sort_unstable_by(|left, right| left.0.cmp(right.0));
-                    exact.hash(&mut hasher);
-                    node.exports.patterns.hash(&mut hasher);
-                }
-
-                ArtifactProjectionFingerprint(hasher.finish_u128())
-            }
-        }
     }
 }
 

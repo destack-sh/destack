@@ -1,22 +1,28 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use dashmap::DashMap;
+use dashmap::mapref::entry::Entry;
 use destack_core::StringPool;
 use destack_program::Program;
-use destack_source::{ContentId, DiagnosticCollection, FileId};
+use destack_source::{ContentId, DiagnosticCollection};
+use parking_lot::RwLock;
 use rustc_hash::FxBuildHasher;
 
-use super::entry::{ArtifactEntry, ArtifactOutcome, ArtifactSidecar};
-use super::pin::ArtifactPin;
+use super::entry::{
+    ArtifactBinding, ArtifactBindingId, ArtifactEntry, ArtifactId, ArtifactOutcome,
+    ArtifactRetention, ArtifactSidecar,
+};
+use super::pin::ArtifactBindingPin;
 use crate::{
-    ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactProjection,
-    ArtifactProjectionFingerprint, ArtifactRecord, ArtifactVersion, Asset, Build, Bundle,
-    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirDeclaredComponent,
-    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
-    GlobalEnvironment, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
-    ModuleIndex, ModuleLinted, Object, PackageGraph, Product, ProgramAnalysis, ProgramIndex,
-    ProgramLinted, Script,
+    ArtifactDependency, ArtifactError, ArtifactFailure, ArtifactInput, ArtifactKey,
+    ArtifactPayload, ArtifactProjection, ArtifactProjectionFingerprint, ArtifactRecord,
+    ArtifactResultRecord, ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound,
+    DirChecked, DirCheckedComponent, DirDeclaredComponent, DirExpanded, DirExported, DirImported,
+    DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, InferenceComponentIndex,
+    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted,
+    Object, PackageGraph, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 
 macro_rules! artifact_getter {
@@ -31,76 +37,104 @@ macro_rules! artifact_getter {
     };
 }
 
-/// Table of published semantic artifacts.
+/// Table of published artifacts and input bindings.
 #[derive(Debug, Default)]
 pub struct ArtifactTable {
     /// The exact artifact version entries.
     entries: DashMap<ArtifactVersion, ArtifactEntry, FxBuildHasher>,
-    /// The live retain count for each exact artifact version.
-    retained_versions: DashMap<ArtifactVersion, usize, FxBuildHasher>,
+    /// Dense ids by artifact key.
+    artifact_ids: DashMap<ArtifactKey, ArtifactId, FxBuildHasher>,
+    /// The next dense artifact id.
+    next_artifact_id: AtomicU32,
+    /// Immutable live bindings by compact id.
+    bindings: DashMap<ArtifactBindingId, ArtifactBinding, FxBuildHasher>,
+    /// The next immutable binding id.
+    next_binding_id: AtomicU32,
+    /// Binding ids by artifact input.
+    inputs: DashMap<ArtifactInput, ArtifactBindingId, FxBuildHasher>,
+    /// The live retain count for each exact artifact binding.
+    retained_bindings: DashMap<ArtifactBindingId, usize, FxBuildHasher>,
+    /// Synchronizes binding retention with pruning.
+    retention: RwLock<()>,
 }
 
 impl ArtifactTable {
-    /// Create a new semantic artifact table.
+    /// Create an artifact table.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Increase the live reference count for one exact artifact version.
-    pub(crate) fn increase_ref_count(&self, version: &ArtifactVersion) {
-        if !self.exists(version) {
-            unreachable!("artifact pins can only retain published versions: {version:?}");
+    /// Increase the live reference count for one exact artifact binding.
+    fn retain_binding(&self, binding: ArtifactBindingId) {
+        if !self.bindings.contains_key(&binding) {
+            unreachable!("artifact pins can only retain published bindings: {binding:?}");
         }
 
-        let mut retain_count = self.retained_versions.entry(*version).or_insert(0);
+        let mut retain_count = self.retained_bindings.entry(binding).or_insert(0);
         *retain_count += 1;
     }
 
-    /// Retain one exact live artifact version with RAII release on drop.
-    pub fn pin(self: &Arc<Self>, version: &ArtifactVersion) -> Option<ArtifactPin> {
-        if !self.exists(version) {
+    /// Retain one exact live artifact binding with RAII release on drop.
+    pub fn pin_binding(self: &Arc<Self>, binding: ArtifactBindingId) -> Option<ArtifactBindingPin> {
+        let _retention = self.retention.read();
+        if !self.bindings.contains_key(&binding) {
             return None;
         }
 
-        self.increase_ref_count(version);
+        self.retain_binding(binding);
 
-        Some(ArtifactPin::new(Arc::clone(self), *version))
+        Some(ArtifactBindingPin::new(Arc::clone(self), binding))
     }
 
-    /// Decrease the live reference count for one exact artifact version.
-    pub(crate) fn decrease_ref_count(&self, version: &ArtifactVersion) {
-        let Some(mut retain_count) = self.retained_versions.get_mut(version) else {
-            unreachable!("artifact pins can only release retained versions: {version:?}");
+    /// Decrease the live reference count for one exact artifact binding.
+    pub(crate) fn release_binding(&self, binding: ArtifactBindingId) {
+        let Some(mut retain_count) = self.retained_bindings.get_mut(&binding) else {
+            unreachable!("artifact pins can only release retained bindings: {binding:?}");
         };
 
         if *retain_count == 1 {
             drop(retain_count);
-            self.retained_versions.remove(version);
+            self.retained_bindings.remove(&binding);
         } else {
             *retain_count -= 1;
         }
     }
 
-    /// Return all exact artifact versions retained by live pins.
-    pub fn retained_versions(&self) -> Vec<ArtifactVersion> {
-        self.retained_versions
-            .iter()
-            .map(|entry| *entry.key())
-            .collect()
-    }
-
-    /// Retain reachable and explicitly pinned artifact versions.
-    pub fn retain_reachable(&self, reachable: &HashSet<ArtifactVersion>) {
-        let retained = self
-            .retained_versions
+    /// Retain selected and explicitly pinned artifact bindings.
+    pub fn retain_bindings(
+        &self,
+        selected: &HashSet<ArtifactBindingId>,
+    ) -> Result<ArtifactRetention, ArtifactError> {
+        let _retention = self.retention.write();
+        let pinned = self
+            .retained_bindings
             .iter()
             .map(|entry| *entry.key())
             .collect::<HashSet<_>>();
-        let reachable = self.reachable_closure(reachable.iter().chain(retained.iter()).copied());
+        let mut retained = selected.clone();
+        retained.extend(pinned);
 
-        // retain reachable and explicitly pinned entries
-        self.entries
-            .retain(|version, _| reachable.contains(version));
+        // collect the exact records and deduplicated payloads to retain
+        let mut inputs = HashSet::with_capacity(retained.len());
+        let mut versions = HashSet::with_capacity(retained.len());
+        for binding_id in &retained {
+            let binding = self.binding(*binding_id).ok_or(ArtifactError::Invalid(
+                "retained artifact binding is missing",
+            ))?;
+            inputs.insert(binding.input);
+            versions.insert(binding.version);
+        }
+
+        // release unreachable binding rows and input identities
+        self.inputs
+            .retain(|_input, binding| retained.contains(binding));
+        self.bindings
+            .retain(|binding, _entry| retained.contains(binding));
+
+        // release payloads not produced by any retained binding
+        self.entries.retain(|version, _| versions.contains(version));
+
+        Ok(ArtifactRetention { inputs, versions })
     }
 
     /// Return the recorded diagnostics for one exact artifact version.
@@ -110,59 +144,33 @@ impl ArtifactTable {
             .map(|entry| Arc::clone(&entry.diagnostics))
     }
 
-    /// Return the exact dependencies for one artifact version.
-    pub fn dependencies(&self, version: &ArtifactVersion) -> Option<Arc<[ArtifactDependency]>> {
-        self.entries
-            .get(version)
-            .map(|entry| Arc::clone(&entry.dependencies))
-    }
+    /// Intern one artifact key into a dense process-local id.
+    pub fn intern_artifact_key(&self, key: ArtifactKey) -> ArtifactId {
+        match self.artifact_ids.entry(key) {
+            Entry::Occupied(entry) => *entry.get(),
+            Entry::Vacant(entry) => {
+                let id = self.next_artifact_id.fetch_add(1, Ordering::Relaxed);
+                let id = ArtifactId(id);
+                entry.insert(id);
 
-    /// Return the transitive source files for one artifact version.
-    pub fn sources(&self, version: &ArtifactVersion) -> Option<Arc<[FileId]>> {
-        self.entries
-            .get(version)
-            .map(|entry| Arc::clone(&entry.sources))
-    }
-
-    /// Return the predecessor artifact for one exact artifact version.
-    pub fn base(&self, version: &ArtifactVersion) -> Option<ArtifactVersion> {
-        self.entries.get(version).and_then(|entry| entry.base)
-    }
-
-    /// Return roots plus artifact dependencies and base artifacts needed to load them.
-    pub fn reachable_closure(
-        &self,
-        roots: impl IntoIterator<Item = ArtifactVersion>,
-    ) -> HashSet<ArtifactVersion> {
-        let mut reachable = HashSet::new();
-        let mut pending = roots.into_iter().collect::<VecDeque<_>>();
-
-        // walk artifact records that must remain loadable with each root
-        while let Some(version) = pending.pop_front() {
-            if !reachable.insert(version) {
-                continue;
-            }
-            let Some(entry) = self.entries.get(&version) else {
-                continue;
-            };
-
-            if let Some(base) = entry.base {
-                pending.push_back(base);
-            }
-            for dependency in entry.dependencies.iter() {
-                match dependency {
-                    ArtifactDependency::Artifact(dependency) => {
-                        pending.push_back(*dependency);
-                    }
-                    ArtifactDependency::Projection(dependency) => {
-                        pending.push_back(dependency.version);
-                    }
-                    ArtifactDependency::Source(_dependency) => {}
-                }
+                id
             }
         }
+    }
 
-        reachable
+    /// Return the dense id for one interned artifact key.
+    pub fn artifact_id(&self, key: ArtifactKey) -> Option<ArtifactId> {
+        self.artifact_ids.get(&key).map(|entry| *entry)
+    }
+
+    /// Return one immutable artifact binding.
+    pub fn binding(&self, id: ArtifactBindingId) -> Option<ArtifactBinding> {
+        self.bindings.get(&id).map(|entry| entry.value().clone())
+    }
+
+    /// Return the binding id for one artifact input.
+    pub fn binding_id(&self, input: &ArtifactInput) -> Option<ArtifactBindingId> {
+        self.inputs.get(input).map(|entry| *entry)
     }
 
     /// Return the recorded sidecars for one exact artifact version.
@@ -172,11 +180,6 @@ impl ArtifactTable {
             .map(|entry| Arc::clone(&entry.sidecars))
     }
 
-    /// Return whether one exact artifact version entry exists.
-    fn exists(&self, version: &ArtifactVersion) -> bool {
-        self.entries.contains_key(version)
-    }
-
     /// Return the exact terminal outcome for one artifact version.
     pub fn outcome(&self, version: &ArtifactVersion) -> Option<ArtifactOutcome> {
         self.entries
@@ -184,103 +187,163 @@ impl ArtifactTable {
             .map(|entry| entry.result.outcome())
     }
 
-    /// Return the provider failure for one exact artifact version.
-    pub fn failure(&self, version: &ArtifactVersion) -> Option<ArtifactFailure> {
-        match self.outcome(version) {
-            Some(ArtifactOutcome::Failed(failure)) => Some(failure),
-            Some(ArtifactOutcome::Ok) | None => None,
-        }
-    }
-
-    /// Return whether one exact artifact payload is published.
-    pub fn has(&self, version: &ArtifactVersion) -> bool {
-        self.payload(version).is_some()
-    }
-
     /// Return one self-contained artifact record.
     pub fn record(
         &self,
-        version: &ArtifactVersion,
+        input: &ArtifactInput,
         strings: &StringPool,
-    ) -> Result<Option<ArtifactRecord>, crate::ArtifactStoreError> {
-        let Some(entry) = self.entries.get(version).map(|entry| entry.clone()) else {
+    ) -> Result<Option<ArtifactRecord>, crate::ArtifactError> {
+        let Some(binding) = self.binding_id(input) else {
             return Ok(None);
+        };
+        let binding = self.binding(binding).ok_or(ArtifactError::Invalid(
+            "artifact input references a missing binding",
+        ))?;
+        let Some(entry) = self
+            .entries
+            .get(&binding.version)
+            .map(|entry| entry.clone())
+        else {
+            return Err(ArtifactError::Invalid("artifact input has no result entry"));
         };
         let Some(payload) = entry.result.payload() else {
-            return Ok(None);
+            return Err(ArtifactError::Invalid(
+                "failed artifact input cannot be persisted as a ready record",
+            ));
         };
 
-        let dependencies = entry.dependencies.iter().cloned().collect();
-        let sources = entry.sources.iter().copied().collect();
+        let dependencies = binding.dependencies.iter().cloned().collect();
         let diagnostics = entry.diagnostics.as_ref().clone();
         let sidecars = entry.sidecars.iter().cloned().collect();
         let record = ArtifactRecord::new(
-            *version,
-            entry.base,
+            *input,
             payload.as_ref(),
             strings,
             dependencies,
-            sources,
             diagnostics,
             sidecars,
         )?;
-
+        if record.version() != binding.version {
+            return Err(ArtifactError::VersionMismatch {
+                expected: Box::new(binding.version),
+                found: Box::new(record.version()),
+            });
+        }
         Ok(Some(record))
+    }
+
+    /// Publish one ready result without an input binding.
+    pub fn publish_result(
+        &self,
+        version: ArtifactVersion,
+        payload: ArtifactPayload,
+        diagnostics: impl Into<Arc<DiagnosticCollection>>,
+        sidecars: impl Into<Arc<[ArtifactSidecar]>>,
+    ) -> Result<(), ArtifactError> {
+        if !payload.matches_key(&version.key) {
+            return Err(ArtifactError::Invalid(
+                "artifact payload does not match its version key",
+            ));
+        }
+
+        let diagnostics = diagnostics.into();
+        let sidecars = sidecars.into();
+        let produced = ArtifactResultRecord::result_version(
+            version.key,
+            payload.as_ref(),
+            diagnostics.as_ref(),
+            sidecars.as_ref(),
+        )?;
+        if produced != version {
+            return Err(ArtifactError::VersionMismatch {
+                expected: Box::new(version),
+                found: Box::new(produced),
+            });
+        }
+
+        self.insert_result(version, payload, diagnostics, sidecars);
+
+        Ok(())
     }
 
     /// Publish one ready artifact.
     pub fn publish(
-        &self,
-        version: ArtifactVersion,
-        base: Option<ArtifactVersion>,
+        self: &Arc<Self>,
+        input: ArtifactInput,
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
-        sources: impl Into<Arc<[FileId]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
-    ) {
-        if !payload.matches_key(&version.key) {
-            unreachable!(
-                "artifact payload did not match key: key={:?} payload={}",
-                version.key,
-                payload.name()
-            );
-        }
-
+    ) -> Result<(ArtifactVersion, ArtifactBindingPin), ArtifactError> {
         let dependencies = dependencies.into();
-        let sources = sources.into();
+        let diagnostics = diagnostics.into();
+        let sidecars = sidecars.into();
+        let version = ArtifactResultRecord::result_version(
+            input.key,
+            payload.as_ref(),
+            diagnostics.as_ref(),
+            sidecars.as_ref(),
+        )?;
 
-        self.entries.insert(
-            version,
-            ArtifactEntry::ok(base, payload, dependencies, sources, diagnostics, sidecars),
-        );
+        let _retention = self.retention.read();
+        self.insert_result(version, payload, diagnostics, sidecars);
+        let binding = self.record_input(input, version, dependencies)?;
+        self.retain_binding(binding);
+
+        let pin = ArtifactBindingPin::new(Arc::clone(self), binding);
+
+        Ok((version, pin))
     }
 
     /// Fail one artifact.
     pub fn fail(
-        &self,
-        version: ArtifactVersion,
-        base: Option<ArtifactVersion>,
+        self: &Arc<Self>,
+        input: ArtifactInput,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
-        sources: impl Into<Arc<[FileId]>>,
         diagnostics: impl Into<Arc<DiagnosticCollection>>,
         sidecars: impl Into<Arc<[ArtifactSidecar]>>,
         failure: ArtifactFailure,
-    ) {
+    ) -> Result<(ArtifactVersion, ArtifactBindingPin), ArtifactError> {
         let dependencies = dependencies.into();
-        let sources = sources.into();
+        let diagnostics = diagnostics.into();
+        let sidecars = sidecars.into();
+        let version = ArtifactResultRecord::failure_version(
+            input.key,
+            &failure,
+            diagnostics.as_ref(),
+            sidecars.as_ref(),
+        )?;
 
-        self.entries.insert(
-            version,
-            ArtifactEntry::failed(base, dependencies, sources, diagnostics, sidecars, failure),
-        );
+        let _retention = self.retention.read();
+        self.entries
+            .entry(version)
+            .or_insert_with(|| ArtifactEntry::failed(diagnostics, sidecars, failure));
+        let binding = self.record_input(input, version, dependencies)?;
+        self.retain_binding(binding);
+
+        let pin = ArtifactBindingPin::new(Arc::clone(self), binding);
+
+        Ok((version, pin))
     }
 
     /// Return the successful payload for one artifact version.
-    fn payload(&self, version: &ArtifactVersion) -> Option<ArtifactPayload> {
+    pub fn payload(&self, version: &ArtifactVersion) -> Option<ArtifactPayload> {
         let entry = self.entries.get(version)?;
 
         entry.result.payload()
+    }
+
+    /// Insert one already fingerprinted ready result.
+    fn insert_result(
+        &self,
+        version: ArtifactVersion,
+        payload: ArtifactPayload,
+        diagnostics: Arc<DiagnosticCollection>,
+        sidecars: Arc<[ArtifactSidecar]>,
+    ) {
+        self.entries
+            .entry(version)
+            .or_insert_with(|| ArtifactEntry::ok(payload, diagnostics, sidecars));
     }
 
     /// Return the stable fingerprint of one projected artifact value.
@@ -293,8 +356,64 @@ impl ArtifactTable {
             return None;
         }
 
-        self.payload(version)?
-            .projection_fingerprint(projection.key)
+        let entry = self.entries.get(version)?;
+        let payload = entry.result.payload()?;
+
+        payload.as_ref().fingerprint_projection(projection.key)
+    }
+
+    /// Record one deterministic artifact input result.
+    fn record_input(
+        &self,
+        input: ArtifactInput,
+        version: ArtifactVersion,
+        dependencies: Arc<[ArtifactDependency]>,
+    ) -> Result<ArtifactBindingId, ArtifactError> {
+        if input.key != version.key {
+            return Err(ArtifactError::Invalid(
+                "artifact input key does not match its result version",
+            ));
+        }
+        // intern the binding key and every artifact dependency owner
+        self.intern_artifact_key(input.key);
+        for dependency in dependencies.iter() {
+            if let Some(key) = dependency.artifact_key() {
+                self.intern_artifact_key(key);
+            }
+        }
+
+        match self.inputs.entry(input) {
+            Entry::Vacant(entry) => {
+                let id = self.next_binding_id.fetch_add(1, Ordering::Relaxed);
+                let id = ArtifactBindingId(id);
+                self.bindings.insert(
+                    id,
+                    ArtifactBinding {
+                        input,
+                        version,
+                        dependencies,
+                    },
+                );
+                entry.insert(id);
+
+                Ok(id)
+            }
+            Entry::Occupied(entry) => {
+                let id = *entry.get();
+                let binding = self.binding(id).ok_or(ArtifactError::Invalid(
+                    "artifact input references a missing binding",
+                ))?;
+                if binding.version == version {
+                    Ok(id)
+                } else {
+                    Err(ArtifactError::Nondeterministic {
+                        input: Box::new(input),
+                        existing: Box::new(binding.version),
+                        produced: Box::new(version),
+                    })
+                }
+            }
+        }
     }
 
     artifact_getter!(global_environment, GlobalEnvironment, GlobalEnvironment);
@@ -326,6 +445,11 @@ impl ArtifactTable {
     artifact_getter!(mir_analyzed, MirAnalyzed, MirAnalyzed);
     artifact_getter!(mir_optimized, MirOptimized, MirOptimized);
     artifact_getter!(module_index, ModuleIndex, ModuleIndex);
+    artifact_getter!(
+        inference_component_index,
+        InferenceComponentIndex,
+        InferenceComponentIndex
+    );
     artifact_getter!(program_index, ProgramIndex, ProgramIndex);
     artifact_getter!(script, Script, Script);
     artifact_getter!(object, Object, Object);
@@ -338,9 +462,13 @@ impl ArtifactTable {
     artifact_getter!(program_linted, ProgramLinted, ProgramLinted);
 
     /// Return content ids referenced by one exact artifact payload.
-    pub fn content_ids(&self, version: &ArtifactVersion) -> Vec<ContentId> {
-        self.payload(version)
-            .map(|payload| payload.content_ids())
-            .unwrap_or_default()
+    pub fn content_ids(&self, version: &ArtifactVersion) -> Option<Vec<ContentId>> {
+        let entry = self.entries.get(version)?;
+        let contents = match entry.result.payload() {
+            Some(payload) => payload.content_ids(),
+            None => Vec::new(),
+        };
+
+        Some(contents)
     }
 }

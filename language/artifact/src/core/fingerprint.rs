@@ -1,16 +1,15 @@
-use destack_serde::Reflect;
 use std::hash::Hash;
 
-use serde::{Deserialize, Serialize};
-
 use destack_core::StableHasher;
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     ArtifactDependency, ArtifactKey, ArtifactProjection, ArtifactProjectionFingerprint,
     ArtifactVersion, SourceDependency,
 };
 
-/// Deterministic identity of one artifact's complete semantic dependencies.
+/// Deterministic fingerprint of one artifact's complete inputs.
 #[repr(transparent)]
 #[derive(
     Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize, Reflect,
@@ -30,11 +29,9 @@ impl std::fmt::Display for ArtifactFingerprint {
 }
 
 impl ArtifactFingerprint {
-    /// Create one artifact fingerprint from an artifact key, build fingerprint, and exact dependencies.
+    /// Create one artifact fingerprint from the toolchain build and exact dependencies.
     pub(crate) fn new(
-        key: ArtifactKey,
         build_fingerprint: &str,
-        base: Option<ArtifactVersion>,
         dependencies: impl IntoIterator<Item = ArtifactDependency>,
     ) -> Self {
         // artifact dependency identities are a set
@@ -48,16 +45,38 @@ impl ArtifactFingerprint {
         // stable fingerprint stream
         let mut hasher = StableHasher::new();
 
-        hasher.update_len_prefixed(b"destack.artifact.fingerprint.v3");
-        key.hash(&mut hasher);
+        hasher.update_len_prefixed(b"destack.artifact.inputs.v1");
         hasher.update_len_prefixed(build_fingerprint.as_bytes());
-        base.hash(&mut hasher);
         hasher.update(&(dependencies.len() as u64).to_le_bytes());
         for dependency in &dependencies {
             dependency.hash(&mut hasher);
         }
 
         Self(hasher.finish_u128())
+    }
+}
+
+/// One artifact key and its exact input fingerprint.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct ArtifactInput {
+    /// The artifact key.
+    pub key: ArtifactKey,
+    /// The exact input fingerprint.
+    pub fingerprint: ArtifactFingerprint,
+}
+
+impl ArtifactInput {
+    /// Create one artifact input from its complete declared dependencies.
+    pub fn new(
+        key: ArtifactKey,
+        build_fingerprint: &str,
+        dependencies: impl IntoIterator<Item = ArtifactDependency>,
+    ) -> Self {
+        let fingerprint = ArtifactFingerprint::new(build_fingerprint, dependencies);
+
+        Self { key, fingerprint }
     }
 }
 
@@ -82,8 +101,8 @@ impl From<ArtifactDependency> for ArtifactFingerprintDependency {
         match dependency {
             ArtifactDependency::Artifact(version) => Self::Artifact(version),
             ArtifactDependency::Projection(dependency) => Self::Projection {
-                projection: dependency.projection,
-                fingerprint: dependency.fingerprint,
+                projection: dependency.projection(),
+                fingerprint: dependency.fingerprint(),
             },
             ArtifactDependency::Source(dependency) => Self::Source(dependency),
         }

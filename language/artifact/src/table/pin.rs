@@ -1,80 +1,32 @@
-use rustc_hash::FxHashMap;
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use parking_lot::Mutex;
-
-use crate::ArtifactVersion;
+use crate::ArtifactBindingId;
 
 use super::ArtifactTable;
 
-/// One retained exact artifact version.
+/// One retained exact artifact binding.
 #[derive(Debug)]
-pub struct ArtifactPin {
-    /// The shared artifact table that owns this version.
+pub struct ArtifactBindingPin {
+    /// The shared artifact table that owns this binding.
     table: Arc<ArtifactTable>,
-    /// The retained artifact version.
-    version: ArtifactVersion,
+    /// The retained artifact binding.
+    binding: ArtifactBindingId,
 }
 
-impl ArtifactPin {
-    /// Build one exact artifact pin.
-    pub(crate) fn new(table: Arc<ArtifactTable>, version: ArtifactVersion) -> Self {
-        Self { table, version }
+impl ArtifactBindingPin {
+    /// Build one exact artifact binding pin.
+    pub(crate) fn new(table: Arc<ArtifactTable>, binding: ArtifactBindingId) -> Self {
+        Self { table, binding }
     }
 
-    /// Return the retained artifact version.
-    pub fn version(&self) -> ArtifactVersion {
-        self.version
+    /// Return the retained artifact binding.
+    pub const fn binding(&self) -> ArtifactBindingId {
+        self.binding
     }
 }
 
-impl Drop for ArtifactPin {
+impl Drop for ArtifactBindingPin {
     fn drop(&mut self) {
-        self.table.decrease_ref_count(&self.version);
-    }
-}
-
-/// One retained exact artifact version set with RAII release on drop.
-#[derive(Debug)]
-pub struct ArtifactPinSet {
-    /// The shared artifact table that owns these pins.
-    table: Arc<ArtifactTable>,
-    /// The retained exact versions for one execution scope.
-    pins: Mutex<FxHashMap<ArtifactVersion, ArtifactPin>>,
-}
-
-impl ArtifactPinSet {
-    /// Build one empty pin set for one artifact table.
-    pub fn new(table: Arc<ArtifactTable>) -> Self {
-        Self {
-            table,
-            pins: Mutex::new(HashMap::default()),
-        }
-    }
-
-    /// Return the shared artifact table.
-    pub fn table(&self) -> &Arc<ArtifactTable> {
-        &self.table
-    }
-
-    /// Return whether the pin set is empty.
-    pub fn is_empty(&self) -> bool {
-        self.pins.lock().is_empty()
-    }
-
-    /// Retain one exact artifact version for this scope.
-    pub fn pin(&self, version: ArtifactVersion) -> bool {
-        let mut pins = self.pins.lock();
-        if pins.contains_key(&version) {
-            return true;
-        }
-
-        let Some(pin) = self.table.pin(&version) else {
-            return false;
-        };
-        pins.insert(version, pin);
-
-        true
+        self.table.release_binding(self.binding);
     }
 }

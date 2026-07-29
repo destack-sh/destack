@@ -1,12 +1,12 @@
-use destack_serde::Reflect;
-use siphasher::sip128::Hasher128;
 use std::hash::Hash;
 
 use destack_core::StableHasher;
+use destack_serde::Reflect;
 use destack_source::{ComponentId, ContentId, FileId, ModuleId, PackageId};
 use serde::{Deserialize, Serialize};
+use siphasher::sip128::Hasher128;
 
-use crate::{ArtifactKey, ArtifactVersion, ModuleIndexProjection};
+use crate::{ArtifactKey, ArtifactVersion};
 
 /// Stable fingerprint of one repository module set.
 #[repr(transparent)]
@@ -76,6 +76,17 @@ pub enum SourceDependency {
     },
 }
 
+/// One repository source selected by a source dependency.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum SourceDependencyKey {
+    /// One source file.
+    File(FileId),
+    /// The repository package set.
+    Packages,
+    /// The repository module set.
+    Modules,
+}
+
 /// Stable fingerprint of one observed artifact projection.
 #[repr(transparent)]
 #[derive(
@@ -112,11 +123,11 @@ impl ArtifactProjectionFingerprint {
     }
 }
 
-/// One observable projection of a component graph artifact.
+/// One observable projection of an artifact payload.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
-pub enum ComponentGraphProjection {
+pub enum ArtifactProjectionKey {
     /// The reference component containing one module.
     ReferenceComponent(ModuleId),
     /// The sorted modules belonging to one reference component.
@@ -129,52 +140,16 @@ pub enum ComponentGraphProjection {
     InferenceMembers(ComponentId),
     /// The upstream inference components one inference component depends on.
     InferenceDependencies(ComponentId),
-    /// The inherent extensions resolved across the graph's modules.
+    /// The inherent extensions resolved across the component graph.
     InherentExtensions,
-}
-
-/// One observable projection of a package graph artifact.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
-)]
-pub enum PackageGraphProjection {
-    /// The active package nodes containing dependency and export routes.
-    Nodes,
-}
-
-/// One observable projection of an artifact payload.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
-)]
-pub enum ArtifactProjectionKey {
-    /// A component graph projection.
-    ComponentGraph(ComponentGraphProjection),
     /// A declared DIR module inside a declared component.
     DirDeclaredModule(ModuleId),
-    /// A package graph projection.
-    PackageGraph(PackageGraphProjection),
+    /// Exported symbols whose consumers require inference.
+    DirInferenceExports,
+    /// Resolved relationships that determine component graph edges.
+    DirComponentEdges,
     /// A checked DIR module inside a checked component.
     DirCheckedModule(ModuleId),
-    /// A module index projection.
-    ModuleIndex(ModuleIndexProjection),
-}
-
-impl From<ComponentGraphProjection> for ArtifactProjectionKey {
-    fn from(projection: ComponentGraphProjection) -> Self {
-        Self::ComponentGraph(projection)
-    }
-}
-
-impl From<PackageGraphProjection> for ArtifactProjectionKey {
-    fn from(projection: PackageGraphProjection) -> Self {
-        Self::PackageGraph(projection)
-    }
-}
-
-impl From<ModuleIndexProjection> for ArtifactProjectionKey {
-    fn from(projection: ModuleIndexProjection) -> Self {
-        Self::ModuleIndex(projection)
-    }
 }
 
 /// One artifact projection selected by owner artifact and projection key.
@@ -190,11 +165,8 @@ pub struct ArtifactProjection {
 
 impl ArtifactProjection {
     /// Build one artifact projection.
-    pub fn new(artifact: ArtifactKey, key: impl Into<ArtifactProjectionKey>) -> Self {
-        Self {
-            artifact,
-            key: key.into(),
-        }
+    pub const fn new(artifact: ArtifactKey, key: ArtifactProjectionKey) -> Self {
+        Self { artifact, key }
     }
 }
 
@@ -204,41 +176,61 @@ impl ArtifactProjection {
 )]
 pub struct ArtifactProjectionDependency {
     /// The exact artifact version that supplied the projected value.
-    pub version: ArtifactVersion,
+    version: ArtifactVersion,
     /// The projected artifact value.
-    pub projection: ArtifactProjection,
+    projection: ArtifactProjection,
     /// The exact projection fingerprint read from the owner artifact.
-    pub fingerprint: ArtifactProjectionFingerprint,
+    fingerprint: ArtifactProjectionFingerprint,
 }
 
 impl ArtifactProjectionDependency {
     /// Build one exact artifact projection dependency.
     pub const fn new(
         version: ArtifactVersion,
-        projection: ArtifactProjection,
+        key: ArtifactProjectionKey,
         fingerprint: ArtifactProjectionFingerprint,
     ) -> Self {
         Self {
             version,
-            projection,
+            projection: ArtifactProjection::new(version.key, key),
             fingerprint,
         }
+    }
+
+    /// Return the exact artifact version.
+    pub const fn version(self) -> ArtifactVersion {
+        self.version
+    }
+
+    /// Return the observed artifact projection.
+    pub const fn projection(self) -> ArtifactProjection {
+        self.projection
+    }
+
+    /// Return the exact observed projection fingerprint.
+    pub const fn fingerprint(self) -> ArtifactProjectionFingerprint {
+        self.fingerprint
+    }
+
+    /// Return whether the artifact version owns this projection.
+    pub(crate) fn owner_matches_version(&self) -> bool {
+        self.version.key == self.projection.artifact
     }
 }
 
 /// One unresolved artifact value needed before an artifact can be built.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ArtifactRequirement {
-    /// The exact version of one artifact.
-    Key(ArtifactKey),
+    /// One complete artifact result.
+    Artifact(ArtifactKey),
     /// The exact fingerprint of one projected artifact value.
     Projection(ArtifactProjection),
 }
 
 impl ArtifactRequirement {
-    /// Build one artifact version requirement.
-    pub const fn version(key: ArtifactKey) -> Self {
-        Self::Key(key)
+    /// Build one complete artifact requirement.
+    pub const fn artifact(key: ArtifactKey) -> Self {
+        Self::Artifact(key)
     }
 
     /// Build one projected artifact value requirement.
@@ -249,7 +241,7 @@ impl ArtifactRequirement {
     /// Return the artifact key this requirement resolves through.
     pub const fn artifact_key(&self) -> ArtifactKey {
         match self {
-            Self::Key(key) => *key,
+            Self::Artifact(key) => *key,
             Self::Projection(projection) => projection.artifact,
         }
     }
@@ -274,13 +266,20 @@ impl SourceDependency {
             fingerprint: ModuleSetFingerprint::new(modules),
         }
     }
+
+    /// Return the selected repository source.
+    const fn key(self) -> SourceDependencyKey {
+        match self {
+            Self::FileContent { file, .. } => SourceDependencyKey::File(file),
+            Self::Packages { .. } => SourceDependencyKey::Packages,
+            Self::Modules { .. } => SourceDependencyKey::Modules,
+        }
+    }
 }
 
 /// Every dependency one artifact declares before it is built.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ArtifactDependencySet {
-    /// The predecessor artifact this dependency set is derived from.
-    pub base: Option<ArtifactVersion>,
     /// Artifact values that must be resolved first.
     pub requirements: Vec<ArtifactRequirement>,
     /// Primitive source observations that feed the fingerprint.
@@ -290,18 +289,13 @@ pub struct ArtifactDependencySet {
 }
 
 impl ArtifactDependencySet {
-    /// Declare one predecessor artifact used to derive this artifact.
-    pub fn derive_from(&mut self, version: ArtifactVersion) {
-        self.base = Some(version);
-    }
-
     /// Declare one required lower artifact.
     pub fn require(&mut self, key: ArtifactKey) {
-        self.requirements.push(ArtifactRequirement::version(key));
+        self.requirements.push(ArtifactRequirement::artifact(key));
     }
 
     /// Declare one required artifact projection.
-    pub fn project(&mut self, artifact: ArtifactKey, key: impl Into<ArtifactProjectionKey>) {
+    pub fn require_projection(&mut self, artifact: ArtifactKey, key: ArtifactProjectionKey) {
         let projection = ArtifactProjection::new(artifact, key);
 
         self.requirements
@@ -332,6 +326,33 @@ impl ArtifactDependencySet {
     pub fn mark_partial(&mut self) {
         self.is_partial = true;
     }
+
+    /// Return whether dependencies follow this set's requirement order.
+    pub fn matches(&self, dependencies: &[ArtifactDependency]) -> bool {
+        if self.is_partial || dependencies.len() != self.requirements.len() + self.sources.len() {
+            return false;
+        }
+
+        // match artifact declarations by requirement
+        let (requirements, sources) = dependencies.split_at(self.requirements.len());
+        let is_requirements_match = self
+            .requirements
+            .iter()
+            .zip(requirements)
+            .all(|(requirement, dependency)| dependency.requirement() == Some(*requirement));
+
+        // match source declarations without comparing observed values
+        let is_sources_match = self
+            .sources
+            .iter()
+            .zip(sources)
+            .all(|(source, dependency)| match dependency {
+                ArtifactDependency::Source(dependency) => source.key() == dependency.key(),
+                ArtifactDependency::Artifact(_) | ArtifactDependency::Projection(_) => false,
+            });
+
+        is_requirements_match && is_sources_match
+    }
 }
 
 /// One exact dependency read while building an artifact.
@@ -354,21 +375,28 @@ impl ArtifactDependency {
     /// Build one exact artifact projection dependency.
     pub fn projection(
         version: ArtifactVersion,
-        projection: ArtifactProjection,
+        key: ArtifactProjectionKey,
         fingerprint: ArtifactProjectionFingerprint,
     ) -> Self {
-        Self::Projection(ArtifactProjectionDependency::new(
-            version,
-            projection,
-            fingerprint,
-        ))
+        Self::Projection(ArtifactProjectionDependency::new(version, key, fingerprint))
     }
 
     /// Return the depended-on artifact key, excluding primitive sources.
     pub const fn artifact_key(&self) -> Option<ArtifactKey> {
         match self {
             Self::Artifact(version) => Some(version.key),
-            Self::Projection(dependency) => Some(dependency.version.key),
+            Self::Projection(dependency) => Some(dependency.version().key),
+            Self::Source(_) => None,
+        }
+    }
+
+    /// Return the exact artifact observation represented by this dependency.
+    pub const fn requirement(&self) -> Option<ArtifactRequirement> {
+        match self {
+            Self::Artifact(version) => Some(ArtifactRequirement::Artifact(version.key)),
+            Self::Projection(dependency) => {
+                Some(ArtifactRequirement::Projection(dependency.projection()))
+            }
             Self::Source(_) => None,
         }
     }
