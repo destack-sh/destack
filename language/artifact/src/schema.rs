@@ -1,15 +1,16 @@
 use destack_serde::SchemaRegistry;
 
 use crate::{
-    ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload, ArtifactRecord,
-    ArtifactReference, ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest,
-    BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, ComponentGraph, Data, DirBound,
-    DirChecked, DirCheckedComponent, DirDeclaredComponent, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
-    LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirElaborated, MirLowered, MirOptimized,
-    MirVerified, ModuleEdges, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageGraph,
-    Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime,
-    Script, ScriptBody, ScriptLanguage, SourceMap,
+    ArtifactBindingRecord, ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload,
+    ArtifactReference, ArtifactResultRecord, ArtifactSidecar, ArtifactVersion, Asset, Build,
+    BuildLinkage, BuildManifest, BuildProfile, Bundle, BundleFile, BundleMode, BundleSection,
+    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirDeclaredComponent,
+    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, EmitFormat,
+    GlobalEnvironment, Host, InferenceComponentIndex, LanguageEnvironment, LanguageIntrinsics,
+    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleIndex,
+    ModuleLinted, Object, ObjectFormat, PackageGraph, Platform, Product, ProductTarget,
+    ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime, Script, ScriptBody, ScriptLanguage,
+    SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -18,7 +19,8 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<ArtifactVersion>();
     registry.register::<ArtifactDependency>();
     registry.register::<ArtifactSidecar>();
-    registry.register::<ArtifactRecord>();
+    registry.register::<ArtifactBindingRecord>();
+    registry.register::<ArtifactResultRecord>();
     registry.register::<ArtifactPayload>();
     registry.register::<ArtifactReference>();
 
@@ -41,6 +43,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<BuildManifest>();
     registry.register::<PackageGraph>();
     registry.register::<ModuleIndex>();
+    registry.register::<InferenceComponentIndex>();
     registry.register::<ProgramIndex>();
 
     registry.register::<DirParsed>();

@@ -1,8 +1,8 @@
-use destack_serde::Reflect;
 use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
 
+use destack_serde::Reflect;
 use destack_source::{Content, ContentId};
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +24,51 @@ struct ContentBlob {
     id: ContentId,
     /// The canonical content payload.
     content: Content,
+}
+
+impl ContentBlob {
+    /// Build one content blob.
+    fn new(content: &Content) -> Self {
+        Self {
+            id: ContentId::for_content(content),
+            content: content.clone(),
+        }
+    }
+
+    /// Encode this content blob.
+    fn encode(&self) -> Result<Vec<u8>, ContentStoreError> {
+        let bytes = destack_serde::to_vec(self)
+            .map_err(|error| ContentStoreError::Codec(Box::new(error)))?;
+        let byte_len = bytes.len() as u64;
+        if byte_len > MAX_BLOB_BYTES {
+            return Err(ContentStoreError::Size {
+                limit: MAX_BLOB_BYTES,
+                actual: byte_len,
+            });
+        }
+
+        Ok(bytes)
+    }
+
+    /// Decode one content blob at its expected content id.
+    fn decode(expected: ContentId, bytes: &[u8]) -> Result<Content, ContentStoreError> {
+        let blob: Self = destack_serde::from_slice(bytes)
+            .map_err(|error| ContentStoreError::Codec(Box::new(error)))?;
+        if blob.id != expected {
+            return Err(ContentStoreError::Identity {
+                expected,
+                actual: blob.id,
+            });
+        }
+
+        // reproduce the content identity
+        let actual = ContentId::for_content(&blob.content);
+        if actual != expected {
+            return Err(ContentStoreError::Identity { expected, actual });
+        }
+
+        Ok(blob.content)
+    }
 }
 
 /// Errors that can occur while reading or writing content blobs.
@@ -79,28 +124,25 @@ impl<'a> ContentStore<'a> {
             });
         }
 
-        // read and validate bytes
+        // decode the addressed content
         let Some(bytes) = self.store.read(&path)? else {
             return Ok(None);
         };
-        let blob = deserialize_blob(&bytes)?;
-        validate_blob(expected, blob)
+        let content = ContentBlob::decode(expected, &bytes)?;
+
+        Ok(Some(content))
     }
 
     /// Store one exact content blob.
     pub fn store(&self, content: &Content) -> Result<ContentId, ContentStoreError> {
         // encode content blob
-        let content_id = ContentId::for_content(content);
-        let blob = ContentBlob {
-            id: content_id,
-            content: content.clone(),
-        };
-        let bytes = serialize_blob(&blob)?;
+        let blob = ContentBlob::new(content);
+        let bytes = blob.encode()?;
 
         // publish immutable content without serializing independent writers
-        self.write_content_bytes(content_id, &bytes)?;
+        self.write_content_bytes(blob.id, &bytes)?;
 
-        Ok(content_id)
+        Ok(blob.id)
     }
 
     /// Retain only reachable content blobs.
@@ -198,49 +240,6 @@ impl<'a> ContentStore<'a> {
             .join(shard)
             .join(format!("{content_token}.bin"))
     }
-}
-
-/// Serialize one content blob.
-fn serialize_blob(blob: &ContentBlob) -> Result<Vec<u8>, ContentStoreError> {
-    // encode blob
-    let bytes =
-        destack_serde::to_vec(blob).map_err(|error| ContentStoreError::Codec(Box::new(error)))?;
-    let byte_len = bytes.len() as u64;
-    if byte_len > MAX_BLOB_BYTES {
-        return Err(ContentStoreError::Size {
-            limit: MAX_BLOB_BYTES,
-            actual: byte_len,
-        });
-    }
-
-    Ok(bytes)
-}
-
-/// Deserialize one content blob.
-fn deserialize_blob(bytes: &[u8]) -> Result<ContentBlob, ContentStoreError> {
-    destack_serde::from_slice(bytes).map_err(|error| ContentStoreError::Codec(Box::new(error)))
-}
-
-/// Validate one decoded content blob.
-fn validate_blob(
-    expected: ContentId,
-    blob: ContentBlob,
-) -> Result<Option<Content>, ContentStoreError> {
-    // validate stored identity
-    if blob.id != expected {
-        return Err(ContentStoreError::Identity {
-            expected,
-            actual: blob.id,
-        });
-    }
-
-    // validate content identity
-    let actual = ContentId::for_content(&blob.content);
-    if actual != expected {
-        return Err(ContentStoreError::Identity { expected, actual });
-    }
-
-    Ok(Some(blob.content))
 }
 
 impl fmt::Display for ContentStoreError {

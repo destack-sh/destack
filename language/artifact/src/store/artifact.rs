@@ -2,43 +2,50 @@ use std::collections::HashSet;
 
 use destack_core::StringPool;
 
-use crate::{ArtifactRecord, ArtifactStoreError, ArtifactTable, ArtifactVersion, BlobStoreError};
+use crate::{
+    ArtifactBindingRecord, ArtifactError, ArtifactInput, ArtifactRecord, ArtifactResultRecord,
+    ArtifactVersion,
+};
 
-/// Persistent store for exact artifact records.
+/// Persistent store for artifact bindings and results.
 pub trait ArtifactStore: std::fmt::Debug + Send + Sync {
-    /// Load one exact artifact record when it is present.
-    fn load(
+    /// Load one artifact binding by exact input.
+    fn load_binding(
+        &self,
+        input: &ArtifactInput,
+        strings: &StringPool,
+    ) -> Result<Option<ArtifactBindingRecord>, ArtifactError>;
+
+    /// Load one exact artifact result when it is present.
+    fn load_result(
         &self,
         expected: &ArtifactVersion,
         strings: &StringPool,
-    ) -> Result<Option<ArtifactRecord>, ArtifactStoreError>;
+    ) -> Result<Option<ArtifactResultRecord>, ArtifactError>;
 
-    /// Queue one exact artifact record when this store persists artifacts.
-    fn store(
-        &self,
-        version: &ArtifactVersion,
-        table: &ArtifactTable,
-        strings: &StringPool,
-    ) -> Result<(), ArtifactStoreError>;
+    /// Queue one artifact binding and result for persistence.
+    fn store(&self, record: ArtifactRecord) -> Result<(), ArtifactError>;
 
-    /// Persist queued artifact records.
-    fn flush(&self, strings: &StringPool) -> Result<ArtifactFlush, ArtifactStoreError>;
+    /// Persist queued artifact bindings and results.
+    fn flush(&self, strings: &StringPool) -> Result<ArtifactFlush, ArtifactError>;
 
-    /// Retain only reachable artifact records.
+    /// Retain only selected artifact input records.
     fn retain(
         &self,
-        reachable: &HashSet<ArtifactVersion>,
+        inputs: &HashSet<ArtifactInput>,
         strings: &StringPool,
-    ) -> Result<(), ArtifactStoreError>;
+    ) -> Result<(), ArtifactError>;
 }
 
-/// Records and bytes published by one artifact flush.
+/// Rows and bytes published by one artifact flush.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ArtifactFlush {
     /// The number of segment files published.
     pub segments: usize,
-    /// The number of artifact records published.
-    pub records: usize,
+    /// The number of artifact results published.
+    pub results: usize,
+    /// The number of artifact bindings published.
+    pub bindings: usize,
     /// The number of interned strings carried by the published segments.
     pub strings: usize,
     /// The number of encoded bytes published.
@@ -57,38 +64,35 @@ impl NullArtifactStore {
 }
 
 impl ArtifactStore for NullArtifactStore {
-    fn load(
+    fn load_binding(
         &self,
-        _expected: &ArtifactVersion,
+        _input: &ArtifactInput,
         _strings: &StringPool,
-    ) -> Result<Option<ArtifactRecord>, ArtifactStoreError> {
+    ) -> Result<Option<ArtifactBindingRecord>, ArtifactError> {
         Ok(None)
     }
 
-    fn store(
+    fn load_result(
         &self,
-        _version: &ArtifactVersion,
-        _table: &ArtifactTable,
+        _expected: &ArtifactVersion,
         _strings: &StringPool,
-    ) -> Result<(), ArtifactStoreError> {
+    ) -> Result<Option<ArtifactResultRecord>, ArtifactError> {
+        Ok(None)
+    }
+
+    fn store(&self, _record: ArtifactRecord) -> Result<(), ArtifactError> {
         Ok(())
     }
 
-    fn flush(&self, _strings: &StringPool) -> Result<ArtifactFlush, ArtifactStoreError> {
+    fn flush(&self, _strings: &StringPool) -> Result<ArtifactFlush, ArtifactError> {
         Ok(ArtifactFlush::default())
     }
 
     fn retain(
         &self,
-        _reachable: &HashSet<ArtifactVersion>,
+        _inputs: &HashSet<ArtifactInput>,
         _strings: &StringPool,
-    ) -> Result<(), ArtifactStoreError> {
+    ) -> Result<(), ArtifactError> {
         Ok(())
-    }
-}
-
-impl From<BlobStoreError> for ArtifactStoreError {
-    fn from(error: BlobStoreError) -> Self {
-        Self::Store(Box::new(error))
     }
 }

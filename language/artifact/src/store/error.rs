@@ -4,15 +4,15 @@ use destack_core::StringId;
 use destack_program::ProgramLoadError;
 use serde::ser;
 
-use crate::{ArtifactVersion, BlobStoreError};
+use crate::{ArtifactInput, ArtifactVersion, BlobStoreError};
 
-/// Errors that can occur while reading or writing artifact records.
+/// An artifact record or publication error.
 #[derive(Debug)]
-pub enum ArtifactStoreError {
-    /// The record bytes are malformed or internally inconsistent.
-    Corrupt(&'static str),
+pub enum ArtifactError {
+    /// Artifact state is malformed or internally inconsistent.
+    Invalid(&'static str),
     /// The record version did not match the expected exact version.
-    Version {
+    VersionMismatch {
         /// The requested artifact version.
         expected: Box<ArtifactVersion>,
         /// The artifact version carried by the record.
@@ -34,68 +34,88 @@ pub enum ArtifactStoreError {
         /// The actual encoded byte length.
         actual: u64,
     },
-    /// The store already has different bytes for the same exact version.
-    Conflict {
-        /// The conflicting exact artifact version.
-        version: Box<ArtifactVersion>,
+    /// One artifact input produced different result versions.
+    Nondeterministic {
+        /// The artifact input.
+        input: Box<ArtifactInput>,
+        /// The result already recorded for these inputs.
+        existing: Box<ArtifactVersion>,
+        /// The newly produced result for these inputs.
+        produced: Box<ArtifactVersion>,
     },
     /// The artifact store failed to read or write.
     Store(Box<BlobStoreError>),
 }
 
-impl fmt::Display for ArtifactStoreError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl fmt::Display for ArtifactError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ArtifactStoreError::Corrupt(message) => {
-                write!(f, "corrupt artifact record: {message}")
+            ArtifactError::Invalid(message) => {
+                write!(formatter, "invalid artifact state: {message}")
             }
-            ArtifactStoreError::Version { expected, found } => {
+            ArtifactError::VersionMismatch { expected, found } => {
                 write!(
-                    f,
+                    formatter,
                     "unexpected artifact record version, expected {expected:?}, found {found:?}"
                 )
             }
-            ArtifactStoreError::Codec(error) => {
-                write!(f, "artifact record codec error: {error}")
+            ArtifactError::Codec(error) => {
+                write!(formatter, "artifact record codec error: {error}")
             }
-            ArtifactStoreError::Program(error) => {
-                write!(f, "program artifact error: {error}")
+            ArtifactError::Program(error) => {
+                write!(formatter, "program artifact error: {error}")
             }
-            ArtifactStoreError::MissingString { string } => {
-                write!(f, "artifact record references missing string {string}")
-            }
-            ArtifactStoreError::Size { limit, actual } => {
+            ArtifactError::MissingString { string } => {
                 write!(
-                    f,
+                    formatter,
+                    "artifact record references missing string {string}"
+                )
+            }
+            ArtifactError::Size { limit, actual } => {
+                write!(
+                    formatter,
                     "artifact record exceeded size limit, limit {limit}, actual {actual}"
                 )
             }
-            ArtifactStoreError::Conflict { version } => {
-                write!(f, "conflicting artifact record bytes for {version:?}")
+            ArtifactError::Nondeterministic {
+                input,
+                existing,
+                produced,
+            } => {
+                write!(
+                    formatter,
+                    "artifact input {input:?} produced both {existing:?} and {produced:?}"
+                )
             }
-            ArtifactStoreError::Store(error) => {
-                write!(f, "artifact store error: {error}")
+            ArtifactError::Store(error) => {
+                write!(formatter, "artifact store error: {error}")
             }
         }
     }
 }
 
-impl std::error::Error for ArtifactStoreError {}
+impl std::error::Error for ArtifactError {}
 
-impl ser::Error for ArtifactStoreError {
+impl ser::Error for ArtifactError {
     fn custom<T: fmt::Display>(_message: T) -> Self {
-        Self::Corrupt("artifact string id collection failed")
+        Self::Invalid("artifact string id collection failed")
     }
 }
 
-impl From<std::io::Error> for ArtifactStoreError {
+impl From<std::io::Error> for ArtifactError {
     fn from(error: std::io::Error) -> Self {
         Self::Store(Box::new(BlobStoreError::from(error)))
     }
 }
 
-impl From<ProgramLoadError> for ArtifactStoreError {
+impl From<ProgramLoadError> for ArtifactError {
     fn from(error: ProgramLoadError) -> Self {
         Self::Program(Box::new(error))
+    }
+}
+
+impl From<BlobStoreError> for ArtifactError {
+    fn from(error: BlobStoreError) -> Self {
+        Self::Store(Box::new(error))
     }
 }

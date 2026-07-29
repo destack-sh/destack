@@ -63,10 +63,10 @@ impl RepositoryStoreLayout {
     }
 
     /// Return the artifact record root.
-    pub(crate) fn artifact_root(&self, build_fingerprint: &str) -> PathBuf {
+    pub(crate) fn artifact_root(&self, partition: &str) -> PathBuf {
         self.store_root()
             .join(ARTIFACT_STORE_DIR_NAME)
-            .join(build_fingerprint)
+            .join(partition)
     }
 
     /// Return the content root.

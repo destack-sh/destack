@@ -5,14 +5,16 @@ use serde::ser::{
     SerializeTupleStruct, SerializeTupleVariant,
 };
 
-use crate::ArtifactStoreError;
+use crate::ArtifactError;
 
 /// Collect interned string ids referenced by one serializable payload.
 pub(super) fn collect_string_ids<T: Serialize>(
     payload: &T,
-) -> Result<Vec<StringId>, ArtifactStoreError> {
+) -> Result<Vec<StringId>, ArtifactError> {
     let mut collector = StringIdCollector::default();
     payload.serialize(&mut collector)?;
+    collector.strings.sort_unstable();
+    collector.strings.dedup();
 
     Ok(collector.strings)
 }
@@ -34,7 +36,7 @@ struct StringIdCompound<'a> {
 
 impl<'a> ser::Serializer for &'a mut StringIdCollector {
     type Ok = ();
-    type Error = ArtifactStoreError;
+    type Error = ArtifactError;
     type SerializeSeq = StringIdCompound<'a>;
     type SerializeTuple = StringIdCompound<'a>;
     type SerializeTupleStruct = StringIdCompound<'a>;
@@ -149,9 +151,7 @@ impl<'a> ser::Serializer for &'a mut StringIdCollector {
         result?;
 
         if name == "StringId" && self.strings.len() == string_count {
-            return Err(ArtifactStoreError::Corrupt(
-                "StringId did not serialize as u64",
-            ));
+            return Err(ArtifactError::Invalid("StringId did not serialize as u64"));
         }
 
         Ok(())
@@ -218,7 +218,7 @@ impl<'a> ser::Serializer for &'a mut StringIdCollector {
 
 impl<'a> SerializeSeq for StringIdCompound<'a> {
     type Ok = ();
-    type Error = ArtifactStoreError;
+    type Error = ArtifactError;
 
     fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), Self::Error> {
         value.serialize(&mut *self.collector)
@@ -231,7 +231,7 @@ impl<'a> SerializeSeq for StringIdCompound<'a> {
 
 impl<'a> SerializeTuple for StringIdCompound<'a> {
     type Ok = ();
-    type Error = ArtifactStoreError;
+    type Error = ArtifactError;
 
     fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), Self::Error> {
         value.serialize(&mut *self.collector)
@@ -244,7 +244,7 @@ impl<'a> SerializeTuple for StringIdCompound<'a> {
 
 impl<'a> SerializeTupleStruct for StringIdCompound<'a> {
     type Ok = ();
-    type Error = ArtifactStoreError;
+    type Error = ArtifactError;
 
     fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), Self::Error> {
         value.serialize(&mut *self.collector)
@@ -257,7 +257,7 @@ impl<'a> SerializeTupleStruct for StringIdCompound<'a> {
 
 impl<'a> SerializeTupleVariant for StringIdCompound<'a> {
     type Ok = ();
-    type Error = ArtifactStoreError;
+    type Error = ArtifactError;
 
     fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), Self::Error> {
         value.serialize(&mut *self.collector)
@@ -270,7 +270,7 @@ impl<'a> SerializeTupleVariant for StringIdCompound<'a> {
 
 impl<'a> SerializeMap for StringIdCompound<'a> {
     type Ok = ();
-    type Error = ArtifactStoreError;
+    type Error = ArtifactError;
 
     fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> Result<(), Self::Error> {
         key.serialize(&mut *self.collector)
@@ -287,7 +287,7 @@ impl<'a> SerializeMap for StringIdCompound<'a> {
 
 impl<'a> SerializeStruct for StringIdCompound<'a> {
     type Ok = ();
-    type Error = ArtifactStoreError;
+    type Error = ArtifactError;
 
     fn serialize_field<T: ?Sized + Serialize>(
         &mut self,
@@ -304,7 +304,7 @@ impl<'a> SerializeStruct for StringIdCompound<'a> {
 
 impl<'a> SerializeStructVariant for StringIdCompound<'a> {
     type Ok = ();
-    type Error = ArtifactStoreError;
+    type Error = ArtifactError;
 
     fn serialize_field<T: ?Sized + Serialize>(
         &mut self,

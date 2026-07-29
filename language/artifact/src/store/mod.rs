@@ -6,7 +6,6 @@ mod error;
 mod layout;
 mod memory;
 mod null;
-mod payload;
 mod record;
 mod segment;
 mod string;
@@ -26,7 +25,6 @@ pub use error::*;
 pub use layout::*;
 pub use memory::*;
 pub use null::*;
-pub use payload::*;
 pub use record::*;
 pub use segment::*;
 
