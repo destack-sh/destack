@@ -4,9 +4,10 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::time::Instant;
-use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
+use crate::runtime::RuntimeImage;
+use crate::worker::{WorkerId, WorkerImage};
 use crate::world::observation::{ObservationChunk, ObservationEntry};
+use crate::world::time::Instant;
 use crate::world::topology::LabelSet;
 use crate::world::trace::{TraceImage, TraceSequence};
 use crate::world::{RuntimeId, WorldImage};
@@ -830,7 +831,7 @@ impl Lineage {
     ) -> Arc<RuntimeImage> {
         if let Some(parent_image) = parent_image
             && let Some(parent_runtime_image) = parent_image.runtimes.get(&runtime_id)
-            && parent_runtime_image.is_same_image(runtime_image.as_ref())
+            && parent_runtime_image.as_ref() == runtime_image.as_ref()
         {
             return parent_runtime_image.clone();
         }
@@ -864,7 +865,7 @@ impl Lineage {
         for runtime_image in image.runtimes.values_mut() {
             if let Some(existing_runtime_image) =
                 self.runtime_images.iter().find(|existing_runtime_image| {
-                    existing_runtime_image.is_same_image(runtime_image.as_ref())
+                    existing_runtime_image.as_ref() == runtime_image.as_ref()
                 })
             {
                 *runtime_image = existing_runtime_image.clone();

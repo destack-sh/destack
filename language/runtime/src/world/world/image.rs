@@ -2,16 +2,17 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use destack_core::{CaptureMode, fnv1a_128};
-use destack_memory::MemoryMap;
+use destack_memory::MemoryImage;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
-use crate::runtime::random::RandomImage;
-use crate::runtime::time::ClockImage;
-use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
+use crate::runtime::{Runtime, RuntimeImage};
+use crate::worker::{WorkerId, WorkerImage};
 use crate::world::debug::Debugger;
 use crate::world::policy::Policy;
+use crate::world::random::RandomImage;
+use crate::world::time::ClockImage;
 use crate::world::topology::{Edge, Entity, LabelSet, RuntimeId, Topology};
 
 use super::{MomentSequence, RestoreContext, World};
@@ -19,12 +20,16 @@ use super::{MomentSequence, RestoreContext, World};
 /// World image payload for one materialized world restore point.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldImage {
+    /// Captured copy-on-write world memory.
+    pub(crate) memory: MemoryImage,
     /// Captured branch-local moment sequence.
     pub(crate) moment: MomentSequence,
     /// The next runtime id to allocate after restore.
     pub(crate) next_runtime_id: u64,
     /// The next worker id to allocate after restore.
     pub(crate) next_worker_id: u64,
+    /// The next runtime slot to schedule first.
+    pub(crate) next_runtime_cursor: usize,
     /// Captured dynamic policy state.
     pub(crate) policy: Policy,
     /// Captured debugger configuration.
@@ -42,6 +47,11 @@ pub struct WorldImage {
 }
 
 impl WorldImage {
+    /// Return the captured world memory map.
+    pub fn memory(&self) -> &MemoryImage {
+        &self.memory
+    }
+
     /// Return the captured world policy specification.
     pub fn policy(&self) -> &Policy {
         &self.policy
@@ -205,6 +215,7 @@ impl World {
         self.quiesce_shared_gc();
 
         let image = (|| {
+            let memory = self.memory.capture().map_err(Box::<RuntimeError>::from)?;
             let mut runtime_images = BTreeMap::new();
             let mut worker_images = BTreeMap::new();
 
@@ -215,14 +226,16 @@ impl World {
             }
 
             Ok(WorldImage {
+                memory,
                 moment: self.state.moment,
                 next_runtime_id: self.state.next_runtime_id,
                 next_worker_id: self.state.next_worker_id,
+                next_runtime_cursor: self.next_runtime_cursor,
                 policy: self.state.policy.clone(),
                 debugger: self.state.debugger.clone(),
                 topology: self.state.topology.clone(),
-                clock: self.state.clock.snapshot(),
-                random: self.state.random.snapshot(),
+                clock: self.state.clock.image(),
+                random: self.state.random.image(),
                 runtimes: runtime_images,
                 workers: worker_images,
             })
@@ -242,20 +255,19 @@ impl World {
         self.quiesce_shared_gc();
 
         let result = (|| {
-            // restore every runtime into one fresh World memory map
-            let memory = MemoryMap::reserve(self.memory.byte_len(), self.memory.frame_size_bytes())
-                .map_err(Box::<RuntimeError>::from)?;
-            let memory = Arc::new(memory);
+            // isolate the retained image pages for live mutation
+            let memory = Arc::new(image.memory.restore().map_err(Box::<RuntimeError>::from)?);
 
             self.state.next_runtime_id = image.next_runtime_id;
             self.state.next_worker_id = image.next_worker_id;
+            self.next_runtime_cursor = image.next_runtime_cursor;
             self.state.moment = image.moment;
             self.state.policy = image.policy.clone();
             self.state.debugger = image.debugger.clone();
             self.state.topology = image.topology.clone();
 
-            self.state.clock.restore_snapshot(&image.clock);
-            self.state.random.restore_snapshot(&image.random)?;
+            self.state.clock.restore(&image.clock);
+            self.state.random.restore(&image.random)?;
             self.state.observations.reset();
 
             let mut restored_runtimes = BTreeMap::new();

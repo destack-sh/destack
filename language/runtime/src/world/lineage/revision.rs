@@ -3,7 +3,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Entity, EntityError, RuntimeError, RuntimeResult};
-use crate::runtime::time::Instant;
+use crate::world::time::Instant;
 use crate::world::topology::LabelSet;
 use crate::world::trace::{TraceImage, TraceSequence};
 use crate::world::{Moment, World, WorldImage};

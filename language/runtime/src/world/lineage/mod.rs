@@ -9,6 +9,9 @@ mod revision;
 mod view;
 mod world;
 
+#[cfg(test)]
+mod tests;
+
 pub use branch::*;
 pub use checkpoint::*;
 pub use event::*;

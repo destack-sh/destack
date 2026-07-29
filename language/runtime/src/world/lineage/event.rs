@@ -1,10 +1,10 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::ResourceId;
-use crate::runtime::{RuntimeId, WorkerId};
-use crate::world::World;
+use crate::worker::WorkerId;
 use crate::world::observation::{
     Observation, ObservationEntry, ObservationScope, ObservationSequence,
 };
+use crate::world::{RuntimeId, World};
 
 use super::{BranchId, LineageQuery, Moment};
 

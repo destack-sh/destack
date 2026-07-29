@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::binding::ReplayPayload;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::BindingReplayPayload;
 use crate::world::lineage::{
     CheckpointId, ImageId, Lineage, LineageSnapshot, Revision, RevisionId,
 };
@@ -86,8 +86,8 @@ impl World {
     fn snapshot_options(&self) -> SnapshotOptions {
         let header = self.state.trace.store().header();
         let replay_payload = match header.replay_payload {
-            BindingReplayPayload::Results => ReplayPayloadMode::ResultsOnly,
-            BindingReplayPayload::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
+            ReplayPayload::Results => ReplayPayloadMode::ResultsOnly,
+            ReplayPayload::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
         };
         let replay_chunk_size_mb = if header.max_chunk_size_bytes == 0 {
             None

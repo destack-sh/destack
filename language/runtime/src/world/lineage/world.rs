@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use crate::binding::ReplayPayload;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::BindingReplayPayload;
-use crate::host::core::HostQueue;
+use crate::host::HostQueue;
 use crate::host::poller::create_host_poller;
-use crate::runtime::random::Random;
-use crate::runtime::time::Instant;
 use crate::world::observation::ObservationLog;
+use crate::world::random::Random;
+use crate::world::time::Instant;
 use crate::world::trace::{Trace, TraceHeader, TraceImage, TraceLog, TraceSequence};
 use destack_core::CaptureMode;
 use destack_repository::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
@@ -238,8 +238,8 @@ impl World {
     fn replay_runtime_options(&self) -> RuntimeOptions {
         let header = self.state.trace.store().header();
         let replay_payload = match header.replay_payload {
-            BindingReplayPayload::Results => ReplayPayloadMode::ResultsOnly,
-            BindingReplayPayload::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
+            ReplayPayload::Results => ReplayPayloadMode::ResultsOnly,
+            ReplayPayload::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
         };
         let replay_chunk_size_mb = if header.max_chunk_size_bytes == 0 {
             None
@@ -426,6 +426,7 @@ impl World {
             host_queue: HostQueue::new(),
             poller,
             runtimes: Default::default(),
+            next_runtime_cursor: 0,
             memory: self.memory.clone(),
             shared_collector: self.shared_collector.clone(),
             state,
@@ -490,6 +491,7 @@ impl World {
                 host_queue: HostQueue::new(),
                 poller,
                 runtimes,
+                next_runtime_cursor: self.next_runtime_cursor,
                 memory,
                 shared_collector: self.shared_collector.clone(),
                 state,

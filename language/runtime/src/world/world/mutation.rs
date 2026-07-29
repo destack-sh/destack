@@ -7,7 +7,8 @@ use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
-use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
+use crate::runtime::RuntimeImage;
+use crate::worker::{WorkerId, WorkerImage};
 use crate::world::debug::{
     Breakpoint, BreakpointTarget, Probe, ProbeAction, ProbeId, ProbeTarget, Watchpoint,
 };
@@ -255,7 +256,7 @@ impl PartialEq for Mutation {
             ) => {
                 runtime_id == other_runtime_id
                     && runtime_entity == other_runtime_entity
-                    && runtime.is_same_image(other_runtime)
+                    && runtime == other_runtime
                     && workers == other_workers
             }
             (Self::RemoveRuntime { runtime_id }, Self::RemoveRuntime { runtime_id: other }) => {
@@ -625,7 +626,7 @@ impl World {
                     let runtime = self.runtime_mut(runtime_id)?;
 
                     runtime.remove_worker(worker_id)?;
-                    runtime.heap.remove_worker(worker_id);
+                    runtime.heap.remove_worker(&runtime.program, worker_id);
                 }
                 // detached worker image
                 else if self.state.topology.worker_subject(worker_id).is_none() {
@@ -644,7 +645,7 @@ impl World {
                 self.state.detach_resource(resource_id);
             }
             Mutation::SetPolicy { policy } => {
-                self.state.policy.set_policy(policy)?;
+                self.state.policy.replace(policy)?;
             }
             Mutation::AddRule { rule } => {
                 self.state.policy.add_rule(rule)?;
