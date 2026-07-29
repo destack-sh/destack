@@ -337,7 +337,7 @@ impl SessionPin {
 
     /// Append one module context's artifact roots.
     fn push_module_artifacts(module: Module, artifacts: &mut Vec<ArtifactKey>) {
-        artifacts.extend(ModuleQueryContext::artifact_keys(
+        artifacts.extend(ModuleQueryContext::artifact_roots(
             module.module_id,
             module.profile_id,
         ));
@@ -690,13 +690,8 @@ impl SessionPin {
     fn program_context(&self, profile_id: ProfileId) -> Result<ProgramQueryContext<'_>, Error> {
         let repository = self.repository();
         let revision = self.revision();
-        let artifacts = ArtifactReader::new(repository, revision);
-        let package_graph = artifacts
-            .package_graph(profile_id)
-            .map_err(QueryError::from)?;
 
-        ProgramQueryContext::new(repository, revision, profile_id, package_graph)
-            .map_err(Error::from)
+        ProgramQueryContext::new(repository, revision, profile_id).map_err(Error::from)
     }
 
     /// Return program query contexts for exact profiles.
