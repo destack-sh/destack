@@ -5,15 +5,15 @@ use std::sync::{Arc, OnceLock};
 use std::{env, thread};
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, ComponentGraph, DirBound,
-    DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, DirResolved,
+    ArtifactInput, ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, ComponentGraph,
+    DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, DirResolved,
     MemoryBlobStore, NullArtifactStore,
 };
 use destack_dir as dir;
 use destack_mir::{MirFormatContext, MirFormatOptions, format_mir};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository, Revision,
-    Settings, TraceSnapshot, TraceView,
+    Settings, TraceReport, TraceSnapshot, TraceView,
 };
 use destack_session::{Session, SessionError};
 use destack_source::{
@@ -25,7 +25,6 @@ use crate::tests::snapshot::{
 };
 
 use super::module::{TestModule, parse_module, parsed_dependencies};
-use super::trace::TraceTable;
 
 const DEFAULT_DESTACK_JSON: &str = r#"{
   "name": "test",
@@ -708,18 +707,16 @@ impl TestSession {
         for entry in entries.values() {
             let dependencies = parsed_dependencies(repository, revision, entry.module.as_ref());
             let key = ArtifactKey::dir_parsed(entry.module.id);
-            let version = ArtifactVersion::new(
+            let input = ArtifactInput::new(
                 key,
                 repository.build_fingerprint(),
-                None,
-                dependencies.clone(),
+                dependencies.iter().cloned(),
             );
 
             repository
                 .complete_artifact(
                     revision,
-                    version,
-                    None,
+                    input,
                     ArtifactPayload::DirParsed(Arc::new(entry.dir_parsed.clone())),
                     dependencies,
                     DiagnosticCollection::new(),
@@ -1161,7 +1158,10 @@ impl TestSession {
                         graph.inference_members(component)
                     } else {
                         graph.reference_members(component)
-                    };
+                    }
+                    .unwrap_or_else(|| {
+                        panic!("trace component {component} is absent from its component graph")
+                    });
                     if let Some(display) =
                         members.first().and_then(|module| module_display(*module))
                     {
@@ -1190,11 +1190,11 @@ impl TestSession {
     pub(crate) fn print_trace(&self, name: &str, slow_attempts: usize) {
         let trace = self.trace();
 
-        TraceTable::new()
-            .row(name, &trace)
+        TraceReport::new()
+            .row(name, trace)
             .color()
-            .timeline()
-            .times()
+            .timelines()
+            .span_totals()
             .slow_attempts(slow_attempts)
             .print();
     }
@@ -1322,20 +1322,29 @@ impl TestSession {
     /// Return the transitive external modules of one entry's component.
     fn entry_external_modules(&self, entry: &TestModule) -> Vec<ModuleId> {
         let graph = self.component_graph(entry.profile);
-        let Some(component) = graph.reference_component(entry.module.id) else {
-            return Vec::new();
-        };
+        let component = graph
+            .reference_component(entry.module.id)
+            .unwrap_or_else(|| panic!("component graph misses entry module {:?}", entry.module.id));
 
         // walk the condensation forward, collecting external members
         let mut externals = Vec::new();
         let mut seen = BTreeSet::new();
-        let mut pending = graph.reference_dependencies(component).to_vec();
+        let mut pending = graph
+            .reference_dependencies(component)
+            .unwrap_or_else(|| panic!("component graph misses reference component {component}"))
+            .to_vec();
 
         // include the ambient extension layer the checked output references
-        for extension in graph.inherent_extensions() {
-            if let Some(extension) = graph.reference_component(extension.symbol.module_id)
-                && extension != component
-            {
+        for extension in graph.cross_component_extensions() {
+            let extension = graph
+                .reference_component(extension.symbol.module_id)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "component graph misses extension module {:?}",
+                        extension.symbol.module_id
+                    )
+                });
+            if extension != component {
                 pending.push(extension);
             }
         }
@@ -1344,8 +1353,14 @@ impl TestSession {
             if !seen.insert(dependency) {
                 continue;
             }
-            externals.extend(graph.reference_members(dependency).iter().copied());
-            pending.extend(graph.reference_dependencies(dependency).iter().copied());
+            let members = graph.reference_members(dependency).unwrap_or_else(|| {
+                panic!("component graph misses reference component {dependency}")
+            });
+            let dependencies = graph.reference_dependencies(dependency).unwrap_or_else(|| {
+                panic!("component graph misses reference dependencies for {dependency}")
+            });
+            externals.extend(members.iter().copied());
+            pending.extend(dependencies.iter().copied());
         }
 
         externals
@@ -1421,11 +1436,17 @@ impl TestSession {
             snapshot.push_str(&format!("inference-component [{}]\n", members.join(", ")));
         }
         for (path, module) in &modules {
-            let targets = selected_paths(graph.edges(*module), &paths_by_module);
+            let edges = graph
+                .reference_edges(*module)
+                .unwrap_or_else(|| panic!("component graph misses reference edges for {module:?}"));
+            let targets = selected_paths(edges, &paths_by_module);
             snapshot.push_str(&format!("reference {path} -> [{}]\n", targets.join(", ")));
         }
         for (path, module) in &modules {
-            let targets = selected_paths(graph.inference_edges(*module), &paths_by_module);
+            let edges = graph
+                .inference_edges(*module)
+                .unwrap_or_else(|| panic!("component graph misses inference edges for {module:?}"));
+            let targets = selected_paths(edges, &paths_by_module);
             snapshot.push_str(&format!("inference {path} -> [{}]\n", targets.join(", ")));
         }
 
