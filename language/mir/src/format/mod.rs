@@ -1,4 +1,5 @@
 mod attribute;
+mod binding;
 mod block;
 mod call;
 mod context;

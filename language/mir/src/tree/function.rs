@@ -3,8 +3,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Block, FunctionParameter, Instruction, LifetimeParameter, Linkage, Local, LocalNodeId, Node,
-    NodeType, Symbol, Tree, Type, TypeId, Value,
+    Binding, Block, FunctionParameter, Instruction, LifetimeParameter, Linkage, Local, LocalNodeId,
+    Node, NodeType, Symbol, Tree, Type, TypeId, Value,
 };
 
 /// One MIR function declaration or definition.
@@ -16,6 +16,10 @@ pub struct Function {
     pub symbol: Symbol,
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
+    /// Memory allocation restrictions for this function.
+    pub allocation: AllocationMode,
+    /// The coroutine body form, absent for an ordinary callable function.
+    pub coroutine: Option<CoroutineKind>,
 
     /// Function parameters as typed SSA slots.
     pub parameters: Vec<FunctionParameter>,
@@ -28,15 +32,10 @@ pub struct Function {
     pub return_type: TypeId,
     /// The hidden environment type for this function when present.
     pub environment: Option<TypeId>,
-    /// Runtime binding name when this function has a binding identity.
-    pub binding: Option<StringId>,
+    /// Runtime binding declaration when this function has a binding identity.
+    pub binding: Option<Box<Binding>>,
     /// The executable function body when this function is defined.
     pub body: Option<FunctionBody>,
-
-    /// Memory allocation restrictions for this function.
-    pub allocation: AllocationMode,
-    /// The coroutine body form, absent for an ordinary callable function.
-    pub coroutine: Option<CoroutineKind>,
 }
 
 impl Node for Function {
@@ -580,13 +579,13 @@ impl Function {
         Self {
             name,
             symbol: Symbol::named(name),
+            linkage,
+            allocation: AllocationMode::Any,
+            coroutine: None,
             parameters,
             lifetimes,
             parameter_names,
             return_type,
-            linkage,
-            allocation: AllocationMode::Any,
-            coroutine: None,
             environment: None,
             binding: None,
             body,
@@ -689,15 +688,16 @@ impl Function {
         self
     }
 
-    /// Set the runtime binding name and return self.
-    pub fn with_binding(mut self, binding: StringId) -> Self {
-        self.binding = Some(binding);
+    /// Set the runtime binding declaration and return self.
+    pub fn with_binding(mut self, binding: Binding) -> Self {
+        self.binding = Some(Box::new(binding));
+
         self
     }
 
     /// Return the runtime binding name when one is present.
     pub fn binding_name(&self) -> Option<StringId> {
-        self.binding
+        self.binding.as_ref().map(|binding| binding.name)
     }
 
     /// Check if this function is imported (defined elsewhere).

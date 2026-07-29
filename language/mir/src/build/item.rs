@@ -1,6 +1,7 @@
 use crate::build::{BuildResult, FunctionBuilder, FunctionHeader, ModuleBuilder};
 use crate::{
-    Function, Global, GlobalInitializer, LocalNodeId, Mutability, Type, finalize_function_names,
+    Binding, Function, Global, GlobalInitializer, LocalNodeId, Mutability, Type,
+    finalize_function_names,
 };
 
 impl ModuleBuilder {
@@ -120,11 +121,10 @@ impl ModuleBuilder {
     pub fn binding_function(
         &mut self,
         header: FunctionHeader,
-        binding: &str,
+        binding: Binding,
     ) -> LocalNodeId<Function> {
         let function_id = self.external_function(header);
-        let binding = self.strings.intern(binding);
-        self.tree.get_mut(function_id).binding = Some(binding);
+        self.tree.get_mut(function_id).binding = Some(Box::new(binding));
 
         function_id
     }

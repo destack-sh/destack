@@ -1,3 +1,4 @@
+mod binding;
 mod fixture;
 mod recovery;
 mod source;

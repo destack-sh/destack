@@ -162,6 +162,23 @@ pub(crate) fn write_attribute_value<'a>(
             }
             write!(f, [token("]")])
         }
+        AttributeValue::Object(values) => {
+            if values.is_empty() {
+                return write!(f, [token("{}")]);
+            }
+
+            write!(f, [token("{"), space()])?;
+            for (index, value) in values.iter().enumerate() {
+                if index > 0 {
+                    write!(f, [token(","), space()])?;
+                }
+
+                write_attribute_identifier(value.key, f)?;
+                write!(f, [token(":"), space()])?;
+                write_attribute_value(&value.value, f)?;
+            }
+            write!(f, [space(), token("}")])
+        }
         AttributeValue::Missing => write!(f, [token("<missing>")]),
         AttributeValue::Error => write!(f, [token("<error>")]),
     }

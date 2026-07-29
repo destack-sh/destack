@@ -43,7 +43,11 @@ impl Parser {
 
         // optional argument payload
         let args = if self.eat_token_if(TokenType::OpenParenthesis) {
-            let args = self.parse_attribute_args()?;
+            let args = if name_text == "binding" {
+                self.parse_binding_args()?
+            } else {
+                self.parse_attribute_args()?
+            };
             self.eat_token(TokenType::CloseParenthesis)?;
             args
         } else {
@@ -108,14 +112,24 @@ impl Parser {
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("attribute value", self.pos()))?;
         let kind = self.token_type(token);
-        let token_text = self.tree.source_text(token.span).to_string();
-        let token_start = token.start();
 
         // type values
         if self.peek_type(kind) {
             let ty = self.parse_type()?;
             return Ok(AttributeValue::Type(TypeId::from(ty)));
         }
+
+        self.parse_attribute_literal()
+    }
+
+    /// Parse one literal attribute value.
+    pub(super) fn parse_attribute_literal(&mut self) -> ParseResult<AttributeValue> {
+        let token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("attribute value", self.pos()))?;
+        let kind = self.token_type(token);
+        let token_text = self.tree.source_text(token.span).to_string();
+        let token_start = token.start();
 
         // scalar and list values
         match kind {
@@ -151,7 +165,7 @@ impl Parser {
                 self.eat_token(TokenType::OpenBracket)?;
                 let mut values = Vec::new();
                 while !self.peek_is(TokenType::CloseBracket) {
-                    values.push(self.parse_attribute_value()?);
+                    values.push(self.parse_attribute_literal()?);
                     if !self.eat_token_if(TokenType::Comma) {
                         break;
                     }
@@ -159,6 +173,27 @@ impl Parser {
                 self.eat_token(TokenType::CloseBracket)?;
 
                 Ok(AttributeValue::List(values))
+            }
+            TokenType::OpenBrace => {
+                self.eat_token(TokenType::OpenBrace)?;
+                let mut values = Vec::new();
+
+                // parse TS style named object fields
+                while !self.peek_is(TokenType::CloseBrace) {
+                    let key_token = self.eat_token(TokenType::Identifier)?;
+                    let key_text = self.tree.source_text(key_token.span).to_string();
+                    let key = AttributeIdentifier::Identifier(self.strings.intern(&key_text));
+                    self.eat_token(TokenType::Colon)?;
+                    let value = self.parse_attribute_literal()?;
+                    values.push(AttributeKeyValue { key, value });
+
+                    if !self.eat_token_if(TokenType::Comma) {
+                        break;
+                    }
+                }
+                self.eat_token(TokenType::CloseBrace)?;
+
+                Ok(AttributeValue::Object(values))
             }
             _ => Err(ParseError::unexpected("attribute value", kind, token_start)),
         }

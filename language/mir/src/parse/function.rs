@@ -3,7 +3,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Block,
+    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Binding, Block,
     BlockParameter, BlockTarget, Call, Callee, CheckConstraint, CoroutineKind, Function,
     FunctionBody, FunctionHeaderSpans, FunctionParameter, Instruction, Linkage, Local, LocalNodeId,
     Mutability, SwitchCase, Terminator, TypeId, TypedValueSpan, Value,
@@ -48,8 +48,8 @@ pub(super) struct ParsedFunctionHeader {
 pub(super) struct FunctionAttributes {
     /// The hidden environment type when present.
     pub(super) environment_type: Option<TypeId>,
-    /// The runtime binding name when present.
-    pub(super) binding_name: Option<StringId>,
+    /// The runtime binding declaration when present.
+    pub(super) binding: Option<Binding>,
     /// Generic attributes that remain attached to the function node.
     pub(super) attributes: Vec<Attribute>,
     /// Spans for generic attributes that remain attached to the function node.
@@ -74,7 +74,7 @@ impl Parser {
     ) -> ParseResult<FunctionAttributes> {
         // first-class fields
         let mut environment_type = None;
-        let mut binding_name = None;
+        let mut binding = None;
         let mut retained_attributes = Vec::new();
         let mut retained_attribute_spans = Vec::new();
 
@@ -110,20 +110,11 @@ impl Parser {
             }
 
             if name.as_str() == "binding" {
-                if binding_name.is_some() {
+                if binding.is_some() {
                     return Err(ParseError::new("duplicate binding attribute", self.pos()));
                 }
 
-                let name = match &attribute.args {
-                    AttributeArgs::Value(AttributeValue::String(value)) => *value,
-                    _ => {
-                        return Err(ParseError::new(
-                            "binding expects a string value",
-                            self.pos(),
-                        ));
-                    }
-                };
-                binding_name = Some(name);
+                binding = Some(self.parse_binding(&attribute.args)?);
                 continue;
             }
 
@@ -133,7 +124,7 @@ impl Parser {
 
         Ok(FunctionAttributes {
             environment_type,
-            binding_name,
+            binding,
             attributes: retained_attributes,
             attribute_spans: retained_attribute_spans,
         })
@@ -233,7 +224,7 @@ impl Parser {
             function.parameter_names = parameter_names;
             function.coroutine = header.coroutine;
             function.environment = function_attributes.environment_type;
-            function.binding = function_attributes.binding_name;
+            function.binding = function_attributes.binding.map(Box::new);
             function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
 
             // update the placeholder with the parsed signature
@@ -309,7 +300,7 @@ impl Parser {
         function.linkage = linkage;
         function.coroutine = header.coroutine;
         function.environment = function_attributes.environment_type;
-        function.binding = function_attributes.binding_name;
+        function.binding = function_attributes.binding.map(Box::new);
 
         // body
         let open_brace_token = self.eat_token(TokenType::OpenBrace)?;

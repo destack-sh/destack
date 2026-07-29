@@ -1,4 +1,5 @@
 mod attribute;
+mod binding;
 mod block;
 mod call;
 mod constant;
@@ -32,6 +33,7 @@ mod visit;
 mod walk;
 
 pub use attribute::*;
+pub use binding::*;
 pub use block::*;
 pub use call::*;
 pub use constant::*;

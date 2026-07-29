@@ -2,10 +2,10 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::attribute::{write_attribute, write_attribute_value, write_attributes};
+use super::attribute::{write_attribute, write_attributes};
 
 use crate::{
-    Attribute, AttributeIdentifier, AttributeValue, FormatMirNode, Function, FunctionHeaderSpans,
+    Attribute, AttributeIdentifier, FormatMirNode, Function, FunctionHeaderSpans,
     LifetimeParameter, Linkage, Local, LocalNodeId, MirFormatContext, MirFormatter, Mutability,
     Tree, write_comments_after, write_comments_before, write_inline_comment_after,
     write_node_leading_comments, write_node_leading_comments_after_separator,
@@ -213,19 +213,9 @@ pub(super) fn format_function_attributes<'a>(
     }
 
     if !has_attribute(attributes, "binding", f)
-        && let Some(binding) = function.binding
+        && let Some(binding) = &function.binding
     {
-        write!(
-            f,
-            [
-                token("@"),
-                token("binding"),
-                token("("),
-                format_with(|f| write_attribute_value(&AttributeValue::String(binding), f)),
-                token(")"),
-                hard_line_break()
-            ]
-        )?;
+        write!(f, [binding.as_ref(), hard_line_break()])?;
     }
 
     // comments before the function head

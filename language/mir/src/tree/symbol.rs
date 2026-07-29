@@ -395,6 +395,14 @@ impl TypeHasher {
                     self.write_attribute_value(value, tree);
                 }
             }
+            AttributeValue::Object(values) => {
+                self.hasher.write_u8(9);
+                values.len().hash(&mut self.hasher);
+                for value in values {
+                    value.key.hash(&mut self.hasher);
+                    self.write_attribute_value(&value.value, tree);
+                }
+            }
             AttributeValue::Missing => self.hasher.write_u8(7),
             AttributeValue::Error => self.hasher.write_u8(8),
         }

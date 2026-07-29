@@ -91,6 +91,8 @@ pub enum AttributeValue {
     String(StringId),
     /// A list of values.
     List(Vec<AttributeValue>),
+    /// An object of named values.
+    Object(Vec<AttributeKeyValue>),
     /// One required value that was omitted.
     Missing,
     /// One malformed value fragment.
