@@ -93,7 +93,7 @@ fn parse_language_tag(language: &str) -> Result<ParsedLanguageTag<'_>, String> {
             if options.insert(key.to_string(), value.to_string()).is_some() {
                 return Err(format!("code block repeats option '{key}'"));
             }
-        } else if matches!(part, "expected" | "after") {
+        } else if matches!(part, "expected" | "after" | "change" | "add") {
             if markers.contains(&part) {
                 return Err(format!("code block repeats marker '{part}'"));
             }
@@ -329,9 +329,15 @@ pub fn parse_mdtest(content: &str) -> Result<Vec<MdTestCase>, String> {
                 };
                 let is_expected = parsed.markers.contains(&"expected");
                 let is_after = parsed.markers.contains(&"after");
-                if is_expected && is_after {
+                let is_change = parsed.markers.contains(&"change");
+                let is_add = parsed.markers.contains(&"add");
+                let marker_count = usize::from(is_expected)
+                    + usize::from(is_after)
+                    + usize::from(is_change)
+                    + usize::from(is_add);
+                if marker_count > 1 {
                     errors.push(format!(
-                        "code block '{code_block_language}' cannot be both expected and after"
+                        "code block '{code_block_language}' has conflicting markers"
                     ));
 
                     continue;
@@ -354,7 +360,12 @@ pub fn parse_mdtest(content: &str) -> Result<Vec<MdTestCase>, String> {
                             errors.push(error);
                         }
                     }
-                } else if is_code_language(parsed.base) && !is_expected && !is_after {
+                } else if is_code_language(parsed.base)
+                    && !is_expected
+                    && !is_after
+                    && !is_change
+                    && !is_add
+                {
                     if !parsed.markers.is_empty() {
                         errors.push(format!(
                             "source block '{code_block_language}' has unknown markers"
@@ -385,6 +396,8 @@ pub fn parse_mdtest(content: &str) -> Result<Vec<MdTestCase>, String> {
                     });
                 } else if !is_expected
                     && !is_after
+                    && !is_change
+                    && !is_add
                     && let Some(filename) =
                         parsed.filename.filter(|_| is_data_language(parsed.base))
                 {

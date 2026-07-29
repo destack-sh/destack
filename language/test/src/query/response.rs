@@ -660,7 +660,11 @@ fn search_symbols_rows(
                 .with_target(run, &symbol.target)?
                 .field(
                     "symbol",
-                    run.format_symbol(symbol.symbol_id, symbol.target.module.profile_id)?,
+                    run.format_named_symbol(
+                        symbol.symbol_id,
+                        symbol.target.module.profile_id,
+                        &symbol.name,
+                    )?,
                 ))
         })
         .collect::<Result<Vec<_>, String>>()?;

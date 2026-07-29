@@ -1,11 +1,13 @@
 use std::collections::HashMap;
+use std::io::{self, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use destack_query::QueryMethod;
+use destack_repository::TraceReport;
 
-use super::{QueryFixture, QueryWorkspace};
+use super::{QueryFixture, QueryFixtureTrace, QueryWorkspace};
 use crate::core::{
     Case, CaseResult, MarkdownSuiteIndex, RunContext, RunOptions, Suite, discover_markdown_suite,
     fixtures_dir,
@@ -13,6 +15,10 @@ use crate::core::{
 
 /// Environment variable enabling exact response replacement.
 const BLESS_ENV: &str = "DESTACK_BLESS";
+/// Environment variable selecting the number of slow artifacts in timing reports.
+const TRACE_SLOW_ARTIFACTS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_ARTIFACTS";
+/// Default number of slow artifacts in timing reports.
+const DEFAULT_TRACE_SLOW_ARTIFACTS: usize = 8;
 
 /// Query fixtures executed through one shared workspace.
 #[derive(Debug)]
@@ -53,7 +59,7 @@ impl QuerySuite {
     /// Load every query fixture.
     pub fn load() -> Result<Self, String> {
         let query_directory = fixtures_dir().join("query");
-        require_method_files(&query_directory)?;
+        Self::require_method_files(&query_directory)?;
         let MarkdownSuiteIndex { cases, entries } =
             discover_markdown_suite(&query_directory, "destack_test::query", |path, markdown| {
                 QueryFixture::parse(path, markdown).map(Some)
@@ -64,7 +70,7 @@ impl QuerySuite {
             workspace,
             fixtures: entries,
             cases,
-            is_blessing: is_blessing(),
+            is_blessing: Self::is_blessing(),
             response_deltas: Mutex::new(HashMap::new()),
         })
     }
@@ -165,64 +171,100 @@ impl Suite for QuerySuite {
             };
         };
 
-        match fixture
+        let result = fixture
             .run(&self.workspace, self.is_blessing)
-            .and_then(|updates| self.bless(&case.path, updates))
-        {
+            .and_then(|result| {
+                Self::print_traces(case, result.traces)?;
+                self.bless(&case.path, result.response_updates)
+            });
+
+        match result {
             Ok(()) => CaseResult::Passed,
             Err(message) => CaseResult::Failed { message },
         }
     }
 }
 
-/// Return whether query response rows should be blessed.
-fn is_blessing() -> bool {
-    std::env::var_os(BLESS_ENV).is_some_and(|value| !value.is_empty() && value != "0")
-}
+impl QuerySuite {
+    /// Print complete query operation traces as one report.
+    fn print_traces(case: &Case, traces: Vec<QueryFixtureTrace>) -> Result<(), String> {
+        if traces.is_empty() {
+            return Ok(());
+        }
 
-/// Require one fixture file for every registered query method.
-fn require_method_files(directory: &Path) -> Result<(), String> {
-    // collect the canonical method files
-    let mut expected = QueryMethod::ALL
-        .iter()
-        .map(|method| format!("{}.md", method.name()))
-        .collect::<Vec<_>>();
-    expected.sort();
+        let slow_attempts = match std::env::var(TRACE_SLOW_ARTIFACTS_ENV) {
+            Ok(value) => value.parse::<usize>().map_err(|error| {
+                format!("invalid {TRACE_SLOW_ARTIFACTS_ENV} value '{value}': {error}")
+            })?,
+            Err(std::env::VarError::NotPresent) => DEFAULT_TRACE_SLOW_ARTIFACTS,
+            Err(std::env::VarError::NotUnicode(_)) => {
+                return Err(format!("{TRACE_SLOW_ARTIFACTS_ENV} is not valid UTF-8"));
+            }
+        };
+        let mut report = TraceReport::new()
+            .color()
+            .timelines()
+            .span_totals()
+            .slow_attempts(slow_attempts);
+        for trace in traces {
+            report = report.row(trace.name, trace.trace);
+        }
+        let output = format!("\ntimings {}\n{}", case.full_name(), report.render());
+        let mut stdout = io::stdout().lock();
+        stdout
+            .write_all(output.as_bytes())
+            .map_err(|error| format!("failed to print query timings: {error}"))
+    }
 
-    // collect the declared fixture files
-    let entries = std::fs::read_dir(directory)
-        .map_err(|error| format!("failed to read '{}': {error}", directory.display()))?;
-    let mut actual = Vec::new();
-    for entry in entries {
-        let entry =
-            entry.map_err(|error| format!("failed to read '{}': {error}", directory.display()))?;
-        let path = entry.path();
-        let file_type = entry.file_type().map_err(|error| {
-            format!(
-                "failed to inspect query fixture '{}': {error}",
-                path.display()
-            )
-        })?;
-        if !file_type.is_file() {
+    /// Return whether query response rows should be blessed.
+    fn is_blessing() -> bool {
+        std::env::var_os(BLESS_ENV).is_some_and(|value| !value.is_empty() && value != "0")
+    }
+
+    /// Require one fixture file for every registered query method.
+    fn require_method_files(directory: &Path) -> Result<(), String> {
+        // collect the canonical method files
+        let mut expected = QueryMethod::ALL
+            .iter()
+            .map(|method| format!("{}.md", method.name()))
+            .collect::<Vec<_>>();
+        expected.sort();
+
+        // collect the declared fixture files
+        let entries = std::fs::read_dir(directory)
+            .map_err(|error| format!("failed to read '{}': {error}", directory.display()))?;
+        let mut actual = Vec::new();
+        for entry in entries {
+            let entry = entry
+                .map_err(|error| format!("failed to read '{}': {error}", directory.display()))?;
+            let path = entry.path();
+            let file_type = entry.file_type().map_err(|error| {
+                format!(
+                    "failed to inspect query fixture '{}': {error}",
+                    path.display()
+                )
+            })?;
+            if !file_type.is_file() {
+                return Err(format!(
+                    "query fixture directory contains non-file entry '{}'",
+                    path.display()
+                ));
+            }
+            let name = entry
+                .file_name()
+                .into_string()
+                .map_err(|_| format!("query fixture path '{}' is not UTF-8", path.display()))?;
+            actual.push(name);
+        }
+        actual.sort();
+
+        // require an exact one-to-one registry mapping
+        if actual != expected {
             return Err(format!(
-                "query fixture directory contains non-file entry '{}'",
-                path.display()
+                "query fixture files differ from registered methods\nexpected: {expected:?}\nactual: {actual:?}"
             ));
         }
-        let name = entry
-            .file_name()
-            .into_string()
-            .map_err(|_| format!("query fixture path '{}' is not UTF-8", path.display()))?;
-        actual.push(name);
-    }
-    actual.sort();
 
-    // require an exact one-to-one registry mapping
-    if actual != expected {
-        return Err(format!(
-            "query fixture files differ from registered methods\nexpected: {expected:?}\nactual: {actual:?}"
-        ));
+        Ok(())
     }
-
-    Ok(())
 }

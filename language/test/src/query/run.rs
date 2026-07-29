@@ -14,26 +14,49 @@ use destack_query::{
     SelectionRangesRequest, SemanticTokensRangeRequest, SemanticTokensRequest,
     SignatureHelpRequest, SubtypesRequest, SupertypesRequest, TypeItem, TypeItemRequest,
 };
-use destack_repository::{ArtifactReader, Revision};
+use destack_repository::{ArtifactReader, Revision, TraceSnapshot};
 use destack_source::{
     DiagnosticLabel, DiagnosticReference, DiagnosticTarget, DiffOptions, FileId, PatchSet,
     ProfileId, Span, apply_file_patch, format_diff,
 };
+use indexmap::IndexMap;
 
 use super::{
-    FixtureDiagnostic, FixturePosition, FixtureRange, QueryAssertion, QueryCall,
-    QueryDecoratorScope, QueryExpectation, QueryFile, QueryFixture, QueryWorkspace, ResponseUpdate,
-    display_query_path, response_rows,
+    FixtureDiagnostic, FixturePosition, FixtureRange, QueryAssertion, QueryCall, QueryChange,
+    QueryDecoratorScope, QueryExpectation, QueryFile, QueryRevision, QueryWorkspace,
+    ResponseUpdate, display_query_path, response_rows,
 };
 
 /// One exact workspace execution of a query fixture.
 pub(super) struct QueryRun<'a> {
-    /// The fixture under execution.
-    fixture: &'a QueryFixture,
     /// The shared query workspace.
     workspace: &'a QueryWorkspace,
-    /// The immutable query revision.
+    /// The current immutable query revision.
     revision: Revision,
+    /// The files resolved at the current revision.
+    files: QueryFiles,
+}
+
+/// The verified output and timings of one query fixture.
+pub(super) struct QueryFixtureResult {
+    /// Canonical response updates produced while blessing.
+    pub(super) response_updates: Vec<ResponseUpdate>,
+    /// Query traces in execution order.
+    pub(super) traces: Vec<QueryFixtureTrace>,
+}
+
+/// One named query operation trace.
+pub(super) struct QueryFixtureTrace {
+    /// The trace row name within its fixture.
+    pub(super) name: String,
+    /// The complete operation trace.
+    pub(super) trace: TraceSnapshot,
+}
+
+/// Query fixture files resolved at one exact revision.
+struct QueryFiles {
+    /// The complete current files in declaration order.
+    values: IndexMap<PathBuf, QueryFile>,
     /// The exact file id for each workspace-relative path.
     file_ids: HashMap<PathBuf, FileId>,
     /// The workspace-relative path for each exact file id.
@@ -42,114 +65,104 @@ pub(super) struct QueryRun<'a> {
     modules: HashMap<FileId, Module>,
 }
 
+/// The verified effects of one query assertion.
+struct AssertionResult {
+    /// The executed query method.
+    method: destack_query::QueryMethod,
+    /// One canonical response update for blessing.
+    response_update: Option<ResponseUpdate>,
+    /// The initial and unchanged-repeat traces when requested.
+    traces: Vec<TraceSnapshot>,
+}
+
 impl<'a> QueryRun<'a> {
     /// Open one query fixture at an isolated repository revision.
     pub(super) fn open(
-        fixture: &'a QueryFixture,
+        files: &IndexMap<PathBuf, QueryFile>,
         workspace: &'a QueryWorkspace,
     ) -> Result<Self, String> {
-        let revision = workspace.fork(fixture)?;
-        let repository = workspace.repository();
-        let mut file_ids = HashMap::new();
-        let mut paths = HashMap::new();
-        let mut modules = HashMap::new();
-
-        // resolve exact file identities and module profiles
-        for file in fixture.files.values() {
-            let path = workspace.root().join(&file.path);
-            let candidate_file_id = repository.file_id(&path);
-            let (file_id, module) = if file.is_code() {
-                let module_id = repository
-                    .module_id_for_file(revision, candidate_file_id)
-                    .map_err(|error| {
-                        format!(
-                            "failed to resolve query file '{}': {error}",
-                            file.path.display()
-                        )
-                    })?
-                    .ok_or_else(|| format!("query file '{}' has no module", file.path.display()))?;
-                let repository_module = repository
-                    .module(revision, module_id)
-                    .map_err(|error| {
-                        format!(
-                            "failed to read query module '{}': {error}",
-                            file.path.display()
-                        )
-                    })?
-                    .ok_or_else(|| format!("query module '{}' is missing", file.path.display()))?;
-                let selected_target = repository
-                    .package_default_target(revision, repository_module.package_id)
-                    .map_err(|error| {
-                        format!(
-                            "failed to select query target for '{}': {error}",
-                            file.path.display()
-                        )
-                    })?;
-                let Some((target_id, _)) = selected_target else {
-                    return Err(format!(
-                        "query target is ambiguous for '{}'",
-                        file.path.display()
-                    ));
-                };
-                let profile = repository
-                    .profile_for_module_target(revision, module_id, target_id)
-                    .map_err(|error| {
-                        format!(
-                            "failed to resolve query target for '{}': {error}",
-                            file.path.display(),
-                        )
-                    })?;
-
-                let module = Module {
-                    module_id,
-                    profile_id: profile.id(),
-                };
-                (repository_module.file_id, Some(module))
-            } else {
-                (candidate_file_id, None)
-            };
-
-            // retain one unambiguous bidirectional file mapping
-            if file_ids.insert(file.path.clone(), file_id).is_some() {
-                return Err(format!(
-                    "query file '{}' was indexed more than once",
-                    file.path.display()
-                ));
-            }
-            if let Some(previous) = paths.insert(file_id, file.path.clone()) {
-                return Err(format!(
-                    "query files '{}' and '{}' resolved the same file id {file_id:?}",
-                    previous.display(),
-                    file.path.display(),
-                ));
-            }
-            if let Some(module) = module {
-                modules.insert(file_id, module);
-            }
-        }
+        let revision = workspace.fork(files)?;
+        let files = QueryFiles::resolve(files.clone(), workspace, revision)?;
 
         Ok(Self {
-            fixture,
             workspace,
             revision,
-            file_ids,
-            paths,
-            modules,
+            files,
         })
     }
 
-    /// Execute every assertion against the same immutable revision.
-    pub(super) fn run(&self, is_blessing: bool) -> Result<Vec<ResponseUpdate>, String> {
+    /// Execute every workspace revision in fixture order.
+    pub(super) fn run(
+        mut self,
+        revisions: &[QueryRevision],
+        is_blessing: bool,
+    ) -> Result<QueryFixtureResult, String> {
         let mut updates = Vec::new();
+        let mut traces = Vec::new();
 
-        // execute assertions in fixture order
-        for assertion in &self.fixture.assertions {
-            if let Some(update) = self.run_assertion(assertion, is_blessing)? {
-                updates.push(update);
+        // apply each revision and execute its assertions
+        for (revision_index, revision) in revisions.iter().enumerate() {
+            if !revision.changes.is_empty()
+                && let Some(trace) = self.advance(&revision.changes)?
+            {
+                traces.push(QueryFixtureTrace {
+                    name: format!("revision {} change", revision_index + 1),
+                    trace,
+                });
+            }
+            for (assertion_index, assertion) in revision.assertions.iter().enumerate() {
+                let result = self.run_assertion(assertion, is_blessing)?;
+                if let Some(update) = result.response_update {
+                    updates.push(update);
+                }
+                for (repeat, trace) in result.traces.into_iter().enumerate() {
+                    let method = result.method.name();
+                    let repeat = if repeat == 0 { "" } else { " warm" };
+                    traces.push(QueryFixtureTrace {
+                        name: format!(
+                            "revision {}.{} {method}{repeat}",
+                            revision_index + 1,
+                            assertion_index + 1
+                        ),
+                        trace,
+                    });
+                }
             }
         }
 
-        Ok(updates)
+        Ok(QueryFixtureResult {
+            response_updates: updates,
+            traces,
+        })
+    }
+
+    /// Advance through one exact workspace change batch.
+    fn advance(&mut self, changes: &[QueryChange]) -> Result<Option<TraceSnapshot>, String> {
+        let trace = self.workspace.begin_trace();
+        let revision = match &trace {
+            Some(trace) => trace.span("publish", || {
+                self.workspace.fork_changes(self.revision, changes)
+            }),
+            None => self.workspace.fork_changes(self.revision, changes),
+        }?;
+        let mut values = self.files.values.clone();
+        for change in changes {
+            change.apply(&mut values)?;
+        }
+        let files = match &trace {
+            Some(trace) => trace.span("resolve files", || {
+                QueryFiles::resolve(values, self.workspace, revision)
+            }),
+            None => QueryFiles::resolve(values, self.workspace, revision),
+        }?;
+        let trace = trace
+            .map(|trace| self.workspace.finish_trace(revision, trace))
+            .transpose()?;
+
+        self.revision = revision;
+        self.files = files;
+
+        Ok(trace)
     }
 
     /// Execute and verify one query assertion.
@@ -157,10 +170,21 @@ impl<'a> QueryRun<'a> {
         &self,
         assertion: &QueryAssertion,
         is_blessing: bool,
-    ) -> Result<Option<ResponseUpdate>, String> {
+    ) -> Result<AssertionResult, String> {
         let request = self.request(&assertion.call)?;
         let method = request.method();
-        let response = self.workspace.query(self.revision, request)?;
+        let execution = self.workspace.query(self.revision, request.clone())?;
+        let response = execution.response;
+        let mut traces = execution.trace.into_iter().collect::<Vec<_>>();
+        if self.workspace.has_timings() {
+            let warm = self.workspace.query(self.revision, request)?;
+            if warm.response != response {
+                return Err(format!(
+                    "unchanged {method:?} query returned a different response"
+                ));
+            }
+            traces.extend(warm.trace);
+        }
         if response.method() != method {
             return Err(format!(
                 "query method {method:?} returned response method {:?}",
@@ -168,7 +192,7 @@ impl<'a> QueryRun<'a> {
             ));
         }
 
-        let update = match &assertion.expected {
+        let response_update = match &assertion.expected {
             QueryExpectation::Rows {
                 rows: expected,
                 content_range,
@@ -201,7 +225,11 @@ impl<'a> QueryRun<'a> {
             }
         };
 
-        Ok(update)
+        Ok(AssertionResult {
+            method,
+            response_update,
+            traces,
+        })
     }
 
     /// Resolve one fixture call into a query request.
@@ -350,7 +378,9 @@ impl<'a> QueryRun<'a> {
                     QueryDecoratorScope::Module(module) => {
                         DecoratorScope::Module(self.module(module)?)
                     }
-                    QueryDecoratorScope::Program => DecoratorScope::Program,
+                    QueryDecoratorScope::Program => {
+                        DecoratorScope::Program(self.program_profile_id()?)
+                    }
                 };
 
                 QueryRequest::Decorators(DecoratorsRequest {
@@ -413,7 +443,7 @@ impl<'a> QueryRun<'a> {
         let request = QueryRequest::CallItem(CallItemRequest {
             position: self.position(position)?,
         });
-        let response = self.workspace.query(self.revision, request)?;
+        let response = self.workspace.query(self.revision, request)?.response;
         let QueryResponse::CallItem(response) = response else {
             return Err("call item query returned a mismatched response".to_string());
         };
@@ -428,7 +458,7 @@ impl<'a> QueryRun<'a> {
         let request = QueryRequest::TypeItem(TypeItemRequest {
             position: self.position(position)?,
         });
-        let response = self.workspace.query(self.revision, request)?;
+        let response = self.workspace.query(self.revision, request)?.response;
         let QueryResponse::TypeItem(response) = response else {
             return Err("type item query returned a mismatched response".to_string());
         };
@@ -504,7 +534,7 @@ impl<'a> QueryRun<'a> {
     pub(super) fn module(&self, path: &Path) -> Result<Module, String> {
         let file_id = self.file_id(path)?;
 
-        self.modules.get(&file_id).copied().ok_or_else(|| {
+        self.files.modules.get(&file_id).copied().ok_or_else(|| {
             format!(
                 "query file '{}' is not a source module",
                 display_query_path(path)
@@ -512,17 +542,35 @@ impl<'a> QueryRun<'a> {
         })
     }
 
+    /// Return the one program profile declared by this fixture revision.
+    fn program_profile_id(&self) -> Result<ProfileId, String> {
+        let mut profiles = self
+            .files
+            .modules
+            .values()
+            .map(|module| module.profile_id)
+            .collect::<Vec<_>>();
+        profiles.sort_unstable();
+        profiles.dedup();
+
+        match profiles.as_slice() {
+            [profile_id] => Ok(*profile_id),
+            [] => Err("program query fixture has no source module".to_string()),
+            _ => Err("program query fixture has more than one profile".to_string()),
+        }
+    }
+
     /// Return one required query file.
     pub(super) fn file(&self, path: &Path) -> Result<&QueryFile, String> {
-        self.fixture
-            .files
+        self.files
+            .values
             .get(path)
             .ok_or_else(|| format!("query file '{}' is not declared", path.display()))
     }
 
     /// Return the repository id for one declared query file.
     pub(super) fn file_id(&self, path: &Path) -> Result<FileId, String> {
-        self.file_ids.get(path).copied().ok_or_else(|| {
+        self.files.file_ids.get(path).copied().ok_or_else(|| {
             format!(
                 "query file '{}' has no repository identity",
                 display_query_path(path)
@@ -532,7 +580,7 @@ impl<'a> QueryRun<'a> {
 
     /// Return the declared path for one exact file id.
     pub(super) fn path(&self, file_id: FileId) -> Result<&Path, String> {
-        let Some(path) = self.paths.get(&file_id) else {
+        let Some(path) = self.files.paths.get(&file_id) else {
             let logical_path = self
                 .workspace
                 .repository()
@@ -551,7 +599,8 @@ impl<'a> QueryRun<'a> {
 
     /// Return the declared path for one exact module profile.
     pub(super) fn path_for_module(&self, module: Module) -> Result<String, String> {
-        self.modules
+        self.files
+            .modules
             .iter()
             .find_map(|(file_id, candidate)| (*candidate == module).then_some(file_id))
             .map(|file_id| self.path(*file_id))
@@ -592,8 +641,20 @@ impl<'a> QueryRun<'a> {
         let expanded = artifacts
             .dir_expanded(symbol_id.module_id, profile_id)
             .map_err(|error| format!("failed to read expanded DIR for query symbol: {error}"))?;
+        let graph = artifacts
+            .component_graph_reader(profile_id)
+            .map_err(|error| format!("failed to read component graph for query symbol: {error}"))?;
+        let component = graph
+            .inference_component(symbol_id.module_id)
+            .map_err(|error| format!("failed to resolve query symbol component: {error}"))?
+            .ok_or_else(|| {
+                format!(
+                    "query symbol module is absent from component graph: {:?}",
+                    symbol_id.module_id
+                )
+            })?;
         let checked = artifacts
-            .dir_checked(symbol_id.module_id, profile_id)
+            .dir_checked_module(component, symbol_id.module_id, profile_id)
             .map_err(|error| format!("failed to read checked DIR for query symbol: {error}"))?;
         let bindings = checked.binding_table(&bound, &expanded);
         let symbol = bindings
@@ -608,6 +669,22 @@ impl<'a> QueryRun<'a> {
         };
 
         Ok(identity)
+    }
+
+    /// Format one exact named DIR symbol identity.
+    pub(super) fn format_named_symbol(
+        &self,
+        symbol_id: GlobalSymbolId,
+        profile_id: ProfileId,
+        name: &str,
+    ) -> Result<String, String> {
+        let module = Module {
+            module_id: symbol_id.module_id,
+            profile_id,
+        };
+        let path = self.path_for_module(module)?;
+
+        Ok(format!("{path}#{name}@{}", symbol_id.local_id.id))
     }
 
     /// Format one exact DIR node identity.
@@ -691,8 +768,8 @@ impl<'a> QueryRun<'a> {
 
     /// Require one declared workspace-relative module path.
     pub(super) fn format_module_path(&self, value: &Path) -> Result<String, String> {
-        self.fixture
-            .files
+        self.files
+            .values
             .keys()
             .find(|path| path.as_path() == value)
             .map(|path| display_query_path(path))
@@ -769,6 +846,101 @@ impl<'a> QueryRun<'a> {
         }
 
         Ok(())
+    }
+}
+
+impl QueryFiles {
+    /// Resolve exact file identities and module profiles for one revision.
+    fn resolve(
+        values: IndexMap<PathBuf, QueryFile>,
+        workspace: &QueryWorkspace,
+        revision: Revision,
+    ) -> Result<Self, String> {
+        let repository = workspace.repository();
+        let mut file_ids = HashMap::new();
+        let mut paths = HashMap::new();
+        let mut modules = HashMap::new();
+
+        // resolve exact file identities and module profiles
+        for file in values.values() {
+            let path = workspace.root().join(&file.path);
+            let candidate_file_id = repository.file_id(&path);
+            let (file_id, module) = if file.is_code() {
+                let module_id = repository
+                    .module_id_for_file(revision, candidate_file_id)
+                    .map_err(|error| {
+                        format!(
+                            "failed to resolve query file '{}': {error}",
+                            file.path.display()
+                        )
+                    })?
+                    .ok_or_else(|| format!("query file '{}' has no module", file.path.display()))?;
+                let repository_module = repository
+                    .module(revision, module_id)
+                    .map_err(|error| {
+                        format!(
+                            "failed to read query module '{}': {error}",
+                            file.path.display()
+                        )
+                    })?
+                    .ok_or_else(|| format!("query module '{}' is missing", file.path.display()))?;
+                let selected_target = repository
+                    .package_default_target(revision, repository_module.package_id)
+                    .map_err(|error| {
+                        format!(
+                            "failed to select query target for '{}': {error}",
+                            file.path.display()
+                        )
+                    })?;
+                let Some((target_id, _)) = selected_target else {
+                    return Err(format!(
+                        "query target is ambiguous for '{}'",
+                        file.path.display()
+                    ));
+                };
+                let profile = repository
+                    .profile_for_module_target(revision, module_id, target_id)
+                    .map_err(|error| {
+                        format!(
+                            "failed to resolve query target for '{}': {error}",
+                            file.path.display(),
+                        )
+                    })?;
+
+                let module = Module {
+                    module_id,
+                    profile_id: profile.id(),
+                };
+                (repository_module.file_id, Some(module))
+            } else {
+                (candidate_file_id, None)
+            };
+
+            // retain one unambiguous bidirectional file mapping
+            if file_ids.insert(file.path.clone(), file_id).is_some() {
+                return Err(format!(
+                    "query file '{}' was indexed more than once",
+                    file.path.display()
+                ));
+            }
+            if let Some(previous) = paths.insert(file_id, file.path.clone()) {
+                return Err(format!(
+                    "query files '{}' and '{}' resolved the same file id {file_id:?}",
+                    previous.display(),
+                    file.path.display(),
+                ));
+            }
+            if let Some(module) = module {
+                modules.insert(file_id, module);
+            }
+        }
+
+        Ok(QueryFiles {
+            values,
+            file_ids,
+            paths,
+            modules,
+        })
     }
 }
 

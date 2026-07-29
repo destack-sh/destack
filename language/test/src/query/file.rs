@@ -19,6 +19,8 @@ pub(super) struct FixtureAnchor {
 pub(super) struct QueryFile {
     /// The workspace-relative file path.
     pub(super) path: PathBuf,
+    /// The fixture source including anchor declarations.
+    pub(super) annotated_source: String,
     /// The exact source text without anchor declarations.
     pub(super) source: String,
     /// The named source anchors in declaration order.
@@ -36,6 +38,7 @@ impl QueryFile {
         if !file_type.is_code() {
             return Ok(Self {
                 path,
+                annotated_source: annotated_source.to_string(),
                 source: annotated_source.to_string(),
                 anchors: IndexMap::new(),
             });
@@ -123,6 +126,7 @@ impl QueryFile {
 
         Ok(Self {
             path,
+            annotated_source: annotated_source.to_string(),
             source,
             anchors,
         })
@@ -319,6 +323,34 @@ pub(super) fn validate_query_path(path: &Path) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+/// Return one required declared query file.
+pub(super) fn require_query_file<'a>(
+    path: &Path,
+    files: &'a IndexMap<PathBuf, QueryFile>,
+) -> Result<&'a QueryFile, String> {
+    validate_query_path(path)?;
+
+    files
+        .get(path)
+        .ok_or_else(|| format!("query file '{}' is not declared", path.display()))
+}
+
+/// Parse one file block with an exact trailing marker.
+pub(super) fn parse_marked_file_tag<'a>(
+    language: &'a str,
+    expected: &str,
+) -> Option<(&'a str, &'a str)> {
+    let mut words = language.split_whitespace();
+    let language = words.next()?;
+    let path = words.next()?;
+    let marker = words.next()?;
+    if marker != expected || words.next().is_some() {
+        return None;
+    }
+
+    Some((language, path))
 }
 
 /// Parse one file-qualified query anchor.
