@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor,
     DynamicDispatch, GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId,
+    StringId,
     MemberReceiver, MemberSpace, Predicate, Projection, ProjectionResolution, ScalarFamilySet,
     ScalarLiteral, StaticKey, UnaryOperator,
 };
@@ -2246,5 +2247,97 @@ impl AssignPatternRestResolution {
     /// Apply one mapping to every type id stored in this rest field.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         self.projection.map_type_ids(map);
+    }
+}
+
+/// The checked resolution of one tree literal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct TreeResolution {
+    /// The builder type constructing this literal.
+    pub builder: GlobalTypeId,
+    /// The resolved literal target.
+    pub target: TreeTarget,
+    /// The builder static selected for elements and fragments.
+    pub function: Option<FunctionTarget>,
+    /// The checked attributes in source order.
+    pub attributes: Vec<TreeAttributeBinding>,
+    /// The checked children in source order.
+    pub children: Vec<TreeChildBinding>,
+    /// The type produced by the literal.
+    pub ty: GlobalTypeId,
+}
+
+impl TreeResolution {
+    /// Apply one mapping to every type id stored in this resolution.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.builder = map(self.builder);
+        if let Some(function) = &mut self.function {
+            function.map_type_ids(map);
+        }
+        for attribute in &mut self.attributes {
+            attribute.ty = map(attribute.ty);
+        }
+        for child in &mut self.children {
+            child.map_type_ids(map);
+        }
+        self.ty = map(self.ty);
+    }
+}
+
+/// The resolved target of one tree literal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum TreeTarget {
+    /// A lowercase tag built through the builder's element static.
+    Element {
+        /// The tag name.
+        tag: StringId,
+    },
+    /// A fragment built through the builder's fragment static.
+    Fragment,
+    /// A lexical component value called with its checked props.
+    Component {
+        /// The component callee node.
+        callee: GlobalNodeIdAny,
+    },
+}
+
+/// One checked attribute of a resolved tree literal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub struct TreeAttributeBinding {
+    /// The attribute key.
+    pub key: StringId,
+    /// The attribute value node, or none for a quoted or bare value.
+    pub value: Option<GlobalNodeIdAny>,
+    /// The quoted string value for node-free attributes.
+    pub text: Option<StringId>,
+    /// The checked attribute type.
+    pub ty: GlobalTypeId,
+}
+
+/// One checked child of a resolved tree literal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum TreeChildBinding {
+    /// A raw text child typed as a string literal.
+    Text {
+        /// The text content.
+        value: StringId,
+        /// The string literal type of the text.
+        ty: GlobalTypeId,
+    },
+    /// An expression or nested tree child.
+    Expression {
+        /// The child value node.
+        node: GlobalNodeIdAny,
+        /// The checked child type.
+        ty: GlobalTypeId,
+    },
+}
+
+impl TreeChildBinding {
+    /// Apply one mapping to every type id stored in this child.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Text { ty, .. } | Self::Expression { ty, .. } => *ty = map(*ty),
+        }
     }
 }

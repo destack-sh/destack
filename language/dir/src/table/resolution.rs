@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AccessResolution, AssignPatternResolution, AssignmentResolution, CallResolution,
     ConstructResolution, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, GuardResolution,
+    TreeResolution,
     InstantiationResolution, LabelResolution, MemberResolution, NameResolution, OperatorResolution,
     PatternResolution, PlaceResolution, ReceiverResolution, SegmentView, SubscriptResolution,
 };
@@ -231,6 +232,11 @@ impl<'a> ResolutionTable<'a> {
         self.lookup(node_id, |segment| &segment.constructs)
     }
 
+    /// Get the tree resolution for a node.
+    pub fn tree_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&TreeResolution> {
+        self.lookup(node_id, |segment| &segment.trees)
+    }
+
     /// Get the pattern resolution for a node.
     pub fn pattern_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PatternResolution> {
         self.lookup(node_id, |segment| &segment.patterns)
@@ -319,6 +325,8 @@ pub struct ResolutionSegment {
     pub(crate) guards: IndexMap<GlobalNodeIdAny, GuardResolution, FxBuildHasher>,
     /// Checked construct resolutions keyed by DIR node.
     pub(crate) constructs: IndexMap<GlobalNodeIdAny, ConstructResolution, FxBuildHasher>,
+    /// Checked tree literal resolutions keyed by expression node.
+    pub(crate) trees: IndexMap<GlobalNodeIdAny, TreeResolution, FxBuildHasher>,
     /// Checked pattern resolutions keyed by DIR node.
     pub(crate) patterns: IndexMap<GlobalNodeIdAny, PatternResolution, FxBuildHasher>,
     /// Checked assignment pattern resolutions keyed by DIR node.
@@ -329,7 +337,7 @@ pub struct ResolutionSegment {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResolutionMark {
     /// The per-kind map lengths at the mark.
-    lengths: [usize; 15],
+    lengths: [usize; 16],
 }
 
 impl ResolutionSegment {
@@ -350,6 +358,7 @@ impl ResolutionSegment {
                 self.assignments.len(),
                 self.guards.len(),
                 self.constructs.len(),
+                self.trees.len(),
                 self.patterns.len(),
                 self.assign_patterns.len(),
             ],
@@ -372,6 +381,7 @@ impl ResolutionSegment {
             assignments,
             guards,
             constructs,
+            trees,
             patterns,
             assign_patterns,
         ] = mark.lengths;
@@ -388,6 +398,7 @@ impl ResolutionSegment {
         Self::truncate_map(&mut self.assignments, assignments);
         Self::truncate_map(&mut self.guards, guards);
         Self::truncate_map(&mut self.constructs, constructs);
+        Self::truncate_map(&mut self.trees, trees);
         Self::truncate_map(&mut self.patterns, patterns);
         Self::truncate_map(&mut self.assign_patterns, assign_patterns);
     }
@@ -418,6 +429,7 @@ impl ResolutionSegment {
             assignments: IndexMap::default(),
             guards: IndexMap::default(),
             constructs: IndexMap::default(),
+            trees: IndexMap::default(),
             patterns: IndexMap::default(),
             assign_patterns: IndexMap::default(),
         }
@@ -591,6 +603,16 @@ impl ResolutionSegment {
         resolution: ConstructResolution,
     ) {
         self.constructs.insert(node_id, resolution);
+    }
+
+    /// Set the tree resolution for a node.
+    pub fn set_tree_resolution(&mut self, node_id: GlobalNodeIdAny, resolution: TreeResolution) {
+        self.trees.insert(node_id, resolution);
+    }
+
+    /// Get the tree resolution for a node.
+    pub fn tree_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&TreeResolution> {
+        self.trees.get(&node_id)
     }
 
     /// Get the construct resolution for a node.
@@ -769,6 +791,7 @@ impl ResolutionSegment {
             && self.assignments.is_empty()
             && self.guards.is_empty()
             && self.constructs.is_empty()
+            && self.trees.is_empty()
             && self.patterns.is_empty()
             && self.assign_patterns.is_empty()
     }
@@ -802,6 +825,9 @@ impl ResolutionSegment {
             resolution.map_type_ids(map);
         }
         for resolution in self.guards.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.trees.values_mut() {
             resolution.map_type_ids(map);
         }
         for resolution in self.constructs.values_mut() {

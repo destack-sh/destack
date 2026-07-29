@@ -1478,6 +1478,15 @@ define_language_items! {
         }
     }
 
+    /// Tree literal types.
+    tree {
+        /// `destack:tree/builder`.
+        builder {
+            /// Contextual builder for tree literals.
+            TreeBuilder => (NewtypeInterface, "tree/builder", "TreeBuilder", "tree.Builder"),
+        }
+    }
+
     /// TTY types.
     tty {
         /// `destack:tty/binding`.
