@@ -2677,6 +2677,25 @@ pub enum CheckError {
         through: String,
     },
 
+    /// Elided lifetime inside a declaration that names its lifetimes.
+    ///
+    /// ```ds
+    /// struct Mixed<'a> { first: &'a string; second: &string }
+    /// ```
+    #[diagnostic(
+        id = "elided-lifetime-in-named-declaration",
+        message = "'{source}' names its lifetimes, so this borrow needs a named lifetime",
+        help = "name the lifetime, like &'a"
+    )]
+    ElidedLifetimeInNamedDeclaration {
+        /// Report the elided borrow position.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The declaration that names its lifetimes.
+        source: String,
+    },
+
     /// Exported nonlocal extension has no source name.
     ///
     /// ```ds

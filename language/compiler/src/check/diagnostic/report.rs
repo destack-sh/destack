@@ -2349,6 +2349,31 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report one elided borrow inside a declaration that names its lifetimes.
+    pub(in crate::check) fn report_elided_lifetime_in_named_declaration(
+        &mut self,
+        declaration: dir::GlobalNodeIdAny,
+        site: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.source_anchor(site);
+        let symbol = self
+            .module(declaration.module_id)
+            .declaration_symbol(declaration.local_id);
+        let source = match symbol {
+            Some(symbol) => self.format_symbol(symbol),
+            None => "this declaration".to_string(),
+        };
+
+        let error = CheckError::ElidedLifetimeInNamedDeclaration {
+            anchor,
+            module,
+            source,
+        };
+        self.report(module, error);
+
+        Ok(())
+    }
+
     /// Report one non-local implementation warning.
     pub(in crate::check) fn report_non_local_implementation(
         &mut self,

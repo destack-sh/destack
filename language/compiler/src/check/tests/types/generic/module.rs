@@ -972,3 +972,103 @@ scenario.trigger satisfies Trigger;
 "#,
     );
 }
+
+#[test]
+fn test_fill_alias_defaults_through_reexported_imports() {
+    let compiler = TestSession::builder()
+        .module(
+            "a.ds",
+            r#"
+struct Marker {
+    id: int32;
+}
+
+export type Box<T = Marker> = { value: T };
+"#,
+        )
+        .module(
+            "b.ds",
+            r#"
+export { Box } from "./a.ds";
+"#,
+        )
+        .module(
+            "c.ds",
+            r#"
+import { Box } from "./b.ds";
+
+declare const boxed: Box;
+const value = boxed.value;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_checked_many(
+        &["a.ds", "b.ds", "c.ds"],
+        DirRows::checked(),
+        r#"
+=== a.ds ===
+
+=== annotated ===
+struct Marker {
+    id: int32;
+}
+
+export type Box<T = Marker> = { value: T };
+
+=== checked ===
+struct Marker {
+/// @type.symbol symbol=Marker type=Marker
+/// @definition.struct symbol=Marker
+/// @definition.field symbol=Marker.id source="id: int32" key=id type=int32
+
+    id: int32;
+    /// @type.symbol symbol=Marker.id source="id: int32" type=int32
+
+}
+
+export type Box<T = Marker> = { value: T };
+/// @generic.template symbol=Box parameters=(T = Marker)
+/// @type.symbol symbol=Box source="export type Box<T = Marker> = { value: T }" type={ value: T }
+/// @definition.type symbol=Box source="export type Box<T = Marker> = { value: T }" template=(T = Marker) value={ value: T }
+/// @type.symbol symbol=Box.T source="T = Marker" type=T
+/// @resolution.name source=Marker target=Marker
+/// @resolution.name source=T target=Box.T
+
+=== b.ds ===
+
+=== annotated ===
+export { Box } from "./a.ds";
+
+=== checked ===
+export { Box } from "./a.ds";
+
+=== c.ds ===
+
+=== annotated ===
+import { Box } from "./b.ds";
+
+declare const boxed: Box<Marker>;
+const value: Marker = boxed.value;
+
+=== checked ===
+import { Box } from "./b.ds";
+
+declare const boxed: Box;
+/// @type.symbol symbol=boxed source=boxed type=a.Box<a.Marker> reduced={ value: a.Marker }
+/// @resolution.pattern source=boxed kind=binding target=boxed
+/// @resolution.name source=Box target=a.Box
+
+const value = boxed.value;
+/// @type.symbol symbol=value source=value type=a.Marker
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=boxed target=boxed
+/// @resolution.member source=boxed.value receiver={ value: a.Marker } type=a.Marker kind=field target_receiver={ value: a.Marker } key=value target_type=a.Marker
+/// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=boxed root=boxed
+/// @resolution.access source=boxed.value root=boxed keys=[value]
+
+/// @generic.instance id=a.Box<a.Marker> template=a.Box arguments=(a.Marker)
+"#,
+    );
+}

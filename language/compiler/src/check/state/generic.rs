@@ -986,6 +986,22 @@ impl CheckState<'_> {
         Ok(None)
     }
 
+    /// Return whether one template declares an explicit lifetime parameter.
+    pub(in crate::check) fn template_names_lifetimes(
+        &self,
+        template: GenericTemplateId,
+    ) -> CompilerResult<bool> {
+        let parameters = self.generic_template_parameters(template)?;
+        let named = parameters.iter().any(|parameter| {
+            self.generic_parameter(*parameter).is_some_and(|binding| {
+                binding.origin == dir::GenericParameterOrigin::Explicit
+                    && binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+            })
+        });
+
+        Ok(named)
+    }
+
     /// Return how many parameters accept written arguments.
     pub(in crate::check) fn writable_parameter_count(
         &self,

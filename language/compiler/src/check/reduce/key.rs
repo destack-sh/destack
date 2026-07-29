@@ -577,6 +577,47 @@ impl CheckState<'_> {
                 keys
             }
 
+            // tuple keys are the element indices, rest tails widen to the index domain
+            dir::Type::Tuple(tuple) => {
+                let mut set = KeySet::default();
+                let elements = self
+                    .tuple_elements(target.module_id, tuple.elements)?
+                    .to_vec();
+                for (index, element) in elements.iter().enumerate() {
+                    if element.is_rest {
+                        set.insert_domain(KeyDomain::Usize);
+                    } else {
+                        set.insert_key(dir::StaticKey::Index(index));
+                    }
+                }
+
+                set
+            }
+
+            // arrays and slices key by the index domain
+            dir::Type::Array(_) | dir::Type::Slice(_) => {
+                let mut set = KeySet::default();
+                set.insert_domain(KeyDomain::Usize);
+
+                set
+            }
+
+            // fixed arrays with a settled count key by their exact indices
+            dir::Type::FixedArray(array) => {
+                let count = answer!(self.reduce_type_head(origin, array.count)?);
+                let mut set = KeySet::default();
+                match self.ty(count)? {
+                    dir::Type::Literal(dir::ScalarLiteral::Integer(count)) => {
+                        for index in 0..count.max(0) as usize {
+                            set.insert_key(dir::StaticKey::Index(index));
+                        }
+                    }
+                    _ => set.insert_domain(KeyDomain::Usize),
+                }
+
+                set
+            }
+
             // open and non-object types stay symbolic
             dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
             _ => return Ok(Answer::Ready(None)),

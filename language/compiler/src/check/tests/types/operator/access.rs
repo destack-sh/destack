@@ -882,3 +882,61 @@ declare const value: Value;
 "#,
     );
 }
+
+#[test]
+fn test_keyof_reduces_tuple_and_array_keys() {
+    let session = TestSession::single(
+        r#"
+type Pair = keyof (string, int32);
+type Open = keyof [int32];
+type Fixed = keyof [int32; 3];
+
+declare const pair: Pair;
+declare const open: Open;
+declare const fixed: Fixed;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Pair = keyof (string, int32);
+type Open = keyof [int32];
+type Fixed = keyof [int32; 3];
+
+declare const pair: Pair;
+declare const open: Open;
+declare const fixed: Fixed;
+
+=== checked ===
+type Pair = keyof (string, int32);
+/// @type.symbol symbol=Pair source="type Pair = keyof (string, int32)" type=keyof (string, int32) reduced=0 | 1
+/// @definition.type symbol=Pair source="type Pair = keyof (string, int32)" value=keyof (string, int32) reduced=0 | 1
+
+type Open = keyof [int32];
+/// @type.symbol symbol=Open source="type Open = keyof [int32]" type=keyof Slice<int32> reduced=usize
+/// @definition.type symbol=Open source="type Open = keyof [int32]" value=keyof Slice<int32> reduced=usize
+
+type Fixed = keyof [int32; 3];
+/// @type.symbol symbol=Fixed source="type Fixed = keyof [int32; 3]" type=keyof FixedArray<int32, 3> reduced=0 | 1 | 2
+/// @definition.type symbol=Fixed source="type Fixed = keyof [int32; 3]" value=keyof FixedArray<int32, 3> reduced=0 | 1 | 2
+
+declare const pair: Pair;
+/// @type.symbol symbol=pair source=pair type=Pair reduced=0 | 1
+/// @resolution.pattern source=pair kind=binding target=pair
+/// @resolution.name source=Pair target=Pair
+
+declare const open: Open;
+/// @type.symbol symbol=open source=open type=Open reduced=usize
+/// @resolution.pattern source=open kind=binding target=open
+/// @resolution.name source=Open target=Open
+
+declare const fixed: Fixed;
+/// @type.symbol symbol=fixed source=fixed type=Fixed reduced=0 | 1 | 2
+/// @resolution.pattern source=fixed kind=binding target=fixed
+/// @resolution.name source=Fixed target=Fixed
+"#,
+    );
+}

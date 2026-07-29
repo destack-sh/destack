@@ -181,7 +181,20 @@ impl CheckState<'_> {
                 .origin_source_node(origin)?
                 .into_global(origin.module());
 
+            // explicitly named lifetimes close a type declaration to
+            //  induction; signatures keep ordinary elision
             let template = self.open_generic_template(declaration)?;
+            let is_type_declaration = self
+                .module(declaration.module_id)
+                .declaration_symbol(declaration.local_id)
+                .is_some_and(|symbol| self.symbol_kind(symbol).is_type_definition());
+            if is_type_declaration && self.template_names_lifetimes(template)? {
+                self.report_elided_lifetime_in_named_declaration(declaration, site)?;
+                let error = self.intern_type(declaration.module_id, dir::Type::Error)?;
+                self.commit_solution(variable, error)?;
+
+                continue;
+            }
             let parameter = self.push_induced_memory_parameter(template, site, role)?;
             let solution =
                 self.intern_type(declaration.module_id, dir::Type::Parameter(parameter))?;
