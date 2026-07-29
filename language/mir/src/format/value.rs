@@ -3,7 +3,8 @@ use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::r#type::format_type_expanded;
+use super::r#static::format_static;
+use super::r#type::{format_type_expanded, format_type_name};
 
 use crate::{
     BlockId, Constant, Formatter, FunctionId, GlobalId, LocalNodeId, Place, PlaceOrigin,
@@ -12,8 +13,7 @@ use crate::{
 
 impl<'a> Format<'a, Formatter<'a>> for Value {
     fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-        let name = f.context().value_name(*self)?;
-        write!(f, [copied_text(&name)])
+        write!(f, [copied_text(&format!("v{}", self.0))])
     }
 }
 
@@ -74,8 +74,12 @@ impl<'a> Format<'a, Formatter<'a>> for Constant {
 
 /// Format a type id by canonical MIR name.
 pub(crate) fn format_type_id<'a>(ty: TypeId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    if let Some(name) = f.context().type_name(ty).map(str::to_string) {
-        return write!(f, [copied_text(&name)]);
+    if let Some(declaration_id) = f.context().tree.type_declaration(ty) {
+        let tree = f.context().tree;
+        let declaration = tree.get(declaration_id);
+        let name = f.context().strings.get(declaration.name).to_string();
+
+        return format_type_name(&name, &declaration.arguments, &[], f);
     }
 
     let node = f.context().tree.get(ty);
@@ -85,7 +89,7 @@ pub(crate) fn format_type_id<'a>(ty: TypeId, f: &mut Writer<'a, '_>) -> FormatRe
 
 /// Format a block id by canonical MIR name.
 pub(crate) fn format_block_id<'a>(block: BlockId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    let name = f.context().block_name(block)?.to_string();
+    let name = f.context().block_name(block)?;
 
     write!(f, [copied_text(&name)])
 }
@@ -95,14 +99,30 @@ pub(crate) fn format_function_id<'a>(
     function: FunctionId,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
-    let name = f.context().function_name(function)?.to_string();
+    let name = f.context().function_name(function).to_string();
+    let tree = f.context().tree;
+    let arguments = &tree.get(function).arguments;
+    write!(f, [copied_text(&name)])?;
 
-    write!(f, [copied_text(&name)])
+    if arguments.is_empty() {
+        return Ok(());
+    }
+
+    write!(f, [token("<")])?;
+    for (index, argument) in arguments.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        format_static(*argument, f)?;
+    }
+
+    write!(f, [token(">")])
 }
 
 /// Format a global id by canonical MIR name.
 pub(crate) fn format_global_id<'a>(global: GlobalId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    let name = f.context().global_name(global)?.to_string();
+    let name = f.context().global_name(global).to_string();
 
     write!(f, [copied_text(&name)])
 }

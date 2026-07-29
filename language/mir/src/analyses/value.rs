@@ -513,34 +513,17 @@ impl FunctionAnalysis for ValueTypes {
 mod tests {
     use crate as mir;
     use crate::parse::{ParseOptions, Parser, test_file};
-    use destack_core::StringPool;
 
     use super::{ValueDefinitions, ValueUse, ValueUses};
 
     /// Parse one MIR tree for value definition tests.
-    fn parse_tree(source: &str) -> (mir::Tree, StringPool) {
+    fn parse_tree(source: &str) -> mir::Tree {
         let file = test_file(source);
 
         Parser::parse(&file, ParseOptions::default())
             .expect("MIR parser requires text content")
             .finish()
             .expect("parse failed")
-    }
-
-    /// Return one named block from a tree.
-    fn block_by_name(
-        tree: &mir::Tree,
-        strings: &StringPool,
-        name: &str,
-    ) -> mir::LocalNodeId<mir::Block> {
-        tree.iter_nodes::<mir::Block>()
-            .find(|(_, block)| {
-                block
-                    .name
-                    .map(|name_id| strings.get(name_id) == name)
-                    .unwrap_or(false)
-            })
-            .expect("missing block")
             .0
     }
 
@@ -555,7 +538,7 @@ mod tests {
     /// Value uses include instruction operands and terminator operands.
     #[test]
     fn test_collect_value_uses() {
-        let (tree, _) = parse_tree(
+        let tree = parse_tree(
             r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -613,7 +596,7 @@ b1(v4: int32):
     /// Fallible allocation success results are not treated as edge arguments.
     #[test]
     fn test_block_parameter_values_skip_fallible_allocation_result() {
-        let (tree, strings) = parse_tree(
+        let tree = parse_tree(
             r#"
 function test(v0: int64, v1: int32): int32 {
 entry(v0: int64, v1: int32):
@@ -629,8 +612,8 @@ b2(v4: int32):
         );
         let function = tree.get(first_function(&tree));
         let definitions = ValueDefinitions::build(function, &tree);
-        let success = tree.get(block_by_name(&tree, &strings, "b1"));
-        let failure = tree.get(block_by_name(&tree, &strings, "b2"));
+        let success = tree.get(function.block(1));
+        let failure = tree.get(function.block(2));
         let success_result = success.parameters[0].value;
         let success_payload = success.parameters[1].value;
         let failure_payload = failure.parameters[0].value;

@@ -1,6 +1,6 @@
 use crate::{
     Block, Call, Callee, CheckConstraint, Field, Function, Global, Instruction, Local, LocalNodeId,
-    NodeType, NodeVisitor, Terminator, Tree, Type, TypeDeclaration, TypeId,
+    NodeType, NodeVisitor, Static, StaticId, Terminator, Tree, Type, TypeDeclaration, TypeId,
 };
 
 /// Walk any node.
@@ -68,6 +68,9 @@ pub fn walk_function<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Function, id.id);
 
+    for argument in &function.arguments {
+        walk_static(visitor, tree, *argument);
+    }
     for parameter in &function.parameters {
         walk_type_id(visitor, tree, &parameter.ty);
     }
@@ -311,7 +314,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Type, id.id);
 
     match ty {
-        Type::Error | Type::Never => {}
+        Type::Error => {}
         Type::Reference { pointee, .. } => {
             walk_type_id(visitor, tree, pointee);
         }
@@ -422,6 +425,10 @@ pub fn walk_type_declaration<V: NodeVisitor + ?Sized>(
     type_declaration: &TypeDeclaration,
 ) {
     visitor.visit_any(tree, NodeType::TypeDeclaration, id.id);
+
+    for argument in &type_declaration.arguments {
+        walk_static(visitor, tree, *argument);
+    }
     let declared_ty = tree.get(type_declaration.ty);
     visitor.visit_type(tree, type_declaration.ty, declared_ty);
 }
@@ -442,6 +449,43 @@ pub fn walk_field<V: NodeVisitor + ?Sized>(
 fn walk_type_id<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, reference: &TypeId) {
     let ty = tree.get(*reference);
     visitor.visit_type(tree, *reference, ty);
+}
+
+/// Walk the types referenced by one interned static value.
+fn walk_static<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, id: StaticId) {
+    match tree.static_value(id) {
+        Static::Type(ty) => walk_type_id(visitor, tree, ty),
+        Static::Array(values) | Static::Tuple(values) => {
+            for value in values {
+                walk_static(visitor, tree, *value);
+            }
+        }
+        Static::FixedArray { value, .. } => walk_static(visitor, tree, *value),
+        Static::Newtype { ty, value } => {
+            walk_type_id(visitor, tree, ty);
+            walk_static(visitor, tree, *value);
+        }
+        Static::Object(fields) => {
+            for field in fields {
+                walk_static(visitor, tree, field.value);
+            }
+        }
+        Static::Struct { ty, fields } => {
+            walk_type_id(visitor, tree, ty);
+            for field in fields {
+                walk_static(visitor, tree, field.value);
+            }
+        }
+        Static::Null
+        | Static::Undefined
+        | Static::Boolean(_)
+        | Static::Integer(_)
+        | Static::Bigint(_)
+        | Static::Float(_)
+        | Static::Character(_)
+        | Static::String(_)
+        | Static::Regex { .. } => {}
+    }
 }
 
 /// Walk the types owned by one call operation.

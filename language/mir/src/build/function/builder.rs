@@ -1,11 +1,10 @@
-use destack_core::StringPool;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::build::{BuildError, BuildResult, FunctionHeader, Variable};
 use crate::{
     AllocationMode, Block, EffectTable, Function, FunctionBehavior, FunctionBody,
-    FunctionParameter, Instruction, Linkage, LocalNodeId, MemoryEffect, Tree, Type, TypeId, Value,
-    finalize_function_names,
+    FunctionParameter, Instruction, Linkage, Local, LocalNodeId, MemoryEffect, Tree, Type, TypeId,
+    Value,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -39,8 +38,6 @@ pub struct FunctionBuilder<'a> {
     pub(super) tree: &'a mut Tree,
     /// Effect table for call and function metadata emitted by this builder.
     pub(super) effects: &'a mut EffectTable,
-    /// The string pool used for generated MIR names.
-    pub(super) strings: &'a StringPool,
     /// Pointer width in bits.
     pub(super) pointer_bits: u16,
     /// The id of the function being built.
@@ -48,9 +45,7 @@ pub struct FunctionBuilder<'a> {
     /// Current block we're inserting into.
     pub(super) current_block: Option<LocalNodeId<Block>>,
     /// Locals built for this function body.
-    pub(super) locals: Vec<LocalNodeId<crate::Local>>,
-    /// Optional explicit SSA value names keyed by value id.
-    pub(super) value_names: Vec<Option<destack_core::StringId>>,
+    pub(super) locals: Vec<LocalNodeId<Local>>,
     /// SSA value types keyed by value id.
     pub(super) value_types: Vec<Option<LocalNodeId<Type>>>,
 
@@ -80,12 +75,12 @@ impl<'a> FunctionBuilder<'a> {
     pub fn new(
         tree: &'a mut Tree,
         effects: &'a mut EffectTable,
-        strings: &'a StringPool,
         pointer_bits: u16,
         header: FunctionHeader,
     ) -> Self {
         let FunctionHeader {
             name,
+            arguments,
             symbol,
             lifetimes,
             parameters,
@@ -94,20 +89,19 @@ impl<'a> FunctionBuilder<'a> {
         } = header;
 
         // create parameter values
-        let parameter_count = parameters.len();
         let parameters = FunctionHeader::parameters_from_types(parameters);
         let (next_value_id, value_types) = Function::parameter_state(&parameters);
 
         // insert a signature-only function until finish commits the body
         let function = Function {
             name,
+            arguments,
             symbol,
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             coroutine,
             parameters,
             lifetimes,
-            parameter_names: vec![None; parameter_count],
             return_type: TypeId::from(result),
             environment: None,
             binding: None,
@@ -118,12 +112,10 @@ impl<'a> FunctionBuilder<'a> {
         Self {
             tree,
             effects,
-            strings,
             pointer_bits,
             function_id,
             current_block: None,
             locals: Vec::new(),
-            value_names: vec![None; next_value_id as usize],
             value_types,
             next_value_id,
             next_variable_id: 0,
@@ -140,7 +132,6 @@ impl<'a> FunctionBuilder<'a> {
     pub fn from_declared(
         tree: &'a mut Tree,
         effects: &'a mut EffectTable,
-        strings: &'a StringPool,
         pointer_bits: u16,
         function_id: LocalNodeId<Function>,
     ) -> BuildResult<Self> {
@@ -156,17 +147,13 @@ impl<'a> FunctionBuilder<'a> {
             Function::parameter_state(&function.parameters)
         };
 
-        let value_names = vec![None; next_value_id as usize];
-
         Ok(Self {
             tree,
             effects,
-            strings,
             pointer_bits,
             function_id,
             current_block: None,
             locals: Vec::new(),
-            value_names,
             value_types,
             next_value_id,
             next_variable_id: 0,
@@ -177,15 +164,6 @@ impl<'a> FunctionBuilder<'a> {
             variable_types: IndexMap::new(),
             blocks: Vec::new(),
         })
-    }
-
-    /// Set a debug parameter name on the function signature.
-    pub fn set_parameter_name(&mut self, index: usize, name: destack_core::StringId) {
-        // record parameter names for diagnostics
-        let function = self.tree.get_mut(self.function_id);
-        if let Some(slot) = function.parameter_names.get_mut(index) {
-            *slot = Some(name);
-        }
     }
 
     /// Set the memory effect for the function.
@@ -278,10 +256,6 @@ impl<'a> FunctionBuilder<'a> {
             self.value_types.resize(value_count, None);
         }
 
-        if self.value_names.len() < value_count {
-            self.value_names.resize(value_count, None);
-        }
-
         index
     }
 
@@ -349,16 +323,12 @@ impl<'a> FunctionBuilder<'a> {
             entry_block,
             self.blocks,
             self.locals,
-            self.value_names,
             self.value_types,
             self.next_value_id,
             self.tree,
         );
         let function = self.tree.get_mut(self.function_id);
         function.set_body(body);
-
-        // finalize generated names before formatting
-        finalize_function_names(self.tree, self.strings, self.function_id);
 
         Ok(self.function_id)
     }

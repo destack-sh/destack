@@ -9,8 +9,8 @@ use destack_source::{
 use crate::source::{Lexer, TokenType};
 use crate::{
     Block, DispatchTable, DropTable, EffectTable, Function, Global, LayoutTable, LifetimeParameter,
-    LifetimeSlot, Local, LocalNodeId, MemoryTable, Node, ProfileTable, TargetLayout, Tree, Type,
-    TypeTable, Value, finalize_function_names,
+    LifetimeSlot, Local, LocalNodeId, MemoryTable, Node, ProfileTable, StaticId, TargetLayout,
+    Tree, Type, TypeTable, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -144,26 +144,24 @@ pub struct Parser {
     pub(super) content_id: ContentId,
     /// The diagnostics produced while parsing.
     pub(super) diagnostics: DiagnosticCollector,
-    /// Map from function names to their ids (for forward references).
-    pub(super) function_map: HashMap<String, LocalNodeId<Function>>,
+    /// Map from concrete function names to their ids for forward references.
+    pub(super) function_map: HashMap<(String, Vec<StaticId>), LocalNodeId<Function>>,
     /// Map from global names to their ids (for forward references).
     pub(super) global_map: HashMap<String, LocalNodeId<Global>>,
     /// Map from type declaration names to their ids (for references).
-    pub(super) type_declaration_map: HashMap<String, LocalNodeId<Type>>,
+    pub(super) type_declaration_map: HashMap<(String, Vec<StaticId>), LocalNodeId<Type>>,
     /// Set of type declarations that have been defined.
-    pub(super) type_declaration_definitions: HashSet<String>,
+    pub(super) type_declaration_definitions: HashSet<(String, Vec<StaticId>)>,
     /// Map from symbolic block names to their predeclared block ids.
     pub(super) block_name_map: HashMap<String, LocalNodeId<Block>>,
     /// Blocks predeclared for the current function body in source order.
     pub(super) predeclared_blocks: Vec<LocalNodeId<Block>>,
-    /// Map from symbolic value names to their SSA ids.
-    pub(super) value_name_map: HashMap<String, Value>,
+    /// SSA values defined in the current function.
+    pub(super) defined_values: HashSet<Value>,
     /// Map from symbolic local names to their local ids.
     pub(super) local_name_map: HashMap<String, LocalNodeId<Local>>,
     /// The function currently being parsed.
     pub(super) current_function: Option<LocalNodeId<Function>>,
-    /// Optional explicit SSA value names for the current function.
-    pub(super) value_names: Vec<Option<destack_core::StringId>>,
     /// SSA value types for the current function.
     pub(super) value_types: Vec<Option<LocalNodeId<Type>>>,
     /// The next SSA value id for the current function.
@@ -205,10 +203,9 @@ impl Parser {
             type_declaration_definitions: HashSet::new(),
             block_name_map: HashMap::new(),
             predeclared_blocks: Vec::new(),
-            value_name_map: HashMap::new(),
+            defined_values: HashSet::new(),
             local_name_map: HashMap::new(),
             current_function: None,
-            value_names: Vec::new(),
             value_types: Vec::new(),
             next_value_id: 0,
             parsed_block_count: 0,
@@ -226,9 +223,6 @@ impl Parser {
         // attach source comments after the node graph exists
         parser.attach_comment_ownership();
 
-        // synthesize any generated function names
-        parser.finalize_generated_names();
-
         // rebuild derived primitive type cache
         parser.types.rebuild_primitive_types(&parser.tree);
 
@@ -245,19 +239,6 @@ impl Parser {
             strings: parser.strings,
             diagnostics: parser.diagnostics.take_collection(),
         })
-    }
-
-    /// Finalize generated names for every parsed function.
-    fn finalize_generated_names(&mut self) {
-        let function_ids: Vec<_> = self
-            .tree
-            .iter_nodes::<Function>()
-            .map(|(function_id, _)| function_id)
-            .collect();
-
-        for function_id in function_ids {
-            finalize_function_names(&mut self.tree, &self.strings, function_id);
-        }
     }
 
     /// Apply one ordered segment span list to one MIR node.
@@ -287,14 +268,80 @@ impl Parser {
         Ok(())
     }
 
-    /// Parse a symbol name after `@`.
+    /// Parse one declaration name.
     pub(super) fn parse_symbol_name(&mut self) -> ParseResult<(String, usize)> {
         let name_token = self.eat_token(TokenType::Identifier)?;
-        let name_span = name_token.span;
-        let name_start = name_token.span.start as usize;
-        let name = self.tree.source_text(name_span).to_string();
+        let start = name_token.start();
+        let name = self.tree.source_text(name_token.span).to_string();
 
-        Ok((name, name_start))
+        Ok((name, start))
+    }
+
+    /// Parse concrete function generic arguments.
+    pub(super) fn parse_function_arguments(&mut self) -> ParseResult<Vec<StaticId>> {
+        if !self.eat_token_if(TokenType::LessThan) {
+            return Ok(Vec::new());
+        }
+
+        let mut arguments = Vec::new();
+        while !self.peek_is(TokenType::GreaterThan) {
+            arguments.push(self.parse_static()?);
+
+            if !self.eat_token_if(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok(arguments)
+    }
+
+    /// Parse concrete generic arguments followed by lifetime binders.
+    pub(super) fn parse_declaration_parameters(
+        &mut self,
+    ) -> ParseResult<(Vec<StaticId>, Vec<LifetimeParameter>)> {
+        if !self.eat_token_if(TokenType::LessThan) {
+            self.lifetime_scopes.push(Vec::new());
+            return Ok((Vec::new(), Vec::new()));
+        }
+
+        // parse concrete arguments before lifetime binders
+        let mut arguments = Vec::new();
+        while !self.peek_is(TokenType::GreaterThan) && !self.peek_is(TokenType::Lifetime) {
+            arguments.push(self.parse_static()?);
+
+            if !self.eat_token_if(TokenType::Comma) {
+                break;
+            }
+        }
+
+        // declare the remaining lifetime binders
+        let mut lifetimes = Vec::new();
+        let mut scope = Vec::new();
+        while !self.peek_is(TokenType::GreaterThan) {
+            let name_token = self.eat_token(TokenType::Lifetime)?;
+            let name = self.tree.source_text(name_token.span).to_string();
+            if scope.iter().any(|(candidate, _)| candidate == &name) {
+                return Err(ParseError::invalid(
+                    "duplicate lifetime parameter",
+                    name_token.start(),
+                ));
+            }
+
+            let slot = LifetimeSlot(scope.len() as u32);
+            scope.push((name.clone(), slot));
+            lifetimes.push(LifetimeParameter::new(Some(self.strings.intern(&name))));
+
+            if !self.eat_token_if(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::GreaterThan)?;
+        self.lifetime_scopes.push(scope);
+
+        Ok((arguments, lifetimes))
     }
 
     /// Parse optional lifetime parameters after a declaration name.
@@ -405,18 +452,6 @@ impl Parser {
         None
     }
 
-    /// Scan a symbol name without emitting errors.
-    pub(super) fn scan_symbol_name(&mut self) -> Option<String> {
-        let token = self.peek()?;
-        if self.token_type(token) != TokenType::Identifier {
-            return None;
-        }
-
-        let name = self.tree.source_text(token.span).to_string();
-        self.bump();
-        Some(name)
-    }
-
     /// Record the type for a value in the current function.
     pub(super) fn record_value_type(
         &mut self,
@@ -450,19 +485,14 @@ impl Parser {
         if self.value_types.len() < value_count {
             self.value_types.resize(value_count, None);
         }
-
-        if self.value_names.len() < value_count {
-            self.value_names.resize(value_count, None);
-        }
     }
 
     /// Reset per-function parse state.
     pub(super) fn reset_function_parse_state(&mut self) {
         self.block_name_map.clear();
         self.predeclared_blocks.clear();
-        self.value_name_map.clear();
+        self.defined_values.clear();
         self.local_name_map.clear();
-        self.value_names.clear();
         self.value_types.clear();
         self.next_value_id = 0;
         self.parsed_block_count = 0;

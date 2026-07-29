@@ -86,10 +86,10 @@ entry:
 #[test]
 fn test_parse_instruction_spans() {
     let source = r#"
-function use(input0: int32): int32 {
-entry(input0: int32):
-    result1: int32 = int.add input0, input0
-    return result1
+function use(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = int.add v0, v0
+    return v1
 }
 "#;
 
@@ -104,18 +104,18 @@ entry(input0: int32):
             tree.get_span(instruction_id),
             Some(span_for_text(
                 source,
-                "result1: int32 = int.add input0, input0"
+                "v1: int32 = int.add v0, v0"
             ))
         );
         assert_eq!(
             tree.get_main_span(instruction_id),
-            Some(span_for_text(source, "result1"))
+            Some(span_for_text(source, "v1"))
         );
         assert_eq!(
             tree.get_side_span(instruction_id, NodeSpanType::Region(NodeSpanRegion::Type)),
             Some(span_for_text_in(
                 source,
-                "result1: int32 = int.add input0, input0",
+                "v1: int32 = int.add v0, v0",
                 "int32"
             ))
         );
@@ -123,7 +123,7 @@ entry(input0: int32):
             tree.get_side_span(instruction_id, NodeSpanType::ListItem(NodeSpanList::Segment, 0)),
             Some(span_for_text_in(
                 source,
-                "result1: int32 = int.add input0, input0",
+                "v1: int32 = int.add v0, v0",
                 "int.add"
             ))
         );
@@ -131,23 +131,23 @@ entry(input0: int32):
             tree.get_side_span(instruction_id, NodeSpanType::ListItem(NodeSpanList::Segment, 1)),
             Some(span_for_text_in(
                 source,
-                "result1: int32 = int.add input0, input0",
-                "input0"
+                "v1: int32 = int.add v0, v0",
+                "v0"
             ))
         );
         assert_eq!(
             tree.get_side_span(instruction_id, NodeSpanType::ListItem(NodeSpanList::Segment, 2)),
             Some(span_for_text_in_after(
                 source,
-                "result1: int32 = int.add input0, input0",
-                "input0",
+                "v1: int32 = int.add v0, v0",
+                "v0",
                 1
             ))
         );
 
         assert_eq!(
             tree.get_span(*terminator),
-            Some(span_for_text(source, "return result1"))
+            Some(span_for_text(source, "return v1"))
         );
         assert_eq!(
             tree.get_main_span(*terminator),

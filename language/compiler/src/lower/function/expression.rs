@@ -767,9 +767,10 @@ impl FunctionLowerer<'_, '_, '_> {
         let ty = self.lowerer.symbol_type(symbol)?;
         let ty = self.lower_type(ty)?;
         let name = self.lowerer.constant_name(symbol)?;
+        let name = self.lowerer.strings.intern(&name);
         let global = self
             .builder
-            .external_global(&name, ty, mir::Mutability::Immutable);
+            .external_global(name, ty, mir::Mutability::Immutable);
         self.lowerer.globals.insert(symbol, global);
 
         Ok(Some(global))

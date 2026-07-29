@@ -1,3 +1,5 @@
+use destack_core::StringId;
+
 use crate::build::FunctionBuilder;
 use crate::{
     Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability,
@@ -94,13 +96,11 @@ impl<'a> FunctionBuilder<'a> {
     /// Declare an external global from inside a function body.
     pub fn external_global(
         &mut self,
-        name: &str,
+        name: StringId,
         ty: LocalNodeId<Type>,
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
-        let name_id = self.strings.intern(name);
-
-        self.tree.insert(Global::import(name_id, ty, mutability))
+        self.tree.insert(Global::import(name, ty, mutability))
     }
 
     /// Load one global value through its address.

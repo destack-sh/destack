@@ -3,6 +3,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::attribute::{write_attribute, write_attributes};
+use super::r#static::format_static;
 
 use crate::{
     Attribute, AttributeIdentifier, FormatNode, Function, FunctionHeaderSpans, LifetimeParameter,
@@ -17,16 +18,11 @@ impl FormatNode for Function {
         id: LocalNodeId<Function>,
         f: &mut Writer<'a, '_>,
     ) -> FormatResult<()> {
-        // function name
-        let name = f.context().function_name(id)?.to_string();
-
         // attributes
         format_function_attributes(id, self, f)?;
 
         // enter the function's value and lifetime scope
-        f.context_mut()
-            .scope
-            .enter(id, self.locals(), &self.lifetimes);
+        f.context_mut().enter_function(id, &self.lifetimes);
 
         // imported function
         if self.linkage.is_import() {
@@ -34,11 +30,7 @@ impl FormatNode for Function {
             format_function_keyword(self, f)?;
             write!(
                 f,
-                [
-                    space(),
-                    copied_text(&name),
-                    format_with(|f| format_lifetimes(&self.lifetimes, f))
-                ]
+                [space(), format_with(|f| format_function_name(id, self, f))]
             )?;
 
             // external parameters
@@ -46,7 +38,7 @@ impl FormatNode for Function {
 
             write!(f, [token(":"), space(), self.return_type])?;
             format_lifetime_where(&self.lifetimes, f)?;
-            f.context_mut().scope.leave();
+            f.context_mut().leave_function();
 
             return Ok(());
         }
@@ -58,8 +50,10 @@ impl FormatNode for Function {
 
         // function header
         format_function_keyword(self, f)?;
-        write!(f, [space(), copied_text(&name)])?;
-        format_lifetimes(&self.lifetimes, f)?;
+        write!(
+            f,
+            [space(), format_with(|f| format_function_name(id, self, f))]
+        )?;
 
         // parameters
         format_function_parameters(id, self, false, f)?;
@@ -71,7 +65,7 @@ impl FormatNode for Function {
         // function body
         format_function_body(self, f)?;
 
-        f.context_mut().scope.leave();
+        f.context_mut().leave_function();
         write!(f, [token("}")])
     }
 }
@@ -128,18 +122,31 @@ fn format_function_keyword<'a>(function: &Function, f: &mut Writer<'a, '_>) -> F
 
     Ok(())
 }
-/// Format a declaration lifetime header.
-fn format_lifetimes<'a>(
-    lifetimes: &[LifetimeParameter],
+
+/// Format one function's concrete generic arguments and lifetime binders.
+fn format_function_name<'a>(
+    id: LocalNodeId<Function>,
+    function: &Function,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
-    if lifetimes.is_empty() {
+    let name = f.context().function_name(id).to_string();
+    write!(f, [copied_text(&name)])?;
+
+    if function.arguments.is_empty() && function.lifetimes.is_empty() {
         return Ok(());
     }
 
     write!(f, [token("<")])?;
-    for (index, lifetime) in lifetimes.iter().enumerate() {
+    for (index, argument) in function.arguments.iter().enumerate() {
         if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        format_static(*argument, f)?;
+    }
+
+    for (index, lifetime) in function.lifetimes.iter().enumerate() {
+        if index > 0 || !function.arguments.is_empty() {
             write!(f, [token(","), space()])?;
         }
 
@@ -234,7 +241,6 @@ fn format_function_body<'a>(function: &Function, f: &mut Writer<'a, '_>) -> Form
     let blocks = function.blocks();
     let function_end = f
         .context()
-        .scope
         .function()
         .and_then(|function_id| f.context().tree.get_span(function_id))
         .map(|span| span.end);
@@ -286,7 +292,6 @@ fn format_function_body<'a>(function: &Function, f: &mut Writer<'a, '_>) -> Form
         {
             let next_boundary = f
                 .context()
-                .scope
                 .function()
                 .and_then(|function_id| f.context().tree.get_span(function_id))
                 .map(|span| span.end)

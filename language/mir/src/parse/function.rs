@@ -1,12 +1,12 @@
-use destack_core::StringId;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Binding, Block,
-    BlockParameter, BlockTarget, Call, Callee, CheckConstraint, CoroutineKind, Function,
-    FunctionBody, FunctionHeaderSpans, FunctionParameter, Instruction, Linkage, Local, LocalNodeId,
-    Mutability, SwitchCase, Terminator, TypeId, TypedValueSpan, Value,
+    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, BinaryOperator,
+    Binding, Block, BlockParameter, BlockTarget, Call, Callee, CheckConstraint, CoroutineKind,
+    Function, FunctionBody, FunctionHeaderSpans, FunctionParameter, Instruction, LifetimeParameter,
+    Linkage, Local, LocalNodeId, Mutability, StaticId, SwitchCase, Terminator, TypeId,
+    TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -23,10 +23,12 @@ pub(super) struct ParsedFunctionHeader {
     pub(super) keyword_span: Span,
     /// The parsed function name.
     pub(super) name: String,
+    /// The parsed concrete generic arguments.
+    pub(super) arguments: Vec<StaticId>,
     /// The parsed function name span.
     pub(super) name_span: Span,
     /// The parsed lifetime parameters.
-    pub(super) lifetimes: Vec<crate::LifetimeParameter>,
+    pub(super) lifetimes: Vec<LifetimeParameter>,
     /// The parsed function parameters.
     pub(super) parameters: Vec<FunctionParameter>,
     /// The parsed parameter spans.
@@ -60,8 +62,8 @@ pub(super) struct FunctionAttributes {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum FunctionHeaderMode {
     /// Parse only enough to seed forward references.
-    Placeholder,
-    /// Parse the real header and record value names for the body.
+    Signature,
+    /// Parse the complete header and populate the body value namespace.
     Definition,
 }
 
@@ -150,13 +152,16 @@ impl Parser {
             (true, true) => Some(CoroutineKind::AsyncGenerator),
         };
         let (name, name_start) = self.parse_symbol_name()?;
-        let name_span = self.span_at(name_start, name.len());
-        let function_id = self.function_map.get(&name).copied().ok_or_else(|| {
+        let (arguments, mut lifetimes) = self.parse_declaration_parameters()?;
+        let name_span = if arguments.is_empty() && lifetimes.is_empty() {
+            self.span_at(name_start, name.len())
+        } else {
+            self.span_between(name_start, self.pos())
+        };
+        let key = (name.clone(), arguments.clone());
+        let function_id = self.function_map.get(&key).copied().ok_or_else(|| {
             ParseError::new(format!("function '{name}' is not declared"), name_start)
         })?;
-
-        // lifetime scope
-        let mut lifetimes = self.parse_lifetime_parameters()?;
 
         // body value namespace
         if mode == FunctionHeaderMode::Definition {
@@ -182,6 +187,7 @@ impl Parser {
             coroutine,
             keyword_span,
             name,
+            arguments,
             name_span,
             lifetimes,
             parameters,
@@ -208,26 +214,27 @@ impl Parser {
             self.parse_function_header(linkage, is_async, FunctionHeaderMode::Definition)?;
         let function_id = header.function_id;
 
-        // function tables
+        // function attributes
         let function_attributes = self.extract_function_attributes(attributes, attribute_spans)?;
-        let parameter_names = self.header_parameter_names(&header.parameters);
 
         // external function body
         if linkage.is_import() {
             let name_id = self.strings.intern(&header.name);
+            let symbol = self.tree.get(function_id).symbol;
             let mut function = Function::import(
                 name_id,
                 header.lifetimes,
                 header.parameters,
                 header.return_type,
-            );
-            function.parameter_names = parameter_names;
+            )
+            .with_arguments(header.arguments)
+            .with_symbol(symbol);
             function.coroutine = header.coroutine;
             function.environment = function_attributes.environment_type;
             function.binding = function_attributes.binding.map(Box::new);
             function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
 
-            // update the placeholder with the parsed signature
+            // replace the reserved function with its parsed declaration
             self.tree
                 .set_text_span(function_id, self.span_from_parse_start(item_start));
             self.tree.set_keyword_span(function_id, header.keyword_span);
@@ -266,7 +273,7 @@ impl Parser {
             return Ok(function_id);
         }
 
-        // seed signature data before mutating the placeholder
+        // seed signature state before filling the reserved function
         let name_id = self.strings.intern(&header.name);
         let id = function_id;
         self.tree
@@ -285,17 +292,16 @@ impl Parser {
         let parameters = header.parameters;
         let (next_value_id, value_types) = Function::parameter_state(&parameters);
 
-        // start body value tables without signature parameter names
-        self.value_names = vec![None; next_value_id as usize];
+        // start body value types
         self.value_types = value_types;
         self.next_value_id = next_value_id;
 
         // populate signature fields
         let function = self.tree.get_mut(id);
         function.name = name_id;
+        function.arguments = header.arguments;
         function.parameters = parameters;
         function.lifetimes = header.lifetimes;
-        function.parameter_names = parameter_names;
         function.return_type = header.return_type;
         function.linkage = linkage;
         function.coroutine = header.coroutine;
@@ -363,7 +369,6 @@ impl Parser {
             entry,
             blocks,
             locals,
-            std::mem::take(&mut self.value_names),
             std::mem::take(&mut self.value_types),
             self.next_value_id,
             &self.tree,
@@ -417,8 +422,8 @@ impl Parser {
             while self.is_value_definition_start() {
                 let parameter_start = self.pos();
                 let (value, name_span) = match mode {
-                    FunctionHeaderMode::Placeholder => {
-                        self.parse_placeholder_parameter(&mut next_value_id)?
+                    FunctionHeaderMode::Signature => {
+                        self.parse_signature_parameter(&mut next_value_id)?
                     }
                     FunctionHeaderMode::Definition => self.parse_value_definition_part()?,
                 };
@@ -477,7 +482,7 @@ impl Parser {
             return Ok(self.parse_return_type_use_after(colon_token));
         }
 
-        // placeholder scanning must not treat a body brace as a return type
+        // signature scanning must not treat a body brace as a return type
         if self.peek_is(TokenType::OpenBrace) && !self.is_return_structural_type_start() {
             let start = colon_token.span.end as usize;
             let span = self.span_at(start, 0);
@@ -490,10 +495,7 @@ impl Parser {
     }
 
     /// Parse one named parameter without recording it in the body namespace.
-    fn parse_placeholder_parameter(
-        &mut self,
-        next_value_id: &mut u32,
-    ) -> ParseResult<(Value, Span)> {
+    fn parse_signature_parameter(&mut self, next_value_id: &mut u32) -> ParseResult<(Value, Span)> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("value definition", self.pos()))?;
@@ -501,10 +503,12 @@ impl Parser {
 
         match self.token_type(token) {
             TokenType::Identifier => {
+                let name = self.tree.source_text(token.span).to_string();
+                let start = token.start();
                 self.bump();
 
-                let value = Value::new(*next_value_id);
-                *next_value_id += 1;
+                let value = self.parse_value_id(&name, start)?;
+                *next_value_id = (*next_value_id).max(value.id() + 1);
 
                 Ok((value, span))
             }
@@ -514,19 +518,6 @@ impl Parser {
                 token.start(),
             )),
         }
-    }
-
-    /// Return the parsed parameter names in value order.
-    fn header_parameter_names(&self, parameters: &[FunctionParameter]) -> Vec<Option<StringId>> {
-        parameters
-            .iter()
-            .map(|parameter| {
-                self.value_names
-                    .get(parameter.value.0 as usize)
-                    .copied()
-                    .flatten()
-            })
-            .collect()
     }
 
     /// Parse a local variable declaration.
@@ -590,17 +581,15 @@ impl Parser {
         let terminator_id = self.tree.get(block_id).terminator;
 
         // block header
-        let (block_span, block_name) = {
+        let block_span = {
             let block_token = self
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("block label", self.pos()))?;
             let block_span = block_token.span;
 
-            let block_name = match self.token_type(block_token) {
+            match self.token_type(block_token) {
                 TokenType::Identifier => {
-                    let name = self.tree.source_text(block_token.span).to_string();
                     self.bump();
-                    Some(self.strings.intern(&name))
                 }
                 _ => {
                     return Err(ParseError::unexpected(
@@ -609,9 +598,9 @@ impl Parser {
                         block_token.start(),
                     ));
                 }
-            };
+            }
 
-            (block_span, block_name)
+            block_span
         };
 
         // block parameters
@@ -704,7 +693,6 @@ impl Parser {
         });
 
         let block = Block {
-            name: block_name,
             parameters,
             instructions,
             terminator: terminator_id,
@@ -751,7 +739,6 @@ impl Parser {
                 let error_end = self.pos();
                 let error_span = self.span_between(error_start, error_end);
                 let block = Block {
-                    name: None,
                     parameters: Vec::new(),
                     instructions: Vec::new(),
                     terminator: terminator_id,
@@ -917,10 +904,10 @@ impl Parser {
                 let start = token.start();
                 self.bump();
 
-                let value =
-                    self.value_name_map.get(&name).copied().ok_or_else(|| {
-                        ParseError::new(format!("undefined value '{name}'"), start)
-                    })?;
+                let value = self.parse_value_id(&name, start)?;
+                if !self.defined_values.contains(&value) {
+                    return Err(ParseError::new(format!("undefined value '{name}'"), start));
+                }
 
                 Ok((value, span))
             }
@@ -1650,13 +1637,13 @@ impl Parser {
 }
 
 /// Parse the canonical operator family used in overflow checks.
-fn parse_overflow_check_operator(text: &str) -> Option<crate::BinaryOperator> {
+fn parse_overflow_check_operator(text: &str) -> Option<BinaryOperator> {
     Some(match text {
-        "int.add" => crate::BinaryOperator::Add,
-        "int.sub" => crate::BinaryOperator::Subtract,
-        "int.mul" => crate::BinaryOperator::Multiply,
-        "int.div" => crate::BinaryOperator::SignedDivide,
-        "int.rem" => crate::BinaryOperator::SignedRemainder,
+        "int.add" => BinaryOperator::Add,
+        "int.sub" => BinaryOperator::Subtract,
+        "int.mul" => BinaryOperator::Multiply,
+        "int.div" => BinaryOperator::SignedDivide,
+        "int.rem" => BinaryOperator::SignedRemainder,
         _ => return None,
     })
 }

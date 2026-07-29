@@ -2,10 +2,9 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use destack_core::StringId;
 use destack_serde::Reflect;
 
-use crate::{FloatType, LocalNodeId, Symbol, Tree, Type};
+use crate::{FloatType, LocalNodeId, Tree, Type};
 
 /// Canonical type table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
@@ -15,10 +14,6 @@ pub struct TypeTable {
     pub(crate) primitive_types: HashMap<PrimitiveType, LocalNodeId<Type>>,
     /// Nominal lineage keyed by type id.
     pub lineage_by_type: HashMap<LocalNodeId<Type>, TypeLineage>,
-    /// Canonical display names keyed by type id.
-    pub display_name_by_type: HashMap<LocalNodeId<Type>, StringId>,
-    /// Persistent symbols keyed by nominal type id.
-    pub symbol_by_type: HashMap<LocalNodeId<Type>, Symbol>,
 }
 
 impl TypeTable {
@@ -31,10 +26,6 @@ impl TypeTable {
     pub fn copy_type_entries(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
         if let Some(lineage) = self.lineage(from).cloned() {
             self.set_lineage(to, lineage);
-        }
-
-        if let Some(display_name) = self.display_name(from) {
-            self.set_display_name(to, display_name);
         }
     }
 
@@ -147,31 +138,6 @@ impl TypeTable {
         self.primitive_types
             .get(&PrimitiveType::Float { format })
             .copied()
-    }
-
-    /// Return the display name for a type when present.
-    pub fn display_name(&self, ty: LocalNodeId<Type>) -> Option<StringId> {
-        self.display_name_by_type.get(&ty).copied()
-    }
-
-    /// Record the display name for a type.
-    pub fn set_display_name(&mut self, ty: LocalNodeId<Type>, name: StringId) -> Option<StringId> {
-        self.display_name_by_type.insert(ty, name)
-    }
-
-    /// Return the existing display name for a type or insert the provided one.
-    pub fn ensure_display_name(&mut self, ty: LocalNodeId<Type>, name: StringId) -> StringId {
-        *self.display_name_by_type.entry(ty).or_insert(name)
-    }
-
-    /// Return the persistent symbol for one nominal type when present.
-    pub fn symbol(&self, ty: LocalNodeId<Type>) -> Option<Symbol> {
-        self.symbol_by_type.get(&ty).copied()
-    }
-
-    /// Record the persistent symbol for one nominal type.
-    pub fn set_symbol(&mut self, ty: LocalNodeId<Type>, symbol: Symbol) -> Option<Symbol> {
-        self.symbol_by_type.insert(ty, symbol)
     }
 }
 

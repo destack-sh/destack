@@ -31,7 +31,7 @@ impl FormatNode for Global {
         }
 
         // resolve the global name before formatting
-        let name = f.context().global_name(id)?.to_string();
+        let name = f.context().global_name(id).to_string();
 
         // declaration modifiers
         if self.linkage.is_import() {

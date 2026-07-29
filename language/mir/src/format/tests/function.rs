@@ -1,4 +1,4 @@
-use super::{assert_format, assert_format_eq};
+use super::assert_format;
 
 /// Formats a simple add function canonically.
 #[test]
@@ -106,22 +106,40 @@ entry:
     );
 }
 
-/// Renames non canonical value and block names during formatting.
+/// Formats concrete function instances and lifetime binders canonically.
 #[test]
-fn test_format_renames_non_canonical_names() {
-    assert_format_eq(
+fn test_format_function_instances() {
+    assert_format(
         r#"
-function varTest(): int32 {
-entry:
-    v0: int32 = 10
+function identity<int32>(v0: int32): int32 {
+entry(v0: int32):
     return v0
 }
-"#,
-        r#"
-function varTest(): int32 {
-entry:
-    v0: int32 = 10
+
+function borrow<int32, 'L0>(v0: ref<int32, borrowed, 'L0, readonly>): ref<int32, borrowed, 'L0, readonly> {
+entry(v0: ref<int32, borrowed, 'L0, readonly>):
     return v0
+}
+
+function use(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call identity<int32>(v0): (int32) => int32
+    return v1
+}
+"#,
+    );
+}
+
+/// Preserves sparse SSA value identities.
+#[test]
+fn test_format_value_identity() {
+    assert_format(
+        r#"
+function choose(v3: int32): int32 {
+entry(v3: int32):
+    v7: int32 = 1
+    v9: int32 = int.add v3, v7
+    return v9
 }
 "#,
     );

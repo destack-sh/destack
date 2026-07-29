@@ -14,7 +14,7 @@ use crate::{
 impl FormatNode for Block {
     fn format_node<'a>(&self, id: LocalNodeId<Block>, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         // block label
-        let block_name = f.context().block_name(id)?.to_string();
+        let block_name = f.context().block_name(id)?;
         write!(f, [copied_text(&block_name)])?;
 
         // block parameters

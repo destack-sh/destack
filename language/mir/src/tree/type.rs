@@ -5,7 +5,7 @@ use destack_core::{FloatFormat, SectionEntry, StringId};
 
 use crate::{
     Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, SignatureParameter,
-    StorageSet, Tree, TypeId,
+    StaticId, StorageSet, Tree, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -973,6 +973,8 @@ impl Node for Field {
 pub struct TypeDeclaration {
     /// The declaration name.
     pub name: StringId,
+    /// Concrete generic arguments specializing this type.
+    pub arguments: Vec<StaticId>,
     /// Lifetime parameters in type-local slot order.
     pub lifetimes: Vec<LifetimeParameter>,
     /// The identified type.

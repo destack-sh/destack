@@ -32,11 +32,11 @@ b1(v1: ref<int32, managed, mutable>):
     new.slice.uninit.try int32, v0 => b3, b2
 
 b2:
-    v4: int32 = 0
-    return v4
+    v2: int32 = 0
+    return v2
 
-b3(v2: uninit<slice<int32, managed, mutable>>):
-    v3: slice<int32, managed, mutable> = new.complete v2
+b3(v3: uninit<slice<int32, managed, mutable>>):
+    v4: slice<int32, managed, mutable> = new.complete v3
     v5: int32 = 1
     return v5
 }

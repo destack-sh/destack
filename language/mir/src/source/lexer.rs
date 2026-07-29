@@ -83,6 +83,7 @@ impl<'a> Lexer<'a> {
                 self.bump_while(|character| character != '\n');
                 TokenType::Comment
             }
+            '/' => self.regex(),
             '"' => self.string(),
             '\'' => self.character_or_lifetime(),
             '-' if self.peek() == Some('>') => {
@@ -93,12 +94,15 @@ impl<'a> Lexer<'a> {
                 self.bump();
                 TokenType::FatArrow
             }
-            character if character.is_ascii_digit() => self.number(),
+            character if character.is_ascii_digit() => self.number(character),
             '-' if self
                 .peek()
                 .is_some_and(|character| character.is_ascii_digit()) =>
             {
-                self.number()
+                match self.bump() {
+                    Some(first) => self.number(first),
+                    None => TokenType::Unknown,
+                }
             }
             // negative non-digit literal like -inf or -nan
             '-' if self.peek().is_some_and(is_identifier_start) => {
@@ -188,19 +192,76 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// Lex one regular expression literal.
+    fn regex(&mut self) -> TokenType {
+        let mut is_class = false;
+
+        loop {
+            match self.bump() {
+                Some('\\') => {
+                    self.bump();
+                }
+                Some('[') => is_class = true,
+                Some(']') => is_class = false,
+                Some('/') if !is_class => break,
+                Some('\n' | '\r') | None => return TokenType::Unknown,
+                Some(_) => {}
+            }
+        }
+
+        self.bump_while(is_identifier_continue);
+
+        TokenType::Regex
+    }
+
     /// Lex one numeric literal.
-    fn number(&mut self) -> TokenType {
+    fn number(&mut self, first: char) -> TokenType {
+        // consume a radix-prefixed integer and its optional suffix
+        if first == '0'
+            && self
+                .peek()
+                .is_some_and(|character| matches!(character, 'x' | 'o' | 'b'))
+        {
+            self.bump();
+            self.bump_while(|character| character.is_ascii_alphanumeric() || character == '_');
+
+            return TokenType::Integer;
+        }
+
+        // consume the decimal payload
         self.bump_while(|character| character.is_ascii_digit() || character == '_');
 
+        let mut is_float = false;
         if self.peek() == Some('.') {
             self.bump();
             self.bump_while(|character| character.is_ascii_digit() || character == '_');
-            self.bump_while(|character| character.is_ascii_alphanumeric());
-            return TokenType::Float;
+            is_float = true;
         }
 
+        // consume a decimal exponent
+        if self
+            .peek()
+            .is_some_and(|character| matches!(character, 'e' | 'E'))
+        {
+            self.bump();
+            if self
+                .peek()
+                .is_some_and(|character| matches!(character, '+' | '-'))
+            {
+                self.bump();
+            }
+            self.bump_while(|character| character.is_ascii_digit() || character == '_');
+            is_float = true;
+        }
+
+        // consume a concrete numeric type suffix
         self.bump_while(|character| character.is_ascii_alphanumeric());
-        TokenType::Integer
+
+        if is_float {
+            TokenType::Float
+        } else {
+            TokenType::Integer
+        }
     }
 }
 

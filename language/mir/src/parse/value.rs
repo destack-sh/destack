@@ -50,22 +50,12 @@ impl Parser {
                 let start = token.start();
                 self.bump();
 
-                if self.value_name_map.contains_key(&name) {
-                    return Err(ParseError::new(
-                        format!("duplicate value name '{name}'"),
-                        start,
-                    ));
+                let value = self.parse_value_id(&name, start)?;
+                if !self.defined_values.insert(value) {
+                    return Err(ParseError::new(format!("duplicate value '{name}'"), start));
                 }
 
-                let value = Value::new(self.next_value_id);
-                self.next_value_id += 1;
-                self.value_name_map.insert(name.clone(), value);
-
-                if self.current_function.is_some() {
-                    let name_id = self.strings.intern(&name);
-                    self.resize_value_slots(value);
-                    self.value_names[value.0 as usize] = Some(name_id);
-                }
+                self.next_value_id = self.next_value_id.max(value.id() + 1);
 
                 Ok((value, span))
             }
@@ -75,6 +65,16 @@ impl Parser {
                 token.start(),
             )),
         }
+    }
+
+    /// Parse one canonical SSA value identity.
+    pub(super) fn parse_value_id(&self, name: &str, start: usize) -> ParseResult<Value> {
+        let id = name
+            .strip_prefix('v')
+            .and_then(|id| id.parse::<u32>().ok())
+            .ok_or_else(|| ParseError::new(format!("invalid value '{name}'"), start))?;
+
+        Ok(Value::new(id))
     }
 
     /// Parse a value reference and return its span.
@@ -90,10 +90,11 @@ impl Parser {
                 let start = token.start();
                 self.bump();
 
-                let value =
-                    self.value_name_map.get(&name).copied().ok_or_else(|| {
-                        ParseError::new(format!("undefined value '{name}'"), start)
-                    })?;
+                let value = self.parse_value_id(&name, start)?;
+                if !self.defined_values.contains(&value) {
+                    return Err(ParseError::new(format!("undefined value '{name}'"), start));
+                }
+
                 Ok((value, span))
             }
             _ => Err(ParseError::unexpected_token("value reference", token)),
@@ -161,10 +162,11 @@ impl Parser {
     /// Parse a function reference and return its span.
     pub(super) fn parse_function_reference_part(&mut self) -> ParseResult<(FunctionId, Span)> {
         let (name, start) = self.parse_symbol_name()?;
-        let span = self.span_at(start, name.len());
+        let arguments = self.parse_function_arguments()?;
+        let span = self.span_between(start, self.pos());
 
         self.function_map
-            .get(&name)
+            .get(&(name.clone(), arguments))
             .copied()
             .map(|function| (function, span))
             .ok_or_else(|| ParseError::invalid(&format!("function reference '{name}'"), start))

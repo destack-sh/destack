@@ -1,16 +1,51 @@
-use destack_core::StringId;
+use std::hash::Hash;
+
+use destack_core::{StringId, stable_hash_value};
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    Attribute, Field, Lifetime, LifetimeParameter, LocalNodeId, SignatureParameter, Symbol, Tree,
-    Type, TypeDeclaration, TypeEntry, TypeId, TypeIndexKey, VariantCase,
+    Attribute, Field, Lifetime, LifetimeParameter, LocalNodeId, SignatureParameter, StaticId,
+    Symbol, Tree, Type, TypeDeclaration, TypeId, VariantCase,
 };
 
-use super::mir_hash;
+/// One stored MIR type.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub(crate) enum TypeEntry {
+    /// A structural type interned by equality.
+    Structural {
+        /// The MIR type.
+        ty: Type,
+    },
+    /// An identified type reserved for its recursive definition.
+    Reserved {
+        /// The persistent identity of the type.
+        symbol: Symbol,
+    },
+    /// A completely defined identified type.
+    Identified {
+        /// The MIR type.
+        ty: Type,
+        /// The persistent identity of the type.
+        symbol: Symbol,
+        /// The source declaration of the type when present.
+        declaration: Option<LocalNodeId<TypeDeclaration>>,
+    },
+}
+
+/// One canonical MIR type index key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub(crate) enum TypeIndexKey {
+    /// The structural lookup hash of an anonymous type.
+    Structural(u64),
+    /// The persistent symbol of an identified type.
+    Identified(Symbol),
+}
 
 impl Tree {
     /// Find one equal structural type.
     pub fn find_type(&self, ty: &Type) -> Option<TypeId> {
-        let hash = mir_hash(ty);
+        let hash = intern_hash(ty);
         let key = TypeIndexKey::Structural(hash);
         let ids = self.type_index.get(&key)?;
 
@@ -20,7 +55,7 @@ impl Tree {
     /// Intern one structural type.
     pub fn intern_type(&mut self, ty: Type) -> TypeId {
         // reuse an equal structural type
-        let hash = mir_hash(&ty);
+        let hash = intern_hash(&ty);
         let key = TypeIndexKey::Structural(hash);
         if let Some(ids) = self.type_index.get(&key) {
             for id in ids {
@@ -64,6 +99,7 @@ impl Tree {
         *entry = TypeEntry::Identified {
             ty,
             symbol: *symbol,
+            declaration: None,
         };
     }
 
@@ -71,24 +107,46 @@ impl Tree {
     pub fn insert_type_declaration(
         &mut self,
         name: StringId,
+        arguments: Vec<StaticId>,
         lifetimes: Vec<LifetimeParameter>,
         ty: TypeId,
     ) -> LocalNodeId<TypeDeclaration> {
         // reject structural types and incomplete recursive placeholders
-        let local_id = self.node_local_id(ty.id);
-        let TypeEntry::Identified { .. } = self.types.get(local_id) else {
+        let type_local_id = self.node_local_id(ty.id);
+        let TypeEntry::Identified { declaration, .. } = self.types.get(type_local_id) else {
             panic!("declared MIR type {ty:?} before its complete identified definition");
         };
+        if declaration.is_some() {
+            panic!("declared MIR type {ty:?} twice");
+        }
 
         // allocate through the only declaration construction path
         let declaration = TypeDeclaration {
             name,
+            arguments,
             lifetimes,
             ty,
         };
-        let local_id = self.type_declarations.allocate(declaration);
+        let declaration_local_id = self.type_declarations.allocate(declaration);
+        let id = self.insert_node(declaration_local_id);
 
-        self.insert_node(local_id)
+        // attach the declaration to its identified type
+        let TypeEntry::Identified { declaration, .. } = self.types.get_mut(type_local_id) else {
+            unreachable!("identified MIR type changed during declaration insertion");
+        };
+        *declaration = Some(id);
+
+        id
+    }
+
+    /// Return the declaration of one identified type when present.
+    pub fn type_declaration(&self, ty: TypeId) -> Option<LocalNodeId<TypeDeclaration>> {
+        let local_id = self.node_local_id(ty.id);
+        let TypeEntry::Identified { declaration, .. } = self.types.get(local_id) else {
+            return None;
+        };
+
+        *declaration
     }
 
     /// Return whether one identified type is defined.
@@ -121,7 +179,7 @@ impl Tree {
     /// Intern one field and its attributes.
     pub fn intern_field(&mut self, field: Field, attributes: Vec<Attribute>) -> LocalNodeId<Field> {
         // reuse an equal field declaration
-        let hash = mir_hash(&(&field, &attributes));
+        let hash = intern_hash(&(&field, &attributes));
         if let Some(ids) = self.field_index.get(&hash) {
             for id in ids {
                 if self.get(*id) == &field && self.attributes(*id) == attributes {
@@ -589,6 +647,11 @@ impl Tree {
 
         self.intern_field(field, attributes)
     }
+}
+
+/// Compute one in-memory interning hash.
+pub(crate) fn intern_hash(value: &impl Hash) -> u64 {
+    stable_hash_value(value)
 }
 
 #[cfg(test)]

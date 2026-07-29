@@ -7,6 +7,7 @@ mod function;
 mod instruction;
 mod module;
 mod parser;
+mod r#static;
 mod trivia;
 mod r#type;
 mod value;

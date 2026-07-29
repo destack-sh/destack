@@ -7,6 +7,7 @@ mod global;
 mod memory;
 mod metadata;
 mod ops;
+mod r#static;
 mod trivia;
 mod r#type;
 

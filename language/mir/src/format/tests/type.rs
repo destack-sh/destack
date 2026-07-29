@@ -2,7 +2,7 @@ use super::{assert_format, assert_format_eq, assert_output_eq, format_tree_with_
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, FormatOptions, Symbol, Tree, Type,
 };
-use destack_core::{StringId, StringPool};
+use destack_core::StringPool;
 
 /// Formats pointer-sized builtin types canonically.
 #[test]
@@ -115,6 +115,23 @@ type Player<'LWorld, 'LMesh> {
 function tickPlayer<'LPlayer, 'LWorld, 'LMesh>(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable>): void {
 entry(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable>):
     return
+}
+"#,
+    );
+}
+
+/// Formats concrete type instances with applied lifetime arguments.
+#[test]
+fn test_format_type_instances() {
+    assert_format(
+        r#"
+type Box<int32, 'L0> {
+    value: ref<int32, borrowed, 'L0, readonly>;
+}
+
+function borrow(v0: Box<int32, 'static>): Box<int32, 'static> {
+entry(v0: Box<int32, 'static>):
+    return v0
 }
 "#,
     );
@@ -324,7 +341,7 @@ fn test_format_synthetic_copy_marker() {
     let representation = tree.get(struct_type).clone();
     let pair = tree.reserve_type(Symbol::named(declaration_name));
     tree.define_type(pair, representation);
-    tree.insert_type_declaration(declaration_name, Vec::new(), pair);
+    tree.insert_type_declaration(declaration_name, Vec::new(), Vec::new(), pair);
 
     let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 
@@ -335,34 +352,6 @@ type Pair {
     int32;
     int32;
 }
-"#
-        .trim(),
-        output,
-    );
-}
-
-/// Formats duplicate type declaration names uniquely.
-#[test]
-fn test_format_duplicate_type_declaration_names_uniquely() {
-    let mut tree = Tree::new();
-    let strings = StringPool::new();
-    let name = strings.intern("Value");
-    let int32 = tree.intern_type(Type::INT32);
-    let float64 = tree.intern_type(Type::FLOAT64);
-    let first = tree.reserve_type(Symbol::named(StringId::for_text("Value.first")));
-    tree.define_type(first, tree.get(int32).clone());
-    tree.insert_type_declaration(name, Vec::new(), first);
-    let second = tree.reserve_type(Symbol::named(StringId::for_text("Value.second")));
-    tree.define_type(second, tree.get(float64).clone());
-    tree.insert_type_declaration(name, Vec::new(), second);
-
-    let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
-
-    assert_output_eq(
-        r#"
-type Value = int32;
-
-type Value_1 = float64;
 "#
         .trim(),
         output,
@@ -401,7 +390,7 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
     let representation = tree.get(struct_type).clone();
     let point = tree.reserve_type(Symbol::named(declaration_name));
     tree.define_type(point, representation);
-    tree.insert_type_declaration(declaration_name, Vec::new(), point);
+    tree.insert_type_declaration(declaration_name, Vec::new(), Vec::new(), point);
 
     let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 

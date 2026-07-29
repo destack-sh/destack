@@ -1337,45 +1337,38 @@ impl Terminator {
 #[cfg(test)]
 mod tests {
     use crate::parse::{ParseOptions, Parser, test_file};
-    use crate::{Block, Terminator, Tree, Type};
-    use destack_core::StringPool;
+    use crate::{BlockId, Function, Terminator, Tree, Type};
 
     /// Parse one MIR tree for terminator owner-method tests.
-    fn parse_tree(source: &str) -> (Tree, StringPool) {
+    fn parse_tree(source: &str) -> Tree {
         let file = test_file(source);
 
         Parser::parse(&file, ParseOptions::default())
             .expect("MIR parser requires text content")
             .finish()
             .expect("parse failed")
-    }
-
-    /// Return one named block from a tree.
-    fn block_by_name(tree: &Tree, strings: &StringPool, name: &str) -> crate::BlockId {
-        tree.iter_nodes::<Block>()
-            .find(|(_, block)| {
-                block
-                    .name
-                    .map(|name_id| strings.get(name_id) == name)
-                    .unwrap_or(false)
-            })
-            .expect("missing block")
             .0
     }
 
-    /// Return one named block's terminator.
-    fn terminator_by_block_name<'a>(
-        tree: &'a Tree,
-        strings: &StringPool,
-        name: &str,
-    ) -> &'a Terminator {
-        let block = tree.get(block_by_name(tree, strings, name));
+    /// Return one block from the first function.
+    fn block(tree: &Tree, index: usize) -> BlockId {
+        let (_, function) = tree
+            .iter_nodes::<Function>()
+            .next()
+            .expect("missing function");
+
+        function.block(index)
+    }
+
+    /// Return one block's terminator.
+    fn terminator(tree: &Tree, index: usize) -> &Terminator {
+        let block = tree.get(block(tree, index));
 
         tree.get(block.terminator)
     }
 
     /// Return a block parameter's type.
-    fn block_parameter_type(tree: &Tree, block: crate::BlockId, index: usize) -> &Type {
+    fn block_parameter_type(tree: &Tree, block: BlockId, index: usize) -> &Type {
         let block = tree.get(block);
         let parameter = block.parameters.get(index).expect("missing parameter");
 
@@ -1383,7 +1376,7 @@ mod tests {
     }
 
     /// Parse fallible allocation edges with explicit success and failure payloads.
-    fn parse_fallible_allocation_tree() -> (Tree, StringPool) {
+    fn parse_fallible_allocation_tree() -> Tree {
         parse_tree(
             r#"
 function test(v0: int64, v9: int32): int32 {
@@ -1403,10 +1396,10 @@ b2(v3: int32):
     /// Fallible allocation terminators expose explicit edge arguments.
     #[test]
     fn test_successor_arguments_include_fallible_allocation_edges() {
-        let (tree, strings) = parse_fallible_allocation_tree();
-        let terminator = terminator_by_block_name(&tree, &strings, "entry");
-        let success = block_by_name(&tree, &strings, "b1");
-        let failure = block_by_name(&tree, &strings, "b2");
+        let tree = parse_fallible_allocation_tree();
+        let terminator = terminator(&tree, 0);
+        let success = block(&tree, 1);
+        let failure = block(&tree, 2);
         let success_arguments = terminator.successor_arguments(&tree, success);
         let failure_arguments = terminator.successor_arguments(&tree, failure);
 
@@ -1418,10 +1411,10 @@ b2(v3: int32):
     /// Fallible allocation success parameters skip the implicit result.
     #[test]
     fn test_successor_parameters_skip_fallible_allocation_result() {
-        let (tree, strings) = parse_fallible_allocation_tree();
-        let terminator = terminator_by_block_name(&tree, &strings, "entry");
-        let success = block_by_name(&tree, &strings, "b1");
-        let failure = block_by_name(&tree, &strings, "b2");
+        let tree = parse_fallible_allocation_tree();
+        let terminator = terminator(&tree, 0);
+        let success = block(&tree, 1);
+        let failure = block(&tree, 2);
 
         // success receives an implicit allocation result before explicit payloads
         assert!(matches!(
@@ -1437,10 +1430,10 @@ b2(v3: int32):
     /// Fallible allocation results only apply to success edges.
     #[test]
     fn test_successor_result_count_marks_only_fallible_allocation_success() {
-        let (tree, strings) = parse_fallible_allocation_tree();
-        let terminator = terminator_by_block_name(&tree, &strings, "entry");
-        let success = block_by_name(&tree, &strings, "b1");
-        let failure = block_by_name(&tree, &strings, "b2");
+        let tree = parse_fallible_allocation_tree();
+        let terminator = terminator(&tree, 0);
+        let success = block(&tree, 1);
+        let failure = block(&tree, 2);
 
         assert_eq!(terminator.successor_result_count(success), 1);
         assert_eq!(terminator.successor_result_count(failure), 0);

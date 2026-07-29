@@ -1,15 +1,15 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt;
 
 use destack_core::StringPool;
 use destack_fir::format::{Allocator, Format, FormatContext, FormatError, FormatResult};
 use destack_source::{File, FileType};
 
-use super::{FormatOptions, Scope};
+use super::FormatOptions;
 
 use crate::{
-    Block, Function, Global, LifetimeSlot, Local, LocalNodeId, Node, TargetLayout, Tree, TreeImpl,
-    Type, TypeDeclaration, Value,
+    Block, Function, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node,
+    TargetLayout, Tree, TreeImpl, Type, Value,
 };
 
 /// One MIR formatting pass.
@@ -24,16 +24,14 @@ pub struct Formatter<'a> {
     pub(crate) strings: &'a StringPool,
     /// The FIR source file adapter.
     file: File,
-    /// Function names by node id.
-    function_names: HashMap<LocalNodeId<Function>, String>,
-    /// Block names by node id.
-    block_names: HashMap<LocalNodeId<Block>, String>,
-    /// Global names by node id.
-    global_names: HashMap<LocalNodeId<Global>, String>,
-    /// Type declaration names by represented type.
-    type_names: HashMap<LocalNodeId<Type>, String>,
-    /// The current lexical scope.
-    pub(crate) scope: Scope,
+    /// The function currently being formatted.
+    function: Option<LocalNodeId<Function>>,
+    /// Canonical block indices for the current function.
+    block_indices: HashMap<LocalNodeId<Block>, usize>,
+    /// Canonical local indices for the current function.
+    local_indices: HashMap<LocalNodeId<Local>, usize>,
+    /// Lifetime parameters currently in scope.
+    lifetimes: Vec<LifetimeParameter>,
 }
 
 /// The FIR writer for one MIR formatting pass.
@@ -56,23 +54,16 @@ impl<'a> Formatter<'a> {
         strings: &'a StringPool,
         options: FormatOptions,
     ) -> Self {
-        let type_declarations = Self::type_declaration_names(tree, strings);
-        let type_names = type_declarations
-            .into_iter()
-            .map(|(id, name)| (tree.get(id).ty, name))
-            .collect();
-
         Self {
             options,
             tree,
             target_layout,
             strings,
             file: File::empty_text(FileType::Destack),
-            function_names: Self::function_names(tree, strings),
-            block_names: Self::block_names(tree, strings),
-            global_names: Self::global_names(tree, strings),
-            type_names,
-            scope: Scope::default(),
+            function: None,
+            block_indices: HashMap::new(),
+            local_indices: HashMap::new(),
+            lifetimes: Vec::new(),
         }
     }
 
@@ -90,59 +81,45 @@ impl<'a> Formatter<'a> {
         Ok(printed.as_str().to_string())
     }
 
-    /// Return the declaration name for one type when present.
-    pub fn type_name(&self, ty: LocalNodeId<Type>) -> Option<&str> {
-        self.type_names.get(&ty).map(String::as_str)
-    }
-
     /// Return one function name.
-    pub(crate) fn function_name(&self, id: LocalNodeId<Function>) -> FormatResult<&str> {
-        self.function_names
-            .get(&id)
-            .map(String::as_str)
-            .ok_or(FormatError::SyntaxError {
-                message: "missing MIR function name",
-            })
+    pub(crate) fn function_name(&self, id: LocalNodeId<Function>) -> &str {
+        let function = self.tree.get(id);
+
+        self.strings.get(function.name)
     }
 
     /// Return one block name.
-    pub(crate) fn block_name(&self, id: LocalNodeId<Block>) -> FormatResult<&str> {
-        self.block_names
+    pub(crate) fn block_name(&self, id: LocalNodeId<Block>) -> FormatResult<String> {
+        let function_id = self.function.ok_or(FormatError::SyntaxError {
+            message: "MIR block formatted outside a function",
+        })?;
+        // preserve the canonical entry label
+        let function = self.tree.get(function_id);
+        if function.entry() == Some(id) {
+            return Ok("entry".to_string());
+        }
+
+        // derive every other label from function layout order
+        let index = self
+            .block_indices
             .get(&id)
-            .map(String::as_str)
             .ok_or(FormatError::SyntaxError {
-                message: "missing MIR block name",
-            })
+                message: "MIR block does not belong to the current function",
+            })?;
+
+        Ok(format!("b{index}"))
     }
 
     /// Return one global name.
-    pub(crate) fn global_name(&self, id: LocalNodeId<Global>) -> FormatResult<&str> {
-        self.global_names
-            .get(&id)
-            .map(String::as_str)
-            .ok_or(FormatError::SyntaxError {
-                message: "missing MIR global name",
-            })
-    }
+    pub(crate) fn global_name(&self, id: LocalNodeId<Global>) -> &str {
+        let global = self.tree.get(id);
 
-    /// Return one value name in the current function.
-    pub(crate) fn value_name(&self, value: Value) -> FormatResult<String> {
-        let function_id = self.scope.function().ok_or(FormatError::SyntaxError {
-            message: "missing current function while formatting MIR value",
-        })?;
-        let function = self.tree.get(function_id);
-        let name = if let Some(name) = function.value_name(value) {
-            self.strings.get(name).to_string()
-        } else {
-            format!("v{}", value.0)
-        };
-
-        Ok(name)
+        self.strings.get(global.name)
     }
 
     /// Return one lifetime name in the current scope.
     pub(crate) fn lifetime_name(&self, slot: LifetimeSlot) -> Option<&str> {
-        let lifetime = self.scope.lifetime(slot)?;
+        let lifetime = self.lifetimes.get(slot.0 as usize)?;
         let name = lifetime.name?;
 
         Some(self.strings.get(name))
@@ -150,7 +127,7 @@ impl<'a> Formatter<'a> {
 
     /// Return one value type in the current function.
     pub(crate) fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
-        let function_id = self.scope.function()?;
+        let function_id = self.function?;
         let function = self.tree.get(function_id);
 
         function.value_type(value)
@@ -158,100 +135,69 @@ impl<'a> Formatter<'a> {
 
     /// Return one local index in the current function.
     pub(crate) fn local_index(&self, id: LocalNodeId<Local>) -> FormatResult<usize> {
-        self.scope.local(id)
+        if self.function.is_none() {
+            return Err(FormatError::SyntaxError {
+                message: "MIR local formatted outside a function",
+            });
+        }
+
+        self.local_indices
+            .get(&id)
+            .copied()
+            .ok_or(FormatError::SyntaxError {
+                message: "MIR local does not belong to the current function",
+            })
     }
 
-    /// Build unique type declaration names.
-    fn type_declaration_names(
-        tree: &Tree,
-        strings: &StringPool,
-    ) -> HashMap<LocalNodeId<TypeDeclaration>, String> {
-        let names = tree
-            .iter_nodes::<TypeDeclaration>()
-            .map(|(id, declaration)| (id, strings.get(declaration.name).to_string()));
+    /// Enter one function body.
+    pub(crate) fn enter_function(
+        &mut self,
+        function: LocalNodeId<Function>,
+        lifetimes: &[LifetimeParameter],
+    ) {
+        let body = self.tree.get(function);
 
-        Self::unique_names(names)
-    }
-
-    /// Build unique function names.
-    fn function_names(tree: &Tree, strings: &StringPool) -> HashMap<LocalNodeId<Function>, String> {
-        let names = tree
-            .iter_nodes::<Function>()
-            .map(|(id, function)| (id, strings.get(function.name).to_string()));
-
-        Self::unique_names(names)
-    }
-
-    /// Build unique block names.
-    fn block_names(tree: &Tree, strings: &StringPool) -> HashMap<LocalNodeId<Block>, String> {
-        let mut names = HashMap::new();
-
-        // assign names independently within each function
-        for (_, function) in tree.iter_nodes::<Function>() {
-            let function_names = function
-                .blocks()
+        // index canonical block and local order once per function
+        self.function = Some(function);
+        self.block_indices.clear();
+        self.block_indices.extend(
+            body.blocks()
                 .iter()
                 .enumerate()
-                .map(|(index, block_id)| {
-                    let block = tree.get(*block_id);
-                    let name = if let Some(name) = block.name {
-                        strings.get(name).to_string()
-                    } else if index == 0 {
-                        "entry".to_string()
-                    } else {
-                        format!("b{index}")
-                    };
+                .map(|(index, id)| (*id, index)),
+        );
+        self.local_indices.clear();
+        self.local_indices.extend(
+            body.locals()
+                .iter()
+                .enumerate()
+                .map(|(index, id)| (*id, index)),
+        );
 
-                    (*block_id, name)
-                });
-
-            names.extend(Self::unique_names(function_names));
-        }
-
-        names
+        // enter the function lifetime scope
+        self.lifetimes.clear();
+        self.lifetimes.extend_from_slice(lifetimes);
     }
 
-    /// Build unique global names.
-    fn global_names(tree: &Tree, strings: &StringPool) -> HashMap<LocalNodeId<Global>, String> {
-        let names = tree
-            .iter_nodes::<Global>()
-            .map(|(id, global)| (id, strings.get(global.name).to_string()));
-
-        Self::unique_names(names)
+    /// Leave the current function body.
+    pub(crate) fn leave_function(&mut self) {
+        self.function = None;
+        self.block_indices.clear();
+        self.local_indices.clear();
+        self.lifetimes.clear();
     }
 
-    /// Assign stable unique names to one node family.
-    fn unique_names<T>(
-        items: impl Iterator<Item = (LocalNodeId<T>, String)>,
-    ) -> HashMap<LocalNodeId<T>, String>
-    where
-        T: Node,
-    {
-        let mut used = HashSet::new();
-        let mut suffixes: HashMap<String, usize> = HashMap::new();
-        let mut names = HashMap::new();
+    /// Return the function currently being formatted.
+    pub(crate) fn function(&self) -> Option<LocalNodeId<Function>> {
+        self.function
+    }
 
-        // preserve the base name when available and suffix collisions
-        for (id, base) in items {
-            let name = if used.contains(&base) {
-                let suffix = suffixes.entry(base.clone()).or_insert(1);
-
-                loop {
-                    let candidate = format!("{base}_{suffix}");
-                    *suffix += 1;
-                    if !used.contains(&candidate) {
-                        break candidate;
-                    }
-                }
-            } else {
-                base
-            };
-
-            used.insert(name.clone());
-            names.insert(id, name);
-        }
-
-        names
+    /// Replace the lifetime parameters and return the previous parameters.
+    pub(crate) fn replace_lifetimes(
+        &mut self,
+        lifetimes: Vec<LifetimeParameter>,
+    ) -> Vec<LifetimeParameter> {
+        std::mem::replace(&mut self.lifetimes, lifetimes)
     }
 }
 

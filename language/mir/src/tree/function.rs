@@ -4,14 +4,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Binding, Block, FunctionParameter, Instruction, LifetimeParameter, Linkage, Local, LocalNodeId,
-    Node, NodeType, Symbol, Tree, Type, TypeId, Value,
+    Node, NodeType, StaticId, Symbol, Tree, Type, TypeId, Value,
 };
 
 /// One MIR function declaration or definition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Function {
-    /// The function's name (for linking and debugging).
+    /// The function's declared name.
     pub name: StringId,
+    /// Concrete generic arguments specializing this function.
+    pub arguments: Vec<StaticId>,
     /// The function's persistent mangled symbol: its linkable identity.
     pub symbol: Symbol,
     /// Linkage (local, export, or import).
@@ -25,9 +27,6 @@ pub struct Function {
     pub parameters: Vec<FunctionParameter>,
     /// Lifetime parameters in function-local slot order.
     pub lifetimes: Vec<LifetimeParameter>,
-    /// Optional parameter names for diagnostics.
-    pub parameter_names: Vec<Option<StringId>>,
-
     /// The return type.
     pub return_type: TypeId,
     /// The hidden environment type for this function when present.
@@ -51,8 +50,6 @@ pub struct FunctionBody {
     blocks: Vec<LocalNodeId<Block>>,
     /// The function locals in slot order.
     locals: Vec<LocalNodeId<Local>>,
-    /// Optional explicit SSA value names keyed by value id.
-    value_names: Vec<Option<StringId>>,
     /// SSA value types keyed by value id.
     value_types: Vec<Option<LocalNodeId<Type>>>,
     /// Counter for allocating unique SSA value ids.
@@ -211,7 +208,6 @@ impl FunctionBody {
     /// Create an empty function body.
     fn empty(
         entry: LocalNodeId<Block>,
-        value_names: Vec<Option<StringId>>,
         value_types: Vec<Option<LocalNodeId<Type>>>,
         next_value_id: u32,
     ) -> Self {
@@ -219,7 +215,6 @@ impl FunctionBody {
             entry,
             blocks: Vec::new(),
             locals: Vec::new(),
-            value_names,
             value_types,
             next_value_id,
             instruction_index: InstructionIndex::default(),
@@ -231,7 +226,6 @@ impl FunctionBody {
         entry: LocalNodeId<Block>,
         blocks: Vec<LocalNodeId<Block>>,
         locals: Vec<LocalNodeId<Local>>,
-        value_names: Vec<Option<StringId>>,
         value_types: Vec<Option<LocalNodeId<Type>>>,
         next_value_id: u32,
         tree: &Tree,
@@ -242,7 +236,6 @@ impl FunctionBody {
             entry,
             blocks,
             locals,
-            value_names,
             value_types,
             next_value_id,
             instruction_index,
@@ -328,11 +321,6 @@ impl FunctionBody {
         self.next_value_id as usize
     }
 
-    /// Return the explicit name for one SSA value.
-    pub fn value_name(&self, value: Value) -> Option<StringId> {
-        self.value_names.get(value.0 as usize).copied().flatten()
-    }
-
     /// Return the type for one SSA value.
     pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
         self.value_types.get(value.0 as usize).copied().flatten()
@@ -407,12 +395,6 @@ impl FunctionBody {
         self.value_types[index] = Some(ty);
     }
 
-    /// Record the explicit name for one SSA value.
-    pub fn set_value_name(&mut self, value: Value, name: StringId) {
-        let index = self.resize_value_slots(value);
-        self.value_names[index] = Some(name);
-    }
-
     /// Allocate a new SSA value.
     pub fn next_value(&mut self) -> Value {
         let value = Value::new(self.next_value_id);
@@ -435,18 +417,18 @@ impl FunctionBody {
 
     /// Recompute the next SSA value id from live body values.
     pub fn recompute_next_value_id(&mut self, parameters: &[FunctionParameter], tree: &Tree) {
-        let mut max_id: u32 = 0;
+        let mut next_value_id = 0;
 
         // scan function parameters
         for parameter in parameters {
-            max_id = max_id.max(parameter.value.0);
+            next_value_id = next_value_id.max(parameter.value.0 + 1);
         }
 
         // scan block parameters and instruction destinations
         for &block_id in &self.blocks {
             let block = tree.get(block_id);
             for parameter in &block.parameters {
-                max_id = max_id.max(parameter.value.0);
+                next_value_id = next_value_id.max(parameter.value.0 + 1);
             }
 
             for &instruction_id in &block.instructions {
@@ -454,13 +436,12 @@ impl FunctionBody {
                     continue;
                 };
 
-                max_id = max_id.max(value.0);
+                next_value_id = next_value_id.max(value.0 + 1);
             }
         }
 
-        let computed_next = max_id + 1;
-        let min_next = self.value_types.len() as u32;
-        self.next_value_id = self.next_value_id.max(computed_next).max(min_next);
+        let typed_value_count = self.value_types.len() as u32;
+        self.next_value_id = self.next_value_id.max(next_value_id).max(typed_value_count);
     }
 
     /// Resize SSA side tables for one value.
@@ -470,10 +451,6 @@ impl FunctionBody {
 
         if self.value_types.len() < value_count {
             self.value_types.resize(value_count, None);
-        }
-
-        if self.value_names.len() < value_count {
-            self.value_names.resize(value_count, None);
         }
 
         index
@@ -572,19 +549,16 @@ impl Function {
         linkage: Linkage,
         body: Option<FunctionBody>,
     ) -> Self {
-        // seed parameter-derived state
-        let parameter_names = vec![None; parameters.len()];
-
         // function signature
         Self {
             name,
+            arguments: Vec::new(),
             symbol: Symbol::named(name),
             linkage,
             allocation: AllocationMode::Any,
             coroutine: None,
             parameters,
             lifetimes,
-            parameter_names,
             return_type,
             environment: None,
             binding: None,
@@ -618,12 +592,7 @@ impl Function {
         entry: LocalNodeId<Block>,
     ) -> Self {
         let (next_value_id, value_types) = Self::parameter_state(&parameters);
-        let body = FunctionBody::empty(
-            entry,
-            vec![None; next_value_id as usize],
-            value_types,
-            next_value_id,
-        );
+        let body = FunctionBody::empty(entry, value_types, next_value_id);
 
         Self::with_signature(
             name,
@@ -657,17 +626,6 @@ impl Function {
         self.body.as_ref().and_then(|body| body.value_type(value))
     }
 
-    /// Get the explicit name for an SSA value when one exists.
-    pub fn value_name(&self, value: Value) -> Option<StringId> {
-        for (parameter, name) in self.parameters.iter().zip(&self.parameter_names) {
-            if parameter.value == value {
-                return *name;
-            }
-        }
-
-        self.body.as_ref().and_then(|body| body.value_name(value))
-    }
-
     /// Set the linkage and return self (builder pattern).
     pub fn with_linkage(mut self, linkage: Linkage) -> Self {
         self.linkage = linkage;
@@ -677,6 +635,13 @@ impl Function {
     /// Set the persistent symbol and return self.
     pub fn with_symbol(mut self, symbol: Symbol) -> Self {
         self.symbol = symbol;
+
+        self
+    }
+
+    /// Set the concrete generic arguments and return self.
+    pub fn with_arguments(mut self, arguments: Vec<StaticId>) -> Self {
+        self.arguments = arguments;
 
         self
     }

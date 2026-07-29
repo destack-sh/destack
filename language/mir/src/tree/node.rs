@@ -47,6 +47,70 @@ pub enum NodeType {
     Global,
 }
 
+/// Dense index entry for one MIR node id.
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Reflect)]
+pub(crate) struct NodeIndexEntry {
+    /// The packed local id and node type.
+    packed: u32,
+}
+
+impl NodeIndexEntry {
+    const NODE_TYPE_SHIFT: u32 = 24;
+    const LOCAL_ID_MASK: u32 = (1 << Self::NODE_TYPE_SHIFT) - 1;
+
+    /// Pack one local id and node type into a dense entry.
+    #[inline]
+    pub(crate) fn new(local_id: u32, node_type: NodeType) -> Self {
+        assert!(
+            local_id <= Self::LOCAL_ID_MASK,
+            "MIR node local id exceeds packed index capacity: {local_id}"
+        );
+
+        Self {
+            packed: local_id | (Self::node_type_tag(node_type) << Self::NODE_TYPE_SHIFT),
+        }
+    }
+
+    /// Return the local arena id for this entry.
+    #[inline]
+    pub(crate) fn local_id(self) -> u32 {
+        self.packed & Self::LOCAL_ID_MASK
+    }
+
+    /// Return the concrete node type for this entry.
+    #[inline]
+    pub(crate) fn node_type(self) -> NodeType {
+        match (self.packed >> Self::NODE_TYPE_SHIFT) as u8 {
+            0 => NodeType::Function,
+            1 => NodeType::Block,
+            2 => NodeType::Instruction,
+            3 => NodeType::Terminator,
+            4 => NodeType::Local,
+            5 => NodeType::Type,
+            6 => NodeType::TypeDeclaration,
+            7 => NodeType::Field,
+            8 => NodeType::Global,
+            _ => unreachable!("invalid MIR node type tag in packed node index"),
+        }
+    }
+
+    /// Return the stable packed tag for one node type.
+    #[inline]
+    fn node_type_tag(node_type: NodeType) -> u32 {
+        match node_type {
+            NodeType::Function => 0,
+            NodeType::Block => 1,
+            NodeType::Instruction => 2,
+            NodeType::Terminator => 3,
+            NodeType::Local => 4,
+            NodeType::Type => 5,
+            NodeType::TypeDeclaration => 6,
+            NodeType::Field => 7,
+            NodeType::Global => 8,
+        }
+    }
+}
+
 impl NodeType {
     /// Get the name of the node type.
     #[inline]

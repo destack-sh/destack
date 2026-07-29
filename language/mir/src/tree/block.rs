@@ -1,14 +1,11 @@
-use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{BlockParameter, Instruction, LocalNodeId, Node, NodeType, Terminator};
 
-/// A basic block is a sequence of instructions with.
+/// A basic block is a sequence of instructions terminated by one control transfer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Block {
-    /// Optional explicit block label.
-    pub name: Option<StringId>,
     /// SSA parameters passed from predecessor blocks.
     pub parameters: Vec<BlockParameter>,
     /// Instructions in execution order.
@@ -25,7 +22,6 @@ impl Block {
     /// Create a new empty block.
     pub fn new(terminator: LocalNodeId<Terminator>) -> Self {
         Self {
-            name: None,
             parameters: Vec::new(),
             instructions: Vec::new(),
             terminator,
@@ -38,7 +34,6 @@ impl Block {
         terminator: LocalNodeId<Terminator>,
     ) -> Self {
         Self {
-            name: None,
             parameters,
             instructions: Vec::new(),
             terminator,

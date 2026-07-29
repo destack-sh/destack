@@ -7,7 +7,7 @@ mod function;
 mod global;
 mod instruction;
 mod options;
-mod scope;
+mod r#static;
 mod tree;
 mod trivia;
 mod r#type;
@@ -18,5 +18,4 @@ mod tests;
 
 pub use formatter::*;
 pub use options::*;
-pub(crate) use scope::*;
 pub(crate) use trivia::*;

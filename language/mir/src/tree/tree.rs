@@ -1,124 +1,25 @@
 use destack_serde::Reflect;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
-use std::hash::Hash;
 
-use destack_core::{Arena, StringId, stable_hash_value};
+use destack_core::{Arena, StringId};
 use destack_source::{FileId, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+
+use super::intern::{TypeEntry, TypeIndexKey};
 
 use crate::source::{Token, TokenType};
 use crate::{
     Access, Attribute, Block, BorrowedPath, CommentSpan, ExtentSlice, Field, FieldSpan, FlagSlice,
     FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
-    LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeType, Nullability, Origin,
-    OriginTable, Path, Projection, ReferenceKind, Space, SwitchCase, SwitchCaseSlice, Symbol,
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorImmediate, TensorImmediateId,
+    LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeIndexEntry, NodeType,
+    Nullability, Origin, OriginTable, Path, Projection, ReferenceKind, Space, Static, StaticId,
+    SwitchCase, SwitchCaseSlice, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorImmediate, TensorImmediateId,
     TensorScatterDimensionNumbers, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
     TypedValueSpan, Value, ValueSlice,
 };
-
-#[inline]
-fn empty_source_span() -> Span {
-    Span::empty(FileId::new(0))
-}
-
-/// Dense index entry for one MIR node id.
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Reflect)]
-pub(crate) struct NodeIndexEntry {
-    /// The packed local id and node type.
-    packed: u32,
-}
-
-/// One stored MIR type.
-#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
-pub(crate) enum TypeEntry {
-    /// A structural type interned by equality.
-    Structural {
-        /// The MIR type.
-        ty: Type,
-    },
-    /// An identified type reserved for its recursive definition.
-    Reserved {
-        /// The persistent identity of the type.
-        symbol: Symbol,
-    },
-    /// A completely defined identified type.
-    Identified {
-        /// The MIR type.
-        ty: Type,
-        /// The persistent identity of the type.
-        symbol: Symbol,
-    },
-}
-
-/// One canonical MIR type index key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub(crate) enum TypeIndexKey {
-    /// The structural lookup hash of an anonymous type.
-    Structural(u64),
-    /// The persistent symbol of an identified type.
-    Identified(Symbol),
-}
-
-impl NodeIndexEntry {
-    const NODE_TYPE_SHIFT: u32 = 24;
-    const LOCAL_ID_MASK: u32 = (1 << Self::NODE_TYPE_SHIFT) - 1;
-
-    /// Pack one local id and node type into a dense entry.
-    #[inline]
-    pub(crate) fn new(local_id: u32, node_type: NodeType) -> Self {
-        debug_assert!(
-            local_id < Self::LOCAL_ID_MASK,
-            "MIR node local id exceeds packed index capacity: {local_id}"
-        );
-
-        Self {
-            packed: local_id | (Self::node_type_tag(node_type) << Self::NODE_TYPE_SHIFT),
-        }
-    }
-
-    /// Return the local arena id for this entry.
-    #[inline]
-    pub(crate) fn local_id(self) -> u32 {
-        self.packed & Self::LOCAL_ID_MASK
-    }
-
-    /// Return the concrete node type for this entry.
-    #[inline]
-    pub(crate) fn node_type(self) -> NodeType {
-        match (self.packed >> Self::NODE_TYPE_SHIFT) as u8 {
-            0 => NodeType::Function,
-            1 => NodeType::Block,
-            2 => NodeType::Instruction,
-            3 => NodeType::Terminator,
-            4 => NodeType::Local,
-            5 => NodeType::Type,
-            6 => NodeType::TypeDeclaration,
-            7 => NodeType::Field,
-            8 => NodeType::Global,
-            _ => unreachable!("invalid MIR node type tag in packed node index"),
-        }
-    }
-
-    /// Return the stable packed tag for one node type.
-    #[inline]
-    fn node_type_tag(node_type: NodeType) -> u32 {
-        match node_type {
-            NodeType::Function => 0,
-            NodeType::Block => 1,
-            NodeType::Instruction => 2,
-            NodeType::Terminator => 3,
-            NodeType::Local => 4,
-            NodeType::Type => 5,
-            NodeType::TypeDeclaration => 6,
-            NodeType::Field => 7,
-            NodeType::Global => 8,
-        }
-    }
-}
 
 /// MIR tree for a single unit.
 #[derive(Clone, Serialize, Deserialize, Reflect)]
@@ -168,11 +69,15 @@ pub struct Tree {
     pub(crate) type_declarations: Arena<TypeDeclaration>,
     pub(crate) fields: Arena<Field>,
     pub(crate) globals: Arena<Global>,
+    /// Interned compile-time values.
+    pub(crate) statics: Arena<Static>,
 
     /// Canonical type ids grouped by structural hash or identified symbol.
     pub(crate) type_index: HashMap<TypeIndexKey, SmallVec<[TypeId; 1]>>,
     /// Structural field ids grouped by hash.
     pub(crate) field_index: HashMap<u64, SmallVec<[LocalNodeId<Field>; 1]>>,
+    /// Canonical compile-time values grouped by structural hash.
+    pub(crate) static_index: HashMap<u64, SmallVec<[StaticId; 1]>>,
 
     /// Lifetime parameters keyed by type node.
     pub(crate) lifetimes_by_type: HashMap<LocalNodeId<Type>, Vec<LifetimeParameter>>,
@@ -204,6 +109,7 @@ impl Debug for Tree {
             .field("type_declarations", &self.type_declarations.len())
             .field("fields", &self.fields.len())
             .field("globals", &self.globals.len())
+            .field("statics", &self.statics.len())
             .field("tokens", &self.tokens.len())
             .finish()
     }
@@ -250,8 +156,10 @@ impl Tree {
             type_declarations: Arena::new(),
             fields: Arena::new(),
             globals: Arena::new(),
+            statics: Arena::new(),
             type_index: HashMap::new(),
             field_index: HashMap::new(),
+            static_index: HashMap::new(),
             lifetimes_by_type: HashMap::new(),
 
             values: Vec::new(),
@@ -1688,7 +1596,7 @@ impl TreeImpl<Field> for Tree {
     }
 }
 
-/// Return the stable structural hash of one MIR value.
-pub(crate) fn mir_hash(value: &impl Hash) -> u64 {
-    stable_hash_value(value)
+/// Return one empty source span for generated nodes.
+fn empty_source_span() -> Span {
+    Span::empty(FileId::new(0))
 }

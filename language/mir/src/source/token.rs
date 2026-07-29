@@ -47,6 +47,8 @@ pub enum TokenType {
     String,
     /// Character literal text.
     Character,
+    /// Regular expression literal text.
+    Regex,
     /// Tick lifetime name like `'a`.
     Lifetime,
     /// Non-newline whitespace.

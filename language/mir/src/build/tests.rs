@@ -1,12 +1,14 @@
+use destack_core::StringPool;
+
 use crate::build::ModuleBuilder;
 use crate::{
     Access, Callee, Copy, ExecutionScope, FenceAccess, FormatOptions, Formatter, Lifetime,
     LifetimeParameter, MemoryOrdering, Mutability, Nullability, ReferenceKind, Space, StorageSet,
-    Symbol, TargetLayout, Type, TypeId,
+    Symbol, TargetLayout, Tree, Type, TypeId,
 };
 
 /// Format one test MIR tree.
-fn format_test_mir(tree: &crate::Tree, strings: &destack_core::StringPool) -> String {
+fn format_test_mir(tree: &Tree, strings: &StringPool) -> String {
     Formatter::new(
         tree,
         TargetLayout::default(),
@@ -1298,7 +1300,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
     );
     module
         .tree_mut()
-        .insert_type_declaration(user_name, Vec::new(), user);
+        .insert_type_declaration(user_name, Vec::new(), Vec::new(), user);
 
     // define a lifetime-polymorphic aggregate borrowing the user
     let borrowed_user = module.reference_type_with_lifetime(
@@ -1327,7 +1329,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
         .set_type_lifetimes(view, lifetime_parameters.clone());
     module
         .tree_mut()
-        .insert_type_declaration(view_name, lifetime_parameters, view);
+        .insert_type_declaration(view_name, Vec::new(), lifetime_parameters, view);
 
     // project the field from one concrete lifetime application
     let static_view = module.tree_mut().intern_type(Type::WithLifetimes {

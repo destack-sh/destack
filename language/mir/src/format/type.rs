@@ -1,14 +1,15 @@
-use destack_fir::format::{Format, FormatError, FormatResult};
+use destack_fir::format::{Allocator, Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::attribute::{write_attributes, write_attributes_before_anchor, write_inline_attributes};
+use super::r#static::format_static;
 use super::value::format_type_id;
 
 use crate::{
     Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatNode, Formatter,
     Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability, ReferenceKind,
-    SignatureParameter, Space, TensorDimension, TensorDimensionOrder, TensorFormat,
+    SignatureParameter, Space, StaticId, TensorDimension, TensorDimensionOrder, TensorFormat,
     TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type, TypeDeclaration,
     TypeDeclarationSpans, TypeId, Writer, write_comments_before,
 };
@@ -25,6 +26,22 @@ struct FormatTypeId(TypeId);
 impl<'a> Format<'a, Formatter<'a>> for FormatTypeId {
     fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         format_type_id(self.0, f)
+    }
+}
+
+impl Formatter<'_> {
+    /// Format one type reference.
+    pub fn format_type(&self, ty: TypeId) -> FormatResult<String> {
+        let allocator = Allocator::default();
+        let formatter = Formatter::new(self.tree, self.target_layout, self.strings, self.options);
+
+        // build the FIR document from the type
+        let document = destack_fir::format!(&allocator, formatter, [FormatTypeId(ty)])?;
+
+        // print the complete type reference
+        let printed = document.print()?;
+
+        Ok(printed.as_str().to_string())
     }
 }
 
@@ -49,6 +66,9 @@ pub(super) fn format_type_declaration<'a>(
         .unwrap_or(attributes);
     let lifetimes = declaration_id
         .map(|declaration_id| f.context().tree.get(declaration_id).lifetimes.clone())
+        .unwrap_or_default();
+    let arguments = declaration_id
+        .map(|declaration_id| f.context().tree.get(declaration_id).arguments.clone())
         .unwrap_or_default();
 
     // synthetic copy marker
@@ -77,20 +97,20 @@ pub(super) fn format_type_declaration<'a>(
         write_attributes(attributes, f)?;
     }
 
-    let previous_lifetimes = f.context_mut().scope.replace_lifetimes(lifetimes.clone());
+    let previous_lifetimes = f.context_mut().replace_lifetimes(lifetimes.clone());
     let result = match ty {
         Type::Struct { fields, .. } => {
-            format_struct_type_declaration(name, declaration_id, &lifetimes, fields, f)
+            format_struct_type_declaration(name, &arguments, declaration_id, &lifetimes, fields, f)
         }
         _ => {
-            write!(f, [token("type"), space(), copied_text(name)])?;
-            format_lifetimes(&lifetimes, f)?;
+            write!(f, [token("type"), space()])?;
+            format_type_name(name, &arguments, &lifetimes, f)?;
             write!(f, [space(), token("="), space()])?;
             format_type_expanded(f, type_id, ty)?;
             write!(f, [token(";")])
         }
     };
-    f.context_mut().scope.replace_lifetimes(previous_lifetimes);
+    f.context_mut().replace_lifetimes(previous_lifetimes);
 
     result
 }
@@ -123,13 +143,14 @@ fn has_copy_attribute(attributes: &[Attribute], f: &Writer<'_, '_>) -> bool {
 /// Format one struct type declaration.
 fn format_struct_type_declaration<'a>(
     name: &str,
+    arguments: &[StaticId],
     declaration_id: Option<LocalNodeId<TypeDeclaration>>,
     lifetimes: &[LifetimeParameter],
     fields: &[LocalNodeId<Field>],
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [token("type"), space(), copied_text(name)])?;
-    format_lifetimes(lifetimes, f)?;
+    write!(f, [token("type"), space()])?;
+    format_type_name(name, arguments, lifetimes, f)?;
     write!(f, [space(), token("{")])?;
 
     if fields.is_empty() {
@@ -235,9 +256,12 @@ fn format_type_inner<'a>(
     ty: &Type,
     use_declaration: bool,
 ) -> FormatResult<()> {
-    if use_declaration && let Some(declaration_name) = f.context().type_name(id) {
-        let declaration_name = declaration_name.to_string();
-        return write!(f, [copied_text(&declaration_name)]);
+    let tree = f.context().tree;
+    if use_declaration && let Some(declaration_id) = tree.type_declaration(id) {
+        let declaration = tree.get(declaration_id);
+        let name = f.context().strings.get(declaration.name).to_string();
+
+        return format_type_name(&name, &declaration.arguments, &[], f);
     }
 
     match ty {
@@ -758,10 +782,30 @@ fn format_type_application<'a>(
     lifetimes: &[Lifetime],
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
-    format_type_id(base, f)?;
+    let tree = f.context().tree;
+    let declaration = tree.type_declaration(base).map(|id| tree.get(id));
+    let arguments = declaration
+        .as_ref()
+        .map(|declaration| declaration.arguments.as_slice())
+        .unwrap_or_default();
+    if let Some(declaration) = declaration.as_ref() {
+        let name = f.context().strings.get(declaration.name).to_string();
+        write!(f, [copied_text(&name)])?;
+    } else {
+        format_type_id(base, f)?;
+    }
+
     write!(f, [token("<")])?;
-    for (index, lifetime) in lifetimes.iter().enumerate() {
+    for (index, argument) in arguments.iter().enumerate() {
         if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        format_static(*argument, f)?;
+    }
+
+    for (index, lifetime) in lifetimes.iter().enumerate() {
+        if index > 0 || !arguments.is_empty() {
             write!(f, [token(","), space()])?;
         }
 
@@ -783,7 +827,7 @@ pub(super) fn format_function_signature<'a>(
     result: TypeId,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
-    let previous_lifetimes = f.context_mut().scope.replace_lifetimes(lifetimes.to_vec());
+    let previous_lifetimes = f.context_mut().replace_lifetimes(lifetimes.to_vec());
     format_lifetimes(lifetimes, f)?;
 
     write!(f, [token("(")])?;
@@ -797,7 +841,7 @@ pub(super) fn format_function_signature<'a>(
     format_type_id(result, f)?;
     super::function::format_lifetime_where(lifetimes, f)?;
 
-    f.context_mut().scope.replace_lifetimes(previous_lifetimes);
+    f.context_mut().replace_lifetimes(previous_lifetimes);
 
     Ok(())
 }
@@ -851,6 +895,43 @@ fn format_lifetimes<'a>(
     write!(f, [token(">")])
 }
 
+/// Format one declared type's concrete generic arguments and lifetime terms.
+pub(super) fn format_type_name<'a>(
+    name: &str,
+    arguments: &[StaticId],
+    lifetimes: &[LifetimeParameter],
+    f: &mut Writer<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [copied_text(name)])?;
+
+    if arguments.is_empty() && lifetimes.is_empty() {
+        return Ok(());
+    }
+
+    write!(f, [token("<")])?;
+    for (index, argument) in arguments.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        format_static(*argument, f)?;
+    }
+
+    for (index, lifetime) in lifetimes.iter().enumerate() {
+        if index > 0 || !arguments.is_empty() {
+            write!(f, [token(","), space()])?;
+        }
+
+        let name = lifetime
+            .name
+            .map(|name| f.context().strings.get(name).to_string())
+            .unwrap_or_else(|| format!("'l{index}"));
+        write!(f, [copied_text(&name)])?;
+    }
+
+    write!(f, [token(">")])
+}
+
 fn format_access<'a>(access: Access, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match access {
         Access::Readonly => write!(f, [token(","), space(), token("readonly")]),
@@ -866,13 +947,7 @@ impl FormatNode for TypeDeclaration {
         f: &mut Writer<'a, '_>,
     ) -> FormatResult<()> {
         let attributes = f.context().tree.attributes(id);
-        let name = f
-            .context()
-            .type_name(self.ty)
-            .ok_or(FormatError::SyntaxError {
-                message: "missing MIR type declaration name",
-            })?
-            .to_string();
+        let name = f.context().strings.get(self.name).to_string();
         let type_id = self.ty;
         let ty = f.context().tree.get(type_id);
         format_type_declaration(&name, attributes, Some(id), type_id, ty, f)

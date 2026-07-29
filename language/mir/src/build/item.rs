@@ -1,8 +1,5 @@
 use crate::build::{BuildResult, FunctionBuilder, FunctionHeader, ModuleBuilder};
-use crate::{
-    Binding, Function, Global, GlobalInitializer, LocalNodeId, Mutability, Type,
-    finalize_function_names,
-};
+use crate::{Binding, Function, Global, GlobalInitializer, LocalNodeId, Mutability, Type};
 
 impl ModuleBuilder {
     /// Create a global variable (mutable).
@@ -57,7 +54,6 @@ impl ModuleBuilder {
         FunctionBuilder::new(
             &mut self.tree,
             &mut self.effects,
-            &self.strings,
             self.target_layout.pointer_bits(),
             header,
         )
@@ -71,7 +67,6 @@ impl ModuleBuilder {
         FunctionBuilder::from_declared(
             &mut self.tree,
             &mut self.effects,
-            &self.strings,
             self.target_layout.pointer_bits(),
             function_id,
         )
@@ -81,6 +76,7 @@ impl ModuleBuilder {
     pub fn declare_function(&mut self, header: FunctionHeader) -> LocalNodeId<Function> {
         let FunctionHeader {
             name,
+            arguments,
             symbol,
             lifetimes,
             parameters,
@@ -88,19 +84,19 @@ impl ModuleBuilder {
             coroutine,
         } = header;
         let parameters = FunctionHeader::parameters_from_types(parameters);
-        let mut function =
-            Function::declare(name, lifetimes, parameters, result).with_symbol(symbol);
+        let mut function = Function::declare(name, lifetimes, parameters, result)
+            .with_arguments(arguments)
+            .with_symbol(symbol);
         function.coroutine = coroutine;
-        let function_id = self.tree.insert(function);
-        finalize_function_names(&mut self.tree, &self.strings, function_id);
 
-        function_id
+        self.tree.insert(function)
     }
 
     /// Declare an external function (defined elsewhere).
     pub fn external_function(&mut self, header: FunctionHeader) -> LocalNodeId<Function> {
         let FunctionHeader {
             name,
+            arguments,
             symbol,
             lifetimes,
             parameters,
@@ -108,13 +104,12 @@ impl ModuleBuilder {
             coroutine,
         } = header;
         let parameters = FunctionHeader::parameters_from_types(parameters);
-        let mut function =
-            Function::import(name, lifetimes, parameters, result).with_symbol(symbol);
+        let mut function = Function::import(name, lifetimes, parameters, result)
+            .with_arguments(arguments)
+            .with_symbol(symbol);
         function.coroutine = coroutine;
-        let function_id = self.tree.insert(function);
-        finalize_function_names(&mut self.tree, &self.strings, function_id);
 
-        function_id
+        self.tree.insert(function)
     }
 
     /// Declare an external function dispatched through one runtime binding.

@@ -369,7 +369,6 @@ fn clone_loop_blocks_internal(
         // create an independent terminator slot for the cloned block
         let new_terminator = tree.insert(tree.get(original.terminator).clone());
         let new_block = mir::Block {
-            name: None,
             parameters: new_params,
             instructions: Vec::new(),
             terminator: new_terminator,

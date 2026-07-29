@@ -3,9 +3,9 @@ use destack_source::Span;
 
 use crate::{
     Access, Copy, Field, FieldSpan, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId,
-    Nullability, ReferenceKind, SignatureParameter, Space, TensorDimension, TensorDimensionOrder,
-    TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type,
-    TypeDeclarationSpans, TypeId, VariantCase,
+    Nullability, ReferenceKind, SignatureParameter, Space, StaticId, TensorDimension,
+    TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis,
+    TensorViewFormat, Type, TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -411,16 +411,53 @@ impl Parser {
             "uninit" => self.parse_uninit_type()?,
             "variant" => self.parse_variant_type()?,
             _ => {
-                if let Some(declaration_id) = self.type_declaration_map.get(name).copied() {
-                    self.bump();
-                    return Ok(declaration_id);
-                }
+                self.bump();
+                let (arguments, lifetimes) = self.parse_identified_type_arguments()?;
+                let key = (name.to_string(), arguments);
+                let base = self
+                    .type_declaration_map
+                    .get(&key)
+                    .copied()
+                    .ok_or_else(|| {
+                        ParseError::invalid(&format!("identified type '{name}'"), start)
+                    })?;
 
-                return Err(ParseError::invalid("type", start));
+                return self.apply_type_lifetimes(base, lifetimes);
             }
         };
 
         self.intern_type(ty)
+    }
+
+    /// Parse concrete generic arguments followed by lifetime arguments on an identified type.
+    fn parse_identified_type_arguments(&mut self) -> ParseResult<(Vec<StaticId>, Vec<Lifetime>)> {
+        if !self.eat_token_if(TokenType::LessThan) {
+            return Ok((Vec::new(), Vec::new()));
+        }
+
+        // parse concrete arguments before lifetime arguments
+        let mut arguments = Vec::new();
+        while !self.peek_is(TokenType::GreaterThan) && !self.peek_is(TokenType::Lifetime) {
+            arguments.push(self.parse_static()?);
+
+            if !self.eat_token_if(TokenType::Comma) {
+                break;
+            }
+        }
+
+        // parse the applied lifetime terms
+        let mut lifetimes = Vec::new();
+        while !self.peek_is(TokenType::GreaterThan) {
+            lifetimes.push(self.parse_lifetime_union()?);
+
+            if !self.eat_token_if(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok((arguments, lifetimes))
     }
 
     /// Parse a function pointer type.

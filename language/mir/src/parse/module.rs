@@ -3,7 +3,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global, GlobalInitializer,
-    Linkage, LocalNodeId, Mutability, Symbol, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
+    Linkage, LocalNodeId, Mutability, Space, Symbol, Type, TypeDeclaration, TypeDeclarationSpans,
+    TypeId,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -13,8 +14,8 @@ use super::parser::Parser;
 impl Parser {
     /// Parse one module.
     pub(super) fn parse_module(&mut self) {
-        // forward declarations
-        self.register_placeholders();
+        // reserve declarations required by forward references
+        self.reserve_items();
 
         // items
         while !self.peek_is(TokenType::End) {
@@ -115,69 +116,19 @@ impl Parser {
         }
     }
 
-    /// Pre register forward referenced item names.
-    fn register_placeholders(&mut self) {
+    /// Reserve declarations required to parse forward references.
+    fn reserve_items(&mut self) {
         let saved_pos = self.pos;
         let saved_function = self.current_function;
 
-        // first pass: item placeholders
-        while !self.peek_is(TokenType::End) {
-            self.skip_attribute_tokens();
+        // first pass: types required by concrete function identities
+        self.reserve_types();
 
-            // item linkage
-            if self.peek_is(TokenType::External) || self.peek_is(TokenType::Export) {
-                self.bump();
-            }
+        // second pass: concrete functions
+        self.pos = 0;
+        self.reserve_functions();
 
-            // item mutability
-            if self.peek_is(TokenType::Readonly) {
-                self.bump();
-            }
-
-            // coroutine modifier
-            if self.peek_is(TokenType::Async) {
-                self.bump();
-            }
-
-            // function placeholders
-            if self.peek_is(TokenType::Function) {
-                self.bump();
-                if self.peek_is(TokenType::Star) {
-                    self.bump();
-                }
-                if let Some(name) = self.scan_symbol_name()
-                    && !self.function_map.contains_key(&name)
-                {
-                    let name_id = self.strings.intern(&name);
-                    let void_type = self.tree.intern_type(Type::Void);
-                    let placeholder =
-                        Function::declare(name_id, Vec::new(), Vec::new(), TypeId::from(void_type));
-                    let function_id = self.tree.insert(placeholder);
-                    self.function_map.insert(name, function_id);
-                }
-
-                continue;
-            }
-
-            // type placeholders
-            if self.peek_is(TokenType::Type) {
-                self.bump();
-                if let Some(name) = self.scan_symbol_name()
-                    && !self.type_declaration_map.contains_key(&name)
-                {
-                    let symbol = Symbol::named(self.strings.intern(&name));
-                    let type_id = self.tree.reserve_type(symbol);
-                    self.type_declaration_map.insert(name, type_id);
-                }
-
-                continue;
-            }
-
-            // unrelated token
-            self.bump();
-        }
-
-        // second pass: function signatures
+        // third pass: function signatures
         self.pos = 0;
         while !self.peek_is(TokenType::End) {
             self.skip_attribute_tokens();
@@ -210,7 +161,110 @@ impl Parser {
         self.current_function = saved_function;
     }
 
-    /// Skip attributes during the placeholder scan.
+    /// Reserve identified types before parsing concrete function arguments.
+    fn reserve_types(&mut self) {
+        let start = self.pos;
+
+        loop {
+            self.pos = start;
+            let previous_count = self.type_declaration_map.len();
+            while !self.peek_is(TokenType::End) {
+                self.skip_attribute_tokens();
+
+                if self.peek_is(TokenType::Type) {
+                    self.bump();
+
+                    let lifetime_scope_count = self.lifetime_scopes.len();
+                    let parsed = self.parse_symbol_name().and_then(|(name, _)| {
+                        let (arguments, _) = self.parse_declaration_parameters()?;
+
+                        Ok((name, arguments))
+                    });
+                    self.restore_lifetime_scopes(lifetime_scope_count);
+                    let Ok((name, arguments)) = parsed else {
+                        continue;
+                    };
+
+                    let key = (name.clone(), arguments.clone());
+                    if self.type_declaration_map.contains_key(&key) {
+                        continue;
+                    }
+
+                    let name_id = self.strings.intern(&name);
+                    let base = Symbol::named(name_id);
+                    let symbol = base.instantiate(&arguments, &self.tree);
+                    let type_id = self.tree.reserve_type(symbol);
+                    self.type_declaration_map.insert(key, type_id);
+
+                    continue;
+                }
+
+                self.bump();
+            }
+
+            if self.type_declaration_map.len() == previous_count {
+                break;
+            }
+        }
+    }
+
+    /// Reserve concrete functions after every identified type is available.
+    fn reserve_functions(&mut self) {
+        while !self.peek_is(TokenType::End) {
+            self.skip_attribute_tokens();
+
+            // skip declaration modifiers
+            if self.peek_is(TokenType::External) || self.peek_is(TokenType::Export) {
+                self.bump();
+            }
+            if self.peek_is(TokenType::Readonly) {
+                self.bump();
+            }
+            if self.peek_is(TokenType::Async) {
+                self.bump();
+            }
+
+            if self.peek_is(TokenType::Function) {
+                self.bump();
+                if self.peek_is(TokenType::Star) {
+                    self.bump();
+                }
+
+                let lifetime_scope_count = self.lifetime_scopes.len();
+                let parsed = self.parse_symbol_name().and_then(|(name, _)| {
+                    let (arguments, _) = self.parse_declaration_parameters()?;
+
+                    Ok((name, arguments))
+                });
+                self.restore_lifetime_scopes(lifetime_scope_count);
+                let Ok((name, arguments)) = parsed else {
+                    continue;
+                };
+
+                let key = (name.clone(), arguments.clone());
+                if self.function_map.contains_key(&key) {
+                    continue;
+                }
+
+                let name_id = self.strings.intern(&name);
+                let void_type = self.tree.intern_type(Type::Void);
+                let base = Symbol::named(name_id);
+                let symbol = base.instantiate(&arguments, &self.tree);
+                let function =
+                    Function::declare(name_id, Vec::new(), Vec::new(), TypeId::from(void_type))
+                        .with_arguments(arguments)
+                        .with_symbol(symbol);
+                let function_id = self.tree.insert(function);
+                self.function_map.insert(key, function_id);
+
+                continue;
+            }
+
+            self.bump();
+        }
+    }
+
+    /// Skip attributes while reserving declarations.
     fn skip_attribute_tokens(&mut self) {
         while self.peek_is(TokenType::At) {
             self.bump();
@@ -232,12 +286,13 @@ impl Parser {
         }
     }
 
-    /// Seed one placeholder function signature.
+    /// Seed one reserved function signature.
     fn seed_function_signature(&mut self, linkage: Linkage, is_async: bool) -> ParseResult<()> {
         let header =
-            self.parse_function_header(linkage, is_async, FunctionHeaderMode::Placeholder)?;
+            self.parse_function_header(linkage, is_async, FunctionHeaderMode::Signature)?;
         let function_id = header.function_id;
         let function = self.tree.get_mut(function_id);
+        function.arguments = header.arguments;
         function.parameters = header.parameters;
         function.lifetimes = header.lifetimes;
         function.return_type = header.return_type;
@@ -289,23 +344,29 @@ impl Parser {
 
         // declaration name
         let (name, name_start) = self.parse_symbol_name()?;
-        let name_span = self.span_at(name_start, name.len());
-        if self.type_declaration_definitions.contains(&name) {
+        let (arguments, lifetimes) = self.parse_declaration_parameters()?;
+        let name_span = if arguments.is_empty() && lifetimes.is_empty() {
+            self.span_at(name_start, name.len())
+        } else {
+            self.span_between(name_start, self.pos())
+        };
+        let key = (name.clone(), arguments.clone());
+        if self.type_declaration_definitions.contains(&key) {
             return Err(ParseError::invalid(
                 &format!("duplicate type declaration '{name}'"),
                 name_start,
             ));
         }
-        let lifetimes = self.parse_lifetime_parameters()?;
 
-        // resolve placeholder
-        let placeholder_id = match self.type_declaration_map.get(&name).copied() {
+        // resolve the reserved type identity
+        let type_id = match self.type_declaration_map.get(&key).copied() {
             Some(existing) => existing,
             None => {
-                let symbol = Symbol::named(self.strings.intern(&name));
-                let placeholder = self.tree.reserve_type(symbol);
-                self.type_declaration_map.insert(name.clone(), placeholder);
-                placeholder
+                let base = Symbol::named(self.strings.intern(&name));
+                let symbol = base.instantiate(&arguments, &self.tree);
+                let reserved = self.tree.reserve_type(symbol);
+                self.type_declaration_map.insert(key.clone(), reserved);
+                reserved
             }
         };
 
@@ -331,7 +392,7 @@ impl Parser {
         };
 
         // reject direct self definitions
-        if ty == placeholder_id {
+        if ty == type_id {
             let length = type_span.end.saturating_sub(type_span.start) as usize;
             return Err(ParseError::with_length(
                 "type declaration cannot define itself",
@@ -341,7 +402,7 @@ impl Parser {
         }
 
         // reject duplicate definitions of one declared name
-        if self.tree.is_defined_type(placeholder_id) {
+        if self.tree.is_defined_type(type_id) {
             return Err(ParseError::new(
                 format!("type '{name}' is already defined"),
                 item_start,
@@ -353,30 +414,29 @@ impl Parser {
         if let Some(copy) = self.copy_attribute(&attributes, item_start)? {
             set_type_copy(&mut resolved, copy, item_start)?;
         }
-        self.tree.define_type(placeholder_id, resolved);
-        self.types.copy_type_entries(ty, placeholder_id);
-        self.layouts.copy_type_entries(ty, placeholder_id);
-        self.dispatch.copy_type_entries(ty, placeholder_id);
-        self.drops.copy_type_entries(ty, placeholder_id);
+        self.tree.define_type(type_id, resolved);
+        self.types.copy_type_entries(ty, type_id);
+        self.layouts.copy_type_entries(ty, type_id);
+        self.dispatch.copy_type_entries(ty, type_id);
+        self.drops.copy_type_entries(ty, type_id);
 
         // record declaration
         let name_id = self.strings.intern(&name);
         let id = self
             .tree
-            .insert_type_declaration(name_id, lifetimes.clone(), placeholder_id);
+            .insert_type_declaration(name_id, arguments, lifetimes.clone(), type_id);
         self.tree
             .set_text_span(id, self.span_from_parse_start(item_start));
         self.tree.set_keyword_span(id, keyword_span);
         self.tree.set_main_span(id, name_span);
         self.tree
             .set_side_span(id, NodeSpanType::Region(NodeSpanRegion::Type), type_span);
-        self.types.set_display_name(placeholder_id, name_id);
-        self.tree.set_type_lifetimes(placeholder_id, lifetimes);
+        self.tree.set_type_lifetimes(type_id, lifetimes);
         self.tree.set_attribute_spans(id, attribute_spans);
         self.tree.set_type_field_spans(id, field_spans);
         self.tree.set_type_declaration_spans(id, declaration_spans);
 
-        self.type_declaration_definitions.insert(name);
+        self.type_declaration_definitions.insert(key);
         self.pop_lifetime_scope();
 
         // optional declaration terminator
@@ -453,7 +513,7 @@ impl Parser {
         let (ty, type_span) = self.parse_type_use_after(colon_token, "global type");
 
         // trailing qualifiers
-        let mut space = crate::Space::Local;
+        let mut space = Space::Local;
         while self.eat_token_if(TokenType::Comma) {
             if self.eat_token_if(TokenType::Space) {
                 self.eat_token(TokenType::OpenParenthesis)?;
@@ -463,7 +523,7 @@ impl Parser {
                 space = match self.token_type(token) {
                     TokenType::Identifier | TokenType::Local => {
                         let text = self.tree.source_text(token.span);
-                        crate::Space::from_name(text).ok_or_else(|| {
+                        Space::from_name(text).ok_or_else(|| {
                             ParseError::invalid_with_length(
                                 "global space",
                                 token.start(),
