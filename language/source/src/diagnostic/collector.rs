@@ -1,5 +1,5 @@
 use destack_serde::Reflect;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -60,6 +60,19 @@ impl DiagnosticCollection {
     /// Merge another diagnostic collection into this one.
     pub fn merge_from(&mut self, other: &DiagnosticCollection) {
         self.diagnostics.extend(other.diagnostics.iter().cloned());
+    }
+
+    /// Group diagnostics by their primary source file.
+    pub fn group_by_file(self) -> HashMap<FileId, Vec<Diagnostic>> {
+        let mut files = HashMap::<FileId, Vec<Diagnostic>>::new();
+
+        // move each diagnostic into its primary file
+        for diagnostic in self.diagnostics {
+            let file_id = diagnostic.primary_label().target.file();
+            files.entry(file_id).or_default().push(diagnostic);
+        }
+
+        files
     }
 
     /// Sort diagnostics by canonical file order and primary source location.
