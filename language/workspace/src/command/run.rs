@@ -4,15 +4,17 @@ use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use destack_artifact::ArtifactKey;
-use destack_repository::TraceView;
 #[cfg(not(target_arch = "wasm32"))]
-use destack_program::Value;
+use destack_program::{Program, TypeId, Value, Word, WordLayout};
+use destack_repository::TraceView;
 #[cfg(not(target_arch = "wasm32"))]
 use destack_repository::{Environment, Profile, Repository, Revision};
 #[cfg(not(target_arch = "wasm32"))]
-use destack_runtime::runtime::World;
+use destack_runtime::binding::BindingTable;
 #[cfg(not(target_arch = "wasm32"))]
-use destack_runtime::runtime::machine::{Entry, Execution};
+use destack_runtime::machine::{Engine, Entry};
+#[cfg(not(target_arch = "wasm32"))]
+use destack_runtime::world::World;
 use destack_serde::Reflect;
 #[cfg(target_arch = "wasm32")]
 use destack_source::DiagnosticCollection;
@@ -119,8 +121,197 @@ pub enum RunPayload {
 struct RunResult {
     /// Process exit code derived from the return value.
     exit_code: i32,
+    /// Whether the return value directly defines a process exit code.
+    is_exit_code: bool,
+    /// Text representation for eval output.
+    display: String,
     /// Serialized return value.
     payload: serde_json::Value,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl RunResult {
+    /// Interpret one returned Program value for command output.
+    fn new(program: &Program, value: &Value) -> CommandResult<Self> {
+        let ty = value.ty();
+        let words = program
+            .value_words(ty, value)
+            .map_err(|error| error.to_string())?;
+        let layout = program.word_layout(ty);
+
+        // derive process semantics from scalar return values
+        let exit_code = Self::exit_code(layout, words);
+        let is_exit_code = matches!(
+            layout,
+            Some(
+                WordLayout::Void
+                    | WordLayout::Boolean
+                    | WordLayout::Int { .. }
+                    | WordLayout::Uint { .. }
+            )
+        );
+
+        // render the exact value for terminal and protocol consumers
+        let display = Self::display(ty, layout, words)?;
+        let payload = Self::payload(ty, layout, words)?;
+
+        Ok(Self {
+            exit_code,
+            is_exit_code,
+            display,
+            payload,
+        })
+    }
+
+    /// Convert one word layout into a process exit code.
+    fn exit_code(layout: Option<WordLayout>, words: &[Word]) -> i32 {
+        match layout {
+            Some(WordLayout::Void) => 0,
+            Some(WordLayout::Boolean) => i32::from(!words[0].as_boolean()),
+            Some(WordLayout::Int { width }) => {
+                Self::signed(words, width).clamp(i128::from(i32::MIN), i128::from(i32::MAX)) as i32
+            }
+            Some(WordLayout::Uint { width }) => {
+                Self::unsigned(words, width).min(i32::MAX as u128) as i32
+            }
+            _ => 0,
+        }
+    }
+
+    /// Format one exact returned value for eval output.
+    fn display(ty: TypeId, layout: Option<WordLayout>, words: &[Word]) -> CommandResult<String> {
+        let display = match layout {
+            Some(WordLayout::Void) => "void".to_string(),
+            Some(WordLayout::Boolean) => words[0].as_boolean().to_string(),
+            Some(WordLayout::Character) => words[0]
+                .as_character()
+                .ok_or_else(|| format!("invalid character value 0x{:x}", words[0].bits()))?
+                .to_string(),
+            Some(WordLayout::Int { width }) => Self::signed(words, width).to_string(),
+            Some(WordLayout::Uint { width }) => Self::unsigned(words, width).to_string(),
+            Some(WordLayout::Float16 | WordLayout::Bfloat16) => {
+                format!("0x{:04x}", words[0].bits() as u16)
+            }
+            Some(WordLayout::Float32) => words[0].as_f32().to_string(),
+            Some(WordLayout::Float64) => words[0].as_f64().to_string(),
+            _ => Self::display_words(ty, words),
+        };
+
+        Ok(display)
+    }
+
+    /// Serialize one exact returned value for command protocol output.
+    fn payload(
+        ty: TypeId,
+        layout: Option<WordLayout>,
+        words: &[Word],
+    ) -> CommandResult<serde_json::Value> {
+        let payload = match layout {
+            Some(WordLayout::Void) => serde_json::Value::Null,
+            Some(WordLayout::Boolean) => serde_json::Value::Bool(words[0].as_boolean()),
+            Some(WordLayout::Character) => {
+                let value = words[0]
+                    .as_character()
+                    .ok_or_else(|| format!("invalid character value 0x{:x}", words[0].bits()))?;
+
+                serde_json::Value::String(value.to_string())
+            }
+            Some(WordLayout::Int { width }) => Self::signed_payload(Self::signed(words, width)),
+            Some(WordLayout::Uint { width }) => {
+                Self::unsigned_payload(Self::unsigned(words, width))
+            }
+            Some(WordLayout::Float16 | WordLayout::Bfloat16) => {
+                serde_json::Value::String(format!("0x{:04x}", words[0].bits() as u16))
+            }
+            Some(WordLayout::Float32) => Self::float_payload(words[0].as_f32().into()),
+            Some(WordLayout::Float64) => Self::float_payload(words[0].as_f64()),
+            _ => Self::words_payload(ty, words),
+        };
+
+        Ok(payload)
+    }
+
+    /// Format an aggregate or opaque value without discarding its type or words.
+    fn display_words(ty: TypeId, words: &[Word]) -> String {
+        let words = words
+            .iter()
+            .map(|word| format!("0x{:016x}", word.bits()))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        format!("t{}({words})", ty.0)
+    }
+
+    /// Serialize an aggregate or opaque value without discarding its type or words.
+    fn words_payload(ty: TypeId, words: &[Word]) -> serde_json::Value {
+        let words = words
+            .iter()
+            .map(|word| format!("0x{:016x}", word.bits()))
+            .collect::<Vec<_>>();
+
+        serde_json::json!({
+            "type": ty.0,
+            "words": words,
+        })
+    }
+
+    /// Convert one floating-point value to command JSON.
+    fn float_payload(value: f64) -> serde_json::Value {
+        match serde_json::Number::from_f64(value) {
+            Some(value) => serde_json::Value::Number(value),
+            None => serde_json::Value::String(value.to_string()),
+        }
+    }
+
+    /// Decode one little-endian unsigned integer from execution words.
+    fn unsigned(words: &[Word], width: u8) -> u128 {
+        let low = words[0].as_u64() as u128;
+        let high = if width > Word::BIT_LEN {
+            words[1].as_u64() as u128
+        } else {
+            0
+        };
+        let value = low | high << Word::BIT_LEN;
+
+        if width >= u128::BITS as u8 {
+            value
+        } else {
+            value & ((1u128 << width) - 1)
+        }
+    }
+
+    /// Decode one little-endian signed integer from execution words.
+    fn signed(words: &[Word], width: u8) -> i128 {
+        let value = Self::unsigned(words, width);
+        if width >= i128::BITS as u8 {
+            value as i128
+        } else {
+            let sign = 1u128 << (width - 1);
+            let mask = (1u128 << width) - 1;
+
+            if value & sign == 0 {
+                value as i128
+            } else {
+                (value | !mask) as i128
+            }
+        }
+    }
+
+    /// Convert one signed integer to command JSON without losing precision.
+    fn signed_payload(value: i128) -> serde_json::Value {
+        match i64::try_from(value) {
+            Ok(value) => serde_json::Value::Number(value.into()),
+            Err(_) => serde_json::Value::String(value.to_string()),
+        }
+    }
+
+    /// Convert one unsigned integer to command JSON without losing precision.
+    fn unsigned_payload(value: u128) -> serde_json::Value {
+        match u64::try_from(value) {
+            Ok(value) => serde_json::Value::Number(value.into()),
+            Err(_) => serde_json::Value::String(value.to_string()),
+        }
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -248,40 +439,38 @@ fn run_entry_module(
     let environment = environment_for_source(entry_source, args);
     let mut world =
         World::new(&runtime_options, environment.clone()).map_err(|error| format!("{error}"))?;
-    let execution = Execution::vm(MachineLimits::default());
+    let binding_table = Arc::new(BindingTable::new());
+    let engine = Engine::vm(MachineLimits::default());
     let runtime_id = world
         .spawn_runtime(
             environment,
             &runtime_options,
             conditions,
-            program,
-            execution,
+            program.clone(),
+            binding_table,
+            engine,
         )
         .map_err(|error| format!("{error}"))?;
 
     let entry = Entry::new(entry_name);
-    let result = world
+    let value = world
         .run_entrypoint(runtime_id, &entry, &[])
         .map_err(|error| format!("{error}"))?;
-    let exit_code = exit_status_from_value(&result);
+    let result = RunResult::new(&program, &value)?;
 
-    if matches!(run_mode, RunMode::Program) && !is_exit_code_value(&result) {
+    if matches!(run_mode, RunMode::Program) && !result.is_exit_code {
         output.push_stderr(b"non-integer return value, defaulting to exit code 0\n".to_vec());
     }
 
     if matches!(run_mode, RunMode::Eval { print: true }) {
-        let formatted = format_value_for_eval(&result);
-        output.push_stdout(format!("{formatted}\n").into_bytes());
+        output.push_stdout(format!("{}\n", result.display).into_bytes());
     }
 
-    if exit_code != 0 {
-        output.push_stderr(format!("process exited with code {exit_code}\n").into_bytes());
+    if result.exit_code != 0 {
+        output.push_stderr(format!("process exited with code {}\n", result.exit_code).into_bytes());
     }
 
-    Ok(RunResult {
-        exit_code,
-        payload: value_payload(&result),
-    })
+    Ok(result)
 }
 
 /// Build the launch environment for the entry source.
@@ -306,116 +495,6 @@ fn command_input_display_name(source: &CommandInput) -> String {
     }
 }
 
-/// Format a VM value for eval output.
-#[cfg(not(target_arch = "wasm32"))]
-fn format_value_for_eval(value: &Value) -> String {
-    match value {
-        Value::Void => "void".to_string(),
-        Value::Bool(value) => value.to_string(),
-        Value::Int { value, .. } => value.to_string(),
-        Value::UInt { value, .. } => value.to_string(),
-        Value::Float16 { bits } => format!("0x{bits:04x}"),
-        Value::Bfloat16 { bits } => format!("0x{bits:04x}"),
-        Value::Float32 { bits } => f32::from_bits(*bits).to_string(),
-        Value::Float64 { bits } => f64::from_bits(*bits).to_string(),
-        Value::Char(value) => value.to_string(),
-        Value::HeapReference(_) | Value::SharedHeapReference(_) | Value::Address(_) => {
-            format!("{value:?}")
-        }
-        Value::Words { ty, words } => {
-            let words = words
-                .iter()
-                .map(|word| format!("0x{:016x}", word.bits()))
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            format!("t{}({words})", ty.0)
-        }
-    }
-}
-
-/// Convert a VM return value into an exit status.
-#[cfg(not(target_arch = "wasm32"))]
-fn exit_status_from_value(value: &Value) -> i32 {
-    match value {
-        Value::Void => 0,
-        Value::Bool(value) => {
-            if *value {
-                0
-            } else {
-                1
-            }
-        }
-        Value::Int { value, .. } => {
-            let min = i128::from(i32::MIN);
-            let max = i128::from(i32::MAX);
-
-            (*value).clamp(min, max) as i32
-        }
-        Value::UInt { value, .. } => (*value).min(i32::MAX as u128) as i32,
-        _ => 0,
-    }
-}
-
-/// Check whether a return value is a valid exit code.
-#[cfg(not(target_arch = "wasm32"))]
-fn is_exit_code_value(value: &Value) -> bool {
-    matches!(
-        value,
-        Value::Void | Value::Bool(_) | Value::Int { .. } | Value::UInt { .. }
-    )
-}
-
-/// Convert a runtime value into payload data.
-#[cfg(not(target_arch = "wasm32"))]
-fn value_payload(value: &Value) -> serde_json::Value {
-    match value {
-        Value::Void => serde_json::Value::Null,
-        Value::Bool(value) => serde_json::Value::Bool(*value),
-        Value::Int { value, .. } => int_payload(*value),
-        Value::UInt { value, .. } => uint_payload(*value),
-        Value::Float16 { bits } => serde_json::Value::String(format!("0x{bits:04x}")),
-        Value::Bfloat16 { bits } => serde_json::Value::String(format!("0x{bits:04x}")),
-        Value::Float32 { bits } => float_payload(f32::from_bits(*bits).into()),
-        Value::Float64 { bits } => float_payload(f64::from_bits(*bits)),
-        Value::Char(value) => serde_json::Value::String(value.to_string()),
-        Value::HeapReference(_) | Value::SharedHeapReference(_) | Value::Address(_) => {
-            serde_json::Value::String(format!("{value:?}"))
-        }
-        Value::Words { ty, words } => {
-            let words = words
-                .iter()
-                .map(|word| format!("0x{:016x}", word.bits()))
-                .collect::<Vec<_>>();
-
-            serde_json::json!({
-                "type": ty.0,
-                "words": words,
-            })
-        }
-    }
-}
-
-/// Convert one signed integer to command JSON.
-#[cfg(not(target_arch = "wasm32"))]
-fn int_payload(value: i128) -> serde_json::Value {
-    if let Ok(value) = i64::try_from(value) {
-        serde_json::Value::Number(value.into())
-    } else {
-        serde_json::Value::String(value.to_string())
-    }
-}
-
-/// Convert one unsigned integer to command JSON.
-#[cfg(not(target_arch = "wasm32"))]
-fn uint_payload(value: u128) -> serde_json::Value {
-    if let Ok(value) = u64::try_from(value) {
-        serde_json::Value::Number(value.into())
-    } else {
-        serde_json::Value::String(value.to_string())
-    }
-}
-
 /// Return the profile selected for one module target.
 #[cfg(not(target_arch = "wasm32"))]
 fn target_profile(
@@ -429,16 +508,4 @@ fn target_profile(
         .map_err(|error| format!("failed to resolve target profile: {error}"))?;
 
     Ok(profile)
-}
-
-/// Convert one float to command JSON.
-#[cfg(not(target_arch = "wasm32"))]
-fn float_payload(value: f64) -> serde_json::Value {
-    if value.is_finite() {
-        serde_json::Number::from_f64(value)
-            .map(serde_json::Value::Number)
-            .unwrap_or_else(|| unreachable!("finite float must produce a JSON number"))
-    } else {
-        serde_json::Value::String(value.to_string())
-    }
 }
