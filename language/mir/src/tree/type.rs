@@ -20,7 +20,19 @@ pub enum Mutability {
 /// Access exposed by a reference-like value.
 #[repr(u32)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect, SectionEntry,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Default,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub enum Access {
     /// Readonly access.
@@ -47,7 +59,19 @@ impl Access {
 /// Runtime ownership domain.
 #[repr(u32)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect, SectionEntry,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Default,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub enum Space {
     /// Worker-local storage.
@@ -92,7 +116,19 @@ impl Space {
 /// Static storage selected by one global declaration.
 #[repr(u8)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect, SectionEntry,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Default,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub enum GlobalStorage {
     /// Immutable Program constant storage.
@@ -118,7 +154,18 @@ impl GlobalStorage {
 /// Backing storage addressed by one reference-like value.
 #[repr(u8)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
 )]
 pub enum Storage {
     /// Heap storage in one ownership domain.
@@ -141,6 +188,17 @@ impl Storage {
         match self {
             Self::Heap(space) => Some(space),
             Self::Frame | Self::Global(_) => None,
+        }
+    }
+
+    /// Return the canonical MIR name for this storage.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Heap(space) => space.label(),
+            Self::Frame => "frame",
+            Self::Global(GlobalStorage::Constant) => "constant",
+            Self::Global(GlobalStorage::Local) => "global",
+            Self::Global(GlobalStorage::Shared) => "sharedGlobal",
         }
     }
 
