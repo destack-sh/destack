@@ -1,16 +1,12 @@
-use crate::parse::{ParseOptions, Parser, test_file};
-use crate::{MirFormatOptions, TargetLayout, Tree, format_mir};
 use destack_core::StringPool;
 use destack_source::{DiffOptions, print_diff};
 
-/// Normalize one fixture for exact output comparisons.
-fn normalize_fixture_text(text: &str) -> &str {
-    text.trim()
-}
+use crate::parse::{ParseOptions, Parser, test_file};
+use crate::{FormatOptions, Formatter, TargetLayout, Tree};
 
 /// Parse one MIR fixture.
 pub(crate) fn parse_fixture(source: &str) -> (Tree, StringPool) {
-    let source = normalize_fixture_text(source);
+    let source = source.trim();
     let file = test_file(source);
 
     Parser::parse(&file, ParseOptions::default())
@@ -20,26 +16,26 @@ pub(crate) fn parse_fixture(source: &str) -> (Tree, StringPool) {
 }
 
 /// Format one MIR fixture with explicit options.
-pub(crate) fn format_fixture_with_options(source: &str, options: MirFormatOptions) -> String {
+pub(crate) fn format_fixture_with_options(source: &str, options: FormatOptions) -> String {
     let (tree, strings) = parse_fixture(source);
+    let output = Formatter::new(&tree, TargetLayout::default(), &strings, options)
+        .format()
+        .expect("format MIR");
 
-    // normalize only the outer fixture boundary
-    normalize_fixture_text(
-        &format_mir(&tree, TargetLayout::default(), &strings, options).expect("format MIR"),
-    )
-    .to_string()
+    output.trim().to_string()
 }
 
 /// Format one MIR tree with explicit options.
 pub(crate) fn format_tree_with_options(
     tree: &Tree,
     strings: &StringPool,
-    options: MirFormatOptions,
+    options: FormatOptions,
 ) -> String {
-    normalize_fixture_text(
-        &format_mir(tree, TargetLayout::default(), strings, options).expect("format MIR"),
-    )
-    .to_string()
+    let output = Formatter::new(tree, TargetLayout::default(), strings, options)
+        .format()
+        .expect("format MIR");
+
+    output.trim().to_string()
 }
 
 /// Assert formatter output and print a diff on mismatch.
@@ -57,19 +53,14 @@ pub(crate) fn assert_output_eq(expected: impl AsRef<str>, actual: impl AsRef<str
 
 /// Assert canonical formatter output and formatter idempotence.
 #[track_caller]
-pub(crate) fn assert_format_eq_with_options(
-    input: &str,
-    expected: &str,
-    options: MirFormatOptions,
-) {
-    // normalize the fixture boundary for stable assertions
-    let expected = normalize_fixture_text(expected);
+pub(crate) fn assert_format_eq_with_options(input: &str, expected: &str, options: FormatOptions) {
+    let expected = expected.trim();
 
-    // check the first formatter pass against the expected output
+    // compare the first pass with the exact expected output
     let first_output = format_fixture_with_options(input, options);
     assert_output_eq(expected, &first_output);
 
-    // check formatter idempotence on the canonical output
+    // require the canonical output to remain stable
     let second_output = format_fixture_with_options(&first_output, options);
     assert_output_eq(&first_output, &second_output);
 }
@@ -77,10 +68,10 @@ pub(crate) fn assert_format_eq_with_options(
 /// Assert canonical formatter output and formatter idempotence.
 #[track_caller]
 pub(crate) fn assert_format_eq(input: &str, expected: &str) {
-    assert_format_eq_with_options(input, expected, MirFormatOptions::default());
+    assert_format_eq_with_options(input, expected, FormatOptions::default());
 }
 
-/// Assert canonical formatter output for one already canonical fixture.
+/// Assert canonical formatter output for one canonical fixture.
 #[track_caller]
 pub(crate) fn assert_format(input: &str) {
     assert_format_eq(input, input);

@@ -1,18 +1,19 @@
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Callee, Copy, ExecutionScope, FenceAccess, Lifetime, LifetimeParameter, MemoryOrdering,
-    MirFormatOptions, Mutability, Nullability, ReferenceKind, Space, StorageSet, Symbol,
-    TargetLayout, Type, TypeId, format_mir,
+    Access, Callee, Copy, ExecutionScope, FenceAccess, FormatOptions, Formatter, Lifetime,
+    LifetimeParameter, MemoryOrdering, Mutability, Nullability, ReferenceKind, Space, StorageSet,
+    Symbol, TargetLayout, Type, TypeId,
 };
 
 /// Format one test MIR tree.
 fn format_test_mir(tree: &crate::Tree, strings: &destack_core::StringPool) -> String {
-    format_mir(
+    Formatter::new(
         tree,
         TargetLayout::default(),
         strings,
-        MirFormatOptions::default(),
+        FormatOptions::default(),
     )
+    .format()
     .expect("format MIR")
 }
 

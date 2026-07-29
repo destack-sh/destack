@@ -6,16 +6,11 @@ use super::attribute::{write_attributes, write_attributes_before_anchor};
 use super::value::format_constant_for_type;
 
 use crate::{
-    FormatMirNode, Global, GlobalInitializer, Linkage, LocalNodeId, MirFormatter, Mutability,
-    Space, Type,
+    FormatNode, Global, GlobalInitializer, Linkage, LocalNodeId, Mutability, Space, Type, Writer,
 };
 
-impl<'a> FormatMirNode<'a, Global> for Global {
-    fn format_node(
-        &self,
-        id: LocalNodeId<Global>,
-        f: &mut MirFormatter<'a, '_>,
-    ) -> FormatResult<()> {
+impl FormatNode for Global {
+    fn format_node<'a>(&self, id: LocalNodeId<Global>, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         let tree = f.context().tree;
 
         // explicit attributes
@@ -36,7 +31,7 @@ impl<'a> FormatMirNode<'a, Global> for Global {
         }
 
         // resolve the global name before formatting
-        let name = f.context().global_name(id).to_string();
+        let name = f.context().global_name(id)?.to_string();
 
         // declaration modifiers
         if self.linkage.is_import() {
@@ -91,8 +86,8 @@ impl<'a> FormatMirNode<'a, Global> for Global {
 /// Format a data initializer.
 fn format_data_init<'a>(
     init: &GlobalInitializer,
-    ty: Option<LocalNodeId<crate::Type>>,
-    f: &mut MirFormatter<'a, '_>,
+    ty: Option<LocalNodeId<Type>>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     match init {
         GlobalInitializer::Zero => write!(f, [token("zeroInit")]),
@@ -125,7 +120,7 @@ fn format_data_init<'a>(
 fn data_init_element_type<'a>(
     ty: Option<LocalNodeId<Type>>,
     index: usize,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> Option<LocalNodeId<Type>> {
     let ty = ty?;
 
@@ -143,7 +138,7 @@ fn data_init_element_type<'a>(
 }
 
 /// Format a byte literal with escaping.
-fn format_byte_literal<'a>(bytes: &[u8], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_byte_literal<'a>(bytes: &[u8], f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(f, [token("b"), token("\"")])?;
     for &byte in bytes {
         if byte == b'"' {

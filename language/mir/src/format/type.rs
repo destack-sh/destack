@@ -1,4 +1,4 @@
-use destack_fir::format::{Format, FormatResult};
+use destack_fir::format::{Format, FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
@@ -6,15 +6,15 @@ use super::attribute::{write_attributes, write_attributes_before_anchor, write_i
 use super::value::format_type_id;
 
 use crate::{
-    Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatMirNode, Lifetime,
-    LifetimeParameter, LifetimeTerm, LocalNodeId, MirFormatContext, MirFormatter, Nullability,
-    ReferenceKind, Space, TensorDimension, TensorDimensionOrder, TensorFormat, TensorReduction,
-    TensorSharding, TensorShardingAxis, TensorViewFormat, Type, TypeDeclaration,
-    TypeDeclarationSpans, TypeId, write_comments_before,
+    Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatNode, Formatter,
+    Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability, ReferenceKind,
+    SignatureParameter, Space, TensorDimension, TensorDimensionOrder, TensorFormat,
+    TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type, TypeDeclaration,
+    TypeDeclarationSpans, TypeId, Writer, write_comments_before,
 };
 
-impl<'a> FormatMirNode<'a, Type> for Type {
-    fn format_node(&self, id: LocalNodeId<Type>, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+impl FormatNode for Type {
+    fn format_node<'a>(&self, id: LocalNodeId<Type>, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         format_type_inner(f, id, self, true)
     }
 }
@@ -22,14 +22,14 @@ impl<'a> FormatMirNode<'a, Type> for Type {
 /// Formatter adapter for one nested type reference.
 struct FormatTypeId(TypeId);
 
-impl<'a> Format<'a, MirFormatContext<'a>> for FormatTypeId {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+impl<'a> Format<'a, Formatter<'a>> for FormatTypeId {
+    fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         format_type_id(self.0, f)
     }
 }
 
 pub(super) fn format_type_expanded<'a>(
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
     id: LocalNodeId<Type>,
     ty: &Type,
 ) -> FormatResult<()> {
@@ -42,7 +42,7 @@ pub(super) fn format_type_declaration<'a>(
     declaration_id: Option<LocalNodeId<TypeDeclaration>>,
     type_id: LocalNodeId<Type>,
     ty: &Type,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let attributes = declaration_id
         .map(|declaration_id| f.context().tree.attributes(declaration_id))
@@ -77,8 +77,7 @@ pub(super) fn format_type_declaration<'a>(
         write_attributes(attributes, f)?;
     }
 
-    let previous_lifetimes =
-        std::mem::replace(&mut f.context_mut().current_lifetimes, lifetimes.clone());
+    let previous_lifetimes = f.context_mut().scope.replace_lifetimes(lifetimes.clone());
     let result = match ty {
         Type::Struct { fields, .. } => {
             format_struct_type_declaration(name, declaration_id, &lifetimes, fields, f)
@@ -91,7 +90,7 @@ pub(super) fn format_type_declaration<'a>(
             write!(f, [token(";")])
         }
     };
-    f.context_mut().current_lifetimes = previous_lifetimes;
+    f.context_mut().scope.replace_lifetimes(previous_lifetimes);
 
     result
 }
@@ -111,7 +110,7 @@ fn type_copy(ty: &Type) -> Option<Copy> {
 }
 
 /// Return whether attributes already include an explicit copy attribute.
-fn has_copy_attribute(attributes: &[Attribute], f: &MirFormatter<'_, '_>) -> bool {
+fn has_copy_attribute(attributes: &[Attribute], f: &Writer<'_, '_>) -> bool {
     attributes.iter().any(|attribute| {
         let AttributeIdentifier::Identifier(name) = attribute.name else {
             return false;
@@ -127,7 +126,7 @@ fn format_struct_type_declaration<'a>(
     declaration_id: Option<LocalNodeId<TypeDeclaration>>,
     lifetimes: &[LifetimeParameter],
     fields: &[LocalNodeId<Field>],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token("type"), space(), copied_text(name)])?;
     format_lifetimes(lifetimes, f)?;
@@ -147,11 +146,9 @@ fn format_struct_type_declaration<'a>(
     write!(f, [hard_line_break()])?;
     write!(
         f,
-        [block_indent(&format_with(
-            |f: &mut Formatter<'_, 'a, MirFormatContext<'a>>| {
-                format_struct_fields(fields, &field_spans, declaration_spans.as_ref(), f)
-            }
-        ))]
+        [block_indent(&format_with(|f: &mut Writer<'a, '_>| {
+            format_struct_fields(fields, &field_spans, declaration_spans.as_ref(), f)
+        }))]
     )?;
     write!(f, [hard_line_break(), token("}")])
 }
@@ -161,7 +158,7 @@ fn format_struct_fields<'a>(
     field_ids: &[LocalNodeId<Field>],
     field_spans: &[FieldSpan],
     declaration_spans: Option<&TypeDeclarationSpans>,
-    f: &mut Formatter<'_, 'a, MirFormatContext<'a>>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
 
@@ -205,7 +202,7 @@ fn format_struct_fields<'a>(
 fn format_struct_field_entry<'a>(
     field_id: LocalNodeId<Field>,
     field_span: Option<&FieldSpan>,
-    f: &mut Formatter<'_, 'a, MirFormatContext<'a>>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let field = tree.get(field_id);
@@ -233,12 +230,12 @@ fn format_struct_field_entry<'a>(
 }
 
 fn format_type_inner<'a>(
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
     id: LocalNodeId<Type>,
     ty: &Type,
     use_declaration: bool,
 ) -> FormatResult<()> {
-    if use_declaration && let Some(declaration_name) = f.context().type_declaration_name(id) {
+    if use_declaration && let Some(declaration_name) = f.context().type_name(id) {
         let declaration_name = declaration_name.to_string();
         return write!(f, [copied_text(&declaration_name)]);
     }
@@ -571,7 +568,7 @@ fn format_type_inner<'a>(
     }
 }
 
-fn format_shape<'a>(shape: &[TensorDimension], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_shape<'a>(shape: &[TensorDimension], f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(f, [token("(")])?;
     for (i, dim) in shape.iter().enumerate() {
         if i > 0 {
@@ -588,10 +585,7 @@ fn format_shape<'a>(shape: &[TensorDimension], f: &mut MirFormatter<'a, '_>) -> 
     write!(f, [token(")")])
 }
 
-fn format_tensor_format<'a>(
-    format: &TensorFormat,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_tensor_format<'a>(format: &TensorFormat, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match format {
         TensorFormat::Dense {
             order: TensorDimensionOrder::RowMajor,
@@ -610,7 +604,7 @@ fn format_tensor_format<'a>(
 
 fn format_tensor_view_format<'a>(
     format: &TensorViewFormat,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     match format {
         TensorViewFormat::Dense {
@@ -631,7 +625,7 @@ fn format_tensor_view_format<'a>(
 
 fn format_tensor_sharding<'a>(
     sharding: &TensorSharding,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     match sharding {
         TensorSharding::Unsharded => write!(f, [token("unsharded")]),
@@ -650,7 +644,7 @@ fn format_tensor_sharding<'a>(
 
 fn format_tensor_sharding_axis<'a>(
     axis: &TensorShardingAxis,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     match axis {
         TensorShardingAxis::Shard { axis } => {
@@ -675,7 +669,7 @@ fn format_tensor_sharding_axis<'a>(
 
 fn format_tensor_reduction<'a>(
     reduction: TensorReduction,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let name = match reduction {
         TensorReduction::Add => "add",
@@ -696,14 +690,14 @@ fn format_view_header<'a>(
     access: Access,
     nullability: Nullability,
     element: &TypeId,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     format_type_id(*element, f)?;
     format_reference_qualifiers(kind, lifetime, memory_space, access, nullability, f)
 }
 
 /// Format one explicit memory-space group.
-fn format_space_group<'a>(memory_space: Space, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_space_group<'a>(memory_space: Space, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(
         f,
         [
@@ -721,7 +715,7 @@ fn format_reference_qualifiers<'a>(
     memory_space: Space,
     access: Access,
     nullability: Nullability,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let kind_token = match kind {
         ReferenceKind::Managed => "managed",
@@ -741,10 +735,7 @@ fn format_reference_qualifiers<'a>(
     Ok(())
 }
 
-fn format_nullability<'a>(
-    nullability: Nullability,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_nullability<'a>(nullability: Nullability, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match nullability {
         Nullability::None => Ok(()),
         Nullability::Null => write!(f, [token(","), space(), token("nullable")]),
@@ -753,7 +744,7 @@ fn format_nullability<'a>(
     }
 }
 
-fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     if lifetime.is_empty() {
         return Ok(());
     }
@@ -765,7 +756,7 @@ fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut MirFormatter<'a, '_>) -> For
 fn format_type_application<'a>(
     base: TypeId,
     lifetimes: &[Lifetime],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     format_type_id(base, f)?;
     write!(f, [token("<")])?;
@@ -780,20 +771,19 @@ fn format_type_application<'a>(
 }
 
 pub(super) fn format_signature_parameter<'a>(
-    parameter: &crate::SignatureParameter,
-    f: &mut MirFormatter<'a, '_>,
+    parameter: &SignatureParameter,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     format_type_id(parameter.ty, f)
 }
 
 pub(super) fn format_function_signature<'a>(
     lifetimes: &[LifetimeParameter],
-    parameters: &[crate::SignatureParameter],
+    parameters: &[SignatureParameter],
     result: TypeId,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
-    let previous_lifetimes =
-        std::mem::replace(&mut f.context_mut().current_lifetimes, lifetimes.to_vec());
+    let previous_lifetimes = f.context_mut().scope.replace_lifetimes(lifetimes.to_vec());
     format_lifetimes(lifetimes, f)?;
 
     write!(f, [token("(")])?;
@@ -807,14 +797,14 @@ pub(super) fn format_function_signature<'a>(
     format_type_id(result, f)?;
     super::function::format_lifetime_where(lifetimes, f)?;
 
-    f.context_mut().current_lifetimes = previous_lifetimes;
+    f.context_mut().scope.replace_lifetimes(previous_lifetimes);
 
     Ok(())
 }
 
 pub(super) fn format_lifetime_terms<'a>(
     lifetime: &Lifetime,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     for (index, source) in lifetime.terms.iter().enumerate() {
         if index > 0 {
@@ -839,7 +829,7 @@ pub(super) fn format_lifetime_terms<'a>(
 /// Format a declaration lifetime header.
 fn format_lifetimes<'a>(
     lifetimes: &[LifetimeParameter],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     if lifetimes.is_empty() {
         return Ok(());
@@ -861,7 +851,7 @@ fn format_lifetimes<'a>(
     write!(f, [token(">")])
 }
 
-fn format_access<'a>(access: Access, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_access<'a>(access: Access, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match access {
         Access::Readonly => write!(f, [token(","), space(), token("readonly")]),
         Access::Mutable => write!(f, [token(","), space(), token("mutable")]),
@@ -869,17 +859,19 @@ fn format_access<'a>(access: Access, f: &mut MirFormatter<'a, '_>) -> FormatResu
     }
 }
 
-impl<'a> FormatMirNode<'a, TypeDeclaration> for TypeDeclaration {
-    fn format_node(
+impl FormatNode for TypeDeclaration {
+    fn format_node<'a>(
         &self,
         id: LocalNodeId<TypeDeclaration>,
-        f: &mut MirFormatter<'a, '_>,
+        f: &mut Writer<'a, '_>,
     ) -> FormatResult<()> {
         let attributes = f.context().tree.attributes(id);
         let name = f
             .context()
-            .type_declaration_name(self.ty)
-            .unwrap_or_else(|| f.context().strings.get(self.name))
+            .type_name(self.ty)
+            .ok_or(FormatError::SyntaxError {
+                message: "missing MIR type declaration name",
+            })?
             .to_string();
         let type_id = self.ty;
         let ty = f.context().tree.get(type_id);
@@ -887,7 +879,7 @@ impl<'a> FormatMirNode<'a, TypeDeclaration> for TypeDeclaration {
     }
 }
 
-fn format_struct_field<'a>(field: &Field, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_struct_field<'a>(field: &Field, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     if let Some(name) = field.name {
         let field_name = f.context().strings.get(name);
         write!(f, [copied_text(field_name), token(":"), space()])?;

@@ -2,7 +2,7 @@ use destack_core::StringPool;
 use destack_source::{DiagnosticCollection, File, FileId, FileType, Span, Uri};
 
 use crate::parse::{ParseOptions, Parser};
-use crate::{CommentSpan, MirFormatOptions, Tree, format_mir};
+use crate::{CommentSpan, FormatOptions, Formatter, Tree};
 
 /// Assert that one MIR node matches a pattern.
 #[macro_export]
@@ -122,7 +122,8 @@ impl<'a> TestParser<'a> {
             !diagnostics.has_diagnostics_of_severity(destack_source::DiagnosticSeverity::Error),
             "parse failed"
         );
-        let output = format_mir(&tree, target_layout, &strings, MirFormatOptions::default())
+        let output = Formatter::new(&tree, target_layout, &strings, FormatOptions::default())
+            .format()
             .expect("format MIR");
 
         assert_eq!(expected.trim(), output.trim(), "formatted output mismatch");

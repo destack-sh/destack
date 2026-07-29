@@ -4,13 +4,13 @@ use destack_fir::write;
 
 use super::r#type::format_function_signature;
 use super::value::{format_function_id, format_type_id};
-use crate::{Call, Callee, MirFormatter, Type, TypeId, Value};
+use crate::{Call, Callee, Type, TypeId, Value, Writer};
 
 /// Format one call using dispatch-specific opcodes.
 pub(super) fn format_call<'a>(
     call: &Call,
     opcodes: [&'static str; 4],
-    formatter: &mut MirFormatter<'a, '_>,
+    formatter: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     // format the callable target
     match &call.callee {
@@ -74,7 +74,7 @@ pub(super) fn format_call<'a>(
 /// Format a parenthesized value list.
 pub(super) fn format_value_list<'a>(
     values: &[Value],
-    formatter: &mut MirFormatter<'a, '_>,
+    formatter: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(formatter, [token("(")])?;
     for (index, value) in values.iter().enumerate() {
@@ -90,7 +90,7 @@ pub(super) fn format_value_list<'a>(
 /// Format one required open-call signature.
 fn format_call_signature_suffix<'a>(
     signature: &TypeId,
-    formatter: &mut MirFormatter<'a, '_>,
+    formatter: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(formatter, [token(":"), space()])?;
 

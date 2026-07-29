@@ -1,9 +1,7 @@
 use super::{
     assert_format, assert_format_eq, assert_output_eq, format_tree_with_options, parse_fixture,
 };
-use crate::{
-    Access, Function, Lifetime, MirFormatOptions, Nullability, ReferenceKind, Space, Type,
-};
+use crate::{Access, FormatOptions, Function, Lifetime, Nullability, ReferenceKind, Space, Type};
 
 /// Preserves declaration comments while normalizing canonical separators and names.
 #[test]
@@ -130,7 +128,7 @@ entry:
     tree.get_mut(function_id).environment = Some(environment);
 
     // // detail
-    let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
+    let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 
     assert_output_eq(
         r#"

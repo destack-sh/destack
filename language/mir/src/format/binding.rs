@@ -3,12 +3,12 @@ use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
-use crate::{AttributeValue, Binding, BindingAffinity, BindingReplay, MirFormatContext, MirFormatter};
+use crate::{AttributeValue, Binding, BindingAffinity, BindingReplay, Formatter, Writer};
 
 use super::attribute::write_attribute_value;
 
-impl<'a> Format<'a, MirFormatContext<'a>> for Binding {
-    fn format(&self, writer: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+impl<'a> Format<'a, Formatter<'a>> for Binding {
+    fn format(&self, writer: &mut Writer<'a, '_>) -> FormatResult<()> {
         write!(writer, [token("@binding(")])?;
         write_attribute_value(&AttributeValue::String(self.name), writer)?;
         write!(
@@ -30,7 +30,7 @@ impl<'a> Format<'a, MirFormatContext<'a>> for Binding {
 }
 
 /// Format all material binding fields.
-fn format_fields<'a>(binding: &Binding, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_fields<'a>(binding: &Binding, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     format_field("provider", binding.provider.name(), f)?;
     format_separator(f)?;
     format_field("effect", binding.effect.name(), f)?;
@@ -56,7 +56,7 @@ fn format_fields<'a>(binding: &Binding, f: &mut MirFormatter<'a, '_>) -> FormatR
 fn format_field<'a>(
     name: &'static str,
     value: &'static str,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -75,7 +75,7 @@ fn format_field<'a>(
 fn format_list<'a>(
     name: &'static str,
     values: &[StringId],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     if values.is_empty() {
         return Ok(());
@@ -95,6 +95,6 @@ fn format_list<'a>(
 }
 
 /// Format one binding field separator.
-fn format_separator<'a>(f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_separator<'a>(f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(f, [token(","), soft_line_break_or_space()])
 }

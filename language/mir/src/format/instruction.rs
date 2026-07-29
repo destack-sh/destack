@@ -8,16 +8,16 @@ use super::value::{
 };
 
 use crate::{
-    AtomicAccess, CompareExchangeAccess, ExecutionScope, FenceAccess, FormatMirNode, FunctionId,
-    GlobalId, Instruction, LocalNodeId, MirFormatter, StorageSet, TensorImmediate,
-    TensorImmediateId, Value,
+    AtomicAccess, CompareExchangeAccess, ExecutionScope, FenceAccess, FormatNode, FunctionId,
+    GlobalId, Instruction, LocalNodeId, StorageSet, TensorImmediate, TensorImmediateId, Type,
+    Value, Writer,
 };
 
-impl<'a> FormatMirNode<'a, Instruction> for Instruction {
-    fn format_node(
+impl FormatNode for Instruction {
+    fn format_node<'a>(
         &self,
         _id: LocalNodeId<Instruction>,
-        f: &mut MirFormatter<'a, '_>,
+        f: &mut Writer<'a, '_>,
     ) -> FormatResult<()> {
         match self {
             Instruction::Error => Err(FormatError::SyntaxError {
@@ -124,7 +124,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }
 
             Instruction::LocalGet { destination, local } => {
-                let local_index = f.context().local_index(*local);
+                let local_index = f.context().local_index(*local)?;
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
@@ -142,7 +142,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::LocalAddr {
                 destination, local, ..
             } => {
-                let local_index = f.context().local_index(*local);
+                let local_index = f.context().local_index(*local)?;
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
@@ -158,7 +158,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             }
 
             Instruction::LocalSet { local, value } => {
-                let local_index = f.context().local_index(*local);
+                let local_index = f.context().local_index(*local)?;
                 write!(
                     f,
                     [
@@ -1157,7 +1157,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 let args = f.context().tree.get_values(*arguments);
                 let (offsets, sizes, strides) =
-                    split_tensor_ranges(args, *offsets_count, *sizes_count, *strides_count);
+                    split_tensor_ranges(args, *offsets_count, *sizes_count, *strides_count)?;
                 format_named_value_group("offsets", offsets, f)?;
                 write!(f, [token(","), space()])?;
                 format_named_value_group("sizes", sizes, f)?;
@@ -1189,7 +1189,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 let args = f.context().tree.get_values(*arguments);
                 let (offsets, sizes, strides) =
-                    split_tensor_ranges(args, *offsets_count, *sizes_count, *strides_count);
+                    split_tensor_ranges(args, *offsets_count, *sizes_count, *strides_count)?;
                 format_named_value_group("offsets", offsets, f)?;
                 write!(f, [token(","), space()])?;
                 format_named_value_group("sizes", sizes, f)?;
@@ -1224,7 +1224,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(f, [token(","), space()])?;
                 let args = f.context().tree.get_values(*arguments);
                 let (low, high, interior) =
-                    split_tensor_padding(args, *low_count, *high_count, *interior_count);
+                    split_tensor_padding(args, *low_count, *high_count, *interior_count)?;
                 format_named_value_group("low", low, f)?;
                 write!(f, [token(","), space()])?;
                 format_named_value_group("high", high, f)?;
@@ -1823,10 +1823,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
     }
 }
 
-fn format_typed_destination<'a>(
-    destination: Value,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_typed_destination<'a>(destination: Value, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     let ty = f
         .context()
         .value_type(destination)
@@ -1839,8 +1836,8 @@ fn format_typed_destination<'a>(
 
 fn typed_destination_type<'a>(
     destination: Value,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<LocalNodeId<crate::Type>> {
+    f: &mut Writer<'a, '_>,
+) -> FormatResult<LocalNodeId<Type>> {
     f.context()
         .value_type(destination)
         .ok_or(FormatError::SyntaxError {
@@ -1851,21 +1848,18 @@ fn typed_destination_type<'a>(
 /// Format a function reference.
 fn format_function_reference<'a>(
     function_id: FunctionId,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     format_function_id(function_id, f)
 }
 
 /// Format a global reference.
-fn format_global_reference<'a>(
-    global_id: GlobalId,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_global_reference<'a>(global_id: GlobalId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     format_global_id(global_id, f)
 }
 
 /// Format a parenthesized, comma-separated list of values.
-fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_value_list<'a>(values: &[Value], f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(f, [token("(")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -1877,10 +1871,7 @@ fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> Form
 }
 
 /// Format a bracketed, comma-separated list of values.
-fn format_value_bracket_list<'a>(
-    values: &[Value],
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_value_bracket_list<'a>(values: &[Value], f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(f, [token("[")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -1892,7 +1883,7 @@ fn format_value_bracket_list<'a>(
 }
 
 /// Format a bracketed, comma-separated list of u32 values.
-fn format_u32_bracket_list<'a>(values: &[u32], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_u32_bracket_list<'a>(values: &[u32], f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(f, [token("[")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -1907,7 +1898,7 @@ fn format_u32_bracket_list<'a>(values: &[u32], f: &mut MirFormatter<'a, '_>) -> 
 fn format_named_value_group<'a>(
     name: &'static str,
     values: &[Value],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(name), token("(")])?;
     for (index, value) in values.iter().enumerate() {
@@ -1923,7 +1914,7 @@ fn format_named_value_group<'a>(
 fn format_named_u32_group<'a>(
     name: &'static str,
     values: &[u32],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(name), token("(")])?;
     for (index, value) in values.iter().enumerate() {
@@ -1938,7 +1929,7 @@ fn format_named_u32_group<'a>(
 /// Format tensor dot dimension numbers.
 fn format_tensor_dot_immediate<'a>(
     immediate: TensorImmediateId,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let TensorImmediate::Dot {
         lhs_batch,
@@ -1974,7 +1965,7 @@ fn format_tensor_dot_immediate<'a>(
 /// Format tensor convolution dimension numbers.
 fn format_tensor_convolution_immediate<'a>(
     immediate: TensorImmediateId,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let TensorImmediate::Convolution {
         input_batch,
@@ -2070,7 +2061,7 @@ fn format_tensor_convolution_immediate<'a>(
 fn format_tensor_convolution_groups<'a>(
     feature_group_count: u32,
     batch_group_count: u32,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(","), space(), token("groups"), token("(")])?;
     write!(
@@ -2094,7 +2085,7 @@ fn format_tensor_convolution_groups<'a>(
 /// Format tensor gather dimension numbers.
 fn format_tensor_gather_immediate<'a>(
     immediate: TensorImmediateId,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let TensorImmediate::Gather {
         offset_dims,
@@ -2134,7 +2125,7 @@ fn format_tensor_gather_immediate<'a>(
 /// Format tensor scatter dimension numbers.
 fn format_tensor_scatter_immediate<'a>(
     immediate: TensorImmediateId,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let TensorImmediate::Scatter {
         update_window_dims,
@@ -2175,7 +2166,7 @@ fn format_tensor_scatter_immediate<'a>(
 fn format_named_u32_single<'a>(
     name: &'static str,
     value: u32,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -2192,7 +2183,7 @@ fn format_named_u32_single<'a>(
 fn format_named_u64_group<'a>(
     name: &'static str,
     values: &[u64],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(name), token("(")])?;
     for (index, value) in values.iter().enumerate() {
@@ -2208,7 +2199,7 @@ fn format_named_u64_group<'a>(
 fn format_named_flag_group<'a>(
     name: &'static str,
     values: &[u8],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(name), token("(")])?;
     for (index, value) in values.iter().enumerate() {
@@ -2226,16 +2217,31 @@ fn split_tensor_ranges(
     offsets_count: u16,
     sizes_count: u16,
     strides_count: u16,
-) -> (&[Value], &[Value], &[Value]) {
+) -> FormatResult<(&[Value], &[Value], &[Value])> {
     let offsets_end = offsets_count as usize;
     let sizes_end = offsets_end + sizes_count as usize;
     let strides_end = sizes_end + strides_count as usize;
+    if strides_end != values.len() {
+        return Err(FormatError::SyntaxError {
+            message: "invalid MIR tensor range argument count",
+        });
+    }
 
-    let offsets = values.get(..offsets_end).unwrap_or(&[]);
-    let sizes = values.get(offsets_end..sizes_end).unwrap_or(&[]);
-    let strides = values.get(sizes_end..strides_end).unwrap_or(&[]);
+    let offsets = values.get(..offsets_end).ok_or(FormatError::SyntaxError {
+        message: "invalid MIR tensor range offsets",
+    })?;
+    let sizes = values
+        .get(offsets_end..sizes_end)
+        .ok_or(FormatError::SyntaxError {
+            message: "invalid MIR tensor range sizes",
+        })?;
+    let strides = values
+        .get(sizes_end..strides_end)
+        .ok_or(FormatError::SyntaxError {
+            message: "invalid MIR tensor range strides",
+        })?;
 
-    (offsets, sizes, strides)
+    Ok((offsets, sizes, strides))
 }
 
 /// Split packed tensor padding arguments.
@@ -2244,20 +2250,35 @@ fn split_tensor_padding(
     low_count: u16,
     high_count: u16,
     interior_count: u16,
-) -> (&[Value], &[Value], &[Value]) {
+) -> FormatResult<(&[Value], &[Value], &[Value])> {
     let low_end = low_count as usize;
     let high_end = low_end + high_count as usize;
     let interior_end = high_end + interior_count as usize;
+    if interior_end != values.len() {
+        return Err(FormatError::SyntaxError {
+            message: "invalid MIR tensor padding argument count",
+        });
+    }
 
-    let low = values.get(..low_end).unwrap_or(&[]);
-    let high = values.get(low_end..high_end).unwrap_or(&[]);
-    let interior = values.get(high_end..interior_end).unwrap_or(&[]);
+    let low = values.get(..low_end).ok_or(FormatError::SyntaxError {
+        message: "invalid MIR tensor low padding",
+    })?;
+    let high = values
+        .get(low_end..high_end)
+        .ok_or(FormatError::SyntaxError {
+            message: "invalid MIR tensor high padding",
+        })?;
+    let interior = values
+        .get(high_end..interior_end)
+        .ok_or(FormatError::SyntaxError {
+            message: "invalid MIR tensor interior padding",
+        })?;
 
-    (low, high, interior)
+    Ok((low, high, interior))
 }
 
 /// Format intrinsic arguments with optional memory ordering.
-fn format_intrinsic_args<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_intrinsic_args<'a>(values: &[Value], f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(f, [token("(")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -2269,10 +2290,7 @@ fn format_intrinsic_args<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> 
 }
 
 /// Format one atomic access suffix.
-fn format_atomic_access<'a>(
-    access: AtomicAccess,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_atomic_access<'a>(access: AtomicAccess, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(f, [token(","), space(), token(access.ordering.to_str())])?;
 
     format_atomic_context(access, f)
@@ -2281,7 +2299,7 @@ fn format_atomic_access<'a>(
 /// Format one compare exchange access suffix.
 fn format_atomic_compare_exchange_access<'a>(
     access: CompareExchangeAccess,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     format_atomic_access(access.success, f)?;
 
@@ -2303,16 +2321,13 @@ fn format_atomic_compare_exchange_access<'a>(
 }
 
 /// Format one fence access suffix.
-fn format_fence_access<'a>(access: FenceAccess, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_fence_access<'a>(access: FenceAccess, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(f, [space(), token(access.ordering.to_str())])?;
     format_fence_context(access, f)
 }
 
 /// Format non-default execution scope.
-fn format_atomic_context<'a>(
-    access: AtomicAccess,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_atomic_context<'a>(access: AtomicAccess, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     if access.scope != ExecutionScope::default() {
         write!(
             f,
@@ -2331,7 +2346,7 @@ fn format_atomic_context<'a>(
 }
 
 /// Format non-default fence scope and storage.
-fn format_fence_context<'a>(access: FenceAccess, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_fence_context<'a>(access: FenceAccess, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     if access.scope != ExecutionScope::default() {
         write!(
             f,

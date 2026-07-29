@@ -1,7 +1,6 @@
 use super::{assert_format, assert_format_eq, assert_output_eq, format_tree_with_options};
 use crate::{
-    Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, MirFormatOptions, Symbol, Tree,
-    Type,
+    Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, FormatOptions, Symbol, Tree, Type,
 };
 use destack_core::{StringId, StringPool};
 
@@ -327,7 +326,7 @@ fn test_format_synthetic_copy_marker() {
     tree.define_type(pair, representation);
     tree.insert_type_declaration(declaration_name, Vec::new(), pair);
 
-    let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
+    let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 
     assert_output_eq(
         r#"
@@ -357,7 +356,7 @@ fn test_format_duplicate_type_declaration_names_uniquely() {
     tree.define_type(second, tree.get(float64).clone());
     tree.insert_type_declaration(name, Vec::new(), second);
 
-    let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
+    let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 
     assert_output_eq(
         r#"
@@ -404,7 +403,7 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
     tree.define_type(point, representation);
     tree.insert_type_declaration(declaration_name, Vec::new(), point);
 
-    let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
+    let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 
     assert_output_eq(
         r#"

@@ -1,31 +1,35 @@
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::attribute::{write_attribute, write_attributes};
 
 use crate::{
-    Attribute, AttributeIdentifier, FormatMirNode, Function, FunctionHeaderSpans,
-    LifetimeParameter, Linkage, Local, LocalNodeId, MirFormatContext, MirFormatter, Mutability,
-    Tree, write_comments_after, write_comments_before, write_inline_comment_after,
-    write_node_leading_comments, write_node_leading_comments_after_separator,
+    Attribute, AttributeIdentifier, FormatNode, Function, FunctionHeaderSpans, LifetimeParameter,
+    Linkage, Local, LocalNodeId, Mutability, Tree, Writer, write_comments_after,
+    write_comments_before, write_inline_comment_after, write_node_leading_comments,
+    write_node_leading_comments_after_separator,
 };
 
-impl<'a> FormatMirNode<'a, Function> for Function {
-    fn format_node(
+impl FormatNode for Function {
+    fn format_node<'a>(
         &self,
         id: LocalNodeId<Function>,
-        f: &mut MirFormatter<'a, '_>,
+        f: &mut Writer<'a, '_>,
     ) -> FormatResult<()> {
         // function name
-        let name = f.context().function_name(id).to_string();
+        let name = f.context().function_name(id)?.to_string();
 
         // attributes
         format_function_attributes(id, self, f)?;
 
+        // enter the function's value and lifetime scope
+        f.context_mut()
+            .scope
+            .enter(id, self.locals(), &self.lifetimes);
+
         // imported function
         if self.linkage.is_import() {
-            f.context_mut().current_lifetimes = self.lifetimes.clone();
             write!(f, [token("external"), space()])?;
             format_function_keyword(self, f)?;
             write!(
@@ -42,7 +46,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
 
             write!(f, [token(":"), space(), self.return_type])?;
             format_lifetime_where(&self.lifetimes, f)?;
-            f.context_mut().current_lifetimes.clear();
+            f.context_mut().scope.leave();
 
             return Ok(());
         }
@@ -50,17 +54,6 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         // exported linkage prefix
         if self.linkage == Linkage::Export {
             write!(f, [token("export"), space()])?;
-        }
-
-        // local index map and current function
-        {
-            let context = f.context_mut();
-            context.local_indices.clear();
-            for (i, local_id) in self.locals().iter().enumerate() {
-                context.local_indices.insert(*local_id, i);
-            }
-            context.current_function = Some(id);
-            context.current_lifetimes = self.lifetimes.clone();
         }
 
         // function header
@@ -78,8 +71,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         // function body
         format_function_body(self, f)?;
 
-        f.context_mut().current_function = None;
-        f.context_mut().current_lifetimes.clear();
+        f.context_mut().scope.leave();
         write!(f, [token("}")])
     }
 }
@@ -87,7 +79,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
 /// Format declared outlives rows as one trailing where clause.
 pub(super) fn format_lifetime_where<'a>(
     lifetimes: &[LifetimeParameter],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let mut first = true;
     for (slot, lifetime) in lifetimes.iter().enumerate() {
@@ -118,10 +110,7 @@ pub(super) fn format_lifetime_where<'a>(
 }
 
 /// Format the async and generator function modifiers.
-fn format_function_keyword<'a>(
-    function: &Function,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_function_keyword<'a>(function: &Function, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     if function
         .coroutine
         .is_some_and(|coroutine| coroutine.is_async())
@@ -142,7 +131,7 @@ fn format_function_keyword<'a>(
 /// Format a declaration lifetime header.
 fn format_lifetimes<'a>(
     lifetimes: &[LifetimeParameter],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     if lifetimes.is_empty() {
         return Ok(());
@@ -167,7 +156,7 @@ fn format_lifetimes<'a>(
 pub(super) fn format_function_attributes<'a>(
     id: LocalNodeId<Function>,
     function: &Function,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let attributes = tree.attributes(id);
@@ -229,7 +218,7 @@ pub(super) fn format_function_attributes<'a>(
 }
 
 /// Return whether one explicit attribute list contains a named attribute.
-fn has_attribute(attributes: &[Attribute], name: &str, f: &MirFormatter<'_, '_>) -> bool {
+fn has_attribute(attributes: &[Attribute], name: &str, f: &Writer<'_, '_>) -> bool {
     attributes.iter().any(|attribute| {
         matches!(
             attribute.name,
@@ -240,34 +229,38 @@ fn has_attribute(attributes: &[Attribute], name: &str, f: &MirFormatter<'_, '_>)
 }
 
 /// Format the body of one local function.
-fn format_function_body<'a>(function: &Function, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_function_body<'a>(function: &Function, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     let locals = function.locals();
     let blocks = function.blocks();
+    let function_end = f
+        .context()
+        .scope
+        .function()
+        .and_then(|function_id| f.context().tree.get_span(function_id))
+        .map(|span| span.end);
 
     // locals
     if !locals.is_empty() {
         write!(
             f,
-            [block_indent(&format_with(
-                |f: &mut Formatter<'_, 'a, MirFormatContext<'a>>| {
-                    for (local_index, local_id) in locals.iter().enumerate() {
-                        let next_boundary = locals
-                            .get(local_index + 1)
-                            .and_then(|next_local_id| f.context().tree.get_span(*next_local_id))
-                            .or_else(|| {
-                                blocks
-                                    .first()
-                                    .and_then(|block_id| f.context().tree.get_span(*block_id))
-                            })
-                            .map(|span| span.start)
-                            .unwrap_or(0);
+            [block_indent(&format_with(|f: &mut Writer<'a, '_>| {
+                for (local_index, local_id) in locals.iter().enumerate() {
+                    let next_boundary = locals
+                        .get(local_index + 1)
+                        .and_then(|next_local_id| f.context().tree.get_span(*next_local_id))
+                        .or_else(|| {
+                            blocks
+                                .first()
+                                .and_then(|block_id| f.context().tree.get_span(*block_id))
+                        })
+                        .map(|span| span.start)
+                        .or(function_end);
 
-                        format_local_declaration(*local_id, local_index, next_boundary, f)?;
-                    }
-
-                    Ok(())
+                    format_local_declaration(*local_id, local_index, next_boundary, f)?;
                 }
-            ))]
+
+                Ok(())
+            }))]
         )?;
         write!(f, [empty_line()])?;
     }
@@ -293,7 +286,8 @@ fn format_function_body<'a>(function: &Function, f: &mut MirFormatter<'a, '_>) -
         {
             let next_boundary = f
                 .context()
-                .current_function
+                .scope
+                .function()
                 .and_then(|function_id| f.context().tree.get_span(function_id))
                 .map(|span| span.end)
                 .unwrap_or(block_span.end);
@@ -309,8 +303,8 @@ fn format_function_body<'a>(function: &Function, f: &mut MirFormatter<'a, '_>) -
 fn format_local_declaration<'a>(
     local_id: LocalNodeId<Local>,
     local_index: usize,
-    next_boundary: u32,
-    f: &mut Formatter<'_, 'a, MirFormatContext<'a>>,
+    next_boundary: Option<u32>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
 
@@ -338,7 +332,7 @@ fn format_local_declaration<'a>(
     }
 
     // trailing comment
-    if let Some(local_span) = tree.get_span(local_id) {
+    if let (Some(local_span), Some(next_boundary)) = (tree.get_span(local_id), next_boundary) {
         write_inline_comment_after(tree, local_span.end, next_boundary, f)?;
     }
     write!(f, [hard_line_break()])?;
@@ -351,7 +345,7 @@ fn format_function_parameters<'a>(
     id: LocalNodeId<Function>,
     function: &Function,
     is_import: bool,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let parameter_spans = tree.function_parameter_spans(id);
@@ -380,56 +374,54 @@ fn format_function_parameters<'a>(
     }
 
     // comment preserving multiline form
-    let Some(header_spans) = header_spans else {
-        unreachable!("function header spans checked before formatting parameter comments");
-    };
+    let header_spans = header_spans.ok_or(FormatError::SyntaxError {
+        message: "missing MIR function header spans while formatting parameter comments",
+    })?;
     write!(f, [token("("), hard_line_break()])?;
     write!(
         f,
-        [block_indent(&format_with(
-            |f: &mut Formatter<'_, 'a, MirFormatContext<'a>>| {
-                let tree = f.context().tree;
-                let mut previous_end = header_spans.open_paren.end;
+        [block_indent(&format_with(|f: &mut Writer<'a, '_>| {
+            let tree = f.context().tree;
+            let mut previous_end = header_spans.open_paren.end;
 
-                for (index, (parameter, span)) in function
-                    .parameters
-                    .iter()
-                    .zip(parameter_spans.iter())
-                    .enumerate()
-                {
-                    write_comments_before(tree, previous_end, span.span.start, f)?;
+            for (index, (parameter, span)) in function
+                .parameters
+                .iter()
+                .zip(parameter_spans.iter())
+                .enumerate()
+            {
+                write_comments_before(tree, previous_end, span.span.start, f)?;
 
-                    if is_import {
-                        write!(f, [parameter.ty])?;
-                    } else {
-                        write!(f, [&parameter.value, token(":"), space(), parameter.ty])?;
-                    }
-
-                    let next_boundary = if let Some(next_span) = parameter_spans.get(index + 1) {
-                        next_span.span.start
-                    } else {
-                        header_spans.close_paren.start
-                    };
-
-                    if index + 1 < parameter_spans.len() {
-                        write!(f, [token(",")])?;
-                    }
-
-                    let wrote_inline_comment =
-                        write_inline_comment_after(tree, span.span.end, next_boundary, f)?;
-
-                    write!(f, [hard_line_break()])?;
-
-                    previous_end = if wrote_inline_comment {
-                        next_boundary
-                    } else {
-                        span.span.end
-                    };
+                if is_import {
+                    write!(f, [parameter.ty])?;
+                } else {
+                    write!(f, [&parameter.value, token(":"), space(), parameter.ty])?;
                 }
 
-                Ok(())
+                let next_boundary = if let Some(next_span) = parameter_spans.get(index + 1) {
+                    next_span.span.start
+                } else {
+                    header_spans.close_paren.start
+                };
+
+                if index + 1 < parameter_spans.len() {
+                    write!(f, [token(",")])?;
+                }
+
+                let wrote_inline_comment =
+                    write_inline_comment_after(tree, span.span.end, next_boundary, f)?;
+
+                write!(f, [hard_line_break()])?;
+
+                previous_end = if wrote_inline_comment {
+                    next_boundary
+                } else {
+                    span.span.end
+                };
             }
-        ))]
+
+            Ok(())
+        }))]
     )?;
     write!(f, [token(")")])?;
 

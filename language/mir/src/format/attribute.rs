@@ -4,13 +4,13 @@ use destack_fir::write;
 use destack_source::Span;
 
 use crate::{
-    Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, MirFormatter, Tree,
+    Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, FloatValue, Tree, Writer,
     write_comments_before,
 };
 
 fn write_attribute_identifier<'a>(
     identifier: AttributeIdentifier,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     match identifier {
         AttributeIdentifier::Identifier(identifier) => {
@@ -25,7 +25,7 @@ fn write_attribute_identifier<'a>(
 /// Write a list of attributes as standalone lines.
 pub(crate) fn write_attributes<'a>(
     attributes: &[Attribute],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     // render each attribute on its own line
     for attribute in attributes {
@@ -42,7 +42,7 @@ pub(crate) fn write_attributes_before_anchor<'a>(
     attribute_spans: &[Span],
     anchor_start: u32,
     tree: &Tree,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     if attribute_spans.len() != attributes.len() {
         write_attributes(attributes, f)?;
@@ -73,7 +73,7 @@ pub(crate) fn write_attributes_before_anchor<'a>(
 /// Write a list of attributes inline.
 pub(crate) fn write_inline_attributes<'a>(
     attributes: &[Attribute],
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     // render attributes inline
     for (index, attribute) in attributes.iter().enumerate() {
@@ -90,7 +90,7 @@ pub(crate) fn write_inline_attributes<'a>(
 /// Write a single attribute.
 pub(crate) fn write_attribute<'a>(
     attribute: &Attribute,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     // open the attribute
     write!(f, [token("@")])?;
@@ -136,7 +136,7 @@ pub(crate) fn write_attribute<'a>(
 /// Write a single attribute value.
 pub(crate) fn write_attribute_value<'a>(
     value: &AttributeValue,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     // format by value kind
     match value {
@@ -185,7 +185,7 @@ pub(crate) fn write_attribute_value<'a>(
 }
 
 /// Format a string literal for attributes.
-fn format_string_literal<'a>(value: &str, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_string_literal<'a>(value: &str, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     // emit escaped string literal contents
     write!(f, [token("\"")])?;
     for ch in value.chars() {
@@ -209,10 +209,7 @@ fn format_string_literal<'a>(value: &str, f: &mut MirFormatter<'a, '_>) -> Forma
 }
 
 /// Format a floating point literal for attributes.
-fn format_float_literal<'a>(
-    value: crate::FloatValue,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_float_literal<'a>(value: FloatValue, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     // emit a minimal float representation
     let text_value = value.to_f64().to_string();
     write!(f, [copied_text(&text_value)])

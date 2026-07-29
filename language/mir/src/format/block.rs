@@ -6,19 +6,15 @@ use super::call::format_call;
 use super::value::{format_block_id, format_function_id};
 
 use crate::{
-    Block, BlockTarget, CheckConstraint, FormatMirNode, LocalNodeId, MirFormatContext,
-    MirFormatter, Terminator, Value, write_comments_after, write_inline_comment_after,
+    BinaryOperator, Block, BlockTarget, CheckConstraint, FormatNode, LocalNodeId, Terminator,
+    Value, ValueSlice, Writer, write_comments_after, write_inline_comment_after,
     write_node_leading_comments,
 };
 
-impl<'a> FormatMirNode<'a, Block> for Block {
-    fn format_node(
-        &self,
-        id: LocalNodeId<Block>,
-        f: &mut MirFormatter<'a, '_>,
-    ) -> FormatResult<()> {
+impl FormatNode for Block {
+    fn format_node<'a>(&self, id: LocalNodeId<Block>, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         // block label
-        let block_name = f.context().block_name(id);
+        let block_name = f.context().block_name(id)?.to_string();
         write!(f, [copied_text(&block_name)])?;
 
         // block parameters
@@ -41,66 +37,58 @@ impl<'a> FormatMirNode<'a, Block> for Block {
 
         write!(
             f,
-            [block_indent(&format_with(
-                |f: &mut Formatter<'_, 'a, MirFormatContext<'a>>| {
-                    let tree = f.context().tree;
-                    let block_span = tree.get_span(id);
-                    let terminator_span = tree.get_span(terminator_id);
+            [block_indent(&format_with(|f: &mut Writer<'a, '_>| {
+                let tree = f.context().tree;
+                let block_span = tree.get_span(id);
+                let terminator_span = tree.get_span(terminator_id);
 
-                    // instructions
-                    for (index, inst_id) in instructions.iter().enumerate() {
-                        write_node_leading_comments(tree, *inst_id, f)?;
-                        let inst = tree.get(*inst_id);
-                        inst.format_node(*inst_id, f)?;
-                        let instruction_span = tree.get_span(*inst_id);
-                        let next_boundary = instructions
-                            .get(index + 1)
-                            .and_then(|next_id| tree.get_span(*next_id))
-                            .map(|span| span.start)
-                            .or_else(|| terminator_span.map(|span| span.start));
+                // instructions
+                for (index, inst_id) in instructions.iter().enumerate() {
+                    write_node_leading_comments(tree, *inst_id, f)?;
+                    let inst = tree.get(*inst_id);
+                    inst.format_node(*inst_id, f)?;
+                    let instruction_span = tree.get_span(*inst_id);
+                    let next_boundary = instructions
+                        .get(index + 1)
+                        .and_then(|next_id| tree.get_span(*next_id))
+                        .map(|span| span.start)
+                        .or_else(|| terminator_span.map(|span| span.start));
 
-                        if let (Some(instruction_span), Some(next_boundary)) =
-                            (instruction_span, next_boundary)
-                        {
-                            write_inline_comment_after(
-                                tree,
-                                instruction_span.end,
-                                next_boundary,
-                                f,
-                            )?;
-                        }
-
-                        write!(f, [hard_line_break()])?;
-                    }
-
-                    // terminator
-                    let terminator = tree.get(terminator_id);
-                    write_node_leading_comments(tree, terminator_id, f)?;
-                    terminator.format_node(terminator_id, f)?;
-
-                    if let (Some(terminator_span), Some(block_span)) = (terminator_span, block_span)
+                    if let (Some(instruction_span), Some(next_boundary)) =
+                        (instruction_span, next_boundary)
                     {
-                        write_comments_after(tree, terminator_span.end, block_span.end, f)?;
+                        write_inline_comment_after(tree, instruction_span.end, next_boundary, f)?;
                     }
 
-                    Ok(())
+                    write!(f, [hard_line_break()])?;
                 }
-            ))]
+
+                // terminator
+                let terminator = tree.get(terminator_id);
+                write_node_leading_comments(tree, terminator_id, f)?;
+                terminator.format_node(terminator_id, f)?;
+
+                if let (Some(terminator_span), Some(block_span)) = (terminator_span, block_span) {
+                    write_comments_after(tree, terminator_span.end, block_span.end, f)?;
+                }
+
+                Ok(())
+            }))]
         )
     }
 }
 
-impl<'a> FormatMirNode<'a, Terminator> for Terminator {
-    fn format_node(
+impl FormatNode for Terminator {
+    fn format_node<'a>(
         &self,
         _id: LocalNodeId<Terminator>,
-        f: &mut MirFormatter<'a, '_>,
+        f: &mut Writer<'a, '_>,
     ) -> FormatResult<()> {
         format_terminator(self, f)
     }
 }
 
-fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match term {
         Terminator::Error => Err(FormatError::SyntaxError {
             message: "cannot format recovered MIR terminator",
@@ -387,7 +375,7 @@ fn format_await_targets<'a>(
     resume: &BlockTarget,
     cancel: &BlockTarget,
     unwind: Option<&BlockTarget>,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("=>"), space()])?;
     format_block_target(resume, f)?;
@@ -407,7 +395,7 @@ fn format_yield_targets<'a>(
     resume: &BlockTarget,
     complete: &BlockTarget,
     unwind: Option<&BlockTarget>,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("=>"), space()])?;
     format_block_target(resume, f)?;
@@ -427,7 +415,7 @@ fn format_continuation_targets<'a>(
     yielded: &BlockTarget,
     returned: &BlockTarget,
     unwind: Option<&BlockTarget>,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("=>"), space()])?;
     format_block_target(yielded, f)?;
@@ -446,7 +434,7 @@ fn format_continuation_targets<'a>(
 fn format_invoke_continuation<'a>(
     target: &BlockTarget,
     unwind: &BlockTarget,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("=>"), space()])?;
     format_block_target(target, f)?;
@@ -458,7 +446,7 @@ fn format_invoke_continuation<'a>(
 fn format_allocation_continuation<'a>(
     success: &BlockTarget,
     failure: &BlockTarget,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("=>"), space()])?;
     format_block_target(success, f)?;
@@ -471,7 +459,7 @@ fn format_allocation_continuation<'a>(
 /// Format a check constraint.
 fn format_check_constraint<'a>(
     constraint: &CheckConstraint,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     // write the check kind header
     match constraint {
@@ -593,15 +581,13 @@ fn format_check_constraint<'a>(
 }
 
 /// Return the canonical operator family used in overflow checks.
-fn overflow_check_family(operator: crate::BinaryOperator) -> FormatResult<&'static str> {
+fn overflow_check_family(operator: BinaryOperator) -> FormatResult<&'static str> {
     let family = match operator {
-        crate::BinaryOperator::Add => "int.add",
-        crate::BinaryOperator::Subtract => "int.sub",
-        crate::BinaryOperator::Multiply => "int.mul",
-        crate::BinaryOperator::SignedDivide | crate::BinaryOperator::UnsignedDivide => "int.div",
-        crate::BinaryOperator::SignedRemainder | crate::BinaryOperator::UnsignedRemainder => {
-            "int.rem"
-        }
+        BinaryOperator::Add => "int.add",
+        BinaryOperator::Subtract => "int.sub",
+        BinaryOperator::Multiply => "int.mul",
+        BinaryOperator::SignedDivide | BinaryOperator::UnsignedDivide => "int.div",
+        BinaryOperator::SignedRemainder | BinaryOperator::UnsignedRemainder => "int.rem",
         _ => {
             return Err(FormatError::SyntaxError {
                 message: "unsupported overflow check operator",
@@ -613,7 +599,7 @@ fn overflow_check_family(operator: crate::BinaryOperator) -> FormatResult<&'stat
 }
 
 /// Format a parenthesized, comma-separated list of values.
-fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_value_list<'a>(values: &[Value], f: &mut Writer<'a, '_>) -> FormatResult<()> {
     write!(f, [token("(")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -624,16 +610,13 @@ fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> Form
     write!(f, [token(")")])
 }
 
-fn format_value_slice<'a>(
-    values: crate::ValueSlice,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_value_slice<'a>(values: ValueSlice, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     let values = f.context().tree.get_values(values);
 
     format_value_list(values, f)
 }
 
-fn format_block_target<'a>(target: &BlockTarget, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_block_target<'a>(target: &BlockTarget, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     format_block_id(target.block, f)?;
     if !target.arguments.is_empty() {
         format_value_slice(target.arguments, f)?;

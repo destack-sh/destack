@@ -6,19 +6,19 @@ use destack_fir::write;
 use super::r#type::format_type_expanded;
 
 use crate::{
-    BlockId, Constant, FunctionId, GlobalId, LocalNodeId, MirFormatContext, MirFormatter, Place,
-    PlaceOrigin, Projection, Type, TypeId, Value,
+    BlockId, Constant, Formatter, FunctionId, GlobalId, LocalNodeId, Place, PlaceOrigin,
+    Projection, Type, TypeId, Value, Writer,
 };
 
-impl<'a> Format<'a, MirFormatContext<'a>> for Value {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+impl<'a> Format<'a, Formatter<'a>> for Value {
+    fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         let name = f.context().value_name(*self)?;
         write!(f, [copied_text(&name)])
     }
 }
 
-impl<'a> Format<'a, MirFormatContext<'a>> for Place {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+impl<'a> Format<'a, Formatter<'a>> for Place {
+    fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         if let PlaceOrigin::Value(value) = self.origin
             && self.path.is_root()
         {
@@ -35,8 +35,8 @@ impl<'a> Format<'a, MirFormatContext<'a>> for Place {
     }
 }
 
-impl<'a> Format<'a, MirFormatContext<'a>> for Constant {
-    fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+impl<'a> Format<'a, Formatter<'a>> for Constant {
+    fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         match self {
             Constant::Null => write!(f, [token("null")]),
             Constant::Undefined => write!(f, [token("undefined")]),
@@ -73,8 +73,8 @@ impl<'a> Format<'a, MirFormatContext<'a>> for Constant {
 }
 
 /// Format a type id by canonical MIR name.
-pub(crate) fn format_type_id<'a>(ty: TypeId, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-    if let Some(name) = f.context().type_declaration_name(ty).map(str::to_string) {
+pub(crate) fn format_type_id<'a>(ty: TypeId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    if let Some(name) = f.context().type_name(ty).map(str::to_string) {
         return write!(f, [copied_text(&name)]);
     }
 
@@ -84,11 +84,8 @@ pub(crate) fn format_type_id<'a>(ty: TypeId, f: &mut MirFormatter<'a, '_>) -> Fo
 }
 
 /// Format a block id by canonical MIR name.
-pub(crate) fn format_block_id<'a>(
-    block: BlockId,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    let name = f.context().block_name(block);
+pub(crate) fn format_block_id<'a>(block: BlockId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    let name = f.context().block_name(block)?.to_string();
 
     write!(f, [copied_text(&name)])
 }
@@ -96,19 +93,16 @@ pub(crate) fn format_block_id<'a>(
 /// Format a function id by canonical MIR name.
 pub(crate) fn format_function_id<'a>(
     function: FunctionId,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
-    let name = f.context().function_name(function).to_string();
+    let name = f.context().function_name(function)?.to_string();
 
     write!(f, [copied_text(&name)])
 }
 
 /// Format a global id by canonical MIR name.
-pub(crate) fn format_global_id<'a>(
-    global: GlobalId,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    let name = f.context().global_name(global).to_string();
+pub(crate) fn format_global_id<'a>(global: GlobalId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    let name = f.context().global_name(global)?.to_string();
 
     write!(f, [copied_text(&name)])
 }
@@ -117,7 +111,7 @@ pub(crate) fn format_global_id<'a>(
 pub(super) fn format_constant_for_type<'a>(
     constant: &Constant,
     ty: LocalNodeId<Type>,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let ty = constant_storage_type(ty, f);
     let expected = f.context().tree.get(ty);
@@ -167,10 +161,7 @@ pub(super) fn format_constant_for_type<'a>(
 }
 
 /// Return the storage type used to format one typed constant.
-fn constant_storage_type<'a>(
-    ty: LocalNodeId<Type>,
-    f: &mut MirFormatter<'a, '_>,
-) -> LocalNodeId<Type> {
+fn constant_storage_type<'a>(ty: LocalNodeId<Type>, f: &mut Writer<'a, '_>) -> LocalNodeId<Type> {
     let expected = f.context().tree.get(ty);
     if let Type::Newtype { inner, .. } = expected {
         *inner
@@ -180,10 +171,10 @@ fn constant_storage_type<'a>(
 }
 
 /// Format one MIR place origin.
-fn format_place_origin<'a>(origin: &PlaceOrigin, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+fn format_place_origin<'a>(origin: &PlaceOrigin, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match origin {
         PlaceOrigin::Local(local) => {
-            let index = f.context().local_index(*local);
+            let index = f.context().local_index(*local)?;
             write!(f, [copied_text(&format!("l{index}"))])
         }
         PlaceOrigin::Global(global) => global.format(f),
@@ -194,7 +185,7 @@ fn format_place_origin<'a>(origin: &PlaceOrigin, f: &mut MirFormatter<'a, '_>) -
 /// Format one MIR place projection.
 fn format_place_projection<'a>(
     projection: &Projection,
-    f: &mut MirFormatter<'a, '_>,
+    f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     match projection {
         Projection::Field { index } => write!(
