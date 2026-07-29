@@ -17,4 +17,4 @@ pub use warning::*;
 
 use declare::*;
 use function::*;
-pub(crate) use r#type::*;
+pub use r#type::*;

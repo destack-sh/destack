@@ -599,8 +599,20 @@ impl<'a> FunctionEmitter<'a> {
             | mir::Instruction::AtomicRmw { .. }
             | mir::Instruction::AtomicFence { .. } => Err(self.unsupported("atomic operation")),
             mir::Instruction::Assume { .. } => Err(self.unsupported("assumption")),
-            mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileSample { .. } => {
-                Err(self.unsupported("profile operation"))
+            mir::Instruction::ProfileIncrement { counter } => {
+                let mut instruction =
+                    bytecode::InstructionBuilder::new(bytecode::Opcode::PROFILE_INCREMENT);
+                instruction.counter(bytecode::CounterId(counter.0));
+
+                self.encode(instruction, &[])
+            }
+            mir::Instruction::ProfileSample { sampler, value } => {
+                let mut instruction =
+                    bytecode::InstructionBuilder::new(bytecode::Opcode::PROFILE_SAMPLE);
+                instruction.sampler(bytecode::SamplerId(sampler.0));
+                instruction.register(self.word(*value)?);
+
+                self.encode(instruction, &[])
             }
             mir::Instruction::Intrinsic { .. } => Err(self.unsupported("machine intrinsic")),
         }

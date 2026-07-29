@@ -1,11 +1,14 @@
+use std::fmt;
+
 use destack_core::{FxIndexSet, StringId};
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, LowerError};
 
-/// Target layout construction for one module.
-pub(crate) struct LayoutBuilder<'tree> {
+/// Target layout construction for one MIR module.
+#[derive(Debug)]
+pub struct LayoutBuilder<'tree> {
     /// The module anchoring layout diagnostics.
     module: ModuleId,
     /// The tree whose types are laid out.
@@ -18,7 +21,57 @@ pub(crate) struct LayoutBuilder<'tree> {
     computing: FxIndexSet<mir::LocalNodeId<mir::Type>>,
 }
 
-/// Types requiring layouts that are reachable from runtime roots.
+/// Failure to construct one physical MIR layout.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LayoutError {
+    /// One MIR type has no supported physical representation.
+    Unsupported {
+        /// Module containing the unsupported type.
+        module: ModuleId,
+        /// Unsupported representation.
+        construct: String,
+    },
+    /// One variant case carries a non-scalar discriminant.
+    InvalidDiscriminant {
+        /// Invalid discriminant representation.
+        constant: String,
+    },
+    /// One value type contains itself without indirection.
+    Recursive {
+        /// Recursive MIR type.
+        ty: mir::LocalNodeId<mir::Type>,
+    },
+}
+
+impl fmt::Display for LayoutError {
+    /// Format one physical layout failure.
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unsupported { construct, .. } => {
+                write!(
+                    formatter,
+                    "unsupported physical representation: {construct}"
+                )
+            }
+            Self::InvalidDiscriminant { constant } => {
+                write!(
+                    formatter,
+                    "variant case has a non-scalar discriminant: {constant}"
+                )
+            }
+            Self::Recursive { ty } => {
+                write!(
+                    formatter,
+                    "type {ty:?} is value-recursive without indirection"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for LayoutError {}
+
+/// MIR types reachable from runtime roots.
 struct ReachableTypeCollector {
     /// The visitor options.
     options: mir::NodeVisitorOptions,
@@ -57,8 +110,8 @@ impl mir::NodeVisitor for ReachableTypeCollector {
 }
 
 impl<'tree> LayoutBuilder<'tree> {
-    /// Create layout construction over one tree and table.
-    pub(crate) fn new(
+    /// Create layout construction over one MIR tree and table.
+    pub fn new(
         module: ModuleId,
         tree: &'tree mut mir::Tree,
         layouts: &'tree mut mir::LayoutTable,
@@ -73,8 +126,8 @@ impl<'tree> LayoutBuilder<'tree> {
         }
     }
 
-    /// Compute every value layout reachable from runtime roots.
-    pub(crate) fn layout_reachable_types(&mut self) -> CompilerResult<()> {
+    /// Compute every value layout reachable from runtime MIR roots.
+    pub fn layout_reachable_types(&mut self) -> Result<(), LayoutError> {
         // traverse named representations
         let mut reachable = ReachableTypeCollector::new();
         for (id, declaration) in self.tree.iter_nodes::<mir::TypeDeclaration>() {
@@ -98,8 +151,11 @@ impl<'tree> LayoutBuilder<'tree> {
         Ok(())
     }
 
-    /// Compute a layout when one reachable type has a value representation.
-    fn layout_reachable_type(&mut self, ty: mir::LocalNodeId<mir::Type>) -> CompilerResult<()> {
+    /// Compute a layout when one reachable MIR type has a value representation.
+    fn layout_reachable_type(
+        &mut self,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Result<(), LayoutError> {
         match self.tree.get(ty) {
             // skip types without runtime representations
             mir::Type::Error | mir::Type::Never | mir::Type::FunctionSignature { .. } => Ok(()),
@@ -144,7 +200,7 @@ impl<'tree> LayoutBuilder<'tree> {
     pub(crate) fn layout_type(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::LayoutId> {
+    ) -> Result<mir::LayoutId, LayoutError> {
         // reuse the layout already computed for this type
         if let Some(id) = self.layouts.types.get(&ty) {
             return Ok(*id);
@@ -167,9 +223,7 @@ impl<'tree> LayoutBuilder<'tree> {
 
         // reject value cycles
         if !self.computing.insert(ty) {
-            return Err(CompilerError::Internal {
-                message: "a value-recursive type without indirection".to_string(),
-            });
+            return Err(LayoutError::Recursive { ty });
         }
         let layout = self.compute_type(ty);
         self.computing.swap_remove(&ty);
@@ -180,8 +234,11 @@ impl<'tree> LayoutBuilder<'tree> {
         Ok(id)
     }
 
-    /// Compute the layout of one type against the target.
-    fn compute_type(&mut self, ty: mir::LocalNodeId<mir::Type>) -> CompilerResult<mir::Layout> {
+    /// Compute the layout of one MIR type against the target.
+    fn compute_type(
+        &mut self,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Result<mir::Layout, LayoutError> {
         match self.tree.get(ty).clone() {
             // scalars occupy their natural width
             mir::Type::Void => Ok(mir::Layout {
@@ -435,7 +492,7 @@ impl<'tree> LayoutBuilder<'tree> {
     fn pack_fields(
         &mut self,
         components: &[(Option<StringId>, mir::LocalNodeId<mir::Type>)],
-    ) -> CompilerResult<(Vec<mir::LayoutField>, u32, u32, mir::TraceMap)> {
+    ) -> Result<(Vec<mir::LayoutField>, u32, u32, mir::TraceMap), LayoutError> {
         // compute each field's own layout in declaration order
         let mut computed = Vec::with_capacity(components.len());
         for (index, (name, ty)) in components.iter().enumerate() {
@@ -575,12 +632,23 @@ impl<'tree> LayoutBuilder<'tree> {
     }
 
     /// Return one unsupported physical representation diagnostic.
-    fn unsupported(&self, construct: &str) -> CompilerError {
-        LowerError::Unsupported {
-            anchor: self.module.into(),
+    fn unsupported(&self, construct: &str) -> LayoutError {
+        LayoutError::Unsupported {
+            module: self.module,
             construct: format!("a layout for this {construct}"),
         }
-        .into()
+    }
+
+    /// Return the logical discriminant bits sealed on one variant case.
+    fn case_discriminant(case: &mir::VariantCase) -> Result<mir::Discriminant, LayoutError> {
+        match &case.discriminant {
+            mir::Constant::Int { value, .. } => Ok(mir::Discriminant::from_bits(*value as u128)),
+            mir::Constant::UInt { value, .. } => Ok(mir::Discriminant::from_bits(*value)),
+            mir::Constant::Boolean { value } => Ok(mir::Discriminant::from_bits(*value as u128)),
+            other => Err(LayoutError::InvalidDiscriminant {
+                constant: format!("{other:?}"),
+            }),
+        }
     }
 
     /// Compute one variant's layout with a direct discriminant encoding.
@@ -589,8 +657,8 @@ impl<'tree> LayoutBuilder<'tree> {
         discriminant: mir::LocalNodeId<mir::Type>,
         storage: mir::LocalNodeId<mir::Type>,
         cases: &[mir::VariantCase],
-    ) -> CompilerResult<mir::Layout> {
-        // size the shared storage by the widest case payload
+    ) -> Result<mir::Layout, LayoutError> {
+        // the widest case payload sizes the shared storage
         let mut payload_size = 0u32;
         let mut payload_alignment = 1u32;
         for case in cases {
@@ -617,12 +685,12 @@ impl<'tree> LayoutBuilder<'tree> {
             .iter()
             .map(|case| {
                 Ok(mir::VariantCaseLayout {
-                    discriminant: case_discriminant(case)?,
+                    discriminant: Self::case_discriminant(case)?,
                     ty: case.ty,
                     payload_offset,
                 })
             })
-            .collect::<CompilerResult<Vec<_>>>()?;
+            .collect::<Result<Vec<_>, LayoutError>>()?;
 
         let encoding = mir::VariantEncoding::Direct {
             field: mir::DiscriminantField {
@@ -653,8 +721,8 @@ impl<'tree> LayoutBuilder<'tree> {
         discriminant: mir::LocalNodeId<mir::Type>,
         storage: mir::LocalNodeId<mir::Type>,
         cases: &[mir::VariantCase],
-    ) -> CompilerResult<Option<mir::Layout>> {
-        // require exactly one payload case
+    ) -> Result<Option<mir::Layout>, LayoutError> {
+        // exactly one case may carry a payload; the others ride its spare values
         let mut untagged = None;
         for (index, case) in cases.iter().enumerate() {
             if matches!(self.tree.get(case.ty), mir::Type::Void) {
@@ -695,12 +763,12 @@ impl<'tree> LayoutBuilder<'tree> {
             .iter()
             .map(|case| {
                 Ok(mir::VariantCaseLayout {
-                    discriminant: case_discriminant(case)?,
+                    discriminant: Self::case_discriminant(case)?,
                     ty: case.ty,
                     payload_offset: 0,
                 })
             })
-            .collect::<CompilerResult<Vec<_>>>()?;
+            .collect::<Result<Vec<_>, LayoutError>>()?;
 
         let payload_layout = self.layout_type(payload)?;
         let payload_layout = self.layouts.entries[payload_layout.index()].clone();
@@ -737,7 +805,7 @@ impl<'tree> LayoutBuilder<'tree> {
         &mut self,
         encoding: mir::VariantEncoding,
         cases: &[mir::VariantCaseLayout],
-    ) -> CompilerResult<mir::TraceMap> {
+    ) -> Result<mir::TraceMap, LayoutError> {
         let mut traces = Vec::with_capacity(cases.len());
 
         // retain each case map at its selected payload offset
@@ -763,14 +831,21 @@ impl<'tree> LayoutBuilder<'tree> {
     }
 }
 
-/// Return the logical discriminant bits of one variant case.
-fn case_discriminant(case: &mir::VariantCase) -> CompilerResult<mir::Discriminant> {
-    match &case.discriminant {
-        mir::Constant::Int { value, .. } => Ok(mir::Discriminant::from_bits(*value as u128)),
-        mir::Constant::UInt { value, .. } => Ok(mir::Discriminant::from_bits(*value)),
-        mir::Constant::Boolean { value } => Ok(mir::Discriminant::from_bits(*value as u128)),
-        other => Err(CompilerError::Internal {
-            message: format!("a variant case with the non-scalar tag {other:?}"),
-        }),
+impl From<LayoutError> for CompilerError {
+    /// Convert physical layout failure into lower phase control flow.
+    fn from(error: LayoutError) -> Self {
+        match error {
+            LayoutError::Unsupported { module, construct } => LowerError::Unsupported {
+                anchor: module.into(),
+                construct,
+            }
+            .into(),
+            LayoutError::InvalidDiscriminant { constant } => Self::Internal {
+                message: format!("variant case sealed a non-scalar tag {constant}"),
+            },
+            LayoutError::Recursive { ty } => Self::Internal {
+                message: format!("type {ty:?} is value-recursive without indirection"),
+            },
+        }
     }
 }
