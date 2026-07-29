@@ -48,6 +48,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
+
     /// Return the concrete type carrying one literal node's value.
     fn literal_carrier(
         &mut self,

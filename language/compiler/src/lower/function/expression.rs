@@ -531,18 +531,22 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
                 let symbol = self.lowerer.resolved_symbol(node)?;
-                let Some(binding) = self.values.get(&symbol.local_id).copied() else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a module or captured binding".to_string(),
-                    }
-                    .into());
-                };
+                match self.values.get(&symbol.local_id).copied() {
+                    Some(Binding::Value(value)) => Ok(value),
+                    Some(Binding::Local(local)) => Ok(self.builder.local_get(local)),
+                    // load module constants through their globals
+                    None => {
+                        let Some(global) = self.module_constant_global(symbol)? else {
+                            return Err(LowerError::Unsupported {
+                                anchor: self.lowerer.module.into(),
+                                construct: "a module or captured binding".to_string(),
+                            }
+                            .into());
+                        };
 
-                Ok(match binding {
-                    Binding::Value(value) => value,
-                    Binding::Local(local) => self.builder.local_get(local),
-                })
+                        Ok(self.builder.load_global(global))
+                    }
+                }
             }
 
             // 1
@@ -718,4 +722,5 @@ impl FunctionLowerer<'_, '_, '_> {
             .into()),
         }
     }
+
 }

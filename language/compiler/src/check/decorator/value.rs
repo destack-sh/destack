@@ -240,7 +240,7 @@ impl CheckState<'_> {
     }
 
     /// Evaluate one expression into a static value.
-    fn evaluate_static_expression(
+    pub(in crate::check) fn evaluate_static_expression(
         &mut self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,

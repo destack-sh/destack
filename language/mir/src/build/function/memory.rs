@@ -91,6 +91,18 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Declare an external global from inside a function body.
+    pub fn external_global(
+        &mut self,
+        name: &str,
+        ty: LocalNodeId<Type>,
+        mutability: Mutability,
+    ) -> LocalNodeId<Global> {
+        let name_id = self.strings.intern(name);
+
+        self.tree.insert(Global::import(name_id, ty, mutability))
+    }
+
     /// Load one global value through its address.
     pub fn load_global(&mut self, global: LocalNodeId<Global>) -> Value {
         let global_ty = self.tree.get(global).ty;

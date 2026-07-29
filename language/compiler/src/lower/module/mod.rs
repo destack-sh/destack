@@ -1,3 +1,4 @@
+mod constant;
 mod declaration;
 mod decorator;
 mod foreign;

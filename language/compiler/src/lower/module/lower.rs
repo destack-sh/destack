@@ -22,6 +22,10 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(in crate::lower) functions: FxIndexMap<GenericInstanceKey, mir::FunctionId>,
     /// The state of each nominal representation being lowered or already lowered.
     pub(in crate::lower) nominals: FxIndexMap<GenericInstanceKey, NominalState>,
+    /// The declaring symbol behind each loaded language item, scanned lazily.
+    pub(in crate::lower) language_items: FxIndexMap<dir::LanguageItem, dir::GlobalSymbolId>,
+    /// The MIR global declared for each module constant.
+    pub(in crate::lower) globals: FxIndexMap<dir::GlobalSymbolId, mir::LocalNodeId<mir::Global>>,
 }
 
 impl<'a> ModuleLowerer<'a> {
@@ -37,6 +41,8 @@ impl<'a> ModuleLowerer<'a> {
             modules,
             functions: FxIndexMap::default(),
             nominals: FxIndexMap::default(),
+            language_items: FxIndexMap::default(),
+            globals: FxIndexMap::default(),
         }
     }
 
@@ -62,6 +68,21 @@ impl<'a> ModuleLowerer<'a> {
                 dir::Expression::Declaration(declaration) => declaration,
                 // imports and exports carry no runtime code
                 dir::Expression::Import { .. } | dir::Expression::Export { .. } => continue,
+                // module constants declare their evaluated globals
+                dir::Expression::Let {
+                    mutability,
+                    ref declarators,
+                    ..
+                } => {
+                    let declarators = declarators.clone();
+                    match self.declare_module_constants(&mut builder, mutability, &declarators) {
+                        Ok(()) => {}
+                        Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+                        Err(error) => return Err(error),
+                    }
+
+                    continue;
+                }
                 ref other => {
                     let error = LowerError::Unsupported {
                         anchor: self.module.into(),
@@ -139,4 +160,5 @@ impl<'a> ModuleLowerer<'a> {
 
         Ok((lowered, errors))
     }
+
 }

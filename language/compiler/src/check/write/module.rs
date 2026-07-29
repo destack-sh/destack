@@ -42,6 +42,19 @@ impl CheckState<'_> {
                 .set_symbol_static(symbol, id.into_global(module));
         }
 
+        // store evaluable module constants beside the literal statics
+        let constants = self.static_module_constants(module)?;
+        let state = self.module_mut(module);
+        for (symbol, term) in constants {
+            if state.statics.get_symbol_static_id(symbol).is_some() {
+                continue;
+            }
+            let id = state.statics.push_static(term);
+            state
+                .statics
+                .set_symbol_static(symbol, id.into_global(module));
+        }
+
         // write closure capture frames and bindings
         self.write_captures(module)?;
 
@@ -525,6 +538,7 @@ impl CheckState<'_> {
 
         Ok(result)
     }
+
     /// Resolve one complete set of embedded type ids for source rendering.
     pub(in crate::check) fn resolve_type_ids(
         &mut self,
@@ -539,5 +553,52 @@ impl CheckState<'_> {
         }
 
         Ok(replacements)
+    }
+
+    /// Evaluate module-level const initializers into static values.
+    ///
+    /// Initializers that stay runtime store no value.
+    fn static_module_constants(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::StaticTerm)>> {
+        let input = self.module(module);
+        let parsed = input.parsed.clone();
+        let expanded = input.expanded.clone();
+        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+
+        // collect the constant declarator bindings first
+        let mut bindings = Vec::new();
+        for root in &expanded.roots {
+            let dir::Expression::Let {
+                mutability: dir::Mutability::Immutable,
+                ref declarators,
+                ..
+            } = *tree.get(*root)
+            else {
+                continue;
+            };
+            for declarator in declarators {
+                let declarator = tree.get(*declarator);
+                let Some(value) = declarator.value else {
+                    continue;
+                };
+                let pattern = declarator.pattern.into_any();
+                let Some(symbol) = self.module(module).declaration_symbol(pattern) else {
+                    continue;
+                };
+                bindings.push((symbol, value));
+            }
+        }
+
+        // evaluate each initializer, keeping only the static ones
+        let mut constants = Vec::new();
+        for (symbol, value) in bindings {
+            if let Ok(term) = self.evaluate_static_expression(module, value)? {
+                constants.push((symbol, term));
+            }
+        }
+
+        Ok(constants)
     }
 }
