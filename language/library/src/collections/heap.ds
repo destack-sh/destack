@@ -1,7 +1,7 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Default } from "destack:memory";
+import { Borrowed, Copy, Default } from "destack:memory";
 import { Compare } from "destack:ops";
 
 import { Array } from "./array.ds";
@@ -9,7 +9,35 @@ import { Array } from "./array.ds";
 /// A binary max-heap.
 export struct BinaryHeap<T> {
     /// The heap storage.
-    storage: T[];
+    private storage: T[];
+}
+
+export extension<T: Compare<T>> of BinaryHeap<T> implements Iterable<T> {
+    /// Consume this heap into owned values.
+    iterator(this): Iterator<T> {
+        todo("BinaryHeap.iterator")
+    }
+}
+
+export extension<T: Compare<T>> of BinaryHeap<T> where T: Copy {
+    /// Return the copied greatest element.
+    peek(&readonly this): T | undefined {
+        todo("BinaryHeap.peek")
+    }
+}
+
+export extension<T: Compare<T>, 'a> of Borrowed<BinaryHeap<T>, 'a, "readonly">
+    implements
+        Iterable<Borrowed<T, 'a, "readonly">> {
+    /// Borrow the greatest element.
+    peek(): Borrowed<T, 'a, "readonly"> | undefined {
+        todo("BinaryHeap.peek")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(): Iterator<Borrowed<T, 'a, "readonly">> {
+        todo("BinaryHeap.iterator")
+    }
 }
 
 export extension<T> of BinaryHeap<T> implements Default {
@@ -31,8 +59,6 @@ export extension<T> of BinaryHeap<T> implements Default {
 
 export extension<T: Compare<T>> of BinaryHeap<T>
     implements
-        Iterable<T>,
-        Iterable<&readonly T>,
         From<Iterable<T>>,
         FromIterator<T>,
         Extend<T, "exclusive"> {
@@ -59,11 +85,6 @@ export extension<T: Compare<T>> of BinaryHeap<T>
     /// Return whether this heap has no elements.
     get isEmpty(): boolean {
         this.storage.isEmpty
-    }
-
-    /// Borrow the greatest element with readonly access.
-    peek(&readonly this): &readonly T | undefined {
-        todo("BinaryHeap.peek")
     }
 
     /// Push `value`.
@@ -114,20 +135,5 @@ export extension<T: Compare<T>> of BinaryHeap<T>
     /// Convert this heap into a sorted array.
     intoSortedArray(this): ^Array<T> {
         todo("BinaryHeap.intoSortedArray")
-    }
-
-    /// Return an iterator over copied values.
-    iterator(): Iterator<T> {
-        todo("BinaryHeap.iterator")
-    }
-
-    /// Return an iterator over readonly borrowed values.
-    iterator(&readonly this): Iterator<&readonly T> {
-        todo("BinaryHeap.iterator")
-    }
-
-    /// Consume this heap into owned values.
-    iterator(this): Iterator<T> {
-        todo("BinaryHeap.iterator")
     }
 }

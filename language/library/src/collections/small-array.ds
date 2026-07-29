@@ -25,6 +25,18 @@ export struct SmallArray<T, comptime N: number> {
     private spillCapacity: usize = 0;
 }
 
+export extension<T: Copy, comptime N: number> of SmallArray<T, N> {
+    /// Return the first element by value.
+    first(&readonly this): T | undefined {
+        todo("SmallArray.first")
+    }
+
+    /// Return the last element by value.
+    last(&readonly this): T | undefined {
+        todo("SmallArray.last")
+    }
+}
+
 export extension<T, comptime N: number> of SmallArray<T, N> implements Iterable<T>, Sequence {
     /// The owned sequence produced by a rest pattern.
     type Rest = ^Array<T>;
@@ -35,19 +47,20 @@ export extension<T, comptime N: number> of SmallArray<T, N> implements Iterable<
     }
 
     /// Move the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^Array<T> {
+    rest(this, start: usize, end?: usize): ^Array<T> {
         todo("SmallArray.rest")
     }
 
     /// Consume this small array into owned values.
-    iterator(): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("SmallArray.iterator")
     }
 }
 
-export extension BorrowedSmallArray<T, comptime N: number, 'a, comptime A: Access> of
-    Borrowed<SmallArray<T, N>, 'a, A>
-    implements Iterable<Borrowed<T, 'a, A>>, Sequence {
+export extension<T, comptime N: number, 'a, comptime A: Access> of Borrowed<SmallArray<T, N>, 'a, A>
+    implements
+        Iterable<Borrowed<T, 'a, A>>,
+        Sequence {
     /// The borrowed sequence produced by a rest pattern.
     type Rest = ^Array<Borrowed<T, 'a, A>>;
 
@@ -64,6 +77,16 @@ export extension BorrowedSmallArray<T, comptime N: number, 'a, comptime A: Acces
     /// Return an iterator over borrowed values.
     iterator(): Iterator<Borrowed<T, 'a, A>> {
         todo("SmallArray.iterator")
+    }
+
+    /// Borrow the first element.
+    first(): Borrowed<T, 'a, A> | undefined {
+        todo("SmallArray.first")
+    }
+
+    /// Borrow the last element.
+    last(): Borrowed<T, 'a, A> | undefined {
+        todo("SmallArray.last")
     }
 }
 
@@ -172,30 +195,6 @@ export extension<T, comptime N: number> of SmallArray<T, N>
         todo("SmallArray.indexSet");
     }
 
-    /// Return the first element by value.
-    first(): T | undefined {
-        todo("SmallArray.first")
-    }
-
-    /// Borrow the first element.
-    first<comptime A: Access = "readonly">(
-        this: WithAccess<&SmallArray<T, N>, A>,
-    ): WithAccess<&T, A> | undefined {
-        todo("SmallArray.first")
-    }
-
-    /// Return the last element by value.
-    last(): T | undefined {
-        todo("SmallArray.last")
-    }
-
-    /// Borrow the last element.
-    last<comptime A: Access = "readonly">(
-        this: WithAccess<&SmallArray<T, N>, A>,
-    ): WithAccess<&T, A> | undefined {
-        todo("SmallArray.last")
-    }
-
     /// Append `value`.
     push(&exclusive this, value: T): void {
         todo("SmallArray.push");
@@ -265,7 +264,7 @@ export extension<T, comptime N: number> of SmallArray<T, N>
     }
 
     /// Move the selected range into a new small array.
-    slice(start?: usize, end?: usize): SmallArray<T, N> {
+    slice(this, start?: usize, end?: usize): SmallArray<T, N> {
         todo("SmallArray.slice")
     }
 
@@ -302,16 +301,16 @@ export extension<T, comptime N: number, R: RangeBounds<usize>, comptime A: Acces
     type Output = [T];
 
     /// Return the normalized start and length for `range`.
-    rangeSpan(&readonly this, range: R): (usize, usize) {
+    rangeSpan(&readonly this, range: &readonly R): (usize, usize) {
         let start = match (range.startBound()) {
-            Bound.Included { value } => value
-            Bound.Excluded { value } => value + 1
+            Bound.Included { value } => *value
+            Bound.Excluded { value } => *value + 1
             Bound.Unbounded => 0
         };
 
         let end = match (range.endBound()) {
-            Bound.Included { value } => value + 1
-            Bound.Excluded { value } => value
+            Bound.Included { value } => *value + 1
+            Bound.Excluded { value } => *value
             Bound.Unbounded => this.size
         };
 

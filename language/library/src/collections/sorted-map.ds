@@ -1,7 +1,7 @@
 import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Default, MaybeUninit, WithAccess } from "destack:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit, WithAccess } from "destack:memory";
 import { Compare, Index, IndexSet } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
@@ -55,16 +55,107 @@ struct SortedMapNode<K, V> {
 /// A compact sorted map.
 export class SortedMap<K, V> {
     /// The root node key.
-    root: SortedMapNodeKey | undefined = undefined;
+    private root: SortedMapNodeKey | undefined = undefined;
 
     /// The node storage.
-    nodes: Array<SortedMapNode<K, V>> = Array.new();
+    private nodes: Array<SortedMapNode<K, V>> = Array.new();
 
     /// The first free node key.
-    firstFree: SortedMapNodeKey | undefined = undefined;
+    private firstFree: SortedMapNodeKey | undefined = undefined;
 
     /// The number of live entries.
-    count: usize = 0;
+    private count: usize = 0;
+}
+
+export extension<K: Compare<K>, V> of ^SortedMap<K, V> implements Iterable<(K, V)> {
+    /// Consume this map into owned entries.
+    iterator(): Iterator<(K, V)> {
+        todo("SortedMap.iterator")
+    }
+}
+
+export extension<K: Compare<K>, V> of SortedMap<K, V> implements Iterable<(K, V)>
+    where K: Copy, V: Copy {
+    /// Return an iterator over copied entries.
+    iterator(): Iterator<(K, V)> {
+        todo("SortedMap.iterator")
+    }
+
+    /// Return copied entries in key order.
+    entries(): Iterator<(K, V)> {
+        todo("SortedMap.entries")
+    }
+}
+
+export extension<K: Compare<K>, V> of SortedMap<K, V> where K: Copy {
+    /// Return copied keys in key order.
+    keys(): Iterator<K> {
+        todo("SortedMap.keys")
+    }
+}
+
+export extension<K: Compare<K>, V> of SortedMap<K, V> where V: Copy {
+    /// Return copied values in key order.
+    values(): Iterator<V> {
+        todo("SortedMap.values")
+    }
+
+    /// Return a copied value by key.
+    get<Q: Compare<Q>>(key: &readonly Q): V | undefined where K: Borrow<Q> {
+        todo("SortedMap.get")
+    }
+}
+
+export extension<K: Compare<K>, V, 'a, comptime A: Access> of Borrowed<SortedMap<K, V>, 'a, A>
+    implements
+        Iterable<SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> {
+    /// Return an iterator over borrowed entries.
+    iterator(): Iterator<SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> {
+        todo("SortedMap.iterator")
+    }
+
+    /// Return borrowed keys in key order.
+    keys(): Iterator<Borrowed<K, 'a, "readonly">> {
+        todo("SortedMap.keys")
+    }
+
+    /// Return borrowed values in key order.
+    values(): Iterator<Borrowed<V, 'a, A>> {
+        todo("SortedMap.values")
+    }
+
+    /// Borrow a value by key.
+    get<Q: Compare<Q>>(key: &readonly Q): Borrowed<V, 'a, A> | undefined where K: Borrow<Q> {
+        todo("SortedMap.get")
+    }
+
+    /// Return whether `key` exists.
+    has<Q: Compare<Q>>(key: &readonly Q): boolean where K: Borrow<Q> {
+        todo("SortedMap.has")
+    }
+
+    /// Borrow the first entry.
+    firstEntry(): SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>> | undefined {
+        todo("SortedMap.firstEntry")
+    }
+
+    /// Borrow the last entry.
+    lastEntry(): SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>> | undefined {
+        todo("SortedMap.lastEntry")
+    }
+
+    /// Return borrowed entries in key order.
+    entries(): Iterator<SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> {
+        todo("SortedMap.entries")
+    }
+
+    /// Return borrowed entries in `range`.
+    range<Q: Compare<Q>, R: RangeBounds<Q>>(
+        range: R,
+    ): Iterator<SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>>
+        where K: Borrow<Q> {
+        todo("SortedMap.range")
+    }
 }
 
 export extension<'a, K: Compare<K>, V> of SortedMapEntryHandle<'a, K, V> {
@@ -79,22 +170,22 @@ export extension<'a, K: Compare<K>, V> of SortedMapEntryHandle<'a, K, V> {
     }
 
     /// Borrow the current value.
-    get(&this): &V | undefined {
+    get(&exclusive this): &exclusive V | undefined {
         todo("SortedMapEntryHandle.get")
     }
 
     /// Insert `value` when this handle is vacant.
-    orInsert(&exclusive this, value: V): &V {
+    orInsert(&exclusive this, value: V): &exclusive V {
         todo("SortedMapEntryHandle.orInsert")
     }
 
     /// Insert a value produced by `makeValue` when this handle is vacant.
-    orInsertWith(&exclusive this, makeValue: () => V): &V {
+    orInsertWith(&exclusive this, makeValue: () => V): &exclusive V {
         todo("SortedMapEntryHandle.orInsertWith")
     }
 
     /// Insert or replace the value.
-    set(&exclusive this, value: V): &V {
+    set(&exclusive this, value: V): &exclusive V {
         todo("SortedMapEntryHandle.set")
     }
 
@@ -125,10 +216,6 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     implements
         Index<K>,
         IndexSet<K, V>,
-        Iterable<(K, V)>,
-        Iterable<SortedMapEntry<&readonly K, &V>>,
-        Iterable<SortedMapEntry<&readonly K, &readonly V>>,
-        Iterable<SortedMapEntry<&readonly K, &exclusive V>>,
         Extend<(K, V), "exclusive"> {
     /// The indexed output type.
     type Output = V;
@@ -154,19 +241,6 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     /// Return whether this map has no entries.
     get isEmpty(): boolean {
         this.count == 0
-    }
-
-    /// Return a value by key.
-    get<Q: Compare<Q>>(key: &readonly Q): V | undefined where K: Borrow<Q> {
-        todo("SortedMap.get")
-    }
-
-    /// Borrow a value by key.
-    get<Q: Compare<Q>, comptime A: Access = "readonly">(
-        this: WithAccess<&SortedMap<K, V>, A>,
-        key: &readonly Q,
-    ): WithAccess<&V, A> | undefined where K: Borrow<Q> {
-        todo("SortedMap.get")
     }
 
     /// Borrow a value by key through the index operator.
@@ -243,64 +317,6 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     /// Shrink node storage to fit the current entries.
     shrinkToFit(&exclusive this): void {
         todo("SortedMap.shrinkToFit");
-    }
-
-    /// Return all keys in key order.
-    keys(&readonly this): Iterator<&readonly K> {
-        todo("SortedMap.keys")
-    }
-
-    /// Return all borrowed values in key order.
-    values<comptime A: Access = "readonly">(
-        this: WithAccess<&SortedMap<K, V>, A>,
-    ): Iterator<WithAccess<&V, A>> {
-        todo("SortedMap.values")
-    }
-
-    /// Return the first entry.
-    firstEntry<comptime A: Access = "readonly">(
-        this: WithAccess<&SortedMap<K, V>, A>,
-    ): SortedMapEntry<&readonly K, WithAccess<&V, A>> | undefined {
-        todo("SortedMap.firstEntry")
-    }
-
-    /// Return the last entry.
-    lastEntry<comptime A: Access = "readonly">(
-        this: WithAccess<&SortedMap<K, V>, A>,
-    ): SortedMapEntry<&readonly K, WithAccess<&V, A>> | undefined {
-        todo("SortedMap.lastEntry")
-    }
-
-    /// Return entries in key order.
-    entries<comptime A: Access = "readonly">(
-        this: WithAccess<&SortedMap<K, V>, A>,
-    ): Iterator<SortedMapEntry<&readonly K, WithAccess<&V, A>>> {
-        todo("SortedMap.entries")
-    }
-
-    /// Return entries in `range`.
-    range<Q: Compare<Q>, R: RangeBounds<Q>, comptime A: Access = "readonly">(
-        this: WithAccess<&SortedMap<K, V>, A>,
-        range: R,
-    ): Iterator<SortedMapEntry<&readonly K, WithAccess<&V, A>>> where K: Borrow<Q> {
-        todo("SortedMap.range")
-    }
-
-    /// Return an iterator over copied entries.
-    iterator(): Iterator<(K, V)> {
-        todo("SortedMap.iterator")
-    }
-
-    /// Return an iterator over borrowed entries.
-    iterator<comptime A: Access = "readonly">(
-        this: WithAccess<&SortedMap<K, V>, A>,
-    ): Iterator<SortedMapEntry<&readonly K, WithAccess<&V, A>>> {
-        todo("SortedMap.iterator")
-    }
-
-    /// Consume this map into owned entries.
-    iterator(^this): Iterator<(K, V)> {
-        todo("SortedMap.iterator")
     }
 }
 

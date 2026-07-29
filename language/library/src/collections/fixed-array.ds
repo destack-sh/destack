@@ -12,6 +12,18 @@ import { Sequence } from "./sequence.ds";
 @languageItem("collections.FixedArray")
 export type FixedArray<T, comptime N: number> = [T; N];
 
+export extension<T: Copy, comptime N: number> of FixedArray<T, N> {
+    /// Return the first element by value.
+    first(&readonly this): T | undefined {
+        todo("FixedArray.first")
+    }
+
+    /// Return the last element by value.
+    last(&readonly this): T | undefined {
+        todo("FixedArray.last")
+    }
+}
+
 export extension<T, comptime N: number> of FixedArray<T, N>
     implements
         Sequence,
@@ -49,7 +61,7 @@ export extension<T, comptime N: number> of FixedArray<T, N>
     }
 
     /// Move the elements from `start..end` for a rest pattern.
-    rest(start: usize, end?: usize): ^Array<T> {
+    rest(this, start: usize, end?: usize): ^Array<T> {
         todo("FixedArray.rest")
     }
 
@@ -66,39 +78,16 @@ export extension<T, comptime N: number> of FixedArray<T, N>
         todo("FixedArray.indexSet");
     }
 
-    /// Return the first element by value.
-    first(): T | undefined {
-        todo("FixedArray.first")
-    }
-
-    /// Borrow the first element.
-    first<comptime A: Access = "readonly">(
-        this: WithAccess<&[T; N], A>,
-    ): WithAccess<&T, A> | undefined {
-        todo("FixedArray.first")
-    }
-
-    /// Return the last element by value.
-    last(): T | undefined {
-        todo("FixedArray.last")
-    }
-
-    /// Borrow the last element.
-    last<comptime A: Access = "readonly">(
-        this: WithAccess<&[T; N], A>,
-    ): WithAccess<&T, A> | undefined {
-        todo("FixedArray.last")
-    }
-
     /// Consume this fixed array into owned values.
-    iterator(): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("FixedArray.iterator")
     }
 }
 
-export extension BorrowedFixedArray<T, comptime N: number, 'a, comptime A: Access> of
-    Borrowed<FixedArray<T, N>, 'a, A>
-    implements Iterable<Borrowed<T, 'a, A>>, Sequence {
+export extension<T, comptime N: number, 'a, comptime A: Access> of Borrowed<FixedArray<T, N>, 'a, A>
+    implements
+        Iterable<Borrowed<T, 'a, A>>,
+        Sequence {
     /// The borrowed sequence produced by a rest pattern.
     type Rest = ^Array<Borrowed<T, 'a, A>>;
 
@@ -115,6 +104,16 @@ export extension BorrowedFixedArray<T, comptime N: number, 'a, comptime A: Acces
     /// Return an iterator over borrowed values.
     iterator(): Iterator<Borrowed<T, 'a, A>> {
         todo("FixedArray.iterator")
+    }
+
+    /// Borrow the first element.
+    first(): Borrowed<T, 'a, A> | undefined {
+        todo("FixedArray.first")
+    }
+
+    /// Borrow the last element.
+    last(): Borrowed<T, 'a, A> | undefined {
+        todo("FixedArray.last")
     }
 }
 

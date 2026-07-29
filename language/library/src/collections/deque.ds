@@ -1,22 +1,107 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
+
+import { Sequence } from "./sequence.ds";
 
 /// A compact double-ended queue.
 export class Deque<T> {
     /// The ring storage.
-    storage: Unique<[MaybeUninit<T>]> = Unique.empty();
+    private storage: Unique<[MaybeUninit<T>]> = Unique.empty();
 
     /// The first initialized slot.
-    start: usize = 0;
+    private start: usize = 0;
 
     /// The allocated element count.
-    capacity: usize = 0;
+    private capacity: usize = 0;
 
     /// The number of elements.
-    count: usize = 0;
+    private count: usize = 0;
+}
+
+export extension<T> of ^Deque<T> implements Iterable<T>, Sequence {
+    /// The owned sequence produced by a rest pattern.
+    type Rest = ^Deque<T>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        this.count
+    }
+
+    /// Move the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^Deque<T> {
+        todo("Deque.rest")
+    }
+
+    /// Consume this deque into owned values.
+    iterator(): Iterator<T> {
+        todo("Deque.iterator")
+    }
+}
+
+export extension<T: Copy> of Deque<T> implements Iterable<T>, Sequence {
+    /// The copied sequence produced by a rest pattern.
+    type Rest = ^Deque<T>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        this.count
+    }
+
+    /// Copy the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^Deque<T> {
+        todo("Deque.rest")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("Deque.iterator")
+    }
+
+    /// Return the copied front element.
+    front(): T | undefined {
+        todo("Deque.front")
+    }
+
+    /// Return the copied back element.
+    back(): T | undefined {
+        todo("Deque.back")
+    }
+}
+
+export extension<T, 'a, comptime A: Access> of Borrowed<Deque<T>, 'a, A>
+    implements
+        Iterable<Borrowed<T, 'a, A>>,
+        Sequence {
+    /// The borrowed sequence produced by a rest pattern.
+    type Rest = ^Deque<Borrowed<T, 'a, A>>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        this.count
+    }
+
+    /// Borrow the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^Deque<Borrowed<T, 'a, A>> {
+        todo("Deque.rest")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(): Iterator<Borrowed<T, 'a, A>> {
+        todo("Deque.iterator")
+    }
+
+    /// Borrow the front element.
+    front(): Borrowed<T, 'a, A> | undefined {
+        todo("Deque.front")
+    }
+
+    /// Borrow the back element.
+    back(): Borrowed<T, 'a, A> | undefined {
+        todo("Deque.back")
+    }
 }
 
 export extension<T> of Deque<T>
@@ -24,10 +109,6 @@ export extension<T> of Deque<T>
         Default,
         Index<usize>,
         IndexSet<usize, T>,
-        Iterable<T>,
-        Iterable<&T>,
-        Iterable<&readonly T>,
-        Iterable<&exclusive T>,
         Extend<T, "exclusive"> {
     /// The indexed output type.
     type Output = T;
@@ -110,27 +191,13 @@ export extension<T> of Deque<T>
         todo("Deque.popFront")
     }
 
-    /// Borrow the front element.
-    front<comptime A: Access = "readonly">(
-        this: WithAccess<&Deque<T>, A>,
-    ): WithAccess<&T, A> | undefined {
-        todo("Deque.front")
-    }
-
-    /// Borrow the back element.
-    back<comptime A: Access = "readonly">(
-        this: WithAccess<&Deque<T>, A>,
-    ): WithAccess<&T, A> | undefined {
-        todo("Deque.back")
-    }
-
     /// Remove all elements.
     clear(&exclusive this): void {
         todo("Deque.clear");
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &T, index: usize) => boolean): void {
+    retain(&exclusive this, predicate: (value: &readonly T, index: usize) => boolean): void {
         todo("Deque.retain");
     }
 
@@ -140,7 +207,10 @@ export extension<T> of Deque<T>
     }
 
     /// Remove elements accepted by `predicate` and return them.
-    extractIf(&exclusive this, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
+    extractIf(
+        &exclusive this,
+        predicate: (value: &readonly T, index: usize) => boolean,
+    ): Iterator<T> {
         todo("Deque.extractIf")
     }
 
@@ -152,23 +222,6 @@ export extension<T> of Deque<T>
     /// Shrink capacity to fit the current length.
     shrinkToFit(&exclusive this): void {
         todo("Deque.shrinkToFit");
-    }
-
-    /// Return an iterator over copied values.
-    iterator(): Iterator<T> {
-        todo("Deque.iterator")
-    }
-
-    /// Return an iterator over borrowed values.
-    iterator<comptime A: Access = "readonly">(
-        this: WithAccess<&Deque<T>, A>,
-    ): Iterator<WithAccess<&T, A>> {
-        todo("Deque.iterator")
-    }
-
-    /// Consume this deque into owned values.
-    iterator(^this): Iterator<T> {
-        todo("Deque.iterator")
     }
 }
 

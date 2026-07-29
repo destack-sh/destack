@@ -61,40 +61,6 @@ export extension<T> of Slice<T> implements From<Iterable<T>>, FromIterator<T>, D
         sliceSet<T>(this, index, value);
     }
 
-    /// Return the first element by value.
-    first(&readonly this): T | undefined where T: Copy {
-        if (this.size == 0) {
-            return undefined;
-        }
-
-        this[0]
-    }
-
-    /// Borrow the first element.
-    first<comptime A: Access = "readonly">(
-        this: WithAccess<&[T], A>,
-    ): WithAccess<&T, A> | undefined {
-        todo("Slice.first")
-    }
-
-    /// Return the last element by value.
-    last(&readonly this): T | undefined where T: Copy {
-        let length = this.size;
-
-        if (length == 0) {
-            return undefined;
-        }
-
-        this[length - 1]
-    }
-
-    /// Borrow the last element.
-    last<comptime A: Access = "readonly">(
-        this: WithAccess<&[T], A>,
-    ): WithAccess<&T, A> | undefined {
-        todo("Slice.last")
-    }
-
     /// Borrow a contiguous range as a view.
     subslice<comptime A: Access = "readonly">(
         this: WithAccess<&[T], A>,
@@ -171,9 +137,29 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
     iterator(): Iterator<T> {
         todo("Slice.iterator")
     }
+
+    /// Return the first element by value.
+    first(&readonly this): T | undefined {
+        if (this.size == 0) {
+            return undefined;
+        }
+
+        this[0]
+    }
+
+    /// Return the last element by value.
+    last(&readonly this): T | undefined {
+        let length = this.size;
+
+        if (length == 0) {
+            return undefined;
+        }
+
+        this[length - 1]
+    }
 }
 
-export extension BorrowedSlice<T, 'a, comptime A: Access> of Borrowed<Slice<T>, 'a, A>
+export extension<T, 'a, comptime A: Access> of Borrowed<Slice<T>, 'a, A>
     implements
         Iterable<Borrowed<T, 'a, A>>,
         Sequence {
@@ -193,6 +179,16 @@ export extension BorrowedSlice<T, 'a, comptime A: Access> of Borrowed<Slice<T>, 
     /// Return an iterator over borrowed values.
     iterator(): Iterator<Borrowed<T, 'a, A>> {
         todo("Slice.iterator")
+    }
+
+    /// Borrow the first element.
+    first(): Borrowed<T, 'a, A> | undefined {
+        todo("Slice.first")
+    }
+
+    /// Borrow the last element.
+    last(): Borrowed<T, 'a, A> | undefined {
+        todo("Slice.last")
     }
 }
 
@@ -230,16 +226,16 @@ export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly"> of S
     type Output = [T];
 
     /// Return the normalized start and length for `range`.
-    rangeSpan(&readonly this, range: R): (usize, usize) {
+    rangeSpan(&readonly this, range: &readonly R): (usize, usize) {
         let start = match (range.startBound()) {
-            Bound.Included { value } => value
-            Bound.Excluded { value } => value + 1
+            Bound.Included { value } => *value
+            Bound.Excluded { value } => *value + 1
             Bound.Unbounded => 0
         };
 
         let end = match (range.endBound()) {
-            Bound.Included { value } => value + 1
-            Bound.Excluded { value } => value
+            Bound.Included { value } => *value + 1
+            Bound.Excluded { value } => *value
             Bound.Unbounded => this.size
         };
 
@@ -252,7 +248,7 @@ export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly"> of S
 
     /// Borrow the selected range as a view.
     index(this: WithAccess<&[T], A>, range: R): WithAccess<&[T], A> {
-        let (start, length) = this.rangeSpan(range);
+        let (start, length) = this.rangeSpan(&readonly range);
 
         this.subslice(start, length)
     }

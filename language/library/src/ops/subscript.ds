@@ -2,7 +2,7 @@ import { Access, Borrowed, Lifetime } from "destack:memory";
 
 /// Interface for index access `a[i]`.
 ///
-/// `a[i]` becomes `a.index(i)`.
+/// `a[i]` projects the place returned by `a.index(i)`.
 ///
 /// The index type `I` can be any type (int, string, tuple, range, etc.).
 @languageItem("ops.Index")

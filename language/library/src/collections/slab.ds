@@ -1,7 +1,7 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Default, MaybeUninit, WithAccess } from "destack:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit, WithAccess } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 
 import { Array } from "./array.ds";
@@ -33,23 +33,67 @@ struct SlabSlot<T> {
 /// A generational slab with stable keys and reusable slots.
 export struct Slab<T> {
     /// The slot storage.
-    slots: Array<SlabSlot<T>>;
+    private slots: Array<SlabSlot<T>>;
 
     /// The first free slot index.
-    firstFree: uint32 | undefined = undefined;
+    private firstFree: uint32 | undefined = undefined;
 
     /// The number of live entries.
-    count: usize = 0;
+    private count: usize = 0;
+}
+
+export extension<T: Copy> of Slab<T> {
+    /// Return the copied value for `key`.
+    get(&readonly this, key: SlabKey): T | undefined {
+        todo("Slab.get")
+    }
+
+    /// Return copied live values.
+    values(&readonly this): Iterator<T> {
+        todo("Slab.values")
+    }
+
+    /// Return copied live entries.
+    entries(&readonly this): Iterator<(SlabKey, T)> {
+        todo("Slab.entries")
+    }
+}
+
+export extension<T> of Slab<T> implements Iterable<(SlabKey, T)> {
+    /// Consume this slab into owned entries.
+    iterator(this): Iterator<(SlabKey, T)> {
+        todo("Slab.iterator")
+    }
+}
+
+export extension<T, 'a, comptime A: Access> of Borrowed<Slab<T>, 'a, A>
+    implements
+        Iterable<(SlabKey, Borrowed<T, 'a, A>)> {
+    /// Borrow the value for `key`.
+    get(key: SlabKey): Borrowed<T, 'a, A> | undefined {
+        todo("Slab.get")
+    }
+
+    /// Return borrowed live values.
+    values(): Iterator<Borrowed<T, 'a, A>> {
+        todo("Slab.values")
+    }
+
+    /// Return borrowed live entries.
+    entries(): Iterator<(SlabKey, Borrowed<T, 'a, A>)> {
+        todo("Slab.entries")
+    }
+
+    /// Return an iterator over borrowed live entries.
+    iterator(): Iterator<(SlabKey, Borrowed<T, 'a, A>)> {
+        todo("Slab.iterator")
+    }
 }
 
 export extension<T> of Slab<T>
     implements
         Index<SlabKey>,
         IndexSet<SlabKey, T>,
-        Iterable<(SlabKey, T)>,
-        Iterable<&T>,
-        Iterable<&readonly T>,
-        Iterable<&exclusive T>,
         From<Iterable<T>>,
         FromIterator<T>,
         Extend<T, "exclusive">,
@@ -120,19 +164,6 @@ export extension<T> of Slab<T>
         todo("Slab.has")
     }
 
-    /// Return the value for `key` by value.
-    get(key: SlabKey): T | undefined {
-        todo("Slab.get")
-    }
-
-    /// Borrow the value for `key`.
-    get<comptime A: Access = "readonly">(
-        this: WithAccess<&Slab<T>, A>,
-        key: SlabKey,
-    ): WithAccess<&T, A> | undefined {
-        todo("Slab.get")
-    }
-
     /// Borrow the value for `key` through the index operator.
     index<comptime A: Access = "readonly">(
         this: WithAccess<&Slab<T>, A>,
@@ -187,36 +218,5 @@ export extension<T> of Slab<T>
     /// Return all live keys.
     keys(&readonly this): Iterator<SlabKey> {
         todo("Slab.keys")
-    }
-
-    /// Return all live borrowed values.
-    values<comptime A: Access = "readonly">(
-        this: WithAccess<&Slab<T>, A>,
-    ): Iterator<WithAccess<&T, A>> {
-        todo("Slab.values")
-    }
-
-    /// Return all live entries.
-    entries<comptime A: Access = "readonly">(
-        this: WithAccess<&Slab<T>, A>,
-    ): Iterator<(SlabKey, WithAccess<&T, A>)> {
-        todo("Slab.entries")
-    }
-
-    /// Return an iterator over copied entries.
-    iterator(): Iterator<(SlabKey, T)> {
-        todo("Slab.iterator")
-    }
-
-    /// Return an iterator over borrowed values.
-    iterator<comptime A: Access = "readonly">(
-        this: WithAccess<&Slab<T>, A>,
-    ): Iterator<WithAccess<&T, A>> {
-        todo("Slab.iterator")
-    }
-
-    /// Consume this slab into owned values.
-    iterator(this): Iterator<T> {
-        todo("Slab.iterator")
     }
 }

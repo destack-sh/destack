@@ -52,6 +52,56 @@ export extension<T> of ^Array<T> implements Iterable<T>, Sequence {
     iterator(): Iterator<T> {
         todo("Array.iterator")
     }
+
+    /// Consume this array and map its elements into a new array.
+    map<U>(map: (value: T, index: usize) => U): ^Array<U> {
+        todo("Array.map")
+    }
+
+    /// Consume this array and retain elements accepted by `predicate`.
+    filter(predicate: (value: &readonly T, index: usize) => boolean): ^Array<T> {
+        todo("Array.filter")
+    }
+
+    /// Consume this array and keep defined mapped values.
+    filterMap<U>(map: (value: T, index: usize) => U | undefined): ^Array<U> {
+        todo("Array.filterMap")
+    }
+
+    /// Consume and reduce elements from left to right.
+    reduce<U>(reduce: (accumulator: U, value: T, index: usize) => U, initial: U): U {
+        todo("Array.reduce")
+    }
+
+    /// Consume and reduce elements from right to left.
+    reduceRight<U>(reduce: (accumulator: U, value: T, index: usize) => U, initial: U): U {
+        todo("Array.reduceRight")
+    }
+
+    /// Consume this array and return the first accepted element.
+    find(predicate: (value: &readonly T, index: usize) => boolean): T | undefined {
+        todo("Array.find")
+    }
+
+    /// Consume this array and return the last accepted element.
+    findLast(predicate: (value: &readonly T, index: usize) => boolean): T | undefined {
+        todo("Array.findLast")
+    }
+
+    /// Consume and map elements, then flatten the results.
+    flatMap<U>(map: (value: T, index: usize) => U | ^Array<U>): ^Array<U> {
+        todo("Array.flatMap")
+    }
+
+    /// Consume this array into an iterator over values.
+    values(): Iterator<T> {
+        todo("Array.values")
+    }
+
+    /// Consume this array into an iterator over index-value entries.
+    entries(): Iterator<(usize, T)> {
+        todo("Array.entries")
+    }
 }
 
 export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
@@ -72,9 +122,109 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
     iterator(): Iterator<T> {
         todo("Array.iterator")
     }
+
+    /// Return the copied element at `offset`.
+    at(offset: isize): T | undefined {
+        todo("Array.at")
+    }
+
+    /// Return the first element by value.
+    first(): T | undefined {
+        todo("Array.first")
+    }
+
+    /// Return the last element by value.
+    last(): T | undefined {
+        todo("Array.last")
+    }
+
+    /// Map copied elements into a new array.
+    map<U>(map: (value: T, index: usize) => U): ^Array<U> {
+        todo("Array.map")
+    }
+
+    /// Filter copied elements into a new array.
+    filter(predicate: (value: T, index: usize) => boolean): ^Array<T> {
+        todo("Array.filter")
+    }
+
+    /// Map copied elements and keep defined values.
+    filterMap<U>(map: (value: T, index: usize) => U | undefined): ^Array<U> {
+        todo("Array.filterMap")
+    }
+
+    /// Reduce copied elements from left to right.
+    reduce<U>(reduce: (accumulator: U, value: T, index: usize) => U, initial: U): U {
+        todo("Array.reduce")
+    }
+
+    /// Reduce copied elements from right to left.
+    reduceRight<U>(reduce: (accumulator: U, value: T, index: usize) => U, initial: U): U {
+        todo("Array.reduceRight")
+    }
+
+    /// Return the first copied element accepted by `predicate`.
+    find(predicate: (value: T, index: usize) => boolean): T | undefined {
+        todo("Array.find")
+    }
+
+    /// Return the index of the first copied element accepted by `predicate`.
+    findIndex(predicate: (value: T, index: usize) => boolean): usize | undefined {
+        todo("Array.findIndex")
+    }
+
+    /// Return the last copied element accepted by `predicate`.
+    findLast(predicate: (value: T, index: usize) => boolean): T | undefined {
+        todo("Array.findLast")
+    }
+
+    /// Return the index of the last copied element accepted by `predicate`.
+    findLastIndex(predicate: (value: T, index: usize) => boolean): usize | undefined {
+        todo("Array.findLastIndex")
+    }
+
+    /// Return whether any copied element is accepted by `predicate`.
+    some(predicate: (value: T, index: usize) => boolean): boolean {
+        todo("Array.some")
+    }
+
+    /// Return whether every copied element is accepted by `predicate`.
+    every(predicate: (value: T, index: usize) => boolean): boolean {
+        todo("Array.every")
+    }
+
+    /// Sort this array with copied values.
+    sort(compare: (left: T, right: T) => Ordering): this {
+        todo("Array.sort")
+    }
+
+    /// Return a clone sorted with copied values.
+    toSorted(compare: (left: T, right: T) => Ordering): ^Array<T> {
+        todo("Array.toSorted")
+    }
+
+    /// Map copied elements and flatten the results.
+    flatMap<U: Clone>(map: (value: T, index: usize) => U | ReadonlyArray<U>): ^Array<U> {
+        todo("Array.flatMap")
+    }
+
+    /// Return an iterator over copied values.
+    values(): Iterator<T> {
+        todo("Array.values")
+    }
+
+    /// Return an iterator over copied index-value entries.
+    entries(): Iterator<(usize, T)> {
+        todo("Array.entries")
+    }
+
+    /// Call `visit` for each copied element.
+    forEach(visit: (value: T, index: usize) => void): void {
+        todo("Array.forEach");
+    }
 }
 
-export extension BorrowedArray<T, 'a, comptime A: Access> of Borrowed<Array<T>, 'a, A>
+export extension<T, 'a, comptime A: Access> of Borrowed<Array<T>, 'a, A>
     implements
         Iterable<Borrowed<T, 'a, A>>,
         Sequence {
@@ -94,6 +244,116 @@ export extension BorrowedArray<T, 'a, comptime A: Access> of Borrowed<Array<T>, 
     /// Return an iterator over borrowed values.
     iterator(): Iterator<Borrowed<T, 'a, A>> {
         todo("Array.iterator")
+    }
+
+    /// Borrow the element at `offset`.
+    at(offset: isize): Borrowed<T, 'a, A> | undefined {
+        todo("Array.at")
+    }
+
+    /// Borrow the first element.
+    first(): Borrowed<T, 'a, A> | undefined {
+        todo("Array.first")
+    }
+
+    /// Borrow the last element.
+    last(): Borrowed<T, 'a, A> | undefined {
+        todo("Array.last")
+    }
+
+    /// Map borrowed elements into a new array.
+    map<U>(map: (value: Borrowed<T, 'a, "readonly">, index: usize) => U): ^Array<U> {
+        todo("Array.map")
+    }
+
+    /// Filter borrowed elements into a new array.
+    filter(
+        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
+    ): ^Array<Borrowed<T, 'a, A>> {
+        todo("Array.filter")
+    }
+
+    /// Map borrowed elements and keep defined values.
+    filterMap<U>(
+        map: (value: Borrowed<T, 'a, "readonly">, index: usize) => U | undefined,
+    ): ^Array<U> {
+        todo("Array.filterMap")
+    }
+
+    /// Reduce borrowed elements from left to right.
+    reduce<U>(
+        reduce: (accumulator: U, value: Borrowed<T, 'a, "readonly">, index: usize) => U,
+        initial: U,
+    ): U {
+        todo("Array.reduce")
+    }
+
+    /// Reduce borrowed elements from right to left.
+    reduceRight<U>(
+        reduce: (accumulator: U, value: Borrowed<T, 'a, "readonly">, index: usize) => U,
+        initial: U,
+    ): U {
+        todo("Array.reduceRight")
+    }
+
+    /// Borrow the first element accepted by `predicate`.
+    find(
+        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
+    ): Borrowed<T, 'a, A> | undefined {
+        todo("Array.find")
+    }
+
+    /// Return the index of the first borrowed element accepted by `predicate`.
+    findIndex(
+        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
+    ): usize | undefined {
+        todo("Array.findIndex")
+    }
+
+    /// Borrow the last element accepted by `predicate`.
+    findLast(
+        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
+    ): Borrowed<T, 'a, A> | undefined {
+        todo("Array.findLast")
+    }
+
+    /// Return the index of the last borrowed element accepted by `predicate`.
+    findLastIndex(
+        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
+    ): usize | undefined {
+        todo("Array.findLastIndex")
+    }
+
+    /// Return whether any borrowed element is accepted by `predicate`.
+    some(predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean): boolean {
+        todo("Array.some")
+    }
+
+    /// Return whether every borrowed element is accepted by `predicate`.
+    every(predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean): boolean {
+        todo("Array.every")
+    }
+
+    /// Map borrowed elements and flatten the results.
+    flatMap<U: Clone>(
+        map: (value: Borrowed<T, 'a, "readonly">, index: usize) => U | ReadonlyArray<U>,
+    ): ^Array<U> {
+        todo("Array.flatMap")
+    }
+
+    /// Return an iterator over borrowed values.
+    values(): Iterator<Borrowed<T, 'a, A>> {
+        todo("Array.values")
+    }
+
+    /// Return an iterator over borrowed index-value entries.
+    entries(): Iterator<(usize, Borrowed<T, 'a, A>)> {
+        todo("Array.entries")
+    }
+
+    /// Call `visit` for each borrowed element.
+    forEach(visit: (value: Borrowed<T, 'a, "readonly">, index: usize) => void): void {
+        todo("Array.forEach");
     }
 }
 
@@ -177,19 +437,6 @@ export extension<T> of Array<T>
         view.slice(start, end)
     }
 
-    /// Return the copied element at `offset`.
-    at(&readonly this, offset: isize): T | undefined where T: Copy {
-        todo("Array.at")
-    }
-
-    /// Borrow the element at `offset`.
-    at<'a, comptime A: Access = "readonly">(
-        this: Borrowed<Array<T>, 'a, A>,
-        offset: isize,
-    ): Borrowed<T, 'a, A> | undefined {
-        todo("Array.at")
-    }
-
     /// Borrow the element at `index`.
     index<comptime A: Access = "readonly">(
         this: WithAccess<&Array<T>, A>,
@@ -201,30 +448,6 @@ export extension<T> of Array<T>
     /// Replace the element at `index`.
     indexSet(&exclusive this, index: usize, value: T): void {
         todo("Array.indexSet");
-    }
-
-    /// Return the first element by value.
-    first(&readonly this): T | undefined where T: Copy {
-        todo("Array.first")
-    }
-
-    /// Borrow the first element.
-    first<'a, comptime A: Access = "readonly">(
-        this: Borrowed<Array<T>, 'a, A>,
-    ): Borrowed<T, 'a, A> | undefined {
-        todo("Array.first")
-    }
-
-    /// Return the last element by value.
-    last(&readonly this): T | undefined where T: Copy {
-        todo("Array.last")
-    }
-
-    /// Borrow the last element.
-    last<'a, comptime A: Access = "readonly">(
-        this: Borrowed<Array<T>, 'a, A>,
-    ): Borrowed<T, 'a, A> | undefined {
-        todo("Array.last")
     }
 
     /// Append `values` and return the new length.
@@ -350,197 +573,6 @@ export extension<T> of Array<T>
         todo("Array.concat")
     }
 
-    /// Consume this array and map its elements into a new array.
-    map<U>(^this, map: (value: T, index: usize) => U): ^Array<U> {
-        todo("Array.map")
-    }
-
-    /// Map copied elements into a new array.
-    map<U>(&readonly this, map: (value: T, index: usize) => U): ^Array<U> where T: Copy {
-        todo("Array.map")
-    }
-
-    /// Map borrowed elements into a new array.
-    map<'a, U>(
-        this: Borrowed<Array<T>, 'a, "readonly">,
-        map: (value: Borrowed<T, 'a, "readonly">, index: usize) => U,
-    ): ^Array<U> {
-        todo("Array.map")
-    }
-
-    /// Consume this array and retain elements accepted by `predicate`.
-    filter(^this, predicate: (value: &readonly T, index: usize) => boolean): ^Array<T> {
-        todo("Array.filter")
-    }
-
-    /// Filter copied elements into a new array.
-    filter(&readonly this, predicate: (value: T, index: usize) => boolean): ^Array<T>
-        where T: Copy {
-        todo("Array.filter")
-    }
-
-    /// Filter borrowed elements into a new array.
-    filter<'a, comptime A: Access = "readonly">(
-        this: Borrowed<Array<T>, 'a, A>,
-        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
-    ): ^Array<Borrowed<T, 'a, A>> {
-        todo("Array.filter")
-    }
-
-    /// Consume this array and keep defined mapped values.
-    filterMap<U>(^this, map: (value: T, index: usize) => U | undefined): ^Array<U> {
-        todo("Array.filterMap")
-    }
-
-    /// Map copied elements and keep defined values.
-    filterMap<U>(&readonly this, map: (value: T, index: usize) => U | undefined): ^Array<U>
-        where T: Copy {
-        todo("Array.filterMap")
-    }
-
-    /// Map borrowed elements and keep defined values.
-    filterMap<'a, U>(
-        this: Borrowed<Array<T>, 'a, "readonly">,
-        map: (value: Borrowed<T, 'a, "readonly">, index: usize) => U | undefined,
-    ): ^Array<U> {
-        todo("Array.filterMap")
-    }
-
-    /// Consume and reduce elements from left to right.
-    reduce<U>(^this, reduce: (accumulator: U, value: T, index: usize) => U, initial: U): U {
-        todo("Array.reduce")
-    }
-
-    /// Reduce copied elements from left to right.
-    reduce<U>(&readonly this, reduce: (accumulator: U, value: T, index: usize) => U, initial: U): U
-        where T: Copy {
-        todo("Array.reduce")
-    }
-
-    /// Reduce borrowed elements from left to right.
-    reduce<'a, U>(
-        this: Borrowed<Array<T>, 'a, "readonly">,
-        reduce: (accumulator: U, value: Borrowed<T, 'a, "readonly">, index: usize) => U,
-        initial: U,
-    ): U {
-        todo("Array.reduce")
-    }
-
-    /// Consume and reduce elements from right to left.
-    reduceRight<U>(^this, reduce: (accumulator: U, value: T, index: usize) => U, initial: U): U {
-        todo("Array.reduceRight")
-    }
-
-    /// Reduce copied elements from right to left.
-    reduceRight<U>(
-        &readonly this,
-        reduce: (accumulator: U, value: T, index: usize) => U,
-        initial: U,
-    ): U where T: Copy {
-        todo("Array.reduceRight")
-    }
-
-    /// Reduce borrowed elements from right to left.
-    reduceRight<'a, U>(
-        this: Borrowed<Array<T>, 'a, "readonly">,
-        reduce: (accumulator: U, value: Borrowed<T, 'a, "readonly">, index: usize) => U,
-        initial: U,
-    ): U {
-        todo("Array.reduceRight")
-    }
-
-    /// Consume this array and return the first accepted element.
-    find(^this, predicate: (value: &readonly T, index: usize) => boolean): T | undefined {
-        todo("Array.find")
-    }
-
-    /// Return the first copied element accepted by `predicate`.
-    find(&readonly this, predicate: (value: T, index: usize) => boolean): T | undefined
-        where T: Copy {
-        todo("Array.find")
-    }
-
-    /// Borrow the first element accepted by `predicate`.
-    find<'a, comptime A: Access = "readonly">(
-        this: Borrowed<Array<T>, 'a, A>,
-        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
-    ): Borrowed<T, 'a, A> | undefined {
-        todo("Array.find")
-    }
-
-    /// Return the index of the first copied element accepted by `predicate`.
-    findIndex(&readonly this, predicate: (value: T, index: usize) => boolean): usize | undefined
-        where T: Copy {
-        todo("Array.findIndex")
-    }
-
-    /// Return the index of the first borrowed element accepted by `predicate`.
-    findIndex<'a>(
-        this: Borrowed<Array<T>, 'a, "readonly">,
-        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
-    ): usize | undefined {
-        todo("Array.findIndex")
-    }
-
-    /// Consume this array and return the last accepted element.
-    findLast(^this, predicate: (value: &readonly T, index: usize) => boolean): T | undefined {
-        todo("Array.findLast")
-    }
-
-    /// Return the last copied element accepted by `predicate`.
-    findLast(&readonly this, predicate: (value: T, index: usize) => boolean): T | undefined
-        where T: Copy {
-        todo("Array.findLast")
-    }
-
-    /// Borrow the last element accepted by `predicate`.
-    findLast<'a, comptime A: Access = "readonly">(
-        this: Borrowed<Array<T>, 'a, A>,
-        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
-    ): Borrowed<T, 'a, A> | undefined {
-        todo("Array.findLast")
-    }
-
-    /// Return the index of the last copied element accepted by `predicate`.
-    findLastIndex(&readonly this, predicate: (value: T, index: usize) => boolean): usize | undefined
-        where T: Copy {
-        todo("Array.findLastIndex")
-    }
-
-    /// Return the index of the last borrowed element accepted by `predicate`.
-    findLastIndex<'a>(
-        this: Borrowed<Array<T>, 'a, "readonly">,
-        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
-    ): usize | undefined {
-        todo("Array.findLastIndex")
-    }
-
-    /// Return whether any copied element is accepted by `predicate`.
-    some(&readonly this, predicate: (value: T, index: usize) => boolean): boolean where T: Copy {
-        todo("Array.some")
-    }
-
-    /// Return whether any borrowed element is accepted by `predicate`.
-    some<'a>(
-        this: Borrowed<Array<T>, 'a, "readonly">,
-        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
-    ): boolean {
-        todo("Array.some")
-    }
-
-    /// Return whether every copied element is accepted by `predicate`.
-    every(&readonly this, predicate: (value: T, index: usize) => boolean): boolean where T: Copy {
-        todo("Array.every")
-    }
-
-    /// Return whether every borrowed element is accepted by `predicate`.
-    every<'a>(
-        this: Borrowed<Array<T>, 'a, "readonly">,
-        predicate: (value: Borrowed<T, 'a, "readonly">, index: usize) => boolean,
-    ): boolean {
-        todo("Array.every")
-    }
-
     /// Return whether `value` exists.
     includes<Q>(&readonly this, value: &readonly Q, fromIndex?: isize): boolean
         where T: Borrow<Q>, Q: Equal<Q> {
@@ -574,11 +606,6 @@ export extension<T> of Array<T>
         todo("Array.sort")
     }
 
-    /// Sort this array with `compare`.
-    sort(&exclusive this, compare: (left: T, right: T) => Ordering): this where T: Copy {
-        todo("Array.sort")
-    }
-
     /// Sort this array with borrowed values.
     sort(&exclusive this, compare: (left: &readonly T, right: &readonly T) => Ordering): this {
         todo("Array.sort")
@@ -586,11 +613,6 @@ export extension<T> of Array<T>
 
     /// Return a naturally sorted clone.
     toSorted(&readonly this): ^Array<T> where T: Clone, T: Compare<T> {
-        todo("Array.toSorted")
-    }
-
-    /// Return a clone sorted with copied values.
-    toSorted(&readonly this, compare: (left: T, right: T) => Ordering): ^Array<T> where T: Copy {
         todo("Array.toSorted")
     }
 
@@ -623,77 +645,9 @@ export extension<T> of Array<T>
         todo("Array.flat")
     }
 
-    /// Consume and map elements, then flatten the results.
-    flatMap<U>(^this, map: (value: T, index: usize) => U | ^Array<U>): ^Array<U> {
-        todo("Array.flatMap")
-    }
-
-    /// Map copied elements and flatten the results.
-    flatMap<U: Clone>(
-        &readonly this,
-        map: (value: T, index: usize) => U | ReadonlyArray<U>,
-    ): ^Array<U> where T: Copy {
-        todo("Array.flatMap")
-    }
-
-    /// Map borrowed elements and flatten the results.
-    flatMap<'a, U: Clone>(
-        this: Borrowed<Array<T>, 'a, "readonly">,
-        map: (value: Borrowed<T, 'a, "readonly">, index: usize) => U | ReadonlyArray<U>,
-    ): ^Array<U> {
-        todo("Array.flatMap")
-    }
-
     /// Return an iterator over indices.
     keys(&readonly this): Iterator<usize> {
         todo("Array.keys")
-    }
-
-    /// Consume this array into an iterator over values.
-    values(^this): Iterator<T> {
-        todo("Array.values")
-    }
-
-    /// Return an iterator over copied values.
-    values(&readonly this): Iterator<T> where T: Copy {
-        todo("Array.values")
-    }
-
-    /// Return an iterator over borrowed values.
-    values<'a, comptime A: Access = "readonly">(
-        this: Borrowed<Array<T>, 'a, A>,
-    ): Iterator<Borrowed<T, 'a, A>> {
-        todo("Array.values")
-    }
-
-    /// Consume this array into an iterator over index-value entries.
-    entries(^this): Iterator<(usize, T)> {
-        todo("Array.entries")
-    }
-
-    /// Return an iterator over copied index-value entries.
-    entries(&readonly this): Iterator<(usize, T)> where T: Copy {
-        todo("Array.entries")
-    }
-
-    /// Return an iterator over borrowed index-value entries.
-    entries<'a, comptime A: Access = "readonly">(
-        this: Borrowed<Array<T>, 'a, A>,
-    ): Iterator<(usize, Borrowed<T, 'a, A>)> {
-        todo("Array.entries")
-    }
-
-    /// Call `visit` for each copied element.
-    forEach(&readonly this, visit: (value: T, index: usize) => void): void where T: Copy {
-        todo("Array.forEach");
-    }
-
-    /// Call `visit` for each borrowed element.
-    forEach<'a>(
-        this: Borrowed<Array<T>, 'a, "readonly">,
-        visit: (value: Borrowed<T, 'a, "readonly">, index: usize) => void,
-    ): void {
-        todo("Array.forEach");
     }
 }
 

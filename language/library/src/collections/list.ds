@@ -1,9 +1,10 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Default, MaybeUninit, WithAccess } from "destack:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit } from "destack:memory";
 
 import { Array } from "./array.ds";
+import { Sequence } from "./sequence.ds";
 
 /// Key for one linked list node.
 newtype LinkedListNodeKey = uint32;
@@ -29,29 +30,105 @@ struct LinkedListNode<T> {
 /// A linked list.
 export class LinkedList<T> {
     /// The first node key.
-    head: LinkedListNodeKey | undefined = undefined;
+    private head: LinkedListNodeKey | undefined = undefined;
 
     /// The last node key.
-    tail: LinkedListNodeKey | undefined = undefined;
+    private tail: LinkedListNodeKey | undefined = undefined;
 
     /// The node storage.
-    nodes: Array<LinkedListNode<T>> = Array.new();
+    private nodes: Array<LinkedListNode<T>> = Array.new();
 
     /// The first free node key.
-    firstFree: LinkedListNodeKey | undefined = undefined;
+    private firstFree: LinkedListNodeKey | undefined = undefined;
 
     /// The number of nodes.
-    count: usize = 0;
+    private count: usize = 0;
 }
 
-export extension<T> of LinkedList<T>
+export extension<T> of ^LinkedList<T> implements Iterable<T>, Sequence {
+    /// The owned sequence produced by a rest pattern.
+    type Rest = ^LinkedList<T>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        this.count
+    }
+
+    /// Move the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^LinkedList<T> {
+        todo("LinkedList.rest")
+    }
+
+    /// Consume this list into owned values.
+    iterator(): Iterator<T> {
+        todo("LinkedList.iterator")
+    }
+}
+
+export extension<T: Copy> of LinkedList<T> implements Iterable<T>, Sequence {
+    /// The copied sequence produced by a rest pattern.
+    type Rest = ^LinkedList<T>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        this.count
+    }
+
+    /// Copy the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^LinkedList<T> {
+        todo("LinkedList.rest")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("LinkedList.iterator")
+    }
+
+    /// Return the copied front element.
+    front(): T | undefined {
+        todo("LinkedList.front")
+    }
+
+    /// Return the copied back element.
+    back(): T | undefined {
+        todo("LinkedList.back")
+    }
+}
+
+export extension<T, 'a, comptime A: Access> of Borrowed<LinkedList<T>, 'a, A>
     implements
-        Default,
-        Iterable<T>,
-        Iterable<&T>,
-        Iterable<&readonly T>,
-        Iterable<&exclusive T>,
-        Extend<T, "exclusive"> {
+        Iterable<Borrowed<T, 'a, A>>,
+        Sequence {
+    /// The borrowed sequence produced by a rest pattern.
+    type Rest = ^LinkedList<Borrowed<T, 'a, A>>;
+
+    /// Return the number of elements.
+    get length(): usize {
+        this.count
+    }
+
+    /// Borrow the elements from `start..end` for a rest pattern.
+    rest(start: usize, end?: usize): ^LinkedList<Borrowed<T, 'a, A>> {
+        todo("LinkedList.rest")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(): Iterator<Borrowed<T, 'a, A>> {
+        todo("LinkedList.iterator")
+    }
+
+    /// Borrow the front element.
+    front(): Borrowed<T, 'a, A> | undefined {
+        todo("LinkedList.front")
+    }
+
+    /// Borrow the back element.
+    back(): Borrowed<T, 'a, A> | undefined {
+        todo("LinkedList.back")
+    }
+}
+
+export extension<T> of LinkedList<T> implements Default, Extend<T, "exclusive"> {
     /// Create an empty list.
     static new(): ^LinkedList<T> {
         todo("LinkedList.new")
@@ -117,27 +194,13 @@ export extension<T> of LinkedList<T>
         todo("LinkedList.popFront")
     }
 
-    /// Borrow the front element.
-    front<comptime A: Access = "readonly">(
-        this: WithAccess<&LinkedList<T>, A>,
-    ): WithAccess<&T, A> | undefined {
-        todo("LinkedList.front")
-    }
-
-    /// Borrow the back element.
-    back<comptime A: Access = "readonly">(
-        this: WithAccess<&LinkedList<T>, A>,
-    ): WithAccess<&T, A> | undefined {
-        todo("LinkedList.back")
-    }
-
     /// Remove all elements.
     clear(&exclusive this): void {
         todo("LinkedList.clear");
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &T, index: usize) => boolean): void {
+    retain(&exclusive this, predicate: (value: &readonly T, index: usize) => boolean): void {
         todo("LinkedList.retain");
     }
 
@@ -147,7 +210,10 @@ export extension<T> of LinkedList<T>
     }
 
     /// Remove elements accepted by `predicate` and return them.
-    extractIf(&exclusive this, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
+    extractIf(
+        &exclusive this,
+        predicate: (value: &readonly T, index: usize) => boolean,
+    ): Iterator<T> {
         todo("LinkedList.extractIf")
     }
 
@@ -159,23 +225,6 @@ export extension<T> of LinkedList<T>
     /// Shrink node storage to fit the current length.
     shrinkToFit(&exclusive this): void {
         todo("LinkedList.shrinkToFit");
-    }
-
-    /// Return an iterator over copied values.
-    iterator(): Iterator<T> {
-        todo("LinkedList.iterator")
-    }
-
-    /// Return an iterator over borrowed values.
-    iterator<comptime A: Access = "readonly">(
-        this: WithAccess<&LinkedList<T>, A>,
-    ): Iterator<WithAccess<&T, A>> {
-        todo("LinkedList.iterator")
-    }
-
-    /// Consume this list into owned values.
-    iterator(^this): Iterator<T> {
-        todo("LinkedList.iterator")
     }
 }
 

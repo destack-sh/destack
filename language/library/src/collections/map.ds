@@ -1,7 +1,7 @@
 import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
 import { Equal, Hash, Index, IndexSet } from "destack:ops";
 
 import { Array } from "./array.ds";
@@ -37,16 +37,113 @@ struct MapSlot<K, V> {
 @languageItem("collections.Map")
 export class Map<K, V> {
     /// The entry storage.
-    entries: Unique<[MaybeUninit<MapSlot<K, V>>]> = Unique.empty();
+    private entries: Unique<[MaybeUninit<MapSlot<K, V>>]> = Unique.empty();
 
     /// The hash index.
-    index: Unique<[uint32]> = Unique.empty();
+    private index: Unique<[uint32]> = Unique.empty();
 
     /// The number of live entries.
-    count: usize = 0;
+    private count: usize = 0;
 
     /// The allocated entry count.
-    capacity: usize = 0;
+    private capacity: usize = 0;
+}
+
+export extension<K: Hash, V> of ^Map<K, V> implements Iterable<(K, V)> where K: Equal<K> {
+    /// Consume this map into owned entries.
+    iterator(): Iterator<(K, V)> {
+        todo("Map.iterator")
+    }
+}
+
+export extension<K: Hash, V> of Map<K, V> implements Iterable<(K, V)>
+    where K: Copy, K: Equal<K>, V: Copy {
+    /// Return an iterator over copied entries.
+    iterator(): Iterator<(K, V)> {
+        todo("Map.iterator")
+    }
+
+    /// Return copied entries.
+    entries(): Iterator<(K, V)> {
+        todo("Map.entries")
+    }
+
+    /// Call `visit` for each copied entry.
+    forEach(visit: (value: V, key: K, map: Map<K, V>) => void): void {
+        todo("Map.forEach");
+    }
+}
+
+export extension<K: Hash, V> of Map<K, V> where K: Copy, K: Equal<K> {
+    /// Return copied keys.
+    keys(): Iterator<K> {
+        todo("Map.keys")
+    }
+}
+
+export extension<K: Hash, V> of Map<K, V> where K: Equal<K>, V: Copy {
+    /// Return copied values.
+    values(): Iterator<V> {
+        todo("Map.values")
+    }
+
+    /// Return a copied value by key.
+    get<Q: Hash>(key: &readonly Q): V | undefined where K: Borrow<Q>, Q: Equal<Q> {
+        todo("Map.get")
+    }
+}
+
+export extension<K: Hash, V, 'a, comptime A: Access> of Borrowed<Map<K, V>, 'a, A>
+    implements
+        Iterable<MapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> where K: Equal<K> {
+    /// Return an iterator over borrowed entries.
+    iterator(): Iterator<MapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> {
+        todo("Map.iterator")
+    }
+
+    /// Return borrowed keys.
+    keys(): Iterator<Borrowed<K, 'a, "readonly">> {
+        todo("Map.keys")
+    }
+
+    /// Return borrowed values.
+    values(): Iterator<Borrowed<V, 'a, A>> {
+        todo("Map.values")
+    }
+
+    /// Return borrowed entries.
+    entries(): Iterator<MapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> {
+        todo("Map.entries")
+    }
+
+    /// Borrow a value by key.
+    get<Q: Hash>(key: &readonly Q): Borrowed<V, 'a, A> | undefined where K: Borrow<Q>, Q: Equal<Q> {
+        todo("Map.get")
+    }
+
+    /// Return whether `key` exists.
+    has<Q: Hash>(key: &readonly Q): boolean where K: Borrow<Q>, Q: Equal<Q> {
+        todo("Map.has")
+    }
+
+    /// Borrow an entry by key.
+    getEntry<Q: Hash>(
+        key: &readonly Q,
+    ): MapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>> | undefined
+        where K: Borrow<Q>, Q: Equal<Q> {
+        todo("Map.getEntry")
+    }
+
+    /// Call `visit` for each borrowed entry.
+    forEach(
+        visit: (
+            value: Borrowed<V, 'a, "readonly">,
+            key: Borrowed<K, 'a, "readonly">,
+            map: Borrowed<Map<K, V>, 'a, "readonly">,
+        ) => void,
+    ): void {
+        todo("Map.forEach");
+    }
 }
 
 export extension<'a, K: Hash, V> of MapEntryHandle<'a, K, V> where K: Equal<K> {
@@ -61,22 +158,22 @@ export extension<'a, K: Hash, V> of MapEntryHandle<'a, K, V> where K: Equal<K> {
     }
 
     /// Borrow the current value.
-    get(&this): &V | undefined {
+    get(&exclusive this): &exclusive V | undefined {
         todo("MapEntryHandle.get")
     }
 
     /// Insert `value` when this handle is vacant.
-    orInsert(&exclusive this, value: V): &V {
+    orInsert(&exclusive this, value: V): &exclusive V {
         todo("MapEntryHandle.orInsert")
     }
 
     /// Insert a value produced by `makeValue` when this handle is vacant.
-    orInsertWith(&exclusive this, makeValue: () => V): &V {
+    orInsertWith(&exclusive this, makeValue: () => V): &exclusive V {
         todo("MapEntryHandle.orInsertWith")
     }
 
     /// Insert or replace the value.
-    set(&exclusive this, value: V): &V {
+    set(&exclusive this, value: V): &exclusive V {
         todo("MapEntryHandle.set")
     }
 
@@ -107,10 +204,6 @@ export extension<K: Hash, V> of Map<K, V>
     implements
         Index<K>,
         IndexSet<K, V>,
-        Iterable<(K, V)>,
-        Iterable<MapEntry<&readonly K, &V>>,
-        Iterable<MapEntry<&readonly K, &readonly V>>,
-        Iterable<MapEntry<&readonly K, &exclusive V>>,
         Extend<(K, V), "exclusive"> where K: Equal<K> {
     /// The indexed output type.
     type Output = V;
@@ -124,10 +217,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Group `values` by a computed key.
-    static groupBy<T>(
-        values: Iterable<T>,
-        key: (value: T, index: number) => K,
-    ): ^Map<K, ^Array<T>> {
+    static groupBy<T>(values: Iterable<T>, key: (value: T, index: usize) => K): ^Map<K, ^Array<T>> {
         todo("Map.groupBy")
     }
 
@@ -144,27 +234,6 @@ export extension<K: Hash, V> of Map<K, V>
     /// Return whether this map has no entries.
     get isEmpty(): boolean {
         this.count == 0
-    }
-
-    /// Return a value by key.
-    get<Q: Hash>(key: &readonly Q): V | undefined where K: Borrow<Q>, Q: Equal<Q> {
-        todo("Map.get")
-    }
-
-    /// Borrow a value by key.
-    get<Q: Hash, comptime A: Access = "readonly">(
-        this: WithAccess<&Map<K, V>, A>,
-        key: &readonly Q,
-    ): WithAccess<&V, A> | undefined where K: Borrow<Q>, Q: Equal<Q> {
-        todo("Map.get")
-    }
-
-    /// Return a borrowed entry by key.
-    getEntry<Q: Hash, comptime A: Access = "readonly">(
-        this: WithAccess<&Map<K, V>, A>,
-        key: &readonly Q,
-    ): MapEntry<&readonly K, WithAccess<&V, A>> | undefined where K: Borrow<Q>, Q: Equal<Q> {
-        todo("Map.getEntry")
     }
 
     /// Return mutating access to the entry for `key`.
@@ -196,12 +265,12 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Return the existing value or insert a new value.
-    getOrInsert(&exclusive this, key: K, value: V): &V {
+    getOrInsert(&exclusive this, key: K, value: V): &exclusive V {
         todo("Map.getOrInsert")
     }
 
     /// Return the existing value or insert a value produced by `makeValue`.
-    getOrInsertWith(&exclusive this, key: K, makeValue: () => V): &V {
+    getOrInsertWith(&exclusive this, key: K, makeValue: () => V): &exclusive V {
         todo("Map.getOrInsertWith")
     }
 
@@ -252,62 +321,6 @@ export extension<K: Hash, V> of Map<K, V>
     /// Shrink storage to fit the current entries.
     shrinkToFit(&exclusive this): void {
         todo("Map.shrinkToFit");
-    }
-
-    /// Return all keys.
-    keys(&readonly this): Iterator<&readonly K> {
-        todo("Map.keys")
-    }
-
-    /// Return copied keys.
-    keys(): Iterator<K> {
-        todo("Map.keys")
-    }
-
-    /// Return all borrowed values.
-    values<comptime A: Access = "readonly">(
-        this: WithAccess<&Map<K, V>, A>,
-    ): Iterator<WithAccess<&V, A>> {
-        todo("Map.values")
-    }
-
-    /// Return copied values.
-    values(): Iterator<V> {
-        todo("Map.values")
-    }
-
-    /// Return all borrowed entries.
-    entries<comptime A: Access = "readonly">(
-        this: WithAccess<&Map<K, V>, A>,
-    ): Iterator<MapEntry<&readonly K, WithAccess<&V, A>>> {
-        todo("Map.entries")
-    }
-
-    /// Return copied entries.
-    entries(): Iterator<(K, V)> {
-        todo("Map.entries")
-    }
-
-    /// Return an iterator over copied entries.
-    iterator(): Iterator<(K, V)> {
-        todo("Map.iterator")
-    }
-
-    /// Return an iterator over borrowed entries.
-    iterator<comptime A: Access = "readonly">(
-        this: WithAccess<&Map<K, V>, A>,
-    ): Iterator<MapEntry<&readonly K, WithAccess<&V, A>>> {
-        todo("Map.iterator")
-    }
-
-    /// Consume this map into owned entries.
-    iterator(^this): Iterator<(K, V)> {
-        todo("Map.iterator")
-    }
-
-    /// Call `f` for each entry.
-    forEach(f: (value: V, key: K, map: Map<K, V>) => void): void {
-        todo("Map.forEach");
     }
 }
 
