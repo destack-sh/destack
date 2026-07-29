@@ -179,14 +179,6 @@ impl BodyState<'_, '_> {
         if !self.check.deciding_extensions.insert(goal) {
             return Ok(Answer::Ready(false));
         }
-        if std::env::var("DBG_EXT").is_ok() {
-            eprintln!(
-                "DBG ext-goal: depth={} recv={} iface={}",
-                self.check.deciding_extensions.len(),
-                self.format_type(receiver),
-                self.format_type(interface_type)
-            );
-        }
 
         let decision = self.decide_visible_extensions(
             origin,
