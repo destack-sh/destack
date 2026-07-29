@@ -473,7 +473,11 @@ impl ComponentGraph {
 
         let dependencies = components.dependencies(&reference_edges);
         let inference = inference_partition(profile, &modules, &inference_edges);
-        require_partition_refinement(&modules, &components.module_components, &inference_edges)?;
+        require_partition_refinement(
+            &modules,
+            &components.module_components,
+            &inference.module_components,
+        )?;
         let inference_dependencies = inference.dependencies(&inference_edges);
 
         Ok(Self {
@@ -503,7 +507,7 @@ impl ComponentGraph {
         require_partition_refinement(
             &self.modules,
             &self.reference_component_indexes,
-            &inference_edges,
+            &inference.module_components,
         )?;
         let dependencies = inference.dependencies(&inference_edges);
         let mut graph = self.clone();
@@ -792,18 +796,22 @@ fn inference_partition(
     ComponentPartition::from_membership(profile, modules, &membership)
 }
 
-/// Require every inference edge to stay inside one reference component.
+/// Require every inference component to refine one reference component.
 fn require_partition_refinement(
     modules: &[ModuleId],
     reference_components: &[u32],
-    inference_edges: &ModuleEdges,
+    inference_components: &[u32],
 ) -> Result<(), ModuleId> {
-    for (module, source_component) in reference_components.iter().copied().enumerate() {
-        for target in inference_edges.targets(module) {
-            let target = *target as usize;
-            if reference_components[target] != source_component {
-                return Err(modules[module]);
-            }
+    let mut owners = vec![None; modules.len()];
+
+    // require every inference component to have one reference component owner
+    for (module, inference) in inference_components.iter().copied().enumerate() {
+        let reference = reference_components[module];
+        let owner = &mut owners[inference as usize];
+        match owner {
+            Some(owner) if *owner != reference => return Err(modules[module]),
+            Some(_) => {}
+            None => *owner = Some(reference),
         }
     }
 
@@ -1234,17 +1242,23 @@ mod tests {
     }
 
     #[test]
-    fn test_reject_inference_edges_across_reference_components() {
+    fn test_allow_inference_dependencies_across_reference_components() {
         let first = module(1);
         let second = module(2);
         let references = graph_edges(&[(first, &[second]), (second, &[])]);
         let inference = graph_edges(&[(first, &[second]), (second, &[])]);
+        let graph = component_graph(references, inference);
 
-        let result = ComponentGraph::from_edges(profile(), references, inference, Vec::new());
+        let first_component = graph
+            .inference_component(first)
+            .expect("first inference component should exist");
+        let second_component = graph
+            .inference_component(second)
+            .expect("second inference component should exist");
 
         assert_eq!(
-            result.expect_err("inference edge should be rejected"),
-            first
+            graph.inference_dependencies(first_component),
+            Some([second_component].as_slice())
         );
     }
 
