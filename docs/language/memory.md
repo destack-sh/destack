@@ -521,12 +521,7 @@ replace(sharedUser); // ERROR: shared managed storage cannot grant exclusive acc
 
 The explicit `S` is what lets these declarations accept both local and shared borrows.
 A declaration written only as `inspect(value: &readonly User)` accepts a local borrow, like any other bare free-function parameter.
-
-The coercion borrows the value itself and never recurses into values stored inside a container.
-It is inserted only when an expected type requires a borrowed form, so `const same = user` still infers the ordinary managed `User` type.
-Readonly managed views only coerce to readonly borrows, and no managed-derived borrow may cross a suspension point.
-
-Borrows can weaken freely but cannot be upgraded:
+Borrows can "weaken" (downgrade into a more restrictive form) but cannot be upgraded:
 
 | From | To | Notes |
 | --- | --- | --- |
