@@ -109,7 +109,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
         /// @type.node source=Pack.from(values) type=Owned<Pack<T#3>> reduced=Pack<T#3>
         /// @resolution.name source=Pack target=Pack
         /// @resolution.member source=Pack.from receiver=Pack type=(Dynamic<Iterable<T#2, void>>) => Owned<Pack<T#2>> & (Dynamic<Iterable<T#3, void>>) => Owned<Pack<T#3>> kind=existential targets=[from#1, from#2]
-        /// @resolution.call source=Pack.from(values) parameters=(Dynamic<Iterable<T#3, void>>) arguments=(provided(values) as Dynamic<Iterable<T#3, void>>) return=Owned<Pack<T#3>> kind=symbol target=from#1 receiver=Pack instance=Pack<T#3>.<extension#1>.from#1
+        /// @resolution.call source=Pack.from(values) parameters=(Dynamic<Iterable<T#3, void>>) arguments=(provided(values) as Dynamic<Iterable<T#3, void>>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
         /// @generic.instance source=Pack.from id="Iterable<T#2, void>"
         /// @generic.instance source=Pack.from id="Iterable<T#3, void>"
         /// @generic.instance source=Pack.from id=Pack<T#2>
@@ -393,7 +393,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @type.node source=Outcome.ok(f(value)) type=Outcome<U, E#3>
             /// @resolution.name source=Outcome target=Outcome
             /// @resolution.member source=Outcome.ok receiver=Outcome type=(T#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=ok
-            /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok receiver=Outcome instance="Outcome<U, E#3>.<extension#1>.ok"
+            /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok instance="Outcome<U, E#3>.<extension#1>.ok"
             /// @generic.instance source=Outcome.ok id="Outcome<T#3, E#3>"
             /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>"
             /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>.<extension#1>.ok"
@@ -418,7 +418,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @type.node source=Outcome.err(error) type=Outcome<U, E#3>
             /// @resolution.name source=Outcome target=Outcome
             /// @resolution.member source=Outcome.err receiver=Outcome type=(E#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=err
-            /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err receiver=Outcome instance="Outcome<U, E#3>.<extension#1>.err"
+            /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err instance="Outcome<U, E#3>.<extension#1>.err"
             /// @generic.instance source=Outcome.err id="Outcome<T#3, E#3>"
             /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>"
             /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>.<extension#1>.err"
@@ -546,7 +546,7 @@ function wrap(): Packed<string> {
     /// @type.node source=Packed.of type=(T#2) => Pack<T#2>
     /// @resolution.name source=Packed target=Packed
     /// @resolution.member source=Packed.of receiver=Packed type=(T#2) => Pack<T#2> kind=symbol target_receiver=Packed target=of
-    /// @resolution.call source="Packed.of(\"text\")" parameters=(string) arguments=(provided("text") as string) return=Pack<string> kind=symbol target=of receiver=Packed instance=Pack<string>.<extension#1>.of
+    /// @resolution.call source="Packed.of(\"text\")" parameters=(string) arguments=(provided("text") as string) return=Pack<string> kind=symbol target=of instance=Pack<string>.<extension#1>.of
     /// @generic.instance source="Packed.of(\"text\")" id=Pack<string>
     /// @generic.instance source="Packed.of(\"text\")" id=Pack<string>.<extension#1>.of
     /// @generic.instance source=Packed.of id=Pack<T#2>
@@ -934,7 +934,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @type.node source=Outcome.ok(f(value)) type=Outcome<U, E#3>
             /// @resolution.name source=Outcome target=Outcome
             /// @resolution.member source=Outcome.ok receiver=Outcome type=(T#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=ok
-            /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok receiver=Outcome instance="Outcome<U, E#3>.<extension#1>.ok"
+            /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok instance="Outcome<U, E#3>.<extension#1>.ok"
             /// @generic.instance source=Outcome.ok id="Outcome<T#3, E#3>"
             /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>"
             /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>.<extension#1>.ok"
@@ -959,7 +959,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @type.node source=Outcome.err(error) type=Outcome<U, E#3>
             /// @resolution.name source=Outcome target=Outcome
             /// @resolution.member source=Outcome.err receiver=Outcome type=(E#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=err
-            /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err receiver=Outcome instance="Outcome<U, E#3>.<extension#1>.err"
+            /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err instance="Outcome<U, E#3>.<extension#1>.err"
             /// @generic.instance source=Outcome.err id="Outcome<T#3, E#3>"
             /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>"
             /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>.<extension#1>.err"

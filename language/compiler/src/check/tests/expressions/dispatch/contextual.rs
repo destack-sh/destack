@@ -35,7 +35,7 @@ class Bag<T> {
     /// @type.node source=Array.new() type=Owned<Array<T>>
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.member source=Array.new receiver=Array type=() => Owned<Array<collections.array.T#6>> kind=symbol target_receiver=Array target=collections.array.new
-    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<T>> kind=symbol target=collections.array.new receiver=Array instance=Array<T>.<extension#6>.new
+    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<T>> kind=symbol target=collections.array.new instance=Array<T>.<extension#6>.new
     /// @generic.instance source=Array.new id=Array<collections.array.T#6>
     /// @generic.instance source=Array.new() id=Array<T>
     /// @generic.instance source=Array.new() id=Array<T>.<extension#6>.new
@@ -82,7 +82,7 @@ function build(): void {
     /// @type.node source=Array.new() type=Owned<Array<int32>>
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.member source=Array.new receiver=Array type=() => Owned<Array<collections.array.T#6>> kind=symbol target_receiver=Array target=collections.array.new
-    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<int32>> kind=symbol target=collections.array.new receiver=Array instance=Array<int32>.<extension#6>.new
+    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<int32>> kind=symbol target=collections.array.new instance=Array<int32>.<extension#6>.new
     /// @generic.instance source=Array.new id=Array<collections.array.T#6>
     /// @generic.instance source=Array.new() id=Array<int32>
     /// @generic.instance source=Array.new() id=Array<int32>.<extension#6>.new

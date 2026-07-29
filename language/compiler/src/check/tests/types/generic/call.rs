@@ -430,7 +430,7 @@ const result: Promise<string> = Promise.resolve(input);
 /// @type.node source=Promise.resolve(input) type=async.promise.Promise<string>
 /// @resolution.name source=Promise target=async.promise.Promise
 /// @resolution.member source=Promise.resolve receiver=async.promise.Promise type=<async.promise.Promise.resolve.T#1>(async.promise.Promise<async.promise.Promise.resolve.T#1>) => async.promise.Promise<async.promise.Promise.resolve.T#1> & <async.promise.Promise.resolve.T#2>(async.promise.Promise.resolve.T#2) => async.promise.Promise<async.promise.Promise.resolve.T#2> kind=existential targets=[async.promise.Promise.resolve#1, async.promise.Promise.resolve#2]
-/// @resolution.call source=Promise.resolve(input) parameters=(async.promise.Promise<string>) arguments=(provided(input) as async.promise.Promise<string>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.resolve#1 receiver=async.promise.Promise instance=async.promise.Promise.resolve#1<string>
+/// @resolution.call source=Promise.resolve(input) parameters=(async.promise.Promise<string>) arguments=(provided(input) as async.promise.Promise<string>) return=async.promise.Promise<string> kind=symbol target=async.promise.Promise.resolve#1 instance=async.promise.Promise.resolve#1<string>
 /// @generic.instance source=Promise.resolve id=async.promise.Promise<async.promise.Promise.resolve.T#1>
 /// @generic.instance source=Promise.resolve id=async.promise.Promise<async.promise.Promise.resolve.T#2>
 /// @generic.instance source=Promise.resolve(input) id=async.promise.Promise.resolve#1<string>

@@ -24,7 +24,7 @@ const value: symbol = Symbol.create("id");
 /// @type.node source=Symbol.create type=(string | float64 | undefined?) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=Symbol type=(string | float64 | undefined?) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.create
-/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
+/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create
 /// @type.node source="\"id\"" type="id"
 
 /// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
@@ -56,7 +56,7 @@ const value: string = Symbol.create("id");
 /// @type.node source=Symbol.create type=(string | float64 | undefined?) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=Symbol type=(string | float64 | undefined?) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.create
-/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
+/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create
 
 /// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
@@ -93,7 +93,7 @@ const value: symbol | string = Symbol.create("id");
 /// @type.node source=Symbol.create type=(string | float64 | undefined?) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=Symbol type=(string | float64 | undefined?) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.create
-/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
+/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create
 /// @type.node source="\"id\"" type="id"
 
 /// @check.stats.solve variables=1 types=11 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
@@ -125,7 +125,7 @@ const value: number = Symbol.create("id");
 /// @type.node source=Symbol.create type=(string | float64 | undefined?) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=Symbol type=(string | float64 | undefined?) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.create
-/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
+/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create
 
 /// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
@@ -158,7 +158,7 @@ const key = Symbol.for("token");
 /// @type.node source=Symbol.for type=(string) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.for receiver=Symbol type=(string) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.for
-/// @resolution.call source="Symbol.for(\"token\")" parameters=(string) arguments=(provided("token") as string) return=Symbol.for("token") kind=symbol target=types.symbol.Symbol.for receiver=Symbol
+/// @resolution.call source="Symbol.for(\"token\")" parameters=(string) arguments=(provided("token") as string) return=Symbol.for("token") kind=symbol target=types.symbol.Symbol.for
 /// @type.node source="\"token\"" type="token"
 "#);
 }
@@ -190,7 +190,7 @@ const key = Symbol.for(name);
 /// @type.node source=Symbol.for(name) type=symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.for receiver=Symbol type=(string) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.for
-/// @resolution.call source=Symbol.for(name) parameters=(string) arguments=(provided(name) as string) return=symbol kind=symbol target=types.symbol.Symbol.for receiver=Symbol
+/// @resolution.call source=Symbol.for(name) parameters=(string) arguments=(provided(name) as string) return=symbol kind=symbol target=types.symbol.Symbol.for
 /// @type.node source=name type=string
 /// @resolution.name source=name target=name
 /// @resolution.place source=name placement="local" lifetime="static" access="exclusive"

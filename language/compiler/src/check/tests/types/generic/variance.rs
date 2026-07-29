@@ -807,7 +807,7 @@ class Holder {
     /// @type.node source=Handle.empty() type=Handle<Slice<uint8>>
     /// @resolution.name source=Handle target=Handle
     /// @resolution.member source=Handle.empty receiver=Handle type=() => Handle<Slice<T#3>> kind=symbol target_receiver=Handle target=empty
-    /// @resolution.call source=Handle.empty() parameters=() return=Handle<Slice<uint8>> kind=symbol target=empty receiver=Handle instance=Handle<Slice<T#3>>.<extension#1>.empty
+    /// @resolution.call source=Handle.empty() parameters=() return=Handle<Slice<uint8>> kind=symbol target=empty instance=Handle<Slice<T#3>>.<extension#1>.empty
     /// @generic.instance source=Handle.empty id=Handle<Slice<T#3>>
     /// @generic.instance source=Handle.empty() id=Handle<Slice<T#3>>.<extension#1>.empty
     /// @generic.instance source=Handle.empty() id=Handle<Slice<uint8>>

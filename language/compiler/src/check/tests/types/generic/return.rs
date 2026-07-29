@@ -421,7 +421,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
     /// @type.node source=Promise.resolve(Result.ok(value)) type=Promise<Result<T#8, E#5>>
     /// @resolution.name source=Promise target=Promise
     /// @resolution.member source=Promise.resolve receiver=Promise type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3> kind=existential targets=[Promise.resolve#1, Promise.resolve#2]
-    /// @resolution.call source=Promise.resolve(Result.ok(value)) parameters=(Result<T#8, E#5>) arguments=(provided(Result.ok(value)) as Result<T#8, E#5>) return=Promise<Result<T#8, E#5>> kind=symbol target=Promise.resolve#2 receiver=Promise instance="Promise.resolve#2<Result<T#8, E#5>>"
+    /// @resolution.call source=Promise.resolve(Result.ok(value)) parameters=(Result<T#8, E#5>) arguments=(provided(Result.ok(value)) as Result<T#8, E#5>) return=Promise<Result<T#8, E#5>> kind=symbol target=Promise.resolve#2 instance="Promise.resolve#2<Result<T#8, E#5>>"
     /// @generic.instance source=Promise.resolve id=Promise<T#2>
     /// @generic.instance source=Promise.resolve id=Promise<T#3>
     /// @generic.instance source=Promise.resolve(Result.ok(value)) id="Promise.resolve#2<Result<T#8, E#5>>"
@@ -432,7 +432,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
     /// @type.node source=Result.ok(value) type=Result<T#8, E#5>
     /// @resolution.name source=Result target=Result
     /// @resolution.member source=Result.ok receiver=Result type=(T#6) => Result<T#6, E#3> kind=symbol target_receiver=Result target=ok#1
-    /// @resolution.call source=Result.ok(value) parameters=(T#8) arguments=(provided(value) as T#8) return=Result<T#8, E#5> kind=symbol target=ok#1 receiver=Result instance="Result<T#8, E#5>.<extension#1>.ok#1"
+    /// @resolution.call source=Result.ok(value) parameters=(T#8) arguments=(provided(value) as T#8) return=Result<T#8, E#5> kind=symbol target=ok#1 instance="Result<T#8, E#5>.<extension#1>.ok#1"
     /// @generic.instance source=Result.ok id="Result<T#6, E#3>"
     /// @generic.instance source=Result.ok(value) id="Result<T#8, E#5>"
     /// @generic.instance source=Result.ok(value) id="Result<T#8, E#5>.<extension#1>.ok#1"

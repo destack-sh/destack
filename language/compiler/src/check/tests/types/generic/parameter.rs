@@ -1406,7 +1406,7 @@ export extension<T> of Cell<T> {
         /// @resolution.name source=Cell target=Cell
         /// @resolution.name source=Inner target=Inner
         /// @resolution.member source=Inner.new receiver=Inner type=(T#2) => Inner<T#2> kind=symbol target_receiver=Inner target=new#1
-        /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 receiver=Inner instance=Inner<T#4>.<extension#1>.new#1
+        /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 instance=Inner<T#4>.<extension#1>.new#1
         /// @generic.instance source=Inner.new(value) id=Inner<T#4>.<extension#1>.new#1
         /// @resolution.name source=value target=new.value#2
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -1591,7 +1591,7 @@ function build<T: Makeable>(): T {
     T.make()
     /// @resolution.name source=T target=build.T
     /// @resolution.member source=T.make receiver=T type=() => T kind=symbol target_receiver=T target=Makeable.make
-    /// @resolution.call source=T.make() parameters=() return=T kind=symbol target=Makeable.make receiver=T
+    /// @resolution.call source=T.make() parameters=() return=T kind=symbol target=Makeable.make
 
 }
 "#);
@@ -1889,7 +1889,7 @@ extension<T> of Box<T> {
         Box.make(value)
         /// @resolution.name source=Box target=Box
         /// @resolution.member source=Box.make receiver=Box type=(T#2) => Box<T#2> kind=symbol target_receiver=Box target=make
-        /// @resolution.call source=Box.make(value) parameters=(T#3) arguments=(provided(value) as T#3) return=Box<T#3> kind=symbol target=make receiver=Box instance=Box<T#3>.<extension#1>.make
+        /// @resolution.call source=Box.make(value) parameters=(T#3) arguments=(provided(value) as T#3) return=Box<T#3> kind=symbol target=make instance=Box<T#3>.<extension#1>.make
         /// @generic.instance source=Box.make(value) id=Box<T#3>.<extension#1>.make
         /// @resolution.name source=value target=wrap.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -2023,7 +2023,7 @@ extension<T> of Outer<T> {
         /// @resolution.name source=Outer target=Outer
         /// @resolution.name source=Inner target=Inner
         /// @resolution.member source=Inner.new receiver=Inner type=(T#2) => Inner<T#2> kind=symbol target_receiver=Inner target=new#1
-        /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 receiver=Inner instance=Inner<T#4>.<extension#1>.new#1
+        /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 instance=Inner<T#4>.<extension#1>.new#1
         /// @generic.instance source=Inner.new(value) id=Inner<T#4>.<extension#1>.new#1
         /// @resolution.name source=value target=new.value#2
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -2214,7 +2214,7 @@ extension<T, R, I: Iterator<T, R>> of I {
         C.fromIterator(this)
         /// @resolution.name source=C target=collect.C
         /// @resolution.member source=C.fromIterator receiver=C type=<R#2>(Dynamic<Iterator<T#3, R#2>>) => C kind=symbol target_receiver=C target=FromIterator.fromIterator
-        /// @resolution.call source=C.fromIterator(this) parameters=(Dynamic<Iterator<T#3, R#3>>) arguments=(provided(this) as Dynamic<Iterator<T#3, R#3>>) return=C kind=symbol target=FromIterator.fromIterator receiver=C instance=FromIterator.fromIterator<R#3>
+        /// @resolution.call source=C.fromIterator(this) parameters=(Dynamic<Iterator<T#3, R#3>>) arguments=(provided(this) as Dynamic<Iterator<T#3, R#3>>) return=C kind=symbol target=FromIterator.fromIterator instance=FromIterator.fromIterator<R#3>
         /// @generic.instance source=C.fromIterator(this) id=FromIterator.fromIterator<R#3>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
@@ -2226,4 +2226,87 @@ extension<T, R, I: Iterator<T, R>> of I {
 /// @generic.instance id="Iterator<T#2, R#2>" template=Iterator arguments=(T#2, R#2)
 /// @generic.instance id=FromIterator.fromIterator<R#3> template=FromIterator.fromIterator arguments=(T#3, R#3)
 "#);
+}
+
+#[test]
+fn test_keep_written_arity_for_named_lifetimes() {
+    let session = TestSession::single(
+        r#"
+struct Named<'a> {
+    first: &'a string;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Named<'a> {
+    first: &'a string;
+}
+
+=== checked ===
+struct Named<'a> {
+/// @generic.template symbol=Named parameters=('a)
+/// @type.symbol symbol=Named type=Named
+/// @definition.struct symbol=Named template=('a)
+/// @definition.field symbol=Named.first source="first: &'a string" key=first type=&'a string
+/// @type.symbol symbol=Named.'a source='a type='a
+
+    first: &'a string;
+    /// @type.symbol symbol=Named.first source="first: &'a string" type=&'a string
+    /// @resolution.name source='a target=Named.'a
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_reject_elided_borrows_in_lifetime_naming_declarations() {
+    let session = TestSession::single(
+        r#"
+struct Mixed<'a> {
+    first: &'a string;
+    second: &string;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Mixed<'a> {
+    first: &'a string;
+    second: &string;
+}
+
+=== checked ===
+struct Mixed<'a> {
+/// @generic.template symbol=Mixed parameters=('a)
+/// @type.symbol symbol=Mixed type=Mixed
+/// @definition.struct symbol=Mixed template=('a)
+/// @definition.field symbol=Mixed.first source="first: &'a string" key=first type=&'a string
+/// @definition.field symbol=Mixed.second source="second: &string" key=second type=Borrowed<string, <error>, "mutable">
+/// @type.symbol symbol=Mixed.'a source='a type='a
+
+    first: &'a string;
+    /// @type.symbol symbol=Mixed.first source="first: &'a string" type=&'a string
+    /// @resolution.name source='a target=Mixed.'a
+
+    second: &string;
+    /// @type.symbol symbol=Mixed.second source="second: &string" type=Borrowed<string, <error>, "mutable">
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=elided-lifetime-in-named-declaration message="'Mixed' names its lifetimes, so this borrow needs a named lifetime"
+/// @diagnostic.label line=4 column=13 span="&" line_source="second: &string;"
+/// @diagnostic.help message="name the lifetime, like &'a"
+"#,
+    );
 }

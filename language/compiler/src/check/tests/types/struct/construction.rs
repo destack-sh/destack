@@ -196,7 +196,7 @@ function make<T: Zero>(): Box<T> {
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=T target=make.T
     /// @resolution.member source=T.zero receiver=T#2 type=() => T#2 kind=symbol target_receiver=T#2 target=Zero.zero
-    /// @resolution.call source=T.zero() parameters=() return=T#2 kind=symbol target=Zero.zero receiver=T#2
+    /// @resolution.call source=T.zero() parameters=() return=T#2 kind=symbol target=Zero.zero
 
 }
 

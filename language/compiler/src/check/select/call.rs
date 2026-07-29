@@ -41,6 +41,8 @@ struct CallableCandidate {
     generic_scope: Option<dir::GlobalSymbolId>,
     /// The receiver selected for member callees.
     receiver: Option<CallableReceiver>,
+    /// The member space that selected this candidate, for member callees.
+    member_space: Option<dir::MemberSpace>,
     /// The callable type.
     ty: dir::GlobalTypeId,
     /// The owner generic arguments already selected by member lookup.
@@ -178,6 +180,7 @@ impl BodyState<'_, '_> {
                         target,
                         generic_scope: None,
                         receiver: None,
+                        member_space: None,
                         ty,
                         generic_arguments: Vec::new(),
                     });
@@ -352,6 +355,7 @@ impl BodyState<'_, '_> {
             target,
             generic_scope: self.call_generic_scope(candidate)?,
             receiver,
+            member_space: Some(candidate.space),
             ty,
             generic_arguments: candidate.generic_arguments.clone(),
         };
@@ -505,6 +509,7 @@ impl BodyState<'_, '_> {
                 target: CallableTarget::Expression,
                 generic_scope: None,
                 receiver: None,
+                member_space: None,
                 ty,
                 generic_arguments: Vec::new(),
             });
@@ -1139,7 +1144,9 @@ impl BodyState<'_, '_> {
         signature: SignatureSelection,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         // bare declaration heads type as the selected overload
-        if matches!(&candidate.target, CallableTarget::Symbol(_)) && candidate.receiver.is_none() {
+        if matches!(&candidate.target, CallableTarget::Symbol(_))
+            && candidate.member_space.is_none()
+        {
             let callee = callee.into_global_any(node.module_id);
             self.commit_node_type(callee, signature.callable)?;
         }
@@ -1165,7 +1172,11 @@ impl BodyState<'_, '_> {
             CallableTarget::Expression => dir::CallTarget::Expression {
                 generic_arguments: signature.generic_arguments.clone(),
             },
-            CallableTarget::Symbol(symbol) => match candidate.selected_receiver(signature) {
+            // drop the receiver static members were selected through
+            CallableTarget::Symbol(symbol) => match candidate
+                .selected_receiver(signature)
+                .filter(|_| candidate.member_space != Some(dir::MemberSpace::Static))
+            {
                 Some(dir::MemberReceiver::Direct(receiver)) => dir::CallTarget::Symbol {
                     function: candidate.function_target(signature, Some(receiver))?,
                     dispatch: dir::FunctionDispatch::Direct,
