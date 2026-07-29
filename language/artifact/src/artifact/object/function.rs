@@ -14,6 +14,8 @@ pub struct Function {
     pub symbol: mir::Symbol,
     /// The function linkage.
     pub linkage: mir::Linkage,
+    /// The coroutine behavior when this function may suspend.
+    pub coroutine: Option<mir::CoroutineKind>,
     /// The function lifetime parameters in declaration order.
     pub lifetimes: Vec<mir::LifetimeParameter>,
     /// The function parameter types in declaration order.
@@ -22,10 +24,8 @@ pub struct Function {
     pub result: mir::TypeId,
     /// The hidden environment type when present.
     pub environment: Option<mir::TypeId>,
-    /// The runtime binding name when present.
-    pub binding: Option<StringId>,
-    /// The coroutine behavior when this function may suspend.
-    pub coroutine: Option<mir::CoroutineKind>,
+    /// The runtime binding declaration when present.
+    pub binding: Option<Box<mir::Binding>>,
 }
 
 impl Function {
@@ -36,6 +36,9 @@ impl Function {
 
     /// Return the runtime binding name when present.
     pub const fn binding_name(&self) -> Option<StringId> {
-        self.binding
+        match &self.binding {
+            Some(binding) => Some(binding.name),
+            None => None,
+        }
     }
 }
