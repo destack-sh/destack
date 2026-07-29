@@ -1,23 +1,173 @@
+use std::sync::Arc;
+
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactVersion, ComponentGraph,
-    InherentExtension,
+    ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload,
+    ArtifactProjectionFingerprint, ArtifactProjectionKey, ComponentGraph, InherentExtension,
+    SourceDependency,
 };
 use destack_dir as dir;
-use destack_repository::{ArtifactReader, ModuleDelta, ProfileId, ProviderContext};
+use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
 use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
-use std::sync::Arc;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 
 /// Predecessor component graph used to derive one new component graph.
 struct ComponentGraphBase {
-    /// The predecessor artifact version.
-    version: ArtifactVersion,
     /// The predecessor component graph payload.
     graph: Arc<ComponentGraph>,
-    /// Module changes since the predecessor revision.
-    delta: ModuleDelta,
+    /// Modules added since the predecessor graph.
+    added_modules: Vec<ModuleId>,
+    /// Modules removed since the predecessor graph.
+    removed_modules: Vec<ModuleId>,
+    /// Modules whose resolved component edges changed.
+    changed_modules: FxHashSet<ModuleId>,
+    /// Whether any inference export projection changed.
+    is_inference_exports_changed: bool,
+}
+
+/// Exact dependency fingerprints for one component graph.
+struct ComponentGraphDependencies {
+    /// Dependency fingerprints by module.
+    modules: FxHashMap<ModuleId, ModuleGraphDependencies>,
+}
+
+/// Exact component graph dependency fingerprints for one module.
+#[derive(Clone, Copy)]
+struct ModuleGraphDependencies {
+    /// The resolved component edge fingerprint.
+    component_edges: ArtifactProjectionFingerprint,
+    /// The exported inference fingerprint.
+    inference_exports: ArtifactProjectionFingerprint,
+}
+
+impl ComponentGraphBase {
+    /// Build one predecessor graph and its changed inputs.
+    fn new(
+        graph: Arc<ComponentGraph>,
+        previous: &[ArtifactDependency],
+        current: &[ArtifactDependency],
+    ) -> CompilerResult<Self> {
+        let previous =
+            ComponentGraphDependencies::read(previous).ok_or_else(|| CompilerError::Internal {
+                message: "component graph predecessor has malformed dependencies".to_owned(),
+            })?;
+        let current =
+            ComponentGraphDependencies::read(current).ok_or_else(|| CompilerError::Internal {
+                message: "component graph provider has malformed dependencies".to_owned(),
+            })?;
+        if !previous.matches_modules(graph.modules()) {
+            return Err(CompilerError::Internal {
+                message: "component graph predecessor dependencies differ from its modules"
+                    .to_owned(),
+            });
+        }
+
+        let mut added_modules = current
+            .modules
+            .keys()
+            .filter(|module| !previous.modules.contains_key(module))
+            .copied()
+            .collect::<Vec<_>>();
+        let mut removed_modules = previous
+            .modules
+            .keys()
+            .filter(|module| !current.modules.contains_key(module))
+            .copied()
+            .collect::<Vec<_>>();
+        let mut changed_modules = FxHashSet::default();
+        let mut is_inference_exports_changed = false;
+
+        // classify changed module rows
+        for (module, dependencies) in &current.modules {
+            let Some(previous) = previous.modules.get(module) else {
+                continue;
+            };
+            if dependencies.component_edges != previous.component_edges {
+                changed_modules.insert(*module);
+            }
+            if dependencies.inference_exports != previous.inference_exports {
+                is_inference_exports_changed = true;
+            }
+        }
+        added_modules.sort_unstable();
+        removed_modules.sort_unstable();
+
+        Ok(Self {
+            graph,
+            added_modules,
+            removed_modules,
+            changed_modules,
+            is_inference_exports_changed,
+        })
+    }
+}
+
+impl ComponentGraphDependencies {
+    /// Read the component graph provider's dependency rows.
+    fn read(dependencies: &[ArtifactDependency]) -> Option<Self> {
+        let (module_set, rows) = dependencies.split_last()?;
+        if !matches!(
+            module_set,
+            ArtifactDependency::Source(SourceDependency::Modules { .. })
+        ) {
+            return None;
+        }
+
+        let mut modules = FxHashMap::default();
+        let mut rows = rows.chunks_exact(2);
+        for row in &mut rows {
+            let (module, dependencies) = ModuleGraphDependencies::read(row)?;
+            if modules.insert(module, dependencies).is_some() {
+                return None;
+            }
+        }
+        if !rows.remainder().is_empty() {
+            return None;
+        }
+
+        Some(Self { modules })
+    }
+
+    /// Return whether these rows cover one exact module set.
+    fn matches_modules(&self, modules: &[ModuleId]) -> bool {
+        self.modules.len() == modules.len()
+            && modules
+                .iter()
+                .all(|module| self.modules.contains_key(module))
+    }
+}
+
+impl ModuleGraphDependencies {
+    /// Read one module's component graph dependency row.
+    fn read(row: &[ArtifactDependency]) -> Option<(ModuleId, Self)> {
+        let [
+            ArtifactDependency::Projection(edges),
+            ArtifactDependency::Projection(inference),
+        ] = row
+        else {
+            return None;
+        };
+        if edges.projection().key != ArtifactProjectionKey::DirComponentEdges
+            || inference.projection().key != ArtifactProjectionKey::DirInferenceExports
+        {
+            return None;
+        }
+
+        let module = edges.projection().artifact.module_id()?;
+        if inference.projection().artifact.module_id() != Some(module) {
+            return None;
+        }
+
+        Some((
+            module,
+            Self {
+                component_edges: edges.fingerprint(),
+                inference_exports: inference.fingerprint(),
+            },
+        ))
+    }
 }
 
 impl Compiler {
@@ -27,19 +177,20 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
-        let base = self.component_graph_base(context)?;
-
         let mut dependencies = ArtifactDependencySet::default();
-        if let Some(base) = &base {
-            dependencies.derive_from(base.version);
-        }
 
         // inference edges read every module's resolution and exports
         let modules = self.repository.module_ids(context.revision())?;
         dependencies.observe_modules(&modules);
         for module in modules {
-            dependencies.require(ArtifactKey::dir_resolved(module, profile));
-            dependencies.require(ArtifactKey::dir_exported(module, profile));
+            dependencies.require_projection(
+                ArtifactKey::dir_resolved(module, profile),
+                ArtifactProjectionKey::DirComponentEdges,
+            );
+            dependencies.require_projection(
+                ArtifactKey::dir_exported(module, profile),
+                ArtifactProjectionKey::DirInferenceExports,
+            );
         }
 
         Ok(dependencies)
@@ -54,29 +205,23 @@ impl Compiler {
             return Ok(None);
         };
 
-        let Some(graph) = self
+        let graph = self
             .repository
             .artifact_table()
             .component_graph(&base.version)
-        else {
-            return Ok(None);
-        };
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("component graph base is missing: {:?}", base.version),
+            })?;
 
-        let Some(delta) = self
-            .repository
-            .module_delta_between(context.revision(), base.revision)
-            .map_err(|error| CompilerError::Internal {
-                message: format!("failed to read changed modules: {error}"),
-            })?
-        else {
-            return Ok(None);
-        };
+        let dependencies =
+            context
+                .artifact_dependencies()
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "component graph provider has no frozen dependencies".to_string(),
+                })?;
+        let base = ComponentGraphBase::new(graph, &base.dependencies, dependencies)?;
 
-        Ok(Some(ComponentGraphBase {
-            version: base.version,
-            graph,
-            delta,
-        }))
+        Ok(Some(base))
     }
 
     /// Build the component partition for one profile.
@@ -85,7 +230,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let started = self.repository.host().clock().now();
         let modules = self.repository.module_ids(context.revision())?;
         if let Some(started) = started {
@@ -111,32 +256,34 @@ impl Compiler {
     ) -> CompilerResult<Arc<ComponentGraph>> {
         let started = self.repository.host().clock().now();
         let mut edge_count = 0u64;
-
-        // collect inherent extensions before classifying their consumers
-        let mut inherent = Vec::new();
-        for module in modules.iter().copied() {
-            self.collect_inherent_extensions(artifacts, profile, module, &mut inherent)?;
-        }
-
-        // classify each module's inference edge subset
-        let mut inference_edges = IndexMap::with_capacity(modules.len());
-        let mut is_inference_changed = false;
-        for module in modules.iter().copied() {
-            let edges =
-                self.module_inference_edges(artifacts, profile, module, inherent.as_slice())?;
-            if let Some(base) = &base {
-                is_inference_changed |= !base.graph.inference_edges_equal(module, edges.as_ref());
-            }
-            inference_edges.insert(module, edges);
-        }
+        let module_set = modules.iter().copied().collect::<FxHashSet<_>>();
 
         // build all edges when no predecessor graph is available
         let Some(base) = base else {
+            let mut extensions = Vec::new();
+            let mut inference_edges = IndexMap::with_capacity(modules.len());
             let mut edges_by_module = IndexMap::with_capacity(modules.len());
 
+            // collect every extension before classifying inference consumers
             for module in modules.iter().copied() {
-                let edges = self.module_edges(artifacts, profile, module)?;
+                self.collect_inherent_extensions(artifacts, profile, module, &mut extensions)?;
+            }
+            extensions.sort_unstable();
+            extensions.dedup();
+
+            // classify every module's inference and reference edges
+            for module in modules.iter().copied() {
+                let inference = self.module_inference_edges(
+                    artifacts,
+                    profile,
+                    module,
+                    extensions.as_slice(),
+                    &module_set,
+                )?;
+                let edges = self.module_edges(artifacts, profile, module, &module_set)?;
+
                 edge_count += edges.len() as u64;
+                inference_edges.insert(module, inference);
                 edges_by_module.insert(module, edges);
             }
 
@@ -146,45 +293,112 @@ impl Compiler {
             context.emit_counter("edges", edge_count);
 
             let graph =
-                ComponentGraph::from_edges(profile, edges_by_module, inference_edges, inherent);
+                ComponentGraph::from_edges(profile, edges_by_module, inference_edges, extensions)
+                    .map_err(|module| CompilerError::Internal {
+                    message: format!(
+                        "component graph edge references a module outside its profile: \
+                             {module:?}"
+                    ),
+                })?;
 
             return Ok(Arc::new(graph));
         };
 
-        let changed = base.delta.edge_modules().count();
-        let reused = modules.len().saturating_sub(changed);
+        // include newly added modules in every changed input set
+        let mut changed_modules = base.changed_modules;
+        changed_modules.extend(base.added_modules.iter().copied());
+        let removed_modules = base
+            .removed_modules
+            .iter()
+            .copied()
+            .collect::<FxHashSet<_>>();
 
-        context.emit_counter("changed_modules", changed as u64);
-        context.emit_counter("added_modules", base.delta.added.len() as u64);
-        context.emit_counter("removed_modules", base.delta.removed.len() as u64);
-        context.emit_counter("reused_modules", reused as u64);
+        // derive the complete extension list from only changed resolution rows
+        let mut extensions = base
+            .graph
+            .extensions()
+            .iter()
+            .filter(|extension| {
+                !changed_modules.contains(&extension.symbol.module_id)
+                    && !removed_modules.contains(&extension.symbol.module_id)
+            })
+            .copied()
+            .collect::<Vec<_>>();
+        for module in changed_modules.iter().copied() {
+            self.collect_inherent_extensions(artifacts, profile, module, &mut extensions)?;
+        }
+        extensions.sort_unstable();
+        extensions.dedup();
+        let is_extensions_changed = extensions.as_slice() != base.graph.extensions();
 
-        let mut changed_edges = IndexMap::with_capacity(changed);
-        let mut is_changed = base.delta.is_module_set_changed();
+        // reread inference rows affected by resolution, exports, or extensions
+        let is_all_inference_dirty = base.is_inference_exports_changed || is_extensions_changed;
+        let mut inference_edges = IndexMap::with_capacity(modules.len());
+        let mut is_inference_changed = false;
+        for module in modules.iter().copied() {
+            let edges = if is_all_inference_dirty || changed_modules.contains(&module) {
+                self.module_inference_edges(
+                    artifacts,
+                    profile,
+                    module,
+                    extensions.as_slice(),
+                    &module_set,
+                )?
+            } else {
+                base.graph
+                    .inference_edges(module)
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!(
+                            "component graph predecessor does not contain module {module:?}"
+                        ),
+                    })?
+            };
+            is_inference_changed |= !base.graph.inference_edges_equal(module, edges.as_ref());
+            inference_edges.insert(module, edges);
+        }
 
-        // read only edges whose source module changed
-        for module in base.delta.edge_modules() {
-            let edges = self.module_edges(artifacts, profile, module)?;
+        // reread reference rows with changed resolved relationships
+        let mut changed_edges = IndexMap::with_capacity(changed_modules.len());
+        let mut is_reference_changed =
+            !base.added_modules.is_empty() || !base.removed_modules.is_empty();
+        for module in changed_modules.iter().copied() {
+            let edges = self.module_edges(artifacts, profile, module, &module_set)?;
 
             edge_count += edges.len() as u64;
-            is_changed |= !base.graph.edges_equal(module, edges.as_ref());
+            is_reference_changed |= !base.graph.reference_edges_equal(module, edges.as_ref());
             changed_edges.insert(module, edges);
         }
 
+        let changed = changed_modules.len();
+        let reused = modules.len().saturating_sub(changed);
+
+        context.emit_counter("changed_modules", changed as u64);
+        context.emit_counter("added_modules", base.added_modules.len() as u64);
+        context.emit_counter("removed_modules", base.removed_modules.len() as u64);
+        context.emit_counter("reused_modules", reused as u64);
         if let Some(started) = started {
             context.emit_span("edges", started);
         }
         context.emit_counter("edges", edge_count);
 
         // return the predecessor graph when its inputs still match
-        let is_inherent_changed = !base.graph.inherent_extensions_equal(&inherent);
-        if !is_changed && !is_inference_changed && !is_inherent_changed {
+        if !is_reference_changed && !is_inference_changed && !is_extensions_changed {
             return Ok(base.graph);
         }
 
         let graph = base
             .graph
-            .derive(changed_edges, base.delta.removed, inference_edges, inherent);
+            .derive(
+                changed_edges,
+                base.removed_modules,
+                inference_edges,
+                extensions,
+            )
+            .map_err(|module| CompilerError::Internal {
+                message: format!(
+                    "derived component graph references a module outside its profile: {module:?}"
+                ),
+            })?;
 
         Ok(Arc::new(graph))
     }
@@ -196,9 +410,10 @@ impl Compiler {
         profile: ProfileId,
         module: ModuleId,
         inherent: &[InherentExtension],
+        modules: &FxHashSet<ModuleId>,
     ) -> CompilerResult<Arc<[ModuleId]>> {
         let resolved = artifacts
-            .dir_resolved(module, profile)
+            .dir_resolved_projection(module, profile, ArtifactProjectionKey::DirComponentEdges)
             .map_err(CompilerError::from)?;
         let mut edges = IndexSet::new();
         let mut referenced_symbols = IndexSet::new();
@@ -214,7 +429,8 @@ impl Compiler {
                 dir::Reference::Bound(symbols) => {
                     for symbol in symbols {
                         referenced_symbols.insert(*symbol);
-                        if symbol.module_id != module
+                        if modules.contains(&symbol.module_id)
+                            && symbol.module_id != module
                             && self.export_requires_inference(artifacts, profile, *symbol)?
                         {
                             edges.insert(symbol.module_id);
@@ -223,14 +439,16 @@ impl Compiler {
                 }
                 dir::Reference::Projected { base, .. } => {
                     referenced_symbols.insert(*base);
-                    if base.module_id != module
+                    if modules.contains(&base.module_id)
+                        && base.module_id != module
                         && self.export_requires_inference(artifacts, profile, *base)?
                     {
                         edges.insert(base.module_id);
                     }
                 }
                 dir::Reference::Namespace(namespace) => {
-                    if *namespace != module
+                    if modules.contains(namespace)
+                        && *namespace != module
                         && self.namespace_requires_inference(artifacts, profile, *namespace)?
                     {
                         edges.insert(*namespace);
@@ -264,7 +482,7 @@ impl Compiler {
         inherent: &mut Vec<InherentExtension>,
     ) -> CompilerResult<()> {
         let resolved = artifacts
-            .dir_resolved(module, profile)
+            .dir_resolved_projection(module, profile, ArtifactProjectionKey::DirComponentEdges)
             .map_err(CompilerError::from)?;
 
         for (symbol, target) in resolved.extensions.targets() {
@@ -287,7 +505,11 @@ impl Compiler {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
         let exported = artifacts
-            .dir_exported(symbol.module_id, profile)
+            .dir_exported_projection(
+                symbol.module_id,
+                profile,
+                ArtifactProjectionKey::DirInferenceExports,
+            )
             .map_err(CompilerError::from)?;
 
         // require every resolved cross-module symbol to carry one canonical form
@@ -311,7 +533,11 @@ impl Compiler {
         namespace: ModuleId,
     ) -> CompilerResult<bool> {
         let exported = artifacts
-            .dir_exported(namespace, profile)
+            .dir_exported_projection(
+                namespace,
+                profile,
+                ArtifactProjectionKey::DirInferenceExports,
+            )
             .map_err(CompilerError::from)?;
 
         // any inferred local export requires namespace inference
@@ -327,15 +553,16 @@ impl Compiler {
         artifacts: &ArtifactReader<'_>,
         profile: ProfileId,
         module: ModuleId,
+        modules: &FxHashSet<ModuleId>,
     ) -> CompilerResult<Arc<[ModuleId]>> {
         let resolved = artifacts
-            .dir_resolved(module, profile)
+            .dir_resolved_projection(module, profile, ArtifactProjectionKey::DirComponentEdges)
             .map_err(CompilerError::from)?;
 
         // collect the defining modules of resolved targets
         let mut edges = IndexSet::new();
         for target in resolved.target_modules() {
-            if target != module {
+            if modules.contains(&target) && target != module {
                 edges.insert(target);
             }
         }

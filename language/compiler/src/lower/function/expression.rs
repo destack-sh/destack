@@ -722,5 +722,4 @@ impl FunctionLowerer<'_, '_, '_> {
             .into()),
         }
     }
-
 }

@@ -160,5 +160,4 @@ impl<'a> ModuleLowerer<'a> {
 
         Ok((lowered, errors))
     }
-
 }

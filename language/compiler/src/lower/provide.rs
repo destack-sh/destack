@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ComponentGraphProjection, TargetArch,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, TargetArch,
 };
 use destack_core::FxIndexMap;
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
@@ -51,8 +51,10 @@ impl Compiler {
     ) -> CompilerResult<Vec<ModuleId>> {
         // project the component membership around this module
         let graph_key = ArtifactKey::component_graph(profile);
-        let artifacts = self.artifact_reader(context.revision());
-        let graph = match artifacts.component_graph(profile) {
+        dependencies
+            .require_projection(graph_key, ArtifactProjectionKey::ReferenceComponent(module));
+        let artifacts = self.artifact_reader(context);
+        let graph = match artifacts.component_graph_reader(profile) {
             Ok(graph) => graph,
             Err(ProviderError::Blocked { .. }) => {
                 dependencies.mark_partial();
@@ -61,27 +63,31 @@ impl Compiler {
             }
             Err(error) => return Err(error.into()),
         };
-        let Some(component) = graph.reference_component(module) else {
-            return Ok(Vec::new());
-        };
+        let component =
+            graph
+                .reference_component(module)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("module {module:?} is absent from the component graph"),
+                })?;
 
         // project the reference closure read by lowering
         let mut components = vec![component];
-        components.extend(graph.transitive_reference_dependencies(component));
+        components.extend(graph.transitive_reference_dependencies(component)?);
         for current in components.iter().copied() {
-            dependencies.project(
+            dependencies
+                .require_projection(graph_key, ArtifactProjectionKey::ReferenceMembers(current));
+            dependencies.require_projection(
                 graph_key,
-                ComponentGraphProjection::ReferenceMembers(current),
-            );
-            dependencies.project(
-                graph_key,
-                ComponentGraphProjection::ReferenceDependencies(current),
+                ArtifactProjectionKey::ReferenceDependencies(current),
             );
         }
 
         let modules = components
             .iter()
-            .flat_map(|component| graph.reference_members(*component))
+            .map(|component| graph.reference_members(*component))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
             .copied()
             .filter(|reachable| *reachable != module)
             .collect();
@@ -111,7 +117,7 @@ impl Compiler {
             .unwrap_or(8);
 
         // load provider inputs
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
         let bound = artifacts
             .dir_bound(module, profile)
@@ -128,21 +134,20 @@ impl Compiler {
 
         // resolve this module's reference closure
         let graph = artifacts
-            .component_graph(profile)
+            .component_graph_reader(profile)
             .map_err(CompilerError::from)?;
         let component =
             graph
-                .reference_component(module)
+                .reference_component(module)?
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("module {module:?} is absent from the component graph"),
                 })?;
         let mut components = vec![component];
-        components.extend(graph.transitive_reference_dependencies(component));
-        let reachable = components
-            .iter()
-            .flat_map(|component| graph.reference_members(*component))
-            .copied()
-            .collect::<Vec<_>>();
+        components.extend(graph.transitive_reference_dependencies(component)?);
+        let mut reachable = Vec::new();
+        for component in components {
+            reachable.extend(graph.reference_members(component)?.iter().copied());
+        }
 
         // load the sealed check output of every other reachable module
         let mut modules = FxIndexMap::default();

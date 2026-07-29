@@ -97,7 +97,10 @@ impl ModuleLowerer<'_> {
             }
 
             // newtypes wrap their backing as a single-field aggregate
-            dir::StaticTerm::Newtype { ty: instance, value } => {
+            dir::StaticTerm::Newtype {
+                ty: instance,
+                value,
+            } => {
                 let dir::Type::Application(application) = self.ty(*instance)? else {
                     return Err(CompilerError::Internal {
                         message: "checked DIR built a newtype constant without its instance"

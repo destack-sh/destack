@@ -82,7 +82,6 @@ impl TypeLowerer<'_, '_> {
         }
     }
 
-
     /// Lower one reference layer over its stored payload.
     ///
     /// Slice payloads fuse with the layer into one fat descriptor.
