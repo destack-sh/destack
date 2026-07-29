@@ -3,6 +3,7 @@ use std::fmt;
 
 use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder};
 use destack_repository::{LintLevel, ProviderError};
+use destack_source::{Applicability, DiagnosticSuggestion, PatchSet};
 
 use super::{DirModule, DirProgram, MirModule, MirProgram};
 use crate::LinterDiagnostic;
@@ -201,7 +202,7 @@ pub struct Lint {
     pub id: Cow<'static, str>,
     /// The concise rule summary.
     pub summary: Cow<'static, str>,
-    /// The rule rationale and reporting boundary.
+    /// The rule rationale and reporting criteria.
     pub explanation: Cow<'static, str>,
     /// The canonical reported and accepted source pair.
     pub example: LintExample,
@@ -227,6 +228,24 @@ impl Lint {
         DiagnosticBuilder::new(diagnostic)
     }
 
+    /// Create an automatic correction for this lint.
+    pub fn fix(
+        &self,
+        message: impl Into<String>,
+        patches: PatchSet,
+    ) -> Result<DiagnosticSuggestion, ProviderError> {
+        self.correction(message, patches, Applicability::Automatic)
+    }
+
+    /// Create a review correction for this lint.
+    pub fn suggestion(
+        &self,
+        message: impl Into<String>,
+        patches: PatchSet,
+    ) -> Result<DiagnosticSuggestion, ProviderError> {
+        self.correction(message, patches, Applicability::Dangerous)
+    }
+
     /// Return whether this lint can provide fixes.
     pub const fn is_fixable(&self) -> bool {
         !matches!(self.fixability, Fixability::None)
@@ -240,5 +259,28 @@ impl Lint {
     /// Return the compilation scope inspected by this lint.
     pub const fn scope(&self) -> LintScope {
         self.check.scope()
+    }
+
+    /// Create one correction allowed by this lint.
+    fn correction(
+        &self,
+        message: impl Into<String>,
+        patches: PatchSet,
+        applicability: Applicability,
+    ) -> Result<DiagnosticSuggestion, ProviderError> {
+        let is_allowed = match (self.fixability, applicability) {
+            (Fixability::None, _) => false,
+            (Fixability::Automatic, Applicability::Automatic) => true,
+            (Fixability::Automatic, _) => false,
+            (Fixability::Suggestion, _) => true,
+        };
+        if !is_allowed {
+            return Err(ProviderError::internal(format!(
+                "lint '{}' cannot emit a {applicability:?} correction",
+                self.id
+            )));
+        }
+
+        Ok(DiagnosticSuggestion::new(message, patches, applicability))
     }
 }

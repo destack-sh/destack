@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -58,7 +58,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // select one literal and its compared operand
-        let Some(comparison) = BooleanComparison::select(view, *left, *right, *operator) else {
+        let Some(comparison) = BooleanLiteralComparison::select(view, *left, *right, *operator)
+        else {
             continue;
         };
 
@@ -76,7 +77,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let literal_span = module.span(comparison.literal.into_any())?;
         let mut diagnostic =
             lint.diagnostic("boolean literal comparison is unnecessary", literal_span);
-        if let Some(suggestion) = comparison.suggestion(module, expression_id)? {
+        if let Some(suggestion) = comparison.suggestion(module, expression_id, lint)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);
@@ -87,7 +88,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
 /// One comparison between a boolean literal and another expression.
 #[derive(Debug, Clone, Copy)]
-struct BooleanComparison {
+struct BooleanLiteralComparison {
     /// The boolean literal expression.
     literal: dir::LocalNodeId<dir::Expression>,
     /// The compared boolean expression.
@@ -96,7 +97,7 @@ struct BooleanComparison {
     is_negated: bool,
 }
 
-impl BooleanComparison {
+impl BooleanLiteralComparison {
     /// Select one boolean literal comparison.
     fn select(
         view: dir::View<'_>,
@@ -126,6 +127,7 @@ impl BooleanComparison {
         self,
         module: &DirModule<'_>,
         comparison: dir::LocalNodeId<dir::Expression>,
+        lint: &Lint,
     ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
         let comparison_span = module.source_extent(comparison.into_any())?;
         let value_span = module.source_extent(self.value.into_any())?;
@@ -152,11 +154,7 @@ impl BooleanComparison {
         let mut file_patch = FilePatch::new(comparison_span.file);
         file_patch.replace(comparison_span, replacement);
         let patches = PatchSet::single(file_patch);
-        let suggestion = DiagnosticSuggestion::new(
-            "remove the boolean literal comparison",
-            patches,
-            Applicability::Automatic,
-        );
+        let suggestion = lint.fix("remove the boolean literal comparison", patches)?;
 
         Ok(Some(suggestion))
     }
@@ -166,38 +164,6 @@ impl BooleanComparison {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Report the complete boolean comparison diagnostic and source suggestion.
-    #[test]
-    fn test_reports_boolean_literal_comparison() {
-        let session = TestSession::new(
-            &NO_BOOLEAN_LITERAL_COMPARE,
-            NO_BOOLEAN_LITERAL_COMPARE.example.reported(),
-        );
-
-        session.assert_diagnostics(
-            r#"
-warning[no-boolean-literal-compare]: boolean literal comparison is unnecessary
- ──▶ main.ds:2:22
-  │
-1 │ function active(value: boolean): boolean {
-2 │     return value === true;
-  │                      ^^^^
-3 │ }
-  │
-
- = fix: remove the boolean literal comparison
---- a/main.ds
-+++ b/main.ds
-
-    1│ function active(value: boolean): boolean {
--   2│     return value === true;
-+   2│     return value;
-"#,
-        );
-
-        session.assert_fixes(NO_BOOLEAN_LITERAL_COMPARE.example.accepted());
-    }
 
     /// Replace positive equality to true with the compared value.
     #[test]

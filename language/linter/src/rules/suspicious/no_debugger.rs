@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -39,7 +39,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         let span = module.span(expression_id.into_any())?;
-        let suggestion = suggest_removal(module, view, expression_id)?;
+        let suggestion = suggest_removal(module, expression_id, lint)?;
         let diagnostic = lint
             .diagnostic("`debugger` statement is not allowed", span)
             .suggestion(suggestion);
@@ -52,10 +52,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 /// Build an automatic debugger removal.
 fn suggest_removal(
     module: &DirModule<'_>,
-    view: dir::View<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
+    expression: dir::LocalNodeId<dir::Expression>,
+    lint: &Lint,
 ) -> Result<DiagnosticSuggestion, ProviderError> {
-    let replacement = match view.get_parent_for(expression_id) {
+    let view = module.view();
+    let replacement = match view.get_parent_for(expression) {
         // root statements can disappear completely
         None => "",
         // classify the statement's structural position
@@ -65,7 +66,7 @@ fn suggest_removal(
                 let block_id = dir::LocalNodeId::<dir::Block>::new(parent.id);
                 let block = view.get(block_id);
                 let is_implicit_body = block.form == dir::BlockForm::Implicit
-                    && block.only_expression() == Some(expression_id);
+                    && block.only_expression() == Some(expression);
 
                 // remove statements from explicit or multi-statement blocks
                 if !is_implicit_body {
@@ -96,7 +97,7 @@ fn suggest_removal(
                     dir::Expression::Try {
                         finally: Some(finally),
                         ..
-                    } if *finally == expression_id
+                    } if *finally == expression
                 ) =>
             {
                 "{}"
@@ -104,7 +105,7 @@ fn suggest_removal(
             _ => {
                 return Err(ProviderError::internal(format!(
                     "debugger statement {} in module {:?} has invalid DIR parent {parent:?}",
-                    expression_id.id, module.id
+                    expression.id, module.id
                 )));
             }
         },
@@ -112,18 +113,14 @@ fn suggest_removal(
 
     // replace the complete statement
     let span = if replacement.is_empty() {
-        module.statement_removal_span(expression_id)?
+        module.statement_removal_span(expression)?
     } else {
-        module.statement_span(expression_id)?
+        module.statement_span(expression)?
     };
     let mut file_patch = FilePatch::new(span.file);
     file_patch.replace(span, replacement);
     let patches = PatchSet::single(file_patch);
-    let suggestion = DiagnosticSuggestion::new(
-        "remove the debugger statement",
-        patches,
-        Applicability::Automatic,
-    );
+    let suggestion = lint.fix("remove the debugger statement", patches)?;
 
     Ok(suggestion)
 }
@@ -132,32 +129,6 @@ fn suggest_removal(
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Report the complete debugger diagnostic and source suggestion.
-    #[test]
-    fn test_reports_debugger_statement() {
-        let session = TestSession::new(&NO_DEBUGGER, NO_DEBUGGER.example.reported());
-
-        session.assert_diagnostics(
-            r#"
-warning[no-debugger]: `debugger` statement is not allowed
- ──▶ main.ds:1:11
-  │
-1 │ if (true) debugger;
-  │           ^^^^^^^^
-  │
-
- = fix: remove the debugger statement
---- a/main.ds
-+++ b/main.ds
-
--   1│ if (true) debugger;
-+   1│ if (true) {}
-"#,
-        );
-
-        session.assert_fixes(NO_DEBUGGER.example.accepted());
-    }
 
     /// Suppress the lint through its canonical id.
     #[test]
@@ -187,6 +158,24 @@ const after = 2;
             r#"const before = 1;
 
 const after = 2;
+"#,
+        );
+    }
+
+    /// Remove a debugger statement from an explicit block.
+    #[test]
+    fn test_removes_debugger_from_block() {
+        let session = TestSession::new(
+            &NO_DEBUGGER,
+            r#"if (true) {
+    debugger;
+}
+"#,
+        );
+
+        session.assert_fixes(
+            r#"if (true) {
+}
 "#,
         );
     }

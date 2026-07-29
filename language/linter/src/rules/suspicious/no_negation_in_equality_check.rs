@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{FilePatch, PatchSet};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -81,11 +81,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             file_patch.insert(comparison_span.end, ")");
             file_patch.sort();
             let patches = PatchSet::single(file_patch);
-            let suggestion = DiagnosticSuggestion::new(
-                "negate the complete equality check",
-                patches,
-                Applicability::Dangerous,
-            );
+            let suggestion = lint.suggestion("negate the complete equality check", patches)?;
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);
@@ -99,39 +95,7 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Report negation on the left of strict equality.
-    #[test]
-    fn test_reports_negated_left_equality_operand() {
-        let session = TestSession::new(
-            &NO_NEGATION_IN_EQUALITY_CHECK,
-            NO_NEGATION_IN_EQUALITY_CHECK.example.reported(),
-        );
-
-        session.assert_diagnostics(
-            r#"
-warning[no-negation-in-equality-check]: left equality operand is negated
- ──▶ main.ds:2:12
-  │
-1 │ function differs(left: boolean, right: boolean): boolean {
-2 │     return !left === right;
-  │            ^
-3 │ }
-  │
-
- = suggestion: negate the complete equality check (requires review)
---- a/main.ds
-+++ b/main.ds
-
-    1│ function differs(left: boolean, right: boolean): boolean {
--   2│     return !left === right;
-+   2│     return !(left === right);
-"#,
-        );
-
-        session.assert_suggestions(NO_NEGATION_IN_EQUALITY_CHECK.example.accepted());
-    }
-
-    /// Preserve comments while moving the negation boundary.
+    /// Preserve comments while regrouping the negation.
     #[test]
     fn test_preserves_equality_comments() {
         let session = TestSession::new(
@@ -152,15 +116,25 @@ function differs(left: boolean, right: boolean): boolean {
         );
     }
 
-    /// Accept negation of the complete equality check.
+    /// Report negation on the left of strict inequality.
     #[test]
-    fn test_accepts_complete_equality_negation() {
+    fn test_reports_negated_left_inequality_operand() {
         let session = TestSession::new(
             &NO_NEGATION_IN_EQUALITY_CHECK,
-            NO_NEGATION_IN_EQUALITY_CHECK.example.accepted(),
+            r#"
+function same(left: boolean, right: boolean): boolean {
+    return !left !== right;
+}
+"#,
         );
 
-        session.assert_no_diagnostics();
+        session.assert_suggestions(
+            r#"
+function same(left: boolean, right: boolean): boolean {
+    return !(left !== right);
+}
+"#,
+        );
     }
 
     /// Accept a negated right operand because its grouping is unambiguous.
@@ -172,6 +146,31 @@ function differs(left: boolean, right: boolean): boolean {
 function same(left: boolean, right: boolean): boolean {
     return left === !right;
 }
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept a negated left operand passed to user-defined equality.
+    #[test]
+    fn test_accepts_overloaded_equality() {
+        let session = TestSession::new(
+            &NO_NEGATION_IN_EQUALITY_CHECK,
+            r#"
+import { PartialEqual } from "destack:ops";
+
+struct Marker {}
+
+extension of boolean implements PartialEqual<Marker> {
+    equal(other: Marker): boolean {
+        return this;
+    }
+}
+
+declare const value: string;
+declare const marker: Marker;
+const same = !value == marker;
 "#,
         );
 

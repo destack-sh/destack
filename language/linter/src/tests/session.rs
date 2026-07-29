@@ -14,7 +14,7 @@ use destack_source::{
 };
 use serde_json::{Map, Value, json};
 
-use crate::{LINTS, Lint};
+use crate::{Fixability, LINTS, Lint};
 
 const SOURCE_PATH: &str = "main.ds";
 const TARGET_NAME: &str = "native";
@@ -32,6 +32,53 @@ pub(crate) struct TestSession {
 }
 
 impl TestSession {
+    /// Assert the canonical reported and accepted examples for one lint.
+    #[track_caller]
+    pub(crate) fn assert_example(lint: &Lint) {
+        let reported = Self::new(lint, lint.example.reported());
+        let [diagnostic] = reported.diagnostics.diagnostics.as_slice() else {
+            panic!(
+                "lint '{}' example emitted {} diagnostics:\n{}",
+                lint.id,
+                reported.diagnostics.len(),
+                reported.render_diagnostics()
+            );
+        };
+        assert_eq!(diagnostic.id, lint.id, "lint example reported another id");
+
+        // require the declared correction capability
+        let applicability = match lint.fixability {
+            Fixability::None => None,
+            Fixability::Automatic => Some(Applicability::Automatic),
+            Fixability::Suggestion => Some(Applicability::Dangerous),
+        };
+        if let Some(applicability) = applicability {
+            let [suggestion] = diagnostic.suggestions.as_slice() else {
+                panic!(
+                    "lint '{}' example emitted {} corrections",
+                    lint.id,
+                    diagnostic.suggestions.len()
+                );
+            };
+            assert_eq!(
+                suggestion.applicability, applicability,
+                "lint '{}' example emitted the wrong correction applicability",
+                lint.id
+            );
+            reported.assert_edits(lint.example.accepted(), applicability);
+        } else {
+            assert!(
+                diagnostic.suggestions.is_empty(),
+                "non-fixable lint '{}' emitted a correction",
+                lint.id
+            );
+        }
+
+        // require the accepted form to remain clean
+        let accepted = Self::new(lint, lint.example.accepted());
+        accepted.assert_no_diagnostics();
+    }
+
     /// Run one isolated lint test.
     pub(crate) fn new(lint: &Lint, source: &str) -> Self {
         let (repository, base) = shared_repository();

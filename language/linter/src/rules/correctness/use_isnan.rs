@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_repository::ProviderError;
-use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, PatchSet};
+use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -53,7 +53,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 }
 
                 // select one checked NaN comparison
-                let Some(comparison) = NanComparison::select(module, *left, *right, *operator)?
+                let Some(comparison) = NanEquality::select(module, *left, *right, *operator)?
                 else {
                     continue;
                 };
@@ -68,7 +68,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 let mut diagnostic = lint
                     .diagnostic("equality cannot test for NaN", span)
                     .help(predicate);
-                if let Some(suggestion) = comparison.suggestion(module, expression_id)? {
+                if let Some(suggestion) = comparison.suggestion(module, expression_id, lint)? {
                     diagnostic = diagnostic.suggestion(suggestion);
                 }
                 output.report(diagnostic);
@@ -126,7 +126,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
 /// One equality comparison with an exact NaN operand.
 #[derive(Debug, Clone, Copy)]
-struct NanComparison {
+struct NanEquality {
     /// The NaN expression.
     nan: dir::LocalNodeId<dir::Expression>,
     /// The compared expression.
@@ -135,7 +135,7 @@ struct NanComparison {
     is_negated: bool,
 }
 
-impl NanComparison {
+impl NanEquality {
     /// Select one checked NaN comparison.
     fn select(
         module: &DirModule<'_>,
@@ -163,6 +163,7 @@ impl NanComparison {
         self,
         module: &DirModule<'_>,
         comparison: dir::LocalNodeId<dir::Expression>,
+        lint: &Lint,
     ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
         let comparison_span = module.source_extent(comparison.into_any())?;
         let value_span = module.source_extent(self.value.into_any())?;
@@ -194,11 +195,10 @@ impl NanComparison {
         file_patch.replace(comparison_span, replacement);
         let patches = PatchSet::single(file_patch);
 
-        Ok(Some(DiagnosticSuggestion::new(
-            "replace the equality check with a NaN predicate",
-            patches,
-            Applicability::Dangerous,
-        )))
+        let suggestion =
+            lint.suggestion("replace the equality check with a NaN predicate", patches)?;
+
+        Ok(Some(suggestion))
     }
 }
 
@@ -206,36 +206,6 @@ impl NanComparison {
 mod tests {
     use super::*;
     use crate::tests::TestSession;
-
-    /// Report equality with a checked NaN constant expression.
-    #[test]
-    fn test_reports_nan_equality() {
-        let session = TestSession::new(&USE_ISNAN, USE_ISNAN.example.reported());
-
-        session.assert_diagnostics(
-            r#"
-warning[use-isnan]: equality cannot test for NaN
- ──▶ main.ds:2:22
-  │
-1 │ function isMissing(value: float64): boolean {
-2 │     return value === (0.0 / 0.0);
-  │                      ^^^^^^^^^^^
-3 │ }
-  │
-
- = help: use a NaN predicate instead
- = suggestion: replace the equality check with a NaN predicate (requires review)
---- a/main.ds
-+++ b/main.ds
-
-    1│ function isMissing(value: float64): boolean {
--   2│     return value === (0.0 / 0.0);
-+   2│     return value.isNaN();
-"#,
-        );
-
-        session.assert_suggestions(USE_ISNAN.example.accepted());
-    }
 
     /// Report inequality with a checked NaN constant expression.
     #[test]
@@ -462,6 +432,32 @@ function isMissing<T: Float>(value: T): boolean {
 function isZero(value: float64): boolean {
     return value === 0.0;
 }
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept NaN passed to user-defined equality.
+    #[test]
+    fn test_accepts_overloaded_nan_equality() {
+        let session = TestSession::new(
+            &USE_ISNAN,
+            r#"
+import { PartialEqual } from "destack:ops";
+
+struct Measure {
+    value: float64;
+}
+
+extension of Measure implements PartialEqual<float64> {
+    equal(other: float64): boolean {
+        return this.value == other;
+    }
+}
+
+declare const measure: Measure;
+const same = measure == NaN;
 "#,
         );
 

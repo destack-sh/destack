@@ -76,28 +76,6 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Report a strict comparison with negative zero.
-    #[test]
-    fn test_reports_negative_zero_comparison() {
-        let session =
-            TestSession::new(&NO_COMPARE_NEG_ZERO, NO_COMPARE_NEG_ZERO.example.reported());
-
-        session.assert_diagnostics(
-            r#"
-warning[no-compare-neg-zero]: comparison cannot distinguish negative zero
- ──▶ main.ds:2:22
-  │
-1 │ function isNegativeZero(value: float64): boolean {
-2 │     return value === -0.0;
-  │                      ^^^^
-3 │ }
-  │
-
- = help: compare with zero and call `.isSignNegative()` to inspect the sign bit
-"#,
-        );
-    }
-
     /// Report negative zero on the left of an ordering comparison.
     #[test]
     fn test_reports_reversed_negative_zero_comparison() {
@@ -150,6 +128,32 @@ function isZero(value: float64): boolean {
 function isZero(value: int32): boolean {
     return value === -0;
 }
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Accept negative zero passed to user-defined equality.
+    #[test]
+    fn test_accepts_overloaded_negative_zero_comparison() {
+        let session = TestSession::new(
+            &NO_COMPARE_NEG_ZERO,
+            r#"
+import { PartialEqual } from "destack:ops";
+
+struct Measure {
+    value: float64;
+}
+
+extension of Measure implements PartialEqual<float64> {
+    equal(other: float64): boolean {
+        return this.value == other;
+    }
+}
+
+declare const measure: Measure;
+const same = measure == -0.0;
 "#,
         );
 

@@ -100,13 +100,11 @@ macro_rules! declare_lint {
         #[cfg(test)]
         use $crate::tests::TestSession;
 
-        /// Accept the canonical lint example.
+        /// Validate the canonical lint example.
         #[cfg(test)]
         #[test]
-        fn test_accepts_lint_example() {
-            let session = TestSession::new(&$name, $name.example.accepted());
-
-            session.assert_no_diagnostics();
+        fn test_lint_example() {
+            TestSession::assert_example(&$name);
         }
     };
 }

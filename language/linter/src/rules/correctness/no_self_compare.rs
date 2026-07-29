@@ -90,25 +90,6 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Report a binding compared with itself.
-    #[test]
-    fn test_reports_binding_self_comparison() {
-        let session = TestSession::new(&NO_SELF_COMPARE, NO_SELF_COMPARE.example.reported());
-
-        session.assert_diagnostics(
-            r#"
-warning[no-self-compare]: comparison has identical operands
- ──▶ main.ds:2:12
-  │
-1 │ function changed(value: int32): boolean {
-2 │     return value !== value;
-  │            ^^^^^^^^^^^^^^^
-3 │ }
-  │
-"#,
-        );
-    }
-
     /// Ignore parentheses when comparing stable value paths.
     #[test]
     fn test_reports_parenthesized_binding_self_comparison() {
@@ -211,6 +192,32 @@ warning[no-self-compare]: comparison has identical operands
 1 │ function unchanged(value: int32): boolean {
 2 │     return -value === -value;
   │            ^^^^^^^^^^^^^^^^^
+3 │ }
+  │
+"#,
+        );
+    }
+
+    /// Report a relational comparison with identical operands.
+    #[test]
+    fn test_reports_relational_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+function ordered(value: int32): boolean {
+    return value < value;
+}
+"#,
+        );
+
+        session.assert_diagnostics(
+            r#"
+warning[no-self-compare]: comparison has identical operands
+ ──▶ main.ds:2:12
+  │
+1 │ function ordered(value: int32): boolean {
+2 │     return value < value;
+  │            ^^^^^^^^^^^^^
 3 │ }
   │
 "#,
@@ -342,6 +349,32 @@ extension of Force implements Multiply<float64> {
 
 declare const force: Force;
 const unchanged = force * 2.0 === force * 2.0;
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Keep self-comparisons that invoke user-defined equality.
+    #[test]
+    fn test_accepts_overloaded_self_comparison() {
+        let session = TestSession::new(
+            &NO_SELF_COMPARE,
+            r#"
+import { PartialEqual } from "destack:ops";
+
+struct Badge {
+    id: int32;
+}
+
+extension of Badge implements PartialEqual<Badge> {
+    equal(other: Badge): boolean {
+        return this.id == other.id;
+    }
+}
+
+declare const badge: Badge;
+const same = badge == badge;
 "#,
         );
 
