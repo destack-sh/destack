@@ -7,11 +7,10 @@ use destack_core::{TreapRoot, stable_hash_value_256};
 use destack_serde::Reflect;
 use destack_source::FileId;
 use parking_lot::{RwLock, RwLockWriteGuard};
-use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::Environment;
 use crate::repository::{Repository, RepositoryError, RevisionCache};
+use crate::{ArtifactGraph, Environment};
 
 /// Content identity for one repository source and environment state.
 #[repr(transparent)]
@@ -126,11 +125,14 @@ impl RevisionEntry {
 
     /// Decrement the anonymous pin count.
     pub(crate) fn unpin(&self) {
-        let _ = self
+        let result = self
             .pin_count
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
                 (count > 0).then_some(count - 1)
             });
+        if result.is_err() {
+            unreachable!("cannot release an unpinned repository revision");
+        }
     }
 
     /// Return whether this revision has active anonymous pins.
@@ -139,15 +141,15 @@ impl RevisionEntry {
     }
 }
 
-/// Source inputs, environment inputs, and predecessor bases for one revision.
+/// Source state and derived artifact graph for one revision.
 #[derive(Debug)]
 pub(crate) struct RevisionState {
     /// File bindings included in this revision.
     files: RwLock<TreapRoot>,
     /// Environment inputs captured in this revision.
     pub environment: Arc<Environment>,
-    /// Base revisions considered when validating predecessor artifacts.
-    bases: RwLock<Vec<RevisionBase>>,
+    /// Artifact binding selections and direct reverse dependencies.
+    pub(crate) artifacts: RwLock<ArtifactGraph>,
     /// Lazily derived data for this revision.
     pub cache: RevisionCache,
 }
@@ -157,12 +159,12 @@ impl RevisionState {
     pub(crate) fn new(
         files: TreapRoot,
         environment: Arc<Environment>,
-        bases: impl IntoIterator<Item = RevisionBase>,
+        artifacts: ArtifactGraph,
     ) -> Self {
         Self {
             files: RwLock::new(files),
             environment,
-            bases: RwLock::new(bases.into_iter().collect()),
+            artifacts: RwLock::new(artifacts),
             cache: RevisionCache::new(),
         }
     }
@@ -177,23 +179,6 @@ impl RevisionState {
         *self.files.read()
     }
 
-    /// Return this revision's base revisions.
-    pub(crate) fn bases(&self) -> Vec<RevisionBase> {
-        self.bases.read().clone()
-    }
-
-    /// Add base revisions to this revision.
-    pub(crate) fn add_bases(&self, bases: impl IntoIterator<Item = RevisionBase>) {
-        let mut stored = self.bases.write();
-
-        // preserve nearest-first order while deduplicating branch joins
-        for base in bases {
-            if !stored.iter().any(|stored| stored.revision == base.revision) {
-                stored.push(base);
-            }
-        }
-    }
-
     /// Write the file binding root.
     pub(crate) fn write_files(&self) -> RwLockWriteGuard<'_, TreapRoot> {
         self.files.write()
@@ -205,38 +190,25 @@ impl RevisionState {
     }
 }
 
-/// One predecessor edge into a revision.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RevisionBase {
-    /// The predecessor revision.
-    pub(crate) revision: Revision,
-    /// The source files changed between predecessor and child.
-    pub(crate) delta: SourceDelta,
-}
-
-impl RevisionBase {
-    /// Build one predecessor edge.
-    pub(crate) fn new(revision: Revision, delta: SourceDelta) -> Self {
-        Self { revision, delta }
-    }
-}
-
-/// Source files changed by one revision edge.
+/// Source changes applied while forking one revision.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct SourceDelta {
     /// The changed source file ids.
     files: Arc<[FileId]>,
+    /// Whether package or module discovery inputs changed.
+    is_discovery_changed: bool,
 }
 
 impl SourceDelta {
     /// Build a source delta from changed files.
-    pub(crate) fn new(files: impl IntoIterator<Item = FileId>) -> Self {
+    pub(crate) fn new(files: impl IntoIterator<Item = FileId>, is_discovery_changed: bool) -> Self {
         let mut files = files.into_iter().collect::<Vec<_>>();
         files.sort_unstable();
         files.dedup();
 
         Self {
             files: files.into(),
+            is_discovery_changed,
         }
     }
 
@@ -245,21 +217,10 @@ impl SourceDelta {
         &self.files
     }
 
-    /// Return whether this delta contains no changed source files.
-    pub(crate) fn is_empty(&self) -> bool {
-        self.files.is_empty()
+    /// Return whether package or module discovery inputs changed.
+    pub(crate) fn is_discovery_changed(&self) -> bool {
+        self.is_discovery_changed
     }
-}
-
-/// One edge visited while searching a revision base path.
-#[derive(Debug, Clone)]
-struct DeltaPathStep {
-    /// The revision reached by this path step.
-    revision: Revision,
-    /// The preceding step in the searched path.
-    parent: Option<usize>,
-    /// The source delta between this revision and its child path step.
-    delta: SourceDelta,
 }
 
 impl Repository {
@@ -269,107 +230,4 @@ impl Repository {
 
         Ok(revision.environment.clone())
     }
-
-    /// Return source files changed between one ancestor and descendant revision.
-    pub(crate) fn source_delta_between(
-        &self,
-        revision: Revision,
-        ancestor: Revision,
-    ) -> Result<SourceDelta, RepositoryError> {
-        if revision == ancestor {
-            return Ok(SourceDelta::default());
-        }
-
-        let mut steps = vec![DeltaPathStep {
-            revision,
-            parent: None,
-            delta: SourceDelta::default(),
-        }];
-        let mut pending = vec![0];
-        let mut seen = FxHashSet::default();
-        let mut index = 0;
-
-        // walk nearest base paths in deterministic order
-        while index < pending.len() {
-            let step = pending[index];
-            let revision = steps[step].revision;
-            index += 1;
-
-            if !seen.insert(revision) {
-                continue;
-            }
-
-            let revision = self.revision(revision)?;
-            for base in revision.bases() {
-                let next = steps.len();
-                steps.push(DeltaPathStep {
-                    revision: base.revision,
-                    parent: Some(step),
-                    delta: base.delta,
-                });
-
-                if base.revision == ancestor {
-                    return Ok(source_delta_from_path(&steps, next));
-                }
-
-                pending.push(next);
-            }
-        }
-
-        Err(RepositoryError::UnrelatedRevision { revision, ancestor })
-    }
-
-    /// Return ancestors of one revision in nearest-first deterministic order.
-    pub(crate) fn revision_ancestors(
-        &self,
-        revision: Revision,
-    ) -> Result<Vec<Revision>, RepositoryError> {
-        let revision = self.revision(revision)?;
-        let mut ancestors = Vec::new();
-        let mut pending = revision.bases();
-        let mut seen = FxHashSet::default();
-        let mut index = 0;
-
-        // walk base graph breadth first
-        while index < pending.len() {
-            let ancestor = pending[index].revision;
-            index += 1;
-
-            // skip already visited bases
-            if !seen.insert(ancestor) {
-                continue;
-            }
-
-            // skip pruned bases
-            let Some(ancestor_state) = self.revisions.get(&ancestor) else {
-                continue;
-            };
-
-            let ancestor_state = ancestor_state.state();
-            ancestors.push(ancestor);
-            pending.extend(ancestor_state.bases());
-        }
-
-        Ok(ancestors)
-    }
-}
-
-/// Build the source delta represented by one discovered base path.
-fn source_delta_from_path(steps: &[DeltaPathStep], mut step: usize) -> SourceDelta {
-    let mut files = Vec::new();
-
-    // walk back to the descendant and copy source file ids once
-    loop {
-        let path_step = &steps[step];
-        if !path_step.delta.is_empty() {
-            files.extend(path_step.delta.files().iter().copied());
-        }
-
-        let Some(parent) = path_step.parent else {
-            break;
-        };
-        step = parent;
-    }
-
-    SourceDelta::new(files)
 }

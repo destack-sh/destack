@@ -23,7 +23,6 @@ pub(crate) use content::*;
 pub use edit::*;
 pub use error::*;
 pub(crate) use file::*;
-pub use module::*;
 pub use pin::*;
 pub use profile::*;
 pub use repository::*;

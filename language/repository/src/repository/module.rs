@@ -5,35 +5,12 @@ use std::sync::Arc;
 use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
 use crate::{
     ConditionGate, Module, ModuleFile, ModuleIndex, PackageIndex, builtin_condition_aliases,
 };
-
-/// Module identity delta between two revisions.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ModuleDelta {
-    /// Modules present only in the newer revision.
-    pub added: Vec<ModuleId>,
-    /// Modules present in both revisions with changed contributing files.
-    pub changed: Vec<ModuleId>,
-    /// Modules present only in the older revision.
-    pub removed: Vec<ModuleId>,
-}
-
-impl ModuleDelta {
-    /// Return modules whose outgoing graph edges must be reread.
-    pub fn edge_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
-        self.added.iter().chain(&self.changed).copied()
-    }
-
-    /// Return whether the module set changed.
-    pub fn is_module_set_changed(&self) -> bool {
-        !self.added.is_empty() || !self.removed.is_empty()
-    }
-}
 
 /// One file before it is assigned to its canonical module.
 #[derive(Debug)]
@@ -393,76 +370,6 @@ impl Repository {
         module_ids.dedup();
 
         Ok(module_ids)
-    }
-
-    /// Return module identity and contributing file changes between two revisions.
-    pub fn module_delta_between(
-        &self,
-        revision: Revision,
-        ancestor: Revision,
-    ) -> Result<Option<ModuleDelta>, RepositoryError> {
-        let current = self.module_index(revision)?;
-        let previous = self.module_index(ancestor)?;
-        let current_ids = current.module_ids().collect::<FxHashSet<_>>();
-        let previous_ids = previous.module_ids().collect::<FxHashSet<_>>();
-
-        let mut added = current_ids
-            .difference(&previous_ids)
-            .copied()
-            .collect::<Vec<_>>();
-        let mut removed = previous_ids
-            .difference(&current_ids)
-            .copied()
-            .collect::<Vec<_>>();
-
-        added.sort_unstable();
-        removed.sort_unstable();
-
-        let delta = self.source_delta_between(revision, ancestor)?;
-        let mut modules = FxHashSet::default();
-
-        // map changed source files through either revision's module index
-        for file in delta.files() {
-            let current_module = current.module_id_for_file(*file);
-            let previous_module = previous.module_id_for_file(*file);
-
-            match (current_module, previous_module) {
-                (Some(current), Some(previous)) if current == previous => {
-                    modules.insert(current);
-                }
-                (Some(current), Some(previous)) => {
-                    added.push(current);
-                    removed.push(previous);
-                }
-                (Some(current), None) => {
-                    added.push(current);
-                }
-                (None, Some(previous)) => {
-                    removed.push(previous);
-                }
-                (None, None) => {
-                    return Ok(None);
-                }
-            }
-        }
-
-        let mut changed = modules
-            .into_iter()
-            .filter(|module| current_ids.contains(module) && previous_ids.contains(module))
-            .collect::<Vec<_>>();
-
-        added.sort_unstable();
-        added.dedup();
-        changed.sort_unstable();
-        changed.dedup();
-        removed.sort_unstable();
-        removed.dedup();
-
-        Ok(Some(ModuleDelta {
-            added,
-            changed,
-            removed,
-        }))
     }
 
     /// Return the module ids visible for one package in one revision.

@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
-use destack_artifact::ArtifactVersion;
+use destack_artifact::{ArtifactBindingId, ArtifactInput, ArtifactKey, ArtifactVersion};
 use destack_source::{ContentId, File, FileId, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::{Ref, Revision};
@@ -33,13 +33,6 @@ pub enum RepositoryError {
     MissingRef { reference: Ref },
     /// The requested revision does not exist.
     MissingRevision { revision: Revision },
-    /// The requested revision does not descend from the requested ancestor.
-    UnrelatedRevision {
-        /// The descendant revision.
-        revision: Revision,
-        /// The requested ancestor revision.
-        ancestor: Revision,
-    },
     /// The requested content payload does not exist.
     MissingContent { content: ContentId },
     /// One content payload exceeds the source coordinate range.
@@ -88,6 +81,23 @@ pub enum RepositoryError {
     MissingProfile { profile: ProfileId },
     /// The requested artifact entry does not exist in the repository store.
     MissingArtifact { version: ArtifactVersion },
+    /// The requested artifact input does not exist in the repository table.
+    MissingArtifactInput { input: ArtifactInput },
+    /// The requested artifact binding does not exist in the repository table.
+    MissingArtifactBindingId { binding: ArtifactBindingId },
+    /// The artifact table does not contain one required semantic artifact id.
+    MissingArtifactId { key: ArtifactKey },
+    /// An artifact binding does not contain one recorded dependency ordinal.
+    MissingArtifactDependency {
+        /// The artifact binding.
+        key: ArtifactKey,
+        /// The missing dependency ordinal.
+        dependency: usize,
+    },
+    /// Artifact bindings form a dependency cycle.
+    CircularArtifactBinding { key: ArtifactKey },
+    /// The revision artifact graph violates one of its internal invariants.
+    InvalidArtifactGraph { message: String },
     /// The requested file does not exist in the base revision.
     MissingFile { path: String },
     /// The requested file already exists in the base revision.
@@ -147,12 +157,6 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingRevision { revision } => {
                 write!(formatter, "missing repository revision '{revision}'")
-            }
-            Self::UnrelatedRevision { revision, ancestor } => {
-                write!(
-                    formatter,
-                    "repository revision '{revision}' does not descend from '{ancestor}'"
-                )
             }
             Self::MissingContent { content } => {
                 write!(formatter, "missing repository content '{content}'")
@@ -237,6 +241,33 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingArtifact { version } => {
                 write!(formatter, "missing repository artifact '{version:?}'")
+            }
+            Self::MissingArtifactInput { input } => {
+                write!(formatter, "missing repository artifact input '{input:?}'")
+            }
+            Self::MissingArtifactBindingId { binding } => {
+                write!(
+                    formatter,
+                    "missing repository artifact binding '{binding:?}'"
+                )
+            }
+            Self::MissingArtifactId { key } => {
+                write!(formatter, "missing repository artifact id for '{key:?}'")
+            }
+            Self::MissingArtifactDependency { key, dependency } => {
+                write!(
+                    formatter,
+                    "missing dependency {dependency} in repository artifact binding '{key:?}'"
+                )
+            }
+            Self::CircularArtifactBinding { key } => {
+                write!(
+                    formatter,
+                    "circular repository artifact binding dependency at '{key:?}'"
+                )
+            }
+            Self::InvalidArtifactGraph { message } => {
+                write!(formatter, "invalid repository artifact graph: {message}")
             }
             Self::MissingFile { path } => {
                 write!(formatter, "missing file '{path}'")

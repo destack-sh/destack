@@ -6,8 +6,8 @@ use destack_core::TreapRoot;
 use destack_source::{Content, FileId, FileType};
 
 use crate::repository::{
-    Edit, FileEntry, Ref, Repository, RepositoryError, Revision, RevisionBase, RevisionEntry,
-    RevisionState, SourceDelta, normalize_logical_path,
+    Edit, FileEntry, Ref, Repository, RepositoryError, Revision, RevisionEntry, RevisionState,
+    SourceDelta, normalize_logical_path,
 };
 
 impl Repository {
@@ -71,28 +71,27 @@ impl Repository {
     {
         let base_revision = self.revision(base_revision_id)?;
         let (files, delta) = self.apply_edits(base_revision.files(), edits)?;
-        let base = RevisionBase::new(base_revision_id, delta);
+        let artifacts = base_revision.artifacts.read().fork(&delta)?;
         let revision = Arc::new(RevisionState::new(
             files,
             Arc::clone(&base_revision.environment),
-            [base.clone()],
+            artifacts,
         ));
         let revision_id = revision.revision();
 
-        let existing = match self.revisions.entry(revision_id) {
-            // record another base for identical source states
-            Entry::Occupied(entry) => Some(entry.get().state()),
+        // keep no-op edits on the base revision
+        if revision_id == base_revision_id {
+            return Ok(base_revision_id);
+        }
 
-            // publish a new source state
+        match self.revisions.entry(revision_id) {
+            // retain the existing derived state for identical source states
+            Entry::Occupied(_entry) => {}
+
+            // publish one new source state
             Entry::Vacant(entry) => {
                 entry.insert(Arc::new(RevisionEntry::new(revision)));
-                None
             }
-        };
-
-        // record duplicate source-state bases after releasing the revision-map guard
-        if let Some(revision) = existing {
-            revision.add_bases([base]);
         }
 
         Ok(revision_id)
@@ -140,6 +139,7 @@ impl Repository {
         I: IntoIterator<Item = Edit>,
     {
         let mut changed_files = Vec::new();
+        let mut is_discovery_changed = false;
 
         for edit in edits {
             match edit {
@@ -155,6 +155,7 @@ impl Repository {
                     }
 
                     changed_files.push(file_id);
+                    is_discovery_changed = true;
 
                     let logical_path = self.intern_logical_path(logical_path);
                     let content = self.intern_content(content)?;
@@ -172,7 +173,10 @@ impl Repository {
                 } => {
                     let logical_path = normalize_logical_path(&logical_path);
                     let file_id = FileId::from_logical_str(&logical_path);
+                    let is_existing = self.files.entries.contains(files, &file_id);
+                    let is_package_config = logical_path.rsplit('/').next() == Some("destack.json");
                     changed_files.push(file_id);
+                    is_discovery_changed |= !is_existing || is_package_config;
 
                     let logical_path = self.intern_logical_path(logical_path);
                     let content = self.intern_content(content)?;
@@ -192,6 +196,7 @@ impl Repository {
                     }
 
                     changed_files.push(file_id);
+                    is_discovery_changed = true;
 
                     files = self.files.entries.remove(files, &file_id);
                 }
@@ -219,6 +224,7 @@ impl Repository {
 
                     changed_files.push(from_file_id);
                     changed_files.push(to_file_id);
+                    is_discovery_changed = true;
 
                     files = self.files.entries.remove(files, &from_file_id);
                     let to = self.intern_logical_path(to);
@@ -229,6 +235,6 @@ impl Repository {
             }
         }
 
-        Ok((files, SourceDelta::new(changed_files)))
+        Ok((files, SourceDelta::new(changed_files, is_discovery_changed)))
     }
 }

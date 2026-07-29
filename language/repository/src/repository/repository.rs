@@ -3,18 +3,19 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_artifact::{
-    ArtifactStore, ArtifactTable, BlobStore, ContentStore, RepositoryStoreLayout,
+    ArtifactInput, ArtifactStore, ArtifactTable, BlobStore, ContentStore, RepositoryStoreLayout,
     SegmentedArtifactStore,
 };
 use destack_core::{StringPool, TreapRoot};
 use destack_source::{Content, ContentEntry, ContentId, File, FileSystem};
+use parking_lot::Mutex;
+use rustc_hash::FxHashSet;
 
-use crate::artifact::Artifacts;
 use crate::repository::{
-    ContentPool, EmbeddedBuiltinPackage, Files, Ref, RepositoryError, Revision, RevisionBase,
-    RevisionEntry, RevisionState,
+    ContentPool, EmbeddedBuiltinPackage, Files, Ref, RepositoryError, Revision, RevisionEntry,
+    RevisionState,
 };
-use crate::{DestackLayout, Host, Root, RootKind, Settings};
+use crate::{ArtifactGraph, DestackLayout, Host, Root, RootKind, Settings};
 
 const BUILD_FINGERPRINT: &str = include_str!("../../../../VERSION.txt");
 
@@ -43,8 +44,12 @@ pub struct Repository {
     pub(crate) embedded_builtin: EmbeddedBuiltinPackage,
     /// Repository-owned source state.
     pub(crate) files: Files,
-    /// Repository-owned artifact state.
-    pub(crate) artifacts: Artifacts,
+    /// Shared typed derived artifacts.
+    pub(crate) artifact_table: Arc<ArtifactTable>,
+    /// Persistent artifact records.
+    pub(crate) artifact_store: Arc<dyn ArtifactStore>,
+    /// Completed artifact inputs awaiting persistence.
+    pub(crate) pending_artifact_inputs: Mutex<FxHashSet<ArtifactInput>>,
     /// Named physical bases for dependency roots outside the workspace.
     pub(crate) mounts: DashMap<String, PathBuf>,
     /// Shared interned strings for this repository.
@@ -72,7 +77,9 @@ impl Repository {
             revisions,
             refs,
             files: Files::new(),
-            artifacts: Artifacts::new(artifact_store),
+            artifact_table: Arc::new(ArtifactTable::default()),
+            artifact_store,
+            pending_artifact_inputs: Mutex::new(FxHashSet::default()),
             content_pool,
             mounts: DashMap::new(),
             embedded_builtin: EmbeddedBuiltinPackage::new(),
@@ -86,7 +93,7 @@ impl Repository {
         let initial_revision = Arc::new(RevisionState::new(
             TreapRoot::new(),
             Arc::new(repository.host.environment().clone()),
-            Vec::<RevisionBase>::new(),
+            ArtifactGraph::new(),
         ));
         let initial_revision_id = initial_revision.revision();
         repository.revisions.insert(
@@ -107,14 +114,14 @@ impl Repository {
         ));
 
         self.host.set_blob_store(blob_store);
-        self.artifacts.set_store(artifact_store);
+        self.artifact_store = artifact_store;
 
         self
     }
 
     /// Override the persistent artifact store.
     pub fn with_artifact_store(mut self, artifact_store: Arc<dyn ArtifactStore>) -> Self {
-        self.artifacts.set_store(artifact_store);
+        self.artifact_store = artifact_store;
         self
     }
 
@@ -125,12 +132,12 @@ impl Repository {
 
     /// Return the repository artifact table.
     pub fn artifact_table(&self) -> &Arc<ArtifactTable> {
-        &self.artifacts.table
+        &self.artifact_table
     }
 
     /// Return the persistent artifact store.
     pub fn artifact_store(&self) -> &Arc<dyn ArtifactStore> {
-        &self.artifacts.store
+        &self.artifact_store
     }
 
     /// Return the repository string pool.

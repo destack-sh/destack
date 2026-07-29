@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ArtifactVersion};
+use destack_artifact::{ArtifactBindingId, ArtifactKey, ArtifactVersion};
 use destack_source::{ContentId, File, FileId, ModuleId, PackageId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
@@ -37,20 +37,24 @@ impl Repository {
     /// Prune file revisions and file contents that are no longer reachable.
     pub fn prune_unreachable(&self) -> Result<(), RepositoryError> {
         let reachable_revisions = self.reachable_file_revisions();
-        let reachable_artifacts = self.reachable_artifact_versions(&reachable_revisions);
-        let reachable_artifacts = self.artifact_table().reachable_closure(reachable_artifacts);
+        let selected_bindings = self.selected_artifact_bindings(&reachable_revisions);
+        let retained_artifacts = self
+            .artifact_table()
+            .retain_bindings(&selected_bindings)
+            .map_err(|error| RepositoryError::ArtifactStore {
+                message: error.to_string(),
+            })?;
         let reachable_contents =
-            self.reachable_content_ids(&reachable_revisions, &reachable_artifacts);
+            self.reachable_content_ids(&reachable_revisions, &retained_artifacts.versions)?;
 
         self.revisions
             .retain(|revision, _| reachable_revisions.contains(revision));
         self.compact_revision_trees(&reachable_revisions);
-        self.artifacts
-            .versions
-            .retain(|(revision, _key), _version| reachable_revisions.contains(revision));
-        self.artifact_table().retain_reachable(&reachable_artifacts);
+        self.pending_artifact_inputs
+            .lock()
+            .retain(|input| retained_artifacts.inputs.contains(input));
         self.artifact_store()
-            .retain(&reachable_artifacts, self.string_pool())
+            .retain(&retained_artifacts.inputs, self.string_pool())
             .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;
@@ -70,25 +74,23 @@ impl Repository {
         self.retained_revisions().into_iter().collect()
     }
 
-    /// Collect all artifact versions reachable from revisions and artifact pins.
-    fn reachable_artifact_versions(
+    /// Collect exact artifact bindings selected by retained revisions.
+    fn selected_artifact_bindings(
         &self,
         reachable_revisions: &HashSet<Revision>,
-    ) -> HashSet<ArtifactVersion> {
-        let mut reachable = HashSet::new();
+    ) -> HashSet<ArtifactBindingId> {
+        let mut bindings = HashSet::new();
 
-        for entry in self.artifacts.versions.iter() {
-            let ((revision, _key), version) = entry.pair();
-            if reachable_revisions.contains(revision) {
-                reachable.insert(*version);
-            }
+        for revision in reachable_revisions {
+            let Some(revision) = self.revisions.get(revision) else {
+                continue;
+            };
+
+            let revision = revision.state();
+            bindings.extend(revision.artifacts.read().bindings());
         }
 
-        for artifact_version in self.artifact_table().retained_versions() {
-            reachable.insert(artifact_version);
-        }
-
-        reachable
+        bindings
     }
 
     /// Collect all content ids reachable from one revision set.
@@ -96,7 +98,7 @@ impl Repository {
         &self,
         reachable_revisions: &HashSet<Revision>,
         reachable_artifacts: &HashSet<ArtifactVersion>,
-    ) -> HashSet<ContentId> {
+    ) -> Result<HashSet<ContentId>, RepositoryError> {
         let mut reachable = HashSet::new();
         let roots = reachable_revisions
             .iter()
@@ -111,12 +113,17 @@ impl Repository {
 
         // artifact output contents
         for artifact_version in reachable_artifacts {
-            for content in self.artifact_table().content_ids(artifact_version) {
+            let contents = self.artifact_table().content_ids(artifact_version).ok_or(
+                RepositoryError::MissingArtifact {
+                    version: *artifact_version,
+                },
+            )?;
+            for content in contents {
                 reachable.insert(content);
             }
         }
 
-        reachable
+        Ok(reachable)
     }
 
     /// Compact revision tree storage around reachable revision roots.
@@ -245,8 +252,9 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use destack_artifact::{
-        ArtifactKey, ArtifactVersion, Bundle, BundleFile, BundleMode, BundleSection, DiskBlobStore,
-        EmitFormat, GlobalEnvironment, LanguageEnvironment,
+        ArtifactDependency, ArtifactInput, ArtifactKey, Bundle, BundleFile, BundleMode,
+        BundleSection, DiskBlobStore, EmitFormat, GlobalEnvironment, LanguageEnvironment,
+        SourceDependency,
     };
     use destack_dir::{GlobalSymbolId, LocalSymbolId};
     use destack_source::{
@@ -386,13 +394,11 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
-        let version = ArtifactVersion::new(key, repository.build_fingerprint(), None, []);
-
-        repository
+        let input = ArtifactInput::new(key, repository.build_fingerprint(), []);
+        let version = repository
             .complete_artifact(
                 revision,
-                version,
-                None,
+                input,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),
@@ -404,20 +410,11 @@ mod tests {
             .expect("artifact store should flush");
 
         let repository = test_repository(&root);
-        let revision = repository
-            .current(&Ref::for_root(&root))
-            .expect("root ref should exist");
         let loaded = repository
-            .load_artifact(revision, version)
+            .load_artifact(version)
             .expect("artifact should load from store");
 
         assert!(loaded);
-        assert_eq!(
-            repository
-                .artifact_version(revision, &key)
-                .expect("artifact binding should load"),
-            Some(version)
-        );
         assert!(repository.artifact_table().bundle(&version).is_some());
         assert!(repository.content(content).is_ok());
 
@@ -452,13 +449,11 @@ mod tests {
             global_targets_by_key: IndexMap::new(),
         };
         let key = ArtifactKey::global_environment(profile);
-        let version = ArtifactVersion::new(key, repository.build_fingerprint(), None, []);
-
-        repository
+        let input = ArtifactInput::new(key, repository.build_fingerprint(), []);
+        let version = repository
             .complete_artifact(
                 revision,
-                version,
-                None,
+                input,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),
@@ -470,11 +465,8 @@ mod tests {
             .expect("artifact store should flush");
 
         let repository = test_repository(&root);
-        let revision = repository
-            .current(&Ref::for_root(&root))
-            .expect("root ref should exist");
         let loaded = repository
-            .load_artifact(revision, version)
+            .load_artifact(version)
             .expect("artifact should load from store");
 
         assert!(loaded);
@@ -563,6 +555,161 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
+    /// Retain only the exact input binding selected by a live revision.
+    #[test]
+    fn test_prune_unselected_artifact_input() {
+        let root = unique_test_root("repository-artifact-input-prune");
+        fs::create_dir_all(&root).expect("repository artifact input test root should exist");
+
+        let repository = test_repository(&root);
+        let reference = Ref::for_root(&root);
+        let first_revision = publish_edits(
+            &repository,
+            &reference,
+            [Edit::add_text("src/input.ds", "export const value = 1;")],
+        );
+        let file_id = repository.file_id(&root.join("src/input.ds"));
+        let first_content = repository
+            .file_content_id(first_revision, file_id)
+            .expect("first source content should resolve")
+            .expect("first source content should exist");
+        let first_dependencies = vec![ArtifactDependency::Source(SourceDependency::file_content(
+            file_id,
+            first_content,
+        ))];
+
+        // publish the first input binding
+        let package = PackageId::new(1);
+        let target = TargetId::new(package, "browser");
+        let output_content = repository
+            .intern_content(Content::Text {
+                content: "console.log('same output')\n".to_string(),
+            })
+            .expect("artifact output should intern");
+        let output = Bundle::new(
+            EmitFormat::Js,
+            BundleMode::SingleFile,
+            vec![BundleFile::new(
+                BundleSection::Entry,
+                Uri::from_string("memory:/out.js"),
+                FileType::Script,
+                output_content,
+                None,
+            )],
+        );
+        let key = ArtifactKey::bundle(package, target);
+        let first_input = ArtifactInput::new(
+            key,
+            repository.build_fingerprint(),
+            first_dependencies.clone(),
+        );
+        let first_version = repository
+            .complete_artifact(
+                first_revision,
+                first_input,
+                output.clone().into(),
+                first_dependencies,
+                DiagnosticCollection::new(),
+                Vec::new(),
+            )
+            .expect("first artifact input should publish");
+        let branch = Ref::new("branch:artifact-input-prune");
+        repository
+            .fork_ref(&reference, branch.clone())
+            .expect("artifact branch should fork");
+
+        // publish a different input binding with the same result
+        let second_revision = publish_edits(
+            &repository,
+            &reference,
+            [Edit::set_text("src/input.ds", "export const value = 2;")],
+        );
+        let second_content = repository
+            .file_content_id(second_revision, file_id)
+            .expect("second source content should resolve")
+            .expect("second source content should exist");
+        let second_dependencies = vec![ArtifactDependency::Source(SourceDependency::file_content(
+            file_id,
+            second_content,
+        ))];
+        let second_input = ArtifactInput::new(
+            key,
+            repository.build_fingerprint(),
+            second_dependencies.clone(),
+        );
+        let second_version = repository
+            .complete_artifact(
+                second_revision,
+                second_input,
+                output.into(),
+                second_dependencies,
+                DiagnosticCollection::new(),
+                Vec::new(),
+            )
+            .expect("second artifact input should publish");
+        assert_eq!(first_version, second_version);
+        repository
+            .flush_artifacts()
+            .expect("artifact inputs should persist");
+
+        // retain both exact input bindings while separate refs select them
+        repository
+            .prune_unreachable()
+            .expect("repository should retain both branches");
+        assert!(
+            repository
+                .artifact_table()
+                .binding_id(&first_input)
+                .is_some()
+        );
+        assert!(
+            repository
+                .artifact_table()
+                .binding_id(&second_input)
+                .is_some()
+        );
+
+        // release the first branch and prune its exact input binding
+        repository
+            .set_ref(&branch, second_revision)
+            .expect("artifact branch should advance");
+        repository
+            .prune_unreachable()
+            .expect("repository should prune");
+        assert!(
+            repository
+                .artifact_table()
+                .binding_id(&first_input)
+                .is_none()
+        );
+        assert!(
+            repository
+                .artifact_table()
+                .binding_id(&second_input)
+                .is_some()
+        );
+
+        // retain the same exact input selection on disk
+        let repository = test_repository(&root);
+        let revision = repository
+            .current(&Ref::for_root(&root))
+            .expect("root ref should exist");
+        assert_eq!(
+            repository
+                .load_artifact_input(revision, first_input)
+                .expect("pruned artifact input lookup should complete"),
+            None
+        );
+        assert_eq!(
+            repository
+                .load_artifact_input(revision, second_input)
+                .expect("retained artifact input should load"),
+            Some(second_version)
+        );
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
     /// Keep generated artifact contents while their artifact version is reachable.
     #[test]
     fn test_keep_generated_contents_while_artifact_reachable() {
@@ -596,18 +743,12 @@ mod tests {
                 None,
             )],
         );
-        let version = ArtifactVersion::new(
-            ArtifactKey::bundle(package, target),
-            repository.build_fingerprint(),
-            None,
-            [],
-        );
-
-        repository
+        let key = ArtifactKey::bundle(package, target);
+        let input = ArtifactInput::new(key, repository.build_fingerprint(), []);
+        let _version = repository
             .complete_artifact(
                 revision,
-                version,
-                None,
+                input,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),

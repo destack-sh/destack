@@ -1296,6 +1296,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "smallvec",
  "tracing",
  "tracing-subscriber",
  "wasm-bindgen",
