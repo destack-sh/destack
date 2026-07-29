@@ -2,133 +2,154 @@ use std::sync::Arc;
 
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::ModuleId;
+use destack_source::{ComponentId, ModuleId};
 use serde::{Deserialize, Serialize};
 
-use crate::ArtifactProjectionFingerprint;
+/// One persisted inference-component query index.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct InferenceComponentIndex {
+    /// The indexed inference component.
+    pub component: ComponentId,
+    /// The indexed query family.
+    pub kind: IndexKind,
+    /// Module indexes in stable component order.
+    pub modules: Vec<InferenceComponentModule>,
+}
 
-/// Query indexes for one checked module profile.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ModuleIndex {
-    /// Indexed declared symbols.
-    pub symbols: dir::SymbolIndex,
-    /// Indexed exports.
-    pub exports: dir::ExportIndex,
-    /// Indexed checked members.
-    pub members: dir::MemberIndex,
-    /// Indexed reference occurrences.
-    pub references: dir::ReferenceIndex,
-    /// Indexed call edges.
-    pub calls: dir::CallIndex,
-    /// Indexed nominal heritage edges.
-    pub heritage: dir::HeritageIndex,
-    /// Indexed checked extensions.
-    pub extensions: dir::ExtensionIndex,
-    /// Indexed decorators.
-    pub decorators: dir::DecoratorIndex,
+impl InferenceComponentIndex {
+    /// Return one indexed module.
+    pub fn get(&self, module: ModuleId) -> Option<&Arc<ModuleIndex>> {
+        let index = self
+            .modules
+            .binary_search_by_key(&module, |entry| entry.module)
+            .ok()?;
+
+        Some(&self.modules[index].index)
+    }
+}
+
+/// One module row inside an inference-component query index.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct InferenceComponentModule {
+    /// The indexed module.
+    pub module: ModuleId,
+    /// The module's query index.
+    pub index: Arc<ModuleIndex>,
+}
+
+/// One persisted module query index.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum ModuleIndex {
+    /// Declared symbols.
+    Symbols(dir::SymbolIndex),
+    /// Resolved exports.
+    Exports(dir::ExportIndex),
+    /// Checked members.
+    Members(dir::MemberIndex),
+    /// Resolved reference occurrences.
+    References(dir::ReferenceIndex),
+    /// Resolved call edges.
+    Calls(dir::CallIndex),
+    /// Nominal heritage edges.
+    Heritage(dir::HeritageIndex),
+    /// Checked extensions.
+    Extensions(dir::ExtensionIndex),
+    /// Decorator applications.
+    Decorators(dir::DecoratorIndex),
 }
 
 impl ModuleIndex {
-    /// Sort and deduplicate all index sections.
-    pub fn finish(&mut self) {
-        self.symbols.finish();
-        self.exports.finish();
-        self.members.finish();
-        self.references.finish();
-        self.calls.finish();
-        self.heritage.finish();
-        self.extensions.finish();
-        self.decorators.finish();
+    /// Return this module index's kind.
+    pub const fn kind(&self) -> IndexKind {
+        match self {
+            Self::Symbols(_) => IndexKind::Symbols,
+            Self::Exports(_) => IndexKind::Exports,
+            Self::Members(_) => IndexKind::Members,
+            Self::References(_) => IndexKind::References,
+            Self::Calls(_) => IndexKind::Calls,
+            Self::Heritage(_) => IndexKind::Heritage,
+            Self::Extensions(_) => IndexKind::Extensions,
+            Self::Decorators(_) => IndexKind::Decorators,
+        }
     }
 
-    /// Return the stable fingerprint of one module index projection.
-    pub fn projection_fingerprint(
-        &self,
-        projection: ModuleIndexProjection,
-    ) -> ArtifactProjectionFingerprint {
-        match projection {
-            ModuleIndexProjection::Symbols => {
-                ArtifactProjectionFingerprint::new(&dir::SymbolPostings::build(&[&self.symbols]))
-            }
-            ModuleIndexProjection::Exports => {
-                ArtifactProjectionFingerprint::new(&dir::ExportPostings::build(&[&self.exports]))
-            }
-            ModuleIndexProjection::Members => {
-                ArtifactProjectionFingerprint::new(&dir::MemberPostings::build(&[&self.members]))
-            }
-            ModuleIndexProjection::References => {
-                ArtifactProjectionFingerprint::new(&dir::ReferencePostings::build(&[
-                    &self.references
-                ]))
-            }
-            ModuleIndexProjection::Calls => {
-                ArtifactProjectionFingerprint::new(&dir::CallPostings::build(&[&self.calls]))
-            }
-            ModuleIndexProjection::Heritage => {
-                ArtifactProjectionFingerprint::new(&dir::HeritagePostings::build(&[&self.heritage]))
-            }
-            ModuleIndexProjection::Extensions => {
-                ArtifactProjectionFingerprint::new(&dir::ExtensionPostings::build(&[
-                    &self.extensions
-                ]))
-            }
-            ModuleIndexProjection::Decorators => {
-                ArtifactProjectionFingerprint::new(&dir::DecoratorPostings::build(&[
-                    &self.decorators
-                ]))
-            }
+    /// Sort and deduplicate this module index.
+    pub fn finish(&mut self) {
+        match self {
+            Self::Symbols(index) => index.finish(),
+            Self::Exports(index) => index.finish(),
+            Self::Members(index) => index.finish(),
+            Self::References(index) => index.finish(),
+            Self::Calls(index) => index.finish(),
+            Self::Heritage(index) => index.finish(),
+            Self::Extensions(index) => index.finish(),
+            Self::Decorators(index) => index.finish(),
         }
     }
 }
 
-/// Indexed checked DIR module set for one program profile.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ProgramIndex {
-    /// The indexed modules in stable ordinal order.
-    pub modules: Vec<ModuleId>,
-    /// Symbol postings.
-    pub symbols: Arc<dir::SymbolPostings>,
-    /// Export postings.
-    pub exports: Arc<dir::ExportPostings>,
-    /// Member postings.
-    pub members: Arc<dir::MemberPostings>,
-    /// Reference postings.
-    pub references: Arc<dir::ReferencePostings>,
-    /// Call postings.
-    pub calls: Arc<dir::CallPostings>,
-    /// Heritage postings.
-    pub heritage: Arc<dir::HeritagePostings>,
-    /// Extension postings.
-    pub extensions: Arc<dir::ExtensionPostings>,
-    /// Decorator postings.
-    pub decorators: Arc<dir::DecoratorPostings>,
+/// One persisted program query index.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum ProgramIndex {
+    /// Symbol name postings.
+    Symbols(dir::SymbolPostings),
+    /// Export name postings.
+    Exports(dir::ExportPostings),
+    /// Member lookup postings.
+    Members(dir::MemberPostings),
+    /// Reference target postings.
+    References(dir::ReferencePostings),
+    /// Call graph postings.
+    Calls(dir::CallPostings),
+    /// Heritage lookup postings.
+    Heritage(dir::HeritagePostings),
+    /// Extension lookup postings.
+    Extensions(dir::ExtensionPostings),
+    /// Decorator name postings.
+    Decorators(dir::DecoratorPostings),
 }
 
-/// One observable projection of a module index artifact.
+impl ProgramIndex {
+    /// Return this program index's kind.
+    pub const fn kind(&self) -> IndexKind {
+        match self {
+            Self::Symbols(_) => IndexKind::Symbols,
+            Self::Exports(_) => IndexKind::Exports,
+            Self::Members(_) => IndexKind::Members,
+            Self::References(_) => IndexKind::References,
+            Self::Calls(_) => IndexKind::Calls,
+            Self::Heritage(_) => IndexKind::Heritage,
+            Self::Extensions(_) => IndexKind::Extensions,
+            Self::Decorators(_) => IndexKind::Decorators,
+        }
+    }
+}
+
+/// One query index kind shared by module, inference-component, and program artifacts.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
-pub enum ModuleIndexProjection {
-    /// Symbol postings.
+pub enum IndexKind {
+    /// Declared symbols.
     Symbols,
-    /// Export postings.
+    /// Resolved exports.
     Exports,
-    /// Member postings.
+    /// Checked members.
     Members,
-    /// Reference postings.
+    /// Resolved reference occurrences.
     References,
-    /// Call postings.
+    /// Resolved call edges.
     Calls,
-    /// Heritage postings.
+    /// Nominal heritage edges.
     Heritage,
-    /// Extension postings.
+    /// Checked extensions.
     Extensions,
-    /// Decorator postings.
+    /// Decorator applications.
     Decorators,
 }
 
-impl ModuleIndexProjection {
-    /// All module index projections in stable order.
+impl IndexKind {
+    /// All query index kinds in stable order.
     pub const ALL: [Self; 8] = [
         Self::Symbols,
         Self::Exports,
@@ -139,4 +160,28 @@ impl ModuleIndexProjection {
         Self::Extensions,
         Self::Decorators,
     ];
+
+    /// Return whether modules own this index family.
+    pub const fn is_module_owned(self) -> bool {
+        matches!(self, Self::Symbols | Self::Exports)
+    }
+
+    /// Return whether inference components own this index family.
+    pub const fn is_inference_component_owned(self) -> bool {
+        !self.is_module_owned()
+    }
+
+    /// Return this kind's stable array ordinal.
+    pub const fn ordinal(self) -> usize {
+        match self {
+            Self::Symbols => 0,
+            Self::Exports => 1,
+            Self::Members => 2,
+            Self::References => 3,
+            Self::Calls => 4,
+            Self::Heritage => 5,
+            Self::Extensions => 6,
+            Self::Decorators => 7,
+        }
+    }
 }

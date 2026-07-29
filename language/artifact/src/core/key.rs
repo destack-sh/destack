@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
+use crate::IndexKind;
+
 /// Provider family for one artifact key.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
@@ -18,7 +20,7 @@ pub enum ArtifactProvider {
     Index,
 }
 
-/// Semantic artifact identity.
+/// One artifact kind and its owner.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
@@ -120,13 +122,20 @@ pub enum ArtifactKey {
         target: TargetId,
     },
 
-    /// Index for one module profile.
+    /// One query index for a module profile.
     ModuleIndex {
         module: ModuleId,
         profile: ProfileId,
+        kind: IndexKind,
     },
-    /// Index for one program profile.
-    ProgramIndex { profile: ProfileId },
+    /// One query index for a checked inference component.
+    InferenceComponentIndex {
+        component: ComponentId,
+        profile: ProfileId,
+        kind: IndexKind,
+    },
+    /// One query index for a program profile.
+    ProgramIndex { profile: ProfileId, kind: IndexKind },
 
     /// One structured linker input for one target.
     Script { module: ModuleId, target: TargetId },
@@ -181,7 +190,7 @@ pub enum ArtifactStage {
     Graph,
     /// Type checking.
     Check,
-    /// MIR synthesis, verification, analysis, and optimization.
+    /// MIR lowering, verification, analysis, and optimization.
     Lower,
     /// Target code emission per module.
     Emit,
@@ -260,7 +269,9 @@ impl ArtifactKey {
             | Self::Program { .. }
             | Self::Product { .. } => ArtifactProvider::Compiler,
             Self::ModuleLinted { .. } | Self::ProgramLinted { .. } => ArtifactProvider::Linter,
-            Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactProvider::Index,
+            Self::ModuleIndex { .. }
+            | Self::InferenceComponentIndex { .. }
+            | Self::ProgramIndex { .. } => ArtifactProvider::Index,
         }
     }
 
@@ -398,13 +409,30 @@ impl ArtifactKey {
     }
 
     /// Build one module index artifact key.
-    pub fn module_index(module: ModuleId, profile: ProfileId) -> Self {
-        Self::ModuleIndex { module, profile }
+    pub fn module_index(module: ModuleId, profile: ProfileId, kind: IndexKind) -> Self {
+        Self::ModuleIndex {
+            module,
+            profile,
+            kind,
+        }
+    }
+
+    /// Build one checked component query index artifact key.
+    pub fn inference_component_index(
+        component: ComponentId,
+        profile: ProfileId,
+        kind: IndexKind,
+    ) -> Self {
+        Self::InferenceComponentIndex {
+            component,
+            profile,
+            kind,
+        }
     }
 
     /// Build one program index artifact key.
-    pub fn program_index(profile: ProfileId) -> Self {
-        Self::ProgramIndex { profile }
+    pub fn program_index(profile: ProfileId, kind: IndexKind) -> Self {
+        Self::ProgramIndex { profile, kind }
     }
 
     /// Build one structured script key.
@@ -481,7 +509,9 @@ impl ArtifactKey {
                 ArtifactStage::Link
             }
             Self::ModuleLinted { .. } | Self::ProgramLinted { .. } => ArtifactStage::Lint,
-            Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactStage::Index,
+            Self::ModuleIndex { .. }
+            | Self::InferenceComponentIndex { .. }
+            | Self::ProgramIndex { .. } => ArtifactStage::Index,
             Self::GlobalEnvironment { .. } | Self::PackageGraph { .. } => ArtifactStage::Init,
         }
     }
@@ -510,6 +540,7 @@ impl ArtifactKey {
             Self::MirAnalyzed { .. } => "mir.analyze",
             Self::MirOptimized { .. } => "mir.optimize",
             Self::ModuleIndex { .. } => "module.index",
+            Self::InferenceComponentIndex { .. } => "inference.component.index",
             Self::ProgramIndex { .. } => "program.index",
             Self::Script { .. } => "script.emit",
             Self::Object { .. } => "object.emit",
@@ -547,6 +578,7 @@ impl ArtifactKey {
             Self::MirAnalyzed { .. } => "mir_analyzed",
             Self::MirOptimized { .. } => "mir_optimized",
             Self::ModuleIndex { .. } => "module_index",
+            Self::InferenceComponentIndex { .. } => "inference_component_index",
             Self::ProgramIndex { .. } => "program_index",
             Self::Script { .. } => "script",
             Self::Object { .. } => "object",
@@ -587,6 +619,7 @@ impl ArtifactKey {
             | Self::ComponentGraph { .. }
             | Self::DirDeclaredComponent { .. }
             | Self::DirCheckedComponent { .. }
+            | Self::InferenceComponentIndex { .. }
             | Self::ProgramAnalysis { .. }
             | Self::ProgramIndex { .. }
             | Self::Build { .. }
@@ -649,7 +682,8 @@ impl ArtifactKey {
             | Self::MirAnalyzed { profile, .. }
             | Self::MirOptimized { profile, .. }
             | Self::ModuleIndex { profile, .. }
-            | Self::ProgramIndex { profile }
+            | Self::InferenceComponentIndex { profile, .. }
+            | Self::ProgramIndex { profile, .. }
             | Self::ModuleLinted { profile, .. }
             | Self::ProgramLinted { profile, .. } => Some(*profile),
             Self::DirParsed { .. }
