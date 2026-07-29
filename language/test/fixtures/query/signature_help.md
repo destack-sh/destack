@@ -406,7 +406,7 @@ const userId = UserId("user-1");
 
 ### Resolve a tagged variant constructor
 
-Tagged construction reports its case payload and nominal result.
+Tagged construction reports its case payload and selected variant type.
 
 ```ds main.ds
 @derive(Tagged)
@@ -417,7 +417,7 @@ const status = Status.Ok({ value: "ready" });
 ```
 
 ```query signature_help main.ds#argument
-@signature_help.signature index=0 label="Status.Ok({ value: string }): Status" active=true
+@signature_help.signature index=0 label="Status.Ok({ value: string }): Status.Ok" active=true
 @signature_help.parameter signature=0 index=0 label="{ value: string }" active=true
 ```
 

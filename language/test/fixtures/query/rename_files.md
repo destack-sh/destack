@@ -430,7 +430,7 @@ const result = value;
 
 ## Successive Renames
 
-### [ignored] Update an import across file moves
+### Update an import across file moves
 
 Each rename starts from the paths in the current workspace revision.
 
