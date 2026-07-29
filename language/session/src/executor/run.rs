@@ -1,10 +1,13 @@
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Weak};
 
-use destack_repository::Trace;
+use destack_repository::{Revision, Trace};
 use parking_lot::Mutex;
 
+use super::executor::Executor;
+use super::scheduler::Scheduler;
 use super::task::Task;
-use crate::SessionError;
+use crate::{SessionError, SessionEvent, SessionState};
 
 /// Id for one artifact executor run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -18,27 +21,224 @@ impl std::fmt::Display for ArtifactRunId {
     }
 }
 
-/// One top-level artifact executor run.
+/// Scheduling priority for one artifact run.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ArtifactPriority {
+    /// User-blocking artifact work.
+    #[default]
+    Foreground,
+    /// Proactive artifact work.
+    Background,
+}
+
+impl ArtifactPriority {
+    /// Return the scheduler queue index for this priority.
+    pub(super) const fn index(self) -> usize {
+        match self {
+            Self::Foreground => 0,
+            Self::Background => 1,
+        }
+    }
+
+    /// Return whether this priority precedes another priority.
+    pub(super) const fn precedes(self, other: Self) -> bool {
+        self.index() < other.index()
+    }
+}
+
+/// One scheduled artifact run.
+pub struct ArtifactRun {
+    /// Executor that owns this run.
+    executor: Arc<Executor>,
+    /// Shared run state.
+    state: Arc<ArtifactRunState>,
+    /// Whether this handle completed its run lifecycle.
+    is_finished: bool,
+}
+
+impl std::fmt::Debug for ArtifactRun {
+    /// Format the visible artifact run state.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ArtifactRun")
+            .field("id", &self.state.id())
+            .field("revision", &self.state.revision())
+            .field("priority", &self.state.priority())
+            .field("is_cancelled", &self.state.is_cancelled())
+            .field("is_finished", &self.state.is_finished())
+            .finish()
+    }
+}
+
+impl ArtifactRun {
+    /// Create one scheduled artifact run.
+    pub(super) fn new(executor: Arc<Executor>, state: Arc<ArtifactRunState>) -> Self {
+        Self {
+            executor,
+            state,
+            is_finished: false,
+        }
+    }
+
+    /// Return this artifact run id.
+    pub fn id(&self) -> ArtifactRunId {
+        self.state.id()
+    }
+
+    /// Return this artifact run priority.
+    pub fn priority(&self) -> ArtifactPriority {
+        self.state.priority()
+    }
+
+    /// Return this artifact run revision.
+    pub fn revision(&self) -> Revision {
+        self.state.revision()
+    }
+
+    /// Return this artifact run trace.
+    pub fn trace(&self) -> Arc<Trace> {
+        self.state.trace().clone()
+    }
+
+    /// Create a cancellation handle for this artifact run.
+    pub fn cancellation(&self) -> ArtifactCancellation {
+        ArtifactCancellation {
+            executor: Arc::downgrade(&self.executor),
+            state: Arc::downgrade(&self.state),
+        }
+    }
+
+    /// Cancel this artifact run.
+    pub fn cancel(&self) {
+        self.executor.cancel_run(&self.state);
+    }
+
+    /// Wait for this artifact run to finish.
+    pub fn wait(mut self) -> Result<(), SessionError> {
+        let result = self
+            .executor
+            .wait_for_run(&self.state, ArtifactRunGoal::Ready);
+        self.finish();
+
+        result
+    }
+
+    /// Complete this artifact run through every terminal root outcome.
+    pub fn complete(mut self) -> Result<(), SessionError> {
+        let result = self
+            .executor
+            .wait_for_run(&self.state, ArtifactRunGoal::Terminal);
+        self.finish();
+
+        result
+    }
+
+    /// Finish this handle's run lifecycle once.
+    fn finish(&mut self) {
+        if self.is_finished {
+            return;
+        }
+
+        self.executor.finish_run(&self.state);
+        self.is_finished = true;
+    }
+}
+
+impl Drop for ArtifactRun {
+    /// Cancel unfinished work before releasing its executor.
+    fn drop(&mut self) {
+        if self.is_finished {
+            return;
+        }
+
+        if self.executor.finish_completed_run(&self.state) {
+            return;
+        }
+
+        self.state.abandon();
+        self.executor.cancel_run(&self.state);
+        self.executor.finish_abandoned_run(&self.state);
+    }
+}
+
+/// Completion condition for one artifact run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ArtifactRunGoal {
+    /// Every root must have a ready payload.
+    Ready,
+    /// Every root may have any terminal artifact outcome.
+    Terminal,
+}
+
+/// Cancellation access for one artifact run.
+#[derive(Debug, Clone)]
+pub struct ArtifactCancellation {
+    /// Executor that owns the run.
+    executor: Weak<Executor>,
+    /// Shared run state.
+    state: Weak<ArtifactRunState>,
+}
+
+impl ArtifactCancellation {
+    /// Cancel the artifact run when it is still alive.
+    pub fn cancel(&self) {
+        let Some(executor) = self.executor.upgrade() else {
+            return;
+        };
+        let Some(state) = self.state.upgrade() else {
+            return;
+        };
+
+        executor.cancel_run(&state);
+    }
+}
+
+/// Shared state for one artifact run.
 #[derive(Debug)]
-pub(super) struct ArtifactRun {
+pub(super) struct ArtifactRunState {
     /// The id for this artifact run.
     id: ArtifactRunId,
     /// The root tasks this caller is waiting for.
     roots: Vec<Task>,
+    /// The immutable revision read by every root task.
+    revision: Revision,
+    /// The scheduling priority for this run.
+    priority: ArtifactPriority,
     /// The first infrastructure error seen by any worker.
     error: Mutex<Option<SessionError>>,
+    /// Whether this run was cancelled.
+    is_cancelled: AtomicBool,
+    /// Whether the owning run handle was dropped before waiting.
+    is_abandoned: AtomicBool,
+    /// Whether this run published its terminal lifecycle.
+    is_finished: AtomicBool,
     /// The trace for this run.
     trace: Arc<Trace>,
+    /// Whether this run owns and publishes its trace.
+    owns_trace: bool,
 }
 
-impl ArtifactRun {
+impl ArtifactRunState {
     /// Create one artifact executor run recorded by the provided trace.
-    pub(super) fn new(id: ArtifactRunId, roots: Vec<Task>, trace: Arc<Trace>) -> Self {
+    pub(super) fn new(
+        id: ArtifactRunId,
+        roots: Vec<Task>,
+        revision: Revision,
+        priority: ArtifactPriority,
+        trace: Arc<Trace>,
+        owns_trace: bool,
+    ) -> Self {
         Self {
             id,
             roots,
+            revision,
+            priority,
             error: Mutex::new(None),
+            is_cancelled: AtomicBool::new(false),
+            is_abandoned: AtomicBool::new(false),
+            is_finished: AtomicBool::new(false),
             trace,
+            owns_trace,
         }
     }
 
@@ -57,6 +257,59 @@ impl ArtifactRun {
         &self.roots
     }
 
+    /// Return the immutable revision read by every root task.
+    pub(super) fn revision(&self) -> Revision {
+        self.revision
+    }
+
+    /// Return this run's scheduling priority.
+    pub(super) fn priority(&self) -> ArtifactPriority {
+        self.priority
+    }
+
+    /// Mark this run as cancelled.
+    pub(super) fn cancel(&self) -> bool {
+        !self.is_cancelled.swap(true, Ordering::AcqRel)
+    }
+
+    /// Return whether this run was cancelled.
+    pub(super) fn is_cancelled(&self) -> bool {
+        self.is_cancelled.load(Ordering::Acquire)
+    }
+
+    /// Mark this run as abandoned by its owning handle.
+    pub(super) fn abandon(&self) {
+        self.is_abandoned.store(true, Ordering::Release);
+    }
+
+    /// Return whether this run was abandoned by its owning handle.
+    pub(super) fn is_abandoned(&self) -> bool {
+        self.is_abandoned.load(Ordering::Acquire)
+    }
+
+    /// Return whether this run published its terminal lifecycle.
+    pub(super) fn is_finished(&self) -> bool {
+        self.is_finished.load(Ordering::Acquire)
+    }
+
+    /// Publish this run's terminal lifecycle once.
+    pub(super) fn finish(&self, scheduler: &Scheduler, session: &SessionState) {
+        if self.is_finished.swap(true, Ordering::AcqRel) {
+            return;
+        }
+
+        self.trace.span("cleanup", || {
+            scheduler.remove_run(self.id);
+            session.emit_event(SessionEvent::RunFinished { run_id: self.id });
+        });
+
+        // publish only traces created for standalone runs
+        if self.owns_trace {
+            self.trace.finish();
+            session.set_last_trace(self.trace.clone());
+        }
+    }
+
     /// Record the first infrastructure error for this run.
     pub(super) fn abort(&self, error: SessionError) {
         let mut existing_error = self.error.lock();
@@ -67,8 +320,8 @@ impl ArtifactRun {
         }
     }
 
-    /// Take the first infrastructure error for this run.
-    pub(super) fn take_error(&self) -> Option<SessionError> {
-        self.error.lock().take()
+    /// Return the first infrastructure error for this run.
+    pub(super) fn error(&self) -> Option<SessionError> {
+        self.error.lock().clone()
     }
 }

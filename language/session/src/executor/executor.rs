@@ -4,7 +4,7 @@ use std::thread::{Builder, JoinHandle};
 use destack_artifact::{ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactVersion};
 use destack_repository::{Execution, Revision, Trace};
 
-use super::run::ArtifactRun;
+use super::run::{ArtifactPriority, ArtifactRun, ArtifactRunGoal, ArtifactRunState};
 use super::scheduler::Scheduler;
 use super::task::Task;
 use super::worker::Worker;
@@ -69,27 +69,69 @@ impl Executor {
 
     /// Provide root artifacts for one immutable revision.
     pub(crate) fn provide(
-        &self,
+        self: &Arc<Self>,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> Result<(), SessionError> {
-        let trace = self.start_trace();
-        let result = self.provide_traced(revision, artifact_keys, trace.clone());
-
-        // publish the complete standalone operation trace
-        trace.finish();
-        self.state.set_last_trace(trace);
-
-        result
+        self.schedule(revision, artifact_keys, ArtifactPriority::Foreground)
+            .wait()
     }
 
     /// Provide root artifacts while recording into an existing operation trace.
     pub(crate) fn provide_traced(
-        &self,
+        self: &Arc<Self>,
         revision: Revision,
         artifact_keys: &[ArtifactKey],
         trace: Arc<Trace>,
     ) -> Result<(), SessionError> {
+        self.start_run(
+            revision,
+            artifact_keys,
+            ArtifactPriority::Foreground,
+            trace,
+            false,
+        )
+        .wait()
+    }
+
+    /// Complete root artifacts while recording into an existing operation trace.
+    pub(crate) fn complete_traced(
+        self: &Arc<Self>,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+        trace: Arc<Trace>,
+    ) -> Result<(), SessionError> {
+        self.start_run(
+            revision,
+            artifact_keys,
+            ArtifactPriority::Foreground,
+            trace,
+            false,
+        )
+        .complete()
+    }
+
+    /// Schedule root artifacts for one immutable revision.
+    pub(crate) fn schedule(
+        self: &Arc<Self>,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+        priority: ArtifactPriority,
+    ) -> ArtifactRun {
+        let trace = self.start_trace();
+
+        self.start_run(revision, artifact_keys, priority, trace, true)
+    }
+
+    /// Start one artifact run.
+    fn start_run(
+        self: &Arc<Self>,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+        priority: ArtifactPriority,
+        trace: Arc<Trace>,
+        owns_trace: bool,
+    ) -> ArtifactRun {
         let root_tasks = artifact_keys
             .iter()
             .copied()
@@ -97,31 +139,25 @@ impl Executor {
             .collect::<Vec<_>>();
 
         let run_id = self.state.next_run_id();
-        let run = Arc::new(ArtifactRun::new(run_id, root_tasks, trace.clone()));
+        let state = Arc::new(ArtifactRunState::new(
+            run_id,
+            root_tasks,
+            revision,
+            priority,
+            trace.clone(),
+            owns_trace,
+        ));
         trace.add_counter("roots", artifact_keys.len() as u64);
 
         self.state.emit_event(SessionEvent::RunStarted { run_id });
 
         // enqueue roots into the shared scheduler
         trace.span("enqueue", || {
-            self.scheduler.insert_run(run.clone());
-            self.scheduler.enqueue_roots(run.roots(), run.id());
+            self.scheduler.insert_run(state.clone());
+            self.scheduler.enqueue_roots(state.roots(), state.id());
         });
 
-        // drive executor workers until roots become terminal
-        let result = trace.span("execute", || match self.execution {
-            Execution::Threaded => self.wait_for_run(run.as_ref()),
-            Execution::Inline => self.run_inline(run.as_ref()),
-        });
-
-        // detach scheduler state
-        trace.span("cleanup", || {
-            self.scheduler.remove_run(run.id());
-            self.state
-                .emit_event(SessionEvent::RunFinished { run_id: run.id() });
-        });
-
-        result
+        ArtifactRun::new(self.clone(), state)
     }
 
     /// Start one trace configured for this executor.
@@ -137,7 +173,7 @@ impl Executor {
 
     /// Require one artifact version for an immutable revision.
     pub(crate) fn require(
-        &self,
+        self: &Arc<Self>,
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
@@ -169,7 +205,11 @@ impl Executor {
     }
 
     /// Drive one run on the calling thread until its roots are terminal.
-    fn run_inline(&self, run: &ArtifactRun) -> Result<(), SessionError> {
+    fn run_inline(
+        &self,
+        run: &ArtifactRunState,
+        goal: ArtifactRunGoal,
+    ) -> Result<(), SessionError> {
         let worker = Worker {
             index: 0,
             state: self.state.clone(),
@@ -177,11 +217,16 @@ impl Executor {
         };
 
         loop {
-            if let Some(error) = run.take_error() {
+            if let Some(error) = run.error() {
                 return Err(error);
             }
 
-            if self.roots_are_done(run.roots())? {
+            // cancelled runs have no queued work in an inline executor
+            if run.is_cancelled() {
+                return Err(SessionError::Cancelled);
+            }
+
+            if self.roots_satisfy(run.roots(), goal)? {
                 return Ok(());
             }
 
@@ -192,42 +237,97 @@ impl Executor {
             };
 
             if let Err(error) = worker.provide_task(claimed_run.as_ref(), task, pending_set) {
-                claimed_run.abort(error);
-                self.scheduler.notify();
+                self.scheduler.abort(task, error);
             }
         }
     }
 
     /// Wait until one run's roots are terminal or aborted.
-    fn wait_for_run(&self, run: &ArtifactRun) -> Result<(), SessionError> {
-        self.scheduler.wait_until(|| {
-            if let Some(error) = run.take_error() {
-                return Err(error);
-            }
+    pub(super) fn wait_for_run(
+        &self,
+        run: &ArtifactRunState,
+        goal: ArtifactRunGoal,
+    ) -> Result<(), SessionError> {
+        let trace = run.trace();
 
-            if self.roots_are_done(run.roots())? {
-                return Ok(Some(()));
-            }
+        trace.span("execute", || match self.execution {
+            Execution::Inline => self.run_inline(run, goal),
+            Execution::Threaded => self.scheduler.wait_until(|| {
+                if let Some(error) = run.error() {
+                    return Err(error);
+                }
 
-            Ok(None)
-        })
+                // let already running providers leave the cancelled run trace
+                if run.is_cancelled() {
+                    let is_executing = self.scheduler.is_run_executing(run.id());
+                    return Ok((!is_executing).then_some(()));
+                }
+
+                if self.roots_satisfy(run.roots(), goal)? {
+                    return Ok(Some(()));
+                }
+
+                Ok(None)
+            }),
+        })?;
+
+        if run.is_cancelled() {
+            Err(SessionError::Cancelled)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Cancel one artifact run and detach its queued work.
+    pub(super) fn cancel_run(&self, run: &ArtifactRunState) {
+        if !run.cancel() {
+            return;
+        }
+
+        self.scheduler.remove_run(run.id());
+    }
+
+    /// Finish one artifact run.
+    pub(super) fn finish_run(&self, run: &ArtifactRunState) {
+        run.finish(&self.scheduler, &self.state);
+    }
+
+    /// Finish one run when every root already reached a terminal outcome.
+    pub(super) fn finish_completed_run(&self, run: &ArtifactRunState) -> bool {
+        let is_complete = run.error().is_some()
+            || matches!(
+                self.roots_satisfy(run.roots(), ArtifactRunGoal::Ready),
+                Ok(true) | Err(SessionError::ArtifactFailed { .. })
+            );
+        if is_complete {
+            self.finish_run(run);
+        }
+
+        is_complete
+    }
+
+    /// Finish one abandoned run when no worker still records into it.
+    pub(super) fn finish_abandoned_run(&self, run: &ArtifactRunState) {
+        if run.is_abandoned() && !self.scheduler.is_run_executing(run.id()) {
+            self.finish_run(run);
+        }
     }
 
     /// Return true when every task has a ready terminal artifact outcome.
-    fn roots_are_done(&self, tasks: &[Task]) -> Result<bool, SessionError> {
+    fn roots_satisfy(&self, tasks: &[Task], goal: ArtifactRunGoal) -> Result<bool, SessionError> {
         for task in tasks {
             let Some(outcome) = self.state.artifact_outcome(*task)? else {
                 return Ok(false);
             };
 
-            let ArtifactOutcome::Failed(failure) = outcome else {
-                continue;
-            };
-
-            return Err(SessionError::ArtifactFailed {
-                key: task.key,
-                failure: Box::new(failure),
-            });
+            if let ArtifactOutcome::Failed(failure) = outcome
+                && goal == ArtifactRunGoal::Ready
+            {
+                return Err(SessionError::ArtifactFailed {
+                    key: task.key,
+                    failure: Box::new(failure),
+                });
+            }
         }
 
         Ok(true)
@@ -241,7 +341,9 @@ impl Drop for Executor {
 
         // join fixed workers
         while let Some(worker) = self.workers.pop() {
-            let _ = worker.join();
+            if let Err(error) = worker.join() {
+                std::panic::resume_unwind(error);
+            }
         }
     }
 }
@@ -261,6 +363,34 @@ impl Session {
         self.executor.provide(revision, artifact_keys)
     }
 
+    /// Schedule root artifacts for one immutable revision.
+    pub fn schedule_artifacts(
+        &self,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+        priority: ArtifactPriority,
+    ) -> ArtifactRun {
+        self.executor.schedule(revision, artifact_keys, priority)
+    }
+
+    /// Schedule root artifacts into an existing operation trace.
+    pub fn schedule_artifacts_traced(
+        &self,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+        priority: ArtifactPriority,
+        trace: Arc<Trace>,
+    ) -> ArtifactRun {
+        self.executor
+            .start_run(revision, artifact_keys, priority, trace, false)
+    }
+
+    /// Finish and publish one trace spanning multiple artifact runs.
+    pub fn finish_trace(&self, trace: Arc<Trace>) {
+        trace.finish();
+        self.state.set_last_trace(trace);
+    }
+
     /// Provide root artifacts while recording into an existing operation trace.
     pub fn provide_traced(
         &self,
@@ -269,6 +399,17 @@ impl Session {
         trace: Arc<Trace>,
     ) -> Result<(), SessionError> {
         self.executor.provide_traced(revision, artifact_keys, trace)
+    }
+
+    /// Complete root artifacts while recording into an existing operation trace.
+    pub fn complete_traced(
+        &self,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+        trace: Arc<Trace>,
+    ) -> Result<(), SessionError> {
+        self.executor
+            .complete_traced(revision, artifact_keys, trace)
     }
 
     /// Require one root artifact for an immutable revision.

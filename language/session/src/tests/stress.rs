@@ -1,8 +1,7 @@
-use destack_repository::TraceSnapshot;
+use destack_repository::{TraceReport, TraceSnapshot};
 
 use super::{
-    Cell, TestSession, TextTable, TraceCounts, TraceTable, artifact_counter, millis, stage_micros,
-    time_micros,
+    Cell, TestSession, TextTable, TraceCounts, artifact_counter, millis, stage_micros, time_micros,
 };
 
 /// Module graph shapes used by scaling stress tests.
@@ -304,15 +303,15 @@ fn test_measure_check_after_single_module_edit() {
 
     table.print();
 
-    for (name, trace) in &detailed_traces {
-        TraceTable::new()
-            .row(name.as_str(), trace)
-            .color()
-            .timeline()
-            .times()
-            .slow_attempts(8)
-            .print();
+    let mut report = TraceReport::new()
+        .color()
+        .timelines()
+        .span_totals()
+        .slow_attempts(8);
+    for (name, trace) in detailed_traces {
+        report = report.row(name, trace);
     }
+    report.print();
 }
 
 /// Measure one component graph edit.
@@ -446,17 +445,10 @@ export const result = value;
     .unwrap();
 
     let (cold, cold_trace) = test.check("src/index.ds", "js");
-    assert_eq!(
-        TraceCounts::from_trace(&cold_trace),
-        TraceCounts {
-            attempts: 5434,
-            built: 3248,
-            memory_cached: 0,
-            store_cached: 0,
-            parked: 2186,
-            failed: 0,
-        },
-    );
+    assert_eq!(cold_trace.stats.built, 3254);
+    assert_eq!(cold_trace.stats.memory_cached, 0);
+    assert_eq!(cold_trace.stats.store_cached, 0);
+    assert_eq!(cold_trace.stats.failed, 0);
 
     let (warm, warm_trace) = test.check("src/index.ds", "js");
     assert_eq!(warm, cold);
@@ -472,22 +464,31 @@ export const result = value;
 
     let (edited, edited_trace) = test.check("src/index.ds", "js");
     assert_ne!(edited, cold);
-    assert_eq!(
-        TraceCounts::from_trace(&edited_trace),
-        TraceCounts {
-            attempts: 19,
-            built: 11,
-            memory_cached: 0,
-            store_cached: 0,
-            parked: 8,
-            failed: 0,
-        },
-    );
-    assert_eq!(
-        artifact_counter(&edited_trace, "component.graph", "changed_modules"),
-        Some(1),
-    );
 
+    // require exact terminal work after the semantic edit
+    let mut edited_artifacts = edited_trace
+        .attempts
+        .iter()
+        .filter(|attempt| attempt.outcome != "parked")
+        .map(|attempt| (attempt.outcome.as_str(), attempt.name.as_str()))
+        .collect::<Vec<_>>();
+    edited_artifacts.sort_unstable();
+    assert_eq!(
+        edited_artifacts,
+        [
+            ("built", "dir.bind"),
+            ("built", "dir.check"),
+            ("built", "dir.check.component"),
+            ("built", "dir.check.component"),
+            ("built", "dir.expand"),
+            ("built", "dir.export"),
+            ("built", "dir.import"),
+            ("built", "dir.parse"),
+            ("built", "dir.resolve"),
+            ("memory_cached", "component.graph"),
+            ("memory_cached", "dir.resolve"),
+        ],
+    );
     // value-preserving dependency edits cut off early: the importer's
     //  checked artifact stays byte-identical
     test.edit_text(
@@ -498,8 +499,32 @@ export const result = value;
 "#,
     );
 
-    let (commented, _) = test.check("src/index.ds", "js");
+    let (commented, commented_trace) = test.check("src/index.ds", "js");
     assert_eq!(commented, edited);
+
+    // require the value preserving edit to cut off before the importer
+    let mut commented_artifacts = commented_trace
+        .attempts
+        .iter()
+        .filter(|attempt| attempt.outcome != "parked")
+        .map(|attempt| (attempt.outcome.as_str(), attempt.name.as_str()))
+        .collect::<Vec<_>>();
+    commented_artifacts.sort_unstable();
+    assert_eq!(
+        commented_artifacts,
+        [
+            ("built", "dir.bind"),
+            ("built", "dir.check.component"),
+            ("built", "dir.check.component"),
+            ("built", "dir.expand"),
+            ("built", "dir.export"),
+            ("built", "dir.import"),
+            ("built", "dir.parse"),
+            ("built", "dir.resolve"),
+            ("memory_cached", "component.graph"),
+            ("memory_cached", "dir.resolve"),
+        ],
+    );
 }
 
 #[test]

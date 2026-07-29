@@ -8,7 +8,7 @@ use destack_repository::{
 };
 use destack_source::{Edit, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 
-use crate::{Change, Commit, PreparedCommit, Session, SessionError};
+use crate::{Change, Commit, PreparedCommit, Session, SessionError, SessionEventHandler};
 
 const DEFAULT_ROOT: &str = "/workspace";
 
@@ -46,11 +46,43 @@ impl TestSession {
         Self::open_with_root(input, files, 1)
     }
 
+    /// Open one observed test session with a threaded executor.
+    fn open_threaded(
+        files: &[(&str, &str)],
+        worker_count: usize,
+        event_handler: SessionEventHandler,
+    ) -> Result<Self, SessionError> {
+        Self::create(
+            DEFAULT_ROOT,
+            files,
+            worker_count,
+            Execution::Threaded,
+            Some(event_handler),
+        )
+    }
+
     /// Open one test session from a specific input path and worker count.
     fn open_with_root(
         input: impl AsRef<Path>,
         files: &[(&str, &str)],
         worker_count: usize,
+    ) -> Result<Self, SessionError> {
+        let execution = if worker_count == 1 {
+            Execution::Inline
+        } else {
+            Execution::Threaded
+        };
+
+        Self::create(input, files, worker_count, execution, None)
+    }
+
+    /// Create one test session with explicit executor behavior.
+    fn create(
+        input: impl AsRef<Path>,
+        files: &[(&str, &str)],
+        worker_count: usize,
+        execution: Execution,
+        event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, SessionError> {
         let root = PathBuf::from(DEFAULT_ROOT);
         let fs = Arc::new(MemoryFileSystem::new());
@@ -62,11 +94,6 @@ impl TestSession {
                 .expect("test file should write");
         }
 
-        let execution = if worker_count == 1 {
-            Execution::Inline
-        } else {
-            Execution::Threaded
-        };
         let host = Host::new(
             Environment::default(),
             fs.clone(),
@@ -88,7 +115,7 @@ impl TestSession {
             repository.clone(),
             head,
             worker_count,
-            None,
+            event_handler,
         )?;
 
         Ok(Self {

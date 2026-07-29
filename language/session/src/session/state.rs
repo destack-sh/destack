@@ -119,19 +119,8 @@ impl SessionState {
         task: Task,
     ) -> Result<Option<ArtifactOutcome>, SessionError> {
         let repository = self.repository();
+        let outcome = repository.current_artifact_outcome(task.revision, &task.key)?;
 
-        // no exact binding means the task has not completed in this revision
-        let Some(version) = repository.artifact_binding(task.revision, &task.key)? else {
-            return Ok(None);
-        };
-
-        // revision bindings must point at a terminal store entry
-        let Some(outcome) = repository.artifact_table().outcome(&version) else {
-            return Err(SessionError::Internal {
-                detail: format!("artifact version is missing from store: {version:?}"),
-            });
-        };
-
-        Ok(Some(outcome))
+        Ok(outcome)
     }
 }

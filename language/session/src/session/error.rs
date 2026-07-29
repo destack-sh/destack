@@ -5,7 +5,7 @@ use destack_repository::{Ref, RepositoryError, Revision};
 use destack_source::{FileId, ModuleId, PackageId, PatchApplyError};
 
 /// Errors produced by live session operations.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SessionError {
     /// A filesystem path cannot be loaded as a module.
     ModulePathNotLoadable {
@@ -43,6 +43,8 @@ pub enum SessionError {
         /// The invalid worker count.
         worker_count: usize,
     },
+    /// Artifact provisioning was cancelled.
+    Cancelled,
     /// Artifact provision reached a failed terminal outcome.
     ArtifactFailed {
         /// The failed artifact key.
@@ -95,6 +97,9 @@ impl std::fmt::Display for SessionError {
             }
             SessionError::InvalidWorkerCount { worker_count } => {
                 write!(formatter, "invalid session worker count: {worker_count}")
+            }
+            SessionError::Cancelled => {
+                write!(formatter, "artifact provisioning was cancelled")
             }
             SessionError::ArtifactFailed { key, failure } => {
                 write!(

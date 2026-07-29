@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, DiagnosticLike,
+    ArtifactDependency, ArtifactKey, ArtifactSidecar, DiagnosticAnchor, DiagnosticContext,
+    DiagnosticDisplay, DiagnosticError, DiagnosticLike,
 };
 use destack_repository::{
     ArtifactAttemptRecorder, ArtifactBase, ProviderContext, Repository, Revision,
@@ -23,7 +23,9 @@ pub(crate) struct ProviderAttempt {
     /// The artifact key being built.
     key: ArtifactKey,
     /// The predecessor artifact selected for this attempt.
-    base: Option<ArtifactBase>,
+    base: Option<Arc<ArtifactBase>>,
+    /// The frozen dependency observations for provider execution.
+    dependencies: Option<Arc<[ArtifactDependency]>>,
     /// The diagnostics produced by this attempt.
     diagnostics: Mutex<DiagnosticCollection>,
     /// The sidecars produced by this attempt.
@@ -40,6 +42,7 @@ impl ProviderAttempt {
             revision,
             key,
             base: None,
+            dependencies: None,
             diagnostics: Mutex::new(DiagnosticCollection::new()),
             sidecars: Mutex::new(Vec::new()),
             recorder: None,
@@ -54,8 +57,16 @@ impl ProviderAttempt {
     }
 
     /// Attach the predecessor artifact selected for this attempt.
-    pub(crate) fn with_base(mut self, base: Option<ArtifactBase>) -> Self {
+    pub(crate) fn with_base(mut self, base: Option<Arc<ArtifactBase>>) -> Self {
         self.base = base;
+
+        self
+    }
+
+    /// Attach the frozen dependency observations for provider execution.
+    pub(crate) fn with_dependencies(mut self, dependencies: Arc<[ArtifactDependency]>) -> Self {
+        self.dependencies = Some(dependencies);
+
         self
     }
 
@@ -70,8 +81,8 @@ impl ProviderAttempt {
     }
 
     /// Return the predecessor artifact selected for this attempt.
-    pub(crate) fn base(&self) -> Option<ArtifactBase> {
-        self.base
+    pub(crate) fn base(&self) -> Option<&ArtifactBase> {
+        self.base.as_deref()
     }
 
     /// Return diagnostics produced by this attempt.
@@ -261,8 +272,13 @@ impl ProviderContext for ProviderAttempt {
     }
 
     /// Return the predecessor artifact selected for this attempt.
-    fn artifact_base(&self) -> Option<ArtifactBase> {
+    fn artifact_base(&self) -> Option<&ArtifactBase> {
         self.base()
+    }
+
+    /// Return the frozen dependency observations for provider execution.
+    fn artifact_dependencies(&self) -> Option<&[ArtifactDependency]> {
+        self.dependencies.as_deref()
     }
 
     /// Add an already-final diagnostic collection produced by this attempt.
