@@ -87,6 +87,11 @@ impl Compiler {
         // resolve every collected reference over the declared export closure
         state.resolve(&environment)?;
 
+        // pull in tree literals to the default builder
+        if parsed.tree.has_tree_expressions() {
+            state.record_tree_builder(environment.tree);
+        }
+
         // emit resolve stats before diagnostics are drained
         let mut stats = state.stats;
         stats.record_exports(state.exports.stats());

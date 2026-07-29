@@ -77,6 +77,57 @@ impl Compiler {
         Ok(targets)
     }
 
+    /// Return the default tree builder module and export selected by one profile.
+    pub(crate) fn tree_builder_reference(
+        &self,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<Option<(ModuleId, String)>> {
+        let profile = self.profile(context.revision(), profile)?;
+        let Some(entry) = &profile.key.tree else {
+            return Ok(None);
+        };
+        let Some((specifier, export)) = entry.rsplit_once('#') else {
+            return Err(CompilerError::Internal {
+                message: format!("tree builder '{entry}' is missing its '#Export' selector"),
+            });
+        };
+        let uri = self
+            .repository
+            .builtin_module_uri_for_specifier(context.revision(), specifier)?;
+        let module_id = match uri {
+            Some(uri) => self.module_id_for_uri(context.revision(), &uri)?,
+            None => self.module_id_for_path(context.revision(), Path::new(specifier))?,
+        };
+        let Some(module_id) = module_id else {
+            return Err(CompilerError::Internal {
+                message: format!("tree builder module is not loaded: '{specifier}'"),
+            });
+        };
+
+        Ok(Some((module_id, export.to_string())))
+    }
+
+    /// Resolve the default tree builder export to its declared symbol.
+    pub(in crate::import) fn resolve_tree_builder(
+        &self,
+        profile: ProfileId,
+        context: &dyn ProviderContext,
+        artifacts: &ArtifactReader<'_>,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let Some((module, export)) = self.tree_builder_reference(profile, context)? else {
+            return Ok(None);
+        };
+        let key = dir::ExportKey::Named(dir::StaticKey::Name(self.strings().intern(&export)));
+        let mut resolver = ExportResolver::new(profile);
+        match resolver.resolve_export_target(artifacts, module, key)? {
+            ExportLookup::Found(dir::ExportTarget::Symbol(symbol)) => Ok(Some(symbol)),
+            _ => Err(CompilerError::Internal {
+                message: format!("tree builder export '{export}' did not resolve to a symbol"),
+            }),
+        }
+    }
+
     /// Resolve one indirect global export to its concrete target.
     fn resolve_global_entry(
         &self,

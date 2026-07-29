@@ -42,6 +42,8 @@ pub struct GlobalEnvironment {
     pub globals: Vec<ModuleId>,
     /// Resolved global bindings by key across the global modules.
     pub global_targets_by_key: IndexMap<StaticKey, Vec<ImportTarget>>,
+    /// The default tree builder selected by the profile.
+    pub tree: Option<GlobalSymbolId>,
 }
 
 impl GlobalEnvironment {

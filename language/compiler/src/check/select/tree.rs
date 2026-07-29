@@ -68,10 +68,25 @@ impl BodyState<'_, '_> {
         origin: Origin,
         expectation: Option<&Expectation>,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let Some(expectation) = expectation else {
-            return Ok(Answer::Ready(None));
+        let target = match expectation {
+            Some(expectation) => answer!(self.reduce_type_head(origin, expectation.target)?),
+            // literals without context read the profile's default builder
+            None => {
+                let Some(symbol) = self.check.global.tree else {
+                    return Ok(Answer::Ready(None));
+                };
+                if !self.check.is_component_module(symbol.module_id) {
+                    self.check.import_external_module(symbol.module_id)?;
+                }
+                let symbol = self.check.resolve_symbol_alias(symbol)?;
+                let arguments = self.check.intern_type_ids(origin.module(), &[])?;
+
+                self.check.intern_type(
+                    origin.module(),
+                    dir::Type::Application(dir::GenericApplication { symbol, arguments }),
+                )?
+            }
         };
-        let target = answer!(self.reduce_type_head(origin, expectation.target)?);
 
         // the expected type is the builder when it implements the protocol
         let protocol = self

@@ -234,10 +234,7 @@ impl<'a> StaticEvaluator<'a> {
             "product" => StaticValue::Term(self.optional_string(conditions.product.as_deref())),
             "version" => StaticValue::Term(self.optional_string(self.package.version.as_deref())),
             "stage" => StaticValue::Term(self.optional_string(conditions.stage.as_deref())),
-            "tree" if self.profile.tree.is_none() => {
-                StaticValue::Term(dir::ScalarLiteral::Undefined.into())
-            }
-            "tree" | "derive" => return Err(StaticError::NotStatic(expression)),
+            "derive" => return Err(StaticError::NotStatic(expression)),
             "role" => StaticValue::Term(self.optional_string(conditions.role.as_deref())),
             "labels" => StaticValue::Labels,
             "host" => StaticValue::Term(self.string(conditions.host.canonical_tag())),

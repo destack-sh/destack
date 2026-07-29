@@ -214,6 +214,11 @@ impl<'a> ResolveState<'a> {
             .resolve_export_target(&self.artifacts, module, key)
     }
 
+    /// Record the default tree builder this module's literals pull in.
+    pub(in crate::resolve) fn record_tree_builder(&mut self, builder: Option<dir::GlobalSymbolId>) {
+        self.imports.tree_target = builder;
+    }
+
     /// Finish resolved DIR.
     pub(in crate::resolve) fn finish(self, environment: &GlobalEnvironment) -> DirResolved {
         let extensions = self.resolved_extensions(environment);

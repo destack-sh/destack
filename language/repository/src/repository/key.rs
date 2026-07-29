@@ -202,9 +202,6 @@ fn profile_compiler_options_for_target(
 
     // profile compiler overrides
     if let Some(profile_config) = profile_config {
-        if profile_config.tree.is_some() {
-            compiler_options.tree = profile_config.tree.clone();
-        }
         compiler_options
             .globals
             .extend(profile_config.globals.clone());

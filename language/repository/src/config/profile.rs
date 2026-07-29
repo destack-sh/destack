@@ -28,8 +28,6 @@ pub struct ProfileOptions {
     pub features: Vec<String>,
     /// Active source graph tags for this profile.
     pub tags: Vec<String>,
-    /// Default tree tag builder provider.
-    pub tree: Option<String>,
     /// Global provider modules for this profile.
     pub globals: Vec<PathBuf>,
     /// Well-known derives automatically considered in this profile.

@@ -1679,3 +1679,87 @@ function render(): Panel {
 "#);
 }
 
+#[test]
+fn test_check_a_tree_literal_through_the_default_builder() {
+    let session = TestSession::builder()
+        .data(
+            "destack.json",
+            r#"
+{
+    "name": "test",
+    "compiler": {
+        "emitStats": true,
+        "emitEvents": true,
+        "emitCheckedTypes": true,
+        "tree": "panel.ds#Panel"
+    }
+}
+"#,
+        )
+        .module(
+            "panel.ds",
+            r#"
+import { TreeBuilder } from "destack:tree";
+
+export class Panel {
+    label: string = "";
+}
+
+export extension of Panel implements TreeBuilder {
+    type Tags = {
+        span: {};
+    };
+
+    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+function render() {
+    const page = <span/>;
+    return page;
+}
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function render(): Panel {
+    const page: Panel = <span />;
+    return page;
+}
+
+=== checked ===
+function render() {
+/// @type.symbol symbol=render type=() => panel.Panel
+
+    const page = <span/>;
+    /// @type.symbol symbol=render.page source=page type=panel.Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.tree source=<span/> builder=panel.Panel form=element tag=span call=panel.element children=() type=panel.Panel
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#,
+    );
+}

@@ -27,8 +27,11 @@ impl Compiler {
         }
 
         // global module export surfaces back the global targets
-        let globals = self.load_global_module_ids(profile, context)?;
-        let artifacts = self.artifact_reader(context);
+        let mut globals = self.load_global_module_ids(profile, context)?;
+        if let Some((module, _)) = self.tree_builder_reference(profile, context)? {
+            globals.push(module);
+        }
+        let artifacts = self.artifact_reader(context.revision());
         self.collect_exported_modules(globals, profile, &artifacts, &mut dependencies)?;
 
         Ok(dependencies)
@@ -48,10 +51,12 @@ impl Compiler {
         let artifacts = self.artifact_reader(context);
         let language = self.build_language_environment(profile, &artifacts, &language_modules)?;
         let global_targets = self.build_global_targets(profile, &artifacts, &globals)?;
+        let tree = self.resolve_tree_builder(profile, context, &artifacts)?;
         let environment = GlobalEnvironment {
             language,
             globals,
             global_targets_by_key: global_targets,
+            tree,
         };
 
         Ok(ArtifactPayload::GlobalEnvironment(Arc::new(environment)))
