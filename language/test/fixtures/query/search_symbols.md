@@ -1,5 +1,98 @@
 # Search Symbols
 
+## Source changes
+
+### Update search after declarations change
+
+Search follows declarations across revisions.
+
+```ds alpha.ds
+export function existingAlpha(): void {}
+```
+
+```ds beta.ds
+export function existingBeta(): void {}
+```
+
+```query search_symbols query=newFeature max_results=10
+@search_symbols.none
+```
+
+```ds alpha.ds change
+export function existingAlpha(): void {}
+export function newFeatureAlpha(): void {}
+                ^^^^^^^^^^^^^^^ new_feature
+```
+
+```ds beta.ds change
+export function existingBeta(): void {}
+export function newFeatureBeta(): void {}
+                ^^^^^^^^^^^^^^ new_feature
+```
+
+```query search_symbols query=newFeature max_results=10
+@search_symbols.symbol name=newFeatureBeta kind=function location=beta.ds:2:1-2:42 selection=beta.ds#new_feature symbol=beta.ds#newFeatureBeta@2
+@search_symbols.symbol name=newFeatureAlpha kind=function location=alpha.ds:2:1-2:43 selection=alpha.ds#new_feature symbol=alpha.ds#newFeatureAlpha@2
+```
+
+```diff alpha.ds
+@@ -1,3 +1,1 @@
+ export function existingAlpha(): void {}
+-export function newFeatureAlpha(): void {}
+-                ^^^^^^^^^^^^^^^ new_feature
+```
+
+```diff beta.ds
+@@ -1,3 +1,1 @@
+ export function existingBeta(): void {}
+-export function newFeatureBeta(): void {}
+-                ^^^^^^^^^^^^^^ new_feature
+```
+
+```query search_symbols query=newFeature max_results=10
+@search_symbols.none
+```
+
+### Follow files added, moved, and removed
+
+Search follows the exact workspace file set.
+
+```ds main.ds
+export function stableFeature(): void {}
+                ^^^^^^^^^^^^^ stable_feature
+```
+
+```query search_symbols query=transientFeature max_results=10
+@search_symbols.none
+```
+
+```ds staged.ds add
+export function transientFeature(): void {}
+                ^^^^^^^^^^^^^^^^ transient_feature
+```
+
+```query search_symbols query=transientFeature max_results=10
+@search_symbols.symbol name=transientFeature kind=function location=staged.ds:1:1-1:44 selection=staged.ds#transient_feature symbol=staged.ds#transientFeature@1
+```
+
+```query search_symbols query=stableFeature max_results=10
+@search_symbols.symbol name=stableFeature kind=function location=main.ds:1:1-1:41 selection=main.ds#stable_feature symbol=main.ds#stableFeature@1
+```
+
+```move staged.ds published.ds
+```
+
+```query search_symbols query=transientFeature max_results=10
+@search_symbols.symbol name=transientFeature kind=function location=published.ds:1:1-1:44 selection=published.ds#transient_feature symbol=published.ds#transientFeature@1
+```
+
+```remove published.ds
+```
+
+```query search_symbols query=transientFeature max_results=10
+@search_symbols.none
+```
+
 ## Matching
 
 ### Search across modules

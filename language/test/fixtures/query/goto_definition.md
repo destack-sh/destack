@@ -1,5 +1,46 @@
 # Goto Definition
 
+## Source changes
+
+### Follow an imported definition across revisions
+
+An imported reference follows the declaration in the selected revision.
+
+```ds library.ds
+export function greet(name: string): string {
+^ declaration:start
+                ^^^^^ definition
+    return name;
+}
+^ declaration:end
+```
+
+```ds main.ds
+import { greet } from "./library.ds";
+
+const message = greet("World");
+                ^^^^^ reference
+```
+
+```query goto_definition main.ds#reference
+@goto_definition.target origin=main.ds#reference location=library.ds#declaration selection=library.ds#definition symbol=library.ds#greet@1
+```
+
+```ds library.ds change
+export const prefix = "Hello";
+
+export function greet(name: string): string {
+^ declaration:start
+                ^^^^^ definition
+    return prefix;
+}
+^ declaration:end
+```
+
+```query goto_definition main.ds#reference
+@goto_definition.target origin=main.ds#reference location=library.ds#declaration selection=library.ds#definition symbol=library.ds#greet@2
+```
+
 ## Local Variables
 
 ### Resolve a local variable definition

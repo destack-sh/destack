@@ -12,12 +12,30 @@ const count = 1;
 const next = count + count;
 ```
 
-```query rename main.ds#target new_name=total
+```query rename main.ds#target new_name=total apply
 ```
 
 ```ds main.ds after
 const total = 1;
+      ^^^^^ target
 const next = total + total;
+```
+
+```query rename main.ds#target new_name=amount apply
+```
+
+```ds main.ds after
+const amount = 1;
+      ^^^^^^ target
+const next = amount + amount;
+```
+
+```query rename main.ds#target new_name=count
+```
+
+```ds main.ds after
+const count = 1;
+const next = count + count;
 ```
 
 ### Rename a function parameter
