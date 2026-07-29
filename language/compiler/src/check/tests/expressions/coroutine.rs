@@ -133,6 +133,7 @@ function* count(limit: int32): Generator<int32, void, void> {
     /// @resolution.pattern.assign source=value kind=place
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.assignment source=value read=binding(count.value) write=binding(count.value) type=int32
+    /// @resolution.access source=value root=count.value
 
         yield value;
         /// @resolution.name source=value target=count.value
@@ -206,6 +207,7 @@ async function sum(): Promise<int32> {
         /// @resolution.pattern.assign source=total kind=place
         /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
         /// @resolution.assignment source=total read=binding(sum.total) write=binding(sum.total) type=int32
+        /// @resolution.access source=total root=sum.total
         /// @resolution.name source=value target=sum.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=sum.value

@@ -328,6 +328,7 @@ user.profile.name = "Grace";
 /// @resolution.place source=user.profile placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user.profile root=user keys=[profile]
 /// @resolution.pattern.assign source=user.profile.name kind=place
+/// @resolution.access source=user.profile.name root=user keys=[profile, name]
 /// @resolution.assignment source=user.profile.name write="receiver=Readonly<Profile>, target=field(receiver=Readonly<Profile>, target=Profile.name, type=string), type=string" type=string
 /// @type.node source="\"Grace\"" type="Grace"
 "#,

@@ -431,6 +431,7 @@ total += bonus;
 /// @resolution.pattern.assign source=total kind=place
 /// @resolution.place source=total placement="local" lifetime="static" access="exclusive"
 /// @resolution.assignment source=total read=binding(total) write=binding(total) type=Score
+/// @resolution.access source=total root=total
 /// @resolution.name source=bonus target=bonus
 /// @resolution.place source=bonus placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bonus root=bonus
@@ -549,6 +550,7 @@ total += bonus;
 /// @resolution.pattern.assign source=total kind=place
 /// @resolution.place source=total placement="local" lifetime="static" access="exclusive"
 /// @resolution.assignment source=total read=binding(total) write=binding(total) type=Score
+/// @resolution.access source=total root=total
 /// @resolution.name source=bonus target=bonus
 /// @resolution.place source=bonus placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bonus root=bonus

@@ -154,6 +154,7 @@ class User {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.name kind=place
+        /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
         /// @type.node source=name type=string
         /// @resolution.name source=name target=User.constructor.name
@@ -226,6 +227,7 @@ class User {
             /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=this root=this
             /// @resolution.pattern.assign source=this.name kind=place
+            /// @resolution.access source=this.name root=this keys=[name]
             /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
             /// @type.node source=name type=string
             /// @resolution.name source=name target=User.constructor.name

@@ -666,6 +666,7 @@ class Box {
     /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=this root=this
     /// @resolution.pattern.assign source=this.user kind=place
+    /// @resolution.access source=this.user root=this keys=[user]
     /// @resolution.assignment source=this.user write="receiver=Box, target=field(receiver=Box, target=Box.user, type=User), type=User" type=User
     /// @resolution.name source=user target=Box.constructor.user
     /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"

@@ -256,6 +256,7 @@ class Packet<T> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Packet<T>, target=field(receiver=Packet<T>, target=Packet.value, type=T), type=T" type=T
         /// @generic.instance source=this id=Packet<T>
         /// @type.node source=value type=T

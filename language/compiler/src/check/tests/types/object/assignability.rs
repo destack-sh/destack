@@ -238,6 +238,7 @@ meter.reading = 5;
 /// @resolution.place source=meter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=meter root=meter
 /// @resolution.pattern.assign source=meter.reading kind=place
+/// @resolution.access source=meter.reading root=meter keys=[reading]
 /// @resolution.assignment source=meter.reading write="receiver={ get reading(): string; set reading(value: string | int32) }, target=field(receiver={ get reading(): string; set reading(value: string | int32) }, target=reading, type=string | int32), type=string | int32" type=string | int32
 /// @type.node source=5 type=5
 "#,

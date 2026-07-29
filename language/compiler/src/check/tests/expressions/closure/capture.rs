@@ -114,6 +114,7 @@ const foo = () => {
     /// @resolution.pattern.assign source=a kind=place
     /// @resolution.place source=a placement="local" lifetime="static" access="exclusive"
     /// @resolution.assignment source=a read=binding(a) write=binding(a) type=float64
+    /// @resolution.access source=a root=a
     /// @type.node source=1 type=1
 
     b += 1;
@@ -123,6 +124,7 @@ const foo = () => {
     /// @resolution.pattern.assign source=b kind=place
     /// @resolution.place source=b placement="local" lifetime="static" access="exclusive"
     /// @resolution.assignment source=b read=binding(b) write=binding(b) type=float64
+    /// @resolution.access source=b root=b
     /// @type.node source=1 type=1
 
 };
@@ -143,6 +145,7 @@ const boo = () => {
     /// @resolution.pattern.assign source=b kind=place
     /// @resolution.place source=b placement="local" lifetime="static" access="exclusive"
     /// @resolution.assignment source=b read=binding(b) write=binding(b) type=float64
+    /// @resolution.access source=b root=b
     /// @type.node source=1 type=1
 
     c += 1;
@@ -152,6 +155,7 @@ const boo = () => {
     /// @resolution.pattern.assign source=c kind=place
     /// @resolution.place source=c placement="local" lifetime="static" access="exclusive"
     /// @resolution.assignment source=c read=binding(c) write=binding(c) type=float64
+    /// @resolution.access source=c root=c
     /// @type.node source=1 type=1
 
 };
@@ -337,6 +341,7 @@ const send: ^Function<(string,), void> = (message) => {
     /// @resolution.pattern.assign source=count kind=place
     /// @resolution.place source=count placement="local" lifetime="static" access="exclusive"
     /// @resolution.assignment source=count read=binding(count) write=binding(count) type=float64
+    /// @resolution.access source=count root=count
     /// @type.node source=1 type=1
 
     socket.write(message);

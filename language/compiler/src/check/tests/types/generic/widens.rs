@@ -969,6 +969,7 @@ extension<T> of Stack<T> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.items kind=place
+        /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=Array<T#2>), type=Array<T#2>" type=Array<T#2>
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -1090,6 +1091,7 @@ extension<T> of Stack<T> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.items kind=place
+        /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=Array<T#2>), type=Array<T#2>" type=Array<T#2>
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -1192,6 +1194,7 @@ class Bag<T> {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.items kind=place
+        /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Bag<T>, target=field(receiver=Bag<T>, target=Bag.items, type=Array<T>), type=Array<T>" type=Array<T>
         /// @resolution.name source=value target=Bag.refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

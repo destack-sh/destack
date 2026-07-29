@@ -154,6 +154,7 @@ class Counter {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Counter, target=field(receiver=Counter, target=Counter.value, type=int32), type=int32" type=int32
         /// @resolution.name source=value target=Counter.constructor.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

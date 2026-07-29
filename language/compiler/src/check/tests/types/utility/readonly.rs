@@ -175,6 +175,7 @@ person.name = "Grace";
 /// @resolution.place source=person placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person root=person
 /// @resolution.pattern.assign source=person.name kind=place
+/// @resolution.access source=person.name root=person keys=[name]
 /// @resolution.assignment source=person.name write="receiver=Readonly<Person>, target=field(receiver=Readonly<Person>, target=Person.name, type=string), type=string" type=string
 
 /// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
@@ -244,6 +245,7 @@ person.profile.name = "Grace";
 /// @resolution.place source=person.profile placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person.profile root=person keys=[profile]
 /// @resolution.pattern.assign source=person.profile.name kind=place
+/// @resolution.access source=person.profile.name root=person keys=[profile, name]
 /// @resolution.assignment source=person.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=string), type=string" type=string
 
 /// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)

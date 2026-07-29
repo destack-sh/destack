@@ -58,6 +58,7 @@ value = 2;
 /// @type.node source="value = 2" type=2
 /// @type.node source=value type=int32
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=2 type=2
 
@@ -93,6 +94,7 @@ value = "text";
 /// @type.node source="value = \"text\"" type="text"
 /// @type.node source=value type=int32
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source="\"text\"" type="text"
 
@@ -136,6 +138,7 @@ value += 2;
 /// @resolution.pattern.assign source=value kind=place
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
+/// @resolution.access source=value root=value
 /// @type.node source=2 type=2
 
 /// @check.stats.solve variables=0 types=8 constraints=0 obligations=2 solutions=0 bounds=0 decisions=4
@@ -170,6 +173,7 @@ value = 2;
 /// @type.node source="value = 2" type=2
 /// @type.node source=value type=float64
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=float64
 /// @type.node source=2 type=2
 
@@ -205,6 +209,7 @@ value = "text";
 /// @type.node source="value = \"text\"" type="text"
 /// @type.node source=value type=float64
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=float64
 /// @type.node source="\"text\"" type="text"
 
@@ -244,6 +249,7 @@ value = 1;
 /// @type.node source="value = 1" type=1
 /// @type.node source=value type=int32
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=1 type=1
 
@@ -278,6 +284,7 @@ values = [1, 2];
 /// @type.node source="values = [1, 2]" type=Array<int32>
 /// @type.node source=values type=Array<int32>
 /// @resolution.pattern.assign source=values kind=place
+/// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=Array<int32>
 /// @type.node source=[1, 2] type=Array<int32>
 /// @type.node source=1 type=1
@@ -314,6 +321,7 @@ values = [];
 /// @type.node source="values = []" type=Array<int32>
 /// @type.node source=values type=Array<int32>
 /// @resolution.pattern.assign source=values kind=place
+/// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=Array<int32>
 /// @type.node source=[] type=Array<int32>
 
@@ -348,6 +356,7 @@ values = [1, 2];
 /// @type.node source="values = [1, 2]" type=FixedArray<int32, 2>
 /// @type.node source=values type=FixedArray<int32, 2>
 /// @resolution.pattern.assign source=values kind=place
+/// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=FixedArray<int32, 2>
 /// @type.node source=[1, 2] type=FixedArray<int32, 2>
 /// @type.node source=1 type=1
@@ -384,6 +393,7 @@ values = [1, 2, 3];
 /// @type.node source="values = [1, 2, 3]" type=FixedArray<int32, 3>
 /// @type.node source=values type=FixedArray<int32, 2>
 /// @resolution.pattern.assign source=values kind=place
+/// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=FixedArray<int32, 2>
 /// @type.node source=[1, 2, 3] type=FixedArray<int32, 3>
 /// @type.node source=1 type=1
@@ -429,6 +439,7 @@ value = "ready";
 /// @type.node source="value = \"ready\"" type="ready"
 /// @type.node source=value type=string
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=string
 /// @type.node source="\"ready\"" type="ready"
 
@@ -529,6 +540,7 @@ if (condition) {
     /// @type.node source="value = \"ready\"" type="ready"
     /// @type.node source=value type=string
     /// @resolution.pattern.assign source=value kind=place
+    /// @resolution.access source=value root=value
     /// @resolution.assignment source=value write=binding(value) type=string
     /// @type.node source="\"ready\"" type="ready"
 
@@ -597,6 +609,7 @@ if (condition) {
     /// @type.node source="value = \"ready\"" type="ready"
     /// @type.node source=value type=string | undefined
     /// @resolution.pattern.assign source=value kind=place
+    /// @resolution.access source=value root=value
     /// @resolution.assignment source=value write=binding(value) type=string | undefined
     /// @type.node source="\"ready\"" type="ready"
 

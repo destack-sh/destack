@@ -63,6 +63,7 @@ local class Counter {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.name kind=place
+        /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=Counter, target=field(receiver=Counter, target=Counter.name, type=string), type=string" type=string
         /// @resolution.name source=name target=Counter.constructor.name
         /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
@@ -193,6 +194,7 @@ local class Meter {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.sink kind=place
+        /// @resolution.access source=this.sink root=this keys=[sink]
         /// @resolution.assignment source=this.sink write="receiver=Meter, target=field(receiver=Meter, target=Meter.sink, type=Dynamic<Sink>), type=Dynamic<Sink>" type=Dynamic<Sink>
         /// @resolution.name source=sink target=Meter.constructor.sink
         /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
@@ -302,6 +304,7 @@ local class Counter {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.name kind=place
+        /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=Counter, target=field(receiver=Counter, target=Counter.name, type=string), type=string" type=string
         /// @resolution.name source=name target=Counter.constructor.name
         /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
@@ -401,6 +404,7 @@ person.profile.count = 5;
 /// @resolution.place source=person.profile placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=person.profile root=person keys=[profile]
 /// @resolution.pattern.assign source=person.profile.count kind=place
+/// @resolution.access source=person.profile.count root=person keys=[profile, count]
 /// @resolution.assignment source=person.profile.count write="receiver=Readonly<Profile>, target=field(receiver=Readonly<Profile>, target=Profile.count, type=int32), type=int32" type=int32
 "#, r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'count'"

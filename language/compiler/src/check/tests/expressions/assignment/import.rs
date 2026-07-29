@@ -35,6 +35,7 @@ counter = 1;
 /// @type.node source="counter = 1" type=1
 /// @type.node source=counter type=int32
 /// @resolution.pattern.assign source=counter kind=place
+/// @resolution.access source=counter root=counter.counter
 /// @resolution.assignment source=counter write=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
 
@@ -83,6 +84,7 @@ localCounter = 1;
 /// @type.node source="localCounter = 1" type=1
 /// @type.node source=localCounter type=int32
 /// @resolution.pattern.assign source=localCounter kind=place
+/// @resolution.access source=localCounter root=counter.counter
 /// @resolution.assignment source=localCounter write=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
 
@@ -176,6 +178,7 @@ namespaceCounter.counter = 1;
 /// @type.node source="namespaceCounter.counter = 1" type=1
 /// @type.node source=namespaceCounter.counter type=int32
 /// @resolution.pattern.assign source=namespaceCounter.counter kind=place
+/// @resolution.access source=namespaceCounter.counter root=counter.counter
 /// @resolution.assignment source=namespaceCounter.counter write=binding(counter.counter) type=int32
 /// @type.node source=1 type=1
 

@@ -238,6 +238,13 @@ impl SubscriptSelection {
             .is_some_and(dir::SubscriptResolution::is_stored)
     }
 
+    /// Return whether the selected write accesses stored aggregate state.
+    pub(in crate::check) fn writes_storage(&self) -> bool {
+        self.write
+            .as_ref()
+            .is_some_and(dir::SubscriptResolution::is_stored)
+    }
+
     /// Return the structural key types required by this selection.
     pub(in crate::check) fn key_types(&self) -> &[dir::GlobalTypeId] {
         &self.key_types

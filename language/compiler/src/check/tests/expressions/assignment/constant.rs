@@ -27,6 +27,7 @@ value = 2;
 /// @type.node source="value = 2" type=2
 /// @type.node source=value type=int32
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=2 type=2
 
@@ -71,6 +72,7 @@ value += 2;
 /// @resolution.pattern.assign source=value kind=place
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
+/// @resolution.access source=value root=value
 /// @type.node source=2 type=2
 
 /// @check.stats.solve variables=0 types=8 constraints=0 obligations=2 solutions=0 bounds=0 decisions=4
@@ -116,6 +118,7 @@ state.count = 1;
 /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=state root=state
 /// @resolution.pattern.assign source=state.count kind=place
+/// @resolution.access source=state.count root=state keys=[count]
 /// @resolution.assignment source=state.count write="receiver={ count: int32 }, target=field(receiver={ count: int32 }, target=count, type=int32), type=int32" type=int32
 /// @type.node source=1 type=1
 

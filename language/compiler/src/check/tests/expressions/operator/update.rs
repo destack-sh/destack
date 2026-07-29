@@ -29,6 +29,7 @@ const before = value++;
 /// @type.node source=value type=int32
 /// @type.node source=value++ type=int32
 /// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
+/// @resolution.access source=value root=value
 /// @resolution.operator source=value++ type=int32 operator="++" kind=builtin operands=[value as int32 families=(integer)]
 "#,
     );
@@ -64,6 +65,7 @@ const after = --value;
 /// @resolution.operator source=--value type=int32 operator="--" kind=builtin operands=[value as int32 families=(integer)]
 /// @type.node source=value type=int32
 /// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
+/// @resolution.access source=value root=value
 "#,
     );
 }

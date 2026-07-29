@@ -1412,6 +1412,7 @@ class Card {
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.heading kind=place
+        /// @resolution.access source=this.heading root=this keys=[heading]
         /// @resolution.assignment source=this.heading write="receiver=Card, target=field(receiver=Card, target=Card.heading, type=string), type=string" type=string
         /// @resolution.name source=props target=Card.constructor.props
         /// @resolution.member source=props.heading receiver={ heading: string } type=string kind=field target_receiver={ heading: string } key=heading target_type=string

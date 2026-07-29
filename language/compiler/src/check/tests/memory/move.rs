@@ -176,6 +176,7 @@ function recycle(): int32 {
 
     counter = new Counter();
     /// @resolution.pattern.assign source=counter kind=place
+    /// @resolution.access source=counter root=recycle.counter
     /// @resolution.assignment source=counter write=binding(recycle.counter) type=Counter
     /// @resolution.construct source="new Counter()" parameters=() return=Counter kind=class target=Counter constructor=default
     /// @resolution.name source=Counter target=Counter
