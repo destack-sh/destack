@@ -485,8 +485,6 @@ export const result = value;
             ("built", "dir.import"),
             ("built", "dir.parse"),
             ("built", "dir.resolve"),
-            ("memory_cached", "component.graph"),
-            ("memory_cached", "dir.resolve"),
         ],
     );
     // value-preserving dependency edits cut off early: the importer's
@@ -521,8 +519,7 @@ export const result = value;
             ("built", "dir.import"),
             ("built", "dir.parse"),
             ("built", "dir.resolve"),
-            ("memory_cached", "component.graph"),
-            ("memory_cached", "dir.resolve"),
+            ("memory_cached", "dir.check"),
         ],
     );
 }

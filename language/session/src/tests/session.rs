@@ -8,7 +8,7 @@ use destack_repository::{
 };
 use destack_source::{Edit, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 
-use crate::{Change, Commit, PreparedCommit, Session, SessionError, SessionEventHandler};
+use crate::{Change, Commit, PreparedCommit, Session, SessionError};
 
 const DEFAULT_ROOT: &str = "/workspace";
 
@@ -46,21 +46,6 @@ impl TestSession {
         Self::open_with_root(input, files, 1)
     }
 
-    /// Open one observed test session with a threaded executor.
-    fn open_threaded(
-        files: &[(&str, &str)],
-        worker_count: usize,
-        event_handler: SessionEventHandler,
-    ) -> Result<Self, SessionError> {
-        Self::create(
-            DEFAULT_ROOT,
-            files,
-            worker_count,
-            Execution::Threaded,
-            Some(event_handler),
-        )
-    }
-
     /// Open one test session from a specific input path and worker count.
     fn open_with_root(
         input: impl AsRef<Path>,
@@ -73,7 +58,7 @@ impl TestSession {
             Execution::Threaded
         };
 
-        Self::create(input, files, worker_count, execution, None)
+        Self::create(input, files, worker_count, execution)
     }
 
     /// Create one test session with explicit executor behavior.
@@ -82,7 +67,6 @@ impl TestSession {
         files: &[(&str, &str)],
         worker_count: usize,
         execution: Execution,
-        event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, SessionError> {
         let root = PathBuf::from(DEFAULT_ROOT);
         let fs = Arc::new(MemoryFileSystem::new());
@@ -115,7 +99,7 @@ impl TestSession {
             repository.clone(),
             head,
             worker_count,
-            event_handler,
+            None,
         )?;
 
         Ok(Self {
