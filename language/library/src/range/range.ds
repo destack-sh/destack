@@ -16,20 +16,20 @@ export struct Range<T> {
 
 export extension<T: Step<T>> of Range<T> implements Iterable<T> {
     /// Return an iterator over this range.
-    iterator(): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("Range.iterator")
     }
 }
 
 export extension<T> of Range<T> implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(): Bound<T> {
-        Bound.Included({ value: this.start })
+    startBound(&readonly this): Bound<&readonly T> {
+        Bound.Included({ value: &readonly this.start })
     }
 
     /// Return the end bound.
-    endBound(): Bound<T> {
-        Bound.Excluded({ value: this.end })
+    endBound(&readonly this): Bound<&readonly T> {
+        Bound.Excluded({ value: &readonly this.end })
     }
 }
 
@@ -45,20 +45,20 @@ export struct RangeInclusive<T> {
 
 export extension<T: Step<T>> of RangeInclusive<T> implements Iterable<T> {
     /// Return an iterator over this range.
-    iterator(): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("RangeInclusive.iterator")
     }
 }
 
 export extension<T> of RangeInclusive<T> implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(): Bound<T> {
-        Bound.Included({ value: this.start })
+    startBound(&readonly this): Bound<&readonly T> {
+        Bound.Included({ value: &readonly this.start })
     }
 
     /// Return the end bound.
-    endBound(): Bound<T> {
-        Bound.Included({ value: this.end })
+    endBound(&readonly this): Bound<&readonly T> {
+        Bound.Included({ value: &readonly this.end })
     }
 }
 
@@ -71,19 +71,19 @@ export struct RangeFrom<T> {
 
 export extension<T: Step<T>> of RangeFrom<T> implements Iterable<T> {
     /// Return an iterator over this range.
-    iterator(): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("RangeFrom.iterator")
     }
 }
 
 export extension<T> of RangeFrom<T> implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(): Bound<T> {
-        Bound.Included({ value: this.start })
+    startBound(&readonly this): Bound<&readonly T> {
+        Bound.Included({ value: &readonly this.start })
     }
 
     /// Return the end bound.
-    endBound(): Bound<T> {
+    endBound(&readonly this): Bound<&readonly T> {
         Bound.Unbounded
     }
 }
@@ -97,13 +97,13 @@ export struct RangeTo<T> {
 
 export extension<T> of RangeTo<T> implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(): Bound<T> {
+    startBound(&readonly this): Bound<&readonly T> {
         Bound.Unbounded
     }
 
     /// Return the end bound.
-    endBound(): Bound<T> {
-        Bound.Excluded({ value: this.end })
+    endBound(&readonly this): Bound<&readonly T> {
+        Bound.Excluded({ value: &readonly this.end })
     }
 }
 
@@ -116,13 +116,13 @@ export struct RangeToInclusive<T> {
 
 export extension<T> of RangeToInclusive<T> implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(): Bound<T> {
+    startBound(&readonly this): Bound<&readonly T> {
         Bound.Unbounded
     }
 
     /// Return the end bound.
-    endBound(): Bound<T> {
-        Bound.Included({ value: this.end })
+    endBound(&readonly this): Bound<&readonly T> {
+        Bound.Included({ value: &readonly this.end })
     }
 }
 
@@ -132,12 +132,12 @@ export struct RangeFull {}
 
 export extension<T> of RangeFull implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(): Bound<T> {
+    startBound(&readonly this): Bound<&readonly T> {
         Bound.Unbounded
     }
 
     /// Return the end bound.
-    endBound(): Bound<T> {
+    endBound(&readonly this): Bound<&readonly T> {
         Bound.Unbounded
     }
 }

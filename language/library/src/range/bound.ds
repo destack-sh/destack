@@ -10,8 +10,8 @@ export newtype Bound<T> =
 @languageItem("range.RangeBounds")
 export newtype interface RangeBounds<T> {
     /// Return the start bound.
-    startBound(): Bound<T>;
+    startBound(&readonly this): Bound<&readonly T>;
 
     /// Return the end bound.
-    endBound(): Bound<T>;
+    endBound(&readonly this): Bound<&readonly T>;
 }
