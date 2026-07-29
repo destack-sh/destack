@@ -1088,13 +1088,13 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.reference_location_type(view);
                 let reference_kind = self.reference_kind(view);
-                let reference_space = self.reference_space(view);
+                let reference_storage = self.reference_storage(view);
                 let mut effect = MemoryAccessEffect::read(
                     MemoryRegion::from_reference(
                         view,
                         access_type,
                         reference_kind,
-                        reference_space,
+                        reference_storage,
                         self.target_layout.pointer_bits(),
                         self.tree,
                     ),
@@ -1109,13 +1109,13 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.reference_location_type(view);
                 let reference_kind = self.reference_kind(view);
-                let reference_space = self.reference_space(view);
+                let reference_storage = self.reference_storage(view);
                 let mut effect = MemoryAccessEffect::write(
                     MemoryRegion::from_reference(
                         view,
                         access_type,
                         reference_kind,
-                        reference_space,
+                        reference_storage,
                         self.target_layout.pointer_bits(),
                         self.tree,
                     ),
@@ -1131,13 +1131,13 @@ impl<'a> MemoryAccessCollector<'a> {
                 let mut effects = SmallVec::new();
                 let target_access = self.reference_location_type(target);
                 let target_kind = self.reference_kind(target);
-                let target_space = self.reference_space(target);
+                let target_storage = self.reference_storage(target);
                 let mut target_effect = MemoryAccessEffect::write(
                     MemoryRegion::from_reference(
                         target,
                         target_access,
                         target_kind,
-                        target_space,
+                        target_storage,
                         self.target_layout.pointer_bits(),
                         self.tree,
                     ),
@@ -1148,13 +1148,13 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let source_access = self.reference_location_type(source);
                 let source_kind = self.reference_kind(source);
-                let source_space = self.reference_space(source);
+                let source_storage = self.reference_storage(source);
                 let mut source_effect = MemoryAccessEffect::read(
                     MemoryRegion::from_reference(
                         source,
                         source_access,
                         source_kind,
-                        source_space,
+                        source_storage,
                         self.target_layout.pointer_bits(),
                         self.tree,
                     ),
@@ -1170,13 +1170,13 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.reference_location_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
-                let reference_space = self.reference_space(pointer);
+                let reference_storage = self.reference_storage(pointer);
                 let mut effect = MemoryAccessEffect::read(
                     MemoryRegion::from_reference(
                         pointer,
                         access_type,
                         reference_kind,
-                        reference_space,
+                        reference_storage,
                         self.target_layout.pointer_bits(),
                         self.tree,
                     ),
@@ -1190,13 +1190,13 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.reference_location_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
-                let reference_space = self.reference_space(pointer);
+                let reference_storage = self.reference_storage(pointer);
                 let mut effect = MemoryAccessEffect::write(
                     MemoryRegion::from_reference(
                         pointer,
                         access_type,
                         reference_kind,
-                        reference_space,
+                        reference_storage,
                         self.target_layout.pointer_bits(),
                         self.tree,
                     ),
@@ -1210,13 +1210,13 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.reference_location_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
-                let reference_space = self.reference_space(pointer);
+                let reference_storage = self.reference_storage(pointer);
                 let mut effect = MemoryAccessEffect::read(
                     MemoryRegion::from_reference(
                         pointer,
                         access_type,
                         reference_kind,
-                        reference_space,
+                        reference_storage,
                         self.target_layout.pointer_bits(),
                         self.tree,
                     ),
@@ -1230,13 +1230,13 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.reference_location_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
-                let reference_space = self.reference_space(pointer);
+                let reference_storage = self.reference_storage(pointer);
                 let mut effect = MemoryAccessEffect::write(
                     MemoryRegion::from_reference(
                         pointer,
                         access_type,
                         reference_kind,
-                        reference_space,
+                        reference_storage,
                         self.target_layout.pointer_bits(),
                         self.tree,
                     ),
@@ -1251,13 +1251,13 @@ impl<'a> MemoryAccessCollector<'a> {
 
                 let access_type = self.reference_location_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
-                let reference_space = self.reference_space(pointer);
+                let reference_storage = self.reference_storage(pointer);
                 let mut effect = MemoryAccessEffect::read_write(
                     MemoryRegion::from_reference(
                         pointer,
                         access_type,
                         reference_kind,
-                        reference_space,
+                        reference_storage,
                         self.target_layout.pointer_bits(),
                         self.tree,
                     ),
@@ -1384,12 +1384,12 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::MemoryTarget::Reference(pointer) => {
                 let access_type = self.reference_location_type(pointer);
                 let reference_kind = self.reference_kind(pointer);
-                let reference_space = self.reference_space(pointer);
+                let reference_storage = self.reference_storage(pointer);
                 MemoryRegion::from_reference_with_size(
                     pointer,
                     access_type,
                     reference_kind,
-                    reference_space,
+                    reference_storage,
                     access.byte_len,
                     self.target_layout.pointer_bits(),
                     self.tree,
@@ -1397,7 +1397,7 @@ impl<'a> MemoryAccessCollector<'a> {
             }
             mir::MemoryTarget::Local(local) => MemoryRegion::Local(local),
             mir::MemoryTarget::Global(global) => {
-                MemoryRegion::any_spaces(self.tree.get(global).space.space_set())
+                MemoryRegion::any_spaces(self.tree.get(global).storage.storage_set())
             }
         };
 
@@ -1410,14 +1410,14 @@ impl<'a> MemoryAccessCollector<'a> {
         };
 
         // apply target storage
-        let spaces = self.entry_space_set(access);
+        let spaces = self.entry_storage_set(access);
         effect.region.set_spaces(spaces);
         effect
     }
 
     /// Apply reference region tables to an effect.
     fn apply_reference_region(&mut self, effect: &mut MemoryAccessEffect, reference: mir::Value) {
-        let spaces = self.reference_space_set(reference);
+        let spaces = self.reference_storage_set(reference);
         effect.region.set_spaces(spaces);
     }
 
@@ -1427,21 +1427,21 @@ impl<'a> MemoryAccessCollector<'a> {
     }
 
     /// Resolve storage from an access target.
-    fn entry_space_set(&mut self, access: &mir::MemoryAccess) -> mir::StorageSet {
+    fn entry_storage_set(&mut self, access: &mir::MemoryAccess) -> mir::StorageSet {
         match access.target {
             mir::MemoryTarget::Local(_) => mir::StorageSet::FRAME,
-            mir::MemoryTarget::Global(global) => self.tree.get(global).space.space_set(),
-            mir::MemoryTarget::Reference(pointer) => self.reference_space_set(pointer),
+            mir::MemoryTarget::Global(global) => self.tree.get(global).storage.storage_set(),
+            mir::MemoryTarget::Reference(pointer) => self.reference_storage_set(pointer),
         }
     }
 
     /// Resolve the region set for a reference value.
-    fn reference_space_set(&mut self, reference: mir::Value) -> mir::StorageSet {
-        let Some(space) = self.value_types.reference_space(reference, self.tree) else {
+    fn reference_storage_set(&mut self, reference: mir::Value) -> mir::StorageSet {
+        let Some(storage) = self.value_types.reference_storage(reference, self.tree) else {
             return mir::StorageSet::ANY;
         };
 
-        space.space_set()
+        storage.storage_set()
     }
 
     /// Determine memory effects for a call instruction using tables.
@@ -1585,14 +1585,14 @@ impl<'a> MemoryAccessCollector<'a> {
                         let src_type = self.reference_location_type(*src);
                         let dst_kind = self.reference_kind(*dst);
                         let src_kind = self.reference_kind(*src);
-                        let dst_space = self.reference_space(*dst);
-                        let src_space = self.reference_space(*src);
+                        let dst_storage = self.reference_storage(*dst);
+                        let src_storage = self.reference_storage(*src);
                         let mut read_effect = MemoryAccessEffect::read(
                             MemoryRegion::from_reference_with_size(
                                 *src,
                                 src_type,
                                 src_kind,
-                                src_space,
+                                src_storage,
                                 size,
                                 self.target_layout.pointer_bits(),
                                 self.tree,
@@ -1607,7 +1607,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 *dst,
                                 dst_type,
                                 dst_kind,
-                                dst_space,
+                                dst_storage,
                                 size,
                                 self.target_layout.pointer_bits(),
                                 self.tree,
@@ -1637,13 +1637,13 @@ impl<'a> MemoryAccessCollector<'a> {
                     Some(dst) => {
                         let dst_type = self.reference_location_type(*dst);
                         let dst_kind = self.reference_kind(*dst);
-                        let dst_space = self.reference_space(*dst);
+                        let dst_storage = self.reference_storage(*dst);
                         let mut effect = MemoryAccessEffect::write(
                             MemoryRegion::from_reference_with_size(
                                 *dst,
                                 dst_type,
                                 dst_kind,
-                                dst_space,
+                                dst_storage,
                                 size,
                                 self.target_layout.pointer_bits(),
                                 self.tree,
@@ -1676,14 +1676,14 @@ impl<'a> MemoryAccessCollector<'a> {
                         let right_type = self.reference_location_type(*right);
                         let left_kind = self.reference_kind(*left);
                         let right_kind = self.reference_kind(*right);
-                        let left_space = self.reference_space(*left);
-                        let right_space = self.reference_space(*right);
+                        let left_storage = self.reference_storage(*left);
+                        let right_storage = self.reference_storage(*right);
                         let mut left_effect = MemoryAccessEffect::read(
                             MemoryRegion::from_reference_with_size(
                                 *left,
                                 left_type,
                                 left_kind,
-                                left_space,
+                                left_storage,
                                 size,
                                 self.target_layout.pointer_bits(),
                                 self.tree,
@@ -1698,7 +1698,7 @@ impl<'a> MemoryAccessCollector<'a> {
                                 *right,
                                 right_type,
                                 right_kind,
-                                right_space,
+                                right_storage,
                                 size,
                                 self.target_layout.pointer_bits(),
                                 self.tree,
@@ -1727,13 +1727,13 @@ impl<'a> MemoryAccessCollector<'a> {
                     Some(pointer) => {
                         let access_type = self.reference_location_type(pointer);
                         let reference_kind = self.reference_kind(pointer);
-                        let reference_space = self.reference_space(pointer);
+                        let reference_storage = self.reference_storage(pointer);
                         let mut effect = MemoryAccessEffect::read(
                             MemoryRegion::from_reference(
                                 pointer,
                                 access_type,
                                 reference_kind,
-                                reference_space,
+                                reference_storage,
                                 self.target_layout.pointer_bits(),
                                 self.tree,
                             ),
@@ -1763,12 +1763,12 @@ impl<'a> MemoryAccessCollector<'a> {
                     Some(pointer) => {
                         let access_type = self.reference_location_type(pointer);
                         let reference_kind = self.reference_kind(pointer);
-                        let reference_space = self.reference_space(pointer);
+                        let reference_storage = self.reference_storage(pointer);
                         let region = MemoryRegion::from_reference(
                             pointer,
                             access_type,
                             reference_kind,
-                            reference_space,
+                            reference_storage,
                             self.target_layout.pointer_bits(),
                             self.tree,
                         );
@@ -1868,9 +1868,9 @@ impl<'a> MemoryAccessCollector<'a> {
         self.value_types.reference_kind(reference, self.tree)
     }
 
-    /// Resolve the TS++ space for a reference value.
-    fn reference_space(&self, reference: mir::Value) -> Option<mir::Space> {
-        self.value_types.reference_space(reference, self.tree)
+    /// Resolve the storage for a reference value.
+    fn reference_storage(&self, reference: mir::Value) -> Option<mir::Storage> {
+        self.value_types.reference_storage(reference, self.tree)
     }
 }
 
@@ -2192,8 +2192,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v1: ref<int32, raw, mutable, frame> = local.address l1
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -2238,8 +2238,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v1: ref<int32, raw, mutable, frame> = local.address l1
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -2332,7 +2332,7 @@ function test(): int32 {
 entry:
     v0: int32 = 7
     local.set l0, v0
-    v1: ref<int32, borrowed, mutable, space(frame)> = local.address l0
+    v1: ref<int32, borrowed, mutable, frame> = local.address l0
     v2: int32 = load v1
     return v2
 }
@@ -2900,7 +2900,7 @@ entry:
     return v0
 
 b1:
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 1
     store v1, v2
     return v2

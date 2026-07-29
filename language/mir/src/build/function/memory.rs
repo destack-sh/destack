@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::build::FunctionBuilder;
 use crate::{
     Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability,
-    ReferenceKind, Space, Type, Value,
+    ReferenceKind, Storage, Type, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -34,13 +34,13 @@ impl<'a> FunctionBuilder<'a> {
         kind: ReferenceKind,
         pointee: LocalNodeId<Type>,
         access: Access,
-        space: Space,
+        storage: Storage,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Reference {
             kind,
             lifetime: Lifetime::empty(),
-            space,
+            storage,
             access,
             pointee,
             nullability,
@@ -106,12 +106,12 @@ impl<'a> FunctionBuilder<'a> {
     /// Load one global value through its address.
     pub fn load_global(&mut self, global: LocalNodeId<Global>) -> Value {
         let global_ty = self.tree.get(global).ty;
-        let global_space = self.tree.get(global).space;
+        let global_storage = self.tree.get(global).storage;
         let global_pointer = self.reference_type(
             ReferenceKind::Raw,
             global_ty,
             Access::Readonly,
-            global_space,
+            Storage::Global(global_storage),
             Nullability::None,
         );
         let pointer = self.global_addr(global, global_pointer);
@@ -122,12 +122,12 @@ impl<'a> FunctionBuilder<'a> {
     /// Store one global value through its address.
     pub fn store_global(&mut self, global: LocalNodeId<Global>, value: Value) {
         let global_ty = self.tree.get(global).ty;
-        let global_space = self.tree.get(global).space;
+        let global_storage = self.tree.get(global).storage;
         let global_pointer = self.reference_type(
             ReferenceKind::Raw,
             global_ty,
             Access::Mutable,
-            global_space,
+            Storage::Global(global_storage),
             Nullability::None,
         );
         let pointer = self.global_addr(global, global_pointer);

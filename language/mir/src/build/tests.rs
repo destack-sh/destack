@@ -3,8 +3,8 @@ use destack_core::StringPool;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, Callee, Copy, ExecutionScope, FenceAccess, FormatOptions, Formatter, Lifetime,
-    LifetimeParameter, MemoryOrdering, Mutability, Nullability, ReferenceKind, Space, StorageSet,
-    Symbol, TargetLayout, Tree, Type, TypeId,
+    LifetimeParameter, MemoryOrdering, Mutability, Nullability, ReferenceKind, Space, Storage,
+    StorageSet, Symbol, TargetLayout, Tree, Type, TypeId,
 };
 
 /// Format one test MIR tree.
@@ -984,7 +984,7 @@ fn test_build_slice_view() {
         i32_type,
         Lifetime::slot(0),
         Access::Mutable,
-        Space::Local,
+        Storage::Heap(Space::Local),
     );
 
     // build function with slice view
@@ -1308,7 +1308,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
         Lifetime::slot(0),
         user,
         Access::Readonly,
-        Space::Local,
+        Storage::Heap(Space::Local),
         Nullability::None,
     );
     let view_field_name = module.strings().intern("user");
@@ -1341,7 +1341,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
         Lifetime::static_storage(),
         user,
         Access::Readonly,
-        Space::Local,
+        Storage::Heap(Space::Local),
         Nullability::None,
     );
     let header = module

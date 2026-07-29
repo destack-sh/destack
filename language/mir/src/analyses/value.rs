@@ -430,17 +430,17 @@ impl ValueTypes {
         }
     }
 
-    /// Resolve a reference's TS++ space when statically known.
-    pub fn reference_space(
+    /// Resolve a reference's storage when statically known.
+    pub fn reference_storage(
         &self,
         reference: impl Into<mir::Value>,
         tree: &mir::Tree,
-    ) -> Option<mir::Space> {
+    ) -> Option<mir::Storage> {
         let type_id = self.expect_value_type(reference);
         match tree.get(type_id) {
-            mir::Type::Reference { space, .. } => Some(*space),
-            mir::Type::Slice { space, .. } => Some(*space),
-            mir::Type::TensorView { space, .. } => Some(*space),
+            mir::Type::Reference { storage, .. } => Some(*storage),
+            mir::Type::Slice { storage, .. } => Some(*storage),
+            mir::Type::TensorView { storage, .. } => Some(*storage),
             _ => None,
         }
     }

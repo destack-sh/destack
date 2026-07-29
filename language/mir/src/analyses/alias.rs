@@ -197,8 +197,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v0: ref<int32, raw, mutable, frame> = local.address l0
+    v1: ref<int32, raw, mutable, frame> = local.address l1
     v2: int32 = 0
     return v2
 }

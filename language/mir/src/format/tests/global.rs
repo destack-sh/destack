@@ -20,12 +20,12 @@ entry:
     );
 }
 
-/// Formats immutable globals and loads canonically.
+/// Formats Program constants and loads canonically.
 #[test]
 fn test_format_global_constant() {
     assert_format(
         r#"
-readonly global MAGIC: int64 = 42
+constant MAGIC: int64 = 42
 
 function getMagic(): int64 {
 entry:
@@ -37,12 +37,12 @@ entry:
     );
 }
 
-/// Formats string constants and escapes canonically.
+/// Formats byte constants and escapes canonically.
 #[test]
 fn test_format_string_constant() {
     assert_format(
         r#"
-readonly global stringLiteralHelloWorldNl: [uint8; 11] = b"hello\nworld"
+constant stringLiteralHelloWorldNl: [uint8; 11] = b"hello\nworld"
 
 function escapeTest(): void {
 entry:
@@ -50,6 +50,18 @@ entry:
     v1: [uint8; 11] = load v0
     return
 }
+"#,
+    );
+}
+
+/// Formats shared globals as declaration modifiers.
+#[test]
+fn test_format_shared_global() {
+    assert_format(
+        r#"
+shared global counter: int32 = zeroInit
+
+readonly shared global limit: int32 = 42
 "#,
     );
 }

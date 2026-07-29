@@ -19,8 +19,8 @@ pub struct ReferenceLocation {
     pub access_type: Option<mir::TypeId>,
     /// Reference kind for the reference, when known.
     pub reference_kind: Option<mir::ReferenceKind>,
-    /// Space for the reference, when known.
-    pub reference_space: Option<mir::Space>,
+    /// Storage for the reference, when known.
+    pub reference_storage: Option<mir::Storage>,
 }
 
 impl ReferenceLocation {
@@ -31,7 +31,7 @@ impl ReferenceLocation {
             size: None,
             access_type: None,
             reference_kind: None,
-            reference_space: None,
+            reference_storage: None,
         }
     }
 
@@ -42,7 +42,7 @@ impl ReferenceLocation {
             size: Some(size),
             access_type: None,
             reference_kind: None,
-            reference_space: None,
+            reference_storage: None,
         }
     }
 
@@ -52,22 +52,22 @@ impl ReferenceLocation {
         size: Option<u64>,
         access_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
-        reference_space: Option<mir::Space>,
+        reference_storage: Option<mir::Storage>,
     ) -> Self {
         Self {
             reference,
             size,
             access_type,
             reference_kind,
-            reference_space,
+            reference_storage,
         }
     }
 
     /// Return the memory spaces this location can touch.
     pub fn spaces(&self) -> mir::StorageSet {
-        self.reference_space
+        self.reference_storage
             .as_ref()
-            .map(mir::Space::space_set)
+            .map(|storage| storage.storage_set())
             .unwrap_or(mir::StorageSet::ANY)
     }
 
@@ -134,10 +134,10 @@ impl MemoryRegion {
         Self::Any { spaces }
     }
 
-    /// Create an imprecise region for one memory space.
-    pub fn any_space(space: mir::Space) -> Self {
+    /// Create an imprecise region for one storage region.
+    pub fn any_storage(storage: mir::Storage) -> Self {
         Self::Any {
-            spaces: space.space_set(),
+            spaces: storage.storage_set(),
         }
     }
 
@@ -152,7 +152,7 @@ impl MemoryRegion {
         reference: mir::Value,
         access_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
-        reference_space: Option<mir::Space>,
+        reference_storage: Option<mir::Storage>,
         pointer_width_bits: u16,
         tree: &mir::Tree,
     ) -> Self {
@@ -160,7 +160,7 @@ impl MemoryRegion {
             reference,
             access_type,
             reference_kind,
-            reference_space,
+            reference_storage,
             None,
             pointer_width_bits,
             tree,
@@ -172,7 +172,7 @@ impl MemoryRegion {
         reference: mir::Value,
         access_type: Option<mir::TypeId>,
         reference_kind: Option<mir::ReferenceKind>,
-        reference_space: Option<mir::Space>,
+        reference_storage: Option<mir::Storage>,
         size: Option<u64>,
         pointer_width_bits: u16,
         tree: &mir::Tree,
@@ -189,7 +189,7 @@ impl MemoryRegion {
                 inferred_size,
                 access_type,
                 reference_kind,
-                reference_space,
+                reference_storage,
             ),
             spaces: mir::StorageSet::ANY,
         }
@@ -241,12 +241,12 @@ impl MemoryRegion {
 pub enum StorageRoot {
     /// Local slot address.
     LocalSlot(mir::LocalNodeId<mir::Local>),
-    /// Static storage address.
-    Static {
-        /// The static global.
+    /// Global storage address.
+    Global {
+        /// The global declaration.
         global: mir::LocalNodeId<mir::Global>,
-        /// The static storage space.
-        space: mir::Space,
+        /// The global storage class.
+        storage: mir::GlobalStorage,
     },
     /// Heap allocation instruction.
     Allocation {
@@ -261,8 +261,8 @@ pub enum StorageRoot {
     Parameter {
         /// Parameter index.
         index: u32,
-        /// The parameter storage space.
-        space: mir::Space,
+        /// The parameter storage.
+        storage: mir::Storage,
         /// The parameter reference kind.
         kind: mir::ReferenceKind,
         /// The parameter access.
@@ -287,8 +287,8 @@ impl StorageRoot {
         match (self, other) {
             (StorageRoot::LocalSlot(left), StorageRoot::LocalSlot(right)) => left != right,
             (
-                StorageRoot::Static { global: left, .. },
-                StorageRoot::Static { global: right, .. },
+                StorageRoot::Global { global: left, .. },
+                StorageRoot::Global { global: right, .. },
             ) => left != right,
             (
                 StorageRoot::Allocation {
@@ -324,10 +324,9 @@ impl StorageRoot {
     pub fn spaces(&self) -> mir::StorageSet {
         match self {
             StorageRoot::LocalSlot(_) => mir::StorageSet::FRAME,
-            StorageRoot::Static { space, .. } => space.space_set(),
-            StorageRoot::Allocation { space, .. } | StorageRoot::Parameter { space, .. } => {
-                space.space_set()
-            }
+            StorageRoot::Global { storage, .. } => storage.storage_set(),
+            StorageRoot::Allocation { space, .. } => space.space_set(),
+            StorageRoot::Parameter { storage, .. } => storage.storage_set(),
         }
     }
 }
@@ -566,7 +565,7 @@ impl<'a> MemoryRegionBuilder<'a> {
                 self.region(value)
             }
 
-            // identify static storage
+            // identify global storage
             mir::Instruction::GlobalAddr {
                 destination,
                 global,
@@ -575,9 +574,9 @@ impl<'a> MemoryRegionBuilder<'a> {
                 let global_id = *global;
                 let global = self.tree.get(global_id);
 
-                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Static {
+                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Global {
                     global: global_id,
-                    space: global.space,
+                    storage: global.storage,
                 }))
             }
             mir::Instruction::LocalAddr {
@@ -646,24 +645,24 @@ impl<'a> MemoryRegionBuilder<'a> {
         match ty {
             mir::Type::Reference {
                 kind,
-                space,
+                storage,
                 access,
                 ..
             }
             | mir::Type::Slice {
                 kind,
-                space,
+                storage,
                 access,
                 ..
             }
             | mir::Type::TensorView {
                 kind,
-                space,
+                storage,
                 access,
                 ..
             } => MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Parameter {
                 index: index as u32,
-                space: *space,
+                storage: *storage,
                 kind: *kind,
                 access: *access,
             })),
@@ -681,9 +680,13 @@ impl<'a> MemoryRegionBuilder<'a> {
         let ty = self.tree.get(ty_id);
 
         match ty {
-            mir::Type::Reference { kind, space, .. }
-            | mir::Type::Slice { kind, space, .. }
-            | mir::Type::TensorView { kind, space, .. } => {
+            mir::Type::Reference { kind, storage, .. }
+            | mir::Type::Slice { kind, storage, .. }
+            | mir::Type::TensorView { kind, storage, .. } => {
+                let mir::Storage::Heap(space) = storage else {
+                    return MemoryRegion::any_storage(*storage);
+                };
+
                 MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Allocation {
                     instruction,
                     space: *space,
@@ -700,9 +703,9 @@ impl<'a> MemoryRegionBuilder<'a> {
         let ty = self.tree.get(ty_id);
 
         match ty {
-            mir::Type::Reference { space, .. }
-            | mir::Type::Slice { space, .. }
-            | mir::Type::TensorView { space, .. } => MemoryRegion::any_space(*space),
+            mir::Type::Reference { storage, .. }
+            | mir::Type::Slice { storage, .. }
+            | mir::Type::TensorView { storage, .. } => MemoryRegion::any_storage(*storage),
             _ => MemoryRegion::any(),
         }
     }
@@ -878,7 +881,7 @@ mod tests {
         };
         let parameter = StorageRoot::Parameter {
             index: 0,
-            space: mir::Space::Local,
+            storage: mir::Storage::Heap(mir::Space::Local),
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Mutable,
         };
@@ -907,13 +910,13 @@ mod tests {
     fn test_storage_is_exclusive_parameter() {
         let exclusive_parameter = StorageRoot::Parameter {
             index: 0,
-            space: mir::Space::Local,
+            storage: mir::Storage::Heap(mir::Space::Local),
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Exclusive,
         };
         let mutable_parameter = StorageRoot::Parameter {
             index: 1,
-            space: mir::Space::Local,
+            storage: mir::Storage::Heap(mir::Space::Local),
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Mutable,
         };
@@ -962,9 +965,9 @@ mod tests {
     /// Constant offsets accumulate.
     #[test]
     fn test_memory_place_const_offset_accumulation() {
-        let mut place = MemoryPlace::from_root(StorageRoot::Static {
+        let mut place = MemoryPlace::from_root(StorageRoot::Global {
             global: mir::LocalNodeId::new(0),
-            space: mir::Space::Static,
+            storage: mir::GlobalStorage::Constant,
         });
 
         place.add_const_offset(8);

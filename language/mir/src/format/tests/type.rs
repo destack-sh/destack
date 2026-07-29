@@ -63,13 +63,13 @@ entry(v0: ref<int32, managed, mutable, nullable>, v1: ref<int32, unique, readonl
     );
 }
 
-/// Formats raw spaces canonically.
+/// Formats each reference storage canonically.
 #[test]
-fn test_format_raw_spaces() {
+fn test_format_reference_storage() {
     assert_format(
         r#"
-function rawSpaces(v0: ref<int32, raw, mutable, space(shared)>, v1: ref<int32, raw, mutable, space(static)>): ref<int32, raw, mutable, space(shared)> {
-entry(v0: ref<int32, raw, mutable, space(shared)>, v1: ref<int32, raw, mutable, space(static)>):
+function storage(v0: ref<int32, raw, mutable, shared>, v1: ref<int32, raw, mutable, frame>, v2: ref<int32, raw, mutable, constant>, v3: ref<int32, raw, mutable, global>, v4: ref<int32, raw, mutable, shared global>): ref<int32, raw, mutable, shared> {
+entry(v0: ref<int32, raw, mutable, shared>, v1: ref<int32, raw, mutable, frame>, v2: ref<int32, raw, mutable, constant>, v3: ref<int32, raw, mutable, global>, v4: ref<int32, raw, mutable, shared global>):
     return v0
 }
 "#,
@@ -96,6 +96,19 @@ fn test_format_static_borrow_lifetime() {
         r#"
 function staticBorrow(v0: ref<int32, borrowed, 'static, mutable>): ref<int32, borrowed, 'static, mutable> {
 entry(v0: ref<int32, borrowed, 'static, mutable>):
+    return v0
+}
+"#,
+    );
+}
+
+/// Formats frame borrow lifetimes independently from frame storage.
+#[test]
+fn test_format_frame_borrow_lifetime() {
+    assert_format(
+        r#"
+function frameBorrow(v0: ref<int32, borrowed, 'frame, mutable, frame>): ref<int32, borrowed, 'frame, mutable, frame> {
+entry(v0: ref<int32, borrowed, 'frame, mutable, frame>):
     return v0
 }
 "#,
@@ -168,8 +181,8 @@ entry(v0: slice<int32, borrowed, 'L0, readonly>, v1: tensorView<int32, borrowed,
 fn test_format_tensor_shapes_and_formats() {
     assert_format(
         r#"
-function tensors<'L0>(v0: tensor<float32, space(shared), (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>): void {
-entry(v0: tensor<float32, space(shared), (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>):
+function tensors<'L0>(v0: tensor<float32, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>): void {
+entry(v0: tensor<float32, shared, (batch, dynamic, 64), format(dense(columnMajor))>, v1: tensorView<float32, borrowed, 'L0, readonly, (batch, dynamic, 64), format(strided)>):
     return
 }
 "#,
@@ -242,8 +255,8 @@ entry(v0: dynamic<Writer>):
     return v0
 }
 
-function shared(v0: dynamic<Writer, space(shared)>): dynamic<Writer, space(shared)> {
-entry(v0: dynamic<Writer, space(shared)>):
+function sharedErased(v0: dynamic<Writer, shared>): dynamic<Writer, shared> {
+entry(v0: dynamic<Writer, shared>):
     return v0
 }
 "#,

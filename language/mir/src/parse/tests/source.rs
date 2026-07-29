@@ -1,7 +1,34 @@
-use crate::{Block, Function, Global, Local, TypeDeclaration, assert_node};
+use crate::{
+    Block, Function, Global, GlobalStorage, Local, Mutability, TypeDeclaration, assert_node,
+};
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType};
 
 use super::{TestParser, span_for_text, span_for_text_in, span_for_text_in_after};
+
+/// Parsed MIR assigns exact storage to constants and globals.
+#[test]
+fn test_parse_global_storage() {
+    let source = r#"
+constant bytes: [uint8; 4] = b"data"
+readonly global localValue: int32 = 1
+shared global sharedValue: int32 = 2
+"#;
+
+    let (tree, _) = TestParser::new(source).parse();
+    let globals = tree
+        .iter_nodes::<Global>()
+        .map(|(_, global)| (global.storage, global.mutability))
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        globals,
+        vec![
+            (GlobalStorage::Constant, Mutability::Immutable),
+            (GlobalStorage::Local, Mutability::Immutable),
+            (GlobalStorage::Shared, Mutability::Mutable),
+        ]
+    );
+}
 
 /// Parsed MIR records main spans for item and block names.
 #[test]

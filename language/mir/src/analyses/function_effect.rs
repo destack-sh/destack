@@ -222,11 +222,11 @@ impl<'a> FunctionEffectBuilder<'a> {
             | mir::Instruction::NewUninit { result_type, .. }
             | mir::Instruction::NewSliceZeroed { result_type, .. }
             | mir::Instruction::NewSliceUninit { result_type, .. } => mir::FunctionEffect {
-                memory: mir::MemoryEffect::write_only(self.space_set_for_type(result_type)),
+                memory: mir::MemoryEffect::write_only(self.storage_set_for_type(result_type)),
                 behavior: mir::FunctionBehavior::none().with_allocates(),
             },
             mir::Instruction::Free { value } => mir::FunctionEffect {
-                memory: mir::MemoryEffect::write_only(self.space_set_for_value(*value)),
+                memory: mir::MemoryEffect::write_only(self.storage_set_for_value(*value)),
                 behavior: mir::FunctionBehavior::none().with_frees(),
             },
             mir::Instruction::Drop { .. } => mir::FunctionEffect {
@@ -339,22 +339,22 @@ impl<'a> FunctionEffectBuilder<'a> {
         mir::FunctionEffect { memory, behavior }
     }
 
-    /// Resolve the backing space for one typed value.
-    fn space_set_for_value(&self, value: mir::Value) -> mir::StorageSet {
+    /// Resolve the backing storage for one typed value.
+    fn storage_set_for_value(&self, value: mir::Value) -> mir::StorageSet {
         let Some(ty) = self.function.value_type(value) else {
             return mir::StorageSet::ANY;
         };
 
-        self.space_set_for_type(&mir::TypeId::from(ty))
+        self.storage_set_for_type(&mir::TypeId::from(ty))
     }
 
-    /// Resolve the backing space for one reference-like type.
-    fn space_set_for_type(&self, ty: &mir::TypeId) -> mir::StorageSet {
+    /// Resolve the backing storage for one reference-like type.
+    fn storage_set_for_type(&self, ty: &mir::TypeId) -> mir::StorageSet {
         match self.tree.get(*ty) {
-            mir::Type::Uninit { value } => self.space_set_for_type(value),
-            mir::Type::Reference { space, .. } | mir::Type::TensorView { space, .. } => {
-                space.space_set()
-            }
+            mir::Type::Uninit { value } => self.storage_set_for_type(value),
+            mir::Type::Reference { storage, .. }
+            | mir::Type::Slice { storage, .. }
+            | mir::Type::TensorView { storage, .. } => storage.storage_set(),
             _ => mir::StorageSet::ANY,
         }
     }
@@ -428,7 +428,7 @@ impl MemoryAccumulator {
                 effect = effect.with_storage(mir::StorageSet::FRAME);
             }
             mir::MemoryTarget::Global(_) => {
-                effect = effect.with_storage(mir::StorageSet::STATIC);
+                effect = effect.with_storage(mir::StorageSet::GLOBAL);
             }
             _ => {}
         }

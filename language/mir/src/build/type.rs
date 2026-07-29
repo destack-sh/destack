@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Nullability, ReferenceKind,
-    Space, TensorDimension, TensorFormat, TensorSharding, TensorViewFormat, Type, TypeId,
+    Space, Storage, TensorDimension, TensorFormat, TensorSharding, TensorViewFormat, Type, TypeId,
     VariantCase,
 };
 
@@ -117,7 +117,7 @@ impl ModuleBuilder {
         kind: ReferenceKind,
         pointee: LocalNodeId<Type>,
         access: Access,
-        space: Space,
+        storage: Storage,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.reference_type_with_lifetime(
@@ -125,7 +125,7 @@ impl ModuleBuilder {
             Lifetime::empty(),
             pointee,
             access,
-            space,
+            storage,
             nullability,
         )
     }
@@ -137,13 +137,13 @@ impl ModuleBuilder {
         lifetime: Lifetime,
         pointee: LocalNodeId<Type>,
         access: Access,
-        space: Space,
+        storage: Storage,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Reference {
             kind,
             lifetime,
-            space,
+            storage,
             access,
             pointee,
             nullability,
@@ -160,7 +160,7 @@ impl ModuleBuilder {
             ReferenceKind::Borrowed,
             pointee,
             access,
-            Space::Local,
+            Storage::Heap(Space::Local),
             Nullability::None,
         )
     }
@@ -180,7 +180,7 @@ impl ModuleBuilder {
             ReferenceKind::Raw,
             pointee,
             access,
-            Space::Local,
+            Storage::Heap(Space::Local),
             Nullability::None,
         )
     }
@@ -205,7 +205,7 @@ impl ModuleBuilder {
             ReferenceKind::Managed,
             pointee,
             access,
-            Space::Local,
+            Storage::Heap(Space::Local),
             Nullability::None,
         )
     }
@@ -236,7 +236,7 @@ impl ModuleBuilder {
             ReferenceKind::Managed,
             pointee,
             access,
-            Space::Local,
+            Storage::Heap(Space::Local),
             Nullability::Null,
         )
     }
@@ -264,7 +264,7 @@ impl ModuleBuilder {
             ReferenceKind::Unique,
             pointee,
             access,
-            Space::Local,
+            Storage::Heap(Space::Local),
             Nullability::None,
         )
     }
@@ -309,7 +309,7 @@ impl ModuleBuilder {
         kind: ReferenceKind,
         element: LocalNodeId<Type>,
         access: Access,
-        space: Space,
+        storage: Storage,
         shape: Vec<TensorDimension>,
         format: TensorViewFormat,
         sharding: TensorSharding,
@@ -318,7 +318,7 @@ impl ModuleBuilder {
         self.tree.intern_type(Type::TensorView {
             kind,
             lifetime: Lifetime::empty(),
-            space,
+            storage,
             access,
             element,
             shape,
@@ -348,9 +348,9 @@ impl ModuleBuilder {
         kind: ReferenceKind,
         element: LocalNodeId<Type>,
         access: Access,
-        space: Space,
+        storage: Storage,
     ) -> LocalNodeId<Type> {
-        self.type_slice_with_lifetime(kind, element, Lifetime::empty(), access, space)
+        self.type_slice_with_lifetime(kind, element, Lifetime::empty(), access, storage)
     }
 
     /// Create a slice type with explicit storage semantics and lifetime.
@@ -360,13 +360,13 @@ impl ModuleBuilder {
         element: LocalNodeId<Type>,
         lifetime: Lifetime,
         access: Access,
-        space: Space,
+        storage: Storage,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Slice {
             kind,
             lifetime,
             element,
-            space,
+            storage,
             access,
             nullability: Nullability::None,
         })
@@ -378,7 +378,7 @@ impl ModuleBuilder {
             ReferenceKind::Managed,
             element,
             Access::Mutable,
-            Space::Local,
+            Storage::Heap(Space::Local),
         )
     }
 

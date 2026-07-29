@@ -339,7 +339,7 @@ impl Parser {
             "local" => StorageSet::LOCAL,
             "shared" => StorageSet::SHARED,
             "frame" => StorageSet::FRAME,
-            "static" => StorageSet::STATIC,
+            "global" => StorageSet::GLOBAL,
             "device" => StorageSet::DEVICE,
             "workgroup" => StorageSet::WORKGROUP,
             _ => {

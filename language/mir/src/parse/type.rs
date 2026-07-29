@@ -2,10 +2,10 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Copy, Field, FieldSpan, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId,
-    Nullability, ReferenceKind, SignatureParameter, Space, StaticId, TensorDimension,
-    TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis,
-    TensorViewFormat, Type, TypeDeclarationSpans, TypeId, VariantCase,
+    Access, Copy, Field, FieldSpan, GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm,
+    LocalNodeId, Nullability, ReferenceKind, SignatureParameter, Space, StaticId, Storage,
+    TensorDimension, TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding,
+    TensorShardingAxis, TensorViewFormat, Type, TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -18,8 +18,8 @@ struct ReferenceQualifiers {
     kind: Option<ReferenceKind>,
     /// The explicit reference lifetime.
     lifetime: Lifetime,
-    /// The referenced space.
-    space: Space,
+    /// The referenced storage.
+    storage: Storage,
     /// The exposed access mode.
     access: Option<Access>,
     /// The accepted nullish values.
@@ -32,7 +32,7 @@ impl ReferenceQualifiers {
         Self {
             kind: None,
             lifetime: Lifetime::empty(),
-            space: Space::Local,
+            storage: Storage::Heap(Space::Local),
             access: None,
             nullability,
         }
@@ -55,7 +55,7 @@ impl ReferenceQualifiers {
         Ok(ResolvedReferenceQualifiers {
             kind,
             lifetime: self.lifetime,
-            space: self.space,
+            storage: self.storage,
             access: self
                 .access
                 .ok_or_else(|| ParseError::invalid("reference access", pos))?,
@@ -71,8 +71,8 @@ struct ResolvedReferenceQualifiers {
     kind: ReferenceKind,
     /// The explicit reference lifetime.
     lifetime: Lifetime,
-    /// The referenced space.
-    space: Space,
+    /// The referenced storage.
+    storage: Storage,
     /// The exposed access mode.
     access: Access,
     /// The accepted nullish values.
@@ -473,14 +473,14 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let (element, _) = self.parse_type_use_part()?;
-        let (kind, lifetime, space, access, nullability) = self.parse_slice_qualifiers()?;
+        let (kind, lifetime, storage, access, nullability) = self.parse_slice_qualifiers()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Slice {
             kind,
             lifetime,
             element,
-            space,
+            storage,
             access,
             nullability,
         })
@@ -506,12 +506,10 @@ impl Parser {
 
         // parse each explicit dynamic qualifier
         while self.eat_token_if(TokenType::Comma) {
-            if self.eat_token_if(TokenType::Space) {
-                space = self.parse_space_group()?;
-            } else if let Some(value) = self.parse_nullability()? {
+            if let Some(value) = self.parse_nullability()? {
                 nullability = value;
             } else {
-                return Err(ParseError::invalid("dynamic qualifier", self.pos()));
+                space = self.parse_space()?;
             }
         }
         self.eat_token(TokenType::GreaterThan)?;
@@ -827,7 +825,7 @@ impl Parser {
         Ok(Type::Reference {
             kind: qualifiers.kind,
             lifetime: qualifiers.lifetime,
-            space: qualifiers.space,
+            storage: qualifiers.storage,
             access: qualifiers.access,
             pointee,
             nullability: qualifiers.nullability,
@@ -853,7 +851,7 @@ impl Parser {
         Ok(Type::TensorView {
             kind: qualifiers.kind,
             lifetime: qualifiers.lifetime,
-            space: qualifiers.space,
+            storage: qualifiers.storage,
             access: qualifiers.access,
             element,
             shape,
@@ -907,8 +905,7 @@ impl Parser {
         self.eat_token(TokenType::LessThan)?;
         let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
-        self.eat_token(TokenType::Space)?;
-        let space = self.parse_space_group()?;
+        let space = self.parse_space()?;
         self.eat_token(TokenType::Comma)?;
         let shape = self.parse_tensor_shape()?;
         let mut format = TensorFormat::dense_row_major();
@@ -952,7 +949,7 @@ impl Parser {
     /// Parse optional trailing qualifiers for one slice type.
     fn parse_slice_qualifiers(
         &mut self,
-    ) -> ParseResult<(ReferenceKind, Lifetime, Space, Access, Nullability)> {
+    ) -> ParseResult<(ReferenceKind, Lifetime, Storage, Access, Nullability)> {
         let mut qualifiers = ReferenceQualifiers::new(Nullability::None);
 
         while self.peek_is(TokenType::Comma) {
@@ -972,7 +969,7 @@ impl Parser {
         Ok((
             qualifiers.kind,
             qualifiers.lifetime,
-            qualifiers.space,
+            qualifiers.storage,
             qualifiers.access,
             qualifiers.nullability,
         ))
@@ -1016,8 +1013,8 @@ impl Parser {
             return Ok(());
         }
 
-        if self.eat_token_if(TokenType::Space) {
-            qualifiers.space = self.parse_space_group()?;
+        if let Some(storage) = self.parse_storage_if() {
+            qualifiers.storage = storage;
             return Ok(());
         }
 
@@ -1068,36 +1065,42 @@ impl Parser {
         Ok(Some(nullability))
     }
 
-    /// Parse one address-space qualifier group.
-    fn parse_space_group(&mut self) -> ParseResult<Space> {
-        self.eat_token(TokenType::OpenParenthesis)?;
-
+    /// Parse one required memory space.
+    fn parse_space(&mut self) -> ParseResult<Space> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("space", self.pos()))?;
-        let space = match self.token_type(token) {
-            TokenType::Identifier | TokenType::Local => {
-                let text = self.tree.source_text(token.span);
-                Space::from_name(text).ok_or_else(|| {
-                    ParseError::invalid_with_length(
-                        "space",
-                        token.start(),
-                        token.span.len() as usize,
-                    )
-                })?
-            }
-            _ => {
-                return Err(ParseError::unexpected(
-                    "space",
-                    self.token_type(token),
-                    token.start(),
-                ));
-            }
-        };
+        let text = self.tree.source_text(token.span);
+        let space = Space::from_name(text).ok_or_else(|| {
+            ParseError::invalid_with_length("space", token.start(), token.span.len() as usize)
+        })?;
         self.bump();
-        self.eat_token(TokenType::CloseParenthesis)?;
 
         Ok(space)
+    }
+
+    /// Parse one optional reference storage.
+    fn parse_storage_if(&mut self) -> Option<Storage> {
+        let token = self.peek()?;
+        let text = self.tree.source_text(token.span);
+        let storage = match text {
+            "local" => Storage::Heap(Space::Local),
+            "frame" => Storage::Frame,
+            "constant" => Storage::Global(GlobalStorage::Constant),
+            "global" => Storage::Global(GlobalStorage::Local),
+            "shared" => {
+                self.bump();
+                if self.eat_token_if(TokenType::Global) {
+                    return Some(Storage::Global(GlobalStorage::Shared));
+                }
+
+                return Some(Storage::Heap(Space::Shared));
+            }
+            _ => return None,
+        };
+        self.bump();
+
+        Some(storage)
     }
 
     /// Parse one tick lifetime union.
@@ -1116,6 +1119,9 @@ impl Parser {
         let name = self.tree.source_text(token.span);
         if name == "'static" {
             return Ok(LifetimeTerm::Static);
+        }
+        if name == "'frame" {
+            return Ok(LifetimeTerm::Frame);
         }
 
         let Some(slot) = self.lifetime_slot(name) else {

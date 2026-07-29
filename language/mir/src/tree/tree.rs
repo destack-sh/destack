@@ -15,10 +15,10 @@ use crate::{
     FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
     LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeIndexEntry, NodeType,
     Nullability, Origin, OriginTable, Path, Projection, ReferenceKind, Space, Static, StaticId,
-    SwitchCase, SwitchCaseSlice, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorImmediate, TensorImmediateId,
-    TensorScatterDimensionNumbers, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
-    TypedValueSpan, Value, ValueSlice,
+    Storage, SwitchCase, SwitchCaseSlice, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorImmediate, TensorImmediateId, TensorScatterDimensionNumbers, Terminator, Type,
+    TypeDeclaration, TypeDeclarationSpans, TypeId, TypedValueSpan, Value, ValueSlice,
 };
 
 /// MIR tree for a single unit.
@@ -185,6 +185,7 @@ impl Tree {
         for term in &lifetime.terms {
             match term {
                 LifetimeTerm::Static => terms.push(LifetimeTerm::Static),
+                LifetimeTerm::Frame => terms.push(LifetimeTerm::Frame),
                 LifetimeTerm::Slot(slot) => {
                     if let Some(lifetime) = lifetime_args.get(slot.0 as usize) {
                         terms.extend(lifetime.terms.iter().copied());
@@ -752,7 +753,7 @@ impl Tree {
                 ty,
                 Type::Reference {
                     kind: ReferenceKind::Managed,
-                    space: Space::Local,
+                    storage: Storage::Heap(Space::Local),
                     access: Access::Mutable,
                     pointee,
                     nullability: Nullability::Null,
@@ -781,7 +782,7 @@ impl Tree {
                 ty,
                 Type::Reference {
                     kind: ReferenceKind::Managed,
-                    space: Space::Local,
+                    storage: Storage::Heap(Space::Local),
                     access: Access::Mutable,
                     pointee,
                     nullability: Nullability::Null,
@@ -796,7 +797,7 @@ impl Tree {
         self.intern_type(Type::Reference {
             kind: ReferenceKind::Managed,
             lifetime: Lifetime::empty(),
-            space: Space::Local,
+            storage: Storage::Heap(Space::Local),
             access: Access::Mutable,
             pointee: void_type,
             nullability: Nullability::Null,

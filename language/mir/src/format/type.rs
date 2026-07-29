@@ -8,10 +8,10 @@ use super::value::format_type_id;
 
 use crate::{
     Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatNode, Formatter,
-    Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability, ReferenceKind,
-    SignatureParameter, Space, StaticId, TensorDimension, TensorDimensionOrder, TensorFormat,
-    TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type, TypeDeclaration,
-    TypeDeclarationSpans, TypeId, Writer, write_comments_before,
+    GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability,
+    ReferenceKind, SignatureParameter, StaticId, Storage, TensorDimension, TensorDimensionOrder,
+    TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis, TensorViewFormat, Type,
+    TypeDeclaration, TypeDeclarationSpans, TypeId, Writer, write_comments_before,
 };
 
 impl FormatNode for Type {
@@ -296,8 +296,7 @@ fn format_type_inner<'a>(
             format_type_id(*constraint, f)?;
             format_nullability(*nullability, f)?;
             if !ty_space.is_local() {
-                write!(f, [token(","), space()])?;
-                format_space_group(*ty_space, f)?;
+                write!(f, [token(","), space(), token(ty_space.label())])?;
             }
             write!(f, [token(">")])
         }
@@ -315,21 +314,13 @@ fn format_type_inner<'a>(
         Type::Reference {
             kind,
             lifetime,
-            space: memory_space,
+            storage,
             access,
             pointee,
             nullability,
         } => {
             write!(f, [token("ref"), token("<")])?;
-            format_view_header(
-                *kind,
-                lifetime,
-                *memory_space,
-                *access,
-                *nullability,
-                pointee,
-                f,
-            )?;
+            format_view_header(*kind, lifetime, *storage, *access, *nullability, pointee, f)?;
             write!(f, [token(">")])
         }
         Type::FixedArray {
@@ -353,13 +344,13 @@ fn format_type_inner<'a>(
             kind,
             lifetime,
             element,
-            space,
+            storage,
             access,
             nullability,
         } => {
             write!(f, [token("slice"), token("<")])?;
             format_type_id(*element, f)?;
-            format_reference_qualifiers(*kind, lifetime, *space, *access, *nullability, f)?;
+            format_reference_qualifiers(*kind, lifetime, *storage, *access, *nullability, f)?;
             write!(f, [token(">")])
         }
         Type::Tuple { elements, copy: _ } => {
@@ -477,7 +468,7 @@ fn format_type_inner<'a>(
                     space()
                 ]
             )?;
-            format_space_group(*memory_space, f)?;
+            write!(f, [token(memory_space.label())])?;
             write!(f, [token(","), space()])?;
             format_shape(shape, f)?;
             if *format != TensorFormat::dense_row_major() {
@@ -495,7 +486,7 @@ fn format_type_inner<'a>(
         Type::TensorView {
             kind,
             lifetime,
-            space: memory_space,
+            storage,
             access,
             element,
             shape,
@@ -504,15 +495,7 @@ fn format_type_inner<'a>(
             nullability,
         } => {
             write!(f, [token("tensorView"), token("<")])?;
-            format_view_header(
-                *kind,
-                lifetime,
-                *memory_space,
-                *access,
-                *nullability,
-                element,
-                f,
-            )?;
+            format_view_header(*kind, lifetime, *storage, *access, *nullability, element, f)?;
             write!(f, [token(","), space()])?;
             format_shape(shape, f)?;
             if *format != TensorViewFormat::dense_row_major() {
@@ -710,33 +693,20 @@ fn format_tensor_reduction<'a>(
 fn format_view_header<'a>(
     kind: ReferenceKind,
     lifetime: &Lifetime,
-    memory_space: Space,
+    storage: Storage,
     access: Access,
     nullability: Nullability,
     element: &TypeId,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     format_type_id(*element, f)?;
-    format_reference_qualifiers(kind, lifetime, memory_space, access, nullability, f)
-}
-
-/// Format one explicit memory-space group.
-fn format_space_group<'a>(memory_space: Space, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    write!(
-        f,
-        [
-            token("space"),
-            token("("),
-            token(memory_space.label()),
-            token(")")
-        ]
-    )
+    format_reference_qualifiers(kind, lifetime, storage, access, nullability, f)
 }
 
 fn format_reference_qualifiers<'a>(
     kind: ReferenceKind,
     lifetime: &Lifetime,
-    memory_space: Space,
+    storage: Storage,
     access: Access,
     nullability: Nullability,
     f: &mut Writer<'a, '_>,
@@ -752,11 +722,24 @@ fn format_reference_qualifiers<'a>(
     format_lifetime(lifetime, f)?;
     format_access(access, f)?;
     format_nullability(nullability, f)?;
-    if !memory_space.is_local() {
+    if storage != Storage::default() {
         write!(f, [token(","), space()])?;
-        format_space_group(memory_space, f)?;
+        format_storage(storage, f)?;
     }
     Ok(())
+}
+
+/// Format one reference storage qualifier.
+fn format_storage<'a>(storage: Storage, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    match storage {
+        Storage::Heap(space) => write!(f, [token(space.label())]),
+        Storage::Frame => write!(f, [token("frame")]),
+        Storage::Global(GlobalStorage::Constant) => write!(f, [token("constant")]),
+        Storage::Global(GlobalStorage::Local) => write!(f, [token("global")]),
+        Storage::Global(GlobalStorage::Shared) => {
+            write!(f, [token("shared"), space(), token("global")])
+        }
+    }
 }
 
 fn format_nullability<'a>(nullability: Nullability, f: &mut Writer<'a, '_>) -> FormatResult<()> {
@@ -857,6 +840,7 @@ pub(super) fn format_lifetime_terms<'a>(
 
         match source {
             LifetimeTerm::Static => write!(f, [token("'static")])?,
+            LifetimeTerm::Frame => write!(f, [token("'frame")])?,
             LifetimeTerm::Slot(index) => {
                 if let Some(name) = f.context().lifetime_name(*index).map(str::to_string) {
                     write!(f, [copied_text(&name)])?;

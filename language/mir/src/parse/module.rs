@@ -3,8 +3,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global, GlobalInitializer,
-    Linkage, LocalNodeId, Mutability, Space, Symbol, Type, TypeDeclaration, TypeDeclarationSpans,
-    TypeId,
+    GlobalStorage, Linkage, LocalNodeId, Mutability, Symbol, Type, TypeDeclaration,
+    TypeDeclarationSpans, TypeId,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -50,6 +50,7 @@ impl Parser {
         } else {
             Mutability::Mutable
         };
+        let is_shared = self.eat_token_if(TokenType::Shared);
         let is_async = self.eat_token_if(TokenType::Async);
         if is_async && !self.peek_is(TokenType::Function) {
             return Err(ParseError::new(
@@ -60,6 +61,9 @@ impl Parser {
 
         // item grammar
         if self.peek_is(TokenType::Type) {
+            if is_shared {
+                return Err(ParseError::new("types cannot be shared", self.pos()));
+            }
             if linkage != Linkage::Local {
                 return Err(ParseError::new(
                     "type declarations cannot be external or export",
@@ -74,9 +78,42 @@ impl Parser {
             }
 
             self.parse_type_declaration(item_start, attributes, attribute_spans)?;
+        } else if self.peek_is(TokenType::Constant) {
+            if mutability == Mutability::Immutable {
+                return Err(ParseError::new("constants are always readonly", self.pos()));
+            }
+            if is_shared {
+                return Err(ParseError::new("constants cannot be shared", self.pos()));
+            }
+
+            self.parse_global(
+                item_start,
+                linkage,
+                Mutability::Immutable,
+                GlobalStorage::Constant,
+                TokenType::Constant,
+                attributes,
+                attribute_spans,
+            )?;
         } else if self.peek_is(TokenType::Global) {
-            self.parse_global(item_start, linkage, mutability, attributes, attribute_spans)?;
+            let storage = if is_shared {
+                GlobalStorage::Shared
+            } else {
+                GlobalStorage::Local
+            };
+            self.parse_global(
+                item_start,
+                linkage,
+                mutability,
+                storage,
+                TokenType::Global,
+                attributes,
+                attribute_spans,
+            )?;
         } else if self.peek_is(TokenType::Function) {
+            if is_shared {
+                return Err(ParseError::new("functions cannot be shared", self.pos()));
+            }
             if mutability == Mutability::Immutable {
                 return Err(ParseError::new("functions cannot be readonly", self.pos()));
             }
@@ -84,7 +121,7 @@ impl Parser {
             self.parse_function(item_start, linkage, is_async, attributes, attribute_spans)?;
         } else {
             return Err(ParseError::new(
-                "expected 'type', 'function', or 'global'",
+                "expected 'type', 'function', 'global', or 'constant'",
                 self.pos(),
             ));
         }
@@ -104,9 +141,11 @@ impl Parser {
                 || self.peek_is(TokenType::External)
                 || self.peek_is(TokenType::Export)
                 || self.peek_is(TokenType::Readonly)
+                || self.peek_is(TokenType::Shared)
                 || self.peek_is(TokenType::Async)
                 || self.peek_is(TokenType::Type)
                 || self.peek_is(TokenType::Global)
+                || self.peek_is(TokenType::Constant)
                 || self.peek_is(TokenType::Function)
             {
                 return;
@@ -143,6 +182,9 @@ impl Parser {
                 Linkage::Local
             };
             if self.peek_is(TokenType::Readonly) {
+                self.bump();
+            }
+            if self.peek_is(TokenType::Shared) {
                 self.bump();
             }
             let is_async = self.eat_token_if(TokenType::Async);
@@ -218,6 +260,9 @@ impl Parser {
                 self.bump();
             }
             if self.peek_is(TokenType::Readonly) {
+                self.bump();
+            }
+            if self.peek_is(TokenType::Shared) {
                 self.bump();
             }
             if self.peek_is(TokenType::Async) {
@@ -488,18 +533,19 @@ impl Parser {
         Ok(copy)
     }
 
-    /// Parse a global definition or declaration.
-    /// Expect `[export|external] [readonly] global name: type[, space(name)] [ = init]`.
+    /// Parse a global or constant definition or declaration.
     pub(super) fn parse_global(
         &mut self,
         item_start: usize,
         linkage: Linkage,
         mutability: Mutability,
+        storage: GlobalStorage,
+        keyword: TokenType,
         attributes: Vec<Attribute>,
         attribute_spans: Vec<Span>,
     ) -> ParseResult<LocalNodeId<Global>> {
         // global header
-        let keyword_token = self.eat_token(TokenType::Global)?;
+        let keyword_token = self.eat_token(keyword)?;
         let keyword_start = keyword_token.start();
         let keyword_length = self.tree.source_text(keyword_token.span).len();
         let keyword_span = self.span_at(keyword_start, keyword_length);
@@ -511,41 +557,6 @@ impl Parser {
         // type
         let colon_token = self.eat_token(TokenType::Colon)?;
         let (ty, type_span) = self.parse_type_use_after(colon_token, "global type");
-
-        // trailing qualifiers
-        let mut space = Space::Local;
-        while self.eat_token_if(TokenType::Comma) {
-            if self.eat_token_if(TokenType::Space) {
-                self.eat_token(TokenType::OpenParenthesis)?;
-                let token = self
-                    .peek()
-                    .ok_or_else(|| ParseError::unexpected_end("global space", self.pos()))?;
-                space = match self.token_type(token) {
-                    TokenType::Identifier | TokenType::Local => {
-                        let text = self.tree.source_text(token.span);
-                        Space::from_name(text).ok_or_else(|| {
-                            ParseError::invalid_with_length(
-                                "global space",
-                                token.start(),
-                                token.span.len() as usize,
-                            )
-                        })?
-                    }
-                    _ => {
-                        return Err(ParseError::unexpected(
-                            "global space",
-                            self.token_type(token),
-                            token.start(),
-                        ));
-                    }
-                };
-                self.bump();
-                self.eat_token(TokenType::CloseParenthesis)?;
-                continue;
-            }
-
-            return Err(ParseError::invalid("global qualifier", self.pos()));
-        }
 
         // initializer
         let initializer = if linkage.is_import() || !self.peek_is(TokenType::Equal) {
@@ -562,7 +573,7 @@ impl Parser {
             symbol: Symbol::named(name_id),
             ty,
             mutability,
-            space,
+            storage,
             linkage,
             initializer,
         };

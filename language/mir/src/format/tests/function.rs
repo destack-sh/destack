@@ -41,7 +41,7 @@ function localAddr(): void {
     local l0: int32
 
 entry:
-    v0: ref<int32, borrowed, mutable, space(frame)> = local.address l0
+    v0: ref<int32, borrowed, mutable, frame> = local.address l0
     return
 }
 "#,

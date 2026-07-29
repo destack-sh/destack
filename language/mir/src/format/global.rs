@@ -1,4 +1,4 @@
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
@@ -6,7 +6,8 @@ use super::attribute::{write_attributes, write_attributes_before_anchor};
 use super::value::format_constant_for_type;
 
 use crate::{
-    FormatNode, Global, GlobalInitializer, Linkage, LocalNodeId, Mutability, Space, Type, Writer,
+    FormatNode, Global, GlobalInitializer, GlobalStorage, Linkage, LocalNodeId, Mutability, Type,
+    Writer,
 };
 
 impl FormatNode for Global {
@@ -40,15 +41,33 @@ impl FormatNode for Global {
             write!(f, [token("export"), space()])?;
         }
 
-        if self.mutability == Mutability::Immutable {
+        // reject mutable constants
+        if self.storage == GlobalStorage::Constant && self.mutability != Mutability::Immutable {
+            return Err(FormatError::SyntaxError {
+                message: "constant global is mutable",
+            });
+        }
+
+        // format storage and mutability modifiers
+        if self.storage != GlobalStorage::Constant && self.mutability == Mutability::Immutable {
             write!(f, [token("readonly"), space()])?;
         }
+        if self.storage == GlobalStorage::Shared {
+            write!(f, [token("shared"), space()])?;
+        }
+
+        // select the declaration noun
+        let keyword = if self.storage == GlobalStorage::Constant {
+            "constant"
+        } else {
+            "global"
+        };
 
         // global header
         write!(
             f,
             [
-                token("global"),
+                token(keyword),
                 space(),
                 copied_text(&name),
                 token(":"),
@@ -56,19 +75,6 @@ impl FormatNode for Global {
             ]
         )?;
         write!(f, [self.ty])?;
-        if self.space != Space::Local {
-            write!(
-                f,
-                [
-                    token(","),
-                    space(),
-                    token("space"),
-                    token("("),
-                    token(self.space.label()),
-                    token(")")
-                ]
-            )?;
-        }
 
         if !self.linkage.is_import() {
             write!(f, [space(), token("="), space()])?;

@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
-    FloatType, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability, ReferenceKind,
-    SignatureParameter, Space, Static, StaticField, StaticId, StaticKey, TensorDimension,
-    TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding, TensorShardingAxis,
-    TensorViewFormat, Tree, Type, TypeId,
+    FloatType, GlobalStorage, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability,
+    ReferenceKind, SignatureParameter, Space, Static, StaticField, StaticId, StaticKey, Storage,
+    TensorDimension, TensorDimensionOrder, TensorFormat, TensorReduction, TensorSharding,
+    TensorShardingAxis, TensorViewFormat, Tree, Type, TypeId,
 };
 
 /// Persistent, mangled identity of a function, global, or type.
@@ -248,7 +248,7 @@ impl TypeHasher {
             Type::Reference {
                 kind,
                 lifetime,
-                space,
+                storage,
                 access,
                 pointee,
                 nullability,
@@ -256,7 +256,7 @@ impl TypeHasher {
                 self.hasher.write_u8(12);
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
-                self.hash_space(*space);
+                self.hash_storage(*storage);
                 self.hash_access(*access);
                 self.hash_type(*pointee, tree);
                 self.hash_nullability(*nullability);
@@ -265,7 +265,7 @@ impl TypeHasher {
                 kind,
                 lifetime,
                 element,
-                space,
+                storage,
                 access,
                 nullability,
             } => {
@@ -273,7 +273,7 @@ impl TypeHasher {
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
                 self.hash_type(*element, tree);
-                self.hash_space(*space);
+                self.hash_storage(*storage);
                 self.hash_access(*access);
                 self.hash_nullability(*nullability);
             }
@@ -358,7 +358,7 @@ impl TypeHasher {
             Type::TensorView {
                 kind,
                 lifetime,
-                space,
+                storage,
                 access,
                 element,
                 shape,
@@ -369,7 +369,7 @@ impl TypeHasher {
                 self.hasher.write_u8(23);
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
-                self.hash_space(*space);
+                self.hash_storage(*storage);
                 self.hash_access(*access);
                 self.hash_type(*element, tree);
                 self.hash_tensor_shape(shape);
@@ -557,10 +557,28 @@ impl TypeHasher {
         let tag = match space {
             Space::Local => 0,
             Space::Shared => 1,
-            Space::Frame => 2,
-            Space::Static => 3,
         };
         self.hasher.write_u8(tag);
+    }
+
+    /// Hash one MIR reference storage.
+    fn hash_storage(&mut self, storage: Storage) {
+        match storage {
+            Storage::Heap(space) => {
+                self.hasher.write_u8(0);
+                self.hash_space(space);
+            }
+            Storage::Frame => self.hasher.write_u8(1),
+            Storage::Global(global) => {
+                self.hasher.write_u8(2);
+                let tag = match global {
+                    GlobalStorage::Constant => 0,
+                    GlobalStorage::Local => 1,
+                    GlobalStorage::Shared => 2,
+                };
+                self.hasher.write_u8(tag);
+            }
+        }
     }
 
     /// Hash one MIR reference kind.
@@ -611,8 +629,9 @@ impl TypeHasher {
         for term in &lifetime.terms {
             match term {
                 LifetimeTerm::Static => self.hasher.write_u8(0),
+                LifetimeTerm::Frame => self.hasher.write_u8(1),
                 LifetimeTerm::Slot(slot) => {
-                    self.hasher.write_u8(1);
+                    self.hasher.write_u8(2);
                     self.hasher.write_u32(slot.0);
                 }
             }
@@ -784,8 +803,8 @@ mod tests {
     use destack_core::StringId;
 
     use crate::{
-        Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Space, Static, Symbol, Tree,
-        Type,
+        Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Space, Static, Storage, Symbol,
+        Tree, Type,
     };
 
     /// Structural instance symbols are independent of local type allocation order.
@@ -874,7 +893,7 @@ mod tests {
         let local = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::slot(0),
-            space: Space::Local,
+            storage: Storage::Heap(Space::Local),
             access: Access::Readonly,
             pointee,
             nullability: Nullability::None,
@@ -882,7 +901,7 @@ mod tests {
         let static_ = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::static_storage(),
-            space: Space::Local,
+            storage: Storage::Heap(Space::Local),
             access: Access::Readonly,
             pointee,
             nullability: Nullability::None,

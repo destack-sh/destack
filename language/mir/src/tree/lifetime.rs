@@ -35,6 +35,8 @@ impl LifetimeParameter {
 pub enum LifetimeTerm {
     /// Global or static storage.
     Static,
+    /// Storage owned by the current activation.
+    Frame,
     /// A lifetime slot in the current lifetime environment.
     Slot(LifetimeSlot),
 }
@@ -70,6 +72,11 @@ impl Lifetime {
         Self::new([LifetimeTerm::Static])
     }
 
+    /// Create a lifetime rooted in the current activation.
+    pub fn frame() -> Self {
+        Self::new([LifetimeTerm::Frame])
+    }
+
     /// Create a lifetime bound to one slot.
     pub fn slot(index: u32) -> Self {
         Self::new([LifetimeTerm::Slot(LifetimeSlot(index))])
@@ -94,9 +101,19 @@ impl Lifetime {
         self.terms.contains(&LifetimeTerm::Static)
     }
 
+    /// Return whether this lifetime includes the current activation.
+    pub fn includes_frame(&self) -> bool {
+        self.terms.contains(&LifetimeTerm::Frame)
+    }
+
     /// Return whether this lifetime is exactly static storage.
     pub fn is_static(&self) -> bool {
         self.terms.as_slice() == [LifetimeTerm::Static]
+    }
+
+    /// Return whether this lifetime is exactly the current activation.
+    pub fn is_frame(&self) -> bool {
+        self.terms.as_slice() == [LifetimeTerm::Frame]
     }
 
     /// Return whether this lifetime includes a slot.
@@ -109,7 +126,7 @@ impl Lifetime {
     pub fn slot_indices(&self) -> impl Iterator<Item = u32> + '_ {
         self.terms.iter().filter_map(|term| match term {
             LifetimeTerm::Slot(index) => Some(index.0),
-            LifetimeTerm::Static => None,
+            LifetimeTerm::Static | LifetimeTerm::Frame => None,
         })
     }
 }

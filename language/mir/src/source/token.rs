@@ -109,6 +109,10 @@ pub enum TokenType {
     Async,
     /// `global`
     Global,
+    /// `shared`
+    Shared,
+    /// `constant`
+    Constant,
     /// `type`
     Type,
     /// `block`
@@ -177,8 +181,6 @@ pub enum TokenType {
     Tensor,
     /// `tensorView`
     TensorView,
-    /// `space`
-    Space,
     /// `struct`
     Struct,
     /// `newtype`
@@ -241,6 +243,8 @@ impl TokenType {
             "function" => Self::Function,
             "async" => Self::Async,
             "global" => Self::Global,
+            "shared" => Self::Shared,
+            "constant" => Self::Constant,
             "type" => Self::Type,
             "block" => Self::Block,
             "local" => Self::Local,
@@ -275,7 +279,6 @@ impl TokenType {
             "vector" => Self::Vector,
             "tensor" => Self::Tensor,
             "tensorView" => Self::TensorView,
-            "space" => Self::Space,
             "struct" => Self::Struct,
             "newtype" => Self::Newtype,
             "true" | "false" => Self::BooleanLiteral,

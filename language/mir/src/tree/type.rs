@@ -44,25 +44,21 @@ impl Access {
     }
 }
 
-/// Space for a reference.
+/// Runtime ownership domain.
 #[repr(u32)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub enum Space {
-    /// Local runtime storage.
+    /// Worker-local storage.
     #[default]
     Local,
-    /// Shared runtime storage.
+    /// Runtime-shared storage.
     Shared,
-    /// Frame-slot storage inside one activation.
-    Frame,
-    /// Static memory.
-    Static,
 }
 
 impl Space {
-    /// Check if this is the local runtime storage space.
+    /// Return whether this is worker-local runtime storage.
     pub fn is_local(&self) -> bool {
         matches!(self, Space::Local)
     }
@@ -72,8 +68,6 @@ impl Space {
         Some(match name {
             "local" => Space::Local,
             "shared" => Space::Shared,
-            "frame" => Space::Frame,
-            "static" => Space::Static,
             _ => return None,
         })
     }
@@ -83,18 +77,65 @@ impl Space {
         match self {
             Space::Local => "local",
             Space::Shared => "shared",
-            Space::Frame => "frame",
-            Space::Static => "static",
         }
     }
 
     /// Return the backing memory space set.
-    pub fn space_set(&self) -> StorageSet {
+    pub const fn space_set(self) -> StorageSet {
         match self {
             Space::Local => StorageSet::LOCAL,
             Space::Shared => StorageSet::SHARED,
-            Space::Frame => StorageSet::FRAME,
-            Space::Static => StorageSet::STATIC,
+        }
+    }
+}
+
+/// Static storage selected by one global declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+pub enum GlobalStorage {
+    /// Immutable Program constant storage.
+    Constant,
+    /// Worker-local static storage.
+    #[default]
+    Local,
+    /// Runtime-shared static storage.
+    Shared,
+}
+
+impl GlobalStorage {
+    /// Return the global storage region used by memory effects.
+    pub const fn storage_set(self) -> StorageSet {
+        match self {
+            Self::Constant => StorageSet::GLOBAL,
+            Self::Local => StorageSet::GLOBAL.union(StorageSet::LOCAL),
+            Self::Shared => StorageSet::GLOBAL.union(StorageSet::SHARED),
+        }
+    }
+}
+
+/// Backing storage addressed by one reference-like value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum Storage {
+    /// Heap storage in one ownership domain.
+    Heap(Space),
+    /// Frame storage inside the current activation.
+    Frame,
+    /// Static storage selected by one global declaration.
+    Global(GlobalStorage),
+}
+
+impl Default for Storage {
+    fn default() -> Self {
+        Self::Heap(Space::Local)
+    }
+}
+
+impl Storage {
+    /// Return the storage region set used by memory effects.
+    pub const fn storage_set(self) -> StorageSet {
+        match self {
+            Self::Heap(space) => space.space_set(),
+            Self::Frame => StorageSet::FRAME,
+            Self::Global(storage) => storage.storage_set(),
         }
     }
 }
@@ -372,8 +413,8 @@ pub enum Type {
         kind: ReferenceKind,
         /// Lifetime roots for borrowed references.
         lifetime: Lifetime,
-        /// The space for this reference.
-        space: Space,
+        /// The backing storage for this reference.
+        storage: Storage,
         /// The access exposed through this reference.
         access: Access,
         /// The referenced type.
@@ -389,8 +430,8 @@ pub enum Type {
         lifetime: Lifetime,
         /// The element type of the slice.
         element: TypeId,
-        /// The space of the slice base.
-        space: Space,
+        /// The backing storage of the slice base.
+        storage: Storage,
         /// The element access exposed by the slice.
         access: Access,
         /// The nullish values allowed by this slice descriptor.
@@ -479,8 +520,8 @@ pub enum Type {
         kind: ReferenceKind,
         /// Lifetime roots for borrowed tensor views.
         lifetime: Lifetime,
-        /// The space for this view.
-        space: Space,
+        /// The backing storage for this view.
+        storage: Storage,
         /// The access exposed through this view.
         access: Access,
         /// The element type.
@@ -788,12 +829,12 @@ impl Type {
         kind: ReferenceKind,
         element: TypeId,
         access: Access,
-        space: Space,
+        storage: Storage,
     ) -> (Type, Type) {
         let data = Type::Reference {
             kind,
             lifetime: Lifetime::empty(),
-            space,
+            storage,
             access,
             pointee: element,
             nullability: Nullability::None,

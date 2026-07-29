@@ -2,7 +2,7 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Constant, FunctionId, Mutability, Node, NodeType, Space, Symbol, TypeId};
+use crate::{Constant, FunctionId, GlobalStorage, Mutability, Node, NodeType, Symbol, TypeId};
 
 /// Symbol linkage (visibility and definition location).
 ///
@@ -38,11 +38,7 @@ impl Linkage {
     }
 }
 
-/// Global data definition (module-level variable or constant).
-///
-/// Globals can be mutable (variable) or immutable (constant).
-/// - Mutable globals: module-level state, like `static mut` in Rust
-/// - Immutable globals: constant data, like string literals or lookup tables
+/// One module-level global or Program constant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Global {
     /// Name for linking and debugging.
@@ -53,8 +49,8 @@ pub struct Global {
     pub ty: TypeId,
     /// Whether this global is mutable.
     pub mutability: Mutability,
-    /// The space that owns this global storage.
-    pub space: Space,
+    /// The static storage that owns this global.
+    pub storage: GlobalStorage,
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
     /// Initial value. None for imported globals.
@@ -78,7 +74,7 @@ impl Global {
             symbol: Symbol::named(name),
             ty,
             mutability,
-            space: Space::Local,
+            storage: GlobalStorage::Local,
             linkage: Linkage::Local,
             initializer: Some(init),
         }
@@ -89,9 +85,12 @@ impl Global {
         Self::new(name, ty, Mutability::Mutable, init)
     }
 
-    /// Create an immutable global (constant), local by default.
+    /// Create an immutable Program constant.
     pub fn constant(name: StringId, ty: TypeId, init: GlobalInitializer) -> Self {
-        Self::new(name, ty, Mutability::Immutable, init)
+        let mut global = Self::new(name, ty, Mutability::Immutable, init);
+        global.storage = GlobalStorage::Constant;
+
+        global
     }
 
     /// Create an imported global declaration (no initializer).
@@ -101,7 +100,7 @@ impl Global {
             symbol: Symbol::named(name),
             ty,
             mutability,
-            space: Space::Local,
+            storage: GlobalStorage::Local,
             linkage: Linkage::Import,
             initializer: None,
         }

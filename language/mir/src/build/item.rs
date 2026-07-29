@@ -14,16 +14,15 @@ impl ModuleBuilder {
             .insert(Global::new(name_id, ty, Mutability::Mutable, init))
     }
 
-    /// Create a global constant (immutable).
-    pub fn global_constant(
+    /// Create a Program constant.
+    pub fn constant(
         &mut self,
         name: &str,
         ty: LocalNodeId<Type>,
         init: GlobalInitializer,
     ) -> LocalNodeId<Global> {
         let name_id = self.strings.intern(name);
-        self.tree
-            .insert(Global::new(name_id, ty, Mutability::Immutable, init))
+        self.tree.insert(Global::constant(name_id, ty, init))
     }
 
     /// Create a global with explicit mutability.

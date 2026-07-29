@@ -21,8 +21,8 @@ impl StorageSet {
     pub const SHARED: Self = Self(1 << 1);
     /// Frame storage.
     pub const FRAME: Self = Self(1 << 2);
-    /// Static storage.
-    pub const STATIC: Self = Self(1 << 3);
+    /// Global storage.
+    pub const GLOBAL: Self = Self(1 << 3);
     /// Device storage.
     pub const DEVICE: Self = Self(1 << 4);
     /// Workgroup storage.
@@ -32,7 +32,7 @@ impl StorageSet {
         Self::LOCAL.0
             | Self::SHARED.0
             | Self::FRAME.0
-            | Self::STATIC.0
+            | Self::GLOBAL.0
             | Self::DEVICE.0
             | Self::WORKGROUP.0,
     );
@@ -53,7 +53,7 @@ impl StorageSet {
     }
 
     /// Return the union of two storage sets.
-    pub fn union(self, other: Self) -> Self {
+    pub const fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
     }
 
@@ -93,7 +93,7 @@ impl TryFrom<&str> for StorageSet {
             "local" => Ok(StorageSet::LOCAL),
             "shared" => Ok(StorageSet::SHARED),
             "frame" => Ok(StorageSet::FRAME),
-            "static" => Ok(StorageSet::STATIC),
+            "global" => Ok(StorageSet::GLOBAL),
             "device" => Ok(StorageSet::DEVICE),
             "workgroup" => Ok(StorageSet::WORKGROUP),
             "any" => Ok(StorageSet::ANY),

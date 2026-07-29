@@ -248,14 +248,14 @@ impl Tree {
             Type::Reference {
                 kind,
                 lifetime: _,
-                space,
+                storage,
                 access,
                 pointee,
                 nullability,
             } => Type::Reference {
                 kind,
                 lifetime: Default::default(),
-                space,
+                storage,
                 access,
                 pointee: self.intern_representation(pointee),
                 nullability,
@@ -264,21 +264,21 @@ impl Tree {
                 kind,
                 lifetime: _,
                 element,
-                space,
+                storage,
                 access,
                 nullability,
             } => Type::Slice {
                 kind,
                 lifetime: Default::default(),
                 element: self.intern_representation(element),
-                space,
+                storage,
                 access,
                 nullability,
             },
             Type::TensorView {
                 kind,
                 lifetime: _,
-                space,
+                storage,
                 access,
                 element,
                 shape,
@@ -288,7 +288,7 @@ impl Tree {
             } => Type::TensorView {
                 kind,
                 lifetime: Default::default(),
-                space,
+                storage,
                 access,
                 element: self.intern_representation(element),
                 shape,
@@ -464,14 +464,14 @@ impl Tree {
             Type::Reference {
                 kind,
                 lifetime,
-                space,
+                storage,
                 access,
                 pointee,
                 nullability,
             } => Type::Reference {
                 kind,
                 lifetime: self.substitute_lifetime(&lifetime, arguments),
-                space,
+                storage,
                 access,
                 pointee: self.instantiate_type_lifetimes(pointee, arguments),
                 nullability,
@@ -480,21 +480,21 @@ impl Tree {
                 kind,
                 lifetime,
                 element,
-                space,
+                storage,
                 access,
                 nullability,
             } => Type::Slice {
                 kind,
                 lifetime: self.substitute_lifetime(&lifetime, arguments),
                 element: self.instantiate_type_lifetimes(element, arguments),
-                space,
+                storage,
                 access,
                 nullability,
             },
             Type::TensorView {
                 kind,
                 lifetime,
-                space,
+                storage,
                 access,
                 element,
                 shape,
@@ -504,7 +504,7 @@ impl Tree {
             } => Type::TensorView {
                 kind,
                 lifetime: self.substitute_lifetime(&lifetime, arguments),
-                space,
+                storage,
                 access,
                 element: self.instantiate_type_lifetimes(element, arguments),
                 shape,
@@ -659,7 +659,8 @@ mod tests {
     use destack_core::StringId;
 
     use crate::{
-        Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Space, Symbol, Tree, Type,
+        Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Space, Storage, Symbol, Tree,
+        Type,
     };
 
     /// Equal structural types and fields have one canonical identity.
@@ -754,7 +755,7 @@ mod tests {
         let local = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::slot(0),
-            space: Space::Local,
+            storage: Storage::Heap(Space::Local),
             access: Access::Readonly,
             pointee,
             nullability: Nullability::None,
@@ -762,7 +763,7 @@ mod tests {
         let static_ = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::static_storage(),
-            space: Space::Local,
+            storage: Storage::Heap(Space::Local),
             access: Access::Readonly,
             pointee,
             nullability: Nullability::None,
