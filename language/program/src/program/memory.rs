@@ -54,7 +54,6 @@ impl Memory<'_> {
         match space {
             Space::Local => self.heap.options().allocation_plan(shape),
             Space::Shared => self.shared_heap.options().allocation_plan(shape),
-            _ => unreachable!("program allocations use local or shared storage"),
         }
     }
 
@@ -69,7 +68,6 @@ impl Memory<'_> {
         match space {
             Space::Local => self.allocate_local(plan, payload, trace_view),
             Space::Shared => self.allocate_shared(plan, payload, trace_view),
-            _ => unreachable!("program allocations use local or shared storage"),
         }
     }
 
@@ -88,7 +86,6 @@ impl Memory<'_> {
         match space {
             Space::Local => address.checked_sub(self.heap.heap_base_address()),
             Space::Shared => address.checked_sub(self.shared_heap.heap_base_address()),
-            Space::Frame | Space::Static => None,
         }
     }
 

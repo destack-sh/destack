@@ -13,16 +13,15 @@ use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocationSiteId, Binding, BindingId, BindingTable, CallSite, CallSiteId, Continuation,
-    ContinuationSite, ContinuationSiteId, DispatchTable, DropEntry, DropTable, DynamicEntry,
-    DynamicTable, DynamicTableId, Error, FrameLayout, FrameLayoutId, FramePoint, FrameSlot,
-    FrameState, FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global,
-    GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
-    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite,
-    SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage,
-    StaticSpace, StringTable, SuspensionSite, SuspensionSiteId, TensorDimension, TensorLayout,
-    TensorViewLayout, TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable,
-    VirtualTableId, Word, WordLayout, native, wasm,
+    Binding, BindingId, BindingTable, CallSite, CallSiteId, Continuation, ContinuationSite,
+    ContinuationSiteId, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable,
+    DynamicTableId, Error, FrameLayout, FrameLayoutId, FramePoint, FrameSlot, FrameState,
+    FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global, GlobalAddress, GlobalId,
+    GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable,
+    ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
+    SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, SuspensionSite,
+    SuspensionSiteId, TensorDimension, TensorLayout, TensorViewLayout, TypeId, TypeTable, Value,
+    VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout, native, wasm,
 };
 
 /// Linked program.
@@ -426,8 +425,7 @@ impl Program {
         self.sites()
             .allocations(self.sections())
             .iter()
-            .enumerate()
-            .map(|(index, site)| {
+            .map(|site| {
                 let Some(layout) = self.layout_by_id(site.layout) else {
                     return Err(Error::undefined_layout(site.layout));
                 };
@@ -441,12 +439,6 @@ impl Program {
                 let plan = match site.space {
                     Space::Local => local.allocation_plan(&shape),
                     Space::Shared => shared.allocation_plan(&shape),
-                    space => {
-                        return Err(Error::InvalidAllocationSpace {
-                            site: AllocationSiteId(index as u32),
-                            space,
-                        });
-                    }
                 };
 
                 Ok(Some(plan))

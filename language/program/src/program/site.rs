@@ -1,5 +1,5 @@
 use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
-use destack_mir::Space;
+use destack_mir::{Space, Storage};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -476,8 +476,8 @@ pub struct MemorySite {
     pub point: ProgramPoint,
     /// The memory operation performed at the site.
     pub access: MemoryAccess,
-    /// The storage space accessed by the operation.
-    pub space: Space,
+    /// The storage addressed by the operation.
+    pub storage: Storage,
     /// The loaded or stored value type.
     pub value_type: TypeId,
 }

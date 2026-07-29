@@ -6,8 +6,8 @@ use destack_core::{
     StringId,
 };
 use destack_mir::{
-    Access, Discriminant, FloatType, Nullability, ReferenceKind, Space, TensorFormat,
-    TensorReduction, TensorViewFormat, TraceId, VariantEncoding,
+    Access, Discriminant, FloatType, GlobalStorage, Nullability, ReferenceKind, Space, Storage,
+    TensorFormat, TensorReduction, TensorViewFormat, TraceId, VariantEncoding,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -289,12 +289,12 @@ pub enum WordLayout {
 impl WordLayout {
     /// Return the word layout for one reference.
     #[inline(always)]
-    pub fn reference(space: Space) -> Self {
-        match space {
-            Space::Local => Self::LocalReference,
-            Space::Shared => Self::SharedReference,
-            Space::Frame => Self::FrameReference,
-            Space::Static => Self::GlobalReference,
+    pub fn reference(storage: Storage) -> Self {
+        match storage {
+            Storage::Heap(Space::Local) => Self::LocalReference,
+            Storage::Heap(Space::Shared) => Self::SharedReference,
+            Storage::Frame => Self::FrameReference,
+            Storage::Global(_) => Self::GlobalReference,
         }
     }
 
@@ -430,7 +430,7 @@ impl ReferenceFlags {
     /// Create reference flags.
     pub fn new(
         kind: ReferenceKind,
-        space: Space,
+        storage: Storage,
         access: Access,
         nullability: Nullability,
     ) -> Self {
@@ -445,7 +445,7 @@ impl ReferenceFlags {
             Access::Mutable => 1,
             Access::Exclusive => 2,
         };
-        let storage_bits = u16::from(Self::space_bits(space));
+        let storage_bits = u16::from(Self::storage_bits(storage));
         let nullability_bits = match nullability {
             Nullability::None => 0,
             Nullability::Null => 1,
@@ -462,23 +462,27 @@ impl ReferenceFlags {
     }
 
     /// Decode reference storage from packed bits.
-    fn space_from_bits(bits: u8) -> Option<Space> {
+    fn storage_from_bits(bits: u8) -> Option<Storage> {
         match bits {
-            0 => Some(Space::Local),
-            1 => Some(Space::Frame),
-            2 => Some(Space::Static),
-            3 => Some(Space::Shared),
+            0 => Some(Storage::Heap(Space::Local)),
+            1 => Some(Storage::Heap(Space::Shared)),
+            2 => Some(Storage::Frame),
+            3 => Some(Storage::Global(GlobalStorage::Constant)),
+            4 => Some(Storage::Global(GlobalStorage::Local)),
+            5 => Some(Storage::Global(GlobalStorage::Shared)),
             _ => None,
         }
     }
 
     /// Encode reference storage as packed bits.
-    fn space_bits(space: Space) -> u8 {
-        match space {
-            Space::Local => 0,
-            Space::Frame => 1,
-            Space::Static => 2,
-            Space::Shared => 3,
+    fn storage_bits(storage: Storage) -> u8 {
+        match storage {
+            Storage::Heap(Space::Local) => 0,
+            Storage::Heap(Space::Shared) => 1,
+            Storage::Frame => 2,
+            Storage::Global(GlobalStorage::Constant) => 3,
+            Storage::Global(GlobalStorage::Local) => 4,
+            Storage::Global(GlobalStorage::Shared) => 5,
         }
     }
 
@@ -517,10 +521,10 @@ impl ReferenceFlags {
     }
 
     /// Return the reference storage.
-    pub fn space(self) -> Option<Space> {
+    pub fn storage(self) -> Option<Storage> {
         let bits = ((self.bits >> Self::STORAGE_SHIFT) & Self::STORAGE_MASK) as u8;
 
-        Self::space_from_bits(bits)
+        Self::storage_from_bits(bits)
     }
 
     /// Return the raw flags bits.
@@ -652,9 +656,9 @@ pub struct ReferenceLayout {
 }
 
 impl ReferenceLayout {
-    /// Return the storage space implied by this reference.
-    pub fn space(&self) -> Option<Space> {
-        self.flags.space()
+    /// Return the storage implied by this reference.
+    pub fn storage(&self) -> Option<Storage> {
+        self.flags.storage()
     }
 
     /// Return the traced heap space when this reference names heap storage.
@@ -664,10 +668,9 @@ impl ReferenceLayout {
             return None;
         }
 
-        match self.space()? {
-            Space::Local => Some(Space::Local),
-            Space::Shared => Some(Space::Shared),
-            Space::Frame | Space::Static => None,
+        match self.storage()? {
+            Storage::Heap(space) => Some(space),
+            Storage::Frame | Storage::Global(_) => None,
         }
     }
 
@@ -675,7 +678,7 @@ impl ReferenceLayout {
     pub fn word_layout(&self) -> Option<WordLayout> {
         self.flags.kind()?;
 
-        Some(WordLayout::reference(self.space()?))
+        Some(WordLayout::reference(self.storage()?))
     }
 }
 
@@ -1228,7 +1231,8 @@ impl TensorShardingBuilder {
 mod tests {
     use destack_core::{SectionBuilder, SectionImage};
     use destack_mir::{
-        Access, DiscriminantField, Nullability, ReferenceKind, Space, TraceId, VariantEncoding,
+        Access, DiscriminantField, GlobalStorage, Nullability, ReferenceKind, Space, Storage,
+        TraceId, VariantEncoding,
     };
 
     use crate::{
@@ -1237,17 +1241,17 @@ mod tests {
     };
 
     /// Create one reference layout for reference storage tests.
-    fn reference(kind: ReferenceKind, space: Space) -> ReferenceLayout {
+    fn reference(kind: ReferenceKind, storage: Storage) -> ReferenceLayout {
         ReferenceLayout {
             pointee: TypeId(1),
-            flags: ReferenceFlags::new(kind, space, Access::Readonly, Nullability::None),
+            flags: ReferenceFlags::new(kind, storage, Access::Readonly, Nullability::None),
         }
     }
 
     /// Managed local references trace local heap storage.
     #[test]
     fn test_reference_layout_traces_local_heap_storage() {
-        let reference = reference(ReferenceKind::Managed, Space::Local);
+        let reference = reference(ReferenceKind::Managed, Storage::Heap(Space::Local));
 
         assert_eq!(reference.heap_space(), Some(Space::Local));
         assert_eq!(reference.word_layout(), Some(WordLayout::LocalReference));
@@ -1256,7 +1260,7 @@ mod tests {
     /// Managed shared references trace shared heap storage.
     #[test]
     fn test_reference_layout_traces_shared_heap_storage() {
-        let reference = reference(ReferenceKind::Managed, Space::Shared);
+        let reference = reference(ReferenceKind::Managed, Storage::Heap(Space::Shared));
 
         assert_eq!(reference.heap_space(), Some(Space::Shared));
         assert_eq!(reference.word_layout(), Some(WordLayout::SharedReference));
@@ -1265,20 +1269,23 @@ mod tests {
     /// Raw references use relative storage coordinates and do not trace heap storage.
     #[test]
     fn test_reference_layout_rejects_raw_heap_tracing() {
-        let reference = reference(ReferenceKind::Raw, Space::Local);
+        let reference = reference(ReferenceKind::Raw, Storage::Heap(Space::Local));
 
         assert_eq!(reference.heap_space(), None);
         assert_eq!(reference.word_layout(), Some(WordLayout::LocalReference));
     }
 
-    /// Frame and static references are not heap edges.
+    /// Frame and global references are not heap edges.
     #[test]
-    fn test_reference_layout_rejects_frame_and_static_heap_tracing() {
-        let frame = reference(ReferenceKind::Borrowed, Space::Frame);
-        let static_reference = reference(ReferenceKind::Borrowed, Space::Static);
+    fn test_reference_layout_rejects_frame_and_global_heap_tracing() {
+        let frame = reference(ReferenceKind::Borrowed, Storage::Frame);
+        let global = reference(
+            ReferenceKind::Borrowed,
+            Storage::Global(GlobalStorage::Local),
+        );
 
         assert_eq!(frame.heap_space(), None);
-        assert_eq!(static_reference.heap_space(), None);
+        assert_eq!(global.heap_space(), None);
     }
 
     /// Preserve niche variant layouts in directly mapped program sections.

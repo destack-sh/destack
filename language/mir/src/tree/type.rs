@@ -90,7 +90,10 @@ impl Space {
 }
 
 /// Static storage selected by one global declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[repr(u8)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum GlobalStorage {
     /// Immutable Program constant storage.
     Constant,
@@ -113,7 +116,10 @@ impl GlobalStorage {
 }
 
 /// Backing storage addressed by one reference-like value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[repr(u8)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum Storage {
     /// Heap storage in one ownership domain.
     Heap(Space),
@@ -130,6 +136,14 @@ impl Default for Storage {
 }
 
 impl Storage {
+    /// Return the heap ownership domain when this is heap storage.
+    pub const fn heap_space(self) -> Option<Space> {
+        match self {
+            Self::Heap(space) => Some(space),
+            Self::Frame | Self::Global(_) => None,
+        }
+    }
+
     /// Return the storage region set used by memory effects.
     pub const fn storage_set(self) -> StorageSet {
         match self {
