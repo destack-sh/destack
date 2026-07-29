@@ -226,7 +226,6 @@ fn parse_bool(value: &str, key: &str) -> bool {
 fn parse_emit_format(value: &str) -> EmitFormat {
     match value.trim().to_lowercase().as_str() {
         "js" | "javascript" => EmitFormat::Js,
-        "ts" | "typescript" => EmitFormat::Ts,
         "bytecode" => EmitFormat::Bytecode,
         "wasm" | "webassembly" => EmitFormat::Wasm,
         "native" => EmitFormat::Native,
