@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, CandidateOutcome, CandidateVerdict, CheckAttempt, CheckOutcome,
-    ConstructResult, Dependency, Expectation, FlowSite, PlaceUse, Relation, ValueCheck, answer,
+    ConstructResult, Expectation, FlowSite, PlaceUse, Relation, ValueCheck, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -15,16 +15,22 @@ impl BodyState<'_, '_> {
         expectation: Expectation,
     ) -> CompilerResult<Answer<ValueCheck>> {
         let origin = site.origin();
+        // an open sink infers the expression that feeds it,
+        //  any other blocked head closes before directing it
         let is_resolved = match self.reduce_type_head(origin, expectation.target)? {
             Answer::Ready(_) => true,
-            Answer::Pending(blockers)
-                if blockers
-                    .iter()
-                    .all(|blocker| matches!(blocker, Dependency::Variable(_))) =>
-            {
+            Answer::Pending(blockers) => {
+                let head = self.check.apparent_head(origin, expectation.target)?;
+                let is_sink = matches!(self.check.ty(head)?, dir::Type::Variable(_))
+                    || self
+                        .reverse_mapped_variable(origin, expectation.target)?
+                        .is_some();
+                if !is_sink {
+                    return Ok(Answer::Pending(blockers));
+                }
+
                 false
             }
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
 
         // use a resolved contextual type before inference
@@ -231,16 +237,20 @@ impl BodyState<'_, '_> {
             | dir::Expression::TupleExpression { .. }
             | dir::Expression::ObjectExpression { .. }) => {
                 // resolve the target head before matching structural literals
-                let target = match self.check.reduce_type_head(origin, target)? {
+                let target = match self.reduce_type_head(origin, target)? {
                     Answer::Ready(target) => target,
-                    Answer::Pending(blockers)
-                        if blockers
-                            .iter()
-                            .all(|blocker| matches!(blocker, Dependency::Variable(_))) =>
-                    {
-                        return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+                    // an open sink infers the literal that feeds it,
+                    //  any other blocked head closes before directing it
+                    Answer::Pending(blockers) => {
+                        let head = self.check.apparent_head(origin, target)?;
+                        let is_sink = matches!(self.check.ty(head)?, dir::Type::Variable(_))
+                            || self.reverse_mapped_variable(origin, target)?.is_some();
+                        if is_sink {
+                            return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+                        }
+
+                        return Ok(Answer::Pending(blockers));
                     }
-                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                 };
                 let Some(target_value) = answer!(self.construction_value(origin, target)?) else {
                     return Ok(Answer::Ready(CheckAttempt::NotApplicable));

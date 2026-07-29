@@ -25,7 +25,17 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let source = answer!(self.reduce_type_head(origin, source)?);
-        let target = answer!(self.reduce_type_head(origin, target)?);
+        let target = match self.reduce_type_head(origin, target)? {
+            Answer::Ready(target) => target,
+            // identity mapped targets over an open variable bind it whole
+            Answer::Pending(blockers) => {
+                if let Some(variable) = self.reverse_mapped_variable(origin, target)? {
+                    return self.decide_relation(origin, relation, source, variable);
+                }
+
+                return Ok(Answer::Pending(blockers));
+            }
+        };
         if source == target {
             return Ok(Answer::Ready(true));
         }
@@ -338,4 +348,62 @@ impl CheckState<'_> {
 
         Ok(decision)
     }
+    /// Return the open variable behind one identity mapped target.
+    ///
+    /// The identity mapping `{ [K in keyof T]: T[K] }` reproduces its source,
+    /// so a shape checked against it binds the open variable directly, as
+    /// reverse mapped inference does in TypeScript.
+    pub(in crate::check) fn reverse_mapped_variable(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let head = self.apparent_head(origin, target)?;
+        let dir::Type::Operation(operation) = self.ty(head)? else {
+            return Ok(None);
+        };
+        let dir::TypeOperation::Mapped(mapped) = self.type_operation(head.module_id, operation)?
+        else {
+            return Ok(None);
+        };
+
+        // reject remaps and modifiers that reshape the source
+        let is_plain = mapped.parameter.key_remap.is_none()
+            && mapped.modifiers.readonly == dir::MappedTypeModifier::None
+            && mapped.modifiers.optional == dir::MappedTypeModifier::None;
+        if !is_plain {
+            return Ok(None);
+        }
+
+        // the constraint iterates an open variable's keys
+        let constraint = self.settled_root(mapped.parameter.constraint)?;
+        let dir::Type::Operation(constraint) = self.ty(constraint)? else {
+            return Ok(None);
+        };
+        let dir::TypeOperation::KeyOf(keys) = self.type_operation(head.module_id, constraint)?
+        else {
+            return Ok(None);
+        };
+        let variable = self.settled_root(keys.target)?;
+        if !matches!(self.ty(variable)?, dir::Type::Variable(_)) {
+            return Ok(None);
+        }
+
+        // the value projects the iterated key back out of the variable
+        let value = self.settled_root(mapped.value)?;
+        let dir::Type::Operation(value) = self.ty(value)? else {
+            return Ok(None);
+        };
+        let dir::TypeOperation::Index(index) = self.type_operation(head.module_id, value)? else {
+            return Ok(None);
+        };
+        let is_identity = self.settled_root(index.left)? == variable
+            && matches!(
+                self.ty(self.settled_root(index.index)?)?,
+                dir::Type::Parameter(parameter) if parameter == mapped.parameter.parameter
+            );
+
+        Ok(is_identity.then_some(variable))
+    }
+
 }

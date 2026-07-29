@@ -697,6 +697,7 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
+        receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<bool>> {
         // conformance quantifies universally: the found signature's own
         //  generics bind by structurally matching the required signature,
@@ -711,7 +712,7 @@ impl CheckState<'_> {
                 .to_vec();
             let mut blockers = SmallVec::<[Dependency; 2]>::new();
             for element in elements {
-                match self.decide_method_relation(origin, relation, element, target)? {
+                match self.decide_method_relation(origin, relation, element, target, receiver)? {
                     Answer::Ready(true) => return Ok(Answer::Ready(true)),
                     Answer::Ready(false) => {}
                     Answer::Pending(pending) => blockers.extend(pending),
@@ -739,9 +740,14 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(false));
                 };
 
+                // relate under the receiver so this-projected bounds resolve
+                let mut substitution = TypeSubstitution::default();
+                if let Some(receiver) = receiver {
+                    substitution = substitution.with_receiver(receiver);
+                }
+
                 // receivers bind slots when their shapes align, and adapters
                 //  bridge the shapes that do not
-                let mut substitution = TypeSubstitution::default();
                 if let (Some(signature), Some(required)) =
                     (self.signature_head(source)?, self.signature_head(target)?)
                     && let (Some(source_this), Some(target_this)) =

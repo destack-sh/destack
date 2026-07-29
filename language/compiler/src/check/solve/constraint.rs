@@ -329,12 +329,31 @@ impl CheckState<'_> {
         // require every substituted declaration constraint
         let mut decision = Answer::Ready(true);
         for constraint in constraints {
-            decision = decision.and(self.decide_relation(
+            let mut satisfied = self.decide_relation(
                 constraint.origin,
                 constraint.relation,
                 constraint.source,
                 constraint.target,
-            )?);
+            )?;
+
+            // try to prove rigid arguments through their declared bounds
+            if satisfied.is_ready_false()
+                && let dir::Type::Parameter(parameter) = self.ty(constraint.source)?
+                && let Some(declared) = self
+                    .generic_parameter(parameter)
+                    .and_then(|binding| binding.constraint)
+            {
+                let declared =
+                    self.substitute_type(constraint.origin.module(), declared, substitution)?;
+                satisfied = self.decide_relation(
+                    constraint.origin,
+                    constraint.relation,
+                    declared,
+                    constraint.target,
+                )?;
+            }
+
+            decision = decision.and(satisfied);
             if decision.is_ready_false() {
                 return Ok(decision);
             }

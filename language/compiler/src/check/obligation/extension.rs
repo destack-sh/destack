@@ -284,6 +284,7 @@ impl CheckState<'_> {
                     requirement.role,
                     found,
                     required,
+                    substitution.receiver,
                 )?;
                 if answer!(decision) {
                     satisfied = true;
@@ -412,6 +413,7 @@ impl CheckState<'_> {
                         interface_member.role,
                         found,
                         required,
+                        instantiation.receiver,
                     )?;
                     if answer!(conforms) {
                         chosen = Some(candidate.symbol);

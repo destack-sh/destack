@@ -88,15 +88,10 @@ impl Protocol {
         origin: Origin,
         implementation: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<SmallVec<[InterfaceMember; 2]>>> {
-        check.interface_members(
-            origin,
-            implementation,
-            receiver,
-            dir::MemberSpace::Instance,
-            key,
-        )
+        check.interface_members(origin, implementation, receiver, space, key)
     }
 }
 
@@ -212,6 +207,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         key: dir::StaticKey,
         item: dir::LanguageItem,
         written: &[dir::GlobalTypeId],
@@ -225,6 +221,7 @@ impl BodyState<'_, '_> {
             origin,
             receiver,
             lookup_receiver,
+            space,
             key,
             &protocol,
             argument_sources,
@@ -239,6 +236,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         key: dir::StaticKey,
         item: dir::LanguageItem,
         written: &[dir::GlobalTypeId],
@@ -251,6 +249,7 @@ impl BodyState<'_, '_> {
             origin,
             receiver,
             lookup_receiver,
+            space,
             key,
             &protocol,
         )?);
@@ -264,6 +263,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         key: dir::StaticKey,
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
@@ -275,12 +275,13 @@ impl BodyState<'_, '_> {
         let interface = protocol.instance(self, module)?;
         let interface = self.intern_type(module, dir::Type::Application(interface))?;
         let requirements =
-            answer!(protocol.members(self, origin, interface, lookup_receiver, key)?);
+            answer!(protocol.members(self, origin, interface, lookup_receiver, space, key)?);
         let extension = self.select_extension_protocol_member(
             origin,
             module,
             receiver,
             lookup_receiver,
+            space,
             key,
             protocol,
         )?;
@@ -292,7 +293,7 @@ impl BodyState<'_, '_> {
             origin,
             module,
             lookup_receiver,
-            dir::MemberSpace::Instance,
+            space,
             key,
         )?);
         self.select_protocol_member_lookup(
@@ -300,6 +301,7 @@ impl BodyState<'_, '_> {
             module,
             receiver,
             lookup_receiver,
+            space,
             key,
             protocol,
             &requirements,
@@ -313,6 +315,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         key: dir::StaticKey,
         protocol: &Protocol,
         argument_sources: &[dir::ArgumentSource],
@@ -328,12 +331,13 @@ impl BodyState<'_, '_> {
         let interface = protocol.instance(self, module)?;
         let interface = self.intern_type(module, dir::Type::Application(interface))?;
         let requirements =
-            answer!(protocol.members(self, origin, interface, lookup_receiver, key)?);
+            answer!(protocol.members(self, origin, interface, lookup_receiver, space, key)?);
         let extension = self.select_extension_protocol_call(
             origin,
             module,
             receiver,
             lookup_receiver,
+            space,
             key,
             protocol,
             argument_sources,
@@ -346,7 +350,7 @@ impl BodyState<'_, '_> {
             origin,
             module,
             lookup_receiver,
-            dir::MemberSpace::Instance,
+            space,
             key,
         )?);
         self.select_protocol_call_lookup(
@@ -354,6 +358,7 @@ impl BodyState<'_, '_> {
             module,
             receiver,
             lookup_receiver,
+            space,
             key,
             protocol,
             &requirements,
@@ -369,6 +374,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         key: dir::StaticKey,
         protocol: &Protocol,
         argument_sources: &[dir::ArgumentSource],
@@ -377,6 +383,7 @@ impl BodyState<'_, '_> {
             origin,
             module,
             lookup_receiver,
+            space,
             key,
             protocol,
             |state, implementation, selected, candidates| {
@@ -385,6 +392,7 @@ impl BodyState<'_, '_> {
                     origin,
                     implementation,
                     lookup_receiver,
+                    space,
                     key,
                 )?);
                 let candidates =
@@ -409,6 +417,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         key: dir::StaticKey,
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
@@ -416,6 +425,7 @@ impl BodyState<'_, '_> {
             origin,
             module,
             lookup_receiver,
+            space,
             key,
             protocol,
             |state, implementation, selected, candidates| {
@@ -424,6 +434,7 @@ impl BodyState<'_, '_> {
                     origin,
                     implementation,
                     lookup_receiver,
+                    space,
                     key,
                 )?);
                 let candidates =
@@ -442,6 +453,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         module: ModuleId,
         lookup_receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         key: dir::StaticKey,
         protocol: &Protocol,
         mut select: impl FnMut(
@@ -477,7 +489,8 @@ impl BodyState<'_, '_> {
             let target_type = extension.target.r#type();
             let implements = extension.implements.clone();
             let definition_members = extension.members.clone();
-            let members = answer!(self.protocol_extension_members(&definition_members, key)?);
+            let members =
+                answer!(self.protocol_extension_members(&definition_members, space, key)?);
             if members.is_empty() {
                 continue;
             }
@@ -683,6 +696,7 @@ impl BodyState<'_, '_> {
     fn protocol_extension_members(
         &mut self,
         members: &[dir::DefinitionMember],
+        space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<Vec<DeclaredMember>>> {
         let mut matched = Vec::new();
@@ -692,7 +706,7 @@ impl BodyState<'_, '_> {
                 Answer::Ready(None) => continue,
                 Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
             };
-            if member.matches(dir::MemberSpace::Instance, key) {
+            if member.matches(space, key) {
                 matched.push(member);
             }
         }
@@ -736,6 +750,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         key: dir::StaticKey,
         protocol: &Protocol,
         requirements: &[InterfaceMember],
@@ -760,6 +775,7 @@ impl BodyState<'_, '_> {
                         module,
                         arm.receiver,
                         arm.receiver,
+                        space,
                         key,
                         protocol,
                         requirements,
@@ -809,6 +825,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         receiver: Value,
         lookup_receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         key: dir::StaticKey,
         protocol: &Protocol,
         requirements: &[InterfaceMember],
@@ -838,6 +855,7 @@ impl BodyState<'_, '_> {
                             ..receiver
                         },
                         arm.receiver,
+                        space,
                         key,
                         protocol,
                         requirements,

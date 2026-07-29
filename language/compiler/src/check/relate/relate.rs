@@ -198,7 +198,17 @@ impl CheckState<'_> {
 
                 // reduce aliases and intrinsic operations at each root
                 let source = answer!(self.reduce_type_head(origin, source)?);
-                let target = answer!(self.reduce_type_head(origin, target)?);
+                let target = match self.reduce_type_head(origin, target)? {
+                    Answer::Ready(target) => target,
+                    // identity mapped targets over an open variable bind it whole
+                    Answer::Pending(blockers) => {
+                        if let Some(variable) = self.reverse_mapped_variable(origin, target)? {
+                            return self.constrain_type(origin, cause, relation, source, variable);
+                        }
+
+                        return Ok(Answer::Pending(blockers));
+                    }
+                };
 
                 // rigid parameters contribute their declared relation clauses
                 if relation != Relation::Equal

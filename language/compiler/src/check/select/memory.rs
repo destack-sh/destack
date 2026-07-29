@@ -81,7 +81,15 @@ impl BodyState<'_, '_> {
             let key = operator_protocol.method.key(self.strings());
             let protocol = self.operator_protocol(origin, &operator_protocol, &[])?;
             let Some(call) =
-                answer!(self.select_protocol_call(origin, input, input.ty, key, &protocol, &[],)?)
+                answer!(self.select_protocol_call(
+                    origin,
+                    input,
+                    input.ty,
+                    dir::MemberSpace::Instance,
+                    key,
+                    &protocol,
+                    &[],
+                )?)
             else {
                 continue;
             };

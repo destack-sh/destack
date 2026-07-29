@@ -187,9 +187,10 @@ impl CheckState<'_> {
         role: MemberRole,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
+        receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<bool>> {
         if role.is_callable() {
-            self.decide_method_relation(origin, relation, source, target)
+            self.decide_method_relation(origin, relation, source, target, receiver)
         } else {
             self.decide_relation(origin, relation, source, target)
         }
@@ -339,9 +340,13 @@ impl CheckState<'_> {
                 MemberRole::Setter => {
                     self.decide_relation(origin, Relation::Assignable, member_type, found)?
                 }
-                role if role.is_callable() => {
-                    self.decide_method_relation(origin, Relation::Assignable, found, member_type)?
-                }
+                role if role.is_callable() => self.decide_method_relation(
+                    origin,
+                    Relation::Assignable,
+                    found,
+                    member_type,
+                    None,
+                )?,
                 _ => self.decide_relation(origin, Relation::Assignable, found, member_type)?,
             };
             decision = decision.and(member_decision);

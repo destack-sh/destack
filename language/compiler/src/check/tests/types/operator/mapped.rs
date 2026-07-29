@@ -480,3 +480,82 @@ type Actual = Locked<{ name: string; age: int32 }>;
 "#,
     );
 }
+
+#[test]
+fn test_infer_a_generic_through_an_identity_mapped_parameter() {
+    let session = TestSession::single(
+        r#"
+function first<T>(value: { [K in keyof T]: T[K] }, fallback: T): T {
+    return fallback;
+}
+
+function build(): float64 {
+    const point = first({ x: 1, y: 2 }, { x: 3, y: 4 });
+    return point.x;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function first<T>(value: { [K in keyof T]: T[K] }, fallback: T): T {
+    return fallback;
+}
+
+function build(): float64 {
+    const point: { x: float64; y: float64 } = first<{ x: float64; y: float64 }>(
+        { x: 1, y: 2 },
+        { x: 3, y: 4 },
+    );
+    return point.x;
+}
+
+=== checked ===
+function first<T>(value: { [K in keyof T]: T[K] }, fallback: T): T {
+/// @generic.template symbol=first parameters=(T)
+/// @type.symbol symbol=first type=<T>({ [K in keyof T]: T[K] }, T) => T
+/// @type.symbol symbol=first.T source=T type=T
+/// @type.symbol symbol=first.value source="value: { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
+/// @generic.template source=mapped_type_parameter parent=template#0 parameters=(K: keyof T)
+/// @type.symbol symbol=first.K source=[K in keyof T] type=K
+/// @resolution.name source=T target=first.T
+/// @resolution.name source=T target=first.T
+/// @resolution.name source=K target=first.K
+/// @type.symbol symbol=first.fallback source="fallback: T" type=T
+/// @resolution.name source=T target=first.T
+/// @resolution.name source=T target=first.T
+
+    return fallback;
+    /// @resolution.name source=fallback target=first.fallback
+    /// @resolution.place source=fallback placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=fallback root=first.fallback
+
+}
+
+function build(): float64 {
+/// @type.symbol symbol=build type=() => float64
+
+    const point = first({ x: 1, y: 2 }, { x: 3, y: 4 });
+    /// @type.symbol symbol=build.point source=point type={ x: float64; y: float64 }
+    /// @resolution.pattern source=point kind=binding target=build.point
+    /// @resolution.name source=first target=first
+    /// @resolution.call source="first({ x: 1, y: 2 }, { x: 3, y: 4 })" parameters=({ [K in keyof { x: float64; y: float64 }]: { x: float64; y: float64 }[K] }, { x: float64; y: float64 }) arguments=(provided({ x: 1, y: 2 }) as { [K in keyof { x: float64; y: float64 }]: { x: float64; y: float64 }[K] }, provided({ x: 3, y: 4 }) as { x: float64; y: float64 }) return={ x: float64; y: float64 } kind=symbol target=first instance="first<{ x: float64; y: float64 }>"
+    /// @generic.instance source="first({ x: 1, y: 2 }, { x: 3, y: 4 })" id="first<{ x: float64; y: float64 }>"
+
+    return point.x;
+    /// @resolution.name source=point target=build.point
+    /// @resolution.member source=point.x receiver={ x: float64; y: float64 } type=float64 kind=field target_receiver={ x: float64; y: float64 } key=x target_type=float64
+    /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=point root=build.point
+    /// @resolution.place source=point.x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=point.x root=build.point keys=[x]
+
+}
+
+/// @generic.instance id="first<{ x: float64; y: float64 }>" template=first arguments=({ x: float64; y: float64 })
+"#,
+    );
+}

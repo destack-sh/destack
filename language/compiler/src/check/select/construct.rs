@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyState, CallableArgument, CandidateVerdict, CheckFailure, CheckOutcome, Decision,
-    DecisionKind, Dependency, Expectation, FlowSite, MemoryRank, NewtypeMatch, NewtypeOverload,
+    DecisionKind, Expectation, FlowSite, MemoryRank, NewtypeMatch, NewtypeOverload,
     NewtypeRejection, NewtypeSignature, Origin, SignatureMatch, SignatureRejection,
     SignatureSelection, TypeArgumentInference, TypeSubstitution, ValueCheck, ValueUse, answer,
 };
@@ -175,14 +175,14 @@ impl BodyState<'_, '_> {
         while let Some(candidate) = pending.pop() {
             let candidate = match self.reduce_type_head(origin, candidate)? {
                 Answer::Ready(candidate) => candidate,
-                Answer::Pending(blockers)
-                    if blockers
-                        .iter()
-                        .all(|blocker| matches!(blocker, Dependency::Variable(_))) =>
-                {
+                Answer::Pending(blockers) => {
+                    let head = self.apparent_head(origin, candidate)?;
+                    if !matches!(self.ty(head)?, dir::Type::Variable(_)) {
+                        return Ok(Answer::Pending(blockers));
+                    }
+
                     continue;
                 }
-                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
             };
             match self.ty(candidate)? {
                 dir::Type::Application(instance) if instance.symbol == symbol => {
@@ -508,7 +508,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Return construct candidates for one class instance.
-    fn collect_class_construct_candidates(
+    pub(in crate::check) fn collect_class_construct_candidates(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
@@ -603,7 +603,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Attempt one constructor candidate against collected arguments.
-    fn attempt_construct(
+    pub(in crate::check) fn attempt_construct(
         &mut self,
         origin: Origin,
         module: ModuleId,

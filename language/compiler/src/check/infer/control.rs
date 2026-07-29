@@ -548,6 +548,7 @@ impl BodyState<'_, '_> {
             anchored,
             source_value,
             iterator_type,
+            dir::MemberSpace::Instance,
             key,
             dir::LanguageItem::Iterable,
             &[],

@@ -209,6 +209,7 @@ impl CheckState<'_> {
                             member.role,
                             member.ty,
                             base.ty,
+                            None,
                         )?;
                         match assignment {
                             Answer::Ready(true) => {}
