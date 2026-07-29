@@ -4,7 +4,8 @@ use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::lower::{
-    CallableImplementation, GenericInstanceKey, LifetimeParameters, ModuleLowerer, TypeSubstitution,
+    CallableImplementation, GenericInstanceKey, LifetimeParameters, ModuleLowerer, ReceiverBinding,
+    TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -39,12 +40,12 @@ impl ModuleLowerer<'_> {
             // member callables lead with their receiver and qualify by owner
             let member = self.imported_member(symbol)?;
             let type_substitution = match &member {
-                Some(member) => {
-                    TypeSubstitution::default().with_receiver(dir::GenericApplication {
+                Some(member) => TypeSubstitution::default().with_receiver(
+                    ReceiverBinding::Application(dir::GenericApplication {
                         symbol: member.owner,
                         arguments: dir::TypeListId::EMPTY,
-                    })
-                }
+                    }),
+                ),
                 None => TypeSubstitution::default(),
             };
             let (name, receiver) = match &member {

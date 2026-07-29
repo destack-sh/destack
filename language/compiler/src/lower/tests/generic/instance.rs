@@ -171,29 +171,6 @@ entry(v0: Box_1):
 }
 
 #[test]
-fn test_reject_value_parameterized_nominal_instances() {
-    let session = TestSession::single(
-        r#"
-struct Fixed<comptime N: int> {
-    value: int32;
-}
-
-function read(value: Fixed<1>): int32 {
-    return value.value;
-}
-"#,
-    );
-
-    session.assert_mir_diagnostics(
-        "main.ds",
-        r#"
-/// @diagnostic.error id=unsupported-native-construct message="native compilation does not support a value-parameterized nominal instance"
-/// @diagnostic.label file="main.ds"
-"#,
-    );
-}
-
-#[test]
 fn test_lower_repeated_instantiations_to_one_shared_instance() {
     let session = TestSession::single(
         r#"

@@ -15,4 +15,4 @@ pub(in crate::lower) use layout::LayoutBuilder;
 pub(in crate::lower) use lifetime::LifetimeParameters;
 pub(in crate::lower) use lower::TypeLowerer;
 pub(in crate::lower) use nominal::*;
-pub(in crate::lower) use substitution::TypeSubstitution;
+pub(in crate::lower) use substitution::{ReceiverBinding, TypeSubstitution};

@@ -95,6 +95,15 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         resolution: &dir::Call,
     ) -> CompilerResult<Vec<mir::Value>> {
+        self.lower_call_arguments(resolution, None)
+    }
+
+    /// Lower one resolution's arguments, filling its write slot when one exists.
+    pub(in crate::lower) fn lower_call_arguments(
+        &mut self,
+        resolution: &dir::Call,
+        write: Option<dir::LocalNodeId<dir::Expression>>,
+    ) -> CompilerResult<Vec<mir::Value>> {
         let arguments = &resolution.arguments;
         let mut values = Vec::with_capacity(arguments.len());
         for binding in arguments {
@@ -106,11 +115,17 @@ impl FunctionLowerer<'_, '_, '_> {
 
                     continue;
                 }
+                // fill the write slot with the assigned value for setter calls
                 dir::ArgumentSource::Write => {
-                    return Err(CompilerError::Internal {
-                        message: "ordinary call lowering received an implicit write argument"
-                            .to_string(),
-                    });
+                    let Some(expression) = write else {
+                        return Err(CompilerError::Internal {
+                            message: "ordinary call lowering received an implicit write argument"
+                                .to_string(),
+                        });
+                    };
+                    values.push(self.lower_expression(expression)?);
+
+                    continue;
                 }
                 dir::ArgumentSource::Static(_) | dir::ArgumentSource::Rest(_) => {
                     return Err(LowerError::Unsupported {
@@ -162,7 +177,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
-        self.lower_function_target_call(receiver, resolution, function)
+        self.lower_function_target_call(receiver, resolution, function, None)
     }
 
     /// Lower one function target over one explicit receiver expression.
@@ -171,6 +186,7 @@ impl FunctionLowerer<'_, '_, '_> {
         receiver: dir::LocalNodeId<dir::Expression>,
         resolution: &dir::Call,
         function: &dir::FunctionTarget,
+        write: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<Option<mir::Value>> {
         let adjusted = function
             .receiver
@@ -201,7 +217,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // bind the arguments after the receiver
         let mut values = vec![receiver];
-        values.extend(self.lower_provided_arguments(resolution)?);
+        values.extend(self.lower_call_arguments(resolution, write)?);
 
         Ok(self.builder.call_function(function, values))
     }

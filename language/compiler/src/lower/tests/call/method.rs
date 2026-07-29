@@ -268,3 +268,115 @@ entry:
 "#,
     );
 }
+
+#[test]
+fn test_lower_static_method_call_without_a_receiver() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+
+    static origin(): int32 {
+        return 0;
+    }
+}
+
+function measure(): int32 {
+    return Point.origin();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Point {
+    x: int32;
+}
+
+function test.main.Point.origin(): int32 {
+entry:
+    v0: int32 = 0
+    return v0
+}
+
+function test.main.measure(): int32 {
+entry:
+    v0: int32 = call test.main.Point.origin()
+    return v0
+}
+/// @layout.struct name=Point size=4 align=4
+/// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
+"#,
+    );
+}
+
+#[test]
+fn test_lower_accessor_reads_and_writes_through_their_role_split_functions() {
+    let session = TestSession::single(
+        r#"
+struct Circle {
+    radius: int32;
+
+    get diameter(): int32 {
+        return this.radius + this.radius;
+    }
+
+    set diameter(value: int32) {
+        this.radius = value;
+    }
+}
+
+function resize(): int32 {
+    let circle = Circle { radius: 2 };
+    circle.diameter = 10;
+    return circle.diameter;
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+@copy
+type Circle {
+    radius: int32;
+}
+
+function test.main.Circle.diameter.get<'a>(v0: ref<Circle, borrowed, 'a, readonly>): int32 {
+entry(v0: ref<Circle, borrowed, 'a, readonly>):
+    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+    v2: int32 = load v1
+    v3: ref<int32, borrowed, readonly> = field.address v0, 0
+    v4: int32 = load v3
+    v5: int32 = int.add v2, v4
+    return v5
+}
+
+function test.main.Circle.diameter.set<'a>(v0: ref<Circle, borrowed, 'a, exclusive>, v1: int32): void {
+entry(v0: ref<Circle, borrowed, 'a, exclusive>, v1: int32):
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    store v2, v1
+    return
+}
+
+function test.main.resize(): int32 {
+    local l0: Circle
+
+entry:
+    v0: int32 = 2
+    v1: Circle = aggregate (v0)
+    local.set l0, v1
+    v2: ref<Circle, borrowed, exclusive> = local.address l0
+    v3: int32 = 10
+    call test.main.Circle.diameter.set(v2, v3)
+    v4: ref<Circle, borrowed, readonly> = local.address l0
+    v5: int32 = call test.main.Circle.diameter.get(v4)
+    return v5
+}
+/// @layout.struct name=Circle size=4 align=4
+/// @layout.field owner=Circle index=0 name=radius offset=0 size=4 align=4
+"#,
+    );
+}

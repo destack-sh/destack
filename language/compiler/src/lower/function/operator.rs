@@ -34,7 +34,7 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
         function: &dir::FunctionTarget,
     ) -> CompilerResult<mir::Value> {
-        let Some(value) = self.lower_function_target_call(receiver, resolution, function)? else {
+        let Some(value) = self.lower_function_target_call(receiver, resolution, function, None)? else {
             return Err(CompilerError::Internal {
                 message: "checked DIR selected a void operator method".to_string(),
             });

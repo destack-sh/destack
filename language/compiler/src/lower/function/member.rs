@@ -45,7 +45,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 .into());
             };
-            let value = self.lower_function_target_call(left, call, function)?;
+            let value = self.lower_function_target_call(left, call, function, None)?;
 
             return value.ok_or_else(|| CompilerError::Internal {
                 message: "checked getter returned no value".to_string(),
@@ -103,7 +103,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     }
                     .into());
                 };
-                let value = self.lower_function_target_call(left, &call, function)?;
+                let value = self.lower_function_target_call(left, &call, function, None)?;
 
                 value.ok_or_else(|| CompilerError::Internal {
                     message: "checked subscript read returned no value".to_string(),
@@ -133,7 +133,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     }
                     .into());
                 };
-                let value = self.lower_function_target_call(left, &call, function)?;
+                let value = self.lower_function_target_call(left, &call, function, None)?;
                 let value = value.ok_or_else(|| CompilerError::Internal {
                     message: "checked subscript read returned no value".to_string(),
                 })?;

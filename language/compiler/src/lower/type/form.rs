@@ -100,8 +100,8 @@ impl TypeLowerer<'_, '_> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         match self.lowerer.ty(id)? {
-            // contextual this stores as the receiver's nominal representation
-            dir::Type::This => Ok(self.lower_receiver()?.storage),
+            // contextual this stores as the receiver's storage representation
+            dir::Type::This => self.lower_receiver_storage(),
             // nominal storage is the declared type, not its value form
             dir::Type::Application(instance) => {
                 let arguments = self

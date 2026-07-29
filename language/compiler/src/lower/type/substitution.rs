@@ -4,26 +4,35 @@ use destack_dir as dir;
 use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult};
 
+/// The concrete receiver replacing contextual `this` references.
+#[derive(Clone, Copy)]
+pub(in crate::lower) enum ReceiverBinding {
+    /// A nominal owner applied to its type arguments.
+    Application(dir::GenericApplication),
+    /// A receiver type, as extension targets declare.
+    Type(dir::GlobalTypeId),
+}
+
 /// Contextual type substitutions selecting one concrete representation.
 #[derive(Clone, Default)]
 pub(in crate::lower) struct TypeSubstitution {
     /// The type argument substituted for each generic parameter.
     bindings: FxIndexMap<dir::GlobalGenericParameterId, dir::GlobalTypeId>,
-    /// The nominal application replacing contextual `this` references.
-    receiver: Option<dir::GenericApplication>,
+    /// The receiver replacing contextual `this` references.
+    receiver: Option<ReceiverBinding>,
 }
 
 impl TypeSubstitution {
     /// Return this substitution with its contextual receiver.
-    pub(in crate::lower) fn with_receiver(mut self, receiver: dir::GenericApplication) -> Self {
+    pub(in crate::lower) fn with_receiver(mut self, receiver: ReceiverBinding) -> Self {
         self.receiver = Some(receiver);
 
         self
     }
 
-    /// Return the contextual receiver application, when bound.
-    pub(in crate::lower) fn receiver(&self) -> Option<&dir::GenericApplication> {
-        self.receiver.as_ref()
+    /// Return the contextual receiver, when bound.
+    pub(in crate::lower) fn receiver(&self) -> Option<ReceiverBinding> {
+        self.receiver
     }
 
     /// Bind one template's type parameters to positional arguments.

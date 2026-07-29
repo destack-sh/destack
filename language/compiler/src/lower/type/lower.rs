@@ -3,7 +3,8 @@ use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::lower::{
-    GenericInstanceKey, LifetimeParameters, ModuleLowerer, NominalInstance, TypeSubstitution,
+    GenericInstanceKey, LifetimeParameters, ModuleLowerer, NominalInstance, ReceiverBinding,
+    TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -73,7 +74,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 self.lower(argument)
             }
             // contextual this lowers through the receiver substitution
-            dir::Type::This => Ok(self.lower_receiver()?.value),
+            dir::Type::This => self.lower_receiver_value(),
             // nullable unions ride their reference carrier's niches
             dir::Type::Union(union) => {
                 if let Some((nullability, carrier)) =
@@ -181,13 +182,44 @@ impl<'module> ModuleLowerer<'module> {
 }
 
 impl TypeLowerer<'_, '_> {
-    /// Lower the contextual receiver application to its nominal representation.
-    pub(in crate::lower) fn lower_receiver(&mut self) -> CompilerResult<NominalInstance> {
-        let Some(receiver) = self.type_substitution.receiver().cloned() else {
-            return Err(CompilerError::Internal {
+    /// Lower the contextual receiver as a value type.
+    pub(in crate::lower) fn lower_receiver_value(
+        &mut self,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        match self.receiver_binding()? {
+            ReceiverBinding::Application(receiver) => {
+                Ok(self.lower_receiver_nominal(receiver)?.value)
+            }
+            ReceiverBinding::Type(ty) => self.lower(ty),
+        }
+    }
+
+    /// Lower the contextual receiver as reference storage.
+    pub(in crate::lower) fn lower_receiver_storage(
+        &mut self,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        match self.receiver_binding()? {
+            ReceiverBinding::Application(receiver) => {
+                Ok(self.lower_receiver_nominal(receiver)?.storage)
+            }
+            ReceiverBinding::Type(ty) => self.lower(ty),
+        }
+    }
+
+    /// Return the bound contextual receiver.
+    fn receiver_binding(&self) -> CompilerResult<ReceiverBinding> {
+        self.type_substitution
+            .receiver()
+            .ok_or_else(|| CompilerError::Internal {
                 message: "checked DIR left a contextual receiver unbound".to_string(),
-            });
-        };
+            })
+    }
+
+    /// Lower one nominal receiver application to its representation.
+    fn lower_receiver_nominal(
+        &mut self,
+        receiver: dir::GenericApplication,
+    ) -> CompilerResult<NominalInstance> {
         let arguments = self
             .lowerer
             .types(receiver.symbol.module_id)?
