@@ -13,10 +13,10 @@ use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocationSiteId, BindingId, CallSite, CallSiteId, Continuation, ContinuationSite,
-    ContinuationSiteId, DispatchTable, DropEntry, DropTable, DynamicEntry, DynamicTable,
-    DynamicTableId, Error, FrameLayout, FrameLayoutId, FramePoint, FrameSlot, FrameState,
-    FrameStateId, FrameTable, Function, FunctionBinding, FunctionId, FunctionTable, Global,
+    AllocationSiteId, Binding, BindingId, BindingTable, CallSite, CallSiteId, Continuation,
+    ContinuationSite, ContinuationSiteId, DispatchTable, DropEntry, DropTable, DynamicEntry,
+    DynamicTable, DynamicTableId, Error, FrameLayout, FrameLayoutId, FramePoint, FrameSlot,
+    FrameState, FrameStateId, FrameTable, Function, FunctionId, FunctionTable, Global,
     GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
     LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite,
     SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage,
@@ -44,6 +44,8 @@ pub struct Program {
     pub(crate) frames: FrameTable,
     /// Program function table.
     pub(crate) functions: FunctionTable,
+    /// Runtime binding declarations.
+    pub(crate) bindings: BindingTable,
     /// Runtime dispatch table.
     pub(crate) dispatch: DispatchTable,
     /// Program sites used by debugging, probes, and observations.
@@ -127,13 +129,38 @@ impl Program {
     }
 
     /// Return the runtime binding attached to one function.
-    pub fn function_binding(&self, function: FunctionId) -> Option<BindingId> {
-        self.functions.binding(self.sections(), function)
+    pub fn function_binding(&self, function: FunctionId) -> Option<&Binding> {
+        self.bindings.function(self.sections(), function)
     }
 
-    /// Return all functions backed by runtime bindings.
-    pub fn function_bindings(&self) -> &[FunctionBinding] {
-        self.functions.bindings(self.sections())
+    /// Return all runtime binding declarations.
+    pub fn bindings(&self) -> &[Binding] {
+        self.bindings.entries(self.sections())
+    }
+
+    /// Return one runtime binding declaration by stable identity.
+    pub fn binding(&self, id: BindingId) -> Option<&Binding> {
+        self.bindings.get(self.sections(), id)
+    }
+
+    /// Return one binding's required runtime actions.
+    pub fn binding_requires(&self, binding: &Binding) -> &[StringId] {
+        self.bindings.requires(self.sections(), binding)
+    }
+
+    /// Return one binding's supported platforms.
+    pub fn binding_platforms(&self, binding: &Binding) -> &[StringId] {
+        self.bindings.platforms(self.sections(), binding)
+    }
+
+    /// Return one binding's supported platform families.
+    pub fn binding_families(&self, binding: &Binding) -> &[StringId] {
+        self.bindings.families(self.sections(), binding)
+    }
+
+    /// Return one binding's supported hosts.
+    pub fn binding_hosts(&self, binding: &Binding) -> &[StringId] {
+        self.bindings.hosts(self.sections(), binding)
     }
 
     /// Return parameter types for one program function.

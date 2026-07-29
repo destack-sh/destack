@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
-use super::{BindingId, TypeId, Word};
+use super::{TypeId, Word};
 
 /// Durable runtime function id inside one program.
 #[repr(transparent)]
@@ -77,8 +77,6 @@ pub struct FunctionTable {
     parameters: SectionSlice<TypeId>,
     /// Exported function names.
     exports: SectionSlice<FunctionExport>,
-    /// Functions backed by runtime bindings.
-    bindings: SectionSlice<FunctionBinding>,
 }
 
 impl FunctionTable {
@@ -120,21 +118,6 @@ impl FunctionTable {
             .entries(self.exports)
             .iter()
             .find_map(|export| (export.name == name).then_some(export.function))
-    }
-
-    /// Return the runtime binding attached to one function.
-    pub fn binding(&self, sections: SectionImage<'_>, function: FunctionId) -> Option<BindingId> {
-        let bindings = sections.entries(self.bindings);
-        let index = bindings
-            .binary_search_by_key(&function, |entry| entry.function)
-            .ok()?;
-
-        Some(bindings[index].binding)
-    }
-
-    /// Return all functions backed by runtime bindings.
-    pub fn bindings<'a>(&self, sections: SectionImage<'a>) -> &'a [FunctionBinding] {
-        sections.entries(self.bindings)
     }
 
     /// Check that one function matches one call signature.
@@ -213,29 +196,6 @@ impl FunctionExport {
             name,
             function,
             reserved: 0,
-        }
-    }
-}
-
-/// Runtime binding attached to one function.
-#[repr(C, align(16))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct FunctionBinding {
-    /// Stable runtime binding id.
-    pub binding: BindingId,
-    /// The bound function.
-    pub function: FunctionId,
-    /// Reserved binding words.
-    reserved: [u32; 3],
-}
-
-impl FunctionBinding {
-    /// Create one function binding entry.
-    pub const fn new(function: FunctionId, binding: BindingId) -> Self {
-        Self {
-            binding,
-            function,
-            reserved: [0; 3],
         }
     }
 }
@@ -375,7 +335,6 @@ impl FunctionTableBuilder {
     pub(crate) fn build(self, sections: &mut SectionBuilder) -> FunctionTable {
         let mut signatures = Vec::with_capacity(self.signatures.len());
         let mut functions = Vec::with_capacity(self.functions.len());
-        let mut bindings = Vec::new();
         let mut parameters = EntryStore::new();
 
         // flatten variable signature payloads
@@ -389,11 +348,6 @@ impl FunctionTableBuilder {
 
         // build fixed function entries
         for function in self.functions {
-            let function_id = FunctionId(functions.len() as u32);
-            if let Some(binding) = function.binding {
-                bindings.push(FunctionBinding::new(function_id, binding));
-            }
-
             functions.push(Function {
                 name: function.name,
                 environment: function.environment.into(),
@@ -407,14 +361,12 @@ impl FunctionTableBuilder {
             functions: sections.insert(functions),
             parameters: sections.insert(parameters.into_entries()),
             exports: sections.insert(self.exports),
-            bindings: sections.insert(bindings),
         }
     }
 }
 
-const _: () = assert!(size_of::<FunctionTable>() == 80);
+const _: () = assert!(size_of::<FunctionTable>() == 64);
 const _: () = assert!(size_of::<FunctionExport>() == 16);
-const _: () = assert!(size_of::<FunctionBinding>() == 32);
 const _: () = assert!(size_of::<Function>() == 24);
 const _: () = assert!(size_of::<CoroutineKind>() == 4);
 const _: () = assert!(size_of::<SignatureId>() == 4);
@@ -429,8 +381,6 @@ pub struct FunctionBuilder {
     signature: SignatureId,
     /// Captured closure environment type when one exists.
     environment: Option<TypeId>,
-    /// Runtime binding id attached to this function when one exists.
-    binding: Option<BindingId>,
     /// The function coroutine behavior.
     coroutine: CoroutineKind,
 }
@@ -442,7 +392,6 @@ impl FunctionBuilder {
             name,
             signature,
             environment: None,
-            binding: None,
             coroutine: CoroutineKind::NONE,
         }
     }
@@ -450,13 +399,6 @@ impl FunctionBuilder {
     /// Set the captured closure environment type.
     pub fn environment(mut self, environment: TypeId) -> Self {
         self.environment = Some(environment);
-
-        self
-    }
-
-    /// Set the attached runtime binding.
-    pub fn binding(mut self, binding: BindingId) -> Self {
-        self.binding = Some(binding);
 
         self
     }

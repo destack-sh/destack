@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{BindingId, Continuation, Memory, Task, TaskOutcome, Value, Waiter, Word};
+use crate::{Binding, Continuation, Memory, Task, TaskOutcome, Value, Waiter, Word};
 
 /// Runtime services available to executing program code.
 pub trait Runtime {
@@ -11,7 +11,7 @@ pub trait Runtime {
     fn call_binding(
         &mut self,
         memory: Memory<'_>,
-        binding: BindingId,
+        binding: &Binding,
         arguments: &[Word],
         result: &mut [Word],
     ) -> Result<(), Self::Error>;

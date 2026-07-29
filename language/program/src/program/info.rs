@@ -19,8 +19,6 @@ pub struct ProgramInfo {
     types: SectionSlice<TypeInfo>,
     /// Reflected functions keyed by program function id.
     functions: SectionSlice<FunctionInfo>,
-    /// Reflected runtime bindings.
-    bindings: SectionSlice<BindingInfo>,
     /// Reflected frame layouts keyed by frame layout id.
     frames: SectionSlice<FrameInfo>,
     /// Reflected globals keyed by program global id.
@@ -39,8 +37,6 @@ pub struct ProgramInfo {
     index_signatures: SectionSlice<TypeIndexSignature>,
     /// Flattened reflected function parameters.
     function_parameters: SectionSlice<FunctionParameterType>,
-    /// Flattened reflected binding strings.
-    binding_strings: SectionSlice<StringId>,
     /// Flattened reflected variant cases.
     variant_cases: SectionSlice<VariantCase>,
     /// Flattened reflected frame slots.
@@ -56,8 +52,6 @@ pub struct ProgramInfoBuilder {
     types: Vec<TypeInfoBuilder>,
     /// Reflected functions.
     functions: Vec<FunctionInfo>,
-    /// Reflected runtime bindings.
-    bindings: Vec<BindingInfoBuilder>,
     /// Reflected frame layouts.
     frames: Vec<FrameInfoBuilder>,
     /// Reflected globals.
@@ -93,13 +87,6 @@ impl ProgramInfoBuilder {
         self
     }
 
-    /// Set reflected runtime bindings.
-    pub fn bindings(mut self, bindings: impl IntoIterator<Item = BindingInfoBuilder>) -> Self {
-        self.bindings = bindings.into_iter().collect();
-
-        self
-    }
-
     /// Set reflected frame layouts.
     pub fn frames(mut self, frames: impl IntoIterator<Item = FrameInfoBuilder>) -> Self {
         self.frames = frames.into_iter().collect();
@@ -127,7 +114,6 @@ impl ProgramInfoBuilder {
             modules,
             types,
             functions,
-            bindings,
             frames,
             globals,
             entries,
@@ -138,7 +124,6 @@ impl ProgramInfoBuilder {
         let mut members = EntryStore::new();
         let mut index_signatures = EntryStore::new();
         let mut function_parameters = EntryStore::new();
-        let mut binding_strings = EntryStore::new();
         let mut variant_cases = EntryStore::new();
         let mut frame_slots = EntryStore::new();
 
@@ -155,30 +140,6 @@ impl ProgramInfoBuilder {
                     &mut function_parameters,
                     &mut variant_cases,
                 )
-            })
-            .collect::<Vec<_>>();
-
-        // flatten reflected binding payloads
-        let bindings = bindings
-            .into_iter()
-            .map(|binding| {
-                let requires = binding_strings.append(binding.requires);
-                let platforms = binding_strings.append(binding.platforms);
-                let families = binding_strings.append(binding.families);
-                let hosts = binding_strings.append(binding.hosts);
-
-                BindingInfo {
-                    id: binding.id,
-                    name: binding.name,
-                    effect: binding.effect,
-                    provider: binding.provider,
-                    replay: binding.replay,
-                    affinity: binding.affinity,
-                    requires,
-                    platforms,
-                    families,
-                    hosts,
-                }
             })
             .collect::<Vec<_>>();
 
@@ -199,7 +160,6 @@ impl ProgramInfoBuilder {
             modules: sections.insert(modules),
             types: sections.insert(types),
             functions: sections.insert(functions),
-            bindings: sections.insert(bindings),
             frames: sections.insert(frames),
             globals: sections.insert(globals),
             entries: sections.insert(entries),
@@ -209,7 +169,6 @@ impl ProgramInfoBuilder {
             members: sections.insert(members.into_entries()),
             index_signatures: sections.insert(index_signatures.into_entries()),
             function_parameters: sections.insert(function_parameters.into_entries()),
-            binding_strings: sections.insert(binding_strings.into_entries()),
             variant_cases: sections.insert(variant_cases.into_entries()),
             frame_slots: sections.insert(frame_slots.into_entries()),
         }
@@ -230,11 +189,6 @@ impl ProgramInfo {
     /// Return reflected functions.
     pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [FunctionInfo] {
         sections.entries(self.functions)
-    }
-
-    /// Return reflected bindings.
-    pub fn bindings<'a>(&self, sections: SectionImage<'a>) -> &'a [BindingInfo] {
-        sections.entries(self.bindings)
     }
 
     /// Return reflected frames.
@@ -304,15 +258,6 @@ impl ProgramInfo {
         range: EntryRange<FunctionParameterType>,
     ) -> &'a [FunctionParameterType] {
         range.slice(sections.entries(self.function_parameters))
-    }
-
-    /// Return one binding string payload range.
-    pub fn binding_strings<'a>(
-        &self,
-        sections: SectionImage<'a>,
-        range: EntryRange<StringId>,
-    ) -> &'a [StringId] {
-        range.slice(sections.entries(self.binding_strings))
     }
 
     /// Return one type payload variant-case range.
@@ -1088,154 +1033,6 @@ impl FunctionInfo {
             binding: Optional::some(binding),
         }
     }
-}
-
-/// Build-time reflected runtime binding.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BindingInfoBuilder {
-    /// Stable runtime binding id.
-    id: BindingId,
-    /// Stable runtime binding name.
-    name: StringId,
-    /// Binding effect category.
-    effect: BindingEffect,
-    /// Provider that implements this binding.
-    provider: BindingProvider,
-    /// Replay policy for this binding.
-    replay: BindingReplay,
-    /// Execution context required by this binding.
-    affinity: BindingAffinity,
-    /// Required runtime actions.
-    requires: Vec<StringId>,
-    /// Supported platforms.
-    platforms: Vec<StringId>,
-    /// Supported platform families.
-    families: Vec<StringId>,
-    /// Supported host families.
-    hosts: Vec<StringId>,
-}
-
-impl BindingInfoBuilder {
-    /// Create one reflected runtime binding builder.
-    pub fn new(
-        id: BindingId,
-        name: StringId,
-        effect: BindingEffect,
-        provider: BindingProvider,
-        replay: BindingReplay,
-        affinity: BindingAffinity,
-    ) -> Self {
-        Self {
-            id,
-            name,
-            effect,
-            provider,
-            replay,
-            affinity,
-            requires: Vec::new(),
-            platforms: Vec::new(),
-            families: Vec::new(),
-            hosts: Vec::new(),
-        }
-    }
-
-    /// Set required runtime actions.
-    pub fn requires(mut self, requires: impl IntoIterator<Item = StringId>) -> Self {
-        self.requires = requires.into_iter().collect();
-
-        self
-    }
-
-    /// Set supported platforms.
-    pub fn platforms(mut self, platforms: impl IntoIterator<Item = StringId>) -> Self {
-        self.platforms = platforms.into_iter().collect();
-
-        self
-    }
-
-    /// Set supported platform families.
-    pub fn families(mut self, families: impl IntoIterator<Item = StringId>) -> Self {
-        self.families = families.into_iter().collect();
-
-        self
-    }
-
-    /// Set supported host families.
-    pub fn hosts(mut self, hosts: impl IntoIterator<Item = StringId>) -> Self {
-        self.hosts = hosts.into_iter().collect();
-
-        self
-    }
-}
-
-/// Reflected runtime binding declaration.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct BindingInfo {
-    /// Stable runtime binding id.
-    pub id: BindingId,
-    /// Stable runtime binding name.
-    pub name: StringId,
-    /// Binding effect category.
-    pub effect: BindingEffect,
-    /// Provider that implements this binding.
-    pub provider: BindingProvider,
-    /// Replay policy for this binding.
-    pub replay: BindingReplay,
-    /// Execution context required by this binding.
-    pub affinity: BindingAffinity,
-    /// Required runtime actions.
-    pub requires: EntryRange<StringId>,
-    /// Supported platforms.
-    pub platforms: EntryRange<StringId>,
-    /// Supported platform families.
-    pub families: EntryRange<StringId>,
-    /// Supported host families.
-    pub hosts: EntryRange<StringId>,
-}
-
-/// Binding effect category.
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub enum BindingEffect {
-    /// Binding is pure.
-    Pure = 0,
-    /// Binding is deterministic.
-    Deterministic = 1,
-    /// Binding observes or mutates external state.
-    External = 2,
-}
-
-/// Binding implementation owner.
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub enum BindingProvider {
-    /// Binding is implemented by the host.
-    Host = 0,
-    /// Binding is implemented by runtime state.
-    Runtime = 1,
-}
-
-/// Binding replay policy.
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub enum BindingReplay {
-    /// Binding may be recorded and replayed.
-    Recordable = 0,
-    /// Binding cannot be replayed.
-    Forbidden = 1,
-}
-
-/// Binding execution context.
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub enum BindingAffinity {
-    /// Binding has no execution context requirement.
-    None = 0,
-    /// Binding requires the current worker context.
-    Worker = 1,
-    /// Binding requires the process main context.
-    Main = 2,
 }
 
 /// Build-time reflected program frame layout.

@@ -8,14 +8,14 @@ use destack_mir::TargetLayout;
 
 use super::Program;
 use crate::{
-    DispatchTable, DispatchTableBuilder, DropEntry, DropTable, FrameTable, FrameTableBuilder,
-    FunctionTable, FunctionTableBuilder, Global, GlobalTable, LayoutBuilder, LayoutTable,
-    ProgramInfo, ProgramInfoBuilder, SiteTable, SiteTableBuilder, StaticImage, StringEntry,
-    StringTable, TypeDescriptorBuilder, TypeTable, native, wasm,
+    BindingBuilder, BindingTable, DispatchTable, DispatchTableBuilder, DropEntry, DropTable,
+    FrameTable, FrameTableBuilder, FunctionTable, FunctionTableBuilder, Global, GlobalTable,
+    LayoutBuilder, LayoutTable, ProgramInfo, ProgramInfoBuilder, SiteTable, SiteTableBuilder,
+    StaticImage, StringEntry, StringTable, TypeDescriptorBuilder, TypeTable, native, wasm,
 };
 
 const PROGRAM_MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
-const PROGRAM_VERSION: u16 = 3;
+const PROGRAM_VERSION: u16 = 4;
 
 /// Program image load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,6 +69,8 @@ pub struct ProgramBuilder {
     frames: FrameTableBuilder,
     /// Program functions.
     functions: FunctionTableBuilder,
+    /// Runtime binding declarations.
+    bindings: Vec<BindingBuilder>,
     /// Runtime dispatch.
     dispatch: DispatchTableBuilder,
     /// Program instrumentation sites.
@@ -123,6 +125,8 @@ struct Header {
     frames: FrameTable,
     /// Program function table.
     functions: FunctionTable,
+    /// Runtime binding declarations.
+    bindings: BindingTable,
     /// Runtime dispatch table.
     dispatch: DispatchTable,
     /// Program instrumentation sites.
@@ -164,6 +168,7 @@ impl Header {
             layouts: LayoutTable::default(),
             frames: FrameTable::default(),
             functions: FunctionTable::default(),
+            bindings: BindingTable::default(),
             dispatch: DispatchTable::default(),
             sites: SiteTable::default(),
             traces: TraceTable::default(),
@@ -191,6 +196,7 @@ impl ProgramBuilder {
             layouts: Vec::new(),
             frames: FrameTableBuilder::default(),
             functions: FunctionTableBuilder::default(),
+            bindings: Vec::new(),
             dispatch: DispatchTableBuilder::default(),
             sites: SiteTableBuilder::default(),
             traces: mir::TraceTable::default(),
@@ -265,6 +271,13 @@ impl ProgramBuilder {
     /// Set the program function table.
     pub fn functions(mut self, functions: FunctionTableBuilder) -> Self {
         self.functions = functions;
+
+        self
+    }
+
+    /// Set runtime binding declarations.
+    pub fn bindings(mut self, bindings: impl IntoIterator<Item = BindingBuilder>) -> Self {
+        self.bindings = bindings.into_iter().collect();
 
         self
     }
@@ -352,6 +365,7 @@ impl ProgramBuilder {
         header.layouts = LayoutTable::pack(&mut sections, self.layouts);
         header.frames = FrameTable::pack(self.frames, &mut sections);
         header.functions = self.functions.build(&mut sections);
+        header.bindings = BindingTable::pack(&mut sections, self.bindings);
         header.dispatch = self.dispatch.build(&mut sections);
         header.sites = self.sites.build(&mut sections);
         header.traces = TraceTable::pack(&mut sections, &self.traces);
@@ -428,6 +442,7 @@ impl Program {
             layouts: header.layouts,
             frames: header.frames,
             functions: header.functions,
+            bindings: header.bindings,
             dispatch: header.dispatch,
             sites: header.sites,
             traces: header.traces,
