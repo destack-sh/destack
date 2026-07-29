@@ -104,6 +104,14 @@ impl StaticTerm {
         }
     }
 
+    /// Return this value's array elements.
+    pub fn as_array(&self) -> Option<&[StaticTerm]> {
+        match self {
+            Self::Array { elements } => Some(elements),
+            _ => None,
+        }
+    }
+
     /// Apply one mapping to every type id stored in this static value.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
@@ -161,6 +169,14 @@ pub enum StaticProperty {
 }
 
 impl StaticProperty {
+    /// Return this property's field key and value.
+    pub fn as_field(&self) -> Option<(StaticKey, &StaticTerm)> {
+        match self {
+            Self::Field { key, value } => Some((*key, value)),
+            Self::Method { .. } | Self::Spread { .. } => None,
+        }
+    }
+
     /// Apply one mapping to every type id stored in this property.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {

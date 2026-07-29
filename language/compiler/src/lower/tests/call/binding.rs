@@ -7,7 +7,12 @@ fn test_lower_binding_call_to_a_dotted_host_extern() {
 @binding("destack.clock.now", {
     provider: "host",
     effect: "external",
-    requires: [],
+    replay: "forbidden",
+    affinity: "worker",
+    requires: ["host.time.clock.read"],
+    platforms: ["linux"],
+    families: ["unix"],
+    hosts: ["native"],
 })
 declare function now(): float64;
 
@@ -26,7 +31,16 @@ entry:
     return v0
 }
 
-@binding("destack.clock.now")
+@binding("destack.clock.now", {
+    provider: "host",
+    effect: "external",
+    replay: "forbidden",
+    affinity: "worker",
+    requires: ["host.time.clock.read"],
+    platforms: ["linux"],
+    families: ["unix"],
+    hosts: ["native"]
+})
 external function destack.clock.now(): float64
 "#,
     );
@@ -62,11 +76,11 @@ type User {
 
 function test.main.read<'a>(v0: ref<User, borrowed, 'a, readonly>): int32 {
 entry(v0: ref<User, borrowed, 'a, readonly>):
-    v1: int32 = call host.user.inspect(v0)
+    v1: int32 = call host.user.inspect(v0): <'a>(ref<User, borrowed, 'a, readonly>) => int32
     return v1
 }
 
-@binding("host.user.inspect")
+@binding("host.user.inspect", { provider: "host", effect: "external" })
 external function host.user.inspect<'a>(ref<User, borrowed, 'a, readonly>): int32
 /// @layout.struct name=User size=4 align=4
 /// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
@@ -97,7 +111,7 @@ entry(v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }):
 function test.main.run(): void {
 entry:
     v0: variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; } = variant.new 1
-    call test.main.greet(v0)
+    call test.main.greet(v0): (variant<uint8, boolean> { 0uint8 = boolean; 1uint8 = void; }) => void
     return
 }
 /// @layout.variant name=type@3 size=1 align=1

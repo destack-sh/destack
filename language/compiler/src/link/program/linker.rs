@@ -15,8 +15,8 @@ use destack_source::{ModuleId, PackageId, TargetId};
 use crate::{LinkError, LinkResult};
 
 use super::{
-    BytecodeLinker, DispatchLinker, DropLinker, FrameLinker, FunctionLinker, LayoutLinker,
-    SiteLinker, StaticLinker, TypeLinker,
+    BindingLinker, BytecodeLinker, DispatchLinker, DropLinker, FrameLinker, FunctionLinker,
+    LayoutLinker, SiteLinker, StaticLinker, TypeLinker,
 };
 
 /// Build one Program from optimized module objects and an immutable string pool.
@@ -157,6 +157,7 @@ impl<'a> ProgramLinker<'a> {
         let bytecode = bytecode_linker.link()?;
         let layouts = LayoutLinker::new(&self).link()?;
         let functions = FunctionLinker::new(&self).link()?;
+        let bindings = BindingLinker::new(&self).link()?;
         let sites = SiteLinker::new(&self, &frame_linker).link()?;
         let drops = DropLinker::new(&self).link();
         let types = TypeLinker::new(&self).link()?;
@@ -171,6 +172,7 @@ impl<'a> ProgramLinker<'a> {
             .layouts(layouts.layouts)
             .frames(frames)
             .functions(functions)
+            .bindings(bindings)
             .dispatch(dispatch)
             .sites(sites)
             .traces(layouts.traces)
@@ -194,6 +196,13 @@ impl<'a> ProgramLinker<'a> {
                 .function(*function_id)
                 .ok_or_else(|| self.invalid_input(format!("missing function {function_id:?}")))?;
             ids.push(function.name);
+            if let Some(binding) = &function.binding {
+                ids.push(binding.name);
+                ids.extend(binding.requires.iter().copied());
+                ids.extend(binding.platforms.iter().copied());
+                ids.extend(binding.families.iter().copied());
+                ids.extend(binding.hosts.iter().copied());
+            }
         }
 
         // retain names stored in linked layout rows
@@ -537,10 +546,10 @@ impl<'a> ProgramLinker<'a> {
                 functions.push((*module, function_id));
 
                 // register each program-defined binding implementation once
-                if let Some(binding) = function.binding {
+                if let Some(binding) = &function.binding {
                     let definition = (id, *module, function);
-                    if bindings.insert(binding, definition).is_some() {
-                        let binding = strings.get(binding);
+                    if bindings.insert(binding.name, definition).is_some() {
+                        let binding = strings.get(binding.name);
                         return Err(Self::invalid_input_for(
                             package,
                             format!("binding '{binding}' has multiple definitions"),
@@ -554,14 +563,14 @@ impl<'a> ProgramLinker<'a> {
         for (module, object) in objects {
             for function in object.functions() {
                 let function_id = function.id;
-                let Some(binding) = function.binding else {
+                let Some(binding) = &function.binding else {
                     continue;
                 };
                 if !function.linkage.is_import() {
                     continue;
                 }
 
-                let id = match bindings.get(&binding).copied() {
+                let id = match bindings.get(&binding.name).copied() {
                     Some((id, definition_module, definition)) => {
                         if !Self::function_signatures_match(
                             *module,
@@ -570,7 +579,14 @@ impl<'a> ProgramLinker<'a> {
                             definition,
                             type_ids,
                         ) {
-                            let binding = strings.get(binding);
+                            let binding = strings.get(binding.name);
+                            return Err(Self::invalid_input_for(
+                                package,
+                                format!("binding '{binding}' has conflicting declarations"),
+                            ));
+                        }
+                        if definition.binding.as_deref() != Some(binding.as_ref()) {
+                            let binding = strings.get(binding.name);
                             return Err(Self::invalid_input_for(
                                 package,
                                 format!("binding '{binding}' has conflicting declarations"),
@@ -581,7 +597,7 @@ impl<'a> ProgramLinker<'a> {
                     }
                     None => {
                         let id = FunctionId::from(functions.len() as u32);
-                        bindings.insert(binding, (id, *module, function));
+                        bindings.insert(binding.name, (id, *module, function));
                         functions.push((*module, function_id));
                         id
                     }

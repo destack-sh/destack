@@ -108,7 +108,7 @@ impl ModuleLowerer<'_> {
         if self.functions.contains_key(&key) {
             return Ok(());
         }
-        let Some(CallableImplementation::Binding { name: Some(name) }) =
+        let Some(CallableImplementation::Binding { binding }) =
             self.callable_implementation(symbol)?
         else {
             return Err(LowerError::Unsupported {
@@ -125,11 +125,12 @@ impl ModuleLowerer<'_> {
         let signature =
             self.lower_signature(builder, declared, &type_substitution, &lifetime_parameters)?;
 
-        let header = lifetime_parameters.declare(builder.function_header(&name));
+        let name = self.strings.get(binding.name);
+        let header = lifetime_parameters.declare(builder.function_header(name));
         let header = header
             .parameters(signature.parameters)
             .result(signature.result);
-        let function = builder.binding_function(header, &name);
+        let function = builder.binding_function(header, binding);
 
         // mark bindings as observing external state
         *builder.effects_mut().function_mut(function) = mir::FunctionEffect::unknown();

@@ -1,5 +1,5 @@
 use destack_artifact::EmitFormat;
-use destack_program::BindingId;
+use destack_program::{BindingAffinity, BindingEffect, BindingId, BindingProvider, BindingReplay};
 use destack_source::{ModuleId, PackageId, TargetId};
 
 use super::super::ProgramLinker;
@@ -14,7 +14,7 @@ fn test_link_objects_resolves_binding_definition() {
     let provider = TestModule::emit(
         provider_module,
         r#"
-@binding("runtime.touch")
+@binding("runtime.touch", { provider: "runtime", effect: "deterministic", replay: "forbidden", affinity: "worker", requires: ["runtime.debug.read"], platforms: ["linux"], families: ["unix"], hosts: ["native"] })
 export function touchImplementation(): int32 {
 entry:
     v0: int32 = 42
@@ -26,7 +26,7 @@ entry:
     let consumer = TestModule::emit(
         consumer_module,
         r#"
-@binding("runtime.touch")
+@binding("runtime.touch", { provider: "runtime", effect: "deterministic", replay: "forbidden", affinity: "worker", requires: ["runtime.debug.read"], platforms: ["linux"], families: ["unix"], hosts: ["native"] })
 external function touchAlias(): int32
 
 export function caller(): int32 {
@@ -56,10 +56,25 @@ entry:
     // preserve one callable identity across the binding declaration and definition
     assert_eq!(linker.function_id(consumer_module, imported), function);
     let program = linker.link().expect("binding implementation should link");
+    let binding = program
+        .function_binding(function)
+        .expect("linked function should retain its binding");
+    assert_eq!(binding.id, BindingId::from_name("runtime.touch"));
+    assert_eq!(binding.function, function);
+    assert_eq!(binding.provider, BindingProvider::Runtime);
+    assert_eq!(binding.effect, BindingEffect::Deterministic);
+    assert_eq!(binding.replay, BindingReplay::Forbidden);
+    assert_eq!(binding.affinity, BindingAffinity::Worker);
     assert_eq!(
-        program.function_binding(function),
-        Some(BindingId::from_name("runtime.touch"))
+        program.binding_requires(binding),
+        &[strings.intern("runtime.debug.read")]
     );
+    assert_eq!(
+        program.binding_platforms(binding),
+        &[strings.intern("linux")]
+    );
+    assert_eq!(program.binding_families(binding), &[strings.intern("unix")]);
+    assert_eq!(program.binding_hosts(binding), &[strings.intern("native")]);
     assert!(
         program
             .bytecode()

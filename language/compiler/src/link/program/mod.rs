@@ -1,3 +1,4 @@
+mod binding;
 mod bytecode;
 mod dispatch;
 mod drop;
@@ -12,6 +13,7 @@ mod r#type;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use binding::BindingLinker;
 pub(crate) use bytecode::BytecodeLinker;
 pub(crate) use dispatch::DispatchLinker;
 pub(crate) use drop::DropLinker;

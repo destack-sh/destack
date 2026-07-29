@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_mir as mir;
 
 use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
@@ -10,10 +11,10 @@ pub(in crate::lower) enum CallableImplementation {
         /// The dotted operation name.
         name: Option<String>,
     },
-    /// A host runtime binding.
+    /// A runtime binding declaration.
     Binding {
-        /// The dotted binding name.
-        name: Option<String>,
+        /// The checked binding declaration.
+        binding: mir::Binding,
     },
 }
 
@@ -40,12 +41,13 @@ impl ModuleLowerer<'_> {
                 continue;
             }
 
-            // read the operation name from the first evaluated argument
-            let name = self.decorator_name(application)?;
-
             return Ok(Some(match item {
-                dir::LanguageItem::Binding => CallableImplementation::Binding { name },
-                _ => CallableImplementation::Intrinsic { name },
+                dir::LanguageItem::Binding => CallableImplementation::Binding {
+                    binding: self.decorator_binding(application)?,
+                },
+                _ => CallableImplementation::Intrinsic {
+                    name: self.decorator_name(application)?,
+                },
             }));
         }
 
@@ -116,6 +118,24 @@ impl ModuleLowerer<'_> {
         &self,
         application: &dir::DecoratorApplication,
     ) -> CompilerResult<Option<String>> {
+        let arguments = self.decorator_arguments(application)?;
+        let Some(value) = arguments.first() else {
+            return Ok(None);
+        };
+        let Some(name) = value.as_string() else {
+            return Err(CompilerError::Internal {
+                message: "checked decorator name is not a string".to_string(),
+            });
+        };
+
+        Ok(Some(self.strings.get(name).to_string()))
+    }
+
+    /// Return the checked backing arguments carried by one decorator.
+    pub(in crate::lower) fn decorator_arguments(
+        &self,
+        application: &dir::DecoratorApplication,
+    ) -> CompilerResult<&[dir::StaticTerm]> {
         let value = self
             .state(application.value.module_id)?
             .statics
@@ -133,15 +153,6 @@ impl ModuleLowerer<'_> {
                 message: "the decorator backing is not a tuple".to_string(),
             });
         };
-        let Some(value) = arguments.first() else {
-            return Ok(None);
-        };
-        let Some(name) = value.as_string() else {
-            return Err(CompilerError::Internal {
-                message: "the decorator name is not a string".to_string(),
-            });
-        };
-
-        Ok(Some(self.strings.get(name).to_string()))
+        Ok(arguments)
     }
 }

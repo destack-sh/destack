@@ -1,3 +1,4 @@
+mod binding;
 mod callable;
 mod constant;
 mod decorator;
