@@ -1,7 +1,25 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{StringMapping, SymbolKind};
+use crate::{StaticKey, StringId, StringMapping, SymbolKind};
+
+/// One keyed member of a canonical language item.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct LanguageMember {
+    /// The canonical declaration that owns the member.
+    pub owner: LanguageItem,
+    /// The member key.
+    pub key: StaticKey,
+}
+
+impl LanguageMember {
+    /// Create one named member of a canonical language item.
+    pub fn named(owner: LanguageItem, name: &str) -> Self {
+        let key = StaticKey::Name(StringId::for_text(name));
+
+        Self { owner, key }
+    }
+}
 
 /// The declaration kind expected for one language item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

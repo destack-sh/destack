@@ -230,9 +230,7 @@ impl<'a> BindingTable<'a> {
             seen.push(symbol_id);
 
             symbols.push(symbol_id);
-
-            let symbol = self.get_symbol(symbol_id);
-            current = self.symbol_path_owner(symbol);
+            current = self.symbol_owner(symbol_id);
         }
 
         symbols.reverse();
@@ -240,8 +238,9 @@ impl<'a> BindingTable<'a> {
         SymbolPath::new(symbols)
     }
 
-    /// Return the nearest lexical owner for one symbol path.
-    fn symbol_path_owner(&self, symbol: &Symbol) -> Option<LocalSymbolId> {
+    /// Return the nearest lexical declaration owner of one symbol.
+    pub fn symbol_owner(&self, symbol_id: LocalSymbolId) -> Option<LocalSymbolId> {
+        let symbol = self.get_symbol(symbol_id);
         let mut scope_id = symbol.scope.id;
         let mut seen = Vec::new();
 
