@@ -106,6 +106,21 @@ impl ReferencePostings {
             declarations,
         }
     }
+
+    /// Replace postings for one module reference index.
+    pub fn update(&mut self, module: u32, index: &ReferenceIndex) {
+        self.targets.replace(
+            module,
+            index.target_references().iter().map(|entry| entry.symbol),
+        );
+        self.declarations.replace(
+            module,
+            index
+                .declaration_references()
+                .iter()
+                .map(|entry| entry.symbol),
+        );
+    }
 }
 
 /// One indexed reference occurrence.

@@ -103,6 +103,14 @@ impl HeritagePostings {
 
         Self { bases, derived }
     }
+
+    /// Replace postings for one module heritage index.
+    pub fn update(&mut self, module: u32, index: &HeritageIndex) {
+        self.bases
+            .replace(module, index.entries().iter().map(|entry| entry.base));
+        self.derived
+            .replace(module, index.entries().iter().map(|entry| entry.derived));
+    }
 }
 
 /// One nominal heritage edge.

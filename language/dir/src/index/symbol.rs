@@ -1,4 +1,6 @@
-use crate::{GlobalNodeIdAny, GlobalSymbolId, Mutability, Postings, SymbolKind, SymbolRole};
+use crate::{
+    GlobalNodeIdAny, GlobalSymbolId, MemberKind, Mutability, Postings, SymbolKind, SymbolRole,
+};
 use destack_serde::Reflect;
 use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
@@ -22,9 +24,11 @@ pub struct SymbolPostings {
 pub struct SymbolEntry {
     /// The display name.
     pub name: String,
-    /// The checked symbol kind.
+    /// The symbol kind.
     pub kind: SymbolKind,
-    /// The checked symbol role.
+    /// The declaration member kind when present.
+    pub member_kind: Option<MemberKind>,
+    /// The symbol role.
     pub role: SymbolRole,
     /// The symbol id.
     pub symbol: GlobalSymbolId,
@@ -77,6 +81,14 @@ impl SymbolPostings {
 
         Self { names }
     }
+
+    /// Replace postings for one module symbol index.
+    pub fn update(&mut self, module: u32, index: &SymbolIndex) {
+        self.names.replace(
+            module,
+            index.entries().iter().map(|entry| entry.name.clone()),
+        );
+    }
 }
 
 impl SymbolEntry {
@@ -85,6 +97,7 @@ impl SymbolEntry {
         let left = (
             self.name.as_str(),
             self.kind,
+            self.member_kind,
             self.source.module_id,
             self.file,
             self.span.start,
@@ -96,6 +109,7 @@ impl SymbolEntry {
         let right = (
             other.name.as_str(),
             other.kind,
+            other.member_kind,
             other.source.module_id,
             other.file,
             other.span.start,

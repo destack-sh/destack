@@ -78,6 +78,17 @@ impl DecoratorPostings {
 
         Self { names }
     }
+
+    /// Replace postings for one module decorator index.
+    pub fn update(&mut self, module: u32, index: &DecoratorIndex) {
+        self.names.replace(
+            module,
+            index
+                .entries()
+                .iter()
+                .filter_map(|entry| entry.name.clone()),
+        );
+    }
 }
 
 impl DecoratorEntry {

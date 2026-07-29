@@ -165,6 +165,20 @@ impl MemberPostings {
             declaring,
         }
     }
+
+    /// Replace postings for one module member index.
+    pub fn update(&mut self, module: u32, index: &MemberIndex) {
+        self.names.replace(
+            module,
+            index.entries().iter().map(|entry| entry.name.clone()),
+        );
+        self.owners.replace(
+            module,
+            index.entries().iter().filter_map(|entry| entry.owner),
+        );
+        self.declaring
+            .replace(module, index.entries().iter().map(|entry| entry.declaring));
+    }
 }
 
 /// One indexed member.

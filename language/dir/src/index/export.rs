@@ -51,6 +51,14 @@ impl ExportPostings {
 
         Self { names }
     }
+
+    /// Replace postings for one module export index.
+    pub fn update(&mut self, module: u32, index: &ExportIndex) {
+        self.names.replace(
+            module,
+            index.entries().iter().map(|entry| entry.name.clone()),
+        );
+    }
 }
 
 /// One indexed resolved named export.

@@ -69,3 +69,24 @@ impl<K: Ord> Postings<K> {
         &self.modules[start..end]
     }
 }
+
+impl<K: Clone + Ord> Postings<K> {
+    /// Replace one module's posting keys.
+    pub fn replace(&mut self, module: u32, keys: impl IntoIterator<Item = K>) {
+        let mut pairs = Vec::new();
+
+        // retain postings from every other module
+        for (index, key) in self.keys.iter().enumerate() {
+            pairs.extend(
+                self.range(index)
+                    .iter()
+                    .filter(|candidate| **candidate != module)
+                    .map(|candidate| (key.clone(), *candidate)),
+            );
+        }
+
+        // append the replacement keys
+        pairs.extend(keys.into_iter().map(|key| (key, module)));
+        *self = Self::from_pairs(pairs);
+    }
+}

@@ -105,6 +105,16 @@ impl CallPostings {
 
         Self { callers, callees }
     }
+
+    /// Replace postings for one module call index.
+    pub fn update(&mut self, module: u32, index: &CallIndex) {
+        self.callers.replace(
+            module,
+            index.entries().iter().filter_map(|entry| entry.caller),
+        );
+        self.callees
+            .replace(module, index.entries().iter().map(|entry| entry.callee));
+    }
 }
 
 /// One call graph edge.

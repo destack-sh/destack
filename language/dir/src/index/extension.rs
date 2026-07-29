@@ -88,6 +88,21 @@ impl ExtensionPostings {
 
         Self { roots, blankets }
     }
+
+    /// Replace postings for one module extension index.
+    pub fn update(&mut self, module: u32, index: &ExtensionIndex) {
+        self.roots.replace(
+            module,
+            index.entries().iter().filter_map(|entry| entry.root),
+        );
+
+        // replace the blanket-module membership
+        self.blankets.retain(|candidate| *candidate != module);
+        if index.entries().iter().any(|entry| entry.root.is_none()) {
+            self.blankets.push(module);
+            self.blankets.sort_unstable();
+        }
+    }
 }
 
 /// One indexed extension.
