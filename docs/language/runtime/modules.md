@@ -121,7 +121,6 @@ Top-level dependencies are always part of the source graph, while `conditionalDe
 | `import.meta.tags` | active source graph tags | `readonly Tag[]` | `["preview"]`, `["internal"]` |
 | `import.meta.<mode>` | mode shorthands for `debug`, `dev`, `prod`, `test`, `bench`, `lint` | `boolean` | `import.meta.test`, `import.meta.prod` |
 | `import.meta.env` | configured build environment | `{ readonly [key: string]: string | undefined }` | `{ NODE_ENV: "production" }` |
-| `import.meta.tree` | current module tree tag builder | `TreeTagBuilder | undefined` | `HtmlTree` |
 | `import.meta.derive` | current module auto derives | `readonly Derive[]` | `["Clone", "Debug"]` |
 | `import.meta.role` | active product role | `string | undefined` | `"server"`, `undefined` |
 | `import.meta.labels` | labels contributed by active source graph conditions | `{ readonly [key: string]: readonly string[] | undefined }` | `{ release: ["preview"] }` |

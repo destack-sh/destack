@@ -1,0 +1,21 @@
+/// Contextual builder for tree literals.
+///
+/// A node type opts into tree literals by implementing `TreeBuilder`.
+/// The compiler resolves the builder from the literal's expected type, or
+/// from the profile's configured default, checks lowercase tags against
+/// `Tags`, and builds elements and fragments through the statics below.
+@languageItem("tree.Builder")
+export newtype interface TreeBuilder {
+    /// The lowercase tags this builder accepts, with their attribute rows.
+    type Tags = {};
+
+    /// Build one element from its tag, attributes, and children.
+    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): this;
+
+    /// Build one fragment from its children.
+    static fragment<Children: (...unknown[],)>(children: Children): this;
+}

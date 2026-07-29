@@ -1,6 +1,3 @@
-/// Builder for lowercase tree tags in one module.
-export newtype interface TreeTagBuilder {}
-
 /// Well-known derive considered automatically for nominal declarations.
 export type Derive =
     | "Compare"
@@ -18,8 +15,6 @@ export type Derive =
 
 /// Static configuration for one source module.
 export interface Module {
-    /// The tree tag builder for tree literals in this module.
-    readonly tree?: TreeTagBuilder;
     /// Auto-derives considered for nominal declarations in this module.
     readonly derive?: readonly Derive[];
     /// Active deliverable product name for this module.

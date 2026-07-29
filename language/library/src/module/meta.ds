@@ -1,4 +1,4 @@
-import { Derive, TreeTagBuilder } from "./config.ds";
+import { Derive } from "./config.ds";
 
 /// The target platform (OS) the code is being compiled for.
 export type Platform =
@@ -90,8 +90,6 @@ export interface ImportMeta {
     readonly version: string | undefined;
     /// Active package release stage.
     readonly stage: Stage | undefined;
-    /// Tree tag builder declared by the current module.
-    readonly tree: TreeTagBuilder | undefined;
     /// Auto-derives declared by the current module.
     readonly derive: readonly Derive[];
     /// Active product role.

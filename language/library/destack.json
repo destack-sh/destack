@@ -269,6 +269,9 @@
     "./tls/binding": {
       "path": "./src/tls/binding/index.ds"
     },
+    "./tree": {
+      "path": "./src/tree/index.ds"
+    },
     "./tty": {
       "path": "./src/tty/index.ds"
     },
