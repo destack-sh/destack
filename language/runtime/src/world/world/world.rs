@@ -7,18 +7,18 @@ use destack_heap as heap;
 use destack_memory::MemoryMap;
 use destack_repository::{Environment, ReplayPayloadMode, RuntimeOptions};
 
+use crate::binding::ReplayPayload;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::BindingReplayPayload;
-use crate::host::core::HostQueue;
 use crate::host::poller::{HostPollerInstance, create_host_poller};
 use crate::host::time::HostClockSource;
-use crate::host::{Host, HostError, compile_target_host};
-use crate::runtime::random::{Random, RandomSource, RandomStreamId};
-use crate::runtime::time::{Clock, ClockSource, Nanos};
-use crate::runtime::{Runtime, SharedCollector, SharedCollectorMode, WorkerId};
+use crate::host::{Host, HostError, HostQueue, compile_target};
+use crate::runtime::{Runtime, SharedCollector, SharedCollectorMode};
+use crate::worker::WorkerId;
 use crate::world::debug::Debugger;
 use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
 use crate::world::policy::Policy;
+use crate::world::random::{Random, RandomSource, RandomStreamId};
+use crate::world::time::{Clock, ClockSource, Nanos};
 use crate::world::topology::LabelSet;
 use crate::world::trace::{EntrypointCall, TraceHeader, TraceLog};
 
@@ -39,6 +39,8 @@ pub struct World {
     pub(crate) poller: HostPollerInstance,
     /// Live runtimes owned by this world.
     pub(crate) runtimes: BTreeMap<RuntimeId, Runtime>,
+    /// The next runtime slot to schedule first.
+    pub(crate) next_runtime_cursor: usize,
     /// Forkable virtual memory for every runtime and worker in this world.
     pub(crate) memory: Arc<MemoryMap>,
     /// Shared GC scheduler for live runtimes.
@@ -50,12 +52,14 @@ pub struct World {
 }
 
 impl std::fmt::Debug for World {
+    /// Format one world without traversing process-local host state.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("World")
             .field("host", &self.host)
             .field("host_queue", &self.host_queue)
             .field("poller", &"<host poller>")
             .field("runtimes", &self.runtimes)
+            .field("next_runtime_cursor", &self.next_runtime_cursor)
             .field("memory", &self.memory)
             .field("shared_collector", &self.shared_collector)
             .field("state", &self.state)
@@ -75,7 +79,7 @@ impl World {
     /// Resume runtime shared GC after one quiescent world operation.
     pub(crate) fn resume_shared_gc(&self) {
         for runtime in self.runtimes.values() {
-            runtime.heap.resume();
+            runtime.heap.resume(&runtime.program);
         }
     }
 
@@ -101,8 +105,8 @@ impl World {
         let clock_source = ClockSource::from_execution_mode(execution_mode);
         let random_source = RandomSource::from_execution_mode(execution_mode);
         let replay_payload = match options.replay_payload_mode() {
-            ReplayPayloadMode::ResultsOnly => BindingReplayPayload::Results,
-            ReplayPayloadMode::ArgumentsAndResults => BindingReplayPayload::ArgumentsAndResults,
+            ReplayPayloadMode::ResultsOnly => ReplayPayload::Results,
+            ReplayPayloadMode::ArgumentsAndResults => ReplayPayload::ArgumentsAndResults,
         };
 
         // replay header
@@ -122,7 +126,7 @@ impl World {
         }
 
         // live state inputs
-        let host = compile_target_host(host_clock_source);
+        let host = compile_target(host_clock_source);
         let default_clock_epoch_nanos = match clock_source {
             ClockSource::Host => 0,
             ClockSource::Runtime => host.wall_nanos(),
@@ -150,21 +154,6 @@ impl World {
             observations: ObservationLog::default(),
         };
 
-        // root image mirrors the initial live state
-        let root_image = Arc::new(WorldImage {
-            moment: state.moment,
-            next_runtime_id: state.next_runtime_id,
-            next_worker_id: state.next_worker_id,
-            policy: state.policy.clone(),
-            debugger: state.debugger.clone(),
-            topology: state.topology.clone(),
-            clock: state.clock.snapshot(),
-            random: state.random.snapshot(),
-            runtimes: BTreeMap::new(),
-            workers: BTreeMap::new(),
-        });
-        let root_trace_image = Arc::new(state.trace.capture_image());
-
         // reserve one world-relative address map
         let memory = Arc::new(
             MemoryMap::reserve(
@@ -173,6 +162,24 @@ impl World {
             )
             .map_err(Box::<RuntimeError>::from)?,
         );
+
+        // root image mirrors the initial live state
+        let root_memory = memory.capture().map_err(Box::<RuntimeError>::from)?;
+        let root_image = Arc::new(WorldImage {
+            memory: root_memory,
+            moment: state.moment,
+            next_runtime_id: state.next_runtime_id,
+            next_worker_id: state.next_worker_id,
+            next_runtime_cursor: 0,
+            policy: state.policy.clone(),
+            debugger: state.debugger.clone(),
+            topology: state.topology.clone(),
+            clock: state.clock.image(),
+            random: state.random.image(),
+            runtimes: BTreeMap::new(),
+            workers: BTreeMap::new(),
+        });
+        let root_trace_image = Arc::new(state.trace.capture_image());
 
         // create the shared collector
         let collector_mode = SharedCollectorMode::from_execution_mode(execution_mode);
@@ -196,6 +203,7 @@ impl World {
             host_queue: HostQueue::new(),
             poller,
             runtimes: BTreeMap::new(),
+            next_runtime_cursor: 0,
             memory,
             shared_collector,
             state,

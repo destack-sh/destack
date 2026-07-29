@@ -8,4 +8,4 @@ mod error;
 pub(crate) use apple::apple_process_monotonic_nanos;
 #[cfg(not(target_os = "macos"))]
 pub(crate) use clock::unix_process_monotonic_nanos;
-pub(crate) use error::io_error;
+pub(crate) use error::{get_errno, io_error};

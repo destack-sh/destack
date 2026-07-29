@@ -24,7 +24,7 @@ impl TraceFile {
         chunks: Vec<TraceChunk>,
         checkpoints: Vec<TraceCheckpointIndex>,
     ) -> Self {
-        let trailer = build_trailer(&chunks, checkpoints);
+        let trailer = TraceTrailer::build(&chunks, checkpoints);
 
         Self {
             header,
@@ -44,7 +44,7 @@ impl TraceFile {
             .chunks
             .last()
             .filter(|chunk| !chunk.is_empty())
-            .map(|chunk| chunk.sequence_end().next())
+            .map(|chunk| chunk.sequence_end().and_then(TraceSequence::next))
             .transpose()?
             .unwrap_or(TraceSequence::new(0));
 
@@ -53,7 +53,7 @@ impl TraceFile {
 
     /// Validate this file against its stored trailer.
     pub(super) fn validate(&self) -> RuntimeResult<()> {
-        let expected = build_trailer(&self.chunks, self.trailer.checkpoints.clone());
+        let expected = TraceTrailer::build(&self.chunks, self.trailer.checkpoints.clone());
 
         // require ordered checkpoints for incremental inserts
         if self
@@ -84,57 +84,54 @@ impl TraceFile {
     }
 }
 
-/// Build one trailer from ordered chunks and checkpoint metadata.
-pub(super) fn build_trailer(
-    chunks: &[TraceChunk],
-    checkpoints: Vec<TraceCheckpointIndex>,
-) -> TraceTrailer {
-    // build chunk index entries in file order
-    let mut offset = 0u64;
-    let chunks = chunks
-        .iter()
-        .map(|chunk| {
-            let entry = TraceChunkIndex {
-                offset,
-                length: chunk.byte_length(),
-                checksum: chunk.payload_checksum(),
-            };
-            offset = offset.saturating_add(chunk.byte_length());
+impl TraceTrailer {
+    /// Build one trailer from ordered chunks and checkpoint metadata.
+    fn build(chunks: &[TraceChunk], checkpoints: Vec<TraceCheckpointIndex>) -> Self {
+        // build chunk index entries in file order
+        let mut offset = 0u64;
+        let chunks = chunks
+            .iter()
+            .map(|chunk| {
+                let length = chunk.byte_length();
+                let entry = TraceChunkIndex {
+                    offset,
+                    length,
+                    checksum: chunk.payload_checksum(),
+                };
+                offset += length;
 
-            entry
-        })
-        .collect::<Vec<_>>();
+                entry
+            })
+            .collect::<Vec<_>>();
 
-    // bind chunk and checkpoint indexes
-    let log_hash = compute_trace_hash(&chunks, &checkpoints);
+        // bind chunk and checkpoint indexes
+        let log_hash = Self::hash(&chunks, &checkpoints);
 
-    TraceTrailer {
-        chunks,
-        checkpoints,
-        log_hash,
-    }
-}
-
-/// Compute the stable hash for one trace trailer index.
-pub(super) fn compute_trace_hash(
-    chunks: &[TraceChunkIndex],
-    checkpoints: &[TraceCheckpointIndex],
-) -> u128 {
-    let mut hash = FNV_OFFSET_BASIS_128;
-    for chunk in chunks {
-        hash = fnv1a_128_update(hash, &chunk.offset.to_le_bytes());
-        hash = fnv1a_128_update(hash, &chunk.length.to_le_bytes());
-        hash = fnv1a_128_update(hash, &chunk.checksum.to_le_bytes());
+        Self {
+            chunks,
+            checkpoints,
+            log_hash,
+        }
     }
 
-    for checkpoint in checkpoints {
-        hash = fnv1a_128_update(hash, &checkpoint.checkpoint_id.get().to_le_bytes());
-        hash = fnv1a_128_update(hash, &checkpoint.revision_id.get().to_le_bytes());
-        hash = fnv1a_128_update(hash, &checkpoint.sequence.get().to_le_bytes());
-        hash = fnv1a_128_update(hash, &checkpoint.size_bytes.to_le_bytes());
-        hash = fnv1a_128_update(hash, &checkpoint.hash.to_le_bytes());
-        hash = fnv1a_128_update(hash, checkpoint.path.as_bytes());
-    }
+    /// Compute the stable hash for one trailer index.
+    fn hash(chunks: &[TraceChunkIndex], checkpoints: &[TraceCheckpointIndex]) -> u128 {
+        let mut hash = FNV_OFFSET_BASIS_128;
+        for chunk in chunks {
+            hash = fnv1a_128_update(hash, &chunk.offset.to_le_bytes());
+            hash = fnv1a_128_update(hash, &chunk.length.to_le_bytes());
+            hash = fnv1a_128_update(hash, &chunk.checksum.to_le_bytes());
+        }
 
-    hash
+        for checkpoint in checkpoints {
+            hash = fnv1a_128_update(hash, &checkpoint.checkpoint_id.get().to_le_bytes());
+            hash = fnv1a_128_update(hash, &checkpoint.revision_id.get().to_le_bytes());
+            hash = fnv1a_128_update(hash, &checkpoint.sequence.get().to_le_bytes());
+            hash = fnv1a_128_update(hash, &checkpoint.size_bytes.to_le_bytes());
+            hash = fnv1a_128_update(hash, &checkpoint.hash.to_le_bytes());
+            hash = fnv1a_128_update(hash, checkpoint.path.as_bytes());
+        }
+
+        hash
+    }
 }

@@ -1,4 +1,4 @@
-use crate::runtime::WorkerId;
+use crate::worker::WorkerId;
 use serde::{Deserialize, Serialize};
 
 use super::ResourceKind;

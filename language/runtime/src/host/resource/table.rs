@@ -15,11 +15,11 @@ use super::{
     ResourceRebinders, ResourceRestore,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::WorkerId;
+use crate::worker::WorkerId;
 
-/// Durable resource-table state captured at one checkpoint.
+/// Captured resource-table state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ResourceTableSnapshot {
+pub struct ResourceImage {
     /// The next worker-local resource sequence to allocate.
     pub next_sequence: u64,
     /// Captured resource entries keyed by table id.
@@ -183,8 +183,17 @@ impl ResourceTable {
         &self,
         resource_kind: ResourceKind,
         provider: Arc<dyn ResourceProvider>,
-    ) {
-        let _ = self.providers.write().insert(resource_kind, provider);
+    ) -> RuntimeResult<()> {
+        let mut providers = self.providers.write();
+        if providers.contains_key(&resource_kind) {
+            return Err(RuntimeError::Internal {
+                message: format!("resource provider for {resource_kind:?} is already registered"),
+            }
+            .boxed());
+        }
+        providers.insert(resource_kind, provider);
+
+        Ok(())
     }
 
     /// Return the number of stored resources.
@@ -221,25 +230,6 @@ impl ResourceTable {
         self.entries.write().insert(id, entry);
 
         Ok(id)
-    }
-
-    /// Insert a resource entry with an explicit id.
-    pub fn insert_with_id(
-        &self,
-        resource_id: ResourceId,
-        entry: ResourceEntry,
-    ) -> RuntimeResult<()> {
-        self.entries.write().insert(resource_id, entry);
-        let next_sequence = resource_id.local_id.checked_add(1).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: "resource identifier space exhausted".to_string(),
-            }
-            .boxed()
-        })?;
-        self.next_sequence
-            .fetch_max(next_sequence, Ordering::Relaxed);
-
-        Ok(())
     }
 
     /// Return true if the table contains the resource id.
@@ -295,10 +285,59 @@ impl ResourceTable {
         .boxed())
     }
 
+    /// Require one structurally valid resource image for this worker.
+    fn validate_image(&self, image: &ResourceImage) -> RuntimeResult<()> {
+        // require the first allocatable sequence
+        if image.next_sequence == 0 {
+            return Err(RuntimeError::Internal {
+                message: "resource image has an invalid next sequence".to_string(),
+            }
+            .boxed());
+        }
+
+        let mut resource_ids = HashMap::with_capacity(image.entries.len());
+        for entry in &image.entries {
+            // require worker ownership
+            if entry.resource_id.worker_id != self.worker_id {
+                return Err(RuntimeError::Internal {
+                    message: format!(
+                        "resource {} belongs to worker {}, expected worker {}",
+                        entry.resource_id.local_id, entry.resource_id.worker_id.0, self.worker_id.0,
+                    ),
+                }
+                .boxed());
+            }
+
+            // require one previously allocated sequence
+            if entry.resource_id.local_id == 0 || entry.resource_id.local_id >= image.next_sequence
+            {
+                return Err(RuntimeError::Internal {
+                    message: format!(
+                        "resource {} exceeds the captured resource sequence {}",
+                        entry.resource_id.local_id, image.next_sequence,
+                    ),
+                }
+                .boxed());
+            }
+
+            // require one unique table identity
+            if resource_ids.insert(entry.resource_id, ()).is_some() {
+                return Err(RuntimeError::Internal {
+                    message: format!(
+                        "resource {} appears more than once in the captured resource table",
+                        entry.resource_id.local_id,
+                    ),
+                }
+                .boxed());
+            }
+        }
+
+        Ok(())
+    }
+
     // capture one attached resource entry
     fn capture_entry(
         &self,
-        _mode: CaptureMode,
         resource_id: ResourceId,
         entry: &ResourceEntry,
     ) -> RuntimeResult<ResourceImageEntry> {
@@ -349,109 +388,141 @@ impl ResourceTable {
         })
     }
 
-    /// Capture one durable resource-table snapshot.
-    pub(crate) fn snapshot(&self, mode: CaptureMode) -> RuntimeResult<ResourceTableSnapshot> {
-        let entries = self.entries.read();
-        let entries = entries
-            .iter()
-            .map(|(resource_id, entry)| self.capture_entry(mode, *resource_id, entry))
-            .collect::<RuntimeResult<Vec<_>>>()?;
-
-        Ok(ResourceTableSnapshot {
-            next_sequence: self.next_sequence.load(Ordering::Relaxed),
-            entries,
-        })
-    }
-
-    /// Restore one durable resource-table snapshot.
-    pub(crate) fn restore_snapshot(
+    /// Restore one captured resource entry.
+    fn restore_entry(
         &self,
-        snapshot: &ResourceTableSnapshot,
-        rebind_context: Option<&ResourceRebinders>,
-    ) -> RuntimeResult<()> {
-        self.restore_barrier()?;
-        self.next_sequence
-            .store(snapshot.next_sequence, Ordering::Relaxed);
+        image: &ResourceImageEntry,
+        rebinders: Option<&ResourceRebinders>,
+    ) -> RuntimeResult<ResourceEntry> {
+        // reconstruct the resource according to its capture model
+        let mut entry = match image.restore {
+            ResourceRestore::None => ResourceEntry::new(image.kind),
+            ResourceRestore::State | ResourceRestore::Rebind => {
+                let snapshot = image.snapshot.as_ref().ok_or_else(|| {
+                    RuntimeError::Internal {
+                        message: format!(
+                            "resource {} of kind {:?} is missing one captured payload",
+                            image.resource_id.local_id, image.kind
+                        ),
+                    }
+                    .boxed()
+                })?;
 
-        let mut entries = self.entries.write();
-        for image_entry in &snapshot.entries {
-            let mut entry = match image_entry.restore {
-                ResourceRestore::None => ResourceEntry::new(image_entry.kind),
-                ResourceRestore::State | ResourceRestore::Rebind => {
-                    let snapshot = image_entry.snapshot.as_ref().ok_or_else(|| {
-                        RuntimeError::Internal {
-                            message: format!(
-                                "resource {} of kind {:?} is missing one captured payload",
-                                image_entry.resource_id.local_id, image_entry.kind
-                            ),
-                        }
-                        .boxed()
-                    })?;
-
-                    if image_entry.restore == ResourceRestore::Rebind {
-                        let rebinder = rebind_context
-                            .and_then(|context| context.rebinder(image_entry.kind))
-                            .ok_or_else(|| {
-                                RuntimeError::Internal {
-                                    message: format!(
-                                        "resource {} of kind {:?} requires one external rebinding hook",
-                                        image_entry.resource_id.local_id, image_entry.kind
-                                    ),
-                                }
-                                .boxed()
-                            })?;
-
-                        rebinder.rebind(snapshot).map_err(|error| {
+                if image.restore == ResourceRestore::Rebind {
+                    let rebinder = rebinders
+                        .and_then(|context| context.rebinder(image.kind))
+                        .ok_or_else(|| {
                             RuntimeError::Internal {
                                 message: format!(
-                                    "resource {} of kind {:?} failed to rebind: {error}",
-                                    image_entry.resource_id.local_id, image_entry.kind
+                                    "resource {} of kind {:?} requires one external rebinding hook",
+                                    image.resource_id.local_id, image.kind
                                 ),
                             }
                             .boxed()
-                        })?
-                    } else {
-                        let provider = self
-                            .providers
+                        })?;
+
+                    rebinder.rebind(snapshot).map_err(|error| {
+                        RuntimeError::Internal {
+                            message: format!(
+                                "resource {} of kind {:?} failed to rebind: {error}",
+                                image.resource_id.local_id, image.kind
+                            ),
+                        }
+                        .boxed()
+                    })?
+                } else {
+                    let provider =
+                        self.providers
                             .read()
-                            .get(&image_entry.kind)
+                            .get(&image.kind)
                             .cloned()
                             .ok_or_else(|| {
                                 RuntimeError::Internal {
                                     message: format!(
                                         "resource {} of kind {:?} is missing one restore provider",
-                                        image_entry.resource_id.local_id, image_entry.kind
+                                        image.resource_id.local_id, image.kind
                                     ),
                                 }
                                 .boxed()
                             })?;
 
-                        provider.restore(snapshot).map_err(|error| {
-                            RuntimeError::Internal {
-                                message: format!(
-                                    "resource {} of kind {:?} failed to restore: {error}",
-                                    image_entry.resource_id.local_id, image_entry.kind
-                                ),
-                            }
-                            .boxed()
-                        })?
-                    }
+                    provider.restore(snapshot).map_err(|error| {
+                        RuntimeError::Internal {
+                            message: format!(
+                                "resource {} of kind {:?} failed to restore: {error}",
+                                image.resource_id.local_id, image.kind
+                            ),
+                        }
+                        .boxed()
+                    })?
+                }
+            }
+        };
+
+        // restore runtime-owned resource metadata
+        entry.kind = image.kind;
+        entry.label = image.label.clone();
+        entry.restore = image.restore;
+        entry.affinity = image.affinity;
+
+        Ok(entry)
+    }
+
+    /// Finalize every resource reconstructed before one failed restore.
+    fn finalize_entries(entries: HashMap<ResourceId, ResourceEntry>) {
+        for (resource_id, entry) in entries {
+            entry.finalize(resource_id);
+        }
+    }
+
+    /// Capture one resource-table image.
+    pub(crate) fn image(&self, _mode: CaptureMode) -> RuntimeResult<ResourceImage> {
+        let entries = self.entries.read();
+        let entries = entries
+            .iter()
+            .map(|(resource_id, entry)| self.capture_entry(*resource_id, entry))
+            .collect::<RuntimeResult<Vec<_>>>()?;
+
+        Ok(ResourceImage {
+            next_sequence: self.next_sequence.load(Ordering::Relaxed),
+            entries,
+        })
+    }
+
+    /// Restore one resource-table image.
+    pub(crate) fn restore(
+        &self,
+        image: &ResourceImage,
+        rebind_context: Option<&ResourceRebinders>,
+    ) -> RuntimeResult<()> {
+        self.restore_barrier()?;
+        self.validate_image(image)?;
+
+        // restore every entry before publishing replacement state
+        let mut restored = HashMap::with_capacity(image.entries.len());
+        for image_entry in &image.entries {
+            let entry = match self.restore_entry(image_entry, rebind_context) {
+                Ok(entry) => entry,
+                Err(error) => {
+                    Self::finalize_entries(restored);
+
+                    return Err(error);
                 }
             };
-
-            entry.kind = image_entry.kind;
-            entry.label = image_entry.label.clone();
-            entry.restore = image_entry.restore;
-            entry.affinity = image_entry.affinity;
-            entries.insert(image_entry.resource_id, entry);
+            restored.insert(image_entry.resource_id, entry);
         }
+
+        // publish the complete restored table
+        *self.entries.write() = restored;
+        self.next_sequence
+            .store(image.next_sequence, Ordering::Relaxed);
 
         Ok(())
     }
 }
 
 impl Capture for ResourceTable {
-    type Image = ResourceTableSnapshot;
+    type Image = ResourceImage;
     type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
     type RestoreContext<'a> = Option<&'a ResourceRebinders>;
@@ -462,7 +533,7 @@ impl Capture for ResourceTable {
         mode: CaptureMode,
         _context: Self::CaptureContext<'_>,
     ) -> Result<Self::Image, Self::Error> {
-        self.snapshot(mode)
+        self.image(mode)
     }
 
     /// Restore one resource-table image.
@@ -471,7 +542,7 @@ impl Capture for ResourceTable {
         image: &Self::Image,
         context: Self::RestoreContext<'_>,
     ) -> Result<(), Self::Error> {
-        self.restore_snapshot(image, context)
+        self.restore(image, context)
     }
 }
 
@@ -489,7 +560,7 @@ mod tests {
     };
 
     use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceProvider, ResourceTable};
-    use crate::runtime::WorkerId;
+    use crate::worker::WorkerId;
 
     const TEST_WORKER_ID: WorkerId = WorkerId(1);
 
@@ -526,23 +597,27 @@ mod tests {
         assert!(!removed_again);
     }
 
-    /// Capturing and restoring one resource table should roundtrip provider-backed entries.
+    /// Resource images should restore provider-backed entries.
     #[test]
-    fn test_snapshot_roundtrip_restores_provider_backed_resources() {
+    fn test_restore_resource_image_with_provider() {
         let table = test_resource_table();
         let provider = Arc::new(TestResourceProvider);
-        table.register_provider(ResourceKind::Timer, provider);
+        table
+            .register_provider(ResourceKind::Timer, provider)
+            .expect("register resource provider");
 
         let entry = ResourceEntry::new(ResourceKind::Timer).with_restore(ResourceRestore::State);
         let resource_id = table.insert(entry).expect("insert resource");
 
-        let snapshot = table
-            .snapshot(CaptureMode::Fork)
+        let image = table
+            .image(CaptureMode::Fork)
             .expect("capture resource table");
         let restored = test_resource_table();
-        restored.register_provider(ResourceKind::Timer, Arc::new(TestResourceProvider));
         restored
-            .restore_snapshot(&snapshot, None)
+            .register_provider(ResourceKind::Timer, Arc::new(TestResourceProvider))
+            .expect("register resource provider");
+        restored
+            .restore(&image, None)
             .expect("restore resource table");
 
         assert!(restored.contains(resource_id));
@@ -550,22 +625,24 @@ mod tests {
         assert_eq!(kind, Some(ResourceKind::Timer));
     }
 
-    /// External resources should require explicit rebinding on restore.
+    /// External resource images should require explicit rebinding on restore.
     #[test]
-    fn test_snapshot_restore_requires_external_rebinding() {
+    fn test_restore_resource_image_requires_rebinding() {
         let table = test_resource_table();
         let provider = Arc::new(TestResourceProvider);
-        table.register_provider(ResourceKind::Timer, provider);
+        table
+            .register_provider(ResourceKind::Timer, provider)
+            .expect("register resource provider");
 
         let entry = ResourceEntry::new(ResourceKind::Timer).with_restore(ResourceRestore::Rebind);
         table.insert(entry).expect("insert resource");
 
-        let snapshot = table
-            .snapshot(CaptureMode::Hibernate)
+        let image = table
+            .image(CaptureMode::Hibernate)
             .expect("external resources should capture with one recipe");
         let restored = test_resource_table();
         let error = restored
-            .restore_snapshot(&snapshot, None)
+            .restore(&image, None)
             .expect_err("external resources should require rebinding");
         let message = error.to_string();
 
@@ -578,7 +655,7 @@ mod tests {
         rebind_context.register(ResourceKind::Timer, Arc::new(TestResourceRebinder));
 
         restored
-            .restore_snapshot(&snapshot, Some(&rebind_context))
+            .restore(&image, Some(&rebind_context))
             .expect("external resources should restore with rebinding");
         assert_eq!(
             restored.with_entry(test_resource_id(1), |entry| entry.kind),

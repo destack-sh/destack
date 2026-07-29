@@ -7,7 +7,7 @@ impl Runtime {
     pub(crate) fn shared_gc_in_flight(&self) -> bool {
         self.heap.is_concurrent()
             && (self.heap.shared.gc_phase() != heap::GcPhase::Idle
-                || self.heap.gc_busy()
+                || self.heap.is_busy()
                 || self.shared_gc_pending_cleanup())
     }
 
@@ -19,15 +19,14 @@ impl Runtime {
     }
 
     /// Start shared root publication across all workers.
-    fn start_shared_root_publication(&mut self) -> RuntimeResult<()> {
-        let worker_ids = self.worker_ids();
+    fn start_shared_root_publication(&mut self) {
         let work_bytes = self.heap.shared.take_edge_scan_work_bytes();
 
         self.flush_shared_caches();
-        self.heap.roots().begin_mark(worker_ids, work_bytes)?;
+        self.heap
+            .roots()
+            .begin_mark(self.workers.keys().copied(), work_bytes);
         self.start_shared_edge_scan();
-
-        Ok(())
     }
 
     /// Finish shared root publication across all workers.
@@ -40,24 +39,19 @@ impl Runtime {
     fn refresh_shared_edge_scan(&mut self) {
         let mut finished_workers = Vec::new();
 
-        for worker_id in self.worker_ids() {
-            let is_done = self
-                .worker(worker_id)
-                .map(|worker| worker.shared_edge_scan_idle())
-                .unwrap_or(false);
-
-            if is_done {
+        for (&worker_id, worker) in &self.workers {
+            if worker.shared_edge_scan_idle() {
                 finished_workers.push(worker_id);
             }
         }
 
         for worker_id in finished_workers {
-            self.heap.leave_edge_scan(worker_id);
+            self.heap.leave_edge_scan(&self.program, worker_id);
         }
     }
 
     /// Run one shared GC step.
-    pub(crate) fn tick_shared_gc(&mut self) -> RuntimeResult<Option<heap::GcAdvance>> {
+    pub(crate) fn advance_shared_gc(&mut self) -> RuntimeResult<Option<heap::GcAdvance>> {
         if self.heap.is_concurrent() {
             return self.advance_shared_gc_concurrent();
         }
@@ -87,7 +81,7 @@ impl Runtime {
         }
 
         if did_start {
-            self.start_shared_root_publication()?;
+            self.start_shared_root_publication();
 
             return Ok(Some(heap::GcAdvance::started(heap::GcCollector::Shared)));
         }
@@ -141,7 +135,7 @@ impl Runtime {
 
     /// Drive shared GC through one collector thread.
     fn advance_shared_gc_concurrent(&mut self) -> RuntimeResult<Option<heap::GcAdvance>> {
-        if let Some(error) = self.heap.take_gc_failure() {
+        if let Some(error) = self.heap.take_failure() {
             return Err(error);
         }
 
@@ -171,15 +165,15 @@ impl Runtime {
         }
 
         if did_start {
-            self.start_shared_root_publication()?;
+            self.start_shared_root_publication();
             self.refresh_shared_gc_work();
-            self.heap.wake();
+            self.heap.wake(&self.program);
 
             return Ok(Some(heap::GcAdvance::started(heap::GcCollector::Shared)));
         }
 
         self.refresh_shared_gc_work();
-        self.heap.wake();
+        self.heap.wake(&self.program);
 
         Ok(None)
     }

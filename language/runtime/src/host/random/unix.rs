@@ -20,8 +20,8 @@ pub(crate) fn host_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
     // linux: use getrandom syscall directly
     #[cfg(target_os = "linux")]
     {
-        return fill_with_getrandom_flags(buffer, 0)
-            .map_err(|error| secure_random_io_error("getrandom", error));
+        fill_with_getrandom_flags(buffer, 0)
+            .map_err(|error| secure_random_io_error("getrandom", error))
     }
 
     // bsd and macos families: use getentropy with chunking
@@ -33,8 +33,7 @@ pub(crate) fn host_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
         target_os = "dragonfly"
     ))]
     {
-        return fill_with_getentropy(buffer)
-            .map_err(|error| secure_random_io_error("getentropy", error));
+        fill_with_getentropy(buffer).map_err(|error| secure_random_io_error("getentropy", error))
     }
 
     // fallback: read from urandom
@@ -47,12 +46,9 @@ pub(crate) fn host_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
         target_os = "dragonfly"
     )))]
     {
-        return fill_with_urandom(buffer)
-            .map_err(|error| secure_random_io_error("read /dev/urandom", error));
+        fill_with_urandom(buffer)
+            .map_err(|error| secure_random_io_error("read /dev/urandom", error))
     }
-
-    #[allow(unreachable_code)]
-    Ok(())
 }
 
 /// Try to fill one buffer from the unix host entropy backend without blocking.
@@ -60,8 +56,8 @@ pub(crate) fn host_try_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
     // linux: use nonblocking getrandom syscall
     #[cfg(target_os = "linux")]
     {
-        return fill_with_getrandom_flags(buffer, libc::GRND_NONBLOCK)
-            .map_err(|error| secure_random_io_error("getrandom nonblock", error));
+        fill_with_getrandom_flags(buffer, libc::GRND_NONBLOCK)
+            .map_err(|error| secure_random_io_error("getrandom nonblock", error))
     }
 
     // bsd and macos families: no nonblocking api, use getentropy directly
@@ -73,8 +69,7 @@ pub(crate) fn host_try_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
         target_os = "dragonfly"
     ))]
     {
-        return fill_with_getentropy(buffer)
-            .map_err(|error| secure_random_io_error("getentropy", error));
+        fill_with_getentropy(buffer).map_err(|error| secure_random_io_error("getentropy", error))
     }
 
     // fallback: read from urandom
@@ -87,12 +82,9 @@ pub(crate) fn host_try_fill_bytes(buffer: &mut [u8]) -> RuntimeResult<()> {
         target_os = "dragonfly"
     )))]
     {
-        return fill_with_urandom(buffer)
-            .map_err(|error| secure_random_io_error("read /dev/urandom", error));
+        fill_with_urandom(buffer)
+            .map_err(|error| secure_random_io_error("read /dev/urandom", error))
     }
-
-    #[allow(unreachable_code)]
-    Ok(())
 }
 
 /// Fill one buffer with the getrandom syscall.

@@ -1,8 +1,9 @@
+use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use crate::host::binding::RuntimeAccess;
+use crate::diagnostic::RuntimeResult;
 
-use super::{ActionSelector, SubjectSelector, TargetSelector};
+use super::{ActionSelector, Subject, SubjectSelector, TargetSelector};
 
 /// Stable identifier for one runtime rule.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -24,21 +25,6 @@ pub enum Decision {
     Allow,
     /// Deny the matching action.
     Deny,
-}
-
-impl Decision {
-    /// Create one allow decision.
-    pub fn allow() -> Self {
-        Self::Allow
-    }
-
-    /// Return the binding access implied by this decision.
-    pub(crate) const fn access(&self) -> RuntimeAccess {
-        match self {
-            Self::Allow => RuntimeAccess::Allow,
-            Self::Deny => RuntimeAccess::Deny,
-        }
-    }
 }
 
 /// One runtime policy rule.
@@ -97,11 +83,29 @@ impl Rule {
 
     /// Create one enabled allow rule.
     pub fn allow(id: impl Into<String>, selector: ActionSelector) -> Self {
-        Self::new(id, Decision::allow()).action(selector)
+        Self::new(id, Decision::Allow).action(selector)
     }
 
     /// Create one enabled deny rule.
     pub fn deny(id: impl Into<String>, selector: ActionSelector) -> Self {
         Self::new(id, Decision::Deny).action(selector)
+    }
+
+    /// Return true when this rule matches one binding call.
+    pub(crate) fn matches(
+        &self,
+        subject: Subject<'_>,
+        program: &program::Program,
+        binding: &program::Binding,
+    ) -> RuntimeResult<bool> {
+        if !self.subject.matches(subject)? {
+            return Ok(false);
+        }
+
+        if !self.action.matches(program, binding)? {
+            return Ok(false);
+        }
+
+        self.target.matches_binding()
     }
 }

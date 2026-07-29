@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::host::binding::BindingReplayPayload;
-use crate::runtime::random::RandomSource;
-use crate::runtime::time::ClockSource;
+use crate::binding::ReplayPayload;
+use crate::world::random::RandomSource;
+use crate::world::time::ClockSource;
 use crate::world::trace::TraceSequence;
 use crate::world::{BranchId, CheckpointId, RevisionId};
 use destack_repository::{Environment, ExecutionMode};
@@ -36,7 +36,7 @@ pub struct TraceHeader {
     /// Branch identifier for this replay stream.
     pub branch_id: BranchId,
     /// Trace payload selection for the log.
-    pub replay_payload: BindingReplayPayload,
+    pub replay_payload: ReplayPayload,
     /// Hash of the binding table.
     pub binding_table_hash: u128,
     /// Maximum number of entries per chunk.
@@ -58,7 +58,7 @@ impl TraceHeader {
             clock_source: ClockSource::Runtime,
             random_source: RandomSource::Deterministic,
             branch_id: BranchId::new(0),
-            replay_payload: BindingReplayPayload::Results,
+            replay_payload: ReplayPayload::Results,
             binding_table_hash: 0,
             max_entries_per_chunk: TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK,
             max_chunk_size_bytes: TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES,

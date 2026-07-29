@@ -13,7 +13,7 @@ use crate::host::poller::{
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
     WAKE_TOKEN_BITS,
 };
-use crate::host::{HostError, ResourceId, core as host_core};
+use crate::host::{HostError, ResourceId, get_errno, timeout_deadline};
 
 /// Epoll backed poller for Linux targets.
 #[derive(Debug)]
@@ -243,7 +243,7 @@ impl HostPoller for EpollPoller {
         }
 
         // resolve the poll deadline once so EINTR does not reset the timeout budget
-        let deadline = timeout_nanos.and_then(host_core::timeout_deadline);
+        let deadline = timeout_nanos.and_then(timeout_deadline);
 
         // call into epoll
         let result = loop {
@@ -258,7 +258,7 @@ impl HostPoller for EpollPoller {
                 break result;
             }
 
-            let errno = host_core::get_errno();
+            let errno = get_errno();
             if errno != libc::EINTR {
                 return Err(io_error("poller.epoll_wait", None));
             }
@@ -388,7 +388,7 @@ fn wake_eventfd(fd: RawFd) -> RuntimeResult<()> {
     let value: u64 = 1;
     let result = write_u64(fd, &value);
     if result < 0 {
-        let errno = host_core::get_errno();
+        let errno = get_errno();
         if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
             return Err(io_error("poller.wake", Some(fd)));
         }
@@ -481,7 +481,7 @@ fn drain_wake(fd: RawFd) {
             break;
         }
 
-        let errno = host_core::get_errno();
+        let errno = get_errno();
         if errno == libc::EWOULDBLOCK || errno == libc::EAGAIN {
             break;
         }
@@ -514,7 +514,7 @@ fn timeout_ms_from_deadline(deadline: Option<Instant>) -> c_int {
 /// Convert the last OS error into a runtime error.
 fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
     // capture the last OS error
-    let errno = host_core::get_errno();
+    let errno = get_errno();
     let message = format!("{context} failed: errno {errno}");
 
     // map the error into host diagnostics
@@ -544,7 +544,7 @@ mod tests {
     use super::{
         EpollPoller, HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerToken, ResourceId,
     };
-    use crate::runtime::WorkerId;
+    use crate::worker::WorkerId;
 
     const TEST_WORKER_ID: WorkerId = WorkerId(1);
 

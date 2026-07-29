@@ -11,5 +11,5 @@ pub use snapshot::{
     ResourceImageEntry, ResourceProvider, ResourceRebinder, ResourceRebinders, ResourceRestore,
     ResourceSnapshot,
 };
-pub(crate) use table::ResourceTableSnapshot;
+pub(crate) use table::ResourceImage;
 pub use table::{ResourceEntry, ResourceFinalizer, ResourceTable};

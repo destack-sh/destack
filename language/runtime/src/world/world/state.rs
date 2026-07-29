@@ -1,11 +1,12 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
-use crate::runtime::random::Random;
-use crate::runtime::time::{Clock, Nanos};
-use crate::runtime::{RuntimeId, WorkerId};
+use crate::worker::WorkerId;
+use crate::world::RuntimeId;
 use crate::world::debug::Debugger;
 use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
 use crate::world::policy::Policy;
+use crate::world::random::Random;
+use crate::world::time::{Clock, Nanos};
 use crate::world::trace::TraceLog;
 
 use super::{BranchId, Entity, Moment, MomentSequence, Topology};

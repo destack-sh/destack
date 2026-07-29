@@ -1,4 +1,5 @@
 mod clock;
+mod process;
 mod source;
 mod timer;
 #[cfg(unix)]
@@ -9,5 +10,6 @@ mod unsupported;
 mod windows;
 
 pub use clock::*;
+pub(crate) use process::*;
 pub(crate) use source::*;
 pub use timer::*;

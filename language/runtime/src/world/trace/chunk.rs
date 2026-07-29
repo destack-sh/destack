@@ -65,11 +65,21 @@ impl TraceChunk {
     }
 
     /// Return the last sequence number stored in this chunk.
-    pub(super) fn sequence_end(&self) -> TraceSequence {
-        debug_assert!(!self.is_empty());
-        let entry_offset = (self.header.entry_count - 1) as u64;
+    pub(super) fn sequence_end(&self) -> RuntimeResult<TraceSequence> {
+        let entry_offset = self
+            .header
+            .entry_count
+            .checked_sub(1)
+            .ok_or_else(|| RuntimeError::trace_mismatch("empty_chunk".to_string()).boxed())?
+            as u64;
+        let sequence = self
+            .header
+            .sequence_start
+            .get()
+            .checked_add(entry_offset)
+            .ok_or_else(|| RuntimeError::trace_mismatch("sequence".to_string()).boxed())?;
 
-        TraceSequence::new(self.header.sequence_start.get() + entry_offset)
+        Ok(TraceSequence::new(sequence))
     }
 
     /// Return whether this chunk contains one sequence.
@@ -78,11 +88,12 @@ impl TraceChunk {
             return false;
         }
 
-        let sequence_value = sequence.get();
         let sequence_start = self.header.sequence_start.get();
-        let sequence_end = self.sequence_end().get();
+        let Some(relative_index) = sequence.get().checked_sub(sequence_start) else {
+            return false;
+        };
 
-        sequence_value >= sequence_start && sequence_value <= sequence_end
+        relative_index < u64::from(self.header.entry_count)
     }
 
     /// Return the byte offset for one entry index.

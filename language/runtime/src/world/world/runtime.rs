@@ -6,9 +6,11 @@ use destack_core::CaptureMode;
 use destack_program as program;
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
+use crate::binding::BindingTable;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::machine::{Entry, Execution};
-use crate::runtime::{Runtime, RuntimeImage, Worker, WorkerId, WorkerImage, WorkerOptions};
+use crate::machine::{Engine, Entry};
+use crate::runtime::{Runtime, RuntimeImage};
+use crate::worker::{WorkerId, WorkerImage, WorkerOptions};
 use crate::world::observation::Observation;
 use crate::world::trace::EntrypointCall;
 
@@ -22,7 +24,8 @@ impl World {
         options: &RuntimeOptions,
         conditions: impl Into<Arc<ConditionSet>>,
         program: impl Into<Arc<program::Program>>,
-        execution: Execution,
+        binding_table: Arc<BindingTable>,
+        engine: Engine,
     ) -> RuntimeResult<RuntimeId> {
         let environment = environment.into();
         let conditions = conditions.into();
@@ -38,7 +41,8 @@ impl World {
             memory,
             collector,
             program,
-            execution,
+            binding_table,
+            engine,
         )?;
         let runtime_id = runtime.runtime_id();
         let worker_count = runtime.worker_count();
@@ -169,7 +173,7 @@ impl World {
         let invocation = EntrypointCall {
             runtime_id,
             entry: entry.clone(),
-            args: args.to_vec(),
+            args: args.iter().map(program::Value::fork).collect(),
         };
         let invocation = self.resolve_entrypoint(invocation)?;
 
@@ -212,7 +216,7 @@ impl World {
         // clean worker-owned shared roots before dropping the runtime
         if let Some(runtime) = self.runtimes.get(&runtime_id) {
             for worker_id in &worker_ids {
-                runtime.heap.remove_worker(*worker_id);
+                runtime.heap.remove_worker(&runtime.program, *worker_id);
             }
         }
 
@@ -247,7 +251,6 @@ impl World {
             &mut self.state,
             self.host.as_ref(),
             &self.host_queue,
-            &mut self.poller,
             worker_id,
             entry,
             args,
@@ -313,38 +316,18 @@ impl World {
         worker_image: &Arc<WorkerImage>,
         restore: RestoreContext<'_>,
     ) -> RuntimeResult<()> {
-        let environment = self
-            .runtimes
-            .get(&runtime_id)
-            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?
-            .environment
-            .clone();
-
         let world = &mut self.state;
-        world.register_worker_topology(runtime_id, worker_id, worker_entity)?;
         let runtime = self
             .runtimes
             .get_mut(&runtime_id)
             .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
-        let program = runtime.program.clone();
-        let conditions = runtime.conditions.clone();
-        let worker = {
-            Worker::from_image(
-                world,
-                &runtime.heap,
-                runtime_id,
-                worker_id,
-                environment,
-                conditions,
-                worker_image.as_ref(),
-                None,
-                program,
-                &runtime.execution,
-                restore,
-            )?
-        };
-
-        runtime.insert_restored_worker(worker)?;
+        runtime.restore_worker(
+            world,
+            worker_id,
+            worker_entity,
+            worker_image.as_ref(),
+            restore,
+        )?;
 
         Ok(())
     }

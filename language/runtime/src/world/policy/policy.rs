@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
+use destack_program as program;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::{BindingDescriptor, RuntimeAccess};
 
-use super::{Attempt, Decision, Rule, RuleId, Subject};
+use super::{Decision, Rule, RuleId, Subject};
 
 /// Runtime policy specification.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -39,58 +39,67 @@ impl Policy {
 
     /// Remove one rule from this policy.
     pub(crate) fn remove_rule(&mut self, rule_id: &RuleId) -> RuntimeResult<()> {
-        if self.remove_rule_unchecked(rule_id) {
-            return Ok(());
-        }
+        let Some(index) = self.rules.iter().position(|rule| rule.id == *rule_id) else {
+            return Err(Self::invalid_policy_error(format!(
+                "runtime mutation requires one known rule id: {}",
+                rule_id.0
+            )));
+        };
 
-        Err(Self::invalid_policy_error(format!(
-            "runtime mutation requires one known rule id: {}",
-            rule_id.0
-        )))
+        self.rules.remove(index);
+
+        Ok(())
     }
 
     /// Enable one rule in this policy.
     pub(crate) fn enable_rule(&mut self, rule_id: &RuleId) -> RuntimeResult<()> {
-        if self.set_rule_enabled_unchecked(rule_id, true) {
-            return Ok(());
-        }
+        let Some(rule) = self.rules.iter_mut().find(|rule| rule.id == *rule_id) else {
+            return Err(Self::invalid_policy_error(format!(
+                "runtime mutation requires one known rule id: {}",
+                rule_id.0
+            )));
+        };
 
-        Err(Self::invalid_policy_error(format!(
-            "runtime mutation requires one known rule id: {}",
-            rule_id.0
-        )))
+        rule.enabled = true;
+
+        Ok(())
     }
 
     /// Disable one rule in this policy.
     pub(crate) fn disable_rule(&mut self, rule_id: &RuleId) -> RuntimeResult<()> {
-        if self.set_rule_enabled_unchecked(rule_id, false) {
-            return Ok(());
-        }
+        let Some(rule) = self.rules.iter_mut().find(|rule| rule.id == *rule_id) else {
+            return Err(Self::invalid_policy_error(format!(
+                "runtime mutation requires one known rule id: {}",
+                rule_id.0
+            )));
+        };
 
-        Err(Self::invalid_policy_error(format!(
-            "runtime mutation requires one known rule id: {}",
-            rule_id.0
-        )))
+        rule.enabled = false;
+
+        Ok(())
     }
 
     /// Replace one rule in this policy with full validation.
-    pub(crate) fn replace_rule(&mut self, rule_id: &RuleId, rule: Rule) -> RuntimeResult<()> {
-        if rule.id != *rule_id {
+    pub(crate) fn replace_rule(
+        &mut self,
+        rule_id: &RuleId,
+        replacement: Rule,
+    ) -> RuntimeResult<()> {
+        if replacement.id != *rule_id {
             return Err(Self::invalid_policy_error(format!(
                 "runtime replace requires replacement id to match: {}",
                 rule_id.0
             )));
         }
 
-        if !self.has_rule_id(rule_id) {
+        let Some(rule) = self.rules.iter_mut().find(|rule| rule.id == *rule_id) else {
             return Err(Self::invalid_policy_error(format!(
                 "runtime replace requires one known rule id: {}",
                 rule_id.0
             )));
-        }
+        };
 
-        let is_replaced = self.replace_rule_unchecked(rule_id, rule);
-        debug_assert!(is_replaced);
+        *rule = replacement;
 
         Ok(())
     }
@@ -98,40 +107,6 @@ impl Policy {
     /// Return true when one rule id exists in this policy.
     fn has_rule_id(&self, rule_id: &RuleId) -> bool {
         self.rules.iter().any(|rule| rule.id == *rule_id)
-    }
-
-    /// Return true when one matching rule id exists and has been replaced.
-    fn replace_rule_unchecked(&mut self, rule_id: &RuleId, replacement: Rule) -> bool {
-        let Some(rule) = self.rules.iter_mut().find(|rule| rule.id == *rule_id) else {
-            return false;
-        };
-
-        *rule = replacement;
-
-        true
-    }
-
-    /// Return true when one matching rule id exists and has been removed.
-    fn remove_rule_unchecked(&mut self, rule_id: &RuleId) -> bool {
-        let before_len = self.rules.len();
-        self.rules.retain(|rule| rule.id != *rule_id);
-        self.rules.len() < before_len
-    }
-
-    /// Return true when one matching rule id exists and has been updated.
-    fn set_rule_enabled_unchecked(&mut self, rule_id: &RuleId, is_enabled: bool) -> bool {
-        let mut is_updated = false;
-
-        for rule in &mut self.rules {
-            if rule.id != *rule_id {
-                continue;
-            }
-
-            rule.enabled = is_enabled;
-            is_updated = true;
-        }
-
-        is_updated
     }
 
     /// Return one invalid-policy error.
@@ -160,7 +135,7 @@ impl Policy {
     }
 
     /// Replace active policy.
-    pub(crate) fn set_policy(&mut self, policy: Policy) -> RuntimeResult<()> {
+    pub(crate) fn replace(&mut self, policy: Policy) -> RuntimeResult<()> {
         policy.validate()?;
         *self = policy;
 
@@ -171,18 +146,17 @@ impl Policy {
     pub(crate) fn decide_binding(
         &self,
         subject: Subject<'_>,
-        descriptor: BindingDescriptor,
-    ) -> RuntimeAccess {
+        program: &program::Program,
+        binding: &program::Binding,
+    ) -> RuntimeResult<Decision> {
         let mut decision = self.default;
 
         for rule in &self.rules {
             if !rule.enabled {
                 continue;
             }
-            let attempt = Attempt {
-                binding: Some(descriptor),
-            };
-            if !super::matches_rule_selectors(rule, subject, attempt) {
+
+            if !rule.matches(subject, program, binding)? {
                 continue;
             }
 
@@ -190,6 +164,6 @@ impl Policy {
             break;
         }
 
-        decision.access()
+        Ok(decision)
     }
 }

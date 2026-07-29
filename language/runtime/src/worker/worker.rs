@@ -1,0 +1,541 @@
+use std::fmt;
+use std::sync::Arc;
+
+use destack_artifact::ConditionSet;
+use destack_core::{Capture, CaptureMode};
+use destack_heap as heap;
+use destack_program as program;
+use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
+use serde::{Deserialize, Serialize};
+
+use crate::binding::{BindingAccess, BindingTable};
+use crate::diagnostic::{DiagnosticImage, DiagnosticStore, RuntimeError, RuntimeResult};
+use crate::host::resource::ResourceImage;
+use crate::host::{HostEventKind, ResourceId, ResourceTable};
+use crate::machine::{Engine, Machine, MachineImage};
+use crate::runtime::SharedHeap;
+use crate::runtime::heap::resolve_local_heap_options;
+use crate::worker::scheduler::{Callback, EventLoop, EventLoopImage, Readiness, StoppedRunnable};
+use crate::world::topology::LabelSet;
+use crate::world::{RestoreContext, RuntimeId, WorkerSequence, WorldState};
+
+/// Worker owned by one runtime.
+pub struct Worker {
+    /// Monotonic world-local worker identity.
+    pub(crate) id: WorkerId,
+    /// Runtime owner identifier in world topology.
+    pub(crate) runtime_id: RuntimeId,
+    /// Worker-local execution sequence.
+    pub(crate) sequence: WorkerSequence,
+    /// Immutable ambient environment for host bindings.
+    pub(crate) environment: Arc<Environment>,
+    /// Immutable runtime options.
+    pub(crate) options: Arc<RuntimeOptions>,
+    /// The active runtime conditions.
+    pub(crate) conditions: Arc<ConditionSet>,
+    /// Immutable executable program.
+    pub(crate) program: Arc<program::Program>,
+    /// Debugger generation used to derive executable debug sets.
+    pub(crate) debug_generation: u64,
+    /// Executable stop points active for this worker.
+    pub(crate) stop_points: program::StopSet,
+    /// Executable watchpoints active for this worker.
+    pub(crate) watch_points: program::WatchSet,
+    /// Runtime profile accumulated by this worker.
+    pub(crate) profile: Option<program::Profile>,
+
+    /// External resource table.
+    pub(crate) resources: ResourceTable,
+    /// Diagnostics storage for runtime errors and warning events.
+    pub(crate) diagnostics: Arc<DiagnosticStore>,
+    /// Runtime-shared binding implementations.
+    pub(crate) binding_table: Arc<BindingTable>,
+    /// Worker-local binding access policy.
+    pub(crate) binding_access: BindingAccess,
+    /// Shared mark worker queue handle.
+    pub(crate) shared_mark_worker: heap::SharedMarkWorker,
+    /// Worker-local shared allocation cache.
+    pub(crate) shared_cache: heap::AllocationCache,
+    /// Authoritative worker heap.
+    pub(crate) heap: heap::Heap,
+    /// Worker-owned static byte space.
+    pub(crate) local_static: program::StaticSpace,
+    /// Worker-owned machine.
+    pub(crate) machine: Machine,
+    /// Runnable stopped at a runtime stop point.
+    pub(crate) stop: Option<StoppedRunnable>,
+    /// Event loop for tasks, microtasks, and timers.
+    pub(crate) event_loop: EventLoop,
+}
+
+/// Stable identifier for one world-managed worker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct WorkerId(pub u64);
+
+/// Worker creation options.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub struct WorkerOptions {
+    /// Worker name used for identity selection and diagnostics.
+    pub name: Option<String>,
+    /// Worker labels used for topology and policy selection.
+    pub labels: LabelSet,
+}
+
+/// One captured worker image.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WorkerImage {
+    /// Runtime owner identifier.
+    pub runtime_id: RuntimeId,
+    /// Worker identifier.
+    pub worker_id: WorkerId,
+    /// Captured worker-local execution sequence.
+    pub sequence: WorkerSequence,
+    /// Captured diagnostics store state.
+    pub diagnostics: DiagnosticImage,
+    /// Captured resource table state.
+    pub resources: ResourceImage,
+    /// Captured event-loop state.
+    pub event_loop: EventLoopImage,
+    /// Captured authoritative heap image.
+    pub heap: heap::HeapImage,
+    /// Captured worker-owned static bytes.
+    pub local_static: program::StaticSpaceImage,
+    /// Captured physical machine state.
+    pub machine: MachineImage,
+    /// Captured stopped runnable state.
+    pub stop: Option<StoppedRunnable>,
+    /// Captured runtime profile state.
+    pub profile: Option<program::Profile>,
+}
+
+impl WorkerImage {
+    /// Return whether the captured worker still has pending event-loop work.
+    pub fn has_pending_work(&self) -> bool {
+        self.stop.is_some() || self.event_loop.has_pending_work()
+    }
+}
+
+impl fmt::Debug for Worker {
+    /// Format one worker without traversing machine execution state.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Worker")
+            .field("worker_id", &self.id)
+            .field("runtime_id", &self.runtime_id)
+            .field("sequence", &self.sequence)
+            .field("environment", &self.environment)
+            .field("options", &self.options)
+            .field("resources", &self.resources)
+            .field("diagnostics", &self.diagnostics)
+            .field("binding_table", &self.binding_table)
+            .field("heap", &self.heap)
+            .field("machine", &"<worker machine>")
+            .field("event_loop", &self.event_loop)
+            .finish()
+    }
+}
+
+impl Worker {
+    /// Create one worker with identities allocated by its owning runtime.
+    pub(crate) fn new(
+        environment: Arc<Environment>,
+        options: Arc<RuntimeOptions>,
+        conditions: Arc<ConditionSet>,
+        world: &mut WorldState,
+        runtime_heap: &SharedHeap,
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+        program: Arc<program::Program>,
+        binding_table: Arc<BindingTable>,
+        engine: &Engine,
+    ) -> RuntimeResult<Self> {
+        // resources
+        let resources = ResourceTable::new(worker_id);
+
+        // binding access
+        let binding_access = BindingAccess::new(world.trace.mode(), options.trace.payload);
+        let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));
+
+        // execution storage
+        let heap_options = resolve_local_heap_options(&options.heap)?;
+        let heap = heap::Heap::new(
+            runtime_heap.memory().clone(),
+            heap_options.limits,
+            heap_options.options,
+        )
+        .map_err(Box::<RuntimeError>::from)?;
+        let machine = engine.spawn(program.clone(), runtime_heap.memory().clone())?;
+        let local_static = program.materialize_local_statics(runtime_heap.memory().clone())?;
+        let shared_mark_worker = runtime_heap.register_mark_worker();
+        let shared_cache = runtime_heap.shared.allocation_cache();
+        let event_loop = EventLoop::default();
+
+        // worker state
+        Ok(Self {
+            id: worker_id,
+            runtime_id,
+            sequence: WorkerSequence::new(0),
+            environment,
+            options,
+            conditions,
+            program,
+            debug_generation: world.debugger.generation(),
+            stop_points: world.debugger.stop_set(runtime_id, worker_id),
+            watch_points: world.debugger.watch_set(runtime_id, worker_id),
+            profile: None,
+            resources,
+            diagnostics,
+            binding_table,
+            binding_access,
+            shared_mark_worker,
+            shared_cache,
+            heap,
+            local_static,
+            machine,
+            stop: None,
+            event_loop,
+        })
+    }
+
+    /// Return immutable environment exposed to host bindings.
+    pub fn environment(&self) -> &Environment {
+        self.environment.as_ref()
+    }
+
+    /// Return immutable launch arguments exposed to host bindings.
+    pub fn arguments(&self) -> &[String] {
+        self.environment.args.as_slice()
+    }
+
+    /// Return this worker identifier.
+    pub fn worker_id(&self) -> WorkerId {
+        self.id
+    }
+
+    /// Return the owning runtime identifier.
+    pub fn runtime_id(&self) -> RuntimeId {
+        self.runtime_id
+    }
+
+    /// Return whether this worker still has pending scheduler work.
+    pub fn has_pending_work(&self) -> bool {
+        self.stop.is_some() || self.event_loop.has_pending_work()
+    }
+
+    /// Return the accumulated runtime profile when active.
+    pub fn profile(&self) -> Option<&program::Profile> {
+        self.profile.as_ref()
+    }
+
+    /// Start runtime profiling for this worker.
+    pub fn start_profile(&mut self, options: program::ProfileOptions) {
+        self.profile = Some(program::Profile::new(self.program.as_ref(), options));
+    }
+
+    /// Stop runtime profiling and return the accumulated profile.
+    pub fn stop_profile(&mut self) -> Option<program::Profile> {
+        self.profile.take()
+    }
+
+    /// Return the number of stored resources for this worker.
+    pub fn resource_count(&self) -> usize {
+        self.resources.len()
+    }
+
+    /// Add one waiter for a timer resource.
+    pub fn add_timer_waiter(&mut self, handle: ResourceId, callback: Callback) {
+        self.event_loop.add_timer_waiter(handle, callback);
+    }
+
+    /// Remove the waiter registered for one timer resource.
+    pub fn remove_timer_waiter(&mut self, handle: ResourceId) -> Option<Callback> {
+        self.event_loop.remove_timer_waiter(handle)
+    }
+
+    /// Add one waiter for one resource readiness.
+    pub fn add_resource_waiter(
+        &mut self,
+        resource_id: ResourceId,
+        readiness: Readiness,
+        callback: Callback,
+    ) {
+        self.event_loop
+            .add_resource_waiter(resource_id, readiness, callback);
+    }
+
+    /// Add one waiter for a host event kind.
+    pub fn add_host_waiter(&mut self, kind: HostEventKind, callback: Callback) {
+        self.event_loop.add_host_waiter(kind, callback);
+    }
+
+    /// Visit roots from machine, scheduler, and registered providers.
+    pub fn visit_roots(&mut self, roots: &mut impl heap::RootSink) -> RuntimeResult<()> {
+        let mut visit = |slot: heap::RootSlot<'_>| {
+            let root = slot.load()?;
+            roots.push(root);
+
+            Ok(())
+        };
+
+        self.visit_root_slots(&mut visit)?;
+
+        Ok(())
+    }
+
+    /// Visit roots from one static space through this worker machine.
+    pub fn visit_static_roots(
+        &mut self,
+        static_space: &mut program::StaticSpace,
+        roots: &mut impl heap::RootSink,
+    ) -> RuntimeResult<()> {
+        let mut visit = |slot: heap::RootSlot<'_>| {
+            let root = slot.load()?;
+            roots.push(root);
+
+            Ok(())
+        };
+
+        self.program
+            .visit_static_root_slots(
+                program::GlobalLocation::SharedStatic,
+                static_space,
+                &mut visit,
+            )
+            .map_err(Box::<RuntimeError>::from)?;
+
+        Ok(())
+    }
+
+    /// Visit mutable root slots from machine, scheduler, and retained host handles.
+    pub fn visit_root_slots(
+        &mut self,
+        visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
+    ) -> RuntimeResult<()> {
+        self.program
+            .visit_static_root_slots(
+                program::GlobalLocation::LocalStatic,
+                &mut self.local_static,
+                visit,
+            )
+            .map_err(Box::<RuntimeError>::from)?;
+        self.event_loop.visit_root_slots(&self.program, visit)?;
+        self.machine.visit_root_slots(visit)?;
+
+        Ok(())
+    }
+
+    /// Return a snapshot of the GC state.
+    pub fn gc_state(&self) -> heap::GcState {
+        self.heap.gc_state().clone()
+    }
+
+    /// Return the exact retained heap usage for this worker.
+    pub fn heap_usage(&self) -> heap::HeapUsage {
+        self.heap.usage()
+    }
+
+    /// Collect shared heap roots from machine, scheduler, and registered providers.
+    pub(crate) fn collect_shared_roots(&mut self) -> RuntimeResult<Vec<heap::SharedHeapReference>> {
+        let mut roots = Vec::new();
+
+        self.visit_roots(&mut roots)?;
+
+        Ok(roots)
+    }
+
+    /// Start one incremental local-to-shared edge scan for this worker heap.
+    pub(crate) fn start_shared_edge_scan(&mut self) {
+        self.heap.start_shared_edge_scan();
+    }
+
+    /// Return whether this worker heap has drained its local-to-shared edge scan.
+    pub(crate) fn shared_edge_scan_idle(&self) -> bool {
+        self.heap.shared_edge_scan_idle()
+    }
+
+    /// Finish the current local-to-shared edge scan for this worker heap.
+    pub(crate) fn finish_shared_edge_scan(&mut self) {
+        self.heap.finish_shared_edge_scan();
+    }
+
+    /// Publish worker-local shared heap buffers.
+    pub(crate) fn flush_shared_cache(&mut self, shared: &heap::SharedHeap) {
+        shared.flush_allocation_cache(&mut self.shared_cache);
+    }
+
+    /// Trace bounded local-to-shared edges into the provided root buffer.
+    pub(crate) fn trace_shared_roots(
+        &mut self,
+        roots: &mut Vec<heap::SharedHeapReference>,
+        budget_bytes: usize,
+    ) -> RuntimeResult<usize> {
+        let trace_view = self.program.trace_view();
+
+        self.heap
+            .trace_shared_roots(roots, budget_bytes, trace_view)
+            .map_err(Box::<RuntimeError>::from)
+    }
+
+    /// Check configured retained-heap limits for this worker.
+    pub fn check_heap_limits(&self) -> RuntimeResult<()> {
+        self.heap.check_limits().map_err(Into::into)
+    }
+
+    /// Capture one materialized worker image.
+    pub(crate) fn capture_image(&mut self, mode: CaptureMode) -> RuntimeResult<WorkerImage> {
+        // local scheduler and external state
+        let event_loop = self.event_loop.capture_image(mode, ())?;
+        let resources = self.resources.capture_image(mode, ())?;
+        let diagnostics = self.diagnostics.image()?;
+
+        // capture the worker-local image payload
+        Ok(WorkerImage {
+            runtime_id: self.runtime_id,
+            worker_id: self.id,
+            sequence: self.sequence,
+            diagnostics,
+            resources,
+            event_loop,
+            heap: self.heap.image().map_err(|error| {
+                RuntimeError::capture_barrier(
+                    "runtime.heap",
+                    format!("{mode:?}"),
+                    error.to_string(),
+                )
+                .boxed()
+            })?,
+            local_static: self.local_static.image(),
+            machine: self.machine.image()?,
+            stop: self.stop.clone(),
+            profile: self.profile.clone(),
+        })
+    }
+
+    /// Fork one live worker when all branch-sensitive state is quiescent.
+    pub(crate) fn try_fork(
+        &mut self,
+        execution_mode: ExecutionMode,
+        runtime_heap: &SharedHeap,
+        shared_mark_worker: heap::SharedMarkWorker,
+    ) -> RuntimeResult<Option<Self>> {
+        // diagnostics state
+        let diagnostics = match self.diagnostics.try_fork()? {
+            Some(diagnostics) => Arc::new(diagnostics),
+            None => return Ok(None),
+        };
+
+        // resources and event loop
+        let resources = match self.resources.try_fork() {
+            Some(resources) => resources,
+            None => return Ok(None),
+        };
+
+        // binding access and heap
+        let binding_access = BindingAccess::new(execution_mode, self.options.trace.payload);
+
+        let trace_view = self.program.trace_view();
+        let heap = self.heap.fork(runtime_heap.memory().clone(), trace_view)?;
+        let local_static = self.local_static.fork(runtime_heap.memory().clone());
+        let shared_cache = runtime_heap.shared.allocation_cache();
+        let machine = self.machine.fork(runtime_heap.memory().clone())?;
+        let event_loop = self.event_loop.fork()?;
+        let stop = self.stop.clone();
+        let profile = self.profile.clone();
+
+        Ok(Some(Self {
+            id: self.id,
+            runtime_id: self.runtime_id,
+            sequence: self.sequence,
+            environment: self.environment.clone(),
+            options: self.options.clone(),
+            conditions: self.conditions.clone(),
+            resources,
+            diagnostics,
+            binding_table: self.binding_table.clone(),
+            binding_access,
+            program: self.program.clone(),
+            debug_generation: self.debug_generation,
+            stop_points: self.stop_points.clone(),
+            watch_points: self.watch_points.clone(),
+            profile,
+            shared_mark_worker,
+            shared_cache,
+            heap,
+            local_static,
+            machine,
+            stop,
+            event_loop,
+        }))
+    }
+
+    /// Restore one worker from one materialized image.
+    pub(crate) fn from_image(
+        world: &mut WorldState,
+        runtime_heap: &SharedHeap,
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+        environment: Arc<Environment>,
+        options: Arc<RuntimeOptions>,
+        conditions: Arc<ConditionSet>,
+        image: &WorkerImage,
+        program: Arc<program::Program>,
+        binding_table: Arc<BindingTable>,
+        engine: &Engine,
+        restore: RestoreContext<'_>,
+    ) -> RuntimeResult<Self> {
+        // resources
+        let resources = ResourceTable::new(worker_id);
+
+        // binding access
+        let binding_access = BindingAccess::new(world.trace.mode(), options.trace.payload);
+
+        // diagnostics and event loop
+        let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));
+        let mut event_loop = EventLoop::default();
+
+        // heap
+        let heap_options = resolve_local_heap_options(&options.heap)?;
+        let heap = heap::Heap::from_image(
+            &image.heap,
+            runtime_heap.memory().clone(),
+            heap_options.limits,
+            program.trace_view(),
+        )
+        .map_err(Box::<RuntimeError>::from)?;
+        let mut machine = engine.spawn(program.clone(), runtime_heap.memory().clone())?;
+        machine.restore(&image.machine)?;
+        let local_static =
+            program::StaticSpace::from_image(runtime_heap.memory().clone(), &image.local_static);
+        let shared_mark_worker = runtime_heap.register_mark_worker();
+        let shared_cache = runtime_heap.shared.allocation_cache();
+
+        // restore local state on fresh containers
+        event_loop.restore(&image.event_loop)?;
+        diagnostics.restore(&image.diagnostics)?;
+        resources.restore(&image.resources, restore.resource_rebinders())?;
+
+        Ok(Self {
+            id: worker_id,
+            runtime_id,
+            sequence: image.sequence,
+            environment,
+            options,
+            conditions,
+            program,
+            debug_generation: world.debugger.generation(),
+            stop_points: world.debugger.stop_set(runtime_id, worker_id),
+            watch_points: world.debugger.watch_set(runtime_id, worker_id),
+            profile: image.profile.clone(),
+            resources,
+            diagnostics,
+            binding_table,
+            binding_access,
+            shared_mark_worker,
+            shared_cache,
+            heap,
+            local_static,
+            machine,
+            stop: image.stop.clone(),
+            event_loop,
+        })
+    }
+}

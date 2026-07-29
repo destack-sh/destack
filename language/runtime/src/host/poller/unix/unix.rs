@@ -12,7 +12,7 @@ use crate::host::poller::{
     HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
-use crate::host::{HostError, ResourceId, core as host_core};
+use crate::host::{HostError, ResourceId, get_errno, timeout_deadline};
 
 /// Poll based host poller for Unix systems.
 #[derive(Debug)]
@@ -199,7 +199,7 @@ impl HostPoller for UnixPoller {
         }
 
         // resolve the poll deadline once so EINTR does not reset the timeout budget
-        let deadline = timeout_nanos.and_then(host_core::timeout_deadline);
+        let deadline = timeout_nanos.and_then(timeout_deadline);
 
         // call poll and surface errors
         let _ = loop {
@@ -213,7 +213,7 @@ impl HostPoller for UnixPoller {
                 break result;
             }
 
-            let errno = host_core::get_errno();
+            let errno = get_errno();
             if errno != libc::EINTR {
                 return Err(io_error("poller.poll", None));
             }
@@ -316,7 +316,7 @@ fn wake_pipe(wake_write: RawFd) -> RuntimeResult<()> {
     let byte = [1u8];
     let result = write_fd(wake_write, &byte);
     if result < 0 {
-        let errno = host_core::get_errno();
+        let errno = get_errno();
         if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
             return Err(io_error("poller.wake", Some(wake_write)));
         }
@@ -447,7 +447,7 @@ fn drain_wake(fd: RawFd) {
             break;
         }
 
-        let errno = host_core::get_errno();
+        let errno = get_errno();
         if errno == libc::EWOULDBLOCK || errno == libc::EAGAIN {
             break;
         }
@@ -480,7 +480,7 @@ fn timeout_ms_from_deadline(deadline: Option<Instant>) -> c_int {
 /// Convert the last OS error into a runtime error.
 fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
     // capture the last OS error
-    let errno = host_core::get_errno();
+    let errno = get_errno();
     let message = format!("{context} failed: errno {errno}");
 
     // map the error into host diagnostics
@@ -510,7 +510,7 @@ mod tests {
     use super::{UnixPoller, close_fd, pipe_fds, write_fd};
     use crate::host::ResourceId;
     use crate::host::poller::{HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerToken};
-    use crate::runtime::WorkerId;
+    use crate::worker::WorkerId;
 
     const TEST_WORKER_ID: WorkerId = WorkerId(1);
 

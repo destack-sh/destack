@@ -3,7 +3,7 @@ use std::os::unix::io::RawFd;
 use std::sync::Arc;
 use std::time::Instant;
 
-use libc::{c_int, c_short, kevent as kevent_sys, timespec};
+use libc::{c_int, c_short, kevent, timespec};
 
 use crate::diagnostic::{
     HostErrorContext, HostErrorContextKind, RuntimeError, RuntimeResult, io_error_code_from_errno,
@@ -12,7 +12,7 @@ use crate::host::poller::{
     HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
-use crate::host::{HostError, ResourceId, core as host_core};
+use crate::host::{HostError, ResourceId, get_errno, timeout_deadline};
 
 /// Kqueue backed poller for BSD targets.
 #[derive(Debug)]
@@ -226,7 +226,7 @@ impl HostPoller for KqueuePoller {
         }
 
         // resolve the poll deadline once so EINTR does not reset the timeout budget
-        let deadline = timeout_nanos.and_then(host_core::timeout_deadline);
+        let deadline = timeout_nanos.and_then(timeout_deadline);
 
         // call into kqueue
         let result = loop {
@@ -245,7 +245,7 @@ impl HostPoller for KqueuePoller {
                 break result;
             }
 
-            let errno = host_core::get_errno();
+            let errno = get_errno();
             if errno != libc::EINTR {
                 return Err(io_error("poller.kevent", None));
             }
@@ -330,7 +330,7 @@ fn empty_kevent() -> libc::kevent {
 fn kevent_apply(kqueue_fd: RawFd, changes: &[libc::kevent]) -> c_int {
     // SAFETY: changes points to changes.len initialized kevent records and no output is requested
     unsafe {
-        kevent_sys(
+        kevent(
             kqueue_fd,
             changes.as_ptr(),
             changes.len() as c_int,
@@ -349,7 +349,7 @@ fn kevent_wait(
     timeout: *const timespec,
 ) -> c_int {
     // SAFETY: events points to max_events writable kevent records and timeout is null or valid
-    unsafe { kevent_sys(kqueue_fd, std::ptr::null(), 0, events, max_events, timeout) }
+    unsafe { kevent(kqueue_fd, std::ptr::null(), 0, events, max_events, timeout) }
 }
 
 /// Create one pipe.
@@ -610,7 +610,7 @@ fn token_from_udata(udata: *mut libc::c_void) -> Option<PollerToken> {
 /// Convert the last OS error into a runtime error.
 fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
     // capture the last OS error
-    let errno = host_core::get_errno();
+    let errno = get_errno();
     let message = format!("{context} failed: errno {errno}");
 
     // map the error into host diagnostics
@@ -641,7 +641,7 @@ mod tests {
         HostHandle, HostPoller, HostPollerFlags, KqueuePoller, PollInterest, PollerToken,
         ResourceId, close_fd, pipe_fds, write_fd,
     };
-    use crate::runtime::WorkerId;
+    use crate::worker::WorkerId;
 
     const TEST_WORKER_ID: WorkerId = WorkerId(1);
 

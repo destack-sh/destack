@@ -1,7 +1,8 @@
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::{RuntimeId, WorkerId};
+use crate::worker::WorkerId;
+use crate::world::RuntimeId;
 
 /// Runtime watchpoint definition.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

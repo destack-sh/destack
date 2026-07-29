@@ -1,8 +1,8 @@
 use destack_core::{Capture, CaptureMode, SnapshotCodec};
 
+use crate::binding::{Binding, ReplayPayload};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};
-use crate::runtime::time::Instant;
+use crate::world::time::Instant;
 use crate::world::trace::{
     BindingTrace, ClockTrace, EntropySubject, EntrypointCall, RandomTrace, Trace, TraceCursor,
     TraceCursorImage, TraceEntry, TraceHeader, TraceSequence, TraceStore, TraceTag,
@@ -250,23 +250,22 @@ impl TraceLog {
         RuntimeError::trace_mismatch(name.to_string()).boxed()
     }
 
-    /// Resolve one requested payload policy for a binding descriptor.
+    /// Resolve one requested payload policy for a binding.
     pub fn payload_policy_for_requested(
         &self,
-        spec: BindingDescriptor,
-        requested: BindingReplayPayload,
-    ) -> RuntimeResult<BindingReplayPayload> {
-        let supported = spec.replay_payload();
+        binding: Binding,
+        name: &str,
+        requested: ReplayPayload,
+    ) -> RuntimeResult<ReplayPayload> {
+        let supported = binding.replay_payload();
 
-        if requested == BindingReplayPayload::ArgumentsAndResults
-            && supported == BindingReplayPayload::Results
-        {
-            return Err(RuntimeError::trace_payload_unsupported(spec.name.to_string()).boxed());
+        if requested == ReplayPayload::ArgumentsAndResults && supported == ReplayPayload::Results {
+            return Err(RuntimeError::trace_payload_unsupported(name.to_string()).boxed());
         }
 
         match requested {
-            BindingReplayPayload::Results => Ok(BindingReplayPayload::Results),
-            BindingReplayPayload::ArgumentsAndResults => Ok(supported),
+            ReplayPayload::Results => Ok(ReplayPayload::Results),
+            ReplayPayload::ArgumentsAndResults => Ok(supported),
         }
     }
 
@@ -418,27 +417,33 @@ impl TraceLog {
     }
 
     /// Record a binding call payload for replay.
-    pub fn record_binding_call(&self, spec: BindingDescriptor, bytes: &[u8]) -> RuntimeResult<()> {
-        self.record_binding_call_bytes(spec, bytes.to_vec())
+    pub fn record_binding_call(
+        &self,
+        binding: Binding,
+        name: &str,
+        bytes: &[u8],
+    ) -> RuntimeResult<()> {
+        self.record_binding_call_bytes(binding, name, bytes.to_vec())
     }
 
     /// Record an owned binding call payload for replay.
     fn record_binding_call_bytes(
         &self,
-        spec: BindingDescriptor,
+        binding: Binding,
+        name: &str,
         bytes: Vec<u8>,
     ) -> RuntimeResult<()> {
         let trace = BindingTrace {
-            binding_id: spec.id,
-            codec: spec.codec,
+            binding_id: binding.id(),
+            codec: binding.codec(),
             bytes,
         };
 
-        self.record_payload(TraceTag::Binding, spec.name, &trace)
+        self.record_payload(TraceTag::Binding, name, &trace)
     }
 
     /// Read the next binding call payload for replay.
-    pub fn next_binding_call(&self, spec: BindingDescriptor) -> RuntimeResult<BindingTrace> {
+    pub fn next_binding_call(&self, binding: Binding, name: &str) -> RuntimeResult<BindingTrace> {
         // read the next binding payload from the log
         let Some((_sequence, call)) = self
             .reader
@@ -452,13 +457,13 @@ impl TraceLog {
         };
 
         // validate binding id
-        if call.binding_id != spec.id {
-            return Err(Self::trace_mismatch_error(spec.name));
+        if call.binding_id != binding.id() {
+            return Err(Self::trace_mismatch_error(name));
         }
 
         // validate codec id
-        if call.codec != spec.codec {
-            return Err(Self::trace_mismatch_error(spec.name));
+        if call.codec != binding.codec() {
+            return Err(Self::trace_mismatch_error(name));
         }
 
         Ok(call)
@@ -590,7 +595,8 @@ impl TraceLog {
     /// Record a typed trace payload for a binding.
     pub fn record_binding_payload<T: Serialize>(
         &self,
-        spec: BindingDescriptor,
+        binding: Binding,
+        name: &str,
         payload: &T,
     ) -> RuntimeResult<()> {
         // skip recording when disabled
@@ -603,26 +609,27 @@ impl TraceLog {
             let mut scratch = self.scratch.lock();
             scratch.clear();
             append_to_vec(payload, &mut scratch)
-                .map_err(|_| RuntimeError::trace_encode_failed(spec.name.to_string()).boxed())?;
+                .map_err(|_| RuntimeError::trace_encode_failed(name.to_string()).boxed())?;
 
             scratch.clone()
         };
 
         // record the encoded payload
-        self.record_binding_call_bytes(spec, payload_bytes)
+        self.record_binding_call_bytes(binding, name, payload_bytes)
     }
 
     /// Decode the next typed binding payload for replay.
     pub fn read_binding_payload<T: DeserializeOwned>(
         &self,
-        spec: BindingDescriptor,
+        binding: Binding,
+        name: &str,
     ) -> RuntimeResult<T> {
         // read the next binding call payload
-        let call = self.next_binding_call(spec)?;
+        let call = self.next_binding_call(binding, name)?;
 
         // decode the payload bytes
         let payload = destack_serde::from_slice(&call.bytes)
-            .map_err(|_| RuntimeError::trace_decode_failed(spec.name.to_string()).boxed())?;
+            .map_err(|_| RuntimeError::trace_decode_failed(name.to_string()).boxed())?;
         Ok(payload)
     }
 
@@ -630,8 +637,9 @@ impl TraceLog {
     #[inline]
     pub fn run_binding<Payload, Value, Context, Call, Encode, Decode>(
         &self,
-        spec: BindingDescriptor,
-        requested_payload: BindingReplayPayload,
+        binding: Binding,
+        name: &str,
+        requested_payload: ReplayPayload,
         context: &mut Context,
         call: Call,
         encode: Encode,
@@ -643,10 +651,6 @@ impl TraceLog {
         Encode: FnOnce(&mut Context, &RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
         Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
     {
-        if spec.replay_kind != BindingReplayKind::BindingCall {
-            return Err(RuntimeError::trace_mismatch(spec.name.to_string()).boxed());
-        }
-
         let mode = self.mode();
 
         match mode {
@@ -654,23 +658,23 @@ impl TraceLog {
             ExecutionMode::Fast => call(context),
             // replay execution decodes the next recorded payload
             ExecutionMode::Replay => {
-                let payload = self.read_binding_payload(spec)?;
+                let payload = self.read_binding_payload(binding, name)?;
                 decode(context, payload)
             }
             // strict mode validates payload policy, then runs without recording
             ExecutionMode::Strict => {
-                self.payload_policy_for_requested(spec, requested_payload)?;
+                self.payload_policy_for_requested(binding, name, requested_payload)?;
                 call(context)
             }
 
             // record mode validates payload policy, executes, then stores payload
             ExecutionMode::Record => {
-                self.payload_policy_for_requested(spec, requested_payload)?;
+                self.payload_policy_for_requested(binding, name, requested_payload)?;
                 let result = call(context);
 
                 let payload = encode(context, &result)?;
                 if let Some(payload) = payload {
-                    self.record_binding_payload(spec, &payload)?;
+                    self.record_binding_payload(binding, name, &payload)?;
                 }
 
                 result
@@ -682,8 +686,9 @@ impl TraceLog {
     #[inline]
     pub fn run_binding_without_context<Payload, Value, Call, Encode, Decode>(
         &self,
-        spec: BindingDescriptor,
-        requested_payload: BindingReplayPayload,
+        binding: Binding,
+        name: &str,
+        requested_payload: ReplayPayload,
         call: Call,
         encode: Encode,
         decode: Decode,
@@ -696,7 +701,8 @@ impl TraceLog {
     {
         let mut context = ();
         self.run_binding(
-            spec,
+            binding,
+            name,
             requested_payload,
             &mut context,
             move |_| call(),

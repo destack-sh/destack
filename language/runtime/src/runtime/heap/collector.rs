@@ -2,49 +2,56 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, SendError, Sender};
 use std::thread::{self, JoinHandle};
 
-use destack_heap::{GcPhase, SharedHeap, TraceView};
 use destack_program as program;
 use destack_repository::ExecutionMode;
-use parking_lot::{Condvar, Mutex};
+use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::heap::SharedRootSet;
+use crate::runtime::heap::SharedHeap;
 
-/// World-owned shared heap GC scheduler.
+/// World-owned shared heap collector scheduler.
 #[derive(Debug)]
 pub struct SharedCollector {
     /// Shared heap collector mode.
     mode: SharedCollectorMode,
     /// Dedicated collector thread for concurrent mode.
-    thread: Mutex<Option<SharedCollectorThread>>,
+    thread: Mutex<Option<CollectorThread>>,
 }
 
-/// Runtime-owned shared heap GC state.
-#[derive(Debug)]
-pub struct SharedGc {
-    /// Shared heap driven by this GC state.
-    heap: Arc<SharedHeap>,
-    /// Shared roots consumed by mark steps.
-    roots: Arc<SharedRootSet>,
-    /// Collection state changed by world and collector threads.
-    state: Mutex<CollectorState>,
-    /// Wake quiescence waiters when pending GC work drains.
-    quiesce: Condvar,
-    /// Terminal GC failure recorded by one collector run.
-    failure: Mutex<Option<Box<RuntimeError>>>,
-}
-
-/// Shared heap GC scheduling mode.
+/// Shared heap collector scheduling mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SharedCollectorMode {
-    /// Run shared heap GC from world ticks and worker assists.
+    /// Run shared heap collection from world runs and worker assists.
     Cooperative,
-    /// Run shared heap GC on one collector thread plus worker assists.
+    /// Run shared heap collection on one collector thread plus worker assists.
     Concurrent,
 }
 
+/// Dedicated collector thread.
+#[derive(Debug)]
+struct CollectorThread {
+    /// Wake sender for the collector thread.
+    sender: Sender<CollectorMessage>,
+    /// Join handle for the live collector thread.
+    join: Mutex<Option<JoinHandle<()>>>,
+}
+
+/// Shared collector thread message.
+#[derive(Debug)]
+enum CollectorMessage {
+    /// Run one bounded shared heap collection step.
+    Wake {
+        /// Shared heap to advance.
+        heap: Arc<SharedHeap>,
+        /// Program owning the trace table.
+        program: Arc<program::Program>,
+    },
+    /// Shut down the collector thread.
+    Stop,
+}
+
 impl SharedCollectorMode {
-    /// Resolve shared heap GC mode for one execution mode.
+    /// Resolve shared collection mode for one execution mode.
     pub const fn from_execution_mode(mode: ExecutionMode) -> Self {
         match mode {
             ExecutionMode::Fast => Self::Concurrent,
@@ -60,50 +67,6 @@ impl SharedCollectorMode {
     }
 }
 
-/// Shared GC lifecycle state.
-#[derive(Debug, Default)]
-struct CollectorState {
-    /// Pending scheduler state.
-    pending: SharedGcPending,
-    /// Whether one collector thread is currently running a step.
-    is_running: bool,
-}
-
-/// Pending GC scheduling state.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-enum SharedGcPending {
-    /// No GC work is currently queued.
-    #[default]
-    Idle,
-    /// One collector wake is queued.
-    Scheduled,
-    /// Collection work is suspended for capture or restore.
-    Suspended,
-}
-
-/// Dedicated collector thread.
-#[derive(Debug)]
-struct SharedCollectorThread {
-    /// Wake sender for the collector thread.
-    sender: Sender<SharedCollectorMessage>,
-    /// Join handle for the live collector thread.
-    join: Mutex<Option<JoinHandle<()>>>,
-}
-
-/// Shared collector thread message.
-#[derive(Debug)]
-enum SharedCollectorMessage {
-    /// Run one bounded shared heap GC step.
-    Wake {
-        /// Shared GC state to advance.
-        gc: Arc<SharedGc>,
-        /// Durable program owning the trace table.
-        program: Arc<program::Program>,
-    },
-    /// Shut down the collector thread.
-    Stop,
-}
-
 impl SharedCollector {
     /// Create one world-owned shared collector.
     pub(crate) fn new(
@@ -116,7 +79,7 @@ impl SharedCollector {
         });
 
         if mode.is_concurrent() {
-            let thread = SharedCollectorThread::spawn(name, collector.clone())?;
+            let thread = CollectorThread::spawn(name, collector.clone())?;
             *collector.thread.lock() = Some(thread);
         }
 
@@ -128,184 +91,32 @@ impl SharedCollector {
         self.mode
     }
 
-    /// Wake concurrent GC for one world.
-    pub(crate) fn wake(self: &Arc<Self>, work: &Arc<SharedGc>, program: &Arc<program::Program>) {
-        if !self.mode.is_concurrent() || !work.schedule() {
+    /// Wake concurrent collection for one shared heap.
+    pub(crate) fn wake(self: &Arc<Self>, heap: &Arc<SharedHeap>, program: &Arc<program::Program>) {
+        if !self.mode.is_concurrent() || !heap.schedule() {
             return;
         }
 
         let thread = self.thread.lock();
         let Some(thread) = thread.as_ref() else {
-            work.fail_scheduled("collector thread is missing");
+            heap.fail_scheduled("collector thread is missing");
 
             return;
         };
 
-        if thread.wake(work.clone(), program.clone()).is_err() {
-            work.fail_scheduled("collector thread is stopped");
+        if thread.wake(heap.clone(), program.clone()).is_err() {
+            heap.fail_scheduled("collector thread is stopped");
         }
     }
 }
 
-impl SharedGc {
-    /// Create one runtime-owned shared GC state.
-    pub(crate) fn new(heap: Arc<SharedHeap>, roots: Arc<SharedRootSet>) -> Arc<Self> {
-        Arc::new(Self {
-            heap,
-            roots,
-            state: Mutex::new(CollectorState::default()),
-            quiesce: Condvar::new(),
-            failure: Mutex::new(None),
-        })
-    }
-
-    /// Return one pending GC failure when background GC failed.
-    pub(crate) fn take_failure(&self) -> Option<Box<RuntimeError>> {
-        self.failure.lock().take()
-    }
-
-    /// Suspend GC and wait for in-flight GC work to drain.
-    pub(crate) fn quiesce(&self) {
-        let mut state = self.state.lock();
-        state.pending = SharedGcPending::Suspended;
-
-        while state.is_running || state.pending == SharedGcPending::Scheduled {
-            self.quiesce.wait(&mut state);
-        }
-    }
-
-    /// Resume GC after a quiescent world operation.
-    pub(crate) fn resume(&self) {
-        let mut state = self.state.lock();
-        if state.pending == SharedGcPending::Suspended {
-            state.pending = SharedGcPending::Idle;
-        }
-        self.quiesce.notify_all();
-    }
-
-    /// Return whether concurrent GC work is queued or running.
-    pub(crate) fn is_busy(&self) -> bool {
-        let state = self.state.lock();
-
-        state.is_running || state.pending == SharedGcPending::Scheduled
-    }
-
-    /// Run one scheduled GC step on the collector thread.
-    fn run_scheduled(
-        self: &Arc<Self>,
-        collector: &Arc<SharedCollector>,
-        program: &Arc<program::Program>,
-    ) {
-        if !self.begin_run() {
-            return;
-        }
-
-        let should_continue = self.collect_with_failure(program.trace_view());
-        self.finish_run();
-
-        if should_continue {
-            collector.wake(self, program);
-        }
-    }
-
-    /// Mark one scheduled GC step as running.
-    fn begin_run(&self) -> bool {
-        let mut state = self.state.lock();
-        if state.pending != SharedGcPending::Scheduled {
-            self.quiesce.notify_all();
-
-            return false;
-        }
-
-        state.pending = SharedGcPending::Idle;
-        state.is_running = true;
-
-        true
-    }
-
-    /// Mark the running GC step as finished.
-    fn finish_run(&self) {
-        let mut state = self.state.lock();
-        state.is_running = false;
-        self.quiesce.notify_all();
-    }
-
-    /// Schedule one GC step.
-    fn schedule(&self) -> bool {
-        let mut state = self.state.lock();
-        if state.pending != SharedGcPending::Idle {
-            return false;
-        }
-
-        state.pending = SharedGcPending::Scheduled;
-
-        true
-    }
-
-    /// Clear scheduled work after one collector scheduling failure.
-    fn fail_scheduled(&self, message: impl Into<String>) {
-        let mut state = self.state.lock();
-        if state.pending == SharedGcPending::Scheduled {
-            state.pending = SharedGcPending::Idle;
-        }
-        self.quiesce.notify_all();
-        drop(state);
-
-        *self.failure.lock() = Some(
-            RuntimeError::Internal {
-                message: message.into(),
-            }
-            .boxed(),
-        );
-    }
-
-    /// Run one bounded shared GC increment and retain one failure.
-    fn collect_with_failure(&self, trace_view: TraceView<'_>) -> bool {
-        match self.collect(trace_view) {
-            Ok(should_continue) => should_continue,
-            Err(error) => {
-                *self.failure.lock() = Some(error);
-
-                false
-            }
-        }
-    }
-
-    /// Run one bounded shared GC increment.
-    fn collect(&self, trace_view: TraceView<'_>) -> RuntimeResult<bool> {
-        if self.heap.gc_phase() == GcPhase::Idle {
-            return Ok(false);
-        }
-
-        let roots = self.roots.roots_snapshot();
-        let roots_complete = self.roots.roots_complete();
-        let budget_bytes = self.heap.take_collection_budget_bytes(1);
-        let progress = self
-            .heap
-            .step_collection(roots.as_ref(), roots_complete, budget_bytes, trace_view)
-            .map_err(Box::<RuntimeError>::from)?;
-
-        if self.heap.gc_phase() != GcPhase::Mark || roots_complete {
-            self.roots.clear_termination();
-        } else if self.heap.mark_idle() {
-            self.roots.request_termination();
-        }
-
-        let is_waiting_on_roots =
-            self.heap.gc_phase() == GcPhase::Mark && self.heap.mark_idle() && !roots_complete;
-        let should_continue_mark = self.heap.gc_phase() == GcPhase::Mark && !is_waiting_on_roots;
-
-        Ok(progress.advanced() || should_continue_mark)
-    }
-}
-
-impl SharedCollectorThread {
+impl CollectorThread {
     /// Spawn one dedicated collector thread.
     fn spawn(name: impl Into<String>, collector: Arc<SharedCollector>) -> RuntimeResult<Self> {
         let (sender, receiver) = mpsc::channel();
         let join = thread::Builder::new()
             .name(name.into())
-            .spawn(move || run_shared_collector_thread(receiver, collector))
+            .spawn(move || run_collector(receiver, collector))
             .map_err(|error| {
                 RuntimeError::Internal {
                     message: format!("collector thread failed to spawn: {error}"),
@@ -322,17 +133,16 @@ impl SharedCollectorThread {
     /// Wake the collector thread.
     fn wake(
         &self,
-        gc: Arc<SharedGc>,
+        heap: Arc<SharedHeap>,
         program: Arc<program::Program>,
-    ) -> Result<(), SendError<SharedCollectorMessage>> {
-        self.sender
-            .send(SharedCollectorMessage::Wake { gc, program })
+    ) -> Result<(), SendError<CollectorMessage>> {
+        self.sender.send(CollectorMessage::Wake { heap, program })
     }
 }
 
-impl Drop for SharedCollectorThread {
+impl Drop for CollectorThread {
     fn drop(&mut self) {
-        let _ = self.sender.send(SharedCollectorMessage::Stop);
+        let _ = self.sender.send(CollectorMessage::Stop);
 
         if let Some(join) = self.join.lock().take() {
             let _ = join.join();
@@ -340,15 +150,14 @@ impl Drop for SharedCollectorThread {
     }
 }
 
-/// Run the dedicated collector thread loop.
-fn run_shared_collector_thread(
-    receiver: Receiver<SharedCollectorMessage>,
-    collector: Arc<SharedCollector>,
-) {
+/// Run the dedicated collector thread.
+fn run_collector(receiver: Receiver<CollectorMessage>, collector: Arc<SharedCollector>) {
     while let Ok(message) = receiver.recv() {
         match message {
-            SharedCollectorMessage::Wake { gc, program } => gc.run_scheduled(&collector, &program),
-            SharedCollectorMessage::Stop => break,
+            CollectorMessage::Wake { heap, program } => {
+                heap.run_scheduled(&collector, &program);
+            }
+            CollectorMessage::Stop => break,
         }
     }
 }

@@ -8,22 +8,22 @@ use destack_heap::{
 use destack_memory::MemoryMap;
 use destack_program::StaticSpace;
 use destack_repository::{Environment, RuntimeOptions};
+use destack_runtime::binding::BindingTable;
 use destack_runtime::diagnostic::DiagnosticStore;
-use destack_runtime::host::HostPollResult;
-use destack_runtime::host::binding::BindingTable;
 use destack_runtime::host::resource::ResourceTable;
-use destack_runtime::runtime::random::Random;
-use destack_runtime::runtime::scheduler::EventLoop;
-use destack_runtime::runtime::{RunnableScope, Runtime, Worker};
+use destack_runtime::runtime::Runtime;
+use destack_runtime::worker::scheduler::EventLoop;
+use destack_runtime::worker::{RunnableScope, Worker};
 use destack_runtime::world::observation::{
     Observation, ObservationEntry, ObservationLog, ObservationScope,
 };
+use destack_runtime::world::random::Random;
 use destack_runtime::world::topology::LabelSet;
 use destack_runtime::world::trace::{
     ClockTrace, EntropySubject, RandomTrace, Trace, TraceEntry, TraceLog,
 };
 use destack_runtime::world::{Entity, Policy, World};
-use destack_vm::{Continuation, StackImage};
+use destack_vm::Machine;
 
 use crate::ALLOCATOR;
 use crate::measure::AllocationSample;
@@ -65,7 +65,6 @@ fn print_type_sizes() {
         ("runtime", "RunnableScope", size_of::<RunnableScope>()),
         ("runtime", "EventLoop", size_of::<EventLoop>()),
         ("runtime", "Random", size_of::<Random>()),
-        ("host", "HostPollResult", size_of::<HostPollResult>()),
         ("host", "ResourceTable", size_of::<ResourceTable>()),
         ("host", "BindingTable", size_of::<BindingTable>()),
         (
@@ -76,9 +75,7 @@ fn print_type_sizes() {
         ("workspace", "Environment", size_of::<Environment>()),
         ("workspace", "RuntimeOptions", size_of::<RuntimeOptions>()),
         ("machine", "StaticSpace", size_of::<StaticSpace>()),
-        ("vm", "Machine", size_of::<destack_vm::Machine>()),
-        ("vm", "Continuation", size_of::<Continuation>()),
-        ("vm", "StackImage", size_of::<StackImage>()),
+        ("vm", "Machine", size_of::<Machine>()),
         ("heap", "Heap", size_of::<Heap>()),
         ("heap", "SharedHeap", size_of::<SharedHeap>()),
     ];
@@ -120,18 +117,14 @@ fn print_component_sizes() {
 fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
     let mut world = runtime.world();
     let program = runtime.program();
-    let execution = runtime.execution();
-    let runtime_spawn = ALLOCATOR.measure(|| runtime.spawn_runtime(&mut world, program, execution));
+    let engine = runtime.engine();
+    let runtime_spawn = ALLOCATOR.measure(|| runtime.spawn_runtime(&mut world, program, engine));
     let (mut world, runtime_id) = runtime.world_with_runtime();
     let worker_spawn = ALLOCATOR.measure(|| runtime.spawn_worker(&mut world, runtime_id));
 
     let machine_new = ALLOCATOR.measure(|| vm.machine());
     let mut machine = vm.machine();
-    let continuation_yield = ALLOCATOR.measure(|| machine.yield_once());
-
-    let mut machine = vm.machine();
-    let continuation = machine.yield_once();
-    let continuation_clone = ALLOCATOR.measure(|| continuation.fork());
+    let machine_run = ALLOCATOR.measure(|| machine.run());
     let rows = [
         ("world.new", ALLOCATOR.measure(|| runtime.world())),
         ("runtime.spawn.empty.vm", runtime_spawn),
@@ -139,8 +132,7 @@ fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
         ("launch.empty", ALLOCATOR.measure(|| runtime.launch())),
         ("vm.machine.build", ALLOCATOR.measure(|| vm.build_machine())),
         ("vm.machine.new", machine_new),
-        ("vm.continuation.yield", continuation_yield),
-        ("vm.continuation.clone", continuation_clone),
+        ("vm.machine.run", machine_run),
     ];
 
     eprintln!();

@@ -1,4 +1,7 @@
-mod debug;
-mod gc;
-pub(crate) mod harness;
-mod scheduler;
+mod program;
+mod worker;
+mod world;
+
+pub(crate) use program::TestProgram;
+pub(crate) use worker::TestWorker;
+pub(crate) use world::TestWorld;

@@ -12,12 +12,12 @@ use crate::host::poller::{
     HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
 };
-use crate::host::{HostError, ResourceId, windows as host_windows};
+use crate::host::{HostError, ResourceId, windows};
 
 /// Build a runtime error from the last socket error.
 fn last_net_error(syscall: &str) -> Box<RuntimeError> {
-    let errno = host_windows::last_wsa_error_code();
-    let message = host_windows::error_message(syscall, errno);
+    let errno = windows::last_wsa_error_code();
+    let message = windows::error_message(syscall, errno);
     RuntimeError::from(HostError::io_with(
         None,
         None,
@@ -55,7 +55,7 @@ impl WakeSockets {
     /// Create a new wake socket pair.
     fn new() -> RuntimeResult<Self> {
         // ensure Winsock is initialized before creating sockets
-        host_windows::initialize_winsock()?;
+        windows::initialize_winsock()?;
 
         // SAFETY: socket has no pointer arguments and returns either a socket or INVALID_SOCKET
         let receiver = unsafe { socket(AF_INET.into(), SOCK_DGRAM, IPPROTO_UDP) };

@@ -1,7 +1,8 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::host::ResourceId;
-use crate::runtime::{RuntimeId, WorkerId};
+use crate::worker::WorkerId;
+use crate::world::RuntimeId;
 
 /// Scope for one emitted observation.
 #[derive(Debug, Clone, PartialEq, Eq)]

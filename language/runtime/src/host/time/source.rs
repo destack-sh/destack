@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::host::core as host_core;
+use crate::host::monotonic_now_ns;
 
 /// Source of host wall and monotonic clock behavior.
 pub(crate) trait HostClockSource: std::fmt::Debug + Send + Sync {
@@ -52,7 +52,7 @@ impl HostClockSource for SystemHostClockSource {
 
     /// Return one monotonic-clock sample in nanoseconds.
     fn mono_nanos(&self) -> u64 {
-        host_core::monotonic_now_ns()
+        monotonic_now_ns()
     }
 
     /// Sleep for one duration in nanoseconds.

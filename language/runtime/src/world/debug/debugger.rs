@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use destack_program as program;
 
-use crate::runtime::{RuntimeId, WorkerId};
-use crate::world::ProbeId;
+use crate::worker::WorkerId;
+use crate::world::{ProbeId, RuntimeId};
 
 use super::{Breakpoint, Probe, Watchpoint};
 

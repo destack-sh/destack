@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::host::binding::BindingAffinity;
+use destack_program::BindingAffinity;
 
 /// Stored resource-affinity requirement for one live resource entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

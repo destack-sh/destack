@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::host::ResourceId;
-use crate::runtime::scheduler::RunnableId;
-use crate::runtime::time::Instant;
-use crate::runtime::{RuntimeId, WorkerId};
-use crate::world::ProbeId;
+use crate::worker::WorkerId;
+use crate::worker::scheduler::RunnableId;
 use crate::world::policy::RuleId;
+use crate::world::time::Instant;
 use crate::world::topology::{EdgeId, EdgeKind, EntityId, EntityKind};
+use crate::world::{ProbeId, RuntimeId};
 use destack_heap as heap;
 use destack_program as program;
 
@@ -207,8 +207,6 @@ pub enum Observation {
         worker_id: WorkerId,
         /// Microtask runnable identifier.
         microtask_id: RunnableId,
-        /// Nested microtask execution depth.
-        depth: u32,
     },
     /// runtime.task.continued
     TaskContinued {
@@ -227,8 +225,6 @@ pub enum Observation {
         worker_id: WorkerId,
         /// Continued microtask runnable identifier.
         microtask_id: RunnableId,
-        /// Nested microtask execution depth.
-        depth: u32,
     },
 
     // execution
@@ -623,7 +619,8 @@ impl Observation {
 #[cfg(test)]
 mod tests {
     use crate::host::ResourceId;
-    use crate::runtime::{RuntimeId, WorkerId};
+    use crate::worker::WorkerId;
+    use crate::world::RuntimeId;
     use crate::world::observation::{Observation, ObservationScope};
 
     #[test]

@@ -1,11 +1,12 @@
+use destack_program as program;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::{BindingDescriptor, RuntimeAccess};
-use crate::runtime::WorkerId;
+use crate::worker::WorkerId;
 use crate::world::topology::Topology;
 use crate::world::{RuntimeId, WorldState};
 use destack_repository::{ConditionSet, ExecutionMode};
 
-use super::Subject;
+use super::{Decision, Subject};
 
 impl WorldState {
     /// Decide one binding call.
@@ -14,15 +15,14 @@ impl WorldState {
         conditions: &ConditionSet,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
-        descriptor: BindingDescriptor,
-    ) -> RuntimeResult<RuntimeAccess> {
+        program: &program::Program,
+        binding: &program::Binding,
+    ) -> RuntimeResult<Decision> {
         let mode = self.trace.mode();
         let subject =
             Self::policy_subject(&self.topology, runtime_id, worker_id, mode, conditions)?;
 
-        let decision = self.policy.decide_binding(subject, descriptor);
-
-        Ok(decision)
+        self.policy.decide_binding(subject, program, binding)
     }
 
     /// Resolve one subject from world topology metadata.

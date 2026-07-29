@@ -1,6 +1,6 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::random::RandomStreamId;
-use crate::world::trace::{EntropySubject, RandomTrace, TraceError, TraceLog, TraceTag};
+use crate::diagnostic::RuntimeResult;
+use crate::world::random::RandomStreamId;
+use crate::world::trace::{EntropySubject, RandomTrace, TraceLog, TraceTag};
 use destack_repository::ExecutionMode;
 
 impl TraceLog {
@@ -35,7 +35,7 @@ impl TraceLog {
                             return Err(self.entropy_mismatch_error());
                         }
 
-                        outcome.map_err(Box::<RuntimeError>::from)
+                        outcome
                     }
                     _ => Err(self.entropy_mismatch_error()),
                 }
@@ -43,10 +43,7 @@ impl TraceLog {
             // record mode executes and records one random fact
             ExecutionMode::Record => {
                 let result = call();
-                let outcome = result
-                    .as_ref()
-                    .map(|value| *value)
-                    .map_err(|error| Box::new(TraceError::from(error.as_ref())));
+                let outcome = result.as_ref().map(|value| *value).map_err(Clone::clone);
                 let trace = RandomTrace::ReadU64 {
                     subject,
                     stream_id,
@@ -81,9 +78,9 @@ impl TraceLog {
                 let trace = self.next_random_trace(subject)?;
 
                 match trace {
-                    RandomTrace::StreamCreate { outcome, .. } => outcome
-                        .map(|stream_id| stream_id.get())
-                        .map_err(Box::<RuntimeError>::from),
+                    RandomTrace::StreamCreate { outcome, .. } => {
+                        outcome.map(|stream_id| stream_id.get())
+                    }
                     _ => Err(self.entropy_mismatch_error()),
                 }
             }
@@ -93,7 +90,7 @@ impl TraceLog {
                 let outcome = result
                     .as_ref()
                     .map(|value| RandomStreamId::new(*value))
-                    .map_err(|error| Box::new(TraceError::from(error.as_ref())));
+                    .map_err(Clone::clone);
                 let trace = RandomTrace::StreamCreate { subject, outcome };
                 self.record_payload(TraceTag::Random, "runtime.random.read", &trace)?;
 
@@ -139,7 +136,7 @@ impl TraceLog {
                             return Err(self.entropy_mismatch_error());
                         }
 
-                        let bytes = outcome.map_err(Box::<RuntimeError>::from)?;
+                        let bytes = outcome?;
                         decode(bytes)
                     }
                     _ => Err(self.entropy_mismatch_error()),
@@ -149,8 +146,8 @@ impl TraceLog {
             ExecutionMode::Record => {
                 let result = call();
                 let outcome = match result.as_ref() {
-                    Ok(()) => encode().map_err(|error| Box::new(TraceError::from(error.as_ref()))),
-                    Err(error) => Err(Box::new(TraceError::from(error.as_ref()))),
+                    Ok(()) => encode(),
+                    Err(error) => Err(error.clone()),
                 };
                 let trace = RandomTrace::ReadBytes {
                     subject,

@@ -1,33 +1,30 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::diagnostic::{BindingError, HostErrorCode, RuntimeError};
-use crate::host::binding::{
-    BindingAffinity, BindingDescriptor, BindingDeterminism, BindingId, BindingProvider,
-    BindingReplayKind, BindingReplayPayload,
-};
-use crate::host::{HostError, ResourceId};
-use crate::runtime::WorkerId;
-use crate::runtime::machine::Entry;
-use crate::runtime::random::RandomStreamId;
-use crate::runtime::time::Instant;
-use crate::runtime::worker::RunnableScope;
-use crate::world::policy::{ActionSelector, Rule};
-use crate::world::trace::{
-    EntropySubject, EntrypointCall, TraceError, TraceHeader, TraceLog, TraceResult,
-};
-use crate::world::{Entity, EntityDefinition, EntityKind, Mutation, RuntimeId};
+use destack_program as program;
 use destack_repository::Environment;
 use destack_repository::config::ExecutionMode;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+
+use crate::binding::{Binding, ReplayPayload};
+use crate::diagnostic::{BindingError, HostErrorCode, RuntimeError, RuntimeResult};
+use crate::host::{HostError, ResourceId};
+use crate::machine::{Entry, native};
+use crate::tests::TestProgram;
+use crate::worker::{Activation, RunnableScope, WorkerId};
+use crate::world::policy::{ActionSelector, Rule};
+use crate::world::random::RandomStreamId;
+use crate::world::time::Instant;
+use crate::world::trace::{EntropySubject, EntrypointCall, TraceHeader, TraceLog, TraceResult};
+use crate::world::{Entity, EntityDefinition, EntityKind, Mutation, RuntimeId};
 
 /// Build one replay entropy subject for tests.
 fn test_entropy_subject(binding_name: &'static str) -> EntropySubject {
     EntropySubject {
         runtime_id: RuntimeId(1),
         worker_id: WorkerId(1),
-        binding_id: BindingId::from_name(binding_name),
+        binding_id: program::BindingId::from_name(binding_name),
         scope: RunnableScope::empty(),
     }
 }
@@ -44,31 +41,41 @@ fn test_trace_header() -> TraceHeader {
     TraceHeader::new(Environment::default())
 }
 
+/// Build one runtime binding for trace tests.
+fn test_binding(name: &'static str) -> Binding {
+    Binding::new(
+        program::BindingId::from_static_name(name),
+        ReplayPayload::Results,
+        test_binding_call,
+    )
+}
+
+/// Provide the inert implementation required by one registered binding.
+fn test_binding_call(
+    _activation: &mut Activation<'_>,
+    _memory: program::Memory<'_>,
+    _arguments: &[program::Word],
+    _result: &mut [program::Word],
+) -> RuntimeResult<()> {
+    Ok(())
+}
+
 /// Recordable binding calls replay in order.
 #[test]
 fn test_record_replay_binding_call() {
-    // setup a recordable binding descriptor
-    let descriptor = BindingDescriptor::new(
-        "destack.test.call",
-        "test() -> u64",
-        BindingDeterminism::RecordableExternal,
-        BindingReplayKind::BindingCall,
-        BindingReplayPayload::Results,
-        &[],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    );
+    let name = "destack.test.call";
+    let binding = test_binding(name);
 
     // record a binding call
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
     record_state
-        .record_binding_call(descriptor, &[1, 2, 3])
+        .record_binding_call(binding, name, &[1, 2, 3])
         .expect("record binding call");
 
     // replay the binding call from the same log
     let replay_state = TraceLog::from_store(ExecutionMode::Replay, record_state.store().clone());
     let call = replay_state
-        .next_binding_call(descriptor)
+        .next_binding_call(binding, name)
         .expect("read binding call");
 
     // verify the encoded bytes match
@@ -78,24 +85,16 @@ fn test_record_replay_binding_call() {
 /// Binding-call replay preserves runtime error variants.
 #[test]
 fn test_replay_binding_call_runtime_error_roundtrip() {
-    // setup one recordable binding descriptor
-    let descriptor = BindingDescriptor::new(
-        "destack.test.binding.error",
-        "test() -> u64",
-        BindingDeterminism::RecordableExternal,
-        BindingReplayKind::BindingCall,
-        BindingReplayPayload::Results,
-        &[],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    );
+    let name = "destack.test.binding.error";
+    let binding = test_binding(name);
 
     // record one failing binding call
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
     let record_error = record_state
         .run_binding_without_context(
-            descriptor,
-            BindingReplayPayload::Results,
+            binding,
+            name,
+            ReplayPayload::Results,
             || {
                 Err(
                     RuntimeError::policy_violation("destack.test.binding.error".to_string())
@@ -106,14 +105,14 @@ fn test_replay_binding_call_runtime_error_roundtrip() {
                 let payload = match result {
                     Ok(value) => BindingErrorReplayPayload { result: Ok(*value) },
                     Err(error) => BindingErrorReplayPayload {
-                        result: Err(Box::new(TraceError::from(error.as_ref()))),
+                        result: Err(error.clone()),
                     },
                 };
                 Ok(Some(payload))
             },
             |payload| match payload.result {
                 Ok(value) => Ok(value),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
+                Err(error) => Err(error),
             },
         )
         .expect_err("record binding call error");
@@ -122,13 +121,14 @@ fn test_replay_binding_call_runtime_error_roundtrip() {
     let replay_state = TraceLog::from_store(ExecutionMode::Replay, record_state.store().clone());
     let replay_error = replay_state
         .run_binding_without_context(
-            descriptor,
-            BindingReplayPayload::Results,
+            binding,
+            name,
+            ReplayPayload::Results,
             || Ok(123),
             |_result| unreachable!("replay should not encode payloads"),
             |payload: BindingErrorReplayPayload| match payload.result {
                 Ok(value) => Ok(value),
-                Err(error) => Err(Box::<RuntimeError>::from(error)),
+                Err(error) => Err(error),
             },
         )
         .expect_err("replay binding call error");
@@ -315,7 +315,7 @@ fn test_replay_entropy_vm_error_roundtrip() {
             subject,
             stream_id,
             || {},
-            || Err(RuntimeError::Vm(Box::new(vm::Error::panic("dst vm panic"))).boxed()),
+            || Err(RuntimeError::Vm(Box::new(vm::Error::panic(vm::Panic::empty()))).boxed()),
         )
         .expect_err("record vm error");
 
@@ -331,6 +331,40 @@ fn test_replay_entropy_vm_error_roundtrip() {
             assert_eq!(replayed.as_ref(), recorded.as_ref());
         }
         _ => panic!("replay did not preserve vm error variant"),
+    }
+}
+
+/// Entropy replay preserves native error variants for deterministic paths.
+#[test]
+fn test_replay_entropy_native_error_roundtrip() {
+    // record one random read that fails with one native trap
+    let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
+    let subject = test_entropy_subject("destack.test.random.native.error");
+    let stream_id = RandomStreamId::new(29);
+    let error = native::Error::Trapped {
+        trap: program::native::NativeTrap::Bounds,
+    };
+    let record_error = record_state
+        .run_random_u64(
+            subject,
+            stream_id,
+            || {},
+            || Err(RuntimeError::Native(Box::new(error)).boxed()),
+        )
+        .expect_err("record native error");
+
+    // replay the same native error from the recorded trace entry
+    let replay_state = TraceLog::from_store(ExecutionMode::Replay, record_state.store().clone());
+    let replay_error = replay_state
+        .run_random_u64(subject, stream_id, || {}, || Ok(321))
+        .expect_err("replay native error");
+
+    // verify replay preserved the native error variant and payload
+    match (record_error.as_ref(), replay_error.as_ref()) {
+        (RuntimeError::Native(recorded), RuntimeError::Native(replayed)) => {
+            assert_eq!(replayed.as_ref(), recorded.as_ref());
+        }
+        _ => panic!("replay did not preserve native error variant"),
     }
 }
 
@@ -393,13 +427,28 @@ fn test_record_replay_mutations() {
 /// Mixed entrypoint and world mutations replay in the same order they were recorded.
 #[test]
 fn test_record_replay_entrypoint_and_world_mutation() {
+    let program = TestProgram::mir(
+        r#"
+export function entry(v0: int32): void {
+entry(v0: int32):
+    return
+}
+"#,
+    )
+    .build();
+    let function = program
+        .function_id_by_name("entry")
+        .expect("trace test function should exist");
+    let parameters = program
+        .function_parameters(function)
+        .expect("trace test function should have a signature");
+    let argument = program
+        .value(parameters[0], [program::Word::int32(11)])
+        .expect("trace test value should match its Program type");
     let invocation = EntrypointCall {
         runtime_id: RuntimeId(7),
-        entry: Entry::new("test.entry"),
-        args: vec![destack_program::Value::Int {
-            value: 11,
-            width: 32,
-        }],
+        entry: Entry::new("entry"),
+        args: vec![argument],
     };
     let mutation = Mutation::RemoveRuntime {
         runtime_id: RuntimeId(9),
@@ -421,14 +470,14 @@ fn test_record_replay_entrypoint_and_world_mutation() {
     assert_eq!(replayed_mutation, mutation);
 }
 
-/// Runtime tick advances replay in the same order they were recorded.
+/// Runtime time advances replay in the same order they were recorded.
 #[test]
-fn test_record_replay_tick() {
+fn test_record_replay_time_advance() {
     // record one virtual time advance
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
     record_state
         .record_time_advance(Instant::new(123_456))
-        .expect("record tick");
+        .expect("record time advance");
 
     // replay the same virtual time advance
     let replay_state = TraceLog::from_store(ExecutionMode::Replay, record_state.store().clone());
@@ -436,52 +485,52 @@ fn test_record_replay_tick() {
         .next_time_advance()
         .expect("replay time advance");
 
-    // verify the replayed tick matches
+    // verify the replayed time advance matches
     assert_eq!(replayed, Instant::new(123_456));
 }
 
-/// Replay tick resolution rejects mismatched deadlines.
+/// Replay time-advance resolution rejects mismatched deadlines.
 #[test]
-fn test_resolve_tick_rejects_mismatch() {
+fn test_resolve_time_advance_rejects_mismatch() {
     // record one virtual time advance
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
     record_state
         .record_time_advance(Instant::new(123_456))
-        .expect("record tick");
+        .expect("record time advance");
 
     // replaying with a different deadline must fail loudly
     let replay_state = TraceLog::from_store(ExecutionMode::Replay, record_state.store().clone());
     let error = replay_state
         .resolve_time_advance(Instant::new(123_457))
-        .expect_err("tick mismatch should fail");
+        .expect_err("time advance mismatch should fail");
     assert!(
         error.message().contains("time"),
         "time mismatch should identify the replay channel"
     );
 }
 
-/// Replay rejects ticks that move virtual time backwards.
+/// Replay rejects time advances that move virtual time backwards.
 #[test]
-fn test_replay_rejects_backward_tick() {
-    // record one forward tick and one backward tick in one log
+fn test_replay_rejects_backward_time_advance() {
+    // record one forward and one backward time advance
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
     record_state
         .record_time_advance(Instant::new(50))
-        .expect("record tick");
+        .expect("record time advance");
     record_state
         .record_time_advance(Instant::new(40))
-        .expect("record tick");
+        .expect("record time advance");
 
-    // replay should reject the backward move on the second tick
+    // replay should reject the backward move on the second advance
     let replay_state = TraceLog::from_store(ExecutionMode::Replay, record_state.store().clone());
     let _ = replay_state
         .next_time_advance()
         .expect("first time advance should replay");
     let error = replay_state
         .next_time_advance()
-        .expect_err("backward tick should fail");
+        .expect_err("backward time advance should fail");
 
-    // verify validator reports a tick mismatch
+    // verify validator reports a time mismatch
     assert!(
         error.message().contains("time"),
         "backward time advances should fail on the time channel"

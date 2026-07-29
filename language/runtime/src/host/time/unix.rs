@@ -4,7 +4,7 @@ use std::mem::MaybeUninit;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::time::{ClockId, ClockProperties, ClockSource};
-use crate::host::{HostError, core as host_core};
+use crate::host::{HostError, io_error, monotonic_now_ns};
 
 /// Number of nanoseconds in one second.
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
@@ -79,7 +79,7 @@ fn read_clock_timespec(
     // SAFETY: clock_gettime writes one timespec to the provided out pointer on success
     let rc = unsafe { libc::clock_gettime(clock_id, spec.as_mut_ptr()) };
     if rc != 0 {
-        return Err(host_core::io_error(operation, None));
+        return Err(io_error(operation, None));
     }
 
     // SAFETY: rc == 0 means clock_gettime initialized the output timespec
@@ -96,7 +96,7 @@ fn read_clock_resolution_timespec(
     // SAFETY: clock_getres writes one timespec to the provided out pointer on success
     let rc = unsafe { libc::clock_getres(clock_id, spec.as_mut_ptr()) };
     if rc != 0 {
-        return Err(host_core::io_error(operation, None));
+        return Err(io_error(operation, None));
     }
 
     // SAFETY: rc == 0 means clock_getres initialized the output timespec
@@ -294,7 +294,7 @@ fn wall_nanos() -> RuntimeResult<u64> {
 
 /// Resolve one host monotonic clock sample in nanoseconds.
 fn mono_nanos() -> RuntimeResult<u64> {
-    Ok(host_core::monotonic_now_ns())
+    Ok(monotonic_now_ns())
 }
 
 /// Query one host clock metadata snapshot.

@@ -36,16 +36,11 @@ audio-jack = []
 # language
 destack_artifact = { workspace = true }
 destack_core = { workspace = true }
-destack_dir = { workspace = true }
 destack_program = { workspace = true }
-destack_fir = { workspace = true }
 destack_heap = { workspace = true }
 destack_memory = { workspace = true }
-destack_mir = { workspace = true }
-destack_query = { workspace = true }
 destack_serde = { workspace = true }
 destack_source = { workspace = true }
-destack_unicode = { workspace = true }
 destack_vm = { workspace = true }
 destack_repository = { workspace = true }
 
@@ -70,6 +65,7 @@ io-uring = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true }
 destack_compiler = { workspace = true }
+destack_mir = { workspace = true }
 
 [[bench]]
 name = "footprint"

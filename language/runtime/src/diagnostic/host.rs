@@ -19,8 +19,6 @@ use windows_sys::Win32::Networking::WinSock::{
 
 use serde::{Deserialize, Serialize};
 
-use destack_vm as vm;
-
 /// Error code for host bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u16)]
@@ -617,6 +615,18 @@ impl HostError {
         error
     }
 
+    /// Build an I/O would-block error for one binding operation.
+    pub fn would_block(operation: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::io_with(
+            Some(HostErrorCode::IoWouldBlock),
+            None,
+            None,
+            Some(operation.into()),
+            None,
+            message,
+        )
+    }
+
     /// Build an invalid data I/O error.
     pub fn invalid_data(message: impl Into<String>) -> Self {
         let mut error = Self::io(message);
@@ -886,34 +896,6 @@ impl fmt::Display for HostError {
 }
 
 impl std::error::Error for HostError {}
-
-impl From<HostError> for vm::Error {
-    fn from(error: HostError) -> Self {
-        if matches!(
-            error.code,
-            HostErrorCode::InvalidArgument
-                | HostErrorCode::InvalidArgumentType
-                | HostErrorCode::InvalidArgumentValue
-        ) {
-            return vm::Error::type_mismatch("valid argument", error.message());
-        }
-
-        if error.code == HostErrorCode::NullPointer {
-            return vm::Error::null_pointer_dereference();
-        }
-
-        if error.code == HostErrorCode::NotSupported {
-            let name = error
-                .context
-                .as_ref()
-                .and_then(|context| context.feature.clone())
-                .unwrap_or_else(|| error.message());
-            return vm::Error::import_forbidden(name);
-        }
-
-        vm::Error::panic(error.message())
-    }
-}
 
 /// Result type for host binding handlers.
 pub type HostResult<T> = Result<T, Box<HostError>>;

@@ -2,15 +2,22 @@ use std::fmt;
 
 use destack_heap as heap;
 use destack_memory as memory;
+use destack_program as program;
 use destack_vm as vm;
+use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::HostError;
+use crate::machine::native;
 
 /// Error type for runtime execution failures.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RuntimeError {
     /// VM runtime error bubbled through the runtime boundary.
     Vm(Box<vm::Error>),
+    /// Native execution failure.
+    Native(Box<native::Error>),
+    /// Program operation failure.
+    Program(Box<program::Error>),
     /// Host binding failure.
     Host(Box<HostError>),
     /// Binding boundary failure.
@@ -38,7 +45,7 @@ pub enum RuntimeError {
     /// Runtime machine operation failed.
     Machine {
         /// Machine kind that failed.
-        machine: String,
+        machine: MachineKind,
         /// Machine failure reason.
         reason: MachineError,
     },
@@ -64,17 +71,12 @@ pub enum RuntimeError {
 }
 
 /// Binding boundary failure reason.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BindingError {
     /// Binding name was not found in the binding table.
     NotFound,
     /// Binding call rejected by policy.
     PolicyViolation,
-    /// Binding call rejected due to a missing required action.
-    ActionDenied {
-        /// Required action that was not granted.
-        action: String,
-    },
     /// Binding call rejected due to an execution-affinity mismatch.
     AffinityViolation {
         /// Required affinity for this binding.
@@ -83,7 +85,7 @@ pub enum BindingError {
 }
 
 /// Runtime entity failure reason.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EntityError {
     /// Entity was not found.
     NotFound(Entity),
@@ -127,7 +129,7 @@ pub enum EntityError {
 }
 
 /// Runtime entity reference.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Entity {
     /// Host or runtime resource.
     Resource {
@@ -176,7 +178,7 @@ pub enum Entity {
 }
 
 /// Runtime execution failure reason.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RuntimeFailure {
     /// Event loop became idle before completing a task.
     EventLoopIdle { task_id: u64 },
@@ -191,7 +193,7 @@ pub enum RuntimeFailure {
 }
 
 /// Runtime memory failure reason.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MemoryError {
     /// One runtime memory scope exceeded its configured hard limit.
     LimitExceeded {
@@ -205,7 +207,7 @@ pub enum MemoryError {
 }
 
 /// Trace failure reason.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TraceFailure {
     /// Trace ended before the requested event.
     Exhausted {
@@ -235,7 +237,7 @@ pub enum TraceFailure {
 }
 
 /// Capture, restore, or image failure reason.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CaptureError {
     /// Exclusive access is already held.
     ExclusiveAccessHeld,
@@ -270,7 +272,6 @@ impl BindingError {
         match self {
             Self::NotFound => 100,
             Self::PolicyViolation => 101,
-            Self::ActionDenied { .. } => 102,
             Self::AffinityViolation { .. } => 114,
         }
     }
@@ -280,21 +281,9 @@ impl BindingError {
         match self {
             Self::NotFound => format!("binding not found: {name}"),
             Self::PolicyViolation => format!("binding forbidden by policy: {name}"),
-            Self::ActionDenied { action } => {
-                format!("binding action denied: {name} requires {action}")
-            }
             Self::AffinityViolation { affinity } => {
                 format!("binding affinity denied: {name} requires {affinity}")
             }
-        }
-    }
-
-    /// Return the VM import name payload for this binding failure.
-    fn import_name(self, name: String) -> String {
-        match self {
-            Self::NotFound | Self::PolicyViolation => name,
-            Self::ActionDenied { action } => format!("{name} ({action})"),
-            Self::AffinityViolation { affinity } => format!("{name} ({affinity})"),
         }
     }
 }
@@ -539,33 +528,37 @@ impl CaptureError {
 }
 
 /// Machine failure reason.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MachineError {
     /// Requested machine entry is unavailable.
     EntryUnavailable { entry: String },
-    /// Continuation belongs to a different machine.
-    ContinuationMismatch { continuation: String },
-    /// Image belongs to a different machine.
-    ImageMismatch { image: String },
     /// Machine feature is unsupported.
     Unsupported { feature: String },
-    /// Machine yielded without a materialized continuation.
-    YieldMissing,
-    /// Machine stopped without a materialized continuation.
-    StopMissing,
-    /// Machine trapped.
-    Trap,
-    /// Machine deoptimized without a continuation.
-    DeoptMissing,
-    /// Machine panicked.
-    Panic,
-    /// Destructor suspended instead of completing.
-    DropSuspended,
+    /// Coroutine suspension has no language owner.
+    UnownedSuspension,
     /// Destructor reached a runtime stop point.
     DropStopped,
+    /// Destructor attempted to suspend.
+    DropSuspended,
+    /// Destructor completed through coroutine cancellation.
+    DropCancelled,
+}
+
+/// Runtime execution machine kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MachineKind {
+    /// Destack bytecode virtual machine.
+    Vm,
+    /// Native machine code.
+    Native,
 }
 
 impl RuntimeError {
+    /// Create one machine operation failure.
+    pub const fn machine(machine: MachineKind, reason: MachineError) -> Self {
+        Self::Machine { machine, reason }
+    }
+
     /// Return a binding-not-found error.
     pub fn binding_not_found(name: impl Into<String>) -> Self {
         Self::Binding {
@@ -579,16 +572,6 @@ impl RuntimeError {
         Self::Binding {
             name: name.into(),
             reason: BindingError::PolicyViolation,
-        }
-    }
-
-    /// Return a binding action denial.
-    pub fn action_denied(name: impl Into<String>, action: impl Into<String>) -> Self {
-        Self::Binding {
-            name: name.into(),
-            reason: BindingError::ActionDenied {
-                action: action.into(),
-            },
         }
     }
 
@@ -860,13 +843,15 @@ impl RuntimeError {
     /// Return a human-readable error message.
     pub fn message(&self) -> String {
         match self {
-            RuntimeError::Vm(error) => error.message(),
+            RuntimeError::Vm(error) => error.to_string(),
+            RuntimeError::Native(error) => error.to_string(),
+            RuntimeError::Program(error) => error.to_string(),
             RuntimeError::Host(error) => error.message(),
             RuntimeError::Binding { name, reason } => reason.message(name),
             RuntimeError::Entity { reason } => reason.message(),
             RuntimeError::Runtime { reason } => reason.message(),
             RuntimeError::Trace { reason } => reason.message(),
-            RuntimeError::Machine { machine, reason } => reason.message(machine),
+            RuntimeError::Machine { machine, reason } => reason.message(*machine),
             RuntimeError::Capture { reason } => reason.message(),
             RuntimeError::Configuration { scope, detail } => {
                 format!("invalid runtime configuration for {scope}: {detail}")
@@ -886,6 +871,8 @@ impl RuntimeError {
     pub fn code(&self) -> u16 {
         match self {
             Self::Vm(_) => 1,
+            Self::Native(_) => 149,
+            Self::Program(_) => 148,
             Self::Host(_) => 2,
             Self::Binding { reason, .. } => reason.code(),
             Self::Entity { reason } => reason.code(),
@@ -902,7 +889,7 @@ impl RuntimeError {
     /// Return a sub-code for status mapping.
     pub fn sub_code(&self) -> u32 {
         match self {
-            RuntimeError::Vm(error) => error.sub_code() as u32,
+            RuntimeError::Vm(_) => self.code() as u32,
             RuntimeError::Host(error) => error.code.number(),
             _ => self.code() as u32,
         }
@@ -919,40 +906,30 @@ impl RuntimeError {
 
 impl MachineError {
     /// Return a human-readable machine failure message.
-    pub fn message(&self, machine: &str) -> String {
+    pub fn message(&self, machine: MachineKind) -> String {
+        let machine = match machine {
+            MachineKind::Vm => "VM",
+            MachineKind::Native => "native",
+        };
+
         match self {
             Self::EntryUnavailable { entry } => {
                 format!("{machine} machine cannot run {entry} entry")
             }
-            Self::ContinuationMismatch { continuation } => {
-                format!("{machine} machine cannot handle {continuation} continuation")
-            }
-            Self::ImageMismatch { image } => {
-                format!("{machine} machine cannot restore {image} image")
-            }
             Self::Unsupported { feature } => {
                 format!("{machine} machine does not support {feature}")
             }
-            Self::YieldMissing => {
-                format!("{machine} machine yielded without a continuation")
+            Self::UnownedSuspension => {
+                format!("{machine} machine suspended without a coroutine owner")
             }
-            Self::StopMissing => {
-                format!("{machine} machine stopped without a continuation")
-            }
-            Self::Trap => {
-                format!("{machine} machine trapped")
-            }
-            Self::DeoptMissing => {
-                format!("{machine} machine deoptimized without a continuation")
-            }
-            Self::Panic => {
-                format!("{machine} machine panicked")
+            Self::DropStopped => {
+                format!("{machine} machine stopped while dropping a value")
             }
             Self::DropSuspended => {
                 format!("{machine} machine suspended while dropping a value")
             }
-            Self::DropStopped => {
-                format!("{machine} machine stopped while dropping a value")
+            Self::DropCancelled => {
+                format!("{machine} machine cancelled while dropping a value")
             }
         }
     }
@@ -964,45 +941,58 @@ impl fmt::Display for RuntimeError {
     }
 }
 
-impl std::error::Error for RuntimeError {}
-
-impl From<vm::Error> for RuntimeError {
-    fn from(error: vm::Error) -> Self {
-        match error {
-            vm::Error::Resource {
-                reason:
-                    vm::ResourceError::HeapLimitExceeded {
-                        scope,
-                        used_bytes,
-                        max_bytes,
-                    },
-            } => RuntimeError::Memory {
-                reason: MemoryError::LimitExceeded {
-                    scope,
-                    used_bytes,
-                    max_bytes,
-                },
-            },
-            error => RuntimeError::Vm(Box::new(error)),
+impl std::error::Error for RuntimeError {
+    /// Return the underlying subsystem failure when present.
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Vm(error) => Some(error.as_ref()),
+            Self::Native(error) => Some(error.as_ref()),
+            Self::Program(error) => Some(error.as_ref()),
+            Self::Host(error) => Some(error.as_ref()),
+            _ => None,
         }
     }
 }
 
+impl From<vm::Error> for RuntimeError {
+    /// Preserve one VM execution failure.
+    fn from(error: vm::Error) -> Self {
+        RuntimeError::Vm(Box::new(error))
+    }
+}
+
 impl From<vm::Error> for Box<RuntimeError> {
+    /// Preserve one VM execution failure.
     fn from(error: vm::Error) -> Self {
         Box::new(RuntimeError::from(error))
     }
 }
 
+impl From<native::Error> for RuntimeError {
+    /// Preserve one native execution failure.
+    fn from(error: native::Error) -> Self {
+        Self::Native(Box::new(error))
+    }
+}
+
+impl From<native::Error> for Box<RuntimeError> {
+    /// Preserve one native execution failure.
+    fn from(error: native::Error) -> Self {
+        RuntimeError::from(error).boxed()
+    }
+}
+
 impl From<HostError> for Box<RuntimeError> {
+    /// Preserve one host operation failure.
     fn from(error: HostError) -> Self {
         Box::new(RuntimeError::from(error))
     }
 }
 
-impl From<vm::RuntimeError> for Box<RuntimeError> {
-    fn from(error: vm::RuntimeError) -> Self {
-        Box::new(RuntimeError::from(error.error))
+impl From<program::Error> for Box<RuntimeError> {
+    /// Preserve one Program operation failure.
+    fn from(error: program::Error) -> Self {
+        RuntimeError::Program(Box::new(error)).boxed()
     }
 }
 
@@ -1048,6 +1038,7 @@ impl From<memory::MemoryError> for Box<RuntimeError> {
 }
 
 impl From<HostError> for RuntimeError {
+    /// Preserve one host operation failure.
     fn from(error: HostError) -> Self {
         RuntimeError::Host(Box::new(error))
     }
@@ -1066,31 +1057,6 @@ impl From<&RuntimeError> for HostError {
 impl From<RuntimeError> for HostError {
     fn from(error: RuntimeError) -> Self {
         HostError::from(&error)
-    }
-}
-
-impl From<Box<RuntimeError>> for vm::Error {
-    fn from(error: Box<RuntimeError>) -> Self {
-        match *error {
-            RuntimeError::Vm(error) => *error,
-            RuntimeError::Host(error) => (*error).into(),
-            RuntimeError::Binding {
-                name,
-                reason: BindingError::NotFound,
-            } => vm::Error::import_not_found(name),
-            RuntimeError::Binding { name, reason } => {
-                vm::Error::import_forbidden(reason.import_name(name))
-            }
-            RuntimeError::Memory {
-                reason:
-                    MemoryError::LimitExceeded {
-                        scope,
-                        used_bytes,
-                        max_bytes,
-                    },
-            } => vm::Error::heap_limit_exceeded(scope, used_bytes, max_bytes),
-            other => vm::Error::panic(other.message()),
-        }
     }
 }
 

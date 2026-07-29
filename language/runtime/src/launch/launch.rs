@@ -4,8 +4,9 @@ use destack_artifact::ConditionSet;
 use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
 
+use crate::binding::BindingTable;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::machine::{Entry, Execution};
+use crate::machine::{Engine, Entry};
 use crate::world::{Run, RunOutcome, RuntimeId, World};
 
 /// Complete startup request for one Destack world.
@@ -18,8 +19,10 @@ pub struct Launch {
     pub environment: Arc<Environment>,
     /// Durable program instantiated by the runtime.
     pub program: Arc<program::Program>,
-    /// Execution strategy used by the runtime.
-    pub execution: Execution,
+    /// Runtime binding implementations.
+    pub binding_table: Arc<BindingTable>,
+    /// Immutable execution engine for runtime workers.
+    pub engine: Engine,
     /// User entrypoint invoked after runtime bootstrap.
     pub entry: Entry,
     /// Values passed to the user entrypoint.
@@ -38,13 +41,15 @@ pub struct LaunchResult {
 }
 
 impl std::fmt::Debug for Launch {
+    /// Format one launch request without traversing executable internals.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Launch")
             .field("options", &self.options)
             .field("conditions", &self.conditions)
             .field("environment", &self.environment)
             .field("program", &self.program)
-            .field("execution", &self.execution)
+            .field("binding_table", &self.binding_table)
+            .field("engine", &self.engine)
             .field("entry", &self.entry)
             .field("entry_args", &self.entry_args)
             .finish()
@@ -58,7 +63,8 @@ impl Launch {
         conditions: impl Into<Arc<ConditionSet>>,
         environment: impl Into<Arc<Environment>>,
         program: impl Into<Arc<program::Program>>,
-        execution: Execution,
+        binding_table: impl Into<Arc<BindingTable>>,
+        engine: Engine,
         entry: Entry,
     ) -> Self {
         Self {
@@ -66,7 +72,8 @@ impl Launch {
             conditions: conditions.into(),
             environment: environment.into(),
             program: program.into(),
-            execution,
+            binding_table: binding_table.into(),
+            engine,
             entry,
             entry_args: Vec::new(),
         }
@@ -79,15 +86,22 @@ impl Launch {
             conditions,
             environment,
             program,
-            execution,
+            binding_table,
+            engine,
             entry,
             entry_args,
         } = self;
         let mut world = World::new(&options, environment.clone())?;
 
         // bootstrap the initial runtime
-        let runtime_id =
-            world.spawn_runtime(environment, &options, conditions, program, execution)?;
+        let runtime_id = world.spawn_runtime(
+            environment,
+            &options,
+            conditions,
+            program,
+            binding_table,
+            engine,
+        )?;
         let value = world.run_entrypoint(runtime_id, &entry, &entry_args)?;
 
         // drain work scheduled by the entrypoint

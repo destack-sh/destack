@@ -3,8 +3,8 @@ use std::num::NonZeroU64;
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use crate::host::binding::BindingId;
-use crate::runtime::{RuntimeId, WorkerId};
+use crate::worker::WorkerId;
+use crate::world::RuntimeId;
 
 /// Runtime probe identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -110,7 +110,7 @@ pub struct BindingProbe {
     /// Worker that calls the binding.
     pub worker_id: Option<WorkerId>,
     /// Binding selected by this probe.
-    pub binding_id: Option<BindingId>,
+    pub binding_id: Option<program::BindingId>,
 }
 
 /// Frame event selected by one probe.
@@ -120,10 +120,6 @@ pub enum FrameEvent {
     Enter,
     /// Frame returned normally.
     Return,
-    /// Frame suspended into a continuation.
-    Suspend,
-    /// Frame resumed from a continuation.
-    Resume,
 }
 
 impl ProbeId {

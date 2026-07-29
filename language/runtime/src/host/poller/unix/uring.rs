@@ -12,7 +12,7 @@ use crate::host::poller::{
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
     TIMEOUT_TOKEN_BITS, WAKE_TOKEN_BITS,
 };
-use crate::host::{HostError, ResourceId, core as host_core};
+use crate::host::{HostError, ResourceId, get_errno};
 
 /// Default io_uring queue depth.
 const DEFAULT_QUEUE_DEPTH: u32 = 256;
@@ -499,7 +499,7 @@ fn wake_eventfd(fd: RawFd) -> RuntimeResult<()> {
         )
     };
     if result < 0 {
-        let errno = host_core::get_errno();
+        let errno = get_errno();
         if errno != libc::EWOULDBLOCK && errno != libc::EAGAIN {
             return Err(io_error("poller.wake", Some(fd)));
         }
@@ -578,7 +578,7 @@ fn drain_eventfd(fd: RawFd) {
             )
         };
         if result < 0 {
-            let errno = host_core::get_errno();
+            let errno = get_errno();
             if errno == libc::EWOULDBLOCK || errno == libc::EAGAIN {
                 break;
             }
@@ -589,7 +589,7 @@ fn drain_eventfd(fd: RawFd) {
 }
 
 fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
-    let errno = host_core::get_errno();
+    let errno = get_errno();
     io_error_with_errno(context, fd, errno)
 }
 

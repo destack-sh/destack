@@ -1,5 +1,4 @@
 mod chunk;
-mod error;
 mod file;
 mod header;
 mod log;
@@ -11,7 +10,6 @@ mod tests;
 mod time;
 mod trace;
 
-pub use error::*;
 pub use header::*;
 pub use log::*;
 pub use reader::*;

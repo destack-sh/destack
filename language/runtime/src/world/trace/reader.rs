@@ -38,7 +38,7 @@ impl TraceReadCursor {
         }
 
         if self.read_index + 1 == chunk.header.entry_count as usize
-            && chunk.sequence_end() != self.next_sequence
+            && chunk.sequence_end()? != self.next_sequence
         {
             return Err(RuntimeError::trace_mismatch("sequence".to_string()).boxed());
         }

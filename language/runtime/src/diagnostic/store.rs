@@ -57,7 +57,7 @@ pub struct DiagnosticEntry {
     /// Monotonic in-store sequence number.
     pub sequence: u64,
     /// Wall-clock timestamp for this diagnostic, in nanoseconds since unix epoch.
-    pub timestamp_ns: u64,
+    pub timestamp_nanos: i128,
     /// Diagnostic severity level.
     pub level: RuntimeDiagnosticLevel,
     /// Module name for this diagnostic.
@@ -70,9 +70,9 @@ pub struct DiagnosticEntry {
     pub os_code: Option<u32>,
 }
 
-/// Durable diagnostics store state captured at one checkpoint.
+/// Captured diagnostics store state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DiagnosticSnapshot {
+pub struct DiagnosticImage {
     /// The number of allocated error slots.
     pub error_slot_count: usize,
     /// Generation counters for each allocated error slot.
@@ -100,6 +100,24 @@ struct DiagnosticState {
     dropped_since_drain: u64,
     /// Monotonic sequence number generator for diagnostics.
     next_diagnostic_sequence: u64,
+}
+
+impl DiagnosticState {
+    /// Return whether this state can be captured or forked.
+    fn is_quiescent(&self) -> bool {
+        self.errors.iter().all(Option::is_none) && self.diagnostic_entries.is_empty()
+    }
+
+    /// Capture this quiescent state.
+    fn image(&self) -> DiagnosticImage {
+        DiagnosticImage {
+            error_slot_count: self.errors.len(),
+            error_generations: self.error_generations.clone(),
+            free_error_slots: self.free_error_slots.clone(),
+            dropped_since_drain: self.dropped_since_drain,
+            next_diagnostic_sequence: self.next_diagnostic_sequence,
+        }
+    }
 }
 
 /// Diagnostics and runtime-error storage.
@@ -212,11 +230,11 @@ impl DiagnosticStore {
         // allocate one record with stable sequence and timestamp
         let mut state = self.state.lock();
         let sequence = state.next_diagnostic_sequence;
-        state.next_diagnostic_sequence = state.next_diagnostic_sequence.saturating_add(1);
+        state.next_diagnostic_sequence = state.next_diagnostic_sequence.wrapping_add(1);
 
         let record = DiagnosticEntry {
             sequence,
-            timestamp_ns: unix_now_ns(),
+            timestamp_nanos: unix_now_nanos(),
             level,
             module: module.into(),
             operation: operation.into(),
@@ -227,7 +245,7 @@ impl DiagnosticStore {
         // keep the ring buffer bounded and track drops
         if state.diagnostic_entries.len() == self.capacity {
             state.diagnostic_entries.pop_front();
-            state.dropped_since_drain = state.dropped_since_drain.saturating_add(1);
+            state.dropped_since_drain = state.dropped_since_drain.wrapping_add(1);
         }
         state.diagnostic_entries.push_back(record);
     }
@@ -262,10 +280,14 @@ impl DiagnosticStore {
 
     /// Fork one quiescent diagnostics store.
     pub(crate) fn try_fork(&self) -> RuntimeResult<Option<Self>> {
-        // require one quiescent diagnostics state
-        let snapshot = match self.snapshot() {
-            Ok(snapshot) => snapshot,
-            Err(_) => return Ok(None),
+        // capture only quiescent diagnostic state
+        let image = {
+            let state = self.state.lock();
+            if !state.is_quiescent() {
+                return Ok(None);
+            }
+
+            state.image()
         };
 
         // rebuild the same storage policy on one fresh store
@@ -281,13 +303,13 @@ impl DiagnosticStore {
                 next_diagnostic_sequence: 1,
             }),
         };
-        forked.restore_snapshot(&snapshot)?;
+        forked.restore(&image)?;
 
         Ok(Some(forked))
     }
 
-    /// Capture one durable diagnostics snapshot.
-    pub(crate) fn snapshot(&self) -> RuntimeResult<DiagnosticSnapshot> {
+    /// Capture one diagnostics image.
+    pub(crate) fn image(&self) -> RuntimeResult<DiagnosticImage> {
         let state = self.state.lock();
 
         // require no live stored errors
@@ -306,17 +328,37 @@ impl DiagnosticStore {
             .boxed());
         }
 
-        Ok(DiagnosticSnapshot {
-            error_slot_count: state.errors.len(),
-            error_generations: state.error_generations.clone(),
-            free_error_slots: state.free_error_slots.clone(),
-            dropped_since_drain: state.dropped_since_drain,
-            next_diagnostic_sequence: state.next_diagnostic_sequence,
-        })
+        Ok(state.image())
     }
 
-    /// Restore one durable diagnostics snapshot.
-    pub(crate) fn restore_snapshot(&self, snapshot: &DiagnosticSnapshot) -> RuntimeResult<()> {
+    /// Restore one diagnostics image.
+    pub(crate) fn restore(&self, image: &DiagnosticImage) -> RuntimeResult<()> {
+        // require one internally consistent slot table
+        if image.error_generations.len() != image.error_slot_count {
+            return Err(RuntimeError::Internal {
+                message: "diagnostics image generation count does not match its slot count"
+                    .to_string(),
+            }
+            .boxed());
+        }
+        let mut free_slots = vec![false; image.error_slot_count];
+        for &slot in &image.free_error_slots {
+            let slot = slot as usize;
+            let Some(is_free) = free_slots.get_mut(slot) else {
+                return Err(RuntimeError::Internal {
+                    message: "diagnostics image contains an out-of-range free slot".to_string(),
+                }
+                .boxed());
+            };
+            if *is_free {
+                return Err(RuntimeError::Internal {
+                    message: "diagnostics image contains a duplicate free slot".to_string(),
+                }
+                .boxed());
+            }
+            *is_free = true;
+        }
+
         let mut state = self.state.lock();
 
         // require no live stored errors
@@ -336,13 +378,13 @@ impl DiagnosticStore {
         }
 
         state.errors = std::iter::repeat_with(|| None)
-            .take(snapshot.error_slot_count)
+            .take(image.error_slot_count)
             .collect();
-        state.error_generations = snapshot.error_generations.clone();
-        state.free_error_slots = snapshot.free_error_slots.clone();
+        state.error_generations = image.error_generations.clone();
+        state.free_error_slots = image.free_error_slots.clone();
         state.diagnostic_entries.clear();
-        state.dropped_since_drain = snapshot.dropped_since_drain;
-        state.next_diagnostic_sequence = snapshot.next_diagnostic_sequence;
+        state.dropped_since_drain = image.dropped_since_drain;
+        state.next_diagnostic_sequence = image.next_diagnostic_sequence;
 
         Ok(())
     }
@@ -370,13 +412,11 @@ fn level_rank(level: RuntimeDiagnosticLevel) -> u8 {
 }
 
 /// Return the current wall-clock timestamp in nanoseconds since unix epoch.
-fn unix_now_ns() -> u64 {
-    let now = match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(duration) => duration,
-        Err(_) => return 0,
-    };
-
-    now.as_nanos().min(u128::from(u64::MAX)) as u64
+fn unix_now_nanos() -> i128 {
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(duration) => duration.as_nanos() as i128,
+        Err(error) => -(error.duration().as_nanos() as i128),
+    }
 }
 
 #[cfg(test)]

@@ -1,15 +1,15 @@
 use std::collections::BTreeMap;
 
-use crate::host::binding::{
-    BindingAffinity, BindingDescriptor, BindingDeterminism, BindingProvider, current_platform_name,
-};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host;
 use crate::world::topology::LabelSet;
 use crate::world::{EdgeId, EntityId};
+use destack_program as program;
 use destack_repository::{
     ConditionGate, ConditionSelector, ConditionSet, ExecutionMode, PackageSelector,
     RuntimeIdentitySelector, RuntimeLabelOperator, RuntimeLabelRequirement, RuntimeLabelSelector,
 };
-use destack_source::matches as glob_matches;
+use destack_source::matches;
 use serde::{Deserialize, Serialize};
 
 /// Selector clauses for policy subjects.
@@ -46,7 +46,7 @@ pub struct SubjectSelector {
     pub runtime: Option<ConditionSelector>,
 }
 
-/// Subject facts for one policy evaluation.
+/// Subject for one policy evaluation.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Subject<'a> {
     /// Package name for selector matching.
@@ -79,18 +79,11 @@ pub struct ActionSelector {
     /// Target-platform selector.
     pub platforms: Option<Vec<String>>,
     /// Binding provider selector.
-    pub provider: Option<BindingProvider>,
+    pub provider: Option<program::BindingProvider>,
     /// Binding affinity selector.
-    pub affinity: Option<BindingAffinity>,
-    /// Binding determinism selector.
-    pub determinism: Option<BindingDeterminism>,
-}
-
-/// Attempt facts for one policy action.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Attempt {
-    /// Binding metadata when the event is a binding call.
-    pub(crate) binding: Option<BindingDescriptor>,
+    pub affinity: Option<program::BindingAffinity>,
+    /// Binding effect selector.
+    pub effect: Option<program::BindingEffect>,
 }
 
 /// Selector for one policy target.
@@ -287,6 +280,7 @@ impl SubjectSelector {
                 .product
                 .as_ref()
                 .is_none_or(ConditionSelector::is_empty)
+            && self.stage.as_ref().is_none_or(ConditionSelector::is_empty)
             && self
                 .platform
                 .as_ref()
@@ -299,46 +293,46 @@ impl SubjectSelector {
     }
 
     /// Return true when this selector matches one policy subject.
-    pub(crate) fn matches(&self, subject: Subject<'_>) -> bool {
+    pub(crate) fn matches(&self, subject: Subject<'_>) -> RuntimeResult<bool> {
         // package
         if let Some(package) = &self.package
-            && !matches_package_selector(package, subject.package_name)
+            && !matches_package_selector(package, subject.package_name)?
         {
-            return false;
+            return Ok(false);
         }
 
         // runtime
         if let Some(runtime) = &self.runtime_identity
             && !matches_identity_selector(runtime, subject.runtime_name, subject.runtime_labels)
         {
-            return false;
+            return Ok(false);
         }
 
         // worker
         if let Some(worker) = &self.worker
             && !matches_identity_selector(worker, subject.worker_name, subject.worker_labels)
         {
-            return false;
+            return Ok(false);
         }
 
         // execution mode
         if let Some(modes) = &self.execution
             && !modes.contains(&subject.mode)
         {
-            return false;
+            return Ok(false);
         }
 
         // source graph conditions
         if !matches_conditions(self, subject.conditions) {
-            return false;
+            return Ok(false);
         }
 
-        true
+        Ok(true)
     }
 }
 
 impl<'a> Subject<'a> {
-    /// Create one subject from runtime and worker facts.
+    /// Create one subject from runtime and worker state.
     pub(crate) fn new(
         runtime_name: &'a str,
         runtime_labels: &'a LabelSet,
@@ -388,27 +382,28 @@ impl ActionSelector {
 
     /// Add one target-platform selector.
     pub fn platform(mut self, platform: impl Into<String>) -> Self {
-        let mut platforms = self.platforms.take().unwrap_or_default();
-        platforms.push(platform.into());
-        self.platforms = Some(platforms);
+        self.platforms
+            .get_or_insert_with(Vec::new)
+            .push(platform.into());
+
         self
     }
 
     /// Set the binding-provider selector.
-    pub fn provider(mut self, provider: BindingProvider) -> Self {
+    pub fn provider(mut self, provider: program::BindingProvider) -> Self {
         self.provider = Some(provider);
         self
     }
 
     /// Set the binding-affinity selector.
-    pub fn affinity(mut self, affinity: BindingAffinity) -> Self {
+    pub fn affinity(mut self, affinity: program::BindingAffinity) -> Self {
         self.affinity = Some(affinity);
         self
     }
 
-    /// Set the binding-determinism selector.
-    pub fn determinism(mut self, determinism: BindingDeterminism) -> Self {
-        self.determinism = Some(determinism);
+    /// Set the binding effect selector.
+    pub fn effect(mut self, effect: program::BindingEffect) -> Self {
+        self.effect = Some(effect);
         self
     }
 
@@ -421,38 +416,22 @@ impl ActionSelector {
             && self.platforms.is_none()
             && self.provider.is_none()
             && self.affinity.is_none()
-            && self.determinism.is_none()
-    }
-
-    /// Return true when this selector requires binding metadata.
-    pub fn requires_binding(&self) -> bool {
-        self.binding.is_some()
-            || self.action.is_some()
-            || self.component.is_some()
-            || self.module.is_some()
-            || self.provider.is_some()
-            || self.affinity.is_some()
-            || self.determinism.is_some()
+            && self.effect.is_none()
     }
 
     /// Return true when this selector matches one binding call.
-    pub(crate) fn matches(&self, attempt: Attempt) -> bool {
-        // binding metadata
-        if self.requires_binding() && attempt.binding.is_none() {
-            return false;
-        }
-
+    pub(crate) fn matches(
+        &self,
+        program: &program::Program,
+        binding: &program::Binding,
+    ) -> RuntimeResult<bool> {
         // target
         if !self.matches_target() {
-            return false;
+            return Ok(false);
         }
 
         // binding
-        if let Some(binding) = attempt.binding {
-            return self.matches_binding(binding);
-        }
-
-        true
+        self.matches_binding(program, binding)
     }
 
     /// Return true when target-platform clauses match this runtime target.
@@ -461,61 +440,64 @@ impl ActionSelector {
             return true;
         };
 
-        let platform = current_platform_name();
+        let platform = host::platform_name();
 
         platforms
             .iter()
             .any(|pattern| glob_match(pattern, platform))
     }
 
-    /// Return true when binding clauses match one binding descriptor.
-    fn matches_binding(&self, binding: BindingDescriptor) -> bool {
+    /// Return true when binding clauses match one Program declaration.
+    fn matches_binding(
+        &self,
+        program: &program::Program,
+        binding: &program::Binding,
+    ) -> RuntimeResult<bool> {
+        let name = binding_name(program, binding)?;
+
         if let Some(pattern) = &self.binding
-            && !glob_match(pattern, binding.name)
+            && !glob_match(pattern, name)
         {
-            return false;
+            return Ok(false);
         }
 
         if let Some(pattern) = &self.module
-            && !glob_match(pattern, binding_module_name(binding.name))
+            && !glob_match(pattern, binding_module_name(name))
         {
-            return false;
+            return Ok(false);
         }
 
         if let Some(pattern) = &self.component
-            && !glob_match(pattern, binding_component_name(binding.name))
+            && !glob_match(pattern, binding_component_name(name))
         {
-            return false;
+            return Ok(false);
         }
 
         if let Some(pattern) = &self.action
-            && !binding
-                .requires()
-                .iter()
-                .any(|action| glob_match(pattern, action))
+            && !matches_strings(program, program.binding_requires(binding), pattern)?
         {
-            return false;
+            return Ok(false);
         }
 
         if let Some(provider) = self.provider
-            && binding.provider() != provider
+            && binding.provider != provider
         {
-            return false;
+            return Ok(false);
         }
 
         if let Some(affinity) = self.affinity
-            && binding.affinity() != affinity
+            && binding.affinity != affinity
         {
-            return false;
+            return Ok(false);
         }
 
-        if let Some(determinism) = self.determinism
-            && determinism != binding.determinism
+        if let Some(effect) = self.effect
+            && effect != binding.effect
         {
-            return false;
+            return Ok(false);
         }
 
-        true
+        Ok(true)
     }
 }
 
@@ -536,26 +518,50 @@ impl TargetSelector {
     }
 
     /// Return true when this selector matches one binding attempt target.
-    pub(crate) fn matches_binding_attempt(&self) -> bool {
-        matches!(self, Self::Any)
+    pub(crate) fn matches_binding(&self) -> RuntimeResult<bool> {
+        match self {
+            Self::Any => Ok(true),
+            Self::Entity { .. } | Self::Edge { .. } => Err(RuntimeError::Internal {
+                message: "binding policy targets require one resolved topology target".to_string(),
+            }
+            .boxed()),
+        }
     }
 }
 
-/// Return true when one rule matches one subject and attempt.
-pub(crate) fn matches_rule_selectors(
-    rule: &super::Rule,
-    subject: Subject<'_>,
-    attempt: Attempt,
-) -> bool {
-    if !rule.subject.matches(subject) {
-        return false;
+/// Resolve one binding name from Program metadata.
+fn binding_name<'a>(
+    program: &'a program::Program,
+    binding: &program::Binding,
+) -> RuntimeResult<&'a str> {
+    program.string(binding.name).ok_or_else(|| {
+        RuntimeError::Internal {
+            message: format!("binding {:?} references a missing name", binding.id),
+        }
+        .boxed()
+    })
+}
+
+/// Return true when one Program string list matches one glob.
+fn matches_strings(
+    program: &program::Program,
+    strings: &[destack_core::StringId],
+    pattern: &str,
+) -> RuntimeResult<bool> {
+    for id in strings {
+        let value = program.string(*id).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: format!("binding metadata references missing string {id:?}"),
+            }
+            .boxed()
+        })?;
+
+        if glob_match(pattern, value) {
+            return Ok(true);
+        }
     }
 
-    if !rule.action.matches(attempt) {
-        return false;
-    }
-
-    rule.target.matches_binding_attempt()
+    Ok(false)
 }
 
 /// Return true when one identity selector matches name and labels.
@@ -580,19 +586,27 @@ fn matches_identity_selector(
 }
 
 /// Return true when one package selector matches one package name.
-fn matches_package_selector(selector: &PackageSelector, package_name: Option<&str>) -> bool {
+fn matches_package_selector(
+    selector: &PackageSelector,
+    package_name: Option<&str>,
+) -> RuntimeResult<bool> {
     let Some(package_name) = package_name else {
-        return false;
+        return Err(RuntimeError::Internal {
+            message: "package policy selectors require Program package identity".to_string(),
+        }
+        .boxed());
     };
 
     if selector.patterns.is_empty() {
-        return true;
+        return Ok(true);
     }
 
-    selector
+    let is_match = selector
         .patterns
         .iter()
-        .any(|pattern| glob_match(pattern, package_name))
+        .any(|pattern| glob_match(pattern, package_name));
+
+    Ok(is_match)
 }
 
 /// Return true when all source graph selectors match.
@@ -651,7 +665,7 @@ fn matches_label_requirement(requirement: &RuntimeLabelRequirement, labels: &Lab
 
 /// Match one text value against one glob pattern.
 fn glob_match(pattern: &str, text: &str) -> bool {
-    glob_matches(pattern.as_bytes(), 0, text.as_bytes(), 0)
+    matches(pattern.as_bytes(), 0, text.as_bytes(), 0)
 }
 
 /// Return the module segment for one binding id.

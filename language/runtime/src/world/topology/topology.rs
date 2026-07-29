@@ -10,7 +10,7 @@ use super::{
     EntityRole, RuntimeId, TopologyError, TopologyResult,
 };
 use crate::host::ResourceId;
-use crate::runtime::WorkerId;
+use crate::worker::WorkerId;
 use crate::world::topology::LabelSet;
 
 /// World topology graph and kind catalog.

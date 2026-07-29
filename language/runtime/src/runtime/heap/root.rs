@@ -6,32 +6,24 @@ use parking_lot::Mutex;
 
 use destack_heap::SharedHeapReference;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::WorkerId;
+use crate::worker::WorkerId;
 
 /// One shared heap mark-root publication epoch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub(crate) struct SharedRootEpoch(u64);
+pub(crate) struct RootEpoch(u64);
 
-impl SharedRootEpoch {
+impl RootEpoch {
     /// Return the next shared root publication epoch.
-    fn next(self) -> RuntimeResult<Self> {
-        let value = self.0.checked_add(1).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: "shared root epoch space exhausted".to_string(),
-            }
-            .boxed()
-        })?;
-
-        Ok(Self(value))
+    const fn next(self) -> Self {
+        Self(self.0.wrapping_add(1))
     }
 }
 
 /// Shared root publication state for one mark cycle.
 #[derive(Debug, Default)]
-struct SharedRootSetState {
+struct RootState {
     /// Active shared mark-root publication epoch.
-    epoch: SharedRootEpoch,
+    epoch: RootEpoch,
     /// Whether the root set is accepting active-cycle publications.
     is_active: bool,
     /// Cached direct shared roots for each worker.
@@ -50,27 +42,27 @@ struct SharedRootSetState {
 
 /// Shared heap roots published by runtime workers during one mark cycle.
 #[derive(Debug, Default)]
-pub(crate) struct SharedRootSet {
+pub(crate) struct RootSet {
     /// Shared root state protected as one coherent unit.
-    state: Mutex<SharedRootSetState>,
+    state: Mutex<RootState>,
     /// Whether shared mark termination is waiting on worker publication.
     termination_requested: AtomicBool,
     /// Current bounded local-to-shared edge scan work per worker.
     edge_scan_work_bytes: AtomicUsize,
 }
 
-impl SharedRootSet {
+impl RootSet {
     /// Begin root publication for one shared mark cycle.
     pub(crate) fn begin_mark(
         &self,
         workers: impl IntoIterator<Item = WorkerId>,
         edge_scan_work_bytes: usize,
-    ) -> RuntimeResult<SharedRootEpoch> {
+    ) -> RootEpoch {
         let workers = workers.into_iter().collect::<BTreeSet<_>>();
         let mut state = self.state.lock();
 
         // epoch
-        state.epoch = state.epoch.next()?;
+        state.epoch = state.epoch.next();
         state.is_active = true;
 
         // root ownership
@@ -88,7 +80,7 @@ impl SharedRootSet {
         self.edge_scan_work_bytes
             .store(edge_scan_work_bytes, Ordering::Release);
 
-        Ok(state.epoch)
+        state.epoch
     }
 
     /// Finish root publication for one shared mark cycle.
@@ -122,7 +114,7 @@ impl SharedRootSet {
     }
 
     /// Return the active shared mark-root publication epoch.
-    pub(crate) fn active_epoch(&self) -> Option<SharedRootEpoch> {
+    pub(crate) fn active_epoch(&self) -> Option<RootEpoch> {
         let state = self.state.lock();
 
         state.is_active.then_some(state.epoch)
@@ -174,7 +166,7 @@ impl SharedRootSet {
     /// Publish discovered shared edges into the runtime root state.
     pub(crate) fn push_edge_roots(
         &self,
-        epoch: SharedRootEpoch,
+        epoch: RootEpoch,
         worker_id: WorkerId,
         roots: &[SharedHeapReference],
     ) {
@@ -205,7 +197,7 @@ impl SharedRootSet {
     }
 
     /// Return the active epoch when one worker owes one direct-root scan.
-    pub(crate) fn pending_root_epoch(&self, worker_id: WorkerId) -> Option<SharedRootEpoch> {
+    pub(crate) fn pending_root_epoch(&self, worker_id: WorkerId) -> Option<RootEpoch> {
         let state = self.state.lock();
         if state.is_active && state.direct_pending.contains(&worker_id) {
             return Some(state.epoch);
@@ -217,7 +209,7 @@ impl SharedRootSet {
     /// Replace the cached direct roots for one worker.
     pub(crate) fn replace_direct_roots(
         &self,
-        epoch: SharedRootEpoch,
+        epoch: RootEpoch,
         worker_id: WorkerId,
         roots: Vec<SharedHeapReference>,
     ) {
@@ -243,7 +235,7 @@ impl SharedRootSet {
     }
 
     /// Remove one worker from the active shared local-edge pass.
-    pub(crate) fn leave_edge_scan(&self, epoch: SharedRootEpoch, worker_id: WorkerId) {
+    pub(crate) fn leave_edge_scan(&self, epoch: RootEpoch, worker_id: WorkerId) {
         let mut state = self.state.lock();
         if state.is_active && state.epoch == epoch {
             state.edge_pending.remove(&worker_id);

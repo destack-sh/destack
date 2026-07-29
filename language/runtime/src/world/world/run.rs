@@ -4,13 +4,13 @@ use destack_heap as heap;
 use destack_program as program;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::poll_host_events;
 use crate::host::poller::HostPoller;
 use crate::host::time::TimerClock;
-use crate::runtime::scheduler::{ScheduledTimer, TimerWake, Wake};
-use crate::runtime::time::{ClockSource, Instant};
-use crate::runtime::{RunnableProgress, RuntimeRunOutcome, WorkerId};
+use crate::runtime::RuntimeRunOutcome;
+use crate::worker::scheduler::{ScheduledTimer, TimerWake, Wake};
+use crate::worker::{RunnableProgress, WorkerId};
 use crate::world::observation::Observation;
+use crate::world::time::{ClockSource, Instant};
 
 use super::{Moment, RuntimeId, WorkerWake, World, WorldState};
 
@@ -23,7 +23,7 @@ pub enum Run {
     Microtasks,
     /// Resume the first retained runtime stop.
     Continue,
-    /// Run one task and its microtask checkpoint.
+    /// Run one task.
     Task,
     /// Run event-loop work until the world becomes idle.
     UntilIdle,
@@ -95,34 +95,22 @@ impl RunStep {
                 worker_id,
                 task_id,
             },
-            (
-                Self::Continue,
-                RunnableProgress::Microtask {
+            (Self::Continue, RunnableProgress::Microtask { microtask_id }) => {
+                Observation::MicrotaskContinued {
+                    runtime_id,
+                    worker_id,
                     microtask_id,
-                    depth,
-                },
-            ) => Observation::MicrotaskContinued {
-                runtime_id,
-                worker_id,
-                microtask_id,
-                depth,
-            },
+                }
+            }
             (_, RunnableProgress::Task { task_id }) => Observation::TaskRan {
                 runtime_id,
                 worker_id,
                 task_id,
             },
-            (
-                _,
-                RunnableProgress::Microtask {
-                    microtask_id,
-                    depth,
-                },
-            ) => Observation::MicrotaskRan {
+            (_, RunnableProgress::Microtask { microtask_id }) => Observation::MicrotaskRan {
                 runtime_id,
                 worker_id,
                 microtask_id,
-                depth,
             },
         }
     }
@@ -139,7 +127,7 @@ impl World {
 
         // deterministic order
         timers.sort_by_key(|(runtime_id, worker_id, timer)| {
-            due_timer_sort_key(*runtime_id, *worker_id, *timer)
+            Self::timer_order(*runtime_id, *worker_id, *timer)
         });
 
         timers
@@ -165,16 +153,40 @@ impl World {
 
     /// Run one pending microtask across the stored runtimes.
     fn run_microtask(&mut self) -> RuntimeResult<RunOutcome> {
+        let runtime_count = self.runtimes.len();
+        if runtime_count == 0 {
+            return Ok(RunOutcome::Idle);
+        }
+        let start_index = self.next_runtime_cursor % runtime_count;
         let world = &mut self.state;
+        let runtimes = &mut self.runtimes;
 
-        // run the first available worker microtask in stable scheduler order
-        for (runtime_id, runtime) in &mut self.runtimes {
+        // scan runtimes after the scheduler cursor
+        for (runtime_index, (runtime_id, runtime)) in
+            runtimes.iter_mut().enumerate().skip(start_index)
+        {
             let outcome = runtime.run_microtask(world, self.host.as_ref(), &self.host_queue)?;
             let Some(outcome) =
                 world.run_runtime_outcome(*runtime_id, outcome, RunStep::Microtask)?
             else {
                 continue;
             };
+            self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
+
+            return Ok(outcome);
+        }
+
+        // wrap around to runtimes before the scheduler cursor
+        for (runtime_index, (runtime_id, runtime)) in
+            runtimes.iter_mut().enumerate().take(start_index)
+        {
+            let outcome = runtime.run_microtask(world, self.host.as_ref(), &self.host_queue)?;
+            let Some(outcome) =
+                world.run_runtime_outcome(*runtime_id, outcome, RunStep::Microtask)?
+            else {
+                continue;
+            };
+            self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
 
             return Ok(outcome);
         }
@@ -203,18 +215,42 @@ impl World {
         }
     }
 
-    /// Continue the first retained runtime stop.
+    /// Continue one retained runtime stop in scheduler order.
     fn run_continue(&mut self) -> RuntimeResult<RunOutcome> {
+        let runtime_count = self.runtimes.len();
+        if runtime_count == 0 {
+            return Ok(RunOutcome::Idle);
+        }
+        let start_index = self.next_runtime_cursor % runtime_count;
         let world = &mut self.state;
+        let runtimes = &mut self.runtimes;
 
-        // resume the first stopped runtime in deterministic order
-        for (runtime_id, runtime) in &mut self.runtimes {
+        // scan retained stops after the scheduler cursor
+        for (runtime_index, (runtime_id, runtime)) in
+            runtimes.iter_mut().enumerate().skip(start_index)
+        {
             let outcome = runtime.continue_stop(world, self.host.as_ref(), &self.host_queue)?;
             let Some(outcome) =
                 world.run_runtime_outcome(*runtime_id, outcome, RunStep::Continue)?
             else {
                 continue;
             };
+            self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
+
+            return Ok(outcome);
+        }
+
+        // wrap retained stops around to runtimes before the scheduler cursor
+        for (runtime_index, (runtime_id, runtime)) in
+            runtimes.iter_mut().enumerate().take(start_index)
+        {
+            let outcome = runtime.continue_stop(world, self.host.as_ref(), &self.host_queue)?;
+            let Some(outcome) =
+                world.run_runtime_outcome(*runtime_id, outcome, RunStep::Continue)?
+            else {
+                continue;
+            };
+            self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
 
             return Ok(outcome);
         }
@@ -224,7 +260,7 @@ impl World {
 
     /// Run one task or scheduler event across the stored runtimes.
     fn run_task(&mut self) -> RuntimeResult<RunOutcome> {
-        let host_events = poll_host_events(self.host.as_ref(), &self.host_queue, Some(0))?.events;
+        let host_events = self.host_queue.poll(self.host.as_ref(), Some(0))?;
         let poller_events = self.poller.poll(Some(0))?;
         let world = &mut self.state;
         let mut ingress_progressed = false;
@@ -236,36 +272,96 @@ impl World {
             }
         }
 
-        // runnable work and ingress
-        for (runtime_id, runtime) in &mut self.runtimes {
+        let runtime_count = self.runtimes.len();
+        let start_index = if runtime_count == 0 {
+            0
+        } else {
+            self.next_runtime_cursor % runtime_count
+        };
+
+        // scan runnable work after the scheduler cursor
+        for (runtime_index, (runtime_id, runtime)) in
+            self.runtimes.iter_mut().enumerate().skip(start_index)
+        {
             let outcome = runtime.run_task(world, self.host.as_ref(), &self.host_queue)?;
             let Some(outcome) = world.run_runtime_outcome(*runtime_id, outcome, RunStep::Task)?
             else {
                 continue;
             };
+            self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
 
             return Ok(outcome);
         }
 
-        // shared heap work also counts as scheduler progress
-        for (runtime_id, runtime) in &mut self.runtimes {
-            if let Some(advance) = runtime.tick_shared_gc()? {
+        // wrap runnable work around to runtimes before the scheduler cursor
+        for (runtime_index, (runtime_id, runtime)) in
+            self.runtimes.iter_mut().enumerate().take(start_index)
+        {
+            let outcome = runtime.run_task(world, self.host.as_ref(), &self.host_queue)?;
+            let Some(outcome) = world.run_runtime_outcome(*runtime_id, outcome, RunStep::Task)?
+            else {
+                continue;
+            };
+            self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
+
+            return Ok(outcome);
+        }
+
+        // scan shared heap work after the scheduler cursor
+        for (runtime_index, (runtime_id, runtime)) in
+            self.runtimes.iter_mut().enumerate().skip(start_index)
+        {
+            if let Some(advance) = runtime.advance_shared_gc()? {
                 if !world.observe_gc_advance(*runtime_id, None, advance)? {
                     continue;
                 }
+                self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
 
                 return Ok(RunOutcome::Progressed);
             }
         }
 
-        // idle worker safepoints publish roots and donate cooperative GC work
-        for (runtime_id, runtime) in &mut self.runtimes {
+        // wrap shared heap work around to runtimes before the scheduler cursor
+        for (runtime_index, (runtime_id, runtime)) in
+            self.runtimes.iter_mut().enumerate().take(start_index)
+        {
+            if let Some(advance) = runtime.advance_shared_gc()? {
+                if !world.observe_gc_advance(*runtime_id, None, advance)? {
+                    continue;
+                }
+                self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
+
+                return Ok(RunOutcome::Progressed);
+            }
+        }
+
+        // scan idle worker safepoints after the scheduler cursor
+        for (runtime_index, (runtime_id, runtime)) in
+            self.runtimes.iter_mut().enumerate().skip(start_index)
+        {
             if let Some((worker_id, advance)) =
                 runtime.run_safepoint(world, self.host.as_ref(), &self.host_queue)?
             {
                 if !world.observe_gc_advance(*runtime_id, Some(worker_id), advance)? {
                     continue;
                 }
+                self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
+
+                return Ok(RunOutcome::Progressed);
+            }
+        }
+
+        // wrap idle worker safepoints around to runtimes before the scheduler cursor
+        for (runtime_index, (runtime_id, runtime)) in
+            self.runtimes.iter_mut().enumerate().take(start_index)
+        {
+            if let Some((worker_id, advance)) =
+                runtime.run_safepoint(world, self.host.as_ref(), &self.host_queue)?
+            {
+                if !world.observe_gc_advance(*runtime_id, Some(worker_id), advance)? {
+                    continue;
+                }
+                self.next_runtime_cursor = (runtime_index + 1) % runtime_count;
 
                 return Ok(RunOutcome::Progressed);
             }
@@ -329,8 +425,7 @@ impl World {
 
         // deliver due worker wakes
         for (runtime_id, runtime) in self.runtimes.iter_mut() {
-            let wakes = wakes_by_runtime.remove(runtime_id).unwrap_or_default();
-            if !wakes.is_empty() {
+            if let Some(wakes) = wakes_by_runtime.remove(runtime_id) {
                 runtime.deliver_wakes(wakes)?;
             }
         }
@@ -357,7 +452,13 @@ impl World {
     /// Run event-loop work until no runtime can make progress.
     fn run_until_idle(&mut self) -> RuntimeResult<RunOutcome> {
         loop {
-            let outcome = self.run(Run::Task)?;
+            // drain the microtask checkpoint before selecting another task
+            let outcome = self.run(Run::Microtasks)?;
+            let outcome = if outcome == RunOutcome::Idle {
+                self.run(Run::Task)?
+            } else {
+                outcome
+            };
 
             // keep yielding while background work is still draining
             if outcome == RunOutcome::Background {
@@ -377,6 +478,29 @@ impl World {
         }
 
         Ok(RunOutcome::Idle)
+    }
+
+    /// Return the deterministic ordering key for one timer wake.
+    fn timer_order(
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+        timer: ScheduledTimer,
+    ) -> (u8, u64, u64, u64, (u64, u64)) {
+        (
+            Self::clock_order(timer.deadline.clock),
+            timer.deadline.at.get(),
+            runtime_id.0,
+            worker_id.0,
+            timer.sort_key(),
+        )
+    }
+
+    /// Return deterministic ordering for one timer clock.
+    const fn clock_order(clock: TimerClock) -> u8 {
+        match clock {
+            TimerClock::Monotonic => 0,
+            TimerClock::Wall => 1,
+        }
     }
 }
 
@@ -408,6 +532,10 @@ impl WorldState {
                 Ok(true)
             }
             heap::GcAdvance::Drop(drop) => {
+                if drop.is_start {
+                    self.observe_gc_start(runtime_id, worker_id, drop.collector)?;
+                }
+
                 let step = heap::GcStep {
                     collector: drop.collector,
                     is_start: drop.is_start,
@@ -571,28 +699,5 @@ impl WorldState {
                 Ok(Some(RunOutcome::Stopped { stop }))
             }
         }
-    }
-}
-
-/// Return the deterministic ordering key for one timer wake.
-fn due_timer_sort_key(
-    runtime_id: RuntimeId,
-    worker_id: WorkerId,
-    timer: ScheduledTimer,
-) -> (u8, u64, u64, u64, (u64, u64)) {
-    (
-        timer_clock_rank(timer.deadline.clock),
-        timer.deadline.at.get(),
-        runtime_id.0,
-        worker_id.0,
-        timer.sort_key(),
-    )
-}
-
-/// Return deterministic ordering for one timer clock.
-fn timer_clock_rank(clock: TimerClock) -> u8 {
-    match clock {
-        TimerClock::Monotonic => 0,
-        TimerClock::Wall => 1,
     }
 }

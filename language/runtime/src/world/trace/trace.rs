@@ -1,18 +1,17 @@
+use crate::binding::CodecId;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::{BindingId, CodecId};
-use crate::runtime::machine::Entry;
-use crate::runtime::random::RandomStreamId;
-use crate::runtime::time::Instant;
-use crate::runtime::worker::RunnableScope;
-use crate::runtime::{RuntimeId, WorkerId};
-use crate::world::Mutation;
+use crate::machine::Entry;
+use crate::worker::{RunnableScope, WorkerId};
+use crate::world::random::RandomStreamId;
+use crate::world::time::Instant;
+use crate::world::{Mutation, RuntimeId};
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use super::{TraceError, TraceSequence};
+use super::TraceSequence;
 
 /// Result stored inside deterministic trace entries.
-pub type TraceResult<T> = Result<T, Box<TraceError>>;
+pub type TraceResult<T> = RuntimeResult<T>;
 
 /// Encoded trace entry discriminator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,7 +54,7 @@ pub struct TraceEntry {
 }
 
 /// One replayable runtime entrypoint call.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EntrypointCall {
     /// Runtime identifier that owns the entrypoint execution.
     pub runtime_id: RuntimeId,
@@ -63,6 +62,17 @@ pub struct EntrypointCall {
     pub entry: Entry,
     /// Invocation arguments.
     pub args: Vec<program::Value>,
+}
+
+impl Clone for EntrypointCall {
+    /// Share replay argument storage into one immutable trace copy.
+    fn clone(&self) -> Self {
+        Self {
+            runtime_id: self.runtime_id,
+            entry: self.entry.clone(),
+            args: self.args.iter().map(program::Value::fork).collect(),
+        }
+    }
 }
 
 impl Trace {
@@ -124,7 +134,7 @@ pub struct EntropySubject {
     /// Worker identifier for this trace fact.
     pub worker_id: WorkerId,
     /// Binding identifier for this trace fact.
-    pub binding_id: BindingId,
+    pub binding_id: program::BindingId,
     /// Runnable scope for this trace fact.
     pub scope: RunnableScope,
 }
@@ -207,7 +217,7 @@ impl RandomTrace {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BindingTrace {
     /// Binding identifier from the binding table.
-    pub binding_id: BindingId,
+    pub binding_id: program::BindingId,
     /// Codec identifier for encoded bytes.
     pub codec: CodecId,
     /// Encoded binding call bytes.
