@@ -424,7 +424,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32>" target="IndexSet<string, int32>"
 /// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\"><type Missing = never><type Output = int32 | undefined>"
 /// @definition.associated.type symbol=Output source="type Output = int32 | undefined" key=Output value="int32 | undefined"
-/// @definition.method symbol=index slot=index type=(this: this, string) => this.Output
+/// @definition.method symbol=index slot=index type=<index.'a>(this: &index.'a exclusive this, string) => this.Output
 /// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive this, string, int32) => void
 /// @definition.implementation symbol=<module>#2 requirement=ops.subscript.Index.Missing target=ops.subscript.Index.Missing
 /// @definition.implementation symbol=<module>#2 requirement=ops.subscript.Index.Output target=Output
@@ -438,17 +438,18 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
     /// @type.symbol symbol=Output source="type Output = int32 | undefined" type=int32 | undefined
 
     index(key: string): this.Output {
-    /// @type.symbol symbol=index type=(this: this, string) => this.Output
+    /// @generic.template symbol=index parent=template#0 parameters=('a)
+    /// @type.symbol symbol=index type=<index.'a>(this: &index.'a exclusive this, string) => this.Output
     /// @type.symbol symbol=index.key source="key: string" type=string
 
         return this.storage[key];
-        /// @resolution.member source=this.storage receiver=Store type=Map<string, int32> kind=field target_receiver=Store key=storage target=Store.storage target_type=Map<string, int32>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Store
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.member source=this.storage receiver=&index.'a exclusive Store type=Map<string, int32> kind=field target_receiver=&index.'a exclusive Store key=storage target=Store.storage target_type=Map<string, int32>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&index.'a exclusive Store
+        /// @resolution.place source=this placement="local" lifetime=index.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.storage placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.storage placement="local" lifetime=index.'a access="exclusive"
         /// @resolution.access source=this.storage root=this keys=[storage]
-        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="collections.map.index(parameters=(string), arguments=(provided(key) as string), return=memory.type.WithAccess<&'frame int32, \"exclusive\"> | undefined)"
+        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="collections.map.index(parameters=(string), arguments=(provided(key) as string), return=memory.type.WithAccess<&index.'a int32, \"exclusive\"> | undefined)"
         /// @generic.instance source=this.storage[key] id="Map<string, int32>.<extension#3>.index<\"exclusive\">"
         /// @resolution.name source=key target=index.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"

@@ -65,13 +65,14 @@ struct User {}
 extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
-/// @definition.method symbol=show#1 slot=show type=(this: this) => string
+/// @definition.method symbol=show#1 slot=show type=<show#1.'a>(this: &show#1.'a exclusive this) => string
 /// @definition.implementation symbol=<module>#2 requirement=Show.show target=show#1
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
-    /// @type.symbol symbol=show#1 type=(this: this) => string
+    /// @generic.template symbol=show#1 parent=template#1 parameters=('a)
+    /// @type.symbol symbol=show#1 type=<show#1.'a>(this: &show#1.'a exclusive this) => string
 
         return "user";
     }
@@ -80,13 +81,14 @@ extension of User implements Show {
 extension of User implements Show {
 /// @definition.extension symbol=<module>#3 form=local target=User
 /// @definition.implements symbol=<module>#3 source=Show target=Show
-/// @definition.method symbol=show#2 slot=show type=(this: this) => string
+/// @definition.method symbol=show#2 slot=show type=<show#2.'a>(this: &show#2.'a exclusive this) => string
 /// @definition.implementation symbol=<module>#3 requirement=Show.show target=show#2
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
-    /// @type.symbol symbol=show#2 type=(this: this) => string
+    /// @generic.template symbol=show#2 parent=template#2 parameters=('a)
+    /// @type.symbol symbol=show#2 type=<show#2.'a>(this: &show#2.'a exclusive this) => string
 
         return "debug";
     }
@@ -228,12 +230,13 @@ struct User {}
 extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
-/// @definition.method symbol=show slot=show type=(this: this) => string
+/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a exclusive this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
-    /// @type.symbol symbol=show type=(this: this) => string
+    /// @generic.template symbol=show parent=template#2 parameters=('a)
+    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a exclusive this) => string
 
         return "user";
     }
@@ -330,14 +333,15 @@ struct Badge {}
 extension of Badge implements Equal<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=Equal<Badge> target=Equal<Badge>
-/// @definition.method symbol=equal slot=equal type=(this: this, Badge) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, Badge) => boolean
 /// @definition.implementation symbol=<module>#2 requirement=PartialEqual.equal target=equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=Badge target=Badge
 
     equal(other: Badge): boolean {
-    /// @type.symbol symbol=equal type=(this: this, Badge) => boolean
+    /// @generic.template symbol=equal parent=template#2 parameters=('a)
+    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a exclusive this, Badge) => boolean
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
 
@@ -482,12 +486,13 @@ type Alias = Show;
 
 extension of User implements Alias {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=show slot=show type=(this: this) => string
+/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a exclusive this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Alias target=Alias
 
     show(): string {
-    /// @type.symbol symbol=show type=(this: this) => string
+    /// @generic.template symbol=show parent=template#1 parameters=('a)
+    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a exclusive this) => string
 
         return "";
     }
@@ -565,13 +570,14 @@ interface Debug {
 
 extension of User implements Show | Debug {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=show slot=show type=(this: this) => string
+/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a exclusive this) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 /// @resolution.name source=Debug target=Debug
 
     show(): string {
-    /// @type.symbol symbol=show type=(this: this) => string
+    /// @generic.template symbol=show parent=template#2 parameters=('a)
+    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a exclusive this) => string
 
         return "";
     }
@@ -975,7 +981,7 @@ extension of Cell implements Reading {
 /// @definition.extension symbol=<module>#2 form=local target=Cell
 /// @definition.implements symbol=<module>#2 source=Reading target="Reading<type Output = int32>"
 /// @definition.associated.type symbol=Output#1 source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=read slot=read type=(this: this) => this.Output
+/// @definition.method symbol=read slot=read type=<read.'a>(this: &read.'a exclusive this) => this.Output
 /// @definition.implementation symbol=<module>#2 requirement=Reading.Output target=Output#1
 /// @definition.implementation symbol=<module>#2 requirement=Reading.read target=read
 /// @resolution.name source=Cell target=Cell
@@ -985,7 +991,8 @@ extension of Cell implements Reading {
     /// @type.symbol symbol=Output#1 source="type Output = int32" type=int32
 
     read(): this.Output {
-    /// @type.symbol symbol=read type=(this: this) => this.Output
+    /// @generic.template symbol=read parent=template#2 parameters=('a)
+    /// @type.symbol symbol=read type=<read.'a>(this: &read.'a exclusive this) => this.Output
 
         todo("read")
         /// @resolution.name source=todo target=error.panic.todo
@@ -998,7 +1005,7 @@ extension of Cell implements Writing {
 /// @definition.extension symbol=<module>#3 form=local target=Cell
 /// @definition.implements symbol=<module>#3 source=Writing target="Writing<type Output = float64>"
 /// @definition.associated.type symbol=Output#2 source="type Output = float64" key=Output value=float64
-/// @definition.method symbol=write slot=write type=(this: this) => this.Output
+/// @definition.method symbol=write slot=write type=<write.'a>(this: &write.'a exclusive this) => this.Output
 /// @definition.implementation symbol=<module>#3 requirement=Writing.Output target=Output#2
 /// @definition.implementation symbol=<module>#3 requirement=Writing.write target=write
 /// @resolution.name source=Cell target=Cell
@@ -1008,7 +1015,8 @@ extension of Cell implements Writing {
     /// @type.symbol symbol=Output#2 source="type Output = float64" type=float64
 
     write(): this.Output {
-    /// @type.symbol symbol=write type=(this: this) => this.Output
+    /// @generic.template symbol=write parent=template#3 parameters=('a)
+    /// @type.symbol symbol=write type=<write.'a>(this: &write.'a exclusive this) => this.Output
 
         todo("write")
         /// @resolution.name source=todo target=error.panic.todo
@@ -1163,7 +1171,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#4: Eq<T#4>)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#4>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#4>
-/// @definition.method symbol=has slot=has type=<Q: Eq<Q>, has.'a>(this: this, &has.'a readonly Q) => boolean
+/// @definition.method symbol=has slot=has type=<Q: Eq<Q>, has.'a, has.'b>(this: &has.'b exclusive this, &has.'a readonly Q) => boolean
 /// @definition.implementation symbol=<module>#2 requirement=Has.has target=has
 /// @type.symbol symbol=T source="T: Eq<T>" type=T#4
 /// @resolution.name source=Eq target=Eq
@@ -1174,8 +1182,8 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q: Eq<Q>>(value: &readonly Q): boolean {
-    /// @generic.template symbol=has parent=template#3 parameters=(Q: Eq<Q>, 'a)
-    /// @type.symbol symbol=has type=<Q: Eq<Q>, has.'a>(this: this, &has.'a readonly Q) => boolean
+    /// @generic.template symbol=has parent=template#3 parameters=(Q: Eq<Q>, 'a, 'b)
+    /// @type.symbol symbol=has type=<Q: Eq<Q>, has.'a, has.'b>(this: &has.'b exclusive this, &has.'a readonly Q) => boolean
     /// @type.symbol symbol=has.Q source="Q: Eq<Q>" type=Q
     /// @resolution.name source=Eq target=Eq
     /// @resolution.name source=Q target=has.Q
@@ -1273,7 +1281,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#3>
-/// @definition.method symbol=has slot=has type=<Q: Marker, has.'a>(this: this, &has.'a readonly Q) => boolean
+/// @definition.method symbol=has slot=has type=<Q: Marker, has.'a, has.'b>(this: &has.'b exclusive this, &has.'a readonly Q) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T
@@ -1281,8 +1289,8 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q: Marker>(value: &readonly Q): boolean {
-    /// @generic.template symbol=has parent=template#3 parameters=(Q: Marker, 'a)
-    /// @type.symbol symbol=has type=<Q: Marker, has.'a>(this: this, &has.'a readonly Q) => boolean
+    /// @generic.template symbol=has parent=template#3 parameters=(Q: Marker, 'a, 'b)
+    /// @type.symbol symbol=has type=<Q: Marker, has.'a, has.'b>(this: &has.'b exclusive this, &has.'a readonly Q) => boolean
     /// @type.symbol symbol=has.Q source="Q: Marker" type=Q
     /// @resolution.name source=Marker target=Marker
     /// @type.symbol symbol=has.value source="value: &readonly Q" type=&has.'a readonly Q
@@ -1373,7 +1381,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#3>
-/// @definition.method symbol=has slot=has type=<Q, has.'a>(this: this, &has.'a exclusive Q) => boolean
+/// @definition.method symbol=has slot=has type=<Q, has.'a, has.'b>(this: &has.'b exclusive this, &has.'a exclusive Q) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T
@@ -1381,8 +1389,8 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q>(value: &exclusive Q): boolean {
-    /// @generic.template symbol=has parent=template#2 parameters=(Q, 'a)
-    /// @type.symbol symbol=has type=<Q, has.'a>(this: this, &has.'a exclusive Q) => boolean
+    /// @generic.template symbol=has parent=template#2 parameters=(Q, 'a, 'b)
+    /// @type.symbol symbol=has type=<Q, has.'a, has.'b>(this: &has.'b exclusive this, &has.'a exclusive Q) => boolean
     /// @type.symbol symbol=has.Q source=Q type=Q
     /// @type.symbol symbol=has.value source="value: &exclusive Q" type=&has.'a exclusive Q
     /// @resolution.name source=Q target=has.Q

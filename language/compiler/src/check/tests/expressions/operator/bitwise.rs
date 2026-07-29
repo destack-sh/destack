@@ -182,7 +182,7 @@ extension of Flags implements And<Flags> {
 /// @definition.extension symbol=<module>#2 form=local target=Flags
 /// @definition.implements symbol=<module>#2 source=And<Flags> target="And<Flags><type Output = Flags>"
 /// @definition.associated.type symbol=Output source="type Output = Flags" key=Output value=Flags
-/// @definition.method symbol=and slot=and type=(this: this, Flags) => Flags
+/// @definition.method symbol=and slot=and type=<and.'a>(this: &and.'a exclusive this, Flags) => Flags
 /// @definition.implementation symbol=<module>#2 requirement=ops.bitwise.And.Output target=Output
 /// @definition.implementation symbol=<module>#2 requirement=ops.bitwise.And.and target=and
 /// @resolution.name source=Flags target=Flags
@@ -194,19 +194,20 @@ extension of Flags implements And<Flags> {
     /// @resolution.name source=Flags target=Flags
 
     and(other: Flags): Flags {
-    /// @type.symbol symbol=and type=(this: this, Flags) => Flags
+    /// @generic.template symbol=and parent=template#0 parameters=('a)
+    /// @type.symbol symbol=and type=<and.'a>(this: &and.'a exclusive this, Flags) => Flags
     /// @type.symbol symbol=and.other source="other: Flags" type=Flags
     /// @resolution.name source=Flags target=Flags
     /// @resolution.name source=Flags target=Flags
 
         Flags { bits: this.bits & other.bits }
         /// @resolution.name source=Flags target=Flags
-        /// @resolution.member source=this.bits receiver=Flags type=int32 kind=field target_receiver=Flags key=bits target=Flags.bits target_type=int32
+        /// @resolution.member source=this.bits receiver=&and.'a exclusive Flags type=int32 kind=field target_receiver=&and.'a exclusive Flags key=bits target=Flags.bits target_type=int32
         /// @resolution.operator source="this.bits & other.bits" type=int32 operator="&" kind=builtin operands=[this.bits as int32 families=(integer), other.bits as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Flags
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&and.'a exclusive Flags
+        /// @resolution.place source=this placement="local" lifetime=and.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.bits placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.bits placement="local" lifetime=and.'a access="exclusive"
         /// @resolution.access source=this.bits root=this keys=[bits]
         /// @resolution.name source=other target=and.other
         /// @resolution.member source=other.bits receiver=Flags type=int32 kind=field target_receiver=Flags key=bits target=Flags.bits target_type=int32
@@ -232,7 +233,7 @@ const both = left & right;
 /// @type.symbol symbol=both source=both type=Flags
 /// @resolution.pattern source=both kind=binding target=both
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left & right" type=Flags operator="&" kind=call parameters=(Flags) arguments=(provided(right) as Flags) return=Flags kind=symbol target=and receiver=Flags
+/// @resolution.operator source="left & right" type=Flags operator="&" kind=call parameters=(Flags) arguments=(provided(right) as Flags) return=Flags kind=symbol target=and receiver=Flags adjustments=(borrow(&'static exclusive Flags))
 /// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=left root=left
 /// @resolution.name source=right target=right

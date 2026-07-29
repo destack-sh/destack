@@ -444,24 +444,25 @@ struct Badge {
 extension of Badge implements PartialEqual<Badge> {
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=PartialEqual<Badge>
-/// @definition.method symbol=equal slot=equal type=(this: this, Badge) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a>(this: &equal.'a exclusive this, Badge) => boolean
 /// @definition.implementation symbol=<module>#2 requirement=ops.equality.PartialEqual.equal target=equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
 /// @resolution.name source=Badge target=Badge
 
     equal(other: Badge): boolean {
-    /// @type.symbol symbol=equal type=(this: this, Badge) => boolean
+    /// @generic.template symbol=equal parent=template#0 parameters=('a)
+    /// @type.symbol symbol=equal type=<equal.'a>(this: &equal.'a exclusive this, Badge) => boolean
     /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
     /// @resolution.name source=Badge target=Badge
 
         this.id == other.id
-        /// @resolution.member source=this.id receiver=Badge type=float64 kind=field target_receiver=Badge key=id target=Badge.id target_type=float64
+        /// @resolution.member source=this.id receiver=&equal.'a exclusive Badge type=float64 kind=field target_receiver=&equal.'a exclusive Badge key=id target=Badge.id target_type=float64
         /// @resolution.operator source="this.id == other.id" type=boolean operator="==" kind=builtin operands=[this.id as float64 families=(float), other.id as float64 families=(float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Badge
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'a exclusive Badge
+        /// @resolution.place source=this placement="local" lifetime=equal.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.id placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.id placement="local" lifetime=equal.'a access="exclusive"
         /// @resolution.access source=this.id root=this keys=[id]
         /// @resolution.name source=other target=equal.other
         /// @resolution.member source=other.id receiver=Badge type=float64 kind=field target_receiver=Badge key=id target=Badge.id target_type=float64
@@ -487,7 +488,7 @@ const same = left == right;
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left == right" type=boolean operator="==" kind=call parameters=(Badge) arguments=(provided(right) as Badge) return=boolean kind=symbol target=equal receiver=Badge
+/// @resolution.operator source="left == right" type=boolean operator="==" kind=call parameters=(Badge) arguments=(provided(right) as Badge) return=boolean kind=symbol target=equal receiver=Badge adjustments=(borrow(&'static exclusive Badge))
 /// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=left root=left
 /// @resolution.name source=right target=right

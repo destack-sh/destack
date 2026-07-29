@@ -1081,7 +1081,22 @@ impl WalkState<'_, '_> {
         if signature.this_parameter.is_some() || signature.is_constructor() {
             return Ok(None);
         }
-        let is_value_family = scope.declaration.is_some_and(|declaration| {
+        // extension members classify through their target application
+        let declaration = match scope.declaration {
+            Some(declaration)
+                if matches!(
+                    self.check.symbol_kind(declaration),
+                    dir::SymbolKind::Extension
+                ) =>
+            {
+                match self.check.ty(scope.ty)? {
+                    dir::Type::Application(instance) => Some(instance.symbol),
+                    _ => None,
+                }
+            }
+            other => other,
+        };
+        let is_value_family = declaration.is_some_and(|declaration| {
             matches!(
                 self.check.symbol_kind(declaration),
                 dir::SymbolKind::Struct | dir::SymbolKind::Enum
@@ -1091,11 +1106,13 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
 
-        // borrow exclusively at one induced receiver lifetime
+        // borrow at one induced receiver lifetime; getters only read
+        let access = match signature.role {
+            Some(dir::FunctionRole::Getter) => dir::Access::Readonly,
+            _ => dir::Access::Exclusive,
+        };
         let lifetime = self.generated_receiver_borrow_lifetime(id.into_any())?;
-        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
-            dir::Access::Exclusive,
-        )))?;
+        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
 
         Ok(Some(self.intern_borrow(lifetime, access)?))
     }
