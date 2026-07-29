@@ -160,7 +160,7 @@ impl CommandContext<'_> {
         // resolve the exact reference and inherent extension closure
         let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
         let graph = artifacts
-            .component_graph(profile)
+            .component_graph_reader(profile)
             .map_err(|error| error.to_string())?;
         let global = artifacts
             .global_environment(profile)
@@ -168,18 +168,25 @@ impl CommandContext<'_> {
         let implicit = global.implicit_modules().collect::<Vec<_>>();
         let mut components = FxIndexSet::default();
         for root in roots {
-            let component = graph.reference_component(*root).ok_or_else(|| {
-                CommandError::internal(format!("module {root:?} has no reference component"))
-            })?;
-            let external = graph.external_reference_components(component, implicit.iter().copied());
+            let component = graph
+                .reference_component(*root)
+                .map_err(|error| error.to_string())?
+                .ok_or_else(|| {
+                    CommandError::internal(format!("module {root:?} has no reference component"))
+                })?;
+            let external = graph
+                .external_reference_components(component, implicit.iter().copied())
+                .map_err(|error| error.to_string())?;
             components.insert(component);
             components.extend(external.components());
         }
-        let modules = components
-            .iter()
-            .flat_map(|component| graph.reference_members(*component))
-            .copied()
-            .collect::<FxIndexSet<_>>();
+        let mut modules = FxIndexSet::default();
+        for component in components {
+            let members = graph
+                .reference_members(component)
+                .map_err(|error| error.to_string())?;
+            modules.extend(members.iter().copied());
+        }
 
         // provide every checked artifact consumed by ModuleContext
         let keys = modules

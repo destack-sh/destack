@@ -120,8 +120,8 @@ impl CommandContext<'_> {
         }
         let artifact_keys = artifact_keys.into_iter().collect::<Vec<_>>();
 
-        // provide the requested roots
-        self.provide(revision, &artifact_keys)?;
+        // complete the requested diagnostic roots
+        self.complete(revision, &artifact_keys)?;
 
         let diagnostics = self.command_diagnostics(revision, &artifact_keys)?;
         self.apply_diagnostic_suggestions(revision, &diagnostics, fix_options)?;

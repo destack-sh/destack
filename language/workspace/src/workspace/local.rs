@@ -625,8 +625,8 @@ impl Workspace for LocalWorkspace {
     }
 
     fn artifact(&self, root: &Path, artifact: ArtifactReference) -> Result<ArtifactPayload, Error> {
-        let revision = LocalWorkspace::revision(self, root)?;
-        let payload = self.artifact_payload(revision, artifact)?;
+        LocalWorkspace::revision(self, root)?;
+        let payload = self.artifact_payload(artifact)?;
 
         Ok(payload)
     }
@@ -711,16 +711,21 @@ impl Workspace for LocalWorkspace {
 
 impl LocalWorkspace {
     /// Return one artifact payload by exact version.
-    fn artifact_payload(
-        &self,
-        revision: Revision,
-        artifact: ArtifactReference,
-    ) -> Result<ArtifactPayload, Error> {
+    fn artifact_payload(&self, artifact: ArtifactReference) -> Result<ArtifactPayload, Error> {
+        if artifact.key != artifact.version.key {
+            return Err(Error::Internal {
+                detail: format!(
+                    "artifact reference key {:?} does not match version {:?}",
+                    artifact.key, artifact.version
+                ),
+            });
+        }
+
         if let Some(payload) = self.artifact_payload_in_memory(artifact)? {
             return Ok(payload);
         }
 
-        if self.repository.load_artifact(revision, artifact.version)? {
+        if self.repository.load_artifact(artifact.version)? {
             return self
                 .artifact_payload_in_memory(artifact)?
                 .ok_or_else(|| Error::Internal {
@@ -738,21 +743,9 @@ impl LocalWorkspace {
         &self,
         artifact: ArtifactReference,
     ) -> Result<Option<ArtifactPayload>, Error> {
-        let record = self
-            .repository
-            .artifact_table()
-            .record(&artifact.version, self.repository.string_pool())
-            .map_err(|error| Error::Internal {
-                detail: error.to_string(),
-            })?;
-        let Some(record) = record else {
-            return Ok(None);
-        };
-        let payload = record.decode_payload().map_err(|error| Error::Internal {
-            detail: error.to_string(),
-        })?;
+        let payload = self.repository.artifact_table().payload(&artifact.version);
 
-        Ok(Some(payload))
+        Ok(payload)
     }
 
     /// Return one artifact payload by key in one revision.
@@ -769,7 +762,7 @@ impl LocalWorkspace {
             })?;
         let reference = ArtifactReference { key, version };
 
-        self.artifact_payload(revision, reference)
+        self.artifact_payload(reference)
     }
 
     /// Export one bundle to the host filesystem.

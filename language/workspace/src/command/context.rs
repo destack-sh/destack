@@ -139,6 +139,17 @@ impl<'a> CommandContext<'a> {
             .map_err(|error| error.to_string().into())
     }
 
+    /// Complete artifacts through terminal outcomes while recording into the command trace.
+    pub(super) fn complete(
+        &self,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+    ) -> CommandResult<()> {
+        self.session
+            .complete_traced(revision, artifact_keys, self.trace.clone())
+            .map_err(|error| error.to_string().into())
+    }
+
     /// Return the display label of one traced artifact.
     fn artifact_label(
         &self,
@@ -179,6 +190,11 @@ impl<'a> CommandContext<'a> {
                 graph.inference_members(component)
             } else {
                 graph.reference_members(component)
+            };
+            let Some(members) = members else {
+                return Err(CommandError::internal(format!(
+                    "component {component} is absent from its graph"
+                )));
             };
             let Some(module) = members.first() else {
                 return Err(CommandError::internal(format!(
