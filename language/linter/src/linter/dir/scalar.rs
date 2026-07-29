@@ -55,9 +55,7 @@ impl DirModule<'_> {
         }
 
         // recognize the canonical standard-library constants by selected symbol
-        let item = self
-            .symbol(node)?
-            .and_then(|symbol| self.dir.environment.language.item(symbol));
+        let item = self.language_item(node)?;
         let is_nan = matches!(
             item,
             Some(dir::LanguageItem::NaN | dir::LanguageItem::NumberNaN)

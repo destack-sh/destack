@@ -1,5 +1,6 @@
 mod expression;
 mod index;
+mod language;
 mod module;
 mod program;
 mod scalar;

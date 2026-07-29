@@ -220,6 +220,22 @@ impl DirModule<'_> {
         Ok(resolution)
     }
 
+    /// Return one checked call's required resolution.
+    pub fn call_resolution(
+        &self,
+        node: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<&dir::CallResolution, ProviderError> {
+        let global = node.into_global_any(self.id);
+        let resolution = self.resolutions.call_resolution(global).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "checked call expression {} in module {:?} has no call resolution",
+                node.id, self.id
+            ))
+        })?;
+
+        Ok(resolution)
+    }
+
     /// Return one required operand from a checked builtin operator application.
     pub fn builtin_operand(
         &self,
