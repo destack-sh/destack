@@ -1,9 +1,10 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_repository::{Repository, Revision, RevisionPin};
+use destack_artifact::{ArtifactKey, IndexKind};
+use destack_repository::{Package, Repository, RepositoryError, Revision, RevisionPin};
 use destack_session::{Session, SessionError};
-use destack_source::{File, FileId};
+use destack_source::{File, FileId, ModuleId, ProfileId, TargetId};
 
 use crate::diagnostic::Error;
 
@@ -20,12 +21,12 @@ pub(crate) struct SessionPin {
 
 impl SessionPin {
     /// Create one session pin.
-    pub(super) fn new(session: Arc<Session>, revision: RevisionPin) -> Self {
+    pub(crate) fn new(session: Arc<Session>, revision: RevisionPin) -> Self {
         Self { session, revision }
     }
 
     /// Return the live session for workspace internals.
-    pub(super) fn session(&self) -> &Session {
+    pub(crate) fn session(&self) -> &Session {
         self.session.as_ref()
     }
 
@@ -55,6 +56,109 @@ impl SessionPin {
             .ok_or(SessionError::FileNotTracked { file_id })?;
 
         Ok(file)
+    }
+
+    /// Return the target and profile selected for one package.
+    pub(super) fn selected_target(
+        &self,
+        package: &Package,
+    ) -> Result<Option<(TargetId, ProfileId)>, Error> {
+        let selected = self
+            .repository()
+            .package_default_target(self.revision(), package.id)?;
+        let Some((target_id, _)) = selected else {
+            if package.targets.is_empty() {
+                return Ok(None);
+            }
+
+            return Err(Error::TargetNotSelected {
+                package_id: package.id,
+            });
+        };
+
+        let profile = self
+            .repository()
+            .profile_for_target(self.revision(), target_id)?;
+
+        Ok(Some((target_id, profile.id())))
+    }
+
+    /// Return the targets and profiles selected for configured packages.
+    pub(super) fn selected_targets(&self) -> Result<Vec<(TargetId, ProfileId)>, Error> {
+        let repository = self.repository();
+        let revision = self.revision();
+        let mut selected = Vec::new();
+
+        // select one semantic target from every authored package
+        for package_id in repository.package_ids(revision)? {
+            let package = repository.package(revision, package_id)?.ok_or(
+                RepositoryError::MissingPackage {
+                    package: package_id,
+                },
+            )?;
+            if !package.kind.is_authored() {
+                continue;
+            }
+
+            if let Some(target) = self.selected_target(&package)? {
+                selected.push(target);
+            }
+        }
+
+        Ok(selected)
+    }
+
+    /// Return the distinct profiles selected for configured packages.
+    pub(super) fn selected_profile_ids(&self) -> Result<Vec<ProfileId>, Error> {
+        let mut profile_ids = self
+            .selected_targets()?
+            .into_iter()
+            .map(|(_, profile_id)| profile_id)
+            .collect::<Vec<_>>();
+        profile_ids.sort_unstable();
+        profile_ids.dedup();
+
+        Ok(profile_ids)
+    }
+
+    /// Return diagnostic artifact roots for selected programs and modules.
+    pub(crate) fn diagnostic_artifacts(
+        &self,
+        modules: &[ModuleId],
+    ) -> Result<Vec<ArtifactKey>, Error> {
+        let mut artifacts = Vec::new();
+
+        // lint every selected semantic program
+        for (target_id, profile_id) in self.selected_targets()? {
+            artifacts.push(ArtifactKey::program_linted(profile_id, target_id));
+
+            // lint selected authored modules at their target
+            for module_id in modules.iter().copied() {
+                if module_id.package_id == target_id.package_id() {
+                    artifacts.push(ArtifactKey::module_linted(module_id, profile_id, target_id));
+                }
+            }
+        }
+
+        artifacts.sort_unstable();
+        artifacts.dedup();
+
+        Ok(artifacts)
+    }
+
+    /// Return every program index root for the selected profiles.
+    pub(crate) fn program_indexes(&self) -> Result<Vec<ArtifactKey>, Error> {
+        let mut artifacts = Vec::new();
+
+        // index every family for each selected semantic program
+        for profile_id in self.selected_profile_ids()? {
+            artifacts
+                .extend(IndexKind::ALL.map(|kind| ArtifactKey::program_index(profile_id, kind)));
+        }
+        artifacts.sort_unstable();
+        artifacts.dedup();
+
+        Ok(artifacts)
     }
 }
 

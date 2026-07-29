@@ -10,7 +10,7 @@ use destack_source::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::diagnostic::{Error, diagnostics_by_file};
+use crate::diagnostic::Error;
 use crate::file::FileUpdate;
 use crate::protocol::{WatchBatch, WatchEventKind, WatchStatus};
 use crate::workspace::{LocalWorkspace, Message, ReloadReason, UpdateBatch};
@@ -738,12 +738,9 @@ impl LocalWorkspace {
         session: &Session,
         changes: Vec<Change>,
     ) -> Result<UpdateBatch, Error> {
-        // convert session changes before requesting derived artifacts
+        // convert the sealed source revision to workspace updates
         let revision = session.revision(session.head())?;
-        let mut updates = self.file_updates(session, revision, changes)?;
-
-        // attach diagnostics after the source revision is sealed
-        self.attach_diagnostics(session, revision, &mut updates)?;
+        let updates = self.file_updates(session, revision, changes)?;
 
         Ok(UpdateBatch::from(updates))
     }
@@ -807,23 +804,6 @@ impl LocalWorkspace {
             })?;
 
         Ok(content_id)
-    }
-
-    /// Attach current diagnostics to each changed file update.
-    fn attach_diagnostics(
-        &self,
-        session: &Session,
-        revision: Revision,
-        updates: &mut [FileUpdate],
-    ) -> Result<(), Error> {
-        // consume diagnostics by primary source file
-        let mut diagnostics = diagnostics_by_file(session.repository().as_ref(), revision)?;
-
-        for update in updates {
-            update.diagnostics = diagnostics.remove(&update.file_id).unwrap_or_default();
-        }
-
-        Ok(())
     }
 
     /// Write an edit to disk before applying it.

@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::ArtifactKey;
 use destack_repository::{Ref, Revision};
 use destack_serde::Reflect;
-use destack_session::Session;
+use destack_session::{ArtifactPriority, ArtifactRun, Session};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +19,8 @@ pub(crate) struct WorkspaceRoot {
     pub(crate) session: Arc<Session>,
     /// Serializes source changes and open document state.
     pub(crate) writes: Mutex<()>,
+    /// Latest proactive editor artifact run.
+    background_run: Mutex<Option<ArtifactRun>>,
 }
 
 impl std::fmt::Debug for WorkspaceRoot {
@@ -27,7 +30,29 @@ impl std::fmt::Debug for WorkspaceRoot {
             .debug_struct("WorkspaceRoot")
             .field("session", &self.session)
             .field("writes", &self.writes)
+            .field(
+                "background_revision",
+                &self
+                    .background_run
+                    .lock()
+                    .as_ref()
+                    .map(ArtifactRun::revision),
+            )
             .finish()
+    }
+}
+
+impl WorkspaceRoot {
+    /// Schedule proactive editor artifacts for one revision.
+    pub(crate) fn schedule_background(&self, revision: Revision, artifacts: &[ArtifactKey]) {
+        let run = (!artifacts.is_empty()).then(|| {
+            self.session
+                .schedule_artifacts(revision, artifacts, ArtifactPriority::Background)
+        });
+        let previous = std::mem::replace(&mut *self.background_run.lock(), run);
+
+        // cancel obsolete work after publishing its replacement
+        drop(previous);
     }
 }
 
@@ -172,6 +197,7 @@ impl LocalWorkspace {
         let workspace_root = Arc::new(WorkspaceRoot {
             session: Arc::clone(&session),
             writes: Mutex::new(()),
+            background_run: Mutex::new(None),
         });
         let _write = workspace_root.writes.lock();
         self.roots.insert(root.clone(), Arc::clone(&workspace_root));

@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use std::path::{Path, PathBuf};
 
 use destack_session::Change;
-use destack_source::{Content, Diagnostic, File, FileId, FileType, ModuleId, TextChange, Uri};
+use destack_source::{Content, File, FileId, FileType, ModuleId, TextChange, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::Error;
@@ -107,8 +107,6 @@ pub struct FileUpdate {
     pub is_removed: bool,
     /// The coarse change kind for this file.
     pub kind: UpdateKind,
-    /// Diagnostics for this file.
-    pub diagnostics: Vec<Diagnostic>,
 }
 
 impl From<Change> for FileUpdate {
@@ -135,7 +133,6 @@ impl From<Change> for FileUpdate {
                     file: Some(FileImage::from(file.as_ref())),
                     is_removed: false,
                     kind,
-                    diagnostics: Vec::new(),
                 }
             }
             Change::Removed {
@@ -157,7 +154,6 @@ impl From<Change> for FileUpdate {
                     file: None,
                     is_removed: true,
                     kind,
-                    diagnostics: Vec::new(),
                 }
             }
         }
