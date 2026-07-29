@@ -145,6 +145,11 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.constructs)
     }
 
+    /// Iterate visible tree resolutions.
+    pub fn tree_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &TreeResolution)> + '_ {
+        self.visible_entries(|segment| &segment.trees)
+    }
+
     /// Iterate visible pattern resolutions.
     pub fn pattern_entries(
         &self,
@@ -754,6 +759,13 @@ impl ResolutionSegment {
         &self,
     ) -> impl Iterator<Item = (GlobalNodeIdAny, &ConstructResolution)> + '_ {
         self.constructs
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
+    /// Iterate visible tree resolutions.
+    pub fn tree_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &TreeResolution)> + '_ {
+        self.trees
             .iter()
             .map(|(node_id, resolution)| (*node_id, resolution))
     }

@@ -103,6 +103,13 @@ impl Debug for Tree {
 }
 
 impl Tree {
+    /// Return whether this tree holds any tree literal expression.
+    pub fn has_tree_expressions(&self) -> bool {
+        self.expressions
+            .iter()
+            .any(|expression| matches!(expression, Expression::TreeExpression { .. }))
+    }
+
     /// Create a new Tree.
     pub fn new(module_id: ModuleId) -> Self {
         Self::with_capacity(module_id, 0)

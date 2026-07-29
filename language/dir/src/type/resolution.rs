@@ -2257,8 +2257,6 @@ pub struct TreeResolution {
     pub builder: GlobalTypeId,
     /// The resolved literal target.
     pub target: TreeTarget,
-    /// The builder static selected for elements and fragments.
-    pub function: Option<FunctionTarget>,
     /// The checked attributes in source order.
     pub attributes: Vec<TreeAttributeBinding>,
     /// The checked children in source order.
@@ -2271,9 +2269,7 @@ impl TreeResolution {
     /// Apply one mapping to every type id stored in this resolution.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         self.builder = map(self.builder);
-        if let Some(function) = &mut self.function {
-            function.map_type_ids(map);
-        }
+        self.target.map_type_ids(map);
         for attribute in &mut self.attributes {
             attribute.ty = map(attribute.ty);
         }
@@ -2291,13 +2287,48 @@ pub enum TreeTarget {
     Element {
         /// The tag name.
         tag: StringId,
+        /// The selected element static call.
+        call: CallResolution,
     },
     /// A fragment built through the builder's fragment static.
-    Fragment,
-    /// A lexical component value called with its checked props.
+    Fragment {
+        /// The selected fragment static call.
+        call: CallResolution,
+    },
+    /// A lexical component value invoked with its checked props.
     Component {
         /// The component callee node.
         callee: GlobalNodeIdAny,
+        /// The resolved component invocation.
+        invocation: TreeInvocation,
+    },
+}
+
+impl TreeTarget {
+    /// Apply one mapping to every type id stored in this target.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Element { call, .. } | Self::Fragment { call } => call.map_type_ids(map),
+            Self::Component { invocation, .. } => match invocation {
+                TreeInvocation::Call(call) => call.map_type_ids(map),
+                TreeInvocation::Construct(construct) => construct.map_type_ids(map),
+                TreeInvocation::Struct { ty } => *ty = map(*ty),
+            },
+        }
+    }
+}
+
+/// The resolved invocation of one tree component.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum TreeInvocation {
+    /// A callable component invoked with its props row.
+    Call(CallResolution),
+    /// A class component built through its selected constructor.
+    Construct(ConstructResolution),
+    /// A struct component built through its literal field form.
+    Struct {
+        /// The constructed struct instance.
+        ty: GlobalTypeId,
     },
 }
 
@@ -2331,13 +2362,22 @@ pub enum TreeChildBinding {
         /// The checked child type.
         ty: GlobalTypeId,
     },
+    /// A spread child splatting one tuple operand.
+    Spread {
+        /// The spread operand node.
+        node: GlobalNodeIdAny,
+        /// The checked tuple type of the operand.
+        ty: GlobalTypeId,
+    },
 }
 
 impl TreeChildBinding {
     /// Apply one mapping to every type id stored in this child.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
-            Self::Text { ty, .. } | Self::Expression { ty, .. } => *ty = map(*ty),
+            Self::Text { ty, .. } | Self::Expression { ty, .. } | Self::Spread { ty, .. } => {
+                *ty = map(*ty)
+            }
         }
     }
 }

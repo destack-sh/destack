@@ -19,6 +19,8 @@ pub struct ImportTable {
     pub global_target_by_key: IndexMap<StaticKey, Vec<ImportTarget>>,
     /// Resolved symbols for language items used by this module.
     pub language_symbol_by_item: IndexMap<LanguageItem, GlobalSymbolId>,
+    /// The default tree builder pulled in by this module's tree literals.
+    pub tree_target: Option<GlobalSymbolId>,
 }
 
 impl ImportTable {
@@ -37,6 +39,7 @@ impl ImportTable {
             resolution_by_symbol: IndexMap::new(),
             global_target_by_key: IndexMap::new(),
             language_symbol_by_item: IndexMap::new(),
+            tree_target: None,
         }
     }
 
@@ -108,8 +111,9 @@ impl ImportTable {
             .language_symbol_by_item
             .values()
             .map(|symbol| symbol.module_id);
+        let tree = self.tree_target.iter().map(|symbol| symbol.module_id);
 
-        symbols.chain(globals).chain(language)
+        symbols.chain(globals).chain(language).chain(tree)
     }
 }
 
