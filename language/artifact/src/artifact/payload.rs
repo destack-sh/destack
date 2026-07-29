@@ -414,6 +414,11 @@ impl ArtifactPayloadRef<'_> {
             }
             push_projection_fingerprints(
                 self,
+                [ArtifactProjectionKey::InferenceComponents],
+                &mut projections,
+            )?;
+            push_projection_fingerprints(
+                self,
                 [ArtifactProjectionKey::InherentExtensions],
                 &mut projections,
             )?;

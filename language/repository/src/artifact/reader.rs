@@ -753,6 +753,13 @@ impl ComponentGraphReader<'_> {
         Ok(self.graph.inference_component(module))
     }
 
+    /// Return the sorted inference component identities.
+    pub fn inference_components(&self) -> Result<&[ComponentId], ProviderError> {
+        self.require(ArtifactProjectionKey::InferenceComponents)?;
+
+        Ok(self.graph.inference_components())
+    }
+
     /// Return the member modules of one inference component.
     pub fn inference_members(&self, component: ComponentId) -> Result<&[ModuleId], ProviderError> {
         self.require(ArtifactProjectionKey::InferenceMembers(component))?;

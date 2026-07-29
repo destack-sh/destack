@@ -160,6 +160,10 @@ impl IndexKind {
         Self::Extensions,
         Self::Decorators,
     ];
+    /// Number of module-owned index kinds.
+    pub const MODULE_COUNT: usize = 2;
+    /// Number of inference-component-owned index kinds.
+    pub const INFERENCE_COMPONENT_COUNT: usize = 6;
 
     /// Return whether modules own this index family.
     pub const fn is_module_owned(self) -> bool {
@@ -171,8 +175,8 @@ impl IndexKind {
         !self.is_module_owned()
     }
 
-    /// Return this kind's stable array ordinal.
-    pub const fn ordinal(self) -> usize {
+    /// Return this kind's stable program index ordinal.
+    pub const fn program_index_ordinal(self) -> usize {
         match self {
             Self::Symbols => 0,
             Self::Exports => 1,
@@ -182,6 +186,33 @@ impl IndexKind {
             Self::Heritage => 5,
             Self::Extensions => 6,
             Self::Decorators => 7,
+        }
+    }
+
+    /// Return this kind's module index ordinal.
+    pub const fn module_index_ordinal(self) -> Option<usize> {
+        match self {
+            Self::Symbols => Some(0),
+            Self::Exports => Some(1),
+            Self::Members
+            | Self::References
+            | Self::Calls
+            | Self::Heritage
+            | Self::Extensions
+            | Self::Decorators => None,
+        }
+    }
+
+    /// Return this kind's inference component index ordinal.
+    pub const fn inference_component_index_ordinal(self) -> Option<usize> {
+        match self {
+            Self::Symbols | Self::Exports => None,
+            Self::Members => Some(0),
+            Self::References => Some(1),
+            Self::Calls => Some(2),
+            Self::Heritage => Some(3),
+            Self::Extensions => Some(4),
+            Self::Decorators => Some(5),
         }
     }
 }

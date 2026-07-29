@@ -136,6 +136,8 @@ pub enum ArtifactProjectionKey {
     ReferenceDependencies(ComponentId),
     /// The inference component containing one module.
     InferenceComponent(ModuleId),
+    /// The sorted inference component identities.
+    InferenceComponents,
     /// The member modules of one inference component.
     InferenceMembers(ComponentId),
     /// The upstream inference components one inference component depends on.

@@ -428,6 +428,9 @@ impl ComponentGraph {
             ArtifactProjectionKey::InferenceComponent(module) => self
                 .inference_component(module)
                 .map(|component| ArtifactProjectionFingerprint::new(&component)),
+            ArtifactProjectionKey::InferenceComponents => Some(ArtifactProjectionFingerprint::new(
+                self.inference_components(),
+            )),
             ArtifactProjectionKey::InferenceMembers(component) => {
                 let members = self.inference_members(component)?;
 
