@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ComponentGraph, ComponentGraphProjection,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
     DiagnosticControlIndex, ProgramLinted,
 };
 use destack_core::FxIndexSet;
@@ -26,8 +26,6 @@ pub struct LintProgram {
     pub roots: Box<[ModuleId]>,
     /// The modules reachable from the target roots.
     pub(crate) modules: Box<[ModuleId]>,
-    /// The module graph.
-    pub graph: Arc<ComponentGraph>,
 }
 
 impl LintProgram {
@@ -64,17 +62,12 @@ impl LintProgram {
         }
 
         // load the checked module graph and target components
-        let graph = artifacts.component_graph(profile)?;
-        let components = graph.reachable_components(&roots).map_err(|root| {
-            ProviderError::internal(format!(
-                "lint module {root:?} is missing from its component graph"
-            ))
-        })?;
-        let mut modules = components
-            .iter()
-            .flat_map(|component| graph.reference_members(*component))
-            .copied()
-            .collect::<Vec<_>>();
+        let graph = artifacts.component_graph_reader(profile)?;
+        let components = graph.reachable_components(&roots)?;
+        let mut modules = Vec::new();
+        for component in components {
+            modules.extend(graph.reference_members(component)?.iter().copied());
+        }
         modules.sort_unstable();
 
         Ok(Some(Self {
@@ -83,7 +76,6 @@ impl LintProgram {
             target,
             roots: roots.into_boxed_slice(),
             modules: modules.into_boxed_slice(),
-            graph,
         }))
     }
 
@@ -126,15 +118,13 @@ impl Linter {
         // collect the target module graph
         let graph_key = ArtifactKey::component_graph(profile);
         for root in &roots {
-            dependencies.project(
-                graph_key,
-                ComponentGraphProjection::ReferenceComponent(*root),
-            );
+            dependencies
+                .require_projection(graph_key, ArtifactProjectionKey::ReferenceComponent(*root));
         }
 
         // resolve the projected components before declaring program inputs
-        let artifacts = self.repository.artifact_reader(revision);
-        let graph = match artifacts.component_graph(profile) {
+        let artifacts = self.artifact_reader(context);
+        let graph = match artifacts.component_graph_reader(profile) {
             Ok(graph) => graph,
             Err(ProviderError::Blocked { .. }) => {
                 dependencies.mark_partial();
@@ -145,22 +135,18 @@ impl Linter {
         };
 
         // project the target components and collect their modules
-        let program_components = graph.reachable_components(&roots).map_err(|root| {
-            ProviderError::internal(format!(
-                "lint module {root:?} is missing from its component graph"
-            ))
-        })?;
+        let program_components = graph.reachable_components(&roots)?;
         let mut program_modules = Vec::new();
         for component in program_components.iter().copied() {
-            dependencies.project(
+            dependencies.require_projection(
                 graph_key,
-                ComponentGraphProjection::ReferenceMembers(component),
+                ArtifactProjectionKey::ReferenceMembers(component),
             );
-            dependencies.project(
+            dependencies.require_projection(
                 graph_key,
-                ComponentGraphProjection::ReferenceDependencies(component),
+                ArtifactProjectionKey::ReferenceDependencies(component),
             );
-            program_modules.extend(graph.reference_members(component).iter().copied());
+            program_modules.extend(graph.reference_members(component)?.iter().copied());
         }
         program_modules.sort_unstable();
         let mut components = program_components
@@ -211,31 +197,25 @@ impl Linter {
 
             // project components introduced by compiler globals
             for root in environment.globals.iter().copied() {
-                dependencies.project(
-                    graph_key,
-                    ComponentGraphProjection::ReferenceComponent(root),
-                );
+                dependencies
+                    .require_projection(graph_key, ArtifactProjectionKey::ReferenceComponent(root));
             }
-            let dir_components = graph.reachable_components(&graph_roots).map_err(|root| {
-                ProviderError::internal(format!(
-                    "DIR module {root:?} is missing from its component graph"
-                ))
-            })?;
+            let dir_components = graph.reachable_components(&graph_roots)?;
             let mut modules = Vec::new();
 
             // project components introduced by the DIR program
             for component in dir_components.iter().copied() {
                 if components.insert(component) {
-                    dependencies.project(
+                    dependencies.require_projection(
                         graph_key,
-                        ComponentGraphProjection::ReferenceMembers(component),
+                        ArtifactProjectionKey::ReferenceMembers(component),
                     );
-                    dependencies.project(
+                    dependencies.require_projection(
                         graph_key,
-                        ComponentGraphProjection::ReferenceDependencies(component),
+                        ArtifactProjectionKey::ReferenceDependencies(component),
                     );
                 }
-                modules.extend(graph.reference_members(component).iter().copied());
+                modules.extend(graph.reference_members(component)?.iter().copied());
             }
             modules.sort_unstable();
 
@@ -267,7 +247,7 @@ impl Linter {
         let revision = context.revision();
 
         // load the target program
-        let artifacts = self.repository.artifact_reader(revision);
+        let artifacts = self.artifact_reader(context);
         let Some(program) = LintProgram::load(
             self.repository.as_ref(),
             revision,
@@ -318,23 +298,19 @@ impl Linter {
 
         // load checked DIR for the target modules and globals
         let revision = context.revision();
-        let artifacts = self.repository.artifact_reader(revision);
+        let artifacts = self.artifact_reader(context);
         let profile = program.profile.id();
         let environment = artifacts.global_environment(profile)?;
+        let graph = artifacts.component_graph_reader(profile)?;
         let mut roots = program.roots.to_vec();
         roots.extend(environment.globals.iter().copied());
         roots.sort_unstable();
         roots.dedup();
-        let components = program.graph.reachable_components(&roots).map_err(|root| {
-            ProviderError::internal(format!(
-                "DIR module {root:?} is missing from its component graph"
-            ))
-        })?;
-        let mut module_ids = components
-            .iter()
-            .flat_map(|component| program.graph.reference_members(*component))
-            .copied()
-            .collect::<Vec<_>>();
+        let components = graph.reachable_components(&roots)?;
+        let mut module_ids = Vec::new();
+        for component in components {
+            module_ids.extend(graph.reference_members(component)?.iter().copied());
+        }
         module_ids.sort_unstable();
         let program = DirProgram::load(
             self.repository.as_ref(),
@@ -376,7 +352,7 @@ impl Linter {
 
         // load verified MIR and whole-program analysis
         let revision = context.revision();
-        let artifacts = self.repository.artifact_reader(revision);
+        let artifacts = self.artifact_reader(context);
         let program = MirProgram::load(self.repository.as_ref(), revision, &artifacts, program)?;
         let strings = &program.mir.strings;
 

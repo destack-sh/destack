@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ComponentGraphProjection,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
     DiagnosticControlIndex, ModuleLinted,
 };
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
@@ -28,7 +28,7 @@ impl Linter {
 
         // require checking before resolving source controls
         dependencies.require(ArtifactKey::dir_checked(module, profile));
-        let artifacts = self.repository.artifact_reader(revision);
+        let artifacts = self.artifact_reader(context);
         let checked = match artifacts.dir_checked(module, profile) {
             Ok(checked) => checked,
             Err(ProviderError::Blocked { .. }) => {
@@ -58,11 +58,12 @@ impl Linter {
             roots.sort_unstable();
             roots.dedup();
             for root in roots.iter().copied() {
-                dependencies.project(graph_key, ComponentGraphProjection::ReferenceComponent(root));
+                dependencies
+                    .require_projection(graph_key, ArtifactProjectionKey::ReferenceComponent(root));
             }
 
             // read the component graph
-            let graph = match artifacts.component_graph(profile) {
+            let graph = match artifacts.component_graph_reader(profile) {
                 Ok(graph) => graph,
                 Err(ProviderError::Blocked { .. }) => {
                     dependencies.mark_partial();
@@ -73,16 +74,18 @@ impl Linter {
             };
 
             // project the reachable checked DIR modules
-            let components = graph.reachable_components(&roots).map_err(|root| {
-                ProviderError::internal(format!(
-                    "DIR module {root:?} is missing from its component graph"
-                ))
-            })?;
+            let components = graph.reachable_components(&roots)?;
             let mut modules = Vec::new();
             for component in components.iter().copied() {
-                dependencies.project(graph_key, ComponentGraphProjection::ReferenceMembers(component));
-                dependencies.project(graph_key, ComponentGraphProjection::ReferenceDependencies(component));
-                modules.extend(graph.reference_members(component).iter().copied());
+                dependencies.require_projection(
+                    graph_key,
+                    ArtifactProjectionKey::ReferenceMembers(component),
+                );
+                dependencies.require_projection(
+                    graph_key,
+                    ArtifactProjectionKey::ReferenceDependencies(component),
+                );
+                modules.extend(graph.reference_members(component)?.iter().copied());
             }
             modules.sort_unstable();
             modules.dedup();
@@ -113,7 +116,7 @@ impl Linter {
         }
 
         // resolve controls before deciding whether any lint executes
-        let artifacts = self.repository.artifact_reader(revision);
+        let artifacts = self.artifact_reader(context);
         let checked = artifacts.dir_checked(module, profile)?;
         let control_tables = [checked.controls.clone()];
         let controls = DiagnosticControlIndex::new(control_tables.iter().map(Arc::as_ref))
@@ -142,25 +145,20 @@ impl Linter {
 
         // collect the module and global roots
         let revision = context.revision();
-        let artifacts = self.repository.artifact_reader(revision);
+        let artifacts = self.artifact_reader(context);
         let environment = artifacts.global_environment(profile)?;
-        let graph = artifacts.component_graph(profile)?;
+        let graph = artifacts.component_graph_reader(profile)?;
         let mut roots = environment.globals.clone();
         roots.push(module);
         roots.sort_unstable();
         roots.dedup();
 
         // collect the reachable checked DIR modules
-        let components = graph.reachable_components(&roots).map_err(|root| {
-            ProviderError::internal(format!(
-                "DIR module {root:?} is missing from its component graph"
-            ))
-        })?;
-        let mut modules = components
-            .iter()
-            .flat_map(|component| graph.reference_members(*component))
-            .copied()
-            .collect::<Vec<_>>();
+        let components = graph.reachable_components(&roots)?;
+        let mut modules = Vec::new();
+        for component in components {
+            modules.extend(graph.reference_members(component)?.iter().copied());
+        }
         modules.sort_unstable();
         modules.dedup();
 
@@ -207,8 +205,7 @@ impl Linter {
         }
 
         // load this module's verified MIR and analyses
-        let revision = context.revision();
-        let artifacts = self.repository.artifact_reader(revision);
+        let artifacts = self.artifact_reader(context);
         let strings = self.repository.string_pool().clone();
         let mir = Mir::load(&artifacts, profile, target, &[module], strings)?;
         let module = mir.module(module)?;

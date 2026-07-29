@@ -55,7 +55,7 @@ impl Linter {
         dependencies: &mut ArtifactDependencySet,
     ) -> Result<Option<Arc<GlobalEnvironment>>, ProviderError> {
         dependencies.require(ArtifactKey::global_environment(profile));
-        let artifacts = self.repository.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         let environment = match artifacts.global_environment(profile) {
             Ok(environment) => environment,
             Err(ProviderError::Blocked { .. }) => {

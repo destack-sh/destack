@@ -5,7 +5,7 @@ use destack_artifact::{
     ArtifactDependencySet, ArtifactFailure, DiagnosticControlIndex, DiagnosticLike,
 };
 use destack_repository::{
-    LinterOptions, Module, ProviderContext, ProviderError, Repository, Revision,
+    ArtifactReader, LinterOptions, Module, ProviderContext, ProviderError, Repository, Revision,
 };
 use destack_source::{ModuleId, PackageId};
 
@@ -40,6 +40,16 @@ impl Linter {
             repository,
             lints: lints.into(),
         }
+    }
+
+    /// Return the artifact reader for one provider attempt.
+    pub(super) fn artifact_reader<'a>(
+        &'a self,
+        context: &'a dyn ProviderContext,
+    ) -> ArtifactReader<'a> {
+        self.repository
+            .artifact_reader(context.revision())
+            .restrict(context.artifact_key(), context.artifact_dependencies())
     }
 
     /// Resolve the lints scheduled by one package and its checked source controls.
