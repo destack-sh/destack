@@ -1,20 +1,20 @@
 use destack_dir as dir;
 use destack_repository::{ProviderError, ProviderResult};
 
-use crate::ModuleQueryContext;
+use super::context::ModuleIndexContext;
 
 /// Builder for one extension index from checked DIR.
-pub(super) struct ExtensionIndexer<'context, 'query> {
+pub(in crate::index) struct ExtensionIndexer<'context, 'index> {
     /// The indexed module context.
-    module: &'context ModuleQueryContext<'query>,
+    module: &'context ModuleIndexContext<'index>,
     /// The collected index entries.
     entries: Vec<dir::ExtensionEntry>,
 }
 
-impl<'context, 'query> ExtensionIndexer<'context, 'query> {
+impl<'context, 'index> ExtensionIndexer<'context, 'index> {
     /// Build the extension index.
-    pub(super) fn build(
-        module: &'context ModuleQueryContext<'query>,
+    pub(in crate::index) fn build(
+        module: &'context ModuleIndexContext<'index>,
     ) -> ProviderResult<dir::ExtensionIndex> {
         let mut indexer = Self {
             module,

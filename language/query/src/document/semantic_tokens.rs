@@ -3,7 +3,7 @@ use destack_serde::Reflect;
 use destack_source::{FileId, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::{Module, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
+use crate::{Module, ModuleQueryContext, QueryContext, QueryError, QueryResult};
 
 /// Semantic token type for LSP semantic highlighting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -190,35 +190,35 @@ impl ModuleQueryContext<'_> {
     /// Return semantic tokens for a module file.
     pub fn semantic_tokens(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         file_id: FileId,
     ) -> QueryResult<Vec<SemanticToken>> {
-        SemanticTokens::collect(self, program, file_id)
+        SemanticTokens::collect(self, query, file_id)
     }
 }
 
 /// Semantic token collection for one module.
-struct SemanticTokens<'owner, 'module, 'program> {
+struct SemanticTokens<'owner, 'module, 'query> {
     /// The queried module.
     module: &'owner ModuleQueryContext<'module>,
-    /// The queried program.
-    program: &'owner ProgramQueryContext<'program>,
+    /// The shared query context.
+    query: &'owner QueryContext<'query>,
     /// The queried source file.
     file_id: FileId,
     /// The collected tokens.
     tokens: Vec<SemanticToken>,
 }
 
-impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
+impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
     /// Collect semantic tokens for one source file.
     fn collect(
         module: &'owner ModuleQueryContext<'module>,
-        program: &'owner ProgramQueryContext<'program>,
+        query: &'owner QueryContext<'query>,
         file_id: FileId,
     ) -> QueryResult<Vec<SemanticToken>> {
         let mut semantic_tokens = Self {
             module,
-            program,
+            query,
             file_id,
             tokens: Vec::new(),
         };
@@ -571,7 +571,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         let mut token: Option<(SemanticTokenType, SemanticTokenModifiers)> = None;
         for symbol_id in symbols {
-            for symbol_id in self.program.canonical_symbols(*symbol_id)? {
+            for symbol_id in self.query.canonical_symbols(*symbol_id)? {
                 let Some(candidate) = self.canonical_symbol_token(symbol_id)? else {
                     return Ok(None);
                 };
@@ -604,7 +604,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
-        let symbol_module = self.program.module(symbol_id.module_id)?;
+        let symbol_module = self.query.module(symbol_id.module_id)?;
         let symbols = symbol_module.symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let symbol_modifiers = self.symbol_modifiers(symbol_id)?;
@@ -693,12 +693,12 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let mut modifiers = SemanticTokenModifiers::NONE;
 
         // transcribe exact decorator state
-        if self.program.symbol_is_deprecated(symbol_id)? {
+        if self.query.symbol_is_deprecated(symbol_id)? {
             modifiers = modifiers.union(SemanticTokenModifiers::DEPRECATED);
         }
 
         // transcribe exact package ownership
-        if self.program.symbol_is_default_library(symbol_id)? {
+        if self.query.symbol_is_default_library(symbol_id)? {
             modifiers = modifiers.union(SemanticTokenModifiers::DEFAULT_LIBRARY);
         }
 

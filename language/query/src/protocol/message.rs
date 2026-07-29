@@ -1,17 +1,18 @@
 use destack_serde::Reflect;
+use destack_source::ProfileId;
 use serde::{Deserialize, Serialize};
 
 use super::QueryMethod;
 use crate::{
     CallItemRequest, CallItemResponse, CodeActionsRequest, CodeActionsResponse, CodeLensesRequest,
-    CodeLensesResponse, CompletionRequest, CompletionResponse, DecoratorsRequest,
+    CodeLensesResponse, CompletionRequest, CompletionResponse, DecoratorScope, DecoratorsRequest,
     DecoratorsResponse, ExtractVariableRequest, ExtractVariableResponse, FindReferencesRequest,
     FindReferencesResponse, FoldingRangesRequest, FoldingRangesResponse, GotoDeclarationRequest,
     GotoDeclarationResponse, GotoDefinitionRequest, GotoDefinitionResponse,
     GotoImplementationRequest, GotoImplementationResponse, GotoTypeDefinitionRequest,
     GotoTypeDefinitionResponse, HighlightRequest, HighlightResponse, HoverRequest, HoverResponse,
     IncomingCallsRequest, IncomingCallsResponse, InlayHintsRequest, InlayHintsResponse,
-    InlineRequest, InlineResponse, LinksRequest, LinksResponse, OutgoingCallsRequest,
+    InlineRequest, InlineResponse, LinksRequest, LinksResponse, Module, OutgoingCallsRequest,
     OutgoingCallsResponse, OutlineRequest, OutlineResponse, RenameFilesRequest,
     RenameFilesResponse, RenameRequest, RenameResponse, RenameTargetRequest, RenameTargetResponse,
     SearchSymbolsRequest, SearchSymbolsResponse, SelectionRangesRequest, SelectionRangesResponse,
@@ -19,6 +20,17 @@ use crate::{
     SemanticTokensResponse, SignatureHelpRequest, SignatureHelpResponse, SubtypesRequest,
     SubtypesResponse, SupertypesRequest, SupertypesResponse, TypeItemRequest, TypeItemResponse,
 };
+
+/// Semantic scope read by one query.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum QueryScope {
+    /// One module context.
+    Module(Module),
+    /// Every module in one semantic program.
+    Program(ProfileId),
+    /// Every selected semantic program.
+    Workspace,
+}
 
 /// Query request envelope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -91,6 +103,91 @@ pub enum QueryRequest {
 }
 
 impl QueryRequest {
+    /// Return this request's semantic scope.
+    pub fn scope(&self) -> QueryScope {
+        match self {
+            Self::FoldingRanges(params) => QueryScope::Module(params.module),
+            Self::Hover(params) => QueryScope::Module(params.position.module),
+            Self::SignatureHelp(params) => QueryScope::Module(params.position.module),
+            Self::InlayHints(params) => QueryScope::Module(params.range.module),
+            Self::SemanticTokens(params) => QueryScope::Module(params.module),
+            Self::SemanticTokensRange(params) => QueryScope::Module(params.range.module),
+            Self::Outline(params) => QueryScope::Module(params.module),
+            Self::Links(params) => QueryScope::Module(params.module),
+            Self::SelectionRanges(params) => QueryScope::Module(params.module),
+            Self::GotoDefinition(params) => QueryScope::Module(params.position.module),
+            Self::GotoDeclaration(params) => QueryScope::Module(params.position.module),
+            Self::GotoTypeDefinition(params) => QueryScope::Module(params.position.module),
+            Self::CallItem(params) => QueryScope::Module(params.position.module),
+            Self::TypeItem(params) => QueryScope::Module(params.position.module),
+            Self::RenameTarget(params) => QueryScope::Module(params.position.module),
+            Self::ExtractVariable(params) => QueryScope::Module(params.range.module),
+
+            Self::Completion(params) => QueryScope::Program(params.position.module.profile_id),
+            Self::CodeLenses(params) => QueryScope::Program(params.module.profile_id),
+            Self::Highlight(params) => QueryScope::Program(params.position.module.profile_id),
+            Self::GotoImplementation(params) => {
+                QueryScope::Program(params.position.module.profile_id)
+            }
+            Self::FindReferences(params) => QueryScope::Program(params.position.module.profile_id),
+            Self::IncomingCalls(params) => {
+                QueryScope::Program(params.item.target.module.profile_id)
+            }
+            Self::OutgoingCalls(params) => {
+                QueryScope::Program(params.item.target.module.profile_id)
+            }
+            Self::Supertypes(params) => QueryScope::Program(params.item.target.module.profile_id),
+            Self::Subtypes(params) => QueryScope::Program(params.item.target.module.profile_id),
+            Self::Decorators(params) => match params.scope {
+                DecoratorScope::Module(module) => QueryScope::Program(module.profile_id),
+                DecoratorScope::Program(profile_id) => QueryScope::Program(profile_id),
+            },
+            Self::Rename(params) => QueryScope::Program(params.position.module.profile_id),
+            Self::Inline(params) => QueryScope::Program(params.position.module.profile_id),
+            Self::CodeActions(params) => QueryScope::Program(params.range.module.profile_id),
+
+            Self::SearchSymbols(_) | Self::RenameFiles(_) => QueryScope::Workspace,
+        }
+    }
+
+    /// Return the anchored module context read by this request when one exists.
+    pub fn module(&self) -> Option<Module> {
+        match self {
+            Self::Completion(params) => Some(params.position.module),
+            Self::Hover(params) => Some(params.position.module),
+            Self::SignatureHelp(params) => Some(params.position.module),
+            Self::InlayHints(params) => Some(params.range.module),
+            Self::CodeLenses(params) => Some(params.module),
+            Self::FoldingRanges(params) => Some(params.module),
+            Self::SemanticTokens(params) => Some(params.module),
+            Self::SemanticTokensRange(params) => Some(params.range.module),
+            Self::Outline(params) => Some(params.module),
+            Self::Links(params) => Some(params.module),
+            Self::Highlight(params) => Some(params.position.module),
+            Self::SelectionRanges(params) => Some(params.module),
+            Self::GotoDefinition(params) => Some(params.position.module),
+            Self::GotoDeclaration(params) => Some(params.position.module),
+            Self::GotoTypeDefinition(params) => Some(params.position.module),
+            Self::GotoImplementation(params) => Some(params.position.module),
+            Self::FindReferences(params) => Some(params.position.module),
+            Self::CallItem(params) => Some(params.position.module),
+            Self::TypeItem(params) => Some(params.position.module),
+            Self::RenameTarget(params) => Some(params.position.module),
+            Self::Rename(params) => Some(params.position.module),
+            Self::ExtractVariable(params) => Some(params.range.module),
+            Self::Inline(params) => Some(params.position.module),
+            Self::CodeActions(params) => Some(params.range.module),
+
+            Self::SearchSymbols(_)
+            | Self::IncomingCalls(_)
+            | Self::OutgoingCalls(_)
+            | Self::Supertypes(_)
+            | Self::Subtypes(_)
+            | Self::Decorators(_)
+            | Self::RenameFiles(_) => None,
+        }
+    }
+
     /// Return this request's query method.
     pub fn method(&self) -> QueryMethod {
         // map request variants to query methods

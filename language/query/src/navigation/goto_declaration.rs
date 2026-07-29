@@ -3,8 +3,8 @@ use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ModuleQueryContext, NavigationTarget, ProgramQueryContext, QueryPosition, QueryRange,
-    QueryResult, sort_and_dedup_navigation_targets,
+    ModuleQueryContext, NavigationTarget, QueryContext, QueryPosition, QueryRange, QueryResult,
+    sort_and_dedup_navigation_targets,
 };
 
 /// Request goto declaration at a cursor position.
@@ -25,7 +25,7 @@ impl ModuleQueryContext<'_> {
     /// Find the declaration of the symbol at one position.
     pub fn goto_declaration(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Vec<NavigationTarget>> {
@@ -40,7 +40,7 @@ impl ModuleQueryContext<'_> {
         // collect each exact declaration target
         let mut targets = Vec::new();
         for symbol_id in occurrence.symbols {
-            let module = program.module(symbol_id.module_id)?;
+            let module = query.module(symbol_id.module_id)?;
             let target = module.navigation_target(symbol_id, origin)?;
 
             targets.push(target);

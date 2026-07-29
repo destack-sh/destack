@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::{ModuleQueryContext, ProgramQueryContext, QueryResult};
+use crate::{ModuleQueryContext, QueryContext, QueryResult};
 
 impl ModuleQueryContext<'_> {
     /// Return the exact display name for one parameter.
@@ -116,7 +116,7 @@ impl ModuleQueryContext<'_> {
     }
 }
 
-impl ProgramQueryContext<'_> {
+impl QueryContext<'_> {
     /// Return parameter names for one callable symbol.
     pub(crate) fn symbol_parameter_names(
         &self,

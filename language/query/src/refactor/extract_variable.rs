@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::{is_simple_identifier, offset_line_start};
 use crate::{
-    ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange, QueryResult, visible_symbols,
+    ModuleQueryContext, QueryContext, QueryError, QueryRange, QueryResult, visible_symbols,
 };
 
 /// Request payload for extract variable queries.
@@ -28,7 +28,7 @@ impl ModuleQueryContext<'_> {
     /// Extract a selected expression into a const variable in the nearest statement scope.
     pub fn extract_variable(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         selection: Span,
         new_name: &str,
     ) -> QueryResult<Option<PatchSet>> {
@@ -57,7 +57,7 @@ impl ModuleQueryContext<'_> {
             .ok_or(QueryError::missing(format!(
                 "extraction type: {expression:?}"
             )))?;
-        let is_error = program.read_type(type_id, |type_value, _| {
+        let is_error = query.read_type(type_id, |type_value, _| {
             Ok(matches!(type_value, dir::Type::Error))
         })?;
         if is_error {

@@ -154,7 +154,7 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one literal string segment from a template type.
     fn template_segment(&self, type_id: dir::GlobalTypeId) -> QueryResult<Option<String>> {
-        self.program
+        self.query
             .read_type(type_id, |type_value, module| match type_value {
                 dir::Type::Literal(dir::ScalarLiteral::String(string_id)) => {
                     Ok(Some(module.strings().get(*string_id).to_string()))

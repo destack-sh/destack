@@ -2,15 +2,15 @@ use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed,
-    DirParsedFile, DirResolved,
+    ArtifactKey, DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed, DirParsedFile,
+    DirResolved,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_repository::{ArtifactReader, ProviderResult, Repository, Revision};
+use destack_repository::{ArtifactReader, ProviderError, ProviderResult, Repository, Revision};
 use destack_source::{File, FileId, ModuleId, ProfileId, SourceIndex, Span};
 
-use crate::{Module, ProgramQueryContext, QueryError, QueryResult};
+use crate::{Module, QueryError, QueryResult};
 
 /// Query context anchored to one module profile.
 #[derive(Debug)]
@@ -21,8 +21,6 @@ pub struct ModuleQueryContext<'a> {
     parsed: Arc<DirParsed>,
     /// The expanded module DIR.
     expanded: Arc<DirExpanded>,
-    /// The exported module DIR.
-    exported: Arc<DirExported>,
     /// The resolved import and source-reference DIR.
     resolved: Arc<DirResolved>,
     /// The checked binding table.
@@ -61,8 +59,6 @@ struct ModuleArtifacts {
     imported: Arc<DirImported>,
     /// The expanded module artifact.
     expanded: Arc<DirExpanded>,
-    /// The exported module artifact.
-    exported: Arc<DirExported>,
     /// The resolved import and source-reference artifact.
     resolved: Arc<DirResolved>,
     /// The checked module artifact.
@@ -70,20 +66,27 @@ struct ModuleArtifacts {
 }
 
 impl ModuleArtifacts {
-    /// Read one coherent artifact set from a revision-bound reader.
+    /// Read one module's exact DIR artifacts.
     fn read(
         reader: &ArtifactReader<'_>,
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ProviderResult<Self> {
+        let graph = reader.component_graph(profile_id)?;
+        let component = graph.inference_component(module_id).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "query module is absent from the component graph: {module_id:?}"
+            ))
+        })?;
+        let checked = reader.dir_checked_module(component, module_id, profile_id)?;
+
         Ok(Self {
             parsed: reader.dir_parsed(module_id)?,
             bound: reader.dir_bound(module_id, profile_id)?,
             imported: reader.dir_imported(module_id, profile_id)?,
             expanded: reader.dir_expanded(module_id, profile_id)?,
-            exported: reader.dir_exported(module_id, profile_id)?,
             resolved: reader.dir_resolved(module_id, profile_id)?,
-            checked: reader.dir_checked(module_id, profile_id)?,
+            checked,
         })
     }
 }
@@ -117,7 +120,6 @@ impl<'a> ModuleQueryContext<'a> {
             repository,
             parsed: artifacts.parsed,
             expanded: artifacts.expanded,
-            exported: artifacts.exported,
             resolved: artifacts.resolved,
             bindings,
             modules,
@@ -134,14 +136,13 @@ impl<'a> ModuleQueryContext<'a> {
         }
     }
 
-    /// Return every artifact key read by one module query context.
-    pub fn artifact_keys(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 7] {
+    /// Return the artifact roots for one module query context.
+    pub fn artifact_roots(module_id: ModuleId, profile_id: ProfileId) -> [ArtifactKey; 6] {
         [
             ArtifactKey::dir_parsed(module_id),
             ArtifactKey::dir_bound(module_id, profile_id),
             ArtifactKey::dir_imported(module_id, profile_id),
             ArtifactKey::dir_expanded(module_id, profile_id),
-            ArtifactKey::dir_exported(module_id, profile_id),
             ArtifactKey::dir_resolved(module_id, profile_id),
             ArtifactKey::dir_checked(module_id, profile_id),
         ]
@@ -303,11 +304,6 @@ impl<'a> ModuleQueryContext<'a> {
         &self.modules
     }
 
-    /// Return the DIR export table.
-    pub(crate) fn exports(&self) -> &dir::ExportTable {
-        &self.exported.exports
-    }
-
     /// Return the DIR string pool.
     pub(crate) fn strings(&self) -> &StringPool {
         self.strings
@@ -323,24 +319,5 @@ impl<'a> ModuleQueryContext<'a> {
         let global_node_id = node_id.into_global(self.module_id);
 
         self.types().get_node_type_id(global_node_id)
-    }
-
-    /// Read one checked global type through its owning module context.
-    pub(crate) fn read_global_type<R>(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        type_id: dir::GlobalTypeId,
-        read: impl FnOnce(&dir::Type, &ModuleQueryContext<'_>) -> R,
-    ) -> QueryResult<R> {
-        if type_id.module_id == self.module_id {
-            let checked_type = self.types().get_type(type_id.local_id);
-
-            return Ok(read(&checked_type, self));
-        }
-
-        let type_module = program.module(type_id.module_id)?;
-        let checked_type = type_module.types().get_type(type_id.local_id);
-
-        Ok(read(&checked_type, type_module))
     }
 }

@@ -485,7 +485,7 @@ impl CompletionBuilder<'_, '_, '_> {
             .ok_or(RepositoryError::MissingModule { module: module_id })?;
         let package = self
             .program
-            .package_graph()
+            .package_graph()?
             .package(module.package_id)
             .ok_or(QueryError::missing(format!(
                 "indexed package: {:?}",

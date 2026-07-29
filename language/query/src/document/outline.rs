@@ -4,7 +4,7 @@ use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{Formatter, Module, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
+use crate::{Formatter, Module, ModuleQueryContext, QueryContext, QueryError, QueryResult};
 
 /// An editor-facing declaration kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
@@ -115,13 +115,13 @@ impl ModuleQueryContext<'_> {
     /// Return the ordered symbol outline for one source file.
     pub fn outline(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         file_id: FileId,
     ) -> QueryResult<Vec<OutlineSymbol>> {
         let view = self.view();
         let roots = self.file_roots(file_id)?;
 
-        self.outline_expressions(view, roots, program)
+        self.outline_expressions(view, roots, query)
     }
 
     /// Return declarations introduced by one ordered expression list.
@@ -129,7 +129,7 @@ impl ModuleQueryContext<'_> {
         &self,
         view: dir::View<'_>,
         expression_ids: &[dir::LocalNodeId<dir::Expression>],
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
     ) -> QueryResult<Vec<OutlineSymbol>> {
         let mut symbols = Vec::new();
 
@@ -138,9 +138,7 @@ impl ModuleQueryContext<'_> {
             let expression = view.get::<dir::Expression>(*expression_id);
             match expression {
                 dir::Expression::Declaration(declaration_id) => {
-                    if let Some(symbol) =
-                        self.outline_declaration(view, *declaration_id, program)?
-                    {
+                    if let Some(symbol) = self.outline_declaration(view, *declaration_id, query)? {
                         symbols.push(symbol);
                     }
                 }
@@ -154,7 +152,7 @@ impl ModuleQueryContext<'_> {
                         *expression_id,
                         declarators,
                         *mutability,
-                        program,
+                        query,
                     )?);
                 }
                 dir::Expression::Using { declarators, .. } => {
@@ -163,7 +161,7 @@ impl ModuleQueryContext<'_> {
                         *expression_id,
                         declarators,
                         dir::Mutability::Immutable,
-                        program,
+                        query,
                     )?);
                 }
                 _ => {}
@@ -178,7 +176,7 @@ impl ModuleQueryContext<'_> {
         &self,
         view: dir::View<'_>,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
     ) -> QueryResult<Option<OutlineSymbol>> {
         let declaration = view.get::<dir::Declaration>(declaration_id);
         let block = match declaration {
@@ -194,7 +192,7 @@ impl ModuleQueryContext<'_> {
         // preserve anonymous declaration owners as named editor containers
         if let Some((name, kind, expressions)) = block {
             return self
-                .outline_declaration_block(view, declaration_id, name, kind, expressions, program)
+                .outline_declaration_block(view, declaration_id, name, kind, expressions, query)
                 .map(Some);
         }
 
@@ -210,13 +208,13 @@ impl ModuleQueryContext<'_> {
                 None => return Ok(None),
             };
         let range = self.node_span(view, declaration_id.into())?;
-        let detail = self.outline_declaration_detail(declaration_id, declaration, program)?;
+        let detail = self.outline_declaration_detail(declaration_id, declaration, query)?;
         let mut children = Vec::new();
 
         // preserve declaration member order
         if let Some(member_ids) = declaration.member_ids() {
             for member_id in member_ids {
-                if let Some(member) = self.outline_member(view, *member_id, program)? {
+                if let Some(member) = self.outline_member(view, *member_id, query)? {
                     children.push(member);
                 }
             }
@@ -225,7 +223,7 @@ impl ModuleQueryContext<'_> {
         // preserve interface member order
         if let Some(member_ids) = declaration.type_member_ids() {
             for member_id in member_ids {
-                if let Some(member) = self.outline_type_member(view, *member_id, program)? {
+                if let Some(member) = self.outline_type_member(view, *member_id, query)? {
                     children.push(member);
                 }
             }
@@ -256,14 +254,14 @@ impl ModuleQueryContext<'_> {
         name: &str,
         kind: SymbolKind,
         expressions: &[dir::LocalNodeId<dir::Expression>],
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
     ) -> QueryResult<OutlineSymbol> {
         let node = declaration_id.into_global_any(self.module_id());
         let selection_range = self
             .node_selection_span(view, declaration_id.into())
             .ok_or(QueryError::missing(format!("outline span: {node:?}")))?;
         let range = self.node_span(view, declaration_id.into())?;
-        let children = self.outline_expressions(view, expressions, program)?;
+        let children = self.outline_expressions(view, expressions, query)?;
 
         Ok(OutlineSymbol {
             name: name.to_string(),
@@ -315,11 +313,11 @@ impl ModuleQueryContext<'_> {
         &self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
     ) -> QueryResult<Option<String>> {
         match declaration {
             dir::Declaration::Function(declaration) => Ok(Some(
-                Formatter::new(self, program)
+                Formatter::new(self, query)
                     .call_signature("", &declaration.signature, false)?
                     .ok_or(QueryError::invalid(format!(
                         "outline signature formatting: {:?}",
@@ -327,7 +325,7 @@ impl ModuleQueryContext<'_> {
                     )))?,
             )),
             dir::Declaration::Type(declaration) => Ok(Some(
-                self.outline_node_type(declaration.value.into(), program)?,
+                self.outline_node_type(declaration.value.into(), query)?,
             )),
             dir::Declaration::Global(_)
             | dir::Declaration::Module(_)
@@ -346,7 +344,7 @@ impl ModuleQueryContext<'_> {
         root_id: dir::LocalNodeId<dir::Expression>,
         declarators: &[dir::LocalNodeId<dir::Declarator>],
         mutability: dir::Mutability,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
     ) -> QueryResult<Vec<OutlineSymbol>> {
         let range = self.node_span(view, root_id.into())?;
         let kind = match mutability {
@@ -384,7 +382,7 @@ impl ModuleQueryContext<'_> {
                         .ok_or(QueryError::missing(format!(
                             "outline symbol type: {symbol_id:?}"
                         )))?;
-                let detail = Formatter::new(self, program).global_type(type_id)?.ok_or(
+                let detail = Formatter::new(self, query).global_type(type_id)?.ok_or(
                     QueryError::invalid(format!("outline type formatting: {type_id:?}")),
                 )?;
                 symbols.push(OutlineSymbol {
@@ -406,7 +404,7 @@ impl ModuleQueryContext<'_> {
         &self,
         view: dir::View<'_>,
         member_id: dir::LocalNodeId<dir::Member>,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
     ) -> QueryResult<Option<OutlineSymbol>> {
         let member = view.get::<dir::Member>(member_id);
         if matches!(
@@ -426,7 +424,7 @@ impl ModuleQueryContext<'_> {
         let (name, kind, detail) = match member {
             dir::Member::AssociatedType { name, value, .. } => {
                 let detail = value
-                    .map(|value_id| self.outline_node_type(value_id.into(), program))
+                    .map(|value_id| self.outline_node_type(value_id.into(), query))
                     .transpose()?;
                 (
                     self.strings().get(*name).to_string(),
@@ -441,7 +439,7 @@ impl ModuleQueryContext<'_> {
             } => (
                 self.strings().get(*name).to_string(),
                 SymbolKind::AssociatedConst,
-                Some(self.outline_declared_type(*declared_type, member_id.into(), program)?),
+                Some(self.outline_declared_type(*declared_type, member_id.into(), query)?),
             ),
             dir::Member::Field {
                 key,
@@ -458,9 +456,9 @@ impl ModuleQueryContext<'_> {
                     SymbolKind::Field
                 };
                 let type_text =
-                    self.outline_declared_type(*declared_type, member_id.into(), program)?;
+                    self.outline_declared_type(*declared_type, member_id.into(), query)?;
                 let detail =
-                    Formatter::new(self, program).field_type(type_text, *is_static, *is_readonly);
+                    Formatter::new(self, query).field_type(type_text, *is_static, *is_readonly);
 
                 (name, kind, Some(detail))
             }
@@ -479,7 +477,7 @@ impl ModuleQueryContext<'_> {
                     Some(name) => name,
                     None => return Ok(None),
                 };
-                let detail = Formatter::new(self, program)
+                let detail = Formatter::new(self, query)
                     .method_signature(signature, *is_static)?
                     .ok_or(QueryError::invalid(format!(
                         "outline signature formatting: {:?}",
@@ -508,7 +506,7 @@ impl ModuleQueryContext<'_> {
         &self,
         view: dir::View<'_>,
         member_id: dir::LocalNodeId<dir::TypeMember>,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
     ) -> QueryResult<Option<OutlineSymbol>> {
         let member = view.get::<dir::TypeMember>(member_id);
         if matches!(member, dir::TypeMember::Error) {
@@ -530,9 +528,9 @@ impl ModuleQueryContext<'_> {
             } => {
                 let name = self.outline_member_key(view, key)?;
                 let type_text =
-                    self.outline_declared_type(*declared_type, member_id.into(), program)?;
+                    self.outline_declared_type(*declared_type, member_id.into(), query)?;
                 let detail =
-                    Formatter::new(self, program).field_type(type_text, *is_static, *is_readonly);
+                    Formatter::new(self, query).field_type(type_text, *is_static, *is_readonly);
 
                 (name, SymbolKind::Field, Some(detail))
             }
@@ -543,7 +541,7 @@ impl ModuleQueryContext<'_> {
                 ..
             } => {
                 let name = self.outline_member_key(view, key)?;
-                let detail = Formatter::new(self, program)
+                let detail = Formatter::new(self, query)
                     .method_signature(signature, *is_static)?
                     .ok_or(QueryError::invalid(format!(
                         "outline signature formatting: {:?}",
@@ -554,7 +552,7 @@ impl ModuleQueryContext<'_> {
             }
             dir::TypeMember::AssociatedType { name, value, .. } => {
                 let detail = value
-                    .map(|value_id| self.outline_node_type(value_id.into(), program))
+                    .map(|value_id| self.outline_node_type(value_id.into(), query))
                     .transpose()?;
                 (
                     self.strings().get(*name).to_string(),
@@ -569,7 +567,7 @@ impl ModuleQueryContext<'_> {
             } => (
                 self.strings().get(*name).to_string(),
                 SymbolKind::AssociatedConst,
-                Some(self.outline_declared_type(*declared_type, member_id.into(), program)?),
+                Some(self.outline_declared_type(*declared_type, member_id.into(), query)?),
             ),
             dir::TypeMember::CallSignature { .. } => ("call".to_string(), SymbolKind::Method, None),
             dir::TypeMember::ConstructSignature { .. } => {
@@ -578,7 +576,7 @@ impl ModuleQueryContext<'_> {
             dir::TypeMember::IndexSignature { name, .. } => (
                 format!("[{}]", self.strings().get(*name)),
                 SymbolKind::Field,
-                Some(self.outline_node_type(member_id.into(), program)?),
+                Some(self.outline_node_type(member_id.into(), query)?),
             ),
             dir::TypeMember::Error => return Ok(None),
         };
@@ -633,7 +631,7 @@ impl ModuleQueryContext<'_> {
     fn outline_node_type(
         &self,
         node_id: dir::LocalNodeIdAny,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
     ) -> QueryResult<String> {
         let node_id = node_id.into_global(self.module_id());
         let type_id = self
@@ -641,7 +639,7 @@ impl ModuleQueryContext<'_> {
             .get_node_type_id(node_id)
             .ok_or(QueryError::missing(format!("outline type: {node_id:?}")))?;
 
-        Formatter::new(self, program)
+        Formatter::new(self, query)
             .global_type(type_id)?
             .ok_or(QueryError::invalid(format!(
                 "outline type formatting: {type_id:?}"
@@ -653,11 +651,11 @@ impl ModuleQueryContext<'_> {
         &self,
         declared_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
         owner_id: dir::LocalNodeIdAny,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
     ) -> QueryResult<String> {
         match declared_type {
-            Some(type_id) => self.outline_node_type(type_id.into(), program),
-            None => self.outline_node_type(owner_id, program),
+            Some(type_id) => self.outline_node_type(type_id.into(), query),
+            None => self.outline_node_type(owner_id, query),
         }
     }
 }

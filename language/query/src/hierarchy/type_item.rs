@@ -4,7 +4,7 @@ use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
+    Formatter, ModuleQueryContext, QueryContext, QueryError, QueryPosition, QueryResult,
     SymbolKind, Target,
 };
 
@@ -59,13 +59,13 @@ pub(crate) struct TypeItemOrder<'a> {
 impl TypeItem {
     /// Build the hierarchy item for one type symbol.
     pub(crate) fn from_symbol(
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<Self>> {
-        let Some(canonical_id) = program.canonical_symbol(symbol_id)? else {
+        let Some(canonical_id) = query.canonical_symbol(symbol_id)? else {
             return Ok(None);
         };
-        let module = program.module(canonical_id.module_id)?;
+        let module = query.module(canonical_id.module_id)?;
         let symbol = module.symbols().get_symbol(canonical_id.local_id);
         let kind = match symbol.kind {
             dir::SymbolKind::Class
@@ -77,7 +77,7 @@ impl TypeItem {
                 .map_err(|_| QueryError::invalid(format!("type item symbol: {canonical_id:?}")))?,
             _ => return Ok(None),
         };
-        let name = program
+        let name = query
             .symbol_name(canonical_id)?
             .ok_or(QueryError::invalid(format!(
                 "type item symbol: {canonical_id:?}"
@@ -85,7 +85,7 @@ impl TypeItem {
 
         // resolve source ranges around the declaration name
         let selection_range =
-            program
+            query
                 .symbol_definition_span(canonical_id)?
                 .ok_or(QueryError::missing(format!(
                     "type item span: {canonical_id:?}"
@@ -98,7 +98,7 @@ impl TypeItem {
                 )))?;
 
         let target = Target::new(module.module(), range).with_selection_span(selection_range)?;
-        let detail = Formatter::new(module, program).symbol_generics(canonical_id)?;
+        let detail = Formatter::new(module, query).symbol_generics(canonical_id)?;
 
         Ok(Some(Self {
             name,
@@ -127,7 +127,7 @@ impl ModuleQueryContext<'_> {
     /// Return a type item at the given position.
     pub fn type_item(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<TypeItem>> {
@@ -138,6 +138,6 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         };
 
-        TypeItem::from_symbol(program, symbol_id)
+        TypeItem::from_symbol(query, symbol_id)
     }
 }

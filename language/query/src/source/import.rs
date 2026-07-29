@@ -364,7 +364,7 @@ impl ProgramQueryContext<'_> {
         // read persisted public package specifiers across package boundaries
         if source_module.package_id != target_module_id.package_id {
             let specifiers = self
-                .package_graph()
+                .package_graph()?
                 .package_specifiers(source_module.package_id, target_module_id)
                 .map(str::to_string)
                 .collect();
@@ -373,7 +373,7 @@ impl ProgramQueryContext<'_> {
         }
 
         // skip modules that have no exact default import path
-        let Some(target_path) = self.package_graph().module_path(target_module_id) else {
+        let Some(target_path) = self.package_graph()?.module_path(target_module_id) else {
             return Ok(Vec::new());
         };
         let source_path = source_module

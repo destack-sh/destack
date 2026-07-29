@@ -81,16 +81,10 @@ pub fn search_symbols(
     // trim surrounding query whitespace
     let query = query.trim();
 
-    // collect matching declaration and member entries
+    // collect matching declarations
     for program in programs {
         for (profile_id, entry) in program.search_symbol_candidates(query)? {
             if let Some(candidate) = SymbolCandidate::symbol_entry(profile_id, entry, query)? {
-                candidates.push(candidate);
-            }
-        }
-
-        for (profile_id, entry) in program.search_member_candidates(query)? {
-            if let Some(candidate) = SymbolCandidate::member_entry(profile_id, entry, query)? {
                 candidates.push(candidate);
             }
         }
@@ -152,30 +146,6 @@ impl SearchSymbol {
             container: entry.container,
         })
     }
-
-    /// Convert one cached member entry to a symbol match.
-    fn member_entry(profile_id: ProfileId, entry: dir::MemberEntry) -> QueryResult<Option<Self>> {
-        let Some(symbol_id) = entry.symbol else {
-            return Ok(None);
-        };
-        let module = Module {
-            module_id: entry.source.module_id,
-            profile_id,
-        };
-        let target = Target::new(module, entry.span);
-        let target = if let Some(selection) = entry.selection {
-            target.with_selection_span(selection)?
-        } else {
-            target
-        };
-        Ok(Some(Self {
-            name: entry.name,
-            kind: SymbolKind::from(entry.kind),
-            symbol_id,
-            target,
-            container: entry.container,
-        }))
-    }
 }
 
 /// One matched symbol with its stable search order.
@@ -195,34 +165,21 @@ impl SymbolCandidate {
         query: &str,
     ) -> QueryResult<Option<Self>> {
         // classify supported indexed declarations
-        let mut kind = SymbolKind::try_from(entry.kind).map_err(|kind| {
-            QueryError::invalid(format!(
-                "search symbol kind: {:?}, {:?}",
-                entry.symbol, kind
-            ))
-        })?;
+        let mut kind = match entry.member_kind {
+            Some(kind) => SymbolKind::from(kind),
+            None => SymbolKind::try_from(entry.kind).map_err(|kind| {
+                QueryError::invalid(format!(
+                    "search symbol kind: {:?}, {:?}",
+                    entry.symbol, kind
+                ))
+            })?,
+        };
         if kind == SymbolKind::Variable && entry.mutability == Some(dir::Mutability::Immutable) {
             kind = SymbolKind::Constant;
         }
 
         // rank the exact declaration candidate
         let symbol = SearchSymbol::symbol_entry(profile_id, entry, kind)?;
-        let Some(order) = symbol.order(query) else {
-            return Ok(None);
-        };
-
-        Ok(Some(Self { order, symbol }))
-    }
-
-    /// Build one candidate from an indexed member entry.
-    fn member_entry(
-        profile_id: ProfileId,
-        entry: dir::MemberEntry,
-        query: &str,
-    ) -> QueryResult<Option<Self>> {
-        let Some(symbol) = SearchSymbol::member_entry(profile_id, entry)? else {
-            return Ok(None);
-        };
         let Some(order) = symbol.order(query) else {
             return Ok(None);
         };

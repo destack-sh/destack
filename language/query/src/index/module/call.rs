@@ -2,20 +2,20 @@ use destack_dir as dir;
 use destack_repository::{ProviderError, ProviderResult};
 use destack_source::Span;
 
-use crate::ModuleQueryContext;
+use super::context::ModuleIndexContext;
 
 /// Builder for one call index from checked DIR.
-pub(super) struct CallIndexer<'context, 'query> {
+pub(in crate::index) struct CallIndexer<'context, 'index> {
     /// The indexed module context.
-    module: &'context ModuleQueryContext<'query>,
+    module: &'context ModuleIndexContext<'index>,
     /// The collected index entries.
     entries: Vec<dir::CallEntry>,
 }
 
-impl<'context, 'query> CallIndexer<'context, 'query> {
+impl<'context, 'index> CallIndexer<'context, 'index> {
     /// Build the call index.
-    pub(super) fn build(
-        module: &'context ModuleQueryContext<'query>,
+    pub(in crate::index) fn build(
+        module: &'context ModuleIndexContext<'index>,
     ) -> ProviderResult<dir::CallIndex> {
         let mut indexer = Self {
             module,

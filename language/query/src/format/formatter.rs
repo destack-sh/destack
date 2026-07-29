@@ -1,4 +1,4 @@
-use crate::{ModuleQueryContext, ProgramQueryContext};
+use crate::{ModuleQueryContext, QueryContext};
 
 macro_rules! formatted {
     ($expression:expr) => {
@@ -11,20 +11,20 @@ macro_rules! formatted {
 
 pub(super) use formatted;
 
-/// Formatter for language text from one program module.
-pub(crate) struct Formatter<'owner, 'module, 'program> {
+/// Formatter for query display text.
+pub(crate) struct Formatter<'owner, 'module, 'query> {
     /// The module that owns local ids read by the formatter.
     pub(super) module: &'owner ModuleQueryContext<'module>,
-    /// The program used for global DIR reads.
-    pub(super) program: &'owner ProgramQueryContext<'program>,
+    /// The shared query context.
+    pub(super) query: &'owner QueryContext<'query>,
 }
 
-impl<'owner, 'module, 'program> Formatter<'owner, 'module, 'program> {
+impl<'owner, 'module, 'query> Formatter<'owner, 'module, 'query> {
     /// Create a formatter for one module.
     pub(crate) fn new(
         module: &'owner ModuleQueryContext<'module>,
-        program: &'owner ProgramQueryContext<'program>,
+        query: &'owner QueryContext<'query>,
     ) -> Self {
-        Self { module, program }
+        Self { module, query }
     }
 }

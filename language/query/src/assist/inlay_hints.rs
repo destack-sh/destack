@@ -3,9 +3,7 @@ use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryRange, QueryResult,
-};
+use crate::{Formatter, ModuleQueryContext, QueryContext, QueryError, QueryRange, QueryResult};
 
 /// Kind of inlay hint.
 #[derive(
@@ -79,7 +77,7 @@ impl ModuleQueryContext<'_> {
     /// Return inlay hints for a range in a file.
     pub fn inlay_hints(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         range: Span,
         type_hints: bool,
         parameter_hints: bool,
@@ -88,10 +86,10 @@ impl ModuleQueryContext<'_> {
 
         // collect requested hint families
         if type_hints {
-            self.collect_type_inlay_hints(program, range, &mut hints)?;
+            self.collect_type_inlay_hints(query, range, &mut hints)?;
         }
         if parameter_hints {
-            self.collect_parameter_inlay_hints(program, range, &mut hints)?;
+            self.collect_parameter_inlay_hints(query, range, &mut hints)?;
         }
 
         // retain source order across hint families
@@ -108,7 +106,7 @@ impl ModuleQueryContext<'_> {
     /// Collect inferred type inlay hints.
     fn collect_type_inlay_hints(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         range: Span,
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
@@ -147,7 +145,7 @@ impl ModuleQueryContext<'_> {
                 .ok_or(QueryError::missing(format!(
                     "inlay hint type: {global_symbol_id:?}"
                 )))?;
-            let type_text = Formatter::new(self, program)
+            let type_text = Formatter::new(self, query)
                 .binding_type(declarator, type_id)?
                 .ok_or(QueryError::invalid(format!(
                     "inlay hint type formatting: {type_id:?}"
@@ -162,7 +160,7 @@ impl ModuleQueryContext<'_> {
     /// Collect parameter hints from selected call and construction bindings.
     fn collect_parameter_inlay_hints(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         range: Span,
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
@@ -178,7 +176,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
 
-            let names = self.call_parameter_names(program, call, resolution)?;
+            let names = self.call_parameter_names(query, call, resolution)?;
             self.collect_argument_hints(call, &resolution.first().arguments, &names, range, hints)?;
         }
 
@@ -189,7 +187,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
 
-            let names = self.construct_parameter_names(program, call, resolution)?;
+            let names = self.construct_parameter_names(query, call, resolution)?;
             self.collect_argument_hints(call, &resolution.arguments, &names, range, hints)?;
         }
 
@@ -199,7 +197,7 @@ impl ModuleQueryContext<'_> {
     /// Return parameter names for one selected call.
     fn call_parameter_names(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         call: dir::GlobalNodeIdAny,
         resolution: &dir::CallResolution,
     ) -> QueryResult<Vec<Option<String>>> {
@@ -209,7 +207,7 @@ impl ModuleQueryContext<'_> {
         }
         let mut symbols = Vec::new();
         for symbol in selected_symbols {
-            symbols.extend(program.canonical_symbols(symbol)?);
+            symbols.extend(query.canonical_symbols(symbol)?);
         }
         symbols.sort();
         symbols.dedup();
@@ -222,7 +220,7 @@ impl ModuleQueryContext<'_> {
         // read authored names for every exact selected declaration
         let mut signatures = Vec::with_capacity(symbols.len());
         for symbol in symbols {
-            let Some(signature) = program.symbol_parameter_names(symbol)? else {
+            let Some(signature) = query.symbol_parameter_names(symbol)? else {
                 return Err(QueryError::missing(format!(
                     "inlay hint parameters: {call:?}"
                 )));
@@ -315,7 +313,7 @@ impl ModuleQueryContext<'_> {
     /// Return parameter names for one selected construction.
     fn construct_parameter_names(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         call: dir::GlobalNodeIdAny,
         resolution: &dir::ConstructResolution,
     ) -> QueryResult<Vec<Option<String>>> {
@@ -324,12 +322,12 @@ impl ModuleQueryContext<'_> {
                 let Some(symbol_id) = candidate.constructor.call_symbol() else {
                     return Ok(Vec::new());
                 };
-                let Some(symbol_id) = program.canonical_symbol(symbol_id)? else {
+                let Some(symbol_id) = query.canonical_symbol(symbol_id)? else {
                     return Err(QueryError::missing(format!(
                         "inlay hint parameters: {call:?}"
                     )));
                 };
-                let Some(names) = program.symbol_parameter_names(symbol_id)? else {
+                let Some(names) = query.symbol_parameter_names(symbol_id)? else {
                     return Err(QueryError::missing(format!(
                         "inlay hint parameters: {call:?}"
                     )));

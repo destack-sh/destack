@@ -47,11 +47,11 @@ impl ProgramQueryContext<'_> {
         &self,
         module_id: ModuleId,
     ) -> QueryResult<Vec<(String, ExportDeclaration)>> {
-        let index = self.module_index(module_id)?;
+        let index = self.export_index(module_id)?;
         let mut entries = Vec::new();
 
         // transcribe each exact non-default export
-        for export in index.exports.entries() {
+        for export in index.entries() {
             if export.name == "default" {
                 continue;
             }
@@ -77,14 +77,14 @@ impl ProgramQueryContext<'_> {
         let query = query.to_lowercase();
 
         // collect exact exports from modules reached by matching names
-        let ordinals = self.modules_matching_name(&self.index().exports.names, &query);
+        let ordinals = self.modules_matching_name(&self.export_postings()?.names, &query);
         for ordinal in ordinals {
-            let (module, index) = self.module_index_at(ordinal)?;
+            let (module, index) = self.export_index_at(ordinal)?;
             if Some(module) == exclude_module {
                 continue;
             }
 
-            for export in index.exports.entries() {
+            for export in index.entries() {
                 if export.name == "default"
                     || (!query.is_empty() && !export.name.to_lowercase().contains(&query))
                 {
@@ -104,15 +104,15 @@ impl ProgramQueryContext<'_> {
         }
 
         // expose named declarations exported through the default key
-        let default_ordinals = self.modules_matching_name(&self.index().exports.names, "default");
+        let default_ordinals =
+            self.modules_matching_name(&self.export_postings()?.names, "default");
         for ordinal in default_ordinals {
-            let (module, index) = self.module_index_at(ordinal)?;
+            let (module, index) = self.export_index_at(ordinal)?;
             if Some(module) == exclude_module {
                 continue;
             }
 
             for export in index
-                .exports
                 .entries()
                 .iter()
                 .filter(|export| export.name == "default")
@@ -121,9 +121,8 @@ impl ProgramQueryContext<'_> {
                     let ExportDeclaration::Symbol { symbol, .. } = declaration else {
                         continue;
                     };
-                    let symbol_index = self.module_index(symbol.module_id)?;
+                    let symbol_index = self.symbol_index(symbol.module_id)?;
                     let symbol = symbol_index
-                        .symbols
                         .entries()
                         .iter()
                         .find(|entry| entry.symbol == symbol)
@@ -159,11 +158,11 @@ impl ProgramQueryContext<'_> {
         let query = query.to_lowercase();
 
         // collect declaration symbols from modules reached by matching declaration names
-        let ordinals = self.modules_matching(&self.index().symbols.names, |name| {
+        let ordinals = self.modules_matching(&self.symbol_postings()?.names, |name| {
             match_quality(name, &query).is_some()
         });
         for ordinal in ordinals {
-            let (module_id, index) = self.module_index_at(ordinal)?;
+            let (module_id, index) = self.symbol_index_at(ordinal)?;
             if !self.is_authored_module(module_id)? {
                 continue;
             }
@@ -171,39 +170,6 @@ impl ProgramQueryContext<'_> {
             // collect matching declarations from the indexed module
             entries.extend(
                 index
-                    .symbols
-                    .entries()
-                    .iter()
-                    .filter(|entry| match_quality(&entry.name, &query).is_some())
-                    .map(|entry| (self.profile_id(), entry.clone())),
-            );
-        }
-
-        Ok(entries)
-    }
-
-    /// Search member candidates across indexed modules.
-    pub(crate) fn search_member_candidates(
-        &self,
-        query: &str,
-    ) -> QueryResult<Vec<(ProfileId, dir::MemberEntry)>> {
-        let mut entries = Vec::new();
-        let query = query.to_lowercase();
-
-        // collect members from modules reached by matching member names
-        let ordinals = self.modules_matching(&self.index().members.names, |name| {
-            match_quality(name, &query).is_some()
-        });
-        for ordinal in ordinals {
-            let (module_id, index) = self.module_index_at(ordinal)?;
-            if !self.is_authored_module(module_id)? {
-                continue;
-            }
-
-            // collect matching members from the indexed module
-            entries.extend(
-                index
-                    .members
                     .entries()
                     .iter()
                     .filter(|entry| match_quality(&entry.name, &query).is_some())
@@ -222,9 +188,9 @@ impl ProgramQueryContext<'_> {
         let mut entries = Vec::new();
 
         // collect owner members from modules reached by the owner symbol
-        for ordinal in self.index().members.owners.get(&owner_symbol) {
-            let (_, index) = self.module_index_at(*ordinal)?;
-            entries.extend(index.members.owner_entries(owner_symbol).cloned());
+        for ordinal in self.member_postings()?.owners.get(&owner_symbol) {
+            let (_, index) = self.member_index_at(*ordinal)?;
+            entries.extend(index.owner_entries(owner_symbol).cloned());
         }
 
         entries.sort_by(dir::MemberEntry::compare_by_source);
@@ -241,9 +207,9 @@ impl ProgramQueryContext<'_> {
         let mut entries = Vec::new();
 
         // collect declaration members from modules reached by the declaring symbol
-        for ordinal in self.index().members.declaring.get(&declaring_symbol) {
-            let (_, index) = self.module_index_at(*ordinal)?;
-            entries.extend(index.members.declaring_entries(declaring_symbol).cloned());
+        for ordinal in self.member_postings()?.declaring.get(&declaring_symbol) {
+            let (_, index) = self.member_index_at(*ordinal)?;
+            entries.extend(index.declaring_entries(declaring_symbol).cloned());
         }
 
         entries.sort_by(dir::MemberEntry::compare_by_source);
@@ -262,8 +228,7 @@ impl ProgramQueryContext<'_> {
         // select modules reached by the decorator name
         let modules = match name {
             Some(name) => self
-                .index()
-                .decorators
+                .decorator_postings()?
                 .names
                 .get(&name.to_string())
                 .to_vec(),
@@ -272,10 +237,9 @@ impl ProgramQueryContext<'_> {
 
         // collect decorators from the selected modules
         for ordinal in modules {
-            let (_, index) = self.module_index_at(ordinal)?;
+            let (_, index) = self.decorator_index_at(ordinal)?;
             entries.extend(
                 index
-                    .decorators
                     .search(name)
                     .cloned()
                     .map(|entry| (self.profile_id(), entry)),
@@ -305,9 +269,9 @@ impl ProgramQueryContext<'_> {
         let mut entries = Vec::new();
 
         // collect heritage edges from modules reached by the base symbol
-        for ordinal in self.index().heritage.bases.get(&base_symbol) {
-            let (_, index) = self.module_index_at(*ordinal)?;
-            entries.extend(index.heritage.base_entries(base_symbol).copied());
+        for ordinal in self.heritage_postings()?.bases.get(&base_symbol) {
+            let (_, index) = self.heritage_index_at(*ordinal)?;
+            entries.extend(index.base_entries(base_symbol).copied());
         }
         entries.sort_by_key(|entry| {
             (
@@ -333,9 +297,9 @@ impl ProgramQueryContext<'_> {
         let mut entries = Vec::new();
 
         // collect heritage edges from modules reached by the derived symbol
-        for ordinal in self.index().heritage.derived.get(&derived_symbol) {
-            let (_, index) = self.module_index_at(*ordinal)?;
-            entries.extend(index.heritage.derived_entries(derived_symbol).copied());
+        for ordinal in self.heritage_postings()?.derived.get(&derived_symbol) {
+            let (_, index) = self.heritage_index_at(*ordinal)?;
+            entries.extend(index.derived_entries(derived_symbol).copied());
         }
         entries.sort_by_key(|entry| {
             (
@@ -361,9 +325,9 @@ impl ProgramQueryContext<'_> {
         let mut entries = Vec::new();
 
         // collect extension declarations from modules reached by the root symbol
-        for ordinal in self.index().extensions.roots.get(&root_symbol) {
-            let (_, index) = self.module_index_at(*ordinal)?;
-            entries.extend(index.extensions.root_entries(root_symbol).copied());
+        for ordinal in self.extension_postings()?.roots.get(&root_symbol) {
+            let (_, index) = self.extension_index_at(*ordinal)?;
+            entries.extend(index.root_entries(root_symbol).copied());
         }
         entries.sort_by_key(|entry| {
             (
@@ -385,9 +349,9 @@ impl ProgramQueryContext<'_> {
         let mut entries = Vec::new();
 
         // collect blanket declarations from every indexed blanket module
-        for ordinal in &self.index().extensions.blankets {
-            let (_, index) = self.module_index_at(*ordinal)?;
-            entries.extend(index.extensions.blanket_entries().copied());
+        for ordinal in &self.extension_postings()?.blankets {
+            let (_, index) = self.extension_index_at(*ordinal)?;
+            entries.extend(index.blanket_entries().copied());
         }
         entries.sort_by_key(|entry| {
             (
@@ -428,18 +392,20 @@ impl ProgramQueryContext<'_> {
         let mut references = Vec::new();
 
         // collect reference entries from modules reached by the target symbol
-        for ordinal in self.index().references.targets.get(&target_symbol) {
-            let (module_id, index) = self.module_index_at(*ordinal)?;
+        for ordinal in self.reference_postings()?.targets.get(&target_symbol) {
+            let (module_id, index) = self.reference_index_at(*ordinal)?;
             let module = Module {
                 module_id,
                 profile_id: self.profile_id(),
             };
-            references.extend(index.references.target_entries(target_symbol).map(|entry| {
-                IndexedReference {
-                    module,
-                    entry: *entry,
-                }
-            }));
+            references.extend(
+                index
+                    .target_entries(target_symbol)
+                    .map(|entry| IndexedReference {
+                        module,
+                        entry: *entry,
+                    }),
+            );
         }
 
         references.sort_by_key(|reference| {
@@ -467,25 +433,21 @@ impl ProgramQueryContext<'_> {
 
         // collect declaration entries from modules reached by the declaration postings
         for ordinal in self
-            .index()
-            .references
+            .reference_postings()?
             .declarations
             .get(&declaration_symbol)
         {
-            let (module_id, index) = self.module_index_at(*ordinal)?;
+            let (module_id, index) = self.reference_index_at(*ordinal)?;
             let module = Module {
                 module_id,
                 profile_id: self.profile_id(),
             };
-            references.extend(
-                index
-                    .references
-                    .declaration_entries(declaration_symbol)
-                    .map(|entry| IndexedReference {
-                        module,
-                        entry: *entry,
-                    }),
-            );
+            references.extend(index.declaration_entries(declaration_symbol).map(|entry| {
+                IndexedReference {
+                    module,
+                    entry: *entry,
+                }
+            }));
         }
 
         references.sort_by_key(|reference| {
@@ -512,9 +474,9 @@ impl ProgramQueryContext<'_> {
         let mut entries = Vec::new();
 
         // collect call edges from modules reached by the callee symbol
-        for ordinal in self.index().calls.callees.get(&callee_symbol) {
-            let (_, index) = self.module_index_at(*ordinal)?;
-            entries.extend(index.calls.callee_entries(callee_symbol).copied());
+        for ordinal in self.call_postings()?.callees.get(&callee_symbol) {
+            let (_, index) = self.call_index_at(*ordinal)?;
+            entries.extend(index.callee_entries(callee_symbol).copied());
         }
         Self::sort_call_entries(&mut entries);
 
@@ -529,9 +491,9 @@ impl ProgramQueryContext<'_> {
         let mut entries = Vec::new();
 
         // collect call edges from modules reached by the caller symbol
-        for ordinal in self.index().calls.callers.get(&caller_symbol) {
-            let (_, index) = self.module_index_at(*ordinal)?;
-            entries.extend(index.calls.caller_entries(caller_symbol).copied());
+        for ordinal in self.call_postings()?.callers.get(&caller_symbol) {
+            let (_, index) = self.call_index_at(*ordinal)?;
+            entries.extend(index.caller_entries(caller_symbol).copied());
         }
         Self::sort_call_entries(&mut entries);
 
@@ -559,9 +521,8 @@ impl ProgramQueryContext<'_> {
             dir::ExportTarget::Symbol(symbol) => {
                 let mut declarations = Vec::new();
                 for symbol in self.canonical_symbols(symbol)? {
-                    let index = self.module_index(symbol.module_id)?;
+                    let index = self.symbol_index(symbol.module_id)?;
                     let entry = index
-                        .symbols
                         .entries()
                         .iter()
                         .find(|entry| entry.symbol == symbol)
@@ -641,6 +602,6 @@ impl ProgramQueryContext<'_> {
 
     /// Return every module ordinal in this profile.
     fn module_ordinals(&self) -> Vec<u32> {
-        (0..self.index().modules.len() as u32).collect()
+        (0..self.module_ids().len() as u32).collect()
     }
 }

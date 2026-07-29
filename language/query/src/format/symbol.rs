@@ -4,7 +4,7 @@ use destack_repository::{Module, Package, RepositoryError};
 use rustc_hash::FxHashSet;
 
 use crate::source::strip_module_extension;
-use crate::{QueryError, QueryResult};
+use crate::{ModuleQueryContext, QueryError, QueryResult};
 
 use super::{Formatter, formatted};
 
@@ -14,14 +14,14 @@ impl Formatter<'_, '_, '_> {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<String>> {
-        let module = self.program.module(symbol_id.module_id)?;
+        let module = self.query.module(symbol_id.module_id)?;
         let Some(type_id) = module.types().get_symbol_type_id(symbol_id) else {
             return Ok(None);
         };
-        let formatter = Formatter::new(module, self.program);
+        let formatter = Formatter::new(module, self.query);
 
         // retain authored parameter names on callable types
-        if let Some(parameter_names) = self.program.symbol_parameter_names(symbol_id)? {
+        if let Some(parameter_names) = self.query.symbol_parameter_names(symbol_id)? {
             formatter.callable_type(type_id, &parameter_names)
         } else {
             formatter.global_type(type_id)
@@ -33,7 +33,7 @@ impl Formatter<'_, '_, '_> {
         &self,
         parameter: dir::GlobalGenericParameterId,
     ) -> QueryResult<Option<String>> {
-        let module = self.program.module(parameter.module_id)?;
+        let module = self.query.module(parameter.module_id)?;
         let parameter = module.generics().get_parameter(parameter.local_id);
 
         let name = match parameter.key {
@@ -52,7 +52,7 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one symbol path.
     pub(super) fn symbol(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<Option<String>> {
-        let module = self.program.module(symbol_id.module_id)?;
+        let module = self.query.module(symbol_id.module_id)?;
         let symbols = module.symbols();
         let symbol = symbols.get_symbol(symbol_id.into_local());
         let Some(symbol_name) = static_key_segment(symbol.key, module.strings()) else {
@@ -142,17 +142,8 @@ impl Formatter<'_, '_, '_> {
 
     /// Format one symbol from its exact declaration.
     pub(crate) fn symbol_signature(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
-        let module = self.program.module(symbol_id.module_id)?;
-        let formatter = Formatter::new(module, self.program);
-        if let Some(member) = self
-            .program
-            .module_index(symbol_id.module_id)?
-            .members
-            .symbol_entry(symbol_id)
-        {
-            return formatter.member_symbol_signature(member);
-        }
-
+        let module = self.query.module(symbol_id.module_id)?;
+        let formatter = Formatter::new(module, self.query);
         let symbols = module.symbols();
         let symbol = symbols.get_symbol(symbol_id.into_local());
         let declaration = symbol.declaration.ok_or(QueryError::missing(format!(
@@ -185,9 +176,9 @@ impl Formatter<'_, '_, '_> {
 
                 formatter.binding_symbol_signature(name, symbol_id)?
             }
-            dir::NodeType::Member | dir::NodeType::TypeMember | dir::NodeType::EnumField => Err(
-                QueryError::missing(format!("signature member: {symbol_id:?}")),
-            )?,
+            dir::NodeType::Member | dir::NodeType::TypeMember | dir::NodeType::EnumField => {
+                Some(formatter.member_symbol_signature(symbol_id)?)
+            }
             node_type => {
                 return Err(QueryError::invalid(format!(
                     "signature declaration: {symbol_id:?}, {node_type:?}"
@@ -200,65 +191,99 @@ impl Formatter<'_, '_, '_> {
         )))
     }
 
-    /// Format one indexed member symbol.
-    fn member_symbol_signature(&self, member: &dir::MemberEntry) -> QueryResult<String> {
-        let container = match member.owner {
-            Some(owner) => self.program.symbol_name(owner)?,
-            None => member.container.clone(),
-        };
+    /// Format one checked member symbol.
+    fn member_symbol_signature(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
+        let (declaring, definition, member) =
+            self.module
+                .definition_member(symbol_id)
+                .ok_or(QueryError::missing(format!(
+                    "signature member: {symbol_id:?}"
+                )))?;
+        let owner = ModuleQueryContext::definition_member_owner(declaring, definition);
+        let container = owner
+            .map(|owner| self.query.symbol_name(owner))
+            .transpose()?
+            .flatten();
+        let name = self
+            .module
+            .definition_member_name(member)
+            .ok_or(QueryError::missing(format!(
+                "signature member name: {symbol_id:?}"
+            )))?;
         let name = match container {
-            Some(container) => format!("{container}.{}", member.name),
-            None => member.name.clone(),
+            Some(container) => format!("{container}.{name}"),
+            None => name,
         };
 
-        let signature = match member.kind {
-            dir::MemberKind::Field
-            | dir::MemberKind::Property
-            | dir::MemberKind::IndexSignature => {
+        let signature = match member {
+            dir::DefinitionMember::Field(_) => {
                 let type_text = self.member_type(member)?;
 
                 format!("(property) {name}: {type_text}")
             }
-            dir::MemberKind::Method
-            | dir::MemberKind::Constructor
-            | dir::MemberKind::CallSignature
-            | dir::MemberKind::ConstructSignature => {
-                let signature = self.authored_member_signature(member.source)?;
+            dir::DefinitionMember::Method(method) => {
+                if matches!(
+                    method.role,
+                    Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
+                ) {
+                    let type_text = self.member_type(member)?;
+
+                    return Ok(format!("(property) {name}: {type_text}"));
+                }
+
+                let signature = self.authored_member_signature(member.source())?;
                 let signature =
                     self.call_signature(&name, signature, false)?
                         .ok_or(QueryError::missing(format!(
                             "member signature text: {:?}",
-                            member.source
+                            member.source()
                         )))?;
-                let kind = if member.kind == dir::MemberKind::Method {
-                    "method"
-                } else {
-                    "constructor"
+                let kind = match method.slot {
+                    dir::MemberSlot::Key(_) => "method",
+                    dir::MemberSlot::Constructor | dir::MemberSlot::New => "constructor",
+                    dir::MemberSlot::Call => "function",
                 };
 
                 format!("({kind}) {signature}")
             }
-            dir::MemberKind::AssociatedType => {
+            dir::DefinitionMember::AssociatedType(_) => {
                 let type_text = self.member_type(member)?;
 
                 format!("(type member) {name} = {type_text}")
             }
-            dir::MemberKind::AssociatedConst => {
+            dir::DefinitionMember::AssociatedConst(_) => {
                 let type_text = self.member_type(member)?;
 
                 format!("(comptime const) {name}: {type_text}")
             }
-            dir::MemberKind::Variant if member.source.local_id.ty == dir::NodeType::EnumField => {
+            dir::DefinitionMember::EnumVariant(_) => {
                 let type_text = self.member_type(member)?;
 
                 format!("(enum member) {name}: {type_text}")
             }
-            dir::MemberKind::Variant => {
+            dir::DefinitionMember::TaggedVariant(_) => {
                 // FUGU #Incomplete: retain tagged variant constructor signatures in DIR
                 return Err(QueryError::missing(format!(
                     "tagged variant constructor signature: {:?}",
-                    member.source
+                    member.source()
                 )));
+            }
+            dir::DefinitionMember::CallSignature(_)
+            | dir::DefinitionMember::ConstructSignature(_) => {
+                let signature = self.authored_member_signature(member.source())?;
+                let signature =
+                    self.call_signature(&name, signature, false)?
+                        .ok_or(QueryError::missing(format!(
+                            "member signature text: {:?}",
+                            member.source()
+                        )))?;
+
+                format!("(function) {signature}")
+            }
+            dir::DefinitionMember::IndexSignature(_) => {
+                let type_text = self.member_type(member)?;
+
+                format!("(property) {name}: {type_text}")
             }
         };
 
@@ -332,17 +357,21 @@ impl Formatter<'_, '_, '_> {
         signature.ok_or(QueryError::missing(format!("member signature: {source:?}")))
     }
 
-    /// Format the type carried by one indexed member.
-    fn member_type(&self, member: &dir::MemberEntry) -> QueryResult<String> {
-        let type_id = member.ty.ok_or(QueryError::missing(format!(
-            "member type: {:?}",
-            member.source
-        )))?;
+    /// Format the type carried by one checked member.
+    fn member_type(&self, member: &dir::DefinitionMember) -> QueryResult<String> {
+        let type_id = member
+            .symbol()
+            .and_then(|symbol| self.module.types().get_symbol_type_id(symbol))
+            .or_else(|| member.value_type())
+            .ok_or(QueryError::missing(format!(
+                "member type: {:?}",
+                member.source()
+            )))?;
 
         self.global_type(type_id)?
             .ok_or(QueryError::missing(format!(
                 "member type text: {:?}",
-                member.source
+                member.source()
             )))
     }
 
@@ -351,7 +380,7 @@ impl Formatter<'_, '_, '_> {
         &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<String>> {
-        let module = self.program.module(symbol_id.module_id)?;
+        let module = self.query.module(symbol_id.module_id)?;
         let symbols = module.symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let source = symbol.declaration.ok_or(QueryError::invalid(format!(
@@ -374,7 +403,7 @@ impl Formatter<'_, '_, '_> {
             .ok_or(QueryError::invalid(format!(
                 "type item symbol: {symbol_id:?}"
             )))?;
-        let formatted = Formatter::new(module, self.program)
+        let formatted = Formatter::new(module, self.query)
             .generics(parameters)?
             .ok_or(QueryError::invalid(format!(
                 "type item formatting: {symbol_id:?}"

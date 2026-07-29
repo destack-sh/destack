@@ -2,12 +2,13 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use std::path::PathBuf;
 
-use destack_repository::{Repository, Revision};
+use destack_dir as dir;
+use destack_repository::{ArtifactReader, Repository, Revision};
 use destack_serde::Reflect;
 use destack_source::{FileId, FilePatch, Patch, PatchSet, PathExt};
 use serde::{Deserialize, Serialize};
 
-use super::specifier::{module_specifiers, rename_specifier, renamed_target_path, workspace_path};
+use super::specifier::{rename_specifier, renamed_target_path, workspace_path};
 use crate::{Module, QueryError, QueryResult};
 
 /// One source file or directory rename.
@@ -72,48 +73,28 @@ pub fn rename_files(
         return Ok(None);
     }
 
-    // collect exact resolved specifiers across the selected module profiles
-    let mut entries_by_module = BTreeMap::new();
-    for module in modules {
-        let specifiers =
-            module_specifiers(repository, revision, module.module_id, module.profile_id)?;
-
-        entries_by_module
-            .entry(module.module_id)
-            .or_insert_with(Vec::new)
-            .extend(specifiers);
-    }
-
     // build one replacement per exact authored span
     let mut edits_by_span = BTreeMap::new();
-    for (module_id, mut entries) in entries_by_module {
-        entries.sort_by(|left, right| {
-            (
-                left.span.start,
-                left.span.end,
-                left.text.as_str(),
-                &left.target_path,
-            )
-                .cmp(&(
-                    right.span.start,
-                    right.span.end,
-                    right.text.as_str(),
-                    &right.target_path,
-                ))
-        });
-        entries.dedup();
-
-        // read the source module and its authored file
-        let module = repository
+    for selected in modules {
+        // read the source module and the DIR artifacts used by specifier resolution
+        let module_id = selected.module_id;
+        let source_module = repository
             .module(revision, module_id)?
             .ok_or_else(|| QueryError::missing(format!("repository module {module_id:?}")))?;
+        let artifacts = ArtifactReader::new(repository, revision);
+        let parsed = artifacts.dir_parsed(module_id)?;
+        let imported = artifacts.dir_imported(module_id, selected.profile_id)?;
+        let expanded = artifacts.dir_expanded(module_id, selected.profile_id)?;
+        let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let source_index = &parsed.tree.source_index;
+        let module_table = expanded.module_table(&imported);
 
         // resolve file content for literal edits
-        let file_id = module.file_id;
+        let file_id = source_module.file_id;
         let file = repository
             .file(revision, file_id)?
             .ok_or_else(|| QueryError::missing(format!("source file {file_id:?}")))?;
-        let source_path = module
+        let source_path = source_module
             .path
             .as_deref()
             .map(|path| workspace_path(&workspace_root, path));
@@ -124,35 +105,69 @@ pub fn rename_files(
         let is_source_renamed = renamed_source_path.is_some();
         let source_path = renamed_source_path.as_deref().or(source_path.as_deref());
 
-        for entry in &entries {
+        // visit authored import and re-export specifiers
+        for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
+            let (text, relation) = match expression {
+                dir::Expression::Import { target, .. } => (*target, dir::ModuleRelation::Import),
+                dir::Expression::Export {
+                    target: Some(target),
+                    ..
+                } => (*target, dir::ModuleRelation::ReExport),
+                _ => continue,
+            };
+            let source = expression_id.into_global_any(module_id);
+            let Some(target_module_id) = module_table.target_for_source(source, relation) else {
+                continue;
+            };
+            let target_module =
+                repository
+                    .module(revision, target_module_id)?
+                    .ok_or_else(|| {
+                        QueryError::missing(format!("repository module {target_module_id:?}"))
+                    })?;
+            let Some(target_path) = target_module.path.as_deref() else {
+                continue;
+            };
+            let target_path = workspace_path(&workspace_root, target_path);
+
+            // require every resolved authored specifier to retain its source span
+            let source_id = view.get_source(expression_id);
+            if source_index.try_get(source_id).is_none() {
+                continue;
+            }
+            let span = source_index.get_main(source_id).ok_or_else(|| {
+                QueryError::invalid(format!(
+                    "resolved module specifier {source:?} has no authored main span"
+                ))
+            })?;
+            let text = repository.string_pool().get(text);
+
             // resolve source and target movement independently
-            let renamed_target_path = renamed_target_path(&entry.target_path, &rename_map)?;
+            let renamed_target_path = renamed_target_path(&target_path, &rename_map)?;
             if !is_source_renamed && renamed_target_path.is_none() {
                 continue;
             }
             let target_path = if let Some(path) = renamed_target_path.as_deref() {
                 path
             } else {
-                &entry.target_path
+                &target_path
             };
 
             // rewrite the literal from the exact upstream resolution
-            let updated_specifier = rename_specifier(source_path, target_path, &entry.text)?
-                .ok_or_else(|| {
+            let updated_specifier =
+                rename_specifier(source_path, target_path, text)?.ok_or_else(|| {
                     QueryError::invalid(format!(
-                        "specifier {:?} at {:?} cannot represent its resolved target rename",
-                        entry.text, entry.span
+                        "specifier {text:?} at {span:?} cannot represent its resolved target rename"
                     ))
                 })?;
-            if updated_specifier == entry.text {
+            if updated_specifier == text {
                 continue;
             }
 
-            // use the exact authored specifier span stored by the index
-            let span = entry.span;
+            // require the authored span to belong to the source module
             if span.file != file_id {
                 return Err(QueryError::conflict(format!(
-                    "module {module_id:?} uses file {file_id:?}, but its indexed specifier uses {:?}",
+                    "module {module_id:?} uses file {file_id:?}, but its specifier uses {:?}",
                     span.file
                 )));
             }

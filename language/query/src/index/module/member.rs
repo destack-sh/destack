@@ -1,18 +1,20 @@
 use destack_dir as dir;
 
-use crate::ModuleQueryContext;
+use super::context::ModuleIndexContext;
 
 /// Builder for one member index from checked DIR.
-pub(super) struct MemberIndexer<'context, 'query> {
+pub(in crate::index) struct MemberIndexer<'context, 'index> {
     /// The indexed module context.
-    module: &'context ModuleQueryContext<'query>,
+    module: &'context ModuleIndexContext<'index>,
     /// The collected index entries.
     entries: Vec<dir::MemberEntry>,
 }
 
-impl<'context, 'query> MemberIndexer<'context, 'query> {
+impl<'context, 'index> MemberIndexer<'context, 'index> {
     /// Build the member index.
-    pub(super) fn build(module: &'context ModuleQueryContext<'query>) -> dir::MemberIndex {
+    pub(in crate::index) fn build(
+        module: &'context ModuleIndexContext<'index>,
+    ) -> dir::MemberIndex {
         let mut indexer = Self {
             module,
             entries: Vec::new(),
@@ -85,7 +87,7 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
             return None;
         }
 
-        let symbol = self.module.symbols().get_symbol(symbol_id.local_id);
+        let symbol = self.module.bindings().get_symbol(symbol_id.local_id);
         let name = symbol.name()?;
 
         Some(self.module.strings().get(name).to_string())

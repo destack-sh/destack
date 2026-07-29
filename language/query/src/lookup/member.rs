@@ -94,6 +94,15 @@ impl MemberName {
             _ => false,
         }
     }
+
+    /// Return this member name as display text when possible.
+    fn text(self) -> Option<String> {
+        match self {
+            Self::String(name) => Some(name),
+            Self::Index(index) => Some(index.to_string()),
+            Self::Computed => None,
+        }
+    }
 }
 
 /// Type ids on the current member lookup path.
@@ -143,6 +152,57 @@ impl MemberCandidate {
 }
 
 impl ModuleQueryContext<'_> {
+    /// Return the definition member carrying one exact symbol.
+    pub(crate) fn definition_member(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> Option<(
+        dir::GlobalSymbolId,
+        &dir::Definition,
+        &dir::DefinitionMember,
+    )> {
+        self.definitions()
+            .iter_definitions()
+            .find_map(|(declaring, definition)| {
+                definition
+                    .members()
+                    .iter()
+                    .find(|member| member.symbol() == Some(symbol_id))
+                    .map(|member| (declaring, definition, member))
+            })
+    }
+
+    /// Return the nominal owner of one definition member.
+    pub(crate) fn definition_member_owner(
+        declaring: dir::GlobalSymbolId,
+        definition: &dir::Definition,
+    ) -> Option<dir::GlobalSymbolId> {
+        match definition {
+            dir::Definition::Extension(extension) => extension.target.root(),
+            _ => Some(declaring),
+        }
+    }
+
+    /// Return the authored display name of one definition member.
+    pub(crate) fn definition_member_name(&self, member: &dir::DefinitionMember) -> Option<String> {
+        if let Some(key) = member.key() {
+            return MemberName::from_static_key(&key, self.strings()).text();
+        }
+
+        match member {
+            dir::DefinitionMember::Method(method) => match method.slot {
+                dir::MemberSlot::Constructor => Some("constructor".to_string()),
+                dir::MemberSlot::New => Some("new".to_string()),
+                dir::MemberSlot::Call => Some("call".to_string()),
+                dir::MemberSlot::Key(_) => None,
+            },
+            dir::DefinitionMember::CallSignature(_) => Some("call".to_string()),
+            dir::DefinitionMember::ConstructSignature(_) => Some("new".to_string()),
+            dir::DefinitionMember::IndexSignature(_) => Some("[]".to_string()),
+            _ => None,
+        }
+    }
+
     /// Return completion members visible on one checked type.
     pub(crate) fn resolve_type_members(
         &self,
@@ -208,7 +268,7 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
         type_id: dir::GlobalTypeId,
     ) -> QueryResult<MemberKind> {
-        self.read_global_type(program, type_id, |ty, _| {
+        program.read_type(type_id, |ty, _| {
             let is_function = matches!(
                 ty,
                 dir::Type::FunctionSignature(_)
@@ -216,10 +276,10 @@ impl ModuleQueryContext<'_> {
                     | dir::Type::FunctionPointer(_)
             );
 
-            match is_function {
+            Ok(match is_function {
                 true => MemberKind::Method,
                 false => MemberKind::Field,
-            }
+            })
         })
     }
 

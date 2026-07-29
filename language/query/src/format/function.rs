@@ -11,8 +11,8 @@ impl Formatter<'_, '_, '_> {
         type_id: dir::GlobalTypeId,
         parameter_names: &[String],
     ) -> QueryResult<Option<String>> {
-        self.program.read_type(type_id, |type_value, owner| {
-            let formatter = Formatter::new(owner, self.program);
+        self.query.read_type(type_id, |type_value, owner| {
+            let formatter = Formatter::new(owner, self.query);
             match type_value {
                 dir::Type::FunctionSignature(function) => formatter
                     .function_type(owner.types().signature(*function), Some(parameter_names)),

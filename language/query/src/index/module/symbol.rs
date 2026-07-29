@@ -1,27 +1,49 @@
+use std::slice;
+
+use destack_artifact::{DirBound, DirExpanded, DirParsed};
+use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::{ProviderError, ProviderResult};
+use destack_source::{ModuleId, SourceIndex};
 
-use crate::ModuleQueryContext;
-
-/// Builder for one symbol index from checked DIR.
-pub(super) struct SymbolIndexer<'context, 'query> {
-    /// The indexed module context.
-    module: &'context ModuleQueryContext<'query>,
+/// Builder for one module symbol index.
+pub(in crate::index) struct SymbolIndexer<'a> {
+    /// The indexed module id.
+    module_id: ModuleId,
+    /// The visible expanded tree.
+    view: dir::View<'a>,
+    /// The visible expanded bindings.
+    symbols: dir::BindingTable<'static>,
+    /// The parsed source spans.
+    source_index: &'a SourceIndex,
+    /// The module namespace scope.
+    namespace_scope: dir::LocalScopeId,
+    /// The shared string pool.
+    strings: &'a StringPool,
     /// The collected index entries.
     entries: Vec<dir::SymbolEntry>,
 }
 
-impl<'context, 'query> SymbolIndexer<'context, 'query> {
-    /// Build the symbol index.
-    pub(super) fn build(
-        module: &'context ModuleQueryContext<'query>,
+impl<'a> SymbolIndexer<'a> {
+    /// Build the symbol index from expanded declarations.
+    pub(in crate::index) fn build(
+        parsed: &'a DirParsed,
+        bound: &DirBound,
+        expanded: &'a DirExpanded,
+        strings: &'a StringPool,
     ) -> ProviderResult<dir::SymbolIndex> {
+        let symbols = expanded.binding_table(bound);
         let mut indexer = Self {
-            module,
+            module_id: symbols.module_id,
+            view: dir::View::with_patches(&parsed.tree, slice::from_ref(&expanded.patch)),
+            symbols,
+            source_index: &parsed.tree.source_index,
+            namespace_scope: bound.namespace_scope,
+            strings,
             entries: Vec::new(),
         };
 
-        // collect checked declaration symbols
+        // collect declaration symbols visible after expansion
         indexer.collect_symbols()?;
 
         Ok(dir::SymbolIndex::new(indexer.entries))
@@ -29,25 +51,15 @@ impl<'context, 'query> SymbolIndexer<'context, 'query> {
 
     /// Collect symbol index entries.
     fn collect_symbols(&mut self) -> ProviderResult<()> {
-        let module_id = self.module.module_id();
-
-        // collect bound declaration symbols
-        for (source, symbol_id) in self.module.symbols().declaration_symbols() {
+        // collect expanded declaration symbols
+        for (source, symbol_id) in self.symbols.declaration_symbols() {
             // keep only declarations owned by this module
-            if source.module_id != module_id {
-                continue;
-            }
-
-            // index definition members through the dedicated member index
-            if matches!(
-                source.local_id.ty,
-                dir::NodeType::Member | dir::NodeType::TypeMember | dir::NodeType::EnumField
-            ) {
+            if source.module_id != self.module_id {
                 continue;
             }
 
             // exclude labels and dependency bindings from program declarations
-            let symbol = self.module.symbols().get_symbol(symbol_id);
+            let symbol = self.symbols.get_symbol(symbol_id);
             if matches!(
                 symbol.kind,
                 dir::SymbolKind::Label | dir::SymbolKind::Import
@@ -55,7 +67,7 @@ impl<'context, 'query> SymbolIndexer<'context, 'query> {
                 continue;
             }
             if symbol.role == dir::SymbolRole::Local
-                && symbol.scope.id != self.module.namespace_scope()
+                && symbol.scope.id != self.namespace_scope
                 && !symbol.origin.is_global()
             {
                 continue;
@@ -66,7 +78,7 @@ impl<'context, 'query> SymbolIndexer<'context, 'query> {
                 continue;
             };
 
-            // emit symbol declaration row
+            // emit one declaration row
             if let Some(entry) = self.symbol_entry(source, symbol_id, name_id)? {
                 self.entries.push(entry);
             }
@@ -82,29 +94,31 @@ impl<'context, 'query> SymbolIndexer<'context, 'query> {
         symbol_id: dir::LocalSymbolId,
         name_id: dir::StringId,
     ) -> ProviderResult<Option<dir::SymbolEntry>> {
-        let view = self.module.view();
-        let module_id = self.module.module_id();
-        let symbol = self.module.symbols().get_symbol(symbol_id);
+        let symbol = self.symbols.get_symbol(symbol_id);
+        let member_kind = self.member_kind(source.local_id)?;
 
-        // resolve source metadata
-        let Some(span) = view.get_span_by_id(source.local_id.id) else {
+        // omit generated declarations without source positions
+        let Some(span) = self.view.get_span_by_id(source.local_id.id) else {
             return Ok(None);
         };
-        let selection = self
-            .module
-            .node_selection_span(view, source.local_id)
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "indexed symbol has no declaration name span: {source:?}"
-                ))
-            })?;
-        let name = self.module.strings().get(name_id).to_string();
-        let container = self.module.local_symbol_container_name(symbol_id);
-        let global_symbol = symbol_id.into_global(module_id);
+
+        // require the authored declaration name
+        let source_id = self.view.get_source_any(source.local_id);
+        let selection = self.source_index.get_main(source_id).ok_or_else(|| {
+            ProviderError::internal(format!(
+                "indexed symbol has no declaration name span: {source:?}"
+            ))
+        })?;
+
+        // transcribe the declaration row
+        let name = self.strings.get(name_id).to_string();
+        let container = self.symbol_container_name(symbol_id);
+        let global_symbol = symbol_id.into_global(self.module_id);
 
         Ok(Some(dir::SymbolEntry {
             name,
             kind: symbol.kind,
+            member_kind,
             role: symbol.role,
             symbol: global_symbol,
             source,
@@ -114,5 +128,82 @@ impl<'context, 'query> SymbolIndexer<'context, 'query> {
             container,
             mutability: symbol.binding_mutability,
         }))
+    }
+
+    /// Return the named lexical owner of one symbol.
+    fn symbol_container_name(&self, symbol_id: dir::LocalSymbolId) -> Option<String> {
+        let symbol = self.symbols.get_symbol(symbol_id);
+        let scope = self.symbols.get_scope_by_id(symbol.scope.id);
+        let owner_id = scope.owner?;
+        let owner = self.symbols.get_symbol(owner_id);
+        let name_id = owner.name()?;
+
+        Some(self.strings.get(name_id).to_string())
+    }
+
+    /// Return the member kind for one declaration.
+    fn member_kind(&self, node_id: dir::LocalNodeIdAny) -> ProviderResult<Option<dir::MemberKind>> {
+        let kind = match node_id.ty {
+            dir::NodeType::Member => {
+                let node_id = node_id
+                    .try_into_typed::<dir::Member>()
+                    .map_err(ProviderError::internal)?;
+
+                match self.view.get(node_id) {
+                    dir::Member::AssociatedType { .. } => Some(dir::MemberKind::AssociatedType),
+                    dir::Member::AssociatedConst { .. } => Some(dir::MemberKind::AssociatedConst),
+                    dir::Member::Field { is_accessor, .. } => Some(if *is_accessor {
+                        dir::MemberKind::Property
+                    } else {
+                        dir::MemberKind::Field
+                    }),
+                    dir::Member::Method {
+                        signature,
+                        is_accessor,
+                        ..
+                    } => Some(if *is_accessor {
+                        dir::MemberKind::Property
+                    } else {
+                        match signature.role {
+                            Some(dir::FunctionRole::Constructor | dir::FunctionRole::New) => {
+                                dir::MemberKind::Constructor
+                            }
+                            Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter) => {
+                                dir::MemberKind::Property
+                            }
+                            Some(dir::FunctionRole::Call) | None => dir::MemberKind::Method,
+                        }
+                    }),
+                    dir::Member::StaticBlock { .. }
+                    | dir::Member::ComptimeBlock { .. }
+                    | dir::Member::Error => None,
+                }
+            }
+            dir::NodeType::TypeMember => {
+                let node_id = node_id
+                    .try_into_typed::<dir::TypeMember>()
+                    .map_err(ProviderError::internal)?;
+
+                match self.view.get(node_id) {
+                    dir::TypeMember::Field { .. } => Some(dir::MemberKind::Field),
+                    dir::TypeMember::Method { .. } | dir::TypeMember::CallSignature { .. } => {
+                        Some(dir::MemberKind::Method)
+                    }
+                    dir::TypeMember::AssociatedType { .. } => Some(dir::MemberKind::AssociatedType),
+                    dir::TypeMember::AssociatedConst { .. } => {
+                        Some(dir::MemberKind::AssociatedConst)
+                    }
+                    dir::TypeMember::ConstructSignature { .. } => {
+                        Some(dir::MemberKind::Constructor)
+                    }
+                    dir::TypeMember::IndexSignature { .. } => Some(dir::MemberKind::Field),
+                    dir::TypeMember::Error => None,
+                }
+            }
+            dir::NodeType::EnumField => Some(dir::MemberKind::Variant),
+            _ => None,
+        };
+
+        Ok(kind)
     }
 }

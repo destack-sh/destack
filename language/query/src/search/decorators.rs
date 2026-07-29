@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
+use destack_source::ProfileId;
 use serde::{Deserialize, Serialize};
 
 use crate::{Module, ProgramQueryContext, QueryError, QueryResult, Target};
@@ -9,8 +10,8 @@ use crate::{Module, ProgramQueryContext, QueryError, QueryResult, Target};
 pub enum DecoratorScope {
     /// One module.
     Module(Module),
-    /// The selected programs.
-    Program,
+    /// Every module in one program.
+    Program(ProfileId),
 }
 
 impl DecoratorScope {
@@ -18,7 +19,7 @@ impl DecoratorScope {
     fn contains(&self, module: Module) -> bool {
         match self {
             Self::Module(target) => *target == module,
-            Self::Program => true,
+            Self::Program(profile_id) => *profile_id == module.profile_id,
         }
     }
 }

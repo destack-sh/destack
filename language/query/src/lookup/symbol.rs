@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_repository::PackageKind;
 use destack_source::Span;
 
-use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
+use crate::{ModuleQueryContext, QueryContext, QueryError, QueryResult};
 
 impl ModuleQueryContext<'_> {
     /// Resolve a display name for one declaration.
@@ -25,7 +25,7 @@ impl ModuleQueryContext<'_> {
     }
 }
 
-impl ProgramQueryContext<'_> {
+impl QueryContext<'_> {
     /// Return whether one symbol belongs to the toolchain's built-in package.
     pub(crate) fn symbol_is_default_library(
         &self,

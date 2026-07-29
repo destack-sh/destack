@@ -1,199 +1,136 @@
-use std::sync::Arc;
-
-use destack_artifact::{ModuleIndex, ModuleIndexProjection, ProgramIndex};
+use destack_artifact::{IndexKind, ModuleIndex, ProgramIndex};
 use destack_dir as dir;
 use destack_repository::{ProviderError, ProviderResult};
-use destack_source::ModuleId;
 
-/// One current module in program index order.
-pub(in crate::index) struct ProgramModule<'a> {
-    /// The indexed module id.
-    pub(in crate::index) module_id: ModuleId,
-    /// The current module index payload.
-    pub(in crate::index) index: &'a ModuleIndex,
-}
-
-/// Changed inputs to one program index.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(in crate::index) struct ProgramIndexChanges {
-    /// One bit per module index projection.
-    projection_bits: u8,
-}
-
-/// Builder for one program index from module indexes.
+/// Builder for one program index from matching module indexes.
 pub(in crate::index) struct ProgramIndexer<'a> {
-    /// The reusable previous program index.
-    pub(in crate::index) previous: Option<&'a ProgramIndex>,
-    /// The current modules.
-    pub(in crate::index) modules: Vec<ProgramModule<'a>>,
-    /// The changed program index inputs.
-    pub(in crate::index) changes: ProgramIndexChanges,
-}
-
-impl ProgramIndexChanges {
-    /// Mark one module index projection as changed.
-    pub(in crate::index) fn mark_projection(
-        &mut self,
-        projection: ModuleIndexProjection,
-        is_changed: bool,
-    ) {
-        if is_changed {
-            self.projection_bits |= Self::projection_bit(projection);
-        }
-    }
-
-    /// Return whether one module index projection changed.
-    fn contains_projection(self, projection: ModuleIndexProjection) -> bool {
-        self.projection_bits & Self::projection_bit(projection) != 0
-    }
-
-    /// Mark every program index input as changed.
-    pub(in crate::index) const fn all() -> Self {
-        Self {
-            projection_bits: u8::MAX,
-        }
-    }
-
-    /// Return the bit assigned to this projection.
-    const fn projection_bit(projection: ModuleIndexProjection) -> u8 {
-        match projection {
-            ModuleIndexProjection::Symbols => 1 << 0,
-            ModuleIndexProjection::Exports => 1 << 1,
-            ModuleIndexProjection::Members => 1 << 2,
-            ModuleIndexProjection::References => 1 << 3,
-            ModuleIndexProjection::Calls => 1 << 4,
-            ModuleIndexProjection::Heritage => 1 << 5,
-            ModuleIndexProjection::Extensions => 1 << 6,
-            ModuleIndexProjection::Decorators => 1 << 7,
-        }
-    }
+    /// The current module indexes.
+    pub(in crate::index) modules: Vec<&'a ModuleIndex>,
 }
 
 impl ProgramIndexer<'_> {
-    /// Build one program index from module indexes.
-    pub(in crate::index) fn build(self) -> ProviderResult<ProgramIndex> {
-        let modules = self.modules.iter().map(|module| module.module_id).collect();
+    /// Build one program index.
+    pub(in crate::index) fn build(&self, kind: IndexKind) -> ProviderResult<ProgramIndex> {
+        let index = match kind {
+            IndexKind::Symbols => ProgramIndex::Symbols(dir::SymbolPostings::build(
+                &self.indexes(kind, |module| match module {
+                    ModuleIndex::Symbols(index) => Some(index),
+                    _ => None,
+                })?,
+            )),
+            IndexKind::Exports => ProgramIndex::Exports(dir::ExportPostings::build(
+                &self.indexes(kind, |module| match module {
+                    ModuleIndex::Exports(index) => Some(index),
+                    _ => None,
+                })?,
+            )),
+            IndexKind::Members => ProgramIndex::Members(dir::MemberPostings::build(
+                &self.indexes(kind, |module| match module {
+                    ModuleIndex::Members(index) => Some(index),
+                    _ => None,
+                })?,
+            )),
+            IndexKind::References => ProgramIndex::References(dir::ReferencePostings::build(
+                &self.indexes(kind, |module| match module {
+                    ModuleIndex::References(index) => Some(index),
+                    _ => None,
+                })?,
+            )),
+            IndexKind::Calls => {
+                ProgramIndex::Calls(dir::CallPostings::build(&self.indexes(kind, |module| {
+                    match module {
+                        ModuleIndex::Calls(index) => Some(index),
+                        _ => None,
+                    }
+                })?))
+            }
+            IndexKind::Heritage => ProgramIndex::Heritage(dir::HeritagePostings::build(
+                &self.indexes(kind, |module| match module {
+                    ModuleIndex::Heritage(index) => Some(index),
+                    _ => None,
+                })?,
+            )),
+            IndexKind::Extensions => ProgramIndex::Extensions(dir::ExtensionPostings::build(
+                &self.indexes(kind, |module| match module {
+                    ModuleIndex::Extensions(index) => Some(index),
+                    _ => None,
+                })?,
+            )),
+            IndexKind::Decorators => ProgramIndex::Decorators(dir::DecoratorPostings::build(
+                &self.indexes(kind, |module| match module {
+                    ModuleIndex::Decorators(index) => Some(index),
+                    _ => None,
+                })?,
+            )),
+        };
 
-        // build or reuse each postings projection independently
-        Ok(ProgramIndex {
-            modules,
-            symbols: self.symbols()?,
-            exports: self.exports()?,
-            members: self.members()?,
-            references: self.references()?,
-            calls: self.calls()?,
-            heritage: self.heritage()?,
-            extensions: self.extensions()?,
-            decorators: self.decorators()?,
-        })
+        Ok(index)
     }
 
-    /// Build or reuse one program postings projection.
-    fn postings<Component, Postings>(
-        &self,
-        projection: ModuleIndexProjection,
-        previous: impl FnOnce(&ProgramIndex) -> &Arc<Postings>,
-        component: impl Fn(&ModuleIndex) -> &Component,
-        build: impl FnOnce(&[&Component]) -> Postings,
-    ) -> ProviderResult<Arc<Postings>> {
-        // reuse the required previous projection when no module component changed
-        if !self.changes.contains_projection(projection) {
-            let index = self.previous.ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "unchanged program index projection has no previous index: {projection:?}"
-                ))
-            })?;
-
-            return Ok(previous(index).clone());
+    /// Update one program index from changed module indexes.
+    pub(in crate::index) fn update(
+        mut index: ProgramIndex,
+        modules: &[(u32, &ModuleIndex)],
+    ) -> ProviderResult<ProgramIndex> {
+        for (ordinal, module) in modules {
+            match (&mut index, *module) {
+                (ProgramIndex::Symbols(postings), ModuleIndex::Symbols(index)) => {
+                    postings.update(*ordinal, index);
+                }
+                (ProgramIndex::Exports(postings), ModuleIndex::Exports(index)) => {
+                    postings.update(*ordinal, index);
+                }
+                (ProgramIndex::Members(postings), ModuleIndex::Members(index)) => {
+                    postings.update(*ordinal, index);
+                }
+                (ProgramIndex::References(postings), ModuleIndex::References(index)) => {
+                    postings.update(*ordinal, index);
+                }
+                (ProgramIndex::Calls(postings), ModuleIndex::Calls(index)) => {
+                    postings.update(*ordinal, index);
+                }
+                (ProgramIndex::Heritage(postings), ModuleIndex::Heritage(index)) => {
+                    postings.update(*ordinal, index);
+                }
+                (ProgramIndex::Extensions(postings), ModuleIndex::Extensions(index)) => {
+                    postings.update(*ordinal, index);
+                }
+                (ProgramIndex::Decorators(postings), ModuleIndex::Decorators(index)) => {
+                    postings.update(*ordinal, index);
+                }
+                (program, module) => {
+                    return Err(ProviderError::internal(format!(
+                        "program {:?} index received module {:?}",
+                        program.kind(),
+                        module.kind()
+                    ))
+                    .into());
+                }
+            }
         }
 
-        // rebuild from current module components
-        let components = self
-            .modules
-            .iter()
-            .map(|module| component(module.index))
-            .collect::<Vec<_>>();
-
-        Ok(Arc::new(build(&components)))
+        Ok(index)
     }
 
-    /// Build or reuse symbol postings.
-    fn symbols(&self) -> ProviderResult<Arc<dir::SymbolPostings>> {
-        self.postings(
-            ModuleIndexProjection::Symbols,
-            |index| &index.symbols,
-            |module| &module.symbols,
-            dir::SymbolPostings::build,
-        )
-    }
+    /// Return one matching index from every module.
+    fn indexes<'a, Index>(
+        &'a self,
+        kind: IndexKind,
+        select: impl Fn(&'a ModuleIndex) -> Option<&'a Index>,
+    ) -> ProviderResult<Vec<&'a Index>> {
+        let mut indexes = Vec::with_capacity(self.modules.len());
 
-    /// Build or reuse export postings.
-    fn exports(&self) -> ProviderResult<Arc<dir::ExportPostings>> {
-        self.postings(
-            ModuleIndexProjection::Exports,
-            |index| &index.exports,
-            |module| &module.exports,
-            dir::ExportPostings::build,
-        )
-    }
+        // require one matching family from every module
+        for module in &self.modules {
+            let index = select(module).ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "program {kind:?} index received module {:?}",
+                    module.kind()
+                ))
+            })?;
+            indexes.push(index);
+        }
 
-    /// Build or reuse member postings.
-    fn members(&self) -> ProviderResult<Arc<dir::MemberPostings>> {
-        self.postings(
-            ModuleIndexProjection::Members,
-            |index| &index.members,
-            |module| &module.members,
-            dir::MemberPostings::build,
-        )
-    }
-
-    /// Build or reuse reference postings.
-    fn references(&self) -> ProviderResult<Arc<dir::ReferencePostings>> {
-        self.postings(
-            ModuleIndexProjection::References,
-            |index| &index.references,
-            |module| &module.references,
-            dir::ReferencePostings::build,
-        )
-    }
-
-    /// Build or reuse call postings.
-    fn calls(&self) -> ProviderResult<Arc<dir::CallPostings>> {
-        self.postings(
-            ModuleIndexProjection::Calls,
-            |index| &index.calls,
-            |module| &module.calls,
-            dir::CallPostings::build,
-        )
-    }
-
-    /// Build or reuse heritage postings.
-    fn heritage(&self) -> ProviderResult<Arc<dir::HeritagePostings>> {
-        self.postings(
-            ModuleIndexProjection::Heritage,
-            |index| &index.heritage,
-            |module| &module.heritage,
-            dir::HeritagePostings::build,
-        )
-    }
-
-    /// Build or reuse extension postings.
-    fn extensions(&self) -> ProviderResult<Arc<dir::ExtensionPostings>> {
-        self.postings(
-            ModuleIndexProjection::Extensions,
-            |index| &index.extensions,
-            |module| &module.extensions,
-            dir::ExtensionPostings::build,
-        )
-    }
-
-    /// Build or reuse decorator postings.
-    fn decorators(&self) -> ProviderResult<Arc<dir::DecoratorPostings>> {
-        self.postings(
-            ModuleIndexProjection::Decorators,
-            |index| &index.decorators,
-            |module| &module.decorators,
-            dir::DecoratorPostings::build,
-        )
+        Ok(indexes)
     }
 }

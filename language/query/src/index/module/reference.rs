@@ -5,12 +5,12 @@ use destack_repository::{ProviderError, ProviderResult};
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::ModuleQueryContext;
+use super::context::ModuleIndexContext;
 
 /// Builder for one reference index from recorded resolutions.
-pub(super) struct ReferenceIndexer<'context, 'query> {
+pub(in crate::index) struct ReferenceIndexer<'context, 'index> {
     /// The indexed module context.
-    module: &'context ModuleQueryContext<'query>,
+    module: &'context ModuleIndexContext<'index>,
     /// References keyed by their final resolved target.
     target_entries: Vec<dir::ReferenceEntry>,
     /// References keyed by their lexical declaration.
@@ -21,10 +21,10 @@ pub(super) struct ReferenceIndexer<'context, 'query> {
     selected_sources: FxHashSet<dir::GlobalNodeIdAny>,
 }
 
-impl<'context, 'query> ReferenceIndexer<'context, 'query> {
+impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     /// Build the reference index.
-    pub(super) fn build(
-        module: &'context ModuleQueryContext<'query>,
+    pub(in crate::index) fn build(
+        module: &'context ModuleIndexContext<'index>,
     ) -> ProviderResult<dir::ReferenceIndex> {
         let mut indexer = Self {
             module,

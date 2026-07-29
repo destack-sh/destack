@@ -1,23 +1,36 @@
+use destack_artifact::{DirExported, DirResolved};
+use destack_core::StringPool;
 use destack_dir as dir;
-use destack_repository::ProviderResult;
+use destack_repository::{ProviderError, ProviderResult};
+use destack_source::ModuleId;
 
-use crate::ModuleQueryContext;
-
-/// Builder for one export index from checked DIR.
-pub(super) struct ExportIndexer<'context, 'query> {
-    /// The indexed module context.
-    module: &'context ModuleQueryContext<'query>,
+/// Builder for one module export index.
+pub(in crate::index) struct ExportIndexer<'a> {
+    /// The indexed module id.
+    module_id: ModuleId,
+    /// The exported declarations.
+    exported: &'a DirExported,
+    /// The resolved dependency targets.
+    resolved: &'a DirResolved,
+    /// The shared string pool.
+    strings: &'a StringPool,
     /// The collected exports.
     entries: Vec<dir::ExportEntry>,
 }
 
-impl<'context, 'query> ExportIndexer<'context, 'query> {
-    /// Build the export index.
-    pub(super) fn build(
-        module: &'context ModuleQueryContext<'query>,
+impl<'a> ExportIndexer<'a> {
+    /// Build the export index from resolved exports.
+    pub(in crate::index) fn build(
+        module_id: ModuleId,
+        exported: &'a DirExported,
+        resolved: &'a DirResolved,
+        strings: &'a StringPool,
     ) -> ProviderResult<dir::ExportIndex> {
         let mut indexer = Self {
-            module,
+            module_id,
+            exported,
+            resolved,
+            strings,
             entries: Vec::new(),
         };
 
@@ -30,7 +43,7 @@ impl<'context, 'query> ExportIndexer<'context, 'query> {
     /// Collect named export entries.
     fn collect_exports(&mut self) -> ProviderResult<()> {
         // collect this module's named export rows
-        for (key, export) in self.module.exports().exports() {
+        for (key, export) in self.exported.exports.exports() {
             let Some(name) = self.export_name(*key) else {
                 continue;
             };
@@ -52,7 +65,7 @@ impl<'context, 'query> ExportIndexer<'context, 'query> {
         match key {
             dir::ExportKey::Default => Some("default".to_string()),
             dir::ExportKey::Named(dir::StaticKey::Name(name)) => {
-                Some(self.module.strings().get(name).to_string())
+                Some(self.strings.get(name).to_string())
             }
             dir::ExportKey::Named(dir::StaticKey::Index(index)) => Some(index.to_string()),
             dir::ExportKey::Named(dir::StaticKey::Symbol(_)) => None,
@@ -63,21 +76,43 @@ impl<'context, 'query> ExportIndexer<'context, 'query> {
     fn export_targets(&self, export: dir::NamedExport) -> ProviderResult<Vec<dir::ExportTarget>> {
         match export {
             dir::NamedExport::Local(export) => {
-                let symbol = export.source.into_global(self.module.module_id());
+                let symbol = export.source.into_global(self.module_id);
 
                 Ok(vec![dir::ExportTarget::Symbol(symbol)])
             }
             dir::NamedExport::Indirect(export) => {
-                let targets = self.module.dependency_targets(export.item)?;
-                let targets = targets
-                    .into_iter()
-                    .map(|target| match target {
-                        dir::ImportTarget::Symbol(symbol) => dir::ExportTarget::Symbol(symbol),
-                        dir::ImportTarget::Namespace(module) => {
-                            dir::ExportTarget::Namespace(module)
-                        }
-                    })
-                    .collect();
+                let source = export.item.into_global_any(self.module_id);
+                let reference = self.resolved.references.get(source).ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "export dependency has no resolved reference: {source:?}"
+                    ))
+                })?;
+                let targets = match reference {
+                    dir::Reference::Bound(symbols) => symbols
+                        .iter()
+                        .copied()
+                        .map(dir::ExportTarget::Symbol)
+                        .collect(),
+                    dir::Reference::Namespace(module) => {
+                        vec![dir::ExportTarget::Namespace(*module)]
+                    }
+                    dir::Reference::Ambiguous(targets) => targets
+                        .iter()
+                        .map(|target| match target {
+                            dir::ImportTarget::Symbol(symbol) => dir::ExportTarget::Symbol(*symbol),
+                            dir::ImportTarget::Namespace(module) => {
+                                dir::ExportTarget::Namespace(*module)
+                            }
+                        })
+                        .collect(),
+                    dir::Reference::Missing => Vec::new(),
+                    dir::Reference::Projected { .. } => {
+                        return Err(ProviderError::internal(format!(
+                            "export dependency has a projected reference: {source:?}"
+                        ))
+                        .into());
+                    }
+                };
 
                 Ok(targets)
             }

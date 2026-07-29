@@ -4,8 +4,7 @@ use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
-    Target,
+    Formatter, ModuleQueryContext, QueryContext, QueryError, QueryPosition, QueryResult, Target,
 };
 
 /// Hover content for one declaration.
@@ -48,7 +47,7 @@ impl ModuleQueryContext<'_> {
     /// Return hover content for the symbol at the given position.
     pub fn hover(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<Hover>> {
@@ -58,18 +57,18 @@ impl ModuleQueryContext<'_> {
         };
         let mut symbols = Vec::new();
         for symbol in &occurrence.symbols {
-            symbols.extend(program.canonical_symbols(*symbol)?);
+            symbols.extend(query.canonical_symbols(*symbol)?);
         }
         symbols.sort();
         symbols.dedup();
-        let type_text = self.format_distinct_type(program, occurrence.type_id, &symbols)?;
+        let type_text = self.format_distinct_type(query, occurrence.type_id, &symbols)?;
 
         // format only recorded declaration shapes
         let mut items = Vec::new();
         for symbol in symbols {
-            let module = program.module(symbol.module_id)?;
-            let signature = Formatter::new(module, program).symbol_signature(symbol)?;
-            let documentation = program.symbol_documentation(symbol)?;
+            let module = query.module(symbol.module_id)?;
+            let signature = Formatter::new(module, query).symbol_signature(symbol)?;
+            let documentation = query.symbol_documentation(symbol)?;
             let target = module.symbol_target(symbol)?;
 
             items.push(HoverItem {
@@ -92,7 +91,7 @@ impl ModuleQueryContext<'_> {
     /// Format an occurrence type when it differs from every declaration type.
     fn format_distinct_type(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         type_id: Option<dir::GlobalTypeId>,
         symbols: &[dir::GlobalSymbolId],
     ) -> QueryResult<Option<String>> {
@@ -101,18 +100,18 @@ impl ModuleQueryContext<'_> {
         };
         // retain callable parameter names only when every declaration agrees
         let mut parameter_names = match symbols.first() {
-            Some(symbol) => program.symbol_parameter_names(*symbol)?,
+            Some(symbol) => query.symbol_parameter_names(*symbol)?,
             None => None,
         };
         for symbol in symbols.iter().skip(1) {
-            let next_names = program.symbol_parameter_names(*symbol)?;
+            let next_names = query.symbol_parameter_names(*symbol)?;
             if next_names != parameter_names {
                 parameter_names = None;
                 break;
             }
         }
 
-        let formatter = Formatter::new(self, program);
+        let formatter = Formatter::new(self, query);
         let text = match parameter_names {
             Some(parameter_names) => formatter.callable_type(type_id, &parameter_names)?,
             None => formatter.global_type(type_id)?,
@@ -123,8 +122,8 @@ impl ModuleQueryContext<'_> {
 
         // omit a type already represented by a declaration
         for symbol_id in symbols {
-            let module = program.module(symbol_id.module_id)?;
-            let declared_text = Formatter::new(module, program)
+            let module = query.module(symbol_id.module_id)?;
+            let declared_text = Formatter::new(module, query)
                 .symbol_type(*symbol_id)?
                 .ok_or(QueryError::invalid(format!(
                     "hover type formatting: {symbol_id:?}"

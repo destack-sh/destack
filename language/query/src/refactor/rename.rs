@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::is_simple_identifier;
 use crate::{
-    Module, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
-    SymbolOccurrence,
+    Module, ModuleQueryContext, ProgramQueryContext, QueryContext, QueryError, QueryPosition,
+    QueryResult, SymbolOccurrence,
 };
 
 /// Request rename edits at a cursor position.
@@ -329,7 +329,7 @@ impl ModuleQueryContext<'_> {
     /// Resolve the symbol targeted by rename at a file offset.
     pub(crate) fn resolve_rename_target(
         &self,
-        program: &ProgramQueryContext<'_>,
+        query: &QueryContext<'_>,
         file_id: FileId,
         offset: u32,
     ) -> QueryResult<Option<RenameSelection>> {
@@ -352,20 +352,20 @@ impl ModuleQueryContext<'_> {
         // resolve every canonical declaration in the selected overload set
         let mut symbols = Vec::new();
         for symbol in &occurrence.symbols {
-            symbols.extend(program.canonical_symbols(*symbol)?);
+            symbols.extend(query.canonical_symbols(*symbol)?);
         }
         symbols.sort();
         symbols.dedup();
         let Some(first) = symbols.first().copied() else {
             return Ok(None);
         };
-        let Some(placeholder) = program.symbol_name(first)? else {
+        let Some(placeholder) = query.symbol_name(first)? else {
             return Ok(None);
         };
 
         // require one stable authored name across the rename group
         for symbol in &symbols[1..] {
-            let Some(name) = program.symbol_name(*symbol)? else {
+            let Some(name) = query.symbol_name(*symbol)? else {
                 return Ok(None);
             };
             if name != placeholder {

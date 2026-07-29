@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
-use crate::{ProgramQueryContext, QueryResult};
+use crate::{QueryContext, QueryResult};
 
-impl ProgramQueryContext<'_> {
+impl QueryContext<'_> {
     /// Return the documentation for one symbol declaration.
     pub(crate) fn symbol_documentation(
         &self,

@@ -1,70 +1,81 @@
 use destack_dir as dir;
+use destack_repository::{ProviderError, ProviderResult};
 
-use crate::ModuleQueryContext;
+use super::context::ModuleIndexContext;
 
 /// Builder for one heritage index from checked DIR.
-pub(super) struct HeritageIndexer<'context, 'query> {
+pub(in crate::index) struct HeritageIndexer<'context, 'index> {
     /// The indexed module context.
-    module: &'context ModuleQueryContext<'query>,
+    module: &'context ModuleIndexContext<'index>,
     /// The collected index entries.
     entries: Vec<dir::HeritageEntry>,
 }
 
-impl<'context, 'query> HeritageIndexer<'context, 'query> {
+impl<'context, 'index> HeritageIndexer<'context, 'index> {
     /// Build the heritage index.
-    pub(super) fn build(module: &'context ModuleQueryContext<'query>) -> dir::HeritageIndex {
+    pub(in crate::index) fn build(
+        module: &'context ModuleIndexContext<'index>,
+    ) -> ProviderResult<dir::HeritageIndex> {
         let mut indexer = Self {
             module,
             entries: Vec::new(),
         };
 
         // collect checked nominal heritage edges
-        indexer.collect_heritage();
+        indexer.collect_heritage()?;
 
-        dir::HeritageIndex::new(indexer.entries)
+        Ok(dir::HeritageIndex::new(indexer.entries))
     }
 
     /// Collect heritage index entries.
-    fn collect_heritage(&mut self) {
+    fn collect_heritage(&mut self) -> ProviderResult<()> {
         // collect checked definition relations
         for (symbol, definition) in self.module.definitions().iter_definitions() {
-            self.collect_definition(symbol, definition);
+            self.collect_definition(symbol, definition)?;
         }
+
+        Ok(())
     }
 
     /// Collect heritage entries from one checked definition.
-    fn collect_definition(&mut self, symbol: dir::GlobalSymbolId, definition: &dir::Definition) {
+    fn collect_definition(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        definition: &dir::Definition,
+    ) -> ProviderResult<()> {
         // collect relation fields by declaration kind
         match definition {
             dir::Definition::Struct(definition) => {
-                self.collect_implements(symbol, symbol, &definition.implements);
+                self.collect_implements(symbol, symbol, &definition.implements)?;
             }
             dir::Definition::Class(definition) => {
                 if let Some(extends) = &definition.extends {
-                    self.collect_extends(symbol, symbol, extends);
+                    self.collect_extends(symbol, symbol, extends)?;
                 }
 
-                self.collect_implements(symbol, symbol, &definition.implements);
+                self.collect_implements(symbol, symbol, &definition.implements)?;
             }
             dir::Definition::Interface(definition) => {
                 for extends in &definition.extends {
-                    self.collect_extends(symbol, symbol, extends);
+                    self.collect_extends(symbol, symbol, extends)?;
                 }
             }
             dir::Definition::Enum(definition) => {
-                self.collect_implements(symbol, symbol, &definition.implements);
+                self.collect_implements(symbol, symbol, &definition.implements)?;
             }
             dir::Definition::Extension(extension) => {
                 // blanket extensions have no single derived nominal
                 let Some(root) = extension.target.root() else {
-                    return;
+                    return Ok(());
                 };
 
                 // collect implemented interfaces for the extended nominal
-                self.collect_implements(root, symbol, &extension.implements);
+                self.collect_implements(root, symbol, &extension.implements)?;
             }
             dir::Definition::TypeAlias(_) | dir::Definition::Newtype(_) => {}
         }
+
+        Ok(())
     }
 
     /// Collect one extends relation.
@@ -73,13 +84,13 @@ impl<'context, 'query> HeritageIndexer<'context, 'query> {
         derived_symbol: dir::GlobalSymbolId,
         declaration_symbol: dir::GlobalSymbolId,
         heritage: &dir::NominalHeritage,
-    ) {
+    ) -> ProviderResult<()> {
         self.push_heritage(
             derived_symbol,
             declaration_symbol,
             heritage,
             dir::HeritageKind::Extends,
-        );
+        )
     }
 
     /// Collect implements relations.
@@ -88,7 +99,7 @@ impl<'context, 'query> HeritageIndexer<'context, 'query> {
         derived_symbol: dir::GlobalSymbolId,
         declaration_symbol: dir::GlobalSymbolId,
         implementations: &[dir::InterfaceImplementation],
-    ) {
+    ) -> ProviderResult<()> {
         // emit each implemented interface edge
         for implementation in implementations {
             self.push_heritage(
@@ -96,8 +107,10 @@ impl<'context, 'query> HeritageIndexer<'context, 'query> {
                 declaration_symbol,
                 &implementation.interface,
                 dir::HeritageKind::Implements,
-            );
+            )?;
         }
+
+        Ok(())
     }
 
     /// Add one heritage edge.
@@ -107,17 +120,20 @@ impl<'context, 'query> HeritageIndexer<'context, 'query> {
         declaration_symbol: dir::GlobalSymbolId,
         heritage: &dir::NominalHeritage,
         kind: dir::HeritageKind,
-    ) {
-        // omit generated relations without an editor source
-        let Some(span) = self
+    ) -> ProviderResult<()> {
+        // require every indexed relation to retain its editor source
+        let span = self
             .module
             .view()
             .get_span_by_id(heritage.source.local_id.id)
-        else {
-            return;
-        };
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "heritage source has no authored span: {:?}",
+                    heritage.source
+                ))
+            })?;
 
-        let base = self.heritage_base(heritage.ty);
+        let base = self.heritage_base(heritage.ty)?;
 
         // emit heritage edge row
         self.entries.push(dir::HeritageEntry {
@@ -129,21 +145,30 @@ impl<'context, 'query> HeritageIndexer<'context, 'query> {
             span,
             kind,
         });
+
+        Ok(())
     }
 
     /// Return the nominal declaration at the head of one heritage type.
-    fn heritage_base(&self, mut ty: dir::GlobalTypeId) -> dir::GlobalSymbolId {
+    fn heritage_base(&self, mut ty: dir::GlobalTypeId) -> ProviderResult<dir::GlobalSymbolId> {
         loop {
             // heritage types intern beside the tables that record them
-            assert_eq!(
-                ty.module_id,
-                self.module.module_id(),
-                "heritage type {ty:?} escapes its module"
-            );
+            if ty.module_id != self.module.module_id() {
+                return Err(ProviderError::internal(format!(
+                    "heritage type escapes its module: {ty:?}"
+                ))
+                .into());
+            }
+
             match self.module.types().get_type(ty.local_id) {
                 dir::Type::Refined(refined) => ty = self.module.types().refined(refined).base,
-                dir::Type::Application(application) => return application.symbol,
-                head => panic!("heritage type {ty:?} has no nominal application: {head:?}"),
+                dir::Type::Application(application) => return Ok(application.symbol),
+                head => {
+                    return Err(ProviderError::internal(format!(
+                        "heritage type has no nominal application: {ty:?}, head={head:?}"
+                    ))
+                    .into());
+                }
             }
         }
     }

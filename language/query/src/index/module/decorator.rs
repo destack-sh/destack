@@ -1,18 +1,20 @@
 use destack_dir as dir;
 
-use crate::ModuleQueryContext;
+use super::context::ModuleIndexContext;
 
 /// Builder for one decorator index from checked DIR.
-pub(super) struct DecoratorIndexer<'context, 'query> {
+pub(in crate::index) struct DecoratorIndexer<'context, 'index> {
     /// The indexed module context.
-    module: &'context ModuleQueryContext<'query>,
+    module: &'context ModuleIndexContext<'index>,
     /// The collected index entries.
     entries: Vec<dir::DecoratorEntry>,
 }
 
-impl<'context, 'query> DecoratorIndexer<'context, 'query> {
+impl<'context, 'index> DecoratorIndexer<'context, 'index> {
     /// Build the decorator index.
-    pub(super) fn build(module: &'context ModuleQueryContext<'query>) -> dir::DecoratorIndex {
+    pub(in crate::index) fn build(
+        module: &'context ModuleIndexContext<'index>,
+    ) -> dir::DecoratorIndex {
         let mut indexer = Self {
             module,
             entries: Vec::new(),
