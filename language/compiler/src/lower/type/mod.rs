@@ -9,6 +9,7 @@ mod newtype;
 mod nominal;
 mod scalar;
 mod signature;
+pub(in crate::lower) use signature::LoweredSignature;
 mod r#struct;
 mod substitution;
 

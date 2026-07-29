@@ -183,6 +183,16 @@ impl BodyState<'_, '_> {
         }
 
         match expression {
+            dir::Expression::TreeExpression { .. } => {
+                let source = answer!(self.check_tree_expression(site, Some(&expectation))?);
+                let check = ValueCheck {
+                    source,
+                    outcome: CheckOutcome::Holds,
+                    target,
+                };
+
+                Ok(Answer::Ready(CheckAttempt::Checked(check)))
+            }
             dir::Expression::ScalarLiteral(value) => {
                 let source = self.scalar_literal_type(node, value)?;
                 self.commit_node_type(site.node, source)?;

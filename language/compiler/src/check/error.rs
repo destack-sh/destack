@@ -1672,6 +1672,84 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Tree tag is not declared by the builder's rows.
+    ///
+    /// ```ds
+    /// const page: Html = <blink/>;
+    /// ```
+    #[diagnostic(
+        id = "unknown-tree-tag",
+        message = "builder '{builder}' declares no '{tag}' tag"
+    )]
+    UnknownTreeTag {
+        /// Report the tree expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written tag.
+        tag: String,
+        /// The resolved builder.
+        builder: String,
+    },
+
+    /// Tree attribute outside the declared attribute row.
+    ///
+    /// ```ds
+    /// const page: Html = <div misspelled="1"/>;
+    /// ```
+    #[diagnostic(
+        id = "unknown-tree-attribute",
+        message = "attribute row '{row}' declares no '{key}' attribute"
+    )]
+    UnknownTreeAttribute {
+        /// Report the tree expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The written attribute key.
+        key: String,
+        /// The declared attribute row.
+        row: String,
+    },
+
+    /// Tree spread child over a dynamically sized operand.
+    ///
+    /// ```ds
+    /// const page: Html = <div>{...items}</div>;
+    /// ```
+    #[diagnostic(
+        id = "tree-spread-not-tuple",
+        message = "spread children splat tuples, found '{ty}'"
+    )]
+    TreeSpreadNotTuple {
+        /// Report the spread operand.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The spread operand type.
+        ty: String,
+    },
+
+    /// Tree expression missing one required attribute.
+    ///
+    /// ```ds
+    /// const page: Html = <img/>;
+    /// ```
+    #[diagnostic(
+        id = "missing-tree-attribute",
+        message = "required attribute '{key}' of row '{row}' is missing"
+    )]
+    MissingTreeAttribute {
+        /// Report the tree expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The missing attribute key.
+        key: String,
+        /// The declared attribute row.
+        row: String,
+    },
+
     /// Expression pattern did not close to a literal.
     ///
     /// ```ds

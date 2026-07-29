@@ -13,6 +13,7 @@ mod literal;
 mod r#match;
 mod member;
 mod operator;
+mod tree;
 mod place;
 
 pub(in crate::lower) use body::*;

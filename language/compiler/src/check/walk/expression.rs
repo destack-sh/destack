@@ -355,7 +355,10 @@ impl WalkState<'_, '_> {
                 children,
                 ..
             } => {
-                if let Some(left) = *left {
+                // lowercase tags name builder rows, not lexical values
+                if let Some(left) = *left
+                    && !self.is_intrinsic_tree_tag(left)
+                {
                     self.walk_expression(left, self.tree.get(left))?;
                 }
                 if let Some(attributes) = attributes.as_deref() {
@@ -1442,4 +1445,12 @@ impl WalkState<'_, '_> {
             self.clear_mutated_expression_narrowings(expression);
         }
     }
+    /// Return whether one tree tag names a lowercase builder row.
+    fn is_intrinsic_tree_tag(&self, tag: dir::LocalNodeId<dir::Expression>) -> bool {
+        match self.tree.get(tag) {
+            dir::Expression::Identifier { name } => self.check.is_intrinsic_tree_tag(*name),
+            _ => false,
+        }
+    }
+
 }

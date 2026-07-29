@@ -29,6 +29,8 @@ pub(in crate::check) enum Decision {
     Guard(dir::GuardResolution),
     /// Resolved construct expression.
     Construct(dir::ConstructResolution),
+    /// Resolved tree literal.
+    Tree(dir::TreeResolution),
     /// Resolved pattern meaning.
     Pattern(dir::PatternResolution),
     /// Resolved assignment pattern meaning.
@@ -51,6 +53,7 @@ impl Decision {
             Self::Assignment(_) => DecisionKind::Assignment,
             Self::Guard(_) => DecisionKind::Guard,
             Self::Construct(_) => DecisionKind::Construct,
+            Self::Tree(_) => DecisionKind::Tree,
             Self::Pattern(_) => DecisionKind::Pattern,
             Self::AssignPattern(_) => DecisionKind::AssignPattern,
             Self::Rejected => DecisionKind::Rejected,
@@ -81,6 +84,8 @@ pub(in crate::check) enum DecisionKind {
     Guard,
     /// Resolved construct expression.
     Construct,
+    /// Resolved tree literal.
+    Tree,
     /// Resolved pattern meaning.
     Pattern,
     /// Resolved assignment pattern meaning.
@@ -168,6 +173,7 @@ impl CheckState<'_> {
             Decision::Construct(resolution) => {
                 resolutions.set_construct_resolution(node, resolution)
             }
+            Decision::Tree(resolution) => resolutions.set_tree_resolution(node, resolution),
             Decision::Pattern(resolution) => resolutions.set_pattern_resolution(node, resolution),
             Decision::AssignPattern(resolution) => {
                 resolutions.set_assign_pattern_resolution(node, resolution)
@@ -207,6 +213,7 @@ impl CheckState<'_> {
             Decision::Construct(resolution) => {
                 resolutions.construct_resolution(node) == Some(resolution)
             }
+            Decision::Tree(resolution) => resolutions.tree_resolution(node) == Some(resolution),
             Decision::Pattern(resolution) => {
                 resolutions.pattern_resolution(node) == Some(resolution)
             }

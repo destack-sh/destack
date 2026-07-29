@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, CheckOutcome, ConstructResult, Decision, Expectation,
+    Answer, BodyState, Cause, CauseKind, CheckOutcome, ConstructResult, Expectation,
     FlowSite, PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
@@ -286,9 +286,7 @@ impl BodyState<'_, '_> {
                 self.select_tagged_template(site, tag)
             }
             dir::Expression::TreeExpression { .. } => {
-                self.report_missing_tree_builder(node.module_id, node.local_id.into_any());
-                self.commit_decision(node.into_any(), Decision::Rejected)?;
-                self.commit_error_node(node.into_any())?;
+                let _ = answer!(self.check_tree_expression(site, None)?);
 
                 Ok(Answer::Ready(()))
             }

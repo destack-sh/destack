@@ -5,3 +5,4 @@ mod control;
 mod generic;
 mod library;
 mod scalar;
+mod tree;

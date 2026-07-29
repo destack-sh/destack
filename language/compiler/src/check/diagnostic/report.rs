@@ -512,6 +512,80 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report one tree tag missing from its builder's rows.
+    pub(in crate::check) fn report_unknown_tree_tag(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        tag: dir::StringId,
+        builder: dir::GlobalTypeId,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::UnknownTreeTag {
+            anchor,
+            module,
+            tag: self.strings().get(tag).to_string(),
+            builder: self.format_type(builder),
+        };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report one tree attribute outside the declared row.
+    pub(in crate::check) fn report_unknown_tree_attribute(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        key: dir::StringId,
+        row: dir::GlobalTypeId,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::UnknownTreeAttribute {
+            anchor,
+            module,
+            key: self.strings().get(key).to_string(),
+            row: self.format_type(row),
+        };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report one tree spread child over a dynamically sized operand.
+    pub(in crate::check) fn report_tree_spread_not_tuple(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        ty: dir::GlobalTypeId,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::TreeSpreadNotTuple {
+            anchor,
+            module,
+            ty: self.format_type(ty),
+        };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report one required tree attribute without a written value.
+    pub(in crate::check) fn report_missing_tree_attribute(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        key: &dir::StaticKey,
+        row: dir::GlobalTypeId,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::MissingTreeAttribute {
+            anchor,
+            module,
+            key: self.format_static_key(key),
+            row: self.format_type(row),
+        };
+
+        self.report(module, diagnostic);
+    }
+
     /// Report an expression pattern that did not close to a literal.
     pub(in crate::check) fn report_expression_pattern_not_literal(
         &mut self,

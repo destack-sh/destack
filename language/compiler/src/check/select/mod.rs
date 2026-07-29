@@ -24,6 +24,7 @@ mod sequence;
 mod signature;
 mod tagged;
 mod template;
+mod tree;
 mod tuple;
 
 pub(in crate::check) use construct::ConstructResult;

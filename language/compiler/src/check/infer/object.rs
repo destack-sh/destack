@@ -378,7 +378,7 @@ impl BodyState<'_, '_> {
     }
 
     /// Return members expected by an object literal target.
-    fn expected_object_members(
+    pub(in crate::check) fn expected_object_members(
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,

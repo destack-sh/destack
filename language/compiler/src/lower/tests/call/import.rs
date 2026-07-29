@@ -195,11 +195,11 @@ type test.box.Box {
 
 function test.main.open(): int32 {
 entry:
-    v0: ref<test.box.Box, managed, mutable> = new.zeroed test.box.Box
-    v1: ref<test.box.Box, borrowed, exclusive> = cast.bit v0 -> ref<test.box.Box, borrowed, exclusive>
-    v2: int32 = 7
-    call test.box.Box.constructor(v1, v2)
-    v3: int32 = call test.box.Box.weigh(v0)
+    v0: int32 = 7
+    v1: ref<test.box.Box, managed, mutable> = new.zeroed test.box.Box
+    v2: ref<test.box.Box, borrowed, exclusive> = cast.bit v1 -> ref<test.box.Box, borrowed, exclusive>
+    call test.box.Box.constructor(v2, v0)
+    v3: int32 = call test.box.Box.weigh(v1)
     return v3
 }
 

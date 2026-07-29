@@ -706,6 +706,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_construct(&resolution)
             }
 
+            // <div .../>
+            dir::Expression::TreeExpression { .. } => {
+                let resolution = self.tree_resolution(expression)?;
+
+                self.lower_tree(&resolution)
+            }
+
             // call(...)
             dir::Expression::Call { .. } => {
                 let value = self.lower_call(expression)?;

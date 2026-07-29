@@ -31,9 +31,32 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::ConstructResolution,
         candidate: &dir::ClassConstructCandidate,
     ) -> CompilerResult<mir::Value> {
+        // lower the constructor arguments in declaration order
+        let mut values = Vec::with_capacity(resolution.arguments.len());
+        for binding in &resolution.arguments {
+            let dir::ArgumentSource::Provided(source) = binding.argument else {
+                return Err(LowerError::Unsupported {
+                    anchor: self.lowerer.module.into(),
+                    construct: "a defaulted or spread argument".to_string(),
+                }
+                .into());
+            };
+            values.push(self.lower_argument(source)?);
+        }
+
+        self.lower_class_instance(resolution.return_type, &candidate.constructor, values)
+    }
+
+    /// Lower one class construction over its evaluated argument values.
+    pub(in crate::lower) fn lower_class_instance(
+        &mut self,
+        return_type: dir::GlobalTypeId,
+        constructor: &dir::ClassConstructor,
+        arguments: Vec<mir::Value>,
+    ) -> CompilerResult<mir::Value> {
         // lower the return form and its class representation
-        let carrier = self.lower_type(resolution.return_type)?;
-        let nominal = self.lower_nominal(resolution.return_type)?;
+        let carrier = self.lower_type(return_type)?;
+        let nominal = self.lower_nominal(return_type)?;
         let pointee = nominal.storage;
 
         // the checked return form decides where the instance stores
@@ -59,7 +82,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // constructors initialize the storage through an exclusive borrow
-        match &candidate.constructor {
+        match constructor {
             dir::ClassConstructor::Declared { symbol } => {
                 let key = GenericInstanceKey::non_generic(*symbol);
                 let Some(function) = self.lowerer.functions.get(&key).copied() else {
@@ -82,18 +105,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 };
 
                 // bind the constructor arguments after the receiver
-                let mut values = Vec::with_capacity(resolution.arguments.len() + 1);
+                let mut values = Vec::with_capacity(arguments.len() + 1);
                 values.push(receiver);
-                for binding in &resolution.arguments {
-                    let dir::ArgumentSource::Provided(source) = binding.argument else {
-                        return Err(LowerError::Unsupported {
-                            anchor: self.lowerer.module.into(),
-                            construct: "a defaulted or spread argument".to_string(),
-                        }
-                        .into());
-                    };
-                    values.push(self.lower_argument(source)?);
-                }
+                values.extend(arguments);
                 self.builder.call_function(function, values);
             }
             dir::ClassConstructor::Default => {}

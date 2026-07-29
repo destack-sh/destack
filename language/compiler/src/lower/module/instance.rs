@@ -3,8 +3,10 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
+use crate::lower::r#type::LoweredSignature;
 use crate::lower::{
-    CallableImplementation, FunctionDefinition, LifetimeParameters, ModuleLowerer, TypeSubstitution,
+    CallableImplementation, FunctionDefinition, LifetimeParameters, ModuleLowerer, ReceiverBinding,
+    TypeSubstitution,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -168,6 +170,30 @@ impl ModuleLowerer<'_> {
                 references.imports.insert(*symbol);
             }
 
+            // tree literals carry their selected calls inside the resolution
+            if let Some(resolution) = state.resolutions.tree_resolution(node) {
+                match &resolution.target {
+                    dir::TreeTarget::Element { call, .. } | dir::TreeTarget::Fragment { call } => {
+                        self.collect_call_resolution(call, substitution, pending, references)?;
+                    }
+                    dir::TreeTarget::Component { invocation, .. } => match invocation {
+                        dir::TreeInvocation::Call(call) => {
+                            self.collect_call_resolution(call, substitution, pending, references)?;
+                        }
+                        dir::TreeInvocation::Construct(construct) => {
+                            if let dir::ConstructTarget::Class(candidate) = &construct.target
+                                && let dir::ClassConstructor::Declared { symbol } =
+                                    &candidate.constructor
+                                && symbol.module_id != self.module
+                            {
+                                references.imports.insert(*symbol);
+                            }
+                        }
+                        dir::TreeInvocation::Struct { .. } => {}
+                    },
+                }
+            }
+
             let Some(resolution) = state.resolutions.call_resolution(node) else {
                 continue;
             };
@@ -322,6 +348,16 @@ impl ModuleLowerer<'_> {
                 message: "checked DIR instantiated a callable without a declaration".to_string(),
             });
         };
+        // member callables declare through their owner's receiver
+        if let Ok(member) = declaration.local_id.try_into_typed::<dir::Member>() {
+            return self.declare_member_instance_header(
+                builder,
+                key,
+                type_substitution,
+                lifetime_parameters,
+                member,
+            );
+        }
         let Ok(declaration) = declaration.local_id.try_into_typed::<dir::Declaration>() else {
             return Err(CompilerError::Internal {
                 message: "checked DIR instantiated a non-declaration callable".to_string(),
@@ -362,7 +398,129 @@ impl ModuleLowerer<'_> {
             });
         }
 
-        // declare the header under the instance's canonical name
+        self.declare_instance_function(
+            builder,
+            key,
+            signature,
+            symbols,
+            type_substitution.clone(),
+            lifetime_parameters,
+            expression,
+        )
+    }
+
+    /// Declare the MIR header of one static member instance and queue its body.
+    fn declare_member_instance_header(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        key: &GenericInstanceKey,
+        type_substitution: &TypeSubstitution,
+        lifetime_parameters: &LifetimeParameters,
+        member: dir::LocalNodeId<dir::Member>,
+    ) -> CompilerResult<FunctionDefinition> {
+        let symbol = key.symbol;
+        let member_node = member.into_global_any(symbol.module_id);
+        let state = self.state(symbol.module_id)?;
+
+        // find the owner declaring this member
+        let owner = state
+            .definitions
+            .iter_definitions()
+            .find(|(_, definition)| definition.method_declared_at(member_node) == Some(symbol))
+            .map(|(owner, _)| owner)
+            .ok_or_else(|| CompilerError::Internal {
+                message: "checked DIR instantiated a member without an owner".to_string(),
+            })?;
+
+        // instance receivers await their own placement design
+        let is_static = match self.definition(owner)? {
+            Some(definition) => definition.members().iter().any(|candidate| {
+                matches!(
+                    candidate,
+                    dir::DefinitionMember::Method(method)
+                        if method.symbol == symbol && method.space == dir::MemberSpace::Static
+                )
+            }),
+            None => false,
+        };
+        if !is_static {
+            return Err(LowerError::Unsupported {
+                anchor: self.module.into(),
+                construct: "a generic instance method instance".to_string(),
+            }
+            .into());
+        }
+
+        // extension members receive at their target
+        let receiver = match self.definition(owner)? {
+            Some(dir::Definition::Extension(extension)) => {
+                ReceiverBinding::Type(extension.target.r#type())
+            }
+            _ => ReceiverBinding::Application(dir::GenericApplication {
+                symbol: owner,
+                arguments: dir::TypeListId::EMPTY,
+            }),
+        };
+        let type_substitution = type_substitution.clone().with_receiver(receiver);
+
+        // resolve the member body and parameter symbols
+        let state = self.state(symbol.module_id)?;
+        let dir::Member::Method {
+            signature, body, ..
+        } = state.tree().get(member)
+        else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR instantiated a non-method member".to_string(),
+            });
+        };
+        let Some(expression) = *body else {
+            return Err(CompilerError::Internal {
+                message: "checked DIR instantiated a bodiless member".to_string(),
+            });
+        };
+        let parameter_nodes = signature.parameters.to_vec();
+        let mut symbols = Vec::with_capacity(parameter_nodes.len());
+        for parameter in parameter_nodes {
+            let node = parameter.into_global_any(symbol.module_id);
+            let Some(parameter_symbol) = self.symbol_declared_at(node)? else {
+                return Err(CompilerError::Internal {
+                    message: "checked DIR is missing a symbol for one parameter".to_string(),
+                });
+            };
+            symbols.push(parameter_symbol.local_id);
+        }
+        let declared = self.symbol_type(symbol)?;
+        let signature =
+            self.lower_signature(builder, declared, &type_substitution, lifetime_parameters)?;
+        if signature.parameters.len() != symbols.len() {
+            return Err(CompilerError::Internal {
+                message: "checked DIR instance parameters disagree with its sealed signature"
+                    .to_string(),
+            });
+        }
+
+        self.declare_instance_function(
+            builder,
+            key,
+            signature,
+            symbols,
+            type_substitution,
+            lifetime_parameters,
+            expression,
+        )
+    }
+    /// Declare one instance header under its canonical name and queue its body.
+    fn declare_instance_function(
+        &mut self,
+        builder: &mut mir::ModuleBuilder,
+        key: &GenericInstanceKey,
+        signature: LoweredSignature,
+        symbols: Vec<dir::LocalSymbolId>,
+        type_substitution: TypeSubstitution,
+        lifetime_parameters: &LifetimeParameters,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<FunctionDefinition> {
+        let symbol = key.symbol;
         let name = self.symbol_path(symbol)?;
         let base = mir::Symbol::named(builder.intern(&name));
         let instance = base.instantiate(&key.representations, builder.tree());
@@ -378,10 +536,11 @@ impl ModuleLowerer<'_> {
             function,
             has_this: false,
             parameters: symbols,
-            type_substitution: type_substitution.clone(),
+            type_substitution,
             lifetime_parameters: lifetime_parameters.clone(),
             source: symbol.module_id,
             expression,
         })
     }
+
 }

@@ -1,0 +1,780 @@
+use crate::tests::{DirRows, TestSession};
+
+#[test]
+fn test_implement_generic_static_interface_members() {
+    let session = TestSession::single(
+        r#"
+newtype interface Maker {
+    static make<T>(value: T): this;
+}
+
+class Panel {}
+
+extension of Panel implements Maker {
+    static make<T>(value: T): Panel {
+        return new Panel();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Maker {
+    static make<T>(value: T): this;
+}
+
+class Panel {}
+
+extension of Panel implements Maker {
+    static make<T>(value: T): Panel {
+        return new Panel();
+    }
+}
+
+=== checked ===
+newtype interface Maker {
+/// @type.symbol symbol=Maker type=Maker
+/// @definition.interface symbol=Maker nominal=true
+/// @definition.method symbol=Maker.make source="static make<T>(value: T): this" slot=make static=true type=<T#1>(T#1) => this
+
+    static make<T>(value: T): this;
+    /// @generic.template symbol=Maker.make parent=template#0 parameters=(T#1)
+    /// @type.symbol symbol=Maker.make source="static make<T>(value: T): this" type=<T#1>(T#1) => this
+    /// @type.symbol symbol=Maker.make.T source=T type=T#1
+    /// @type.symbol symbol=Maker.make.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Maker.make.T
+
+}
+
+class Panel {}
+/// @type.symbol symbol=Panel source="class Panel {}" type=Panel
+/// @definition.class symbol=Panel source="class Panel {}"
+
+extension of Panel implements Maker {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=Maker target=Maker
+/// @definition.method symbol=make slot=make static=true type=<T#2>(T#2) => Panel
+/// @definition.implementation symbol=<module>#2 requirement=Maker.make target=make
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=Maker target=Maker
+
+    static make<T>(value: T): Panel {
+    /// @generic.template symbol=make parent=template#1 parameters=(T#2)
+    /// @type.symbol symbol=make type=<T#2>(T#2) => Panel
+    /// @type.symbol symbol=make.T source=T type=T#2
+    /// @type.symbol symbol=make.value source="value: T" type=T#2
+    /// @resolution.name source=T target=make.T
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_implement_comptime_static_interface_members() {
+    let session = TestSession::single(
+        r#"
+newtype interface Tagger {
+    static tag<comptime Name: string>(name: Name): this;
+}
+
+class Panel {}
+
+extension of Panel implements Tagger {
+    static tag<comptime Name: string>(name: Name): Panel {
+        return new Panel();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Tagger {
+    static tag<comptime Name: string>(name: Name): this;
+}
+
+class Panel {}
+
+extension of Panel implements Tagger {
+    static tag<comptime Name: string>(name: Name): Panel {
+        return new Panel();
+    }
+}
+
+=== checked ===
+newtype interface Tagger {
+/// @type.symbol symbol=Tagger type=Tagger
+/// @definition.interface symbol=Tagger nominal=true
+/// @definition.method symbol=Tagger.tag source="static tag<comptime Name: string>(name: Name): this" slot=tag static=true type=<comptime Name#1: string>(Name#1) => this
+
+    static tag<comptime Name: string>(name: Name): this;
+    /// @generic.template symbol=Tagger.tag parent=template#0 parameters=(comptime Name#1: string)
+    /// @type.symbol symbol=Tagger.tag source="static tag<comptime Name: string>(name: Name): this" type=<comptime Name#1: string>(Name#1) => this
+    /// @type.symbol symbol=Tagger.tag.Name source="comptime Name: string" type=Name#1
+    /// @type.symbol symbol=Tagger.tag.name source="name: Name" type=Name#1
+    /// @resolution.name source=Name target=Tagger.tag.Name
+
+}
+
+class Panel {}
+/// @type.symbol symbol=Panel source="class Panel {}" type=Panel
+/// @definition.class symbol=Panel source="class Panel {}"
+
+extension of Panel implements Tagger {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=Tagger target=Tagger
+/// @definition.method symbol=tag slot=tag static=true type=<comptime Name#2: string>(Name#2) => Panel
+/// @definition.implementation symbol=<module>#2 requirement=Tagger.tag target=tag
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=Tagger target=Tagger
+
+    static tag<comptime Name: string>(name: Name): Panel {
+    /// @generic.template symbol=tag parent=template#1 parameters=(comptime Name#2: string)
+    /// @type.symbol symbol=tag type=<comptime Name#2: string>(Name#2) => Panel
+    /// @type.symbol symbol=tag.Name source="comptime Name: string" type=Name#2
+    /// @type.symbol symbol=tag.name source="name: Name" type=Name#2
+    /// @resolution.name source=Name target=tag.Name
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_implement_keyof_bounded_static_interface_members() {
+    let session = TestSession::single(
+        r#"
+newtype interface Rowed {
+    type Rows = {};
+
+    static row<comptime Key: keyof this.Rows>(key: Key): this;
+}
+
+class Panel {}
+
+extension of Panel implements Rowed {
+    type Rows = { header: string };
+
+    static row<comptime Key: keyof this.Rows>(key: Key): Panel {
+        return new Panel();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Rowed {
+    type Rows = {};
+
+    static row<comptime Key: keyof this.Rows>(key: Key): this;
+}
+
+class Panel {}
+
+extension of Panel implements Rowed {
+    type Rows = { header: string };
+
+    static row<comptime Key: keyof this.Rows>(key: Key): Panel {
+        return new Panel();
+    }
+}
+
+=== checked ===
+newtype interface Rowed {
+/// @type.symbol symbol=Rowed type=Rowed
+/// @definition.interface symbol=Rowed nominal=true
+/// @definition.associated.type symbol=Rowed.Rows source="type Rows = {}" key=Rows value={}
+/// @definition.method symbol=Rowed.row source="static row<comptime Key: keyof this.Rows>(key: Key): this" slot=row static=true type=<comptime Key#1: keyof this.Rows>(Key#1) => this
+
+    type Rows = {};
+    /// @type.symbol symbol=Rowed.Rows source="type Rows = {}" type={}
+
+    static row<comptime Key: keyof this.Rows>(key: Key): this;
+    /// @generic.template symbol=Rowed.row parent=template#0 parameters=(comptime Key#1: keyof this.Rows)
+    /// @type.symbol symbol=Rowed.row source="static row<comptime Key: keyof this.Rows>(key: Key): this" type=<comptime Key#1: keyof this.Rows>(Key#1) => this
+    /// @type.symbol symbol=Rowed.row.Key source="comptime Key: keyof this.Rows" type=Key#1
+    /// @type.symbol symbol=Rowed.row.key source="key: Key" type=Key#1
+    /// @resolution.name source=Key target=Rowed.row.Key
+
+}
+
+class Panel {}
+/// @type.symbol symbol=Panel source="class Panel {}" type=Panel
+/// @definition.class symbol=Panel source="class Panel {}"
+
+extension of Panel implements Rowed {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=Rowed target="Rowed<type Rows = { header: string }>"
+/// @definition.associated.type symbol=Rows source="type Rows = { header: string }" key=Rows value={ header: string }
+/// @definition.method symbol=row slot=row static=true type=<comptime Key#2: keyof this.Rows>(Key#2) => Panel
+/// @definition.implementation symbol=<module>#2 requirement=Rowed.Rows target=Rows
+/// @definition.implementation symbol=<module>#2 requirement=Rowed.row target=row
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=Rowed target=Rowed
+
+    type Rows = { header: string };
+    /// @type.symbol symbol=Rows source="type Rows = { header: string }" type={ header: string }
+
+    static row<comptime Key: keyof this.Rows>(key: Key): Panel {
+    /// @generic.template symbol=row parent=template#1 parameters=(comptime Key#2: keyof this.Rows)
+    /// @type.symbol symbol=row type=<comptime Key#2: keyof this.Rows>(Key#2) => Panel
+    /// @type.symbol symbol=row.Key source="comptime Key: keyof this.Rows" type=Key#2
+    /// @type.symbol symbol=row.key source="key: Key" type=Key#2
+    /// @resolution.name source=Key target=row.Key
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_implement_row_projected_static_interface_members() {
+    let session = TestSession::single(
+        r#"
+newtype interface Rowed {
+    type Rows = {};
+
+    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this;
+}
+
+class Panel {}
+
+extension of Panel implements Rowed {
+    type Rows = { header: string };
+
+    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
+        return new Panel();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Rowed {
+    type Rows = {};
+
+    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this;
+}
+
+class Panel {}
+
+extension of Panel implements Rowed {
+    type Rows = { header: string };
+
+    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
+        return new Panel();
+    }
+}
+
+=== checked ===
+newtype interface Rowed {
+/// @type.symbol symbol=Rowed type=Rowed
+/// @definition.interface symbol=Rowed nominal=true
+/// @definition.associated.type symbol=Rowed.Rows source="type Rows = {}" key=Rows value={}
+/// @definition.method symbol=Rowed.row source="static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this" slot=row static=true type=<comptime Key#1: keyof this.Rows>(Key#1, this.Rows[Key#1]) => this
+
+    type Rows = {};
+    /// @type.symbol symbol=Rowed.Rows source="type Rows = {}" type={}
+
+    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this;
+    /// @generic.template symbol=Rowed.row parent=template#0 parameters=(comptime Key#1: keyof this.Rows)
+    /// @type.symbol symbol=Rowed.row source="static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this" type=<comptime Key#1: keyof this.Rows>(Key#1, this.Rows[Key#1]) => this
+    /// @type.symbol symbol=Rowed.row.Key source="comptime Key: keyof this.Rows" type=Key#1
+    /// @type.symbol symbol=Rowed.row.key source="key: Key" type=Key#1
+    /// @resolution.name source=Key target=Rowed.row.Key
+    /// @type.symbol symbol=Rowed.row.value source="value: this.Rows[Key]" type=this.Rows[Key#1]
+    /// @resolution.name source=Key target=Rowed.row.Key
+
+}
+
+class Panel {}
+/// @type.symbol symbol=Panel source="class Panel {}" type=Panel
+/// @definition.class symbol=Panel source="class Panel {}"
+
+extension of Panel implements Rowed {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=Rowed target="Rowed<type Rows = { header: string }>"
+/// @definition.associated.type symbol=Rows source="type Rows = { header: string }" key=Rows value={ header: string }
+/// @definition.method symbol=row slot=row static=true type=<comptime Key#2: keyof this.Rows>(Key#2, this.Rows[Key#2]) => Panel
+/// @definition.implementation symbol=<module>#2 requirement=Rowed.Rows target=Rows
+/// @definition.implementation symbol=<module>#2 requirement=Rowed.row target=row
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=Rowed target=Rowed
+
+    type Rows = { header: string };
+    /// @type.symbol symbol=Rows source="type Rows = { header: string }" type={ header: string }
+
+    static row<comptime Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
+    /// @generic.template symbol=row parent=template#1 parameters=(comptime Key#2: keyof this.Rows)
+    /// @type.symbol symbol=row type=<comptime Key#2: keyof this.Rows>(Key#2, this.Rows[Key#2]) => Panel
+    /// @type.symbol symbol=row.Key source="comptime Key: keyof this.Rows" type=Key#2
+    /// @type.symbol symbol=row.key source="key: Key" type=Key#2
+    /// @resolution.name source=Key target=row.Key
+    /// @type.symbol symbol=row.value source="value: this.Rows[Key]" type=this.Rows[Key#2]
+    /// @resolution.name source=Key target=row.Key
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_implement_tuple_bounded_static_interface_members() {
+    let session = TestSession::single(
+        r#"
+newtype interface Grouper {
+    static group<Children: (...unknown[],)>(children: Children): this;
+}
+
+class Panel {}
+
+extension of Panel implements Grouper {
+    static group<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Grouper {
+    static group<Children: (...unknown[],)>(children: Children): this;
+}
+
+class Panel {}
+
+extension of Panel implements Grouper {
+    static group<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+=== checked ===
+newtype interface Grouper {
+/// @type.symbol symbol=Grouper type=Grouper
+/// @definition.interface symbol=Grouper nominal=true
+/// @definition.method symbol=Grouper.group source="static group<Children: (...unknown[],)>(children: Children): this" slot=group static=true type=<Children#1: (...unknown[],)>(Children#1) => this
+
+    static group<Children: (...unknown[],)>(children: Children): this;
+    /// @generic.template symbol=Grouper.group parent=template#0 parameters=(Children#1: (...unknown[],))
+    /// @type.symbol symbol=Grouper.group source="static group<Children: (...unknown[],)>(children: Children): this" type=<Children#1: (...unknown[],)>(Children#1) => this
+    /// @type.symbol symbol=Grouper.group.Children source="Children: (...unknown[],)" type=Children#1
+    /// @type.symbol symbol=Grouper.group.children source="children: Children" type=Children#1
+    /// @resolution.name source=Children target=Grouper.group.Children
+
+}
+
+class Panel {}
+/// @type.symbol symbol=Panel source="class Panel {}" type=Panel
+/// @definition.class symbol=Panel source="class Panel {}"
+
+extension of Panel implements Grouper {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=Grouper target=Grouper
+/// @definition.method symbol=group slot=group static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.implementation symbol=<module>#2 requirement=Grouper.group target=group
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=Grouper target=Grouper
+
+    static group<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=group parent=template#1 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=group type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=group.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=group.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=group.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_implement_tree_builder_with_declared_statics() {
+    let session = TestSession::single(
+        r#"
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        span: {};
+    };
+
+    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        span: {};
+    };
+
+    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+=== checked ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel implements TreeBuilder {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; span: {} }>"
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
+/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
+/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; span: {} }
+
+        div: { class?: string };
+        span: {};
+    };
+
+    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children#1
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=fragment parent=template#0 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=fragment type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=fragment.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=fragment.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=fragment.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+"#,
+    );
+}
+
+#[test]
+fn test_check_tree_element_against_the_contextual_builder() {
+    let session = TestSession::single(
+        r#"
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        span: {};
+    };
+
+    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+function render(): Panel {
+    const page: Panel = <div class="intro"><span/></div>;
+    return page;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+    label: string = "";
+}
+
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        span: {};
+    };
+
+    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+
+function render(): Panel {
+    const page: Panel = (
+        <div class="intro">
+            <span />
+        </div>
+    );
+    return page;
+}
+
+=== checked ===
+import { TreeBuilder } from "destack:tree";
+
+class Panel {
+/// @type.symbol symbol=Panel type=Panel
+/// @definition.class symbol=Panel
+/// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
+
+    label: string = "";
+    /// @type.symbol symbol=Panel.label source="label: string = \"\"" type=string
+
+}
+
+extension of Panel implements TreeBuilder {
+/// @definition.extension symbol=<module>#2 form=local target=Panel
+/// @definition.implements symbol=<module>#2 source=TreeBuilder target="tree.builder.TreeBuilder<type Tags = { div: { class?: string }; span: {} }>"
+/// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
+/// @definition.method symbol=element slot=element static=true type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+/// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
+/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.Tags target=Tags
+/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.element target=element
+/// @definition.implementation symbol=<module>#2 requirement=tree.builder.TreeBuilder.fragment target=fragment
+/// @resolution.name source=Panel target=Panel
+/// @resolution.name source=TreeBuilder target=tree.builder.TreeBuilder
+
+    type Tags = {
+    /// @type.symbol symbol=Tags type={ div: { class?: string }; span: {} }
+
+        div: { class?: string };
+        span: {};
+    };
+
+    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+    /// @generic.template symbol=element parent=template#0 parameters=(comptime Tag: keyof this.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<comptime Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel
+    /// @type.symbol symbol=element.Tag source="comptime Tag: keyof this.Tags" type=Tag
+    /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
+
+        tag: Tag,
+        /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
+        /// @resolution.name source=Tag target=element.Tag
+
+        attributes: this.Tags[Tag],
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @resolution.name source=Tag target=element.Tag
+
+        children: Children,
+        /// @type.symbol symbol=element.children source="children: Children" type=Children#1
+        /// @resolution.name source=Children target=element.Children
+
+    ): Panel {
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+    /// @generic.template symbol=fragment parent=template#0 parameters=(Children#2: (...unknown[],))
+    /// @type.symbol symbol=fragment type=<Children#2: (...unknown[],)>(Children#2) => Panel
+    /// @type.symbol symbol=fragment.Children source="Children: (...unknown[],)" type=Children#2
+    /// @type.symbol symbol=fragment.children source="children: Children" type=Children#2
+    /// @resolution.name source=Children target=fragment.Children
+    /// @resolution.name source=Panel target=Panel
+
+        return new Panel();
+        /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
+        /// @resolution.name source=Panel target=Panel
+
+    }
+}
+
+function render(): Panel {
+/// @type.symbol symbol=render type=() => Panel
+/// @resolution.name source=Panel target=Panel
+
+    const page: Panel = <div class="intro"><span/></div>;
+    /// @type.symbol symbol=render.page source=page type=Panel
+    /// @resolution.pattern source=page kind=binding target=render.page
+    /// @resolution.name source=Panel target=Panel
+    /// @resolution.tree source="<div class=\"intro\"><span/></div>" builder=Panel form=element tag=div call=element attributes=(class: "intro") children=(Panel) type=Panel
+    /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
+
+    return page;
+    /// @resolution.name source=page target=render.page
+    /// @resolution.place source=page placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=page root=render.page
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_check_object_literal_against_a_comptime_projected_parameter() {
+    let session = TestSession::single(
+        r#"
+class Panel {
+    label: string = "";
+}
+
+extension of Panel {
+    type Tags = {
+        div: { class?: string };
+        span: {};
+    };
+
+    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+}
+
+function render(): Panel {
+    const page: Panel = Panel.element("div", { class: "intro" }, (new Panel(),));
+    return page;
+}
+"#,
+    );
+
+    session.assert_dir_checked_diagnostics("main.ds", "");
+}

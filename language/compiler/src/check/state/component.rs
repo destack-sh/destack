@@ -684,6 +684,13 @@ impl CheckState<'_> {
     }
 
     /// Intern one type id list into a module's working segment.
+    /// Return whether one tree tag names a lowercase builder row.
+    pub(in crate::check) fn is_intrinsic_tree_tag(&self, name: dir::StringId) -> bool {
+        self.strings()
+            .get(name)
+            .starts_with(|letter: char| letter.is_ascii_lowercase())
+    }
+
     pub(in crate::check) fn intern_type_ids(
         &mut self,
         module: ModuleId,

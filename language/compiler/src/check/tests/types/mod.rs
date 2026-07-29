@@ -15,4 +15,5 @@ mod representation;
 mod scalar;
 mod r#struct;
 mod template;
+mod tree;
 mod utility;

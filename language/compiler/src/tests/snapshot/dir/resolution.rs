@@ -59,6 +59,10 @@ impl SnapshotTable for dir::ResolutionSegment {
             add_construct_resolution_row(builder, node_id, resolution);
         }
 
+        for (node_id, resolution) in self.tree_entries() {
+            add_tree_resolution_row(builder, node_id, resolution);
+        }
+
         for (node_id, resolution) in self.pattern_entries() {
             add_pattern_resolution_row(builder, self, node_id, resolution);
         }
@@ -80,6 +84,7 @@ impl SnapshotTable for dir::ResolutionSegment {
         let assignment_count = self.assignment_entries().count();
         let guard_count = self.guard_entries().count();
         let construct_count = self.construct_entries().count();
+        let tree_count = self.tree_entries().count();
         let pattern_count = self.pattern_entries().count();
         let assign_pattern_count = self.assign_pattern_entries().count();
         if name_count == 0
@@ -95,6 +100,7 @@ impl SnapshotTable for dir::ResolutionSegment {
             && assignment_count == 0
             && guard_count == 0
             && construct_count == 0
+            && tree_count == 0
             && pattern_count == 0
             && assign_pattern_count == 0
         {
@@ -114,6 +120,7 @@ impl SnapshotTable for dir::ResolutionSegment {
             .count_field("places", place_count)
             .count_field("guards", guard_count)
             .count_field("constructs", construct_count)
+            .count_field("trees", tree_count)
             .count_field("patterns", pattern_count)
             .count_field("assign_patterns", assign_pattern_count);
         builder.push(row);
@@ -1285,6 +1292,110 @@ fn add_construct_resolution_row(
 
     builder.push(row);
     add_construct_target_generic_instances(builder, node_id, &resolution.target);
+}
+
+/// Add one tree resolution row.
+fn add_tree_resolution_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::TreeResolution,
+) {
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "tree")
+        .optional_field("source", builder.node_source(node_id))
+        .type_field("builder", builder.global_type_label(resolution.builder));
+    let row = match &resolution.target {
+        dir::TreeTarget::Element { tag, call } => row
+            .field("form", "element")
+            .field("tag", builder.strings.get(*tag).to_string())
+            .optional_field("call", tree_call_label(builder, call)),
+        dir::TreeTarget::Fragment { call } => row
+            .field("form", "fragment")
+            .optional_field("call", tree_call_label(builder, call)),
+        dir::TreeTarget::Component { callee, invocation } => {
+            let row = row
+                .field("form", "component")
+                .optional_field("callee", builder.node_source(*callee));
+            match invocation {
+                dir::TreeInvocation::Call(call) => {
+                    row.optional_field("call", tree_call_label(builder, call))
+                }
+                dir::TreeInvocation::Construct(construct) => row.field(
+                    "construct",
+                    construct_target_label(builder, &construct.target),
+                ),
+                dir::TreeInvocation::Struct { ty } => {
+                    row.type_field("struct", builder.global_type_label(*ty))
+                }
+            }
+        }
+    };
+    let row = row
+        .optional_field(
+            "attributes",
+            tree_attributes_label(builder, &resolution.attributes),
+        )
+        .type_tuple_field(
+            "children",
+            resolution.children.iter().map(|child| match child {
+                dir::TreeChildBinding::Text { ty, .. }
+                | dir::TreeChildBinding::Expression { ty, .. }
+                | dir::TreeChildBinding::Spread { ty, .. } => builder.global_type_label(*ty),
+            }),
+        )
+        .type_field("type", builder.global_type_label(resolution.ty));
+
+    builder.push(row);
+}
+
+/// Return the label of one tree literal's selected call.
+fn tree_call_label(
+    builder: &DirSnapshotBuilder<'_>,
+    call: &dir::CallResolution,
+) -> Option<String> {
+    let dir::OperationResolution::One(call) = call else {
+        return None;
+    };
+    let target = match &call.target {
+        dir::CallTarget::Symbol { function, .. } => builder.function_target_label(function),
+        dir::CallTarget::Expression { .. } => "expression".to_string(),
+        dir::CallTarget::Dynamic { .. } => "dynamic".to_string(),
+    };
+
+    Some(target)
+}
+
+/// Return the label of one component construct target.
+fn construct_target_label(
+    builder: &DirSnapshotBuilder<'_>,
+    target: &dir::ConstructTarget,
+) -> String {
+    match target {
+        dir::ConstructTarget::Class(candidate) => builder.symbol_path_label(candidate.symbol),
+        dir::ConstructTarget::Newtype(candidate) => builder.symbol_path_label(candidate.symbol),
+        dir::ConstructTarget::Variant(candidate) => builder.symbol_path_label(candidate.case.owner),
+    }
+}
+
+/// Return the label of one tree literal's attribute bindings.
+fn tree_attributes_label(
+    builder: &DirSnapshotBuilder<'_>,
+    attributes: &[dir::TreeAttributeBinding],
+) -> Option<String> {
+    if attributes.is_empty() {
+        return None;
+    }
+    let bindings = attributes
+        .iter()
+        .map(|attribute| {
+            let key = builder.strings.get(attribute.key);
+            let ty = builder.global_type_label(attribute.ty);
+
+            format!("{key}: {ty}")
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    Some(format!("({bindings})"))
 }
 
 /// Add one pattern resolution row.

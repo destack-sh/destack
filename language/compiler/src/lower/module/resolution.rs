@@ -62,6 +62,25 @@ impl FunctionLowerer<'_, '_, '_> {
             .cloned()
     }
 
+    /// Return the checked tree resolution on one tree expression.
+    pub(in crate::lower) fn tree_resolution(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<dir::TreeResolution> {
+        let node = expression.into_global_any(self.source);
+
+        self.source()
+            .resolutions
+            .tree_resolution(node)
+            .cloned()
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "checked DIR is missing a tree resolution for node {}",
+                    node.local_id.id
+                ),
+            })
+    }
+
     /// Return the checked assignment resolution of one target expression.
     pub(in crate::lower) fn assignment_resolution(
         &self,

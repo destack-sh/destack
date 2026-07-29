@@ -256,9 +256,9 @@ function test.main.open(): int32 {
     local l0: Box
 
 entry:
-    v0: ref<Box, borrowed, exclusive> = local.address l0
-    v1: int32 = 7
-    call test.main.Box.constructor(v0, v1)
+    v0: int32 = 7
+    v1: ref<Box, borrowed, exclusive> = local.address l0
+    call test.main.Box.constructor(v1, v0)
     v2: Box = local.get l0
     v3: int32 = call test.main.Box.unwrap(v2)
     return v3

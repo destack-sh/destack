@@ -906,12 +906,50 @@ It's not perfect, but it is very useful in many situations, and Destack (`.ds`) 
 </Level>;
 ```
 
-Unlike in TypeScript, Destack types can participate in custom tree tag behavior by implementing the `TreeTag` interface, and custom intrinsic tags (lowercase tags like `<div>`) are created via `TreeTagBuilder`.
-Essentially, `TreeTag` generalizes `jsxFactory` and `TreeTagBuilder` generalizes `jsxFragmentFactory`:
- - Uppercase or qualified tags resolve as value tags through normal value lookup and the `TreeTag` interface.
- - Lowercase unqualified tags resolve as intrinsic tags through the active `TreeTagBuilder`.
+Tree literals build through a **tree builder**: a type implementing the `TreeBuilder` interface from `destack:tree`.
+The builder resolves from the contextual type of the literal, so `const page: Panel = <div/>` builds through `Panel`'s `TreeBuilder` implementation.
+A literal without a contextual builder reads the default builder from the `compiler.tree` option, spelled as `"<specifier>#<Export>"` like TypeScript's `jsxImportSource`.
 
-The active `TreeTagBuilder` comes from the compiler / target / profile options.
+```ds
+extension of Panel implements TreeBuilder {
+    type Tags = {
+        div: { class?: string };
+        span: {};
+    };
+
+    static element<comptime Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel { /* ... */ }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel { /* ... */ }
+}
+```
+
+Tags split by their written case, as in TSX:
+ - **Lowercase tags** like `<div>` are keys of the builder's `Tags` row, never names in scope. The literal checks its attributes against the tag's declared row and builds through the builder's `element` static.
+ - **`<>...</>` fragments** build through the builder's `fragment` static.
+ - **Uppercase tags** like `<Header>` are **components**: ordinary names resolved through lexical scope. A callable component is invoked with its props row; a class component constructs through its constructor's props parameter; a struct component constructs through its literal field form, so `<Point x={1} y={2}/>` is `Point { x: 1, y: 2 }`. The produced value feeds the surrounding tree.
+
+Components need no protocol: any callable or constructible type in scope serves.
+
+```ds
+struct Badge {
+    label: string;
+}
+
+function Header(props: { title: string }): Panel { /* ... */ }
+
+const page: Panel = <><Header title="hi"/><Badge label="new"/></>;
+```
+
+Attributes check per key against the declared row: written keys must exist in the row, values must be assignable to their properties, and every non-optional key must be provided.
+Spread attributes `{...props}` contribute their enumerable members to the written row under TSX merge rules.
+Component children synthesize the `children` prop and check against its declared type.
+
+Children are **tuple-typed and move**: the children of a literal form a tuple in source order, with text children typed as string literals.
+Spread children `{...pair}` splat statically sized tuple operands into the children tuple; dynamically sized operands are rejected.
 
 ## Decorators
 
@@ -1061,7 +1099,7 @@ Destack modules can contain (up to) one `module { ... }` declaration block, whic
 module {}
 ```
 
-Module metadata such as the role, labels, product, active derives, or tree builder comes from the compiler / target / profile configuration and is read through `import.meta`.
+Module metadata such as the role, labels, product, or active derives comes from the compiler / target / profile configuration and is read through `import.meta`.
 
 ## Globals
 
