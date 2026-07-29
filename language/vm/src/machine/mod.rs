@@ -1,4 +1,5 @@
 mod activation;
+mod callee;
 mod continuation;
 mod cursor;
 mod frame;
@@ -7,6 +8,7 @@ mod machine;
 mod stack;
 
 pub(crate) use activation::*;
+pub(crate) use callee::*;
 pub(crate) use continuation::*;
 pub(crate) use cursor::*;
 pub(crate) use frame::*;

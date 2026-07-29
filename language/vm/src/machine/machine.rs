@@ -5,28 +5,14 @@ use destack_bytecode::{CodeRange, Function};
 use destack_memory::MemoryMap;
 use destack_program as program;
 use destack_program::{
-    BindingId, Continuation, ContinuationTable, FunctionId, Outcome, Profile, Program, ResumeSkip,
-    Runtime, StopSet, SuspensionSite, Value, WatchSet, Word,
+    Continuation, ContinuationTable, FunctionId, Outcome, Profile, Program, ResumeSkip, Runtime,
+    StopSet, SuspensionSite, Value, WatchSet, Word,
 };
 
 use crate::diagnostic::{Error, ExecutionError, Result};
 use crate::options::MachineLimits;
 
-use super::{Activation, Frame, Return, Stack};
-
-/// One executable implementation of a Program function.
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum Implementation<'a> {
-    /// Linked bytecode function.
-    Bytecode {
-        /// Bytecode function metadata.
-        function: &'a Function,
-        /// Encoded function body.
-        code: CodeRange,
-    },
-    /// Registered runtime binding.
-    Binding(BindingId),
-}
+use super::{Activation, Callee, Frame, Return, Stack};
 
 /// One bytecode machine bound to a Program and world memory.
 pub struct Machine {
@@ -329,35 +315,11 @@ impl Machine {
         &self.limits
     }
 
-    /// Return one linked bytecode function.
-    pub(crate) fn function(&self, function: FunctionId) -> Result<&Function> {
-        self.program
-            .bytecode()
-            .function(self.program.sections(), function.index())
-            .ok_or_else(|| Error::undefined_function(function))
-    }
-
-    /// Resolve the executable implementation of one function.
-    pub(crate) fn implementation(&self, function: FunctionId) -> Result<Implementation<'_>> {
-        let linked = self.function(function)?;
-        if let Some(code) = linked.code() {
-            return Ok(Implementation::Bytecode {
-                function: linked,
-                code,
-            });
-        }
-        let Some(binding) = self.program.function_binding(function) else {
-            return Err(Error::undefined_function(function));
-        };
-
-        Ok(Implementation::Binding(binding))
-    }
-
     /// Return executable code for one bytecode function.
-    pub(crate) fn code(&self, function: FunctionId) -> Result<(&Function, CodeRange)> {
-        match self.implementation(function)? {
-            Implementation::Bytecode { function, code } => Ok((function, code)),
-            Implementation::Binding(_) => Err(Error::invalid_instruction()),
+    pub(crate) fn bytecode(&self, function: FunctionId) -> Result<(&Function, CodeRange)> {
+        match Callee::resolve(&self.program, function)? {
+            Callee::Bytecode { function, code } => Ok((function, code)),
+            Callee::Binding(_) => Err(Error::invalid_instruction()),
         }
     }
 
@@ -389,7 +351,7 @@ impl Machine {
         }
 
         // resolve the immutable function body and register window
-        let (linked, code) = self.code(function)?;
+        let (linked, code) = self.bytecode(function)?;
         let register_count = linked.register_count;
         if initialized_word_count > register_count as usize {
             return Err(Error::invalid_instruction());

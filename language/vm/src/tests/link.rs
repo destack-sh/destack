@@ -8,6 +8,7 @@ use destack_heap::DropId;
 use destack_mir::TraceTable;
 use destack_program as program;
 use destack_program::{
+    BindingAffinity, BindingBuilder, BindingEffect, BindingId, BindingProvider, BindingReplay,
     DispatchTableBuilder, DropEntry, FrameLayoutBuilder, FrameLayoutId, FramePoint, FrameSlot,
     FrameState, FrameTableBuilder, FunctionBuilder, FunctionId, FunctionTableBuilder,
     LayoutBuilder, LayoutId, Program, ProgramBuilder, ProgramPoint, SignatureId,
@@ -61,7 +62,7 @@ impl TestProgram {
         // build the Program metadata and static storage
         let (globals, constants, shared_statics, local_statics) = self.globals();
         let (types, layouts, traces, drops) = self.types(&object);
-        let (strings, names, functions) = self.functions(&object);
+        let (strings, names, functions, bindings) = self.functions(&object);
         let suspensions = self.suspensions.into_iter().map(|site| {
             let point = FramePoint::operation(site.point());
             let frame_state = *frame_states
@@ -74,6 +75,7 @@ impl TestProgram {
         let program = ProgramBuilder::new(Default::default(), code)
             .strings(&strings, names)
             .functions(functions)
+            .bindings(bindings)
             .types(types)
             .drops(drops)
             .layouts(layouts)
@@ -230,11 +232,13 @@ impl TestProgram {
         StringPool,
         Vec<destack_core::StringId>,
         FunctionTableBuilder,
+        Vec<BindingBuilder>,
     ) {
         let strings = StringPool::new();
         let mut names = Vec::with_capacity(object.functions().len());
         let mut signatures = Vec::with_capacity(object.functions().len());
         let mut functions = Vec::with_capacity(object.functions().len());
+        let mut bindings = Vec::with_capacity(self.bindings.len());
 
         // preserve bytecode function order as dense Program identity
         for (index, _) in object.functions().iter().enumerate() {
@@ -244,8 +248,18 @@ impl TestProgram {
             if let Some(environment) = self.environments.get(&(index as u32)).copied() {
                 entry = entry.environment(environment);
             }
-            if let Some(binding) = self.bindings.get(&(index as u32)).copied() {
-                entry = entry.binding(binding);
+            if let Some(binding) = self.bindings.get(&(index as u32)) {
+                let binding_name = strings.intern(binding);
+                names.push(binding_name);
+                bindings.push(BindingBuilder::new(
+                    BindingId::from_name(binding),
+                    binding_name,
+                    FunctionId(index as u32),
+                    BindingEffect::Pure,
+                    BindingProvider::Runtime,
+                    BindingReplay::Recordable,
+                    BindingAffinity::None,
+                ));
             }
             if let Some(coroutine) = self.coroutines.get(&(index as u32)).copied() {
                 entry = entry.coroutine(coroutine);
@@ -266,7 +280,7 @@ impl TestProgram {
             .signatures(signatures)
             .functions(functions);
 
-        (strings, names, table)
+        (strings, names, table, bindings)
     }
 
     /// Build physical bytecode maps and canonical Program frame layouts.

@@ -59,7 +59,7 @@ impl program::Runtime for BenchmarkRuntime {
     fn call_binding(
         &mut self,
         _memory: program::Memory<'_>,
-        _binding: program::BindingId,
+        _binding: &program::Binding,
         _arguments: &[Word],
         _result: &mut [Word],
     ) -> Result<()> {

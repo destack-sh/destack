@@ -101,15 +101,15 @@ impl program::Runtime for TestRuntime {
     fn call_binding(
         &mut self,
         memory: program::Memory<'_>,
-        binding: program::BindingId,
+        binding: &program::Binding,
         arguments: &[program::Word],
         result: &mut [program::Word],
     ) -> Result<()> {
-        let Some(invoke) = self.bindings.get(&binding).copied() else {
+        let Some(invoke) = self.bindings.get(&binding.id).copied() else {
             return Err(Error::invalid_instruction());
         };
         self.calls.push(RuntimeCall::Binding {
-            binding,
+            binding: binding.id,
             arguments: arguments.to_vec(),
         });
 

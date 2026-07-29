@@ -12,7 +12,7 @@ use crate::diagnostic::{
     DiagnosticAnchor, Error, ErrorReason, ExecutionError, ExecutionResult, Result, StackTraceFrame,
 };
 
-use super::{Cursor, Frame, Implementation, Machine, Return};
+use super::{Callee, Cursor, Frame, Machine, Return, Stack};
 
 /// One active execution over mutable machine state.
 pub(crate) struct Activation<'machine, 'run, R>
@@ -107,7 +107,7 @@ where
         function: FunctionId,
         arguments: &[Word],
     ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
-        if let Implementation::Binding(binding) = self.machine.implementation(function)? {
+        if let Callee::Binding(binding) = Callee::resolve(&self.machine.program, function)? {
             let result_count = self.binding_result_word_count(function)?;
             let mut result = vec![Word::ZERO; result_count];
             let memory = self.activation.memory.reborrow();
@@ -236,7 +236,7 @@ where
                 frame_count,
             },
         };
-        if let Implementation::Binding(binding) = self.machine.implementation(function)? {
+        if let Callee::Binding(binding) = Callee::resolve(&self.machine.program, function)? {
             let Return::Call {
                 registers, normal, ..
             } = return_to
@@ -244,7 +244,17 @@ where
                 unreachable!("ordinary binding calls require one call return");
             };
             let result_count = registers.word_count as usize;
-            self.call_binding(binding, environment, arguments, result_count)?;
+            let frame = self.frame();
+            Self::call_binding(
+                frame,
+                &self.machine.stack,
+                &mut self.machine.binding_words,
+                &mut self.activation,
+                binding,
+                environment,
+                arguments,
+                result_count,
+            )?;
 
             // publish binding results directly into the caller frame
             for index in 0..result_count {
@@ -327,10 +337,19 @@ where
         }
         let current = self.frame();
         let argument_start = current.range(arguments);
-        let implementation = self.machine.implementation(function)?;
-        if let Implementation::Binding(binding) = implementation {
+        let callee = Callee::resolve(&self.machine.program, function)?;
+        if let Callee::Binding(binding) = callee {
             let result_count = self.binding_result_word_count(function)?;
-            self.call_binding(binding, environment, arguments, result_count)?;
+            Self::call_binding(
+                current,
+                &self.machine.stack,
+                &mut self.machine.binding_words,
+                &mut self.activation,
+                binding,
+                environment,
+                arguments,
+                result_count,
+            )?;
             let Ok(result_word_count) = u16::try_from(result_count) else {
                 return Err(self.invalid_instruction().into());
             };
@@ -347,10 +366,10 @@ where
 
             return self.return_frame(results);
         }
-        let Implementation::Bytecode {
+        let Callee::Bytecode {
             function: linked,
             code,
-        } = implementation
+        } = callee
         else {
             unreachable!("binding implementation returned above");
         };
@@ -397,33 +416,30 @@ where
 
     /// Call one runtime binding with flattened frame arguments.
     fn call_binding(
-        &mut self,
-        binding: program::BindingId,
+        frame: Frame,
+        stack: &Stack,
+        words: &mut Vec<Word>,
+        activation: &mut program::Activation<'run, 'run, R>,
+        binding: &program::Binding,
         environment: Option<Word>,
         arguments: RegisterSpan,
         result_count: usize,
     ) -> ExecutionResult<(), R::Error> {
-        let frame = self.frame();
         let argument_start = frame.range(arguments);
         let environment_count = usize::from(environment.is_some());
         let argument_count = environment_count + arguments.word_count as usize;
-        let words = &mut self.machine.binding_words;
         words.clear();
         words.reserve(argument_count + result_count);
 
         // flatten the hidden environment before source arguments
         words.extend(environment);
-        words.extend(
-            self.machine
-                .stack
-                .words(argument_start, arguments.word_count as usize),
-        );
+        words.extend(stack.words(argument_start, arguments.word_count as usize));
         words.resize(argument_count + result_count, Word::ZERO);
 
         // invoke through the exact runtime error boundary
         let (arguments, result) = words.split_at_mut(argument_count);
-        let memory = self.activation.memory.reborrow();
-        self.activation
+        let memory = activation.memory.reborrow();
+        activation
             .runtime
             .call_binding(memory, binding, arguments, result)
             .map_err(ExecutionError::runtime)?;

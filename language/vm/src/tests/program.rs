@@ -7,12 +7,12 @@ use destack_mir::{
 };
 use destack_program as program;
 use destack_program::{
-    AllocationSite, BindingId, BreakpointId, ContinuationSite, CounterId, CounterSite,
-    DynamicEntry, DynamicTableBuilder, FunctionId, InstructionStop, LayoutId, LayoutShapeBuilder,
-    MemoryAccess, MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint,
-    ReferenceFlags, ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature,
-    SiteTableBuilder, StopReason, Suspension, SuspensionSite, TensorDimension, TensorLayoutBuilder,
-    TensorViewLayoutBuilder, TypeId, VirtualTableBuilder, WatchpointId, Word,
+    AllocationSite, BreakpointId, ContinuationSite, CounterId, CounterSite, DynamicEntry,
+    DynamicTableBuilder, FunctionId, InstructionStop, LayoutId, LayoutShapeBuilder, MemoryAccess,
+    MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint, ReferenceFlags,
+    ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature, SiteTableBuilder, StopReason,
+    Suspension, SuspensionSite, TensorDimension, TensorLayoutBuilder, TensorViewLayoutBuilder,
+    TypeId, VirtualTableBuilder, WatchpointId, Word,
 };
 
 pub(super) const TEST_GLOBAL_BYTES: usize = Word::BYTE_LEN;
@@ -20,7 +20,7 @@ pub(super) const TEST_GLOBAL_BYTES: usize = Word::BYTE_LEN;
 /// Program tables used by one bytecode machine fixture.
 pub(crate) struct TestProgram {
     /// Runtime bindings keyed by bytecode function name.
-    pub(super) bindings: HashMap<u32, BindingId>,
+    pub(super) bindings: HashMap<u32, String>,
     /// Program signatures keyed by bytecode function id.
     pub(super) signatures: Vec<Option<Signature>>,
     /// Signature used by explicitly word-only fixtures.
@@ -375,8 +375,7 @@ impl TestProgram {
 
     /// Attach one runtime binding to a bytecode function.
     pub(crate) fn binding(mut self, function: u32, binding: &str) -> Self {
-        self.bindings
-            .insert(function, BindingId::from_name(binding));
+        self.bindings.insert(function, binding.to_string());
 
         self
     }
