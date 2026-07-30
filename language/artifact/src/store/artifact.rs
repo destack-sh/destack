@@ -2,37 +2,27 @@ use std::collections::HashSet;
 
 use destack_core::StringPool;
 
-use crate::{
-    ArtifactBindingRecord, ArtifactError, ArtifactInput, ArtifactRecord, ArtifactResultRecord,
-    ArtifactVersion,
-};
+use crate::{ArtifactError, ArtifactRecord, ArtifactVersion};
 
-/// Persistent store for artifact bindings and results.
+/// Persistent store for artifacts.
 pub trait ArtifactStore: std::fmt::Debug + Send + Sync {
-    /// Load one artifact binding by exact input.
-    fn load_binding(
+    /// Load one artifact by exact version.
+    fn load(
         &self,
-        input: &ArtifactInput,
+        version: &ArtifactVersion,
         strings: &StringPool,
-    ) -> Result<Option<ArtifactBindingRecord>, ArtifactError>;
+    ) -> Result<Option<ArtifactRecord>, ArtifactError>;
 
-    /// Load one exact artifact result when it is present.
-    fn load_result(
-        &self,
-        expected: &ArtifactVersion,
-        strings: &StringPool,
-    ) -> Result<Option<ArtifactResultRecord>, ArtifactError>;
-
-    /// Queue one artifact binding and result for persistence.
+    /// Queue one artifact for persistence.
     fn store(&self, record: ArtifactRecord) -> Result<(), ArtifactError>;
 
-    /// Persist queued artifact bindings and results.
+    /// Persist queued artifacts.
     fn flush(&self, strings: &StringPool) -> Result<ArtifactFlush, ArtifactError>;
 
-    /// Retain only selected artifact input records.
+    /// Retain only selected artifact versions.
     fn retain(
         &self,
-        inputs: &HashSet<ArtifactInput>,
+        versions: &HashSet<ArtifactVersion>,
         strings: &StringPool,
     ) -> Result<(), ArtifactError>;
 }
@@ -42,10 +32,8 @@ pub trait ArtifactStore: std::fmt::Debug + Send + Sync {
 pub struct ArtifactFlush {
     /// The number of segment files published.
     pub segments: usize,
-    /// The number of artifact results published.
-    pub results: usize,
-    /// The number of artifact bindings published.
-    pub bindings: usize,
+    /// The number of artifacts published.
+    pub artifacts: usize,
     /// The number of interned strings carried by the published segments.
     pub strings: usize,
     /// The number of encoded bytes published.
@@ -64,19 +52,11 @@ impl NullArtifactStore {
 }
 
 impl ArtifactStore for NullArtifactStore {
-    fn load_binding(
+    fn load(
         &self,
-        _input: &ArtifactInput,
+        _version: &ArtifactVersion,
         _strings: &StringPool,
-    ) -> Result<Option<ArtifactBindingRecord>, ArtifactError> {
-        Ok(None)
-    }
-
-    fn load_result(
-        &self,
-        _expected: &ArtifactVersion,
-        _strings: &StringPool,
-    ) -> Result<Option<ArtifactResultRecord>, ArtifactError> {
+    ) -> Result<Option<ArtifactRecord>, ArtifactError> {
         Ok(None)
     }
 
@@ -90,7 +70,7 @@ impl ArtifactStore for NullArtifactStore {
 
     fn retain(
         &self,
-        _inputs: &HashSet<ArtifactInput>,
+        _versions: &HashSet<ArtifactVersion>,
         _strings: &StringPool,
     ) -> Result<(), ArtifactError> {
         Ok(())

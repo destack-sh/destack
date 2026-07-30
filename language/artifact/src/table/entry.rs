@@ -1,23 +1,30 @@
-use destack_serde::Reflect;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use destack_serde::Reflect;
 use destack_source::{Content, DiagnosticCollection};
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactDependency, ArtifactFailure, ArtifactInput, ArtifactPayload, ArtifactVersion};
+use crate::{ArtifactDependency, ArtifactFailure, ArtifactPayload, ArtifactVersion};
 
 /// Dense in-process id for one artifact key.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ArtifactId(pub(crate) u32);
 
+impl ArtifactId {
+    /// Return this dense artifact id as a table index.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
 /// Compact in-process id for one immutable artifact binding.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ArtifactBindingId(pub(crate) u32);
 
-/// One exact artifact version entry.
+/// One reusable artifact result entry.
 #[derive(Debug, Clone)]
 pub(crate) struct ArtifactEntry {
     /// The exact terminal result.
@@ -28,24 +35,13 @@ pub(crate) struct ArtifactEntry {
     pub(crate) sidecars: Arc<[ArtifactSidecar]>,
 }
 
-/// One immutable mapping from an artifact input to one result.
+/// One immutable artifact version and its exact dependency observations.
 #[derive(Debug, Clone)]
 pub struct ArtifactBinding {
-    /// The artifact input.
-    pub input: ArtifactInput,
-    /// The exact produced result.
+    /// The reusable artifact result.
     pub version: ArtifactVersion,
     /// The exact dependency observations.
     pub dependencies: Arc<[ArtifactDependency]>,
-}
-
-/// Artifact inputs and result versions retained by selected bindings.
-#[derive(Debug)]
-pub struct ArtifactRetention {
-    /// The retained artifact inputs.
-    pub inputs: HashSet<ArtifactInput>,
-    /// The retained result versions.
-    pub versions: HashSet<ArtifactVersion>,
 }
 
 impl ArtifactEntry {

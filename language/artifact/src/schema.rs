@@ -1,16 +1,15 @@
 use destack_serde::SchemaRegistry;
 
 use crate::{
-    ArtifactBindingRecord, ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload,
-    ArtifactReference, ArtifactResultRecord, ArtifactSidecar, ArtifactVersion, Asset, Build,
-    BuildLinkage, BuildManifest, BuildProfile, Bundle, BundleFile, BundleMode, BundleSection,
-    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirDeclaredComponent,
-    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, EmitFormat,
-    GlobalEnvironment, Host, InferenceComponentIndex, LanguageEnvironment, LanguageIntrinsics,
-    MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleIndex,
-    ModuleLinted, Object, ObjectFormat, PackageGraph, Platform, Product, ProductTarget,
-    ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime, Script, ScriptBody, ScriptLanguage,
-    SourceMap,
+    ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload, ArtifactRecord,
+    ArtifactReference, ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest,
+    BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, ComponentGraph, Data, DirBound,
+    DirChecked, DirCheckedComponent, DirDeclaredComponent, DirExpanded, DirExported, DirImported,
+    DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
+    InferenceComponentIndex, LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirElaborated,
+    MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleIndex, ModuleLinted, Object,
+    ObjectFormat, PackageGraph, Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex,
+    ProgramLinted, Runtime, Script, ScriptBody, ScriptLanguage, SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -19,8 +18,7 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<ArtifactVersion>();
     registry.register::<ArtifactDependency>();
     registry.register::<ArtifactSidecar>();
-    registry.register::<ArtifactBindingRecord>();
-    registry.register::<ArtifactResultRecord>();
+    registry.register::<ArtifactRecord>();
     registry.register::<ArtifactPayload>();
     registry.register::<ArtifactReference>();
 

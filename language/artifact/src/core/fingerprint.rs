@@ -5,11 +5,11 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArtifactDependency, ArtifactKey, ArtifactProjection, ArtifactProjectionFingerprint,
-    ArtifactVersion, SourceDependency,
+    ArtifactDependency, ArtifactProjection, ArtifactProjectionFingerprint, ArtifactVersion,
+    SourceDependency,
 };
 
-/// Deterministic fingerprint of one artifact's complete inputs.
+/// Deterministic fingerprint of one artifact's observed inputs.
 #[repr(transparent)]
 #[derive(
     Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize, Reflect,
@@ -29,7 +29,7 @@ impl std::fmt::Display for ArtifactFingerprint {
 }
 
 impl ArtifactFingerprint {
-    /// Create one artifact fingerprint from the toolchain build and exact dependencies.
+    /// Create one artifact fingerprint from the toolchain build and dependency observations.
     pub(crate) fn new(
         build_fingerprint: &str,
         dependencies: impl IntoIterator<Item = ArtifactDependency>,
@@ -53,30 +53,6 @@ impl ArtifactFingerprint {
         }
 
         Self(hasher.finish_u128())
-    }
-}
-
-/// One artifact key and its exact input fingerprint.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
-)]
-pub struct ArtifactInput {
-    /// The artifact key.
-    pub key: ArtifactKey,
-    /// The exact input fingerprint.
-    pub fingerprint: ArtifactFingerprint,
-}
-
-impl ArtifactInput {
-    /// Create one artifact input from its complete declared dependencies.
-    pub fn new(
-        key: ArtifactKey,
-        build_fingerprint: &str,
-        dependencies: impl IntoIterator<Item = ArtifactDependency>,
-    ) -> Self {
-        let fingerprint = ArtifactFingerprint::new(build_fingerprint, dependencies);
-
-        Self { key, fingerprint }
     }
 }
 

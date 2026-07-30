@@ -8,28 +8,24 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ARTIFACT_SEGMENT_EXTENSION, ARTIFACT_STORE_VERSION, ArtifactBindingRecord, ArtifactError,
-    ArtifactFlush, ArtifactInput, ArtifactRecord, ArtifactResultRecord, ArtifactStore,
-    ArtifactVersion, BlobStore, BlobStoreError, MAX_BLOB_BYTES, RepositoryStoreLayout,
+    ARTIFACT_SEGMENT_EXTENSION, ARTIFACT_STORE_VERSION, ArtifactError, ArtifactFlush,
+    ArtifactRecord, ArtifactStore, ArtifactVersion, BlobStore, BlobStoreError, MAX_BLOB_BYTES,
+    RepositoryStoreLayout,
 };
 
-/// Segmented store of artifact bindings and results.
+/// Segmented store of artifacts.
 #[derive(Debug)]
 pub struct SegmentedArtifactStore {
     /// The byte store backing this artifact store.
     store: Arc<dyn BlobStore>,
     /// The repository store layout.
     layout: RepositoryStoreLayout,
-    /// The toolchain build fingerprint used by artifact inputs.
-    build_fingerprint: String,
     /// The persistent store partition for this build and record format.
     partition: String,
-    /// Artifact bindings and results waiting for publication.
+    /// Artifacts waiting for publication.
     pending: Mutex<Vec<ArtifactRecord>>,
-    /// Loaded results keyed by exact artifact version.
-    results: RwLock<FxHashMap<ArtifactVersion, ArtifactResultRecord>>,
-    /// Loaded bindings keyed by artifact input.
-    bindings: RwLock<FxHashMap<ArtifactInput, ArtifactBindingRecord>>,
+    /// Loaded artifacts keyed by exact version.
+    records: RwLock<FxHashMap<ArtifactVersion, ArtifactRecord>>,
     /// Segment files already reflected in the process-local index.
     segments: RwLock<HashSet<PathBuf>>,
     /// Whether the persistent segment directory has been indexed.
@@ -49,74 +45,40 @@ impl SegmentedArtifactStore {
         Self {
             store,
             layout,
-            build_fingerprint,
             partition,
             pending: Mutex::new(Vec::new()),
-            results: RwLock::new(FxHashMap::default()),
-            bindings: RwLock::new(FxHashMap::default()),
+            records: RwLock::new(FxHashMap::default()),
             segments: RwLock::new(HashSet::new()),
             is_index_loaded: RwLock::new(false),
         }
     }
 
-    /// Load one artifact binding by input.
-    fn load_binding_record(
+    /// Load one artifact by exact version.
+    fn load_record(
         &self,
-        input: &ArtifactInput,
+        version: &ArtifactVersion,
         strings: &StringPool,
-    ) -> Result<Option<ArtifactBindingRecord>, ArtifactError> {
-        // check bindings written or loaded by this process first
-        if let Some(binding) = self.load_binding_from_index(input) {
-            binding.verify(&self.build_fingerprint)?;
-
-            return Ok(Some(binding));
-        }
-
-        // load persistent segment index on first process-local miss
-        self.load_index(strings)?;
-
-        let Some(binding) = self.load_binding_from_index(input) else {
-            return Ok(None);
-        };
-        binding.verify(&self.build_fingerprint)?;
-
-        Ok(Some(binding))
-    }
-
-    /// Load one exact artifact result.
-    fn load_result_record(
-        &self,
-        expected: &ArtifactVersion,
-        strings: &StringPool,
-    ) -> Result<Option<ArtifactResultRecord>, ArtifactError> {
-        // check results written or loaded by this process first
-        if let Some(record) = self.load_result_from_index(expected) {
+    ) -> Result<Option<ArtifactRecord>, ArtifactError> {
+        // check artifacts written or loaded by this process first
+        if let Some(record) = self.load_from_index(version) {
             return Ok(Some(record));
         }
 
         // load persistent segment index on first process-local miss
         self.load_index(strings)?;
 
-        Ok(self.load_result_from_index(expected))
+        Ok(self.load_from_index(version))
     }
 
-    /// Load one artifact result from the process-local index.
-    fn load_result_from_index(&self, expected: &ArtifactVersion) -> Option<ArtifactResultRecord> {
-        let results = self.results.read();
-        let result = results.get(expected)?;
+    /// Load one artifact from the process-local index.
+    fn load_from_index(&self, version: &ArtifactVersion) -> Option<ArtifactRecord> {
+        let records = self.records.read();
+        let record = records.get(version)?;
 
-        Some(result.clone())
+        Some(record.clone())
     }
 
-    /// Load one artifact binding from the process-local index.
-    fn load_binding_from_index(&self, input: &ArtifactInput) -> Option<ArtifactBindingRecord> {
-        let bindings = self.bindings.read();
-        let binding = bindings.get(input)?;
-
-        Some(binding.clone())
-    }
-
-    /// Flush queued artifact bindings and results as one immutable segment.
+    /// Flush queued artifacts as one immutable segment.
     fn flush_pending(&self, strings: &StringPool) -> Result<ArtifactFlush, ArtifactError> {
         // drain queued records
         let records = {
@@ -131,21 +93,10 @@ impl SegmentedArtifactStore {
         // refresh and publish under the cross-process store lock
         let flush = self.with_write_lock(|| {
             self.load_new_segments(strings)?;
-            let known_results = self.results.read().keys().copied().collect::<HashSet<_>>();
-            let known_bindings = self
-                .bindings
-                .read()
-                .iter()
-                .map(|(input, binding)| (*input, binding.version))
-                .collect::<FxHashMap<_, _>>();
-            let segment = ArtifactSegment::build(
-                &self.partition,
-                strings,
-                &records,
-                &known_results,
-                &known_bindings,
-            )?;
-            if segment.results.is_empty() && segment.bindings.is_empty() {
+            let known_versions = self.records.read().keys().copied().collect::<HashSet<_>>();
+            let segment =
+                ArtifactSegment::build(&self.partition, strings, &records, &known_versions)?;
+            if segment.records.is_empty() {
                 return Ok(ArtifactFlush::default());
             }
 
@@ -171,8 +122,7 @@ impl SegmentedArtifactStore {
         let path = self.segment_path(&bytes);
         let flush = ArtifactFlush {
             segments: 1,
-            results: segment.results.len(),
-            bindings: segment.bindings.len(),
+            artifacts: segment.records.len(),
             strings: segment.strings.len(),
             bytes: bytes.len(),
         };
@@ -215,71 +165,52 @@ impl SegmentedArtifactStore {
         Ok(())
     }
 
-    /// Retain only selected artifact input records.
-    fn retain_inputs(
+    /// Retain only selected artifact versions.
+    fn retain_versions(
         &self,
-        inputs: &HashSet<ArtifactInput>,
+        versions: &HashSet<ArtifactVersion>,
         strings: &StringPool,
     ) -> Result<(), ArtifactError> {
         // discard queued records that are no longer selected
         self.pending
             .lock()
-            .retain(|record| inputs.contains(&record.binding.input));
+            .retain(|record| versions.contains(&record.version));
         let _flush = self.flush_pending(strings)?;
 
-        // compact binding and result rows under the store lock
+        // compact artifact records under the store lock
         self.with_write_lock(|| {
             self.load_new_segments(strings)?;
-            let retained_versions = inputs
-                .iter()
-                .filter_map(|input| {
-                    self.bindings
-                        .read()
-                        .get(input)
-                        .map(|binding| binding.version)
-                })
-                .collect::<HashSet<_>>();
-            let mut retained_results = FxHashMap::default();
-            let mut retained_bindings = FxHashMap::default();
+            let mut retained_records = FxHashMap::default();
             let mut retained_segments = HashSet::new();
-            let mut stored_results = HashSet::new();
+            let mut stored_versions = HashSet::new();
 
             for path in self.segment_paths()? {
                 let Some(segment) = self.read_segment(&path)? else {
                     continue;
                 };
-                let bindings = segment
-                    .bindings
+                let records = segment
+                    .records
                     .iter()
-                    .filter(|binding| inputs.contains(&binding.input))
-                    .cloned()
-                    .collect::<Vec<_>>();
-                let results = segment
-                    .results
-                    .iter()
-                    .filter(|result| {
-                        retained_versions.contains(&result.version)
-                            && stored_results.insert(result.version)
+                    .filter(|record| {
+                        versions.contains(&record.version) && stored_versions.insert(record.version)
                     })
                     .cloned()
                     .collect::<Vec<_>>();
 
                 // drop fully unreachable segments
-                if bindings.is_empty() && results.is_empty() {
+                if records.is_empty() {
                     self.store.remove(&path)?;
                 }
                 // keep fully reachable segments
-                else if bindings.len() == segment.bindings.len()
-                    && results.len() == segment.results.len()
-                {
-                    segment.insert_into(strings, &mut retained_results, &mut retained_bindings)?;
+                else if records.len() == segment.records.len() {
+                    segment.insert_into(strings, &mut retained_records)?;
                     retained_segments.insert(path);
 
                     continue;
                 }
                 // compact partially reachable segments
                 else {
-                    let segment = segment.compact(bindings, results);
+                    let segment = segment.compact(records);
                     let bytes = segment.encode()?;
                     let compacted_path = self.segment_path(&bytes);
 
@@ -287,22 +218,12 @@ impl SegmentedArtifactStore {
                     if compacted_path != path {
                         self.store.remove(&path)?;
                     }
-                    segment.insert_into(strings, &mut retained_results, &mut retained_bindings)?;
+                    segment.insert_into(strings, &mut retained_records)?;
                     retained_segments.insert(compacted_path);
                 }
             }
 
-            // require every retained binding result after compaction
-            for binding in retained_bindings.values() {
-                if !retained_results.contains_key(&binding.version) {
-                    return Err(ArtifactError::Invalid(
-                        "retained artifact binding has no persisted result",
-                    ));
-                }
-            }
-
-            *self.results.write() = retained_results;
-            *self.bindings.write() = retained_bindings;
+            *self.records.write() = retained_records;
             *self.segments.write() = retained_segments;
             *self.is_index_loaded.write() = true;
 
@@ -339,25 +260,15 @@ impl SegmentedArtifactStore {
             .collect::<Vec<_>>();
         drop(known_segments);
 
-        let mut results = self.results.write();
-        let mut bindings = self.bindings.write();
+        let mut records = self.records.write();
         let mut known_segments = self.segments.write();
         for path in paths {
             let Some(segment) = self.read_segment(&path)? else {
                 continue;
             };
 
-            segment.insert_into(strings, &mut results, &mut bindings)?;
+            segment.insert_into(strings, &mut records)?;
             known_segments.insert(path);
-        }
-
-        // require every persisted binding to name one persisted result
-        for binding in bindings.values() {
-            if !results.contains_key(&binding.version) {
-                return Err(ArtifactError::Invalid(
-                    "persisted artifact binding has no result",
-                ));
-            }
         }
 
         Ok(())
@@ -369,10 +280,9 @@ impl SegmentedArtifactStore {
         segment: ArtifactSegment,
         strings: &StringPool,
     ) -> Result<(), ArtifactError> {
-        let mut results = self.results.write();
-        let mut bindings = self.bindings.write();
+        let mut records = self.records.write();
 
-        segment.insert_into(strings, &mut results, &mut bindings)
+        segment.insert_into(strings, &mut records)
     }
 
     /// Read one segment file from disk.
@@ -458,20 +368,12 @@ impl SegmentedArtifactStore {
 }
 
 impl ArtifactStore for SegmentedArtifactStore {
-    fn load_binding(
+    fn load(
         &self,
-        input: &ArtifactInput,
+        version: &ArtifactVersion,
         strings: &StringPool,
-    ) -> Result<Option<ArtifactBindingRecord>, ArtifactError> {
-        self.load_binding_record(input, strings)
-    }
-
-    fn load_result(
-        &self,
-        expected: &ArtifactVersion,
-        strings: &StringPool,
-    ) -> Result<Option<ArtifactResultRecord>, ArtifactError> {
-        self.load_result_record(expected, strings)
+    ) -> Result<Option<ArtifactRecord>, ArtifactError> {
+        self.load_record(version, strings)
     }
 
     fn store(&self, record: ArtifactRecord) -> Result<(), ArtifactError> {
@@ -486,24 +388,22 @@ impl ArtifactStore for SegmentedArtifactStore {
 
     fn retain(
         &self,
-        inputs: &HashSet<ArtifactInput>,
+        versions: &HashSet<ArtifactVersion>,
         strings: &StringPool,
     ) -> Result<(), ArtifactError> {
-        self.retain_inputs(inputs, strings)
+        self.retain_versions(versions, strings)
     }
 }
 
-/// Immutable group of artifact bindings and results written together.
+/// Immutable group of artifacts written together.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct ArtifactSegment {
     /// The persistent store partition containing this segment.
     pub(super) partition: String,
     /// String texts referenced by the segment records.
     pub(super) strings: Vec<String>,
-    /// Artifact results first published by this segment.
-    pub(super) results: Vec<ArtifactResultRecord>,
-    /// Artifact input bindings carried by this segment.
-    pub(super) bindings: Vec<ArtifactBindingRecord>,
+    /// Artifacts first published by this segment.
+    pub(super) records: Vec<ArtifactRecord>,
 }
 
 impl ArtifactSegment {
@@ -512,48 +412,23 @@ impl ArtifactSegment {
         partition: &str,
         string_pool: &StringPool,
         records: &[ArtifactRecord],
-        known_results: &HashSet<ArtifactVersion>,
-        known_bindings: &FxHashMap<ArtifactInput, ArtifactVersion>,
+        known_versions: &HashSet<ArtifactVersion>,
     ) -> Result<Self, ArtifactError> {
-        // select one new result and binding per exact identity
-        let mut results = BTreeMap::new();
-        let mut bindings = BTreeMap::<ArtifactInput, ArtifactBindingRecord>::new();
+        // select one new record per exact artifact version
+        let mut selected = BTreeMap::new();
         for record in records {
-            if let Some(existing) = known_bindings.get(&record.binding.input) {
-                if *existing != record.binding.version {
-                    return Err(ArtifactError::Nondeterministic {
-                        input: Box::new(record.binding.input),
-                        existing: Box::new(*existing),
-                        produced: Box::new(record.binding.version),
-                    });
-                }
-
+            if known_versions.contains(&record.version) {
                 continue;
             }
-            if !known_results.contains(&record.result.version) {
-                results
-                    .entry(record.result.version)
-                    .or_insert_with(|| record.result.clone());
-            }
-            if let Some(existing) = bindings.get(&record.binding.input)
-                && existing.version != record.binding.version
-            {
-                return Err(ArtifactError::Nondeterministic {
-                    input: Box::new(record.binding.input),
-                    existing: Box::new(existing.version),
-                    produced: Box::new(record.binding.version),
-                });
-            }
-            bindings
-                .entry(record.binding.input)
-                .or_insert_with(|| record.binding.clone());
+            selected
+                .entry(record.version)
+                .or_insert_with(|| record.clone());
         }
 
-        // collect only strings referenced by selected rows
-        let mut string_ids = results
+        // collect only strings referenced by selected records
+        let mut string_ids = selected
             .values()
-            .flat_map(|result| result.strings.iter())
-            .chain(bindings.values().flat_map(|binding| binding.strings.iter()))
+            .flat_map(|record| record.strings.iter())
             .copied()
             .collect::<Vec<_>>();
         string_ids.sort_unstable();
@@ -571,8 +446,7 @@ impl ArtifactSegment {
         Ok(Self {
             partition: partition.to_owned(),
             strings,
-            results: results.into_values().collect(),
-            bindings: bindings.into_values().collect(),
+            records: selected.into_values().collect(),
         })
     }
 
@@ -600,8 +474,7 @@ impl ArtifactSegment {
     pub(super) fn insert_into(
         self,
         string_pool: &StringPool,
-        results: &mut FxHashMap<ArtifactVersion, ArtifactResultRecord>,
-        bindings: &mut FxHashMap<ArtifactInput, ArtifactBindingRecord>,
+        records: &mut FxHashMap<ArtifactVersion, ArtifactRecord>,
     ) -> Result<(), ArtifactError> {
         // verify and intern this segment's complete string table
         let mut strings = FxHashMap::default();
@@ -618,50 +491,24 @@ impl ArtifactSegment {
             string_pool.ensure(string_id, &string);
         }
 
-        // index result rows independently from their producing inputs
-        for result in self.results {
-            for string in &result.strings {
+        // index every artifact record
+        for record in self.records {
+            for string in &record.strings {
                 if !strings.contains_key(string) {
                     return Err(ArtifactError::MissingString { string: *string });
                 }
             }
-            results.entry(result.version).or_insert(result);
-        }
-
-        // index each input binding and reject nondeterministic records
-        for binding in self.bindings {
-            for string in &binding.strings {
-                if !strings.contains_key(string) {
-                    return Err(ArtifactError::MissingString { string: *string });
-                }
-            }
-            if let Some(existing) = bindings.get(&binding.input)
-                && existing.version != binding.version
-            {
-                return Err(ArtifactError::Nondeterministic {
-                    input: Box::new(binding.input),
-                    existing: Box::new(existing.version),
-                    produced: Box::new(binding.version),
-                });
-            }
-            bindings.entry(binding.input).or_insert(binding);
+            records.entry(record.version).or_insert(record);
         }
 
         Ok(())
     }
 
-    /// Build a compact segment from selected bindings and results.
-    pub(super) fn compact(
-        self,
-        bindings: Vec<ArtifactBindingRecord>,
-        results: Vec<ArtifactResultRecord>,
-    ) -> Self {
+    /// Build a compact segment from selected artifact records.
+    pub(super) fn compact(self, records: Vec<ArtifactRecord>) -> Self {
         let mut retained_strings = HashSet::new();
-        for result in &results {
-            retained_strings.extend(result.strings.iter().copied());
-        }
-        for binding in &bindings {
-            retained_strings.extend(binding.strings.iter().copied());
+        for record in &records {
+            retained_strings.extend(record.strings.iter().copied());
         }
 
         let strings = self
@@ -673,8 +520,7 @@ impl ArtifactSegment {
         Self {
             partition: self.partition,
             strings,
-            results,
-            bindings,
+            records,
         }
     }
 }

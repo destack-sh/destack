@@ -179,8 +179,8 @@ impl ArtifactProjection {
 pub struct ArtifactProjectionDependency {
     /// The exact artifact version that supplied the projected value.
     version: ArtifactVersion,
-    /// The projected artifact value.
-    projection: ArtifactProjection,
+    /// The projected value inside the artifact.
+    key: ArtifactProjectionKey,
     /// The exact projection fingerprint read from the owner artifact.
     fingerprint: ArtifactProjectionFingerprint,
 }
@@ -194,7 +194,7 @@ impl ArtifactProjectionDependency {
     ) -> Self {
         Self {
             version,
-            projection: ArtifactProjection::new(version.key, key),
+            key,
             fingerprint,
         }
     }
@@ -206,17 +206,12 @@ impl ArtifactProjectionDependency {
 
     /// Return the observed artifact projection.
     pub const fn projection(self) -> ArtifactProjection {
-        self.projection
+        ArtifactProjection::new(self.version.key, self.key)
     }
 
     /// Return the exact observed projection fingerprint.
     pub const fn fingerprint(self) -> ArtifactProjectionFingerprint {
         self.fingerprint
-    }
-
-    /// Return whether the artifact version owns this projection.
-    pub(crate) fn owner_matches_version(&self) -> bool {
-        self.version.key == self.projection.artifact
     }
 }
 
@@ -225,7 +220,7 @@ impl ArtifactProjectionDependency {
 pub enum ArtifactRequirement {
     /// One complete artifact result.
     Artifact(ArtifactKey),
-    /// The exact fingerprint of one projected artifact value.
+    /// One projected artifact value.
     Projection(ArtifactProjection),
 }
 
@@ -327,6 +322,14 @@ impl ArtifactDependencySet {
     /// Mark the closure incomplete so the engine runs the collect pass again.
     pub fn mark_partial(&mut self) {
         self.is_partial = true;
+    }
+
+    /// Sort and deduplicate the declared dependencies.
+    pub fn normalize(&mut self) {
+        self.requirements.sort_unstable();
+        self.requirements.dedup();
+        self.sources.sort_unstable();
+        self.sources.dedup();
     }
 
     /// Return whether dependencies follow this set's requirement order.

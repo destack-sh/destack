@@ -4,20 +4,13 @@ use destack_core::StringId;
 use destack_program::ProgramLoadError;
 use serde::ser;
 
-use crate::{ArtifactInput, ArtifactVersion, BlobStoreError};
+use crate::BlobStoreError;
 
 /// An artifact record or publication error.
 #[derive(Debug)]
 pub enum ArtifactError {
     /// Artifact state is malformed or internally inconsistent.
     Invalid(&'static str),
-    /// The record version did not match the expected exact version.
-    VersionMismatch {
-        /// The requested artifact version.
-        expected: Box<ArtifactVersion>,
-        /// The artifact version carried by the record.
-        found: Box<ArtifactVersion>,
-    },
     /// The record failed to encode or decode.
     Codec(Box<destack_serde::Error>),
     /// The program payload failed to load or store.
@@ -34,15 +27,6 @@ pub enum ArtifactError {
         /// The actual encoded byte length.
         actual: u64,
     },
-    /// One artifact input produced different result versions.
-    Nondeterministic {
-        /// The artifact input.
-        input: Box<ArtifactInput>,
-        /// The result already recorded for these inputs.
-        existing: Box<ArtifactVersion>,
-        /// The newly produced result for these inputs.
-        produced: Box<ArtifactVersion>,
-    },
     /// The artifact store failed to read or write.
     Store(Box<BlobStoreError>),
 }
@@ -52,12 +36,6 @@ impl fmt::Display for ArtifactError {
         match self {
             ArtifactError::Invalid(message) => {
                 write!(formatter, "invalid artifact state: {message}")
-            }
-            ArtifactError::VersionMismatch { expected, found } => {
-                write!(
-                    formatter,
-                    "unexpected artifact record version, expected {expected:?}, found {found:?}"
-                )
             }
             ArtifactError::Codec(error) => {
                 write!(formatter, "artifact record codec error: {error}")
@@ -75,16 +53,6 @@ impl fmt::Display for ArtifactError {
                 write!(
                     formatter,
                     "artifact record exceeded size limit, limit {limit}, actual {actual}"
-                )
-            }
-            ArtifactError::Nondeterministic {
-                input,
-                existing,
-                produced,
-            } => {
-                write!(
-                    formatter,
-                    "artifact input {input:?} produced both {existing:?} and {produced:?}"
                 )
             }
             ArtifactError::Store(error) => {
