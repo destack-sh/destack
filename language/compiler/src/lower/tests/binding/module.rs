@@ -20,11 +20,11 @@ function pick(): Flags {
 @copy
 type Flags = newtype<uint32>;
 
-readonly global test.main.READ: Flags = {4uint32}
+constant test.main.READ: Flags = {4uint32}
 
 function test.main.pick(): Flags {
 entry:
-    v0: ref<Flags, raw, readonly> = global.address test.main.READ
+    v0: ref<Flags, raw, readonly, constant> = global.address test.main.READ
     v1: Flags = load v0
     return v1
 }

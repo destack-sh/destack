@@ -46,8 +46,8 @@ entry:
     v0: int32 = 3
     v1: Point = aggregate (v0)
     local.set l0, v1
-    v2: ref<Point, borrowed, exclusive> = local.address l0
-    v3: int32 = call test.main.Point.double(v2)
+    v2: ref<Point, borrowed, 'frame, exclusive> = local.address l0
+    v3: int32 = call test.main.Point.double(v2): <'a>(ref<Point, borrowed, 'a, exclusive>) => int32
     return v3
 }
 /// @layout.struct name=Point size=4 align=4

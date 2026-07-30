@@ -35,10 +35,10 @@ function keep(name: string): string {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type destack.memory.unique.Unique = slice<uint8, unique, exclusive>;
+type destack.memory.unique.Unique<slice<uint8, managed, mutable>> = slice<uint8, unique, exclusive>;
 
 type destack.string.string.String {
-    bytes: destack.memory.unique.Unique;
+    bytes: destack.memory.unique.Unique<slice<uint8, managed, mutable>>;
 }
 
 function test.main.keep(v0: ref<destack.string.string.String, managed, mutable>): ref<destack.string.string.String, managed, mutable> {

@@ -303,7 +303,7 @@ entry:
 
 function test.main.measure(): int32 {
 entry:
-    v0: int32 = call test.main.Point.origin()
+    v0: int32 = call test.main.Point.origin(): () => int32
     return v0
 }
 /// @layout.struct name=Point size=4 align=4
@@ -368,11 +368,11 @@ entry:
     v0: int32 = 2
     v1: Circle = aggregate (v0)
     local.set l0, v1
-    v2: ref<Circle, borrowed, exclusive> = local.address l0
+    v2: ref<Circle, borrowed, 'frame, exclusive> = local.address l0
     v3: int32 = 10
-    call test.main.Circle.diameter.set(v2, v3)
-    v4: ref<Circle, borrowed, readonly> = local.address l0
-    v5: int32 = call test.main.Circle.diameter.get(v4)
+    call test.main.Circle.diameter.set(v2, v3): <'a>(ref<Circle, borrowed, 'a, exclusive>, int32) => void
+    v4: ref<Circle, borrowed, 'frame, readonly> = local.address l0
+    v5: int32 = call test.main.Circle.diameter.get(v4): <'a>(ref<Circle, borrowed, 'a, readonly>) => int32
     return v5
 }
 /// @layout.struct name=Circle size=4 align=4
