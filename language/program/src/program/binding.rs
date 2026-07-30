@@ -38,6 +38,8 @@ impl BindingTable {
                 id: binding.id,
                 name: binding.name,
                 function: binding.function,
+                is_imported: u8::from(binding.is_imported),
+                reserved: [0; 3],
                 effect: binding.effect,
                 provider: binding.provider,
                 replay: binding.replay,
@@ -135,6 +137,8 @@ pub struct BindingBuilder {
     name: StringId,
     /// Function dispatched through this binding.
     function: FunctionId,
+    /// Whether the binding implementation remains imported.
+    is_imported: bool,
     /// Observable effect class.
     effect: BindingEffect,
     /// Binding implementation owner.
@@ -168,6 +172,7 @@ impl BindingBuilder {
             id,
             name,
             function,
+            is_imported: false,
             effect,
             provider,
             replay,
@@ -177,6 +182,13 @@ impl BindingBuilder {
             families: Vec::new(),
             hosts: Vec::new(),
         }
+    }
+
+    /// Mark this binding implementation as imported.
+    pub fn imported(mut self) -> Self {
+        self.is_imported = true;
+
+        self
     }
 
     /// Set required runtime actions.
@@ -218,6 +230,10 @@ pub struct Binding {
     pub name: StringId,
     /// Function dispatched through this binding.
     pub function: FunctionId,
+    /// Whether the binding implementation remains imported.
+    is_imported: u8,
+    /// Reserved binding bytes.
+    reserved: [u8; 3],
     /// Observable effect class.
     pub effect: BindingEffect,
     /// Binding implementation owner.
@@ -234,6 +250,13 @@ pub struct Binding {
     families: EntryRange<StringId>,
     /// Supported hosts.
     hosts: EntryRange<StringId>,
+}
+
+impl Binding {
+    /// Return whether the binding implementation remains imported.
+    pub const fn is_imported(self) -> bool {
+        self.is_imported != 0
+    }
 }
 
 /// Stable identifier for a runtime binding name.
