@@ -24,8 +24,8 @@ pub struct MemorySite {
     pub point: Point,
     /// The memory access operation.
     pub access: mir::MemoryOperation,
-    /// The accessed storage space.
-    pub space: mir::Space,
+    /// The addressed storage.
+    pub storage: mir::Storage,
     /// The loaded or stored value type.
     pub value_type: mir::TypeId,
 }

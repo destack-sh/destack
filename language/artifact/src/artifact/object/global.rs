@@ -16,8 +16,8 @@ pub struct Global {
     pub ty: mir::TypeId,
     /// Whether instructions may mutate this global.
     pub mutability: mir::Mutability,
-    /// The memory space containing this global.
-    pub space: mir::Space,
+    /// The static storage containing this global.
+    pub storage: mir::GlobalStorage,
     /// The global linkage.
     pub linkage: mir::Linkage,
     /// The initializer when this object defines the global.
