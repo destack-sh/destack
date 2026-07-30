@@ -32,9 +32,7 @@ fn test_parse_async_generic_arrow_assignment_with_extends_default() {
 
                 assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, default, .. } => {
                     assert_string!(parser, *name, "T");
-                    assert_node!(parser.tree, constraint.expect("expected extends constraint"), TypeExpression::Literal { value } => {
-                        assert_eq!(*value, TypeLiteral::Object);
-                    });
+                    assert_expression_path!(parser, parser.tree.get(constraint.expect("expected extends constraint")), "object");
                     assert_expression_path!(parser, parser.tree.get(default.expect("expected default type")), "ICredentialDataDecryptedObject");
                 });
 

@@ -315,7 +315,6 @@ impl<'a> TypeTable<'a> {
             | Type::Void
             | Type::Null
             | Type::Undefined
-            | Type::Object
             | Type::Primitive(_)
             | Type::Literal(_)
             | Type::Key(_)
@@ -430,8 +429,8 @@ impl<'a> TypeTable<'a> {
                 }
             }
 
-            // structural shapes
-            Type::Shape(shape) => {
+            // structural shapes and concrete object classes
+            Type::Shape(shape) | Type::Object(shape) => {
                 for property in self.properties(shape.properties) {
                     if let Some(read) = property.access.read() {
                         visit(read);

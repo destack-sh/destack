@@ -11,7 +11,6 @@ impl Parser {
         match self.peek_token_str() {
             "undefined" => Some(TypeLiteral::Undefined),
             "unknown" => Some(TypeLiteral::Unknown),
-            "object" => Some(TypeLiteral::Object),
             "null" => Some(TypeLiteral::Null),
             "any" => Some(TypeLiteral::Any),
             "never" => Some(TypeLiteral::Never),

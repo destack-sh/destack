@@ -152,7 +152,7 @@ impl ScalarLiteral {
             Self::Character(_) => Type::Primitive(PrimitiveType::Character),
             Self::Null => Type::Null,
             Self::Undefined => Type::Undefined,
-            Self::RegexString { .. } => Type::Object,
+            Self::RegexString { .. } => Type::Error,
         }
     }
 
@@ -465,8 +465,6 @@ pub enum TypeLiteral {
     Undefined,
     /// Unknown type.
     Unknown,
-    /// Object type (any non-primitive).
-    Object,
     /// Void type.
     Void,
     /// Null type and value.
@@ -523,7 +521,7 @@ impl TypeLiteral {
             Self::Alias(alias) => alias.primitive().scalar_domain(),
             Self::Integer(_) => ScalarDomain::Integer,
             Self::Symbol | Self::UniqueSymbol => ScalarDomain::Symbol,
-            Self::Never | Self::Any | Self::Unknown | Self::Object | Self::Void => return None,
+            Self::Never | Self::Any | Self::Unknown | Self::Void => return None,
         };
 
         Some(domain)

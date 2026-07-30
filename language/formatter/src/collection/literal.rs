@@ -432,7 +432,6 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::Any => write!(f, [token("any")]),
             TypeLiteral::Undefined => write!(f, [token("undefined")]),
             TypeLiteral::Unknown => write!(f, [token("unknown")]),
-            TypeLiteral::Object => write!(f, [token("object")]),
             TypeLiteral::Void => write!(f, [token("void")]),
             TypeLiteral::Null => write!(f, [token("null")]),
             TypeLiteral::Boolean => write!(f, [token("boolean")]),

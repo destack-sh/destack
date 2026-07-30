@@ -278,13 +278,14 @@ impl CoercionAdjustment {
         }
 
         // existential carriers box their values on entry and exit
-        if matches!(
-            source,
-            Type::Any | Type::Unknown | Type::Object | Type::Dynamic(_)
-        ) || matches!(
-            target,
-            Type::Any | Type::Unknown | Type::Object | Type::Dynamic(_)
-        ) {
+        if matches!(source, Type::Any | Type::Unknown | Type::Dynamic(_))
+            || matches!(target, Type::Any | Type::Unknown | Type::Dynamic(_))
+        {
+            return Some(Self::Existential { target: target_id });
+        }
+
+        // concrete objects erase into their structural contracts
+        if matches!(source, Type::Object(_)) && matches!(target, Type::Shape(_)) {
             return Some(Self::Existential { target: target_id });
         }
 

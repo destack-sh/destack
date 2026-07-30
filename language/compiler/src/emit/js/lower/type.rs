@@ -174,7 +174,6 @@ impl ModuleLowerer<'_> {
             dir::TypeLiteral::Any => js::TypeLiteral::Any,
             dir::TypeLiteral::Undefined => js::TypeLiteral::Undefined,
             dir::TypeLiteral::Unknown => js::TypeLiteral::Unknown,
-            dir::TypeLiteral::Object => js::TypeLiteral::Object,
             dir::TypeLiteral::Void => js::TypeLiteral::Void,
             dir::TypeLiteral::Null => js::TypeLiteral::Null,
             dir::TypeLiteral::Boolean => js::TypeLiteral::Primitive(js::PrimitiveType::Boolean),
@@ -765,11 +764,6 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
-            dir::Type::Object => {
-                let ty = js::TypeExpression::Scalar(js::TypeLiteral::Object);
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
             dir::Type::Primitive(primitive) => {
                 let primitive = self.lower_primitive_type_value(*primitive);
                 let ty = js::TypeExpression::Scalar(js::TypeLiteral::Primitive(primitive));
@@ -937,7 +931,7 @@ impl ModuleLowerer<'_> {
                     Some("range types must be reduced before JS lowering".to_string()),
                 ));
             }
-            dir::Type::Shape(object) => {
+            dir::Type::Shape(object) | dir::Type::Object(object) => {
                 let mut members = self
                     .types
                     .properties(object.properties)

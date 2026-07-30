@@ -31,8 +31,8 @@ pub enum Type {
     Null,
     /// Undefined type and value.
     Undefined,
-    /// TypeScript `object` constraint.
-    Object,
+    /// Concrete object class of one exact shape.
+    Object(ShapeType),
     /// Primitive type, like `string` or `int32`.
     Primitive(PrimitiveType),
     /// Scalar literal type, like `"id"` or `42`.
@@ -105,7 +105,6 @@ impl From<TypeLiteral> for Type {
             TypeLiteral::Any => Self::Any,
             TypeLiteral::Undefined => Self::Undefined,
             TypeLiteral::Unknown => Self::Unknown,
-            TypeLiteral::Object => Self::Object,
             TypeLiteral::Void => Self::Void,
             TypeLiteral::Null => Self::Null,
             TypeLiteral::Boolean => Self::Primitive(PrimitiveType::Boolean),
@@ -141,7 +140,7 @@ impl From<&ScalarLiteral> for Type {
             | ScalarLiteral::Integer(_)
             | ScalarLiteral::Float(_)
             | ScalarLiteral::Bigint(_) => Self::Literal(*value),
-            ScalarLiteral::RegexString { .. } => Self::Object,
+            ScalarLiteral::RegexString { .. } => Self::Error,
         }
     }
 }
@@ -166,7 +165,7 @@ impl Type {
             Self::Void => "Void",
             Self::Null => "Null",
             Self::Undefined => "Undefined",
-            Self::Object => "Object",
+            Self::Object(_) => "Object",
             Self::Primitive(_) => "Primitive",
             Self::Literal(_) => "Literal",
             Self::Key(_) => "Key",
@@ -344,7 +343,6 @@ impl Type {
             | Self::Void
             | Self::Null
             | Self::Undefined
-            | Self::Object
             | Self::Primitive(_)
             | Self::Literal(_)
             | Self::Key(_)
@@ -361,6 +359,7 @@ impl Type {
             | Self::Slice(_)
             | Self::Tuple(_)
             | Self::Shape(_)
+            | Self::Object(_)
             | Self::FunctionSignature(_)
             | Self::Function(_)
             | Self::FunctionPointer(_)

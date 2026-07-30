@@ -53,7 +53,7 @@ impl Formatter<'_, '_, '_> {
             dir::Type::Void => "void".to_string(),
             dir::Type::Null => "null".to_string(),
             dir::Type::Undefined => "undefined".to_string(),
-            dir::Type::Object => "object".to_string(),
+            dir::Type::Object(shape) => return self.shape(*shape),
             dir::Type::Primitive(primitive) => self.primitive(*primitive),
             dir::Type::Literal(literal) => self.literal(*literal),
             dir::Type::Reference(reference) => return self.symbol(reference.symbol),
