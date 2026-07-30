@@ -1,11 +1,16 @@
+use std::sync::Arc;
+
 use destack_artifact::{
-    ArtifactBinding, ArtifactBindingId, ArtifactDependency, ArtifactId, ArtifactKey,
-    ArtifactOutcome, ArtifactVersion, ModuleSetFingerprint, PackageSetFingerprint,
+    ArtifactBinding, ArtifactBindingId, ArtifactBindingPin, ArtifactDependency, ArtifactId,
+    ArtifactKey, ArtifactOutcome, ArtifactVersion, ModuleSetFingerprint, PackageSetFingerprint,
     SourceDependency,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{ArtifactGraph, Repository, RepositoryError, Revision, RevisionState};
+use crate::{
+    ArtifactBindingState, ArtifactBindingTable, Repository, RepositoryError, Revision,
+    RevisionState,
+};
 
 /// Resolution of one artifact in a repository revision.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,16 +39,14 @@ struct ArtifactResolver<'a> {
     revision: Revision,
     /// The requested revision state.
     revision_state: &'a RevisionState,
-    /// The persistent graph root captured for this resolution.
-    graph: ArtifactGraph,
-    /// The captured revision graph generation.
-    generation: u64,
+    /// Binding states observed during this resolution.
+    observations: FxHashMap<ArtifactId, Option<ArtifactBindingState>>,
     /// Dirty resolutions completed during this operation.
     resolutions: FxHashMap<ArtifactId, ArtifactResolution>,
     /// Artifact ids on the active recursive path.
     resolving: FxHashSet<ArtifactId>,
-    /// Unchanged dirty artifact ids to publish.
-    refreshed: Vec<ArtifactId>,
+    /// Exact bindings ready to commit for unchanged results.
+    bindings: Vec<(ArtifactId, ArtifactBindingPin)>,
 }
 
 impl Repository {
@@ -55,6 +58,11 @@ impl Repository {
     ) -> Result<ArtifactResolution, RepositoryError> {
         loop {
             let revision_state = self.revision(revision)?;
+            if let Some(resolution) =
+                self.clean_artifact_resolution(&revision_state.artifacts, *artifact_key)?
+            {
+                return Ok(resolution);
+            }
             let mut resolver = ArtifactResolver::new(self, revision, &revision_state);
             let resolution = resolver.resolve_key(*artifact_key)?;
 
@@ -72,10 +80,25 @@ impl Repository {
     ) -> Result<Vec<ArtifactResolution>, RepositoryError> {
         loop {
             let revision_state = self.revision(revision)?;
+            let mut clean = Vec::with_capacity(artifact_keys.len());
+
+            // read clean selections directly
+            for artifact_key in artifact_keys {
+                let resolution =
+                    self.clean_artifact_resolution(&revision_state.artifacts, *artifact_key)?;
+                let Some(resolution) = resolution else {
+                    clean.clear();
+                    break;
+                };
+                clean.push(resolution);
+            }
+            if clean.len() == artifact_keys.len() {
+                return Ok(clean);
+            }
+
+            // resolve all requested bindings against one observed state set
             let mut resolver = ArtifactResolver::new(self, revision, &revision_state);
             let mut resolutions = Vec::with_capacity(artifact_keys.len());
-
-            // resolve every requested key against one persistent graph root
             for artifact_key in artifact_keys {
                 resolutions.push(resolver.resolve_key(*artifact_key)?);
             }
@@ -85,32 +108,59 @@ impl Repository {
             }
         }
     }
+
+    /// Return a terminal or absent clean artifact selection.
+    fn clean_artifact_resolution(
+        &self,
+        bindings: &ArtifactBindingTable,
+        artifact_key: ArtifactKey,
+    ) -> Result<Option<ArtifactResolution>, RepositoryError> {
+        let Some(artifact) = self.artifact_table().artifact_id(artifact_key) else {
+            return Ok(Some(ArtifactResolution::Stale));
+        };
+        let Some(state) = bindings.state(artifact) else {
+            return Ok(Some(ArtifactResolution::Stale));
+        };
+        if !state.is_clean() {
+            return Ok(None);
+        }
+        let binding = self.artifact_table().binding(state.binding).ok_or(
+            RepositoryError::MissingArtifactBindingId {
+                binding: state.binding,
+            },
+        )?;
+        let outcome = self.artifact_table().outcome(&binding.version).ok_or(
+            RepositoryError::MissingArtifact {
+                version: binding.version,
+            },
+        )?;
+
+        Ok(Some(ArtifactResolution::Terminal {
+            version: binding.version,
+            outcome,
+        }))
+    }
 }
 
 impl<'a> ArtifactResolver<'a> {
-    /// Build one resolver over a captured revision artifact graph.
+    /// Build one resolver over a repository revision.
     fn new(
         repository: &'a Repository,
         revision: Revision,
         revision_state: &'a RevisionState,
     ) -> Self {
-        let graph = revision_state.artifacts.read();
-        let generation = graph.generation();
-        let graph = graph.clone();
-
         Self {
             repository,
             revision,
             revision_state,
-            graph,
-            generation,
+            observations: FxHashMap::default(),
             resolutions: FxHashMap::default(),
             resolving: FxHashSet::default(),
-            refreshed: Vec::new(),
+            bindings: Vec::new(),
         }
     }
 
-    /// Resolve one semantic artifact key.
+    /// Resolve one artifact key.
     fn resolve_key(
         &mut self,
         artifact_key: ArtifactKey,
@@ -127,7 +177,7 @@ impl<'a> ArtifactResolver<'a> {
         if let Some(resolution) = self.resolutions.get(&artifact) {
             return Ok(resolution.clone());
         }
-        let Some(state) = self.graph.state(artifact) else {
+        let Some(state) = self.state(artifact) else {
             return Ok(ArtifactResolution::Stale);
         };
         let binding = self.binding(state.binding)?;
@@ -144,6 +194,7 @@ impl<'a> ArtifactResolver<'a> {
 
         let mut frontier = Vec::new();
         let mut is_stale = false;
+        let mut dependencies = None;
 
         // compare only observations reached by the source edit
         for dependency in &state.dirty_dependencies {
@@ -190,8 +241,23 @@ impl<'a> ArtifactResolver<'a> {
                             let fingerprint = self
                                 .repository
                                 .artifact_table()
-                                .projection_fingerprint(&current, &projection.projection());
-                            is_stale = fingerprint != Some(projection.fingerprint());
+                                .projection_fingerprint(&current, &projection.projection())
+                                .ok_or_else(|| RepositoryError::InvalidArtifact {
+                                    message: format!(
+                                        "artifact projection is absent from its owner: {:?}",
+                                        projection.projection()
+                                    ),
+                                })?;
+                            is_stale = fingerprint != projection.fingerprint();
+                            if !is_stale && current != projection.version() {
+                                let dependencies = dependencies
+                                    .get_or_insert_with(|| binding.dependencies.to_vec());
+                                dependencies[dependency] = ArtifactDependency::projection(
+                                    current,
+                                    projection.projection().key,
+                                    fingerprint,
+                                );
+                            }
                         }
                         ArtifactResolution::Pending {
                             frontier: dependency_frontier,
@@ -228,15 +294,38 @@ impl<'a> ArtifactResolver<'a> {
 
             ArtifactResolution::Pending { frontier }
         } else {
-            self.graph.refresh(artifact)?;
-            self.refreshed.push(artifact);
+            let resolution = self.terminal(&binding)?;
+            let dependencies = match dependencies {
+                Some(dependencies) => Arc::from(dependencies),
+                None => Arc::clone(&binding.dependencies),
+            };
+            let binding = self
+                .repository
+                .artifact_table()
+                .publish_binding(binding.version, dependencies)
+                .map_err(|error| RepositoryError::InvalidArtifact {
+                    message: error.to_string(),
+                })?;
+            self.bindings.push((artifact, binding));
 
-            self.terminal(&binding)?
+            resolution
         };
 
         self.resolutions.insert(artifact, resolution.clone());
 
         Ok(resolution)
+    }
+
+    /// Read and retain one revision artifact binding state.
+    fn state(&mut self, artifact: ArtifactId) -> Option<ArtifactBindingState> {
+        if let Some(state) = self.observations.get(&artifact) {
+            return state.clone();
+        }
+
+        let state = self.revision_state.artifacts.state(artifact);
+        self.observations.insert(artifact, state.clone());
+
+        state
     }
 
     /// Return one immutable binding by compact id.
@@ -304,24 +393,16 @@ impl<'a> ArtifactResolver<'a> {
         Ok(!is_tracked)
     }
 
-    /// Publish unchanged dirty states when none were replaced concurrently.
+    /// Publish unchanged dirty bindings when every observation still matches.
     fn commit(self) -> Result<bool, RepositoryError> {
-        if self.refreshed.is_empty() {
-            let is_current = self.revision_state.artifacts.read().generation() == self.generation;
+        let bindings = self
+            .bindings
+            .iter()
+            .map(|(artifact, binding)| (*artifact, binding.binding()))
+            .collect::<Vec<_>>();
 
-            return Ok(is_current);
-        }
-
-        let mut graph = self.revision_state.artifacts.write();
-        if graph.generation() != self.generation {
-            return Ok(false);
-        }
-
-        // refresh every unchanged selection
-        for artifact in self.refreshed {
-            graph.refresh(artifact)?;
-        }
-
-        Ok(true)
+        self.revision_state
+            .artifacts
+            .commit(&self.observations, &bindings)
     }
 }

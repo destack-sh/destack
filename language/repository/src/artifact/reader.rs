@@ -1,11 +1,12 @@
+use std::cmp::Ordering;
 use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection,
-    ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactTable, ArtifactVersion, Asset,
-    Build, Bundle, ComponentGraph, Data, DirBound, DirCheckedComponent, DirCheckedModule,
-    DirDeclaredComponent, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed,
-    DirResolved, ExternalReferenceComponents, GlobalEnvironment, IndexKind,
+    ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactRequirement, ArtifactTable,
+    ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound, DirCheckedComponent,
+    DirCheckedModule, DirDeclaredComponent, DirExpanded, DirExported, DirImported, DirMaterialized,
+    DirParsed, DirResolved, ExternalReferenceComponents, GlobalEnvironment, IndexKind,
     InferenceComponentIndex, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
     ModuleIndex, ModuleLinted, Object, PackageGraph, Product, ProgramAnalysis, ProgramIndex,
     ProgramLinted, Script,
@@ -26,8 +27,6 @@ pub struct ArtifactReader<'a> {
     revision: Revision,
     /// Frozen provider dependencies when reads are restricted.
     dependencies: Option<&'a [ArtifactDependency]>,
-    /// The provider whose reads are restricted.
-    provider: Option<ArtifactKey>,
 }
 
 /// Projection-checked read-only view over one component graph.
@@ -56,35 +55,27 @@ impl<'a> ArtifactReader<'a> {
             repository,
             revision,
             dependencies: None,
-            provider: None,
         }
     }
 
     /// Restrict provider reads to one frozen dependency set.
-    pub fn restrict(
-        mut self,
-        provider: ArtifactKey,
-        dependencies: Option<&'a [ArtifactDependency]>,
-    ) -> Self {
-        self.dependencies = dependencies;
-        self.provider = Some(provider);
+    pub fn restrict(mut self, dependencies: &'a [ArtifactDependency]) -> Self {
+        self.dependencies = Some(dependencies);
 
         self
     }
 
     /// Resolve one artifact to its exact ready version.
     pub fn version(&self, artifact_key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
-        if let Some(dependencies) = self.dependencies {
-            let version = dependencies.iter().find_map(|dependency| match dependency {
-                ArtifactDependency::Artifact(version) if version.key == artifact_key => {
-                    Some(*version)
-                }
-                ArtifactDependency::Artifact(_)
-                | ArtifactDependency::Projection(_)
-                | ArtifactDependency::Source(_) => None,
-            });
+        if self.dependencies.is_some() {
+            let version = self
+                .find_dependency(ArtifactRequirement::artifact(artifact_key))
+                .and_then(|dependency| match dependency {
+                    ArtifactDependency::Artifact(version) => Some(*version),
+                    ArtifactDependency::Projection(_) | ArtifactDependency::Source(_) => None,
+                });
 
-            return self.ready_version(artifact_key, version);
+            return self.require_declared_version(artifact_key, version);
         }
 
         let version = self
@@ -94,7 +85,7 @@ impl<'a> ArtifactReader<'a> {
                 ProviderError::internal(format!("failed to resolve artifact version: {error}"))
             })?;
 
-        self.ready_version(artifact_key, version)
+        self.require_ready_version(artifact_key, version)
     }
 
     /// Resolve one declared artifact projection to its exact owner version.
@@ -102,22 +93,22 @@ impl<'a> ArtifactReader<'a> {
         &self,
         projection: ArtifactProjection,
     ) -> Result<ArtifactVersion, ProviderError> {
-        if let Some(dependencies) = self.dependencies {
-            let version = dependencies.iter().find_map(|dependency| match dependency {
-                ArtifactDependency::Artifact(version) if version.key == projection.artifact => {
-                    Some(*version)
-                }
-                ArtifactDependency::Projection(dependency)
-                    if dependency.projection() == projection =>
-                {
-                    Some(dependency.version())
-                }
-                ArtifactDependency::Artifact(_)
-                | ArtifactDependency::Projection(_)
-                | ArtifactDependency::Source(_) => None,
+        if self.dependencies.is_some() {
+            let artifact = self
+                .find_dependency(ArtifactRequirement::artifact(projection.artifact))
+                .and_then(|dependency| match dependency {
+                    ArtifactDependency::Artifact(version) => Some(*version),
+                    ArtifactDependency::Projection(_) | ArtifactDependency::Source(_) => None,
+                });
+            let version = artifact.or_else(|| {
+                self.find_dependency(ArtifactRequirement::projection(projection))
+                    .and_then(|dependency| match dependency {
+                        ArtifactDependency::Projection(dependency) => Some(dependency.version()),
+                        ArtifactDependency::Artifact(_) | ArtifactDependency::Source(_) => None,
+                    })
             });
 
-            return self.ready_version(projection.artifact, version);
+            return self.require_declared_version(projection.artifact, version);
         }
 
         self.version(projection.artifact)
@@ -143,45 +134,29 @@ impl<'a> ArtifactReader<'a> {
         &self,
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, ProviderError> {
-        if let Some(dependencies) = self.dependencies {
-            let version = dependencies.iter().find_map(|dependency| match dependency {
-                ArtifactDependency::Artifact(version) if version.key == artifact_key => {
-                    Some(*version)
-                }
-                ArtifactDependency::Projection(dependency)
-                    if dependency.projection().artifact == artifact_key =>
-                {
-                    Some(dependency.version())
-                }
-                ArtifactDependency::Artifact(_)
-                | ArtifactDependency::Projection(_)
-                | ArtifactDependency::Source(_) => None,
-            });
+        if self.dependencies.is_some() {
+            let artifact = self
+                .find_dependency(ArtifactRequirement::artifact(artifact_key))
+                .and_then(|dependency| match dependency {
+                    ArtifactDependency::Artifact(version) => Some(*version),
+                    ArtifactDependency::Projection(_) | ArtifactDependency::Source(_) => None,
+                });
+            let version = artifact.or_else(|| self.find_projection_owner(artifact_key));
 
-            return self.ready_version(artifact_key, version);
+            return self.require_declared_version(artifact_key, version);
         }
 
         self.version(artifact_key)
     }
 
     /// Require one resolved artifact version to carry a ready result.
-    fn ready_version(
+    fn require_ready_version(
         &self,
         artifact_key: ArtifactKey,
         version: Option<ArtifactVersion>,
     ) -> Result<ArtifactVersion, ProviderError> {
         let Some(version) = version else {
-            if self.dependencies.is_none() {
-                return Err(ProviderError::blocked(artifact_key));
-            }
-
-            let provider = self.provider.ok_or_else(|| {
-                ProviderError::internal("restricted artifact reader has no provider")
-            })?;
-
-            return Err(ProviderError::internal(format!(
-                "artifact provider {provider:?} read undeclared artifact {artifact_key:?}"
-            )));
+            return Err(ProviderError::blocked(artifact_key));
         };
         match self.repository.artifact_table().outcome(&version) {
             Some(ArtifactOutcome::Ok) => Ok(version),
@@ -190,6 +165,55 @@ impl<'a> ArtifactReader<'a> {
             }
             None => Err(ProviderError::Corrupt { version }),
         }
+    }
+
+    /// Require one artifact read to exist in the frozen dependency set.
+    fn require_declared_version(
+        &self,
+        artifact_key: ArtifactKey,
+        version: Option<ArtifactVersion>,
+    ) -> Result<ArtifactVersion, ProviderError> {
+        let Some(version) = version else {
+            return Err(ProviderError::internal(format!(
+                "provider read undeclared artifact {artifact_key:?}"
+            )));
+        };
+
+        Ok(version)
+    }
+
+    /// Find one exact declared artifact requirement.
+    fn find_dependency(&self, requirement: ArtifactRequirement) -> Option<&ArtifactDependency> {
+        let dependencies = self.dependencies?;
+        let index = dependencies
+            .binary_search_by(|dependency| match dependency.requirement() {
+                Some(dependency) => dependency.cmp(&requirement),
+                None => Ordering::Greater,
+            })
+            .ok()?;
+
+        dependencies.get(index)
+    }
+
+    /// Find any declared projection owned by one artifact.
+    fn find_projection_owner(&self, artifact_key: ArtifactKey) -> Option<ArtifactVersion> {
+        let dependencies = self.dependencies?;
+        let index = dependencies.partition_point(|dependency| match dependency {
+            ArtifactDependency::Artifact(_) => true,
+            ArtifactDependency::Projection(dependency) => {
+                dependency.projection().artifact < artifact_key
+            }
+            ArtifactDependency::Source(_) => false,
+        });
+        let dependency = dependencies.get(index)?;
+        let ArtifactDependency::Projection(dependency) = dependency else {
+            return None;
+        };
+        if dependency.projection().artifact != artifact_key {
+            return None;
+        }
+
+        Some(dependency.version())
     }
 
     /// Read one collected typed artifact payload.
@@ -451,6 +475,13 @@ impl<'a> ArtifactReader<'a> {
             .artifact_binding(self.revision, &version.key)
             .map_err(|error| ProviderError::internal(error.to_string()))?
             .ok_or(ProviderError::Corrupt { version })?;
+        if binding.version != version {
+            return Err(ProviderError::internal(format!(
+                "checked facade binding changed during provider execution: expected={version:?}, \
+                 found={:?}",
+                binding.version
+            )));
+        }
         let dependency = binding
             .dependencies
             .iter()

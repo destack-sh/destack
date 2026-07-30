@@ -2,6 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use dashmap::mapref::entry::Entry;
+use destack_artifact::SourceDependency;
 use destack_core::TreapRoot;
 use destack_source::{Content, FileId, FileType};
 
@@ -70,8 +71,18 @@ impl Repository {
         I: IntoIterator<Item = Edit>,
     {
         let base_revision = self.revision(base_revision_id)?;
-        let (files, delta) = self.apply_edits(base_revision.files(), edits)?;
-        let artifacts = base_revision.artifacts.read().fork(&delta)?;
+        let (files, mut delta) = self.apply_edits(base_revision.files(), edits)?;
+        if delta.is_discovery_changed() {
+            let packages = self.package_ids(base_revision_id)?;
+            let modules = self.module_ids(base_revision_id)?;
+            delta.extend([
+                SourceDependency::packages(&packages),
+                SourceDependency::modules(&modules),
+            ]);
+        }
+        let artifacts = base_revision
+            .artifacts
+            .fork(&delta, self.artifact_table())?;
         let revision = Arc::new(RevisionState::new(
             files,
             Arc::clone(&base_revision.environment),
@@ -138,7 +149,7 @@ impl Repository {
     where
         I: IntoIterator<Item = Edit>,
     {
-        let mut changed_files = Vec::new();
+        let mut changed_sources = Vec::new();
         let mut is_discovery_changed = false;
 
         for edit in edits {
@@ -154,7 +165,6 @@ impl Repository {
                         return Err(RepositoryError::FileAlreadyExists { path: logical_path });
                     }
 
-                    changed_files.push(file_id);
                     is_discovery_changed = true;
 
                     let logical_path = self.intern_logical_path(logical_path);
@@ -173,10 +183,14 @@ impl Repository {
                 } => {
                     let logical_path = normalize_logical_path(&logical_path);
                     let file_id = FileId::from_logical_str(&logical_path);
-                    let is_existing = self.files.entries.contains(files, &file_id);
+                    let previous = self.files.entries.get(files, &file_id);
+                    let is_existing = previous.is_some();
                     let is_package_config = logical_path.rsplit('/').next() == Some("destack.json");
-                    changed_files.push(file_id);
                     is_discovery_changed |= !is_existing || is_package_config;
+                    if let Some(previous) = previous {
+                        changed_sources
+                            .push(SourceDependency::file_content(file_id, previous.content_id));
+                    }
 
                     let logical_path = self.intern_logical_path(logical_path);
                     let content = self.intern_content(content)?;
@@ -191,12 +205,14 @@ impl Repository {
                 Edit::RemoveFile { logical_path } => {
                     let logical_path = normalize_logical_path(&logical_path);
                     let file_id = FileId::from_logical_str(&logical_path);
-                    if !self.files.entries.contains(files, &file_id) {
-                        return Err(RepositoryError::MissingFile { path: logical_path });
-                    }
-
-                    changed_files.push(file_id);
+                    let previous = self.files.entries.get(files, &file_id).ok_or_else(|| {
+                        RepositoryError::MissingFile {
+                            path: logical_path.clone(),
+                        }
+                    })?;
                     is_discovery_changed = true;
+                    changed_sources
+                        .push(SourceDependency::file_content(file_id, previous.content_id));
 
                     files = self.files.entries.remove(files, &file_id);
                 }
@@ -211,20 +227,21 @@ impl Repository {
                     let from = normalize_logical_path(&from);
                     let to = normalize_logical_path(&to);
                     let from_file_id = FileId::from_logical_str(&from);
-                    if !self.files.entries.contains(files, &from_file_id) {
-                        return Err(RepositoryError::MissingFile { path: from });
-                    }
-                    let Some(from_file) = self.files.entries.get(files, &from_file_id) else {
-                        return Err(RepositoryError::MissingFile { path: from });
-                    };
+                    let from_file = self
+                        .files
+                        .entries
+                        .get(files, &from_file_id)
+                        .ok_or(RepositoryError::MissingFile { path: from })?;
                     let to_file_id = FileId::from_logical_str(&to);
                     if self.files.entries.contains(files, &to_file_id) {
                         return Err(RepositoryError::FileAlreadyExists { path: to });
                     }
 
-                    changed_files.push(from_file_id);
-                    changed_files.push(to_file_id);
                     is_discovery_changed = true;
+                    changed_sources.push(SourceDependency::file_content(
+                        from_file_id,
+                        from_file.content_id,
+                    ));
 
                     files = self.files.entries.remove(files, &from_file_id);
                     let to = self.intern_logical_path(to);
@@ -235,6 +252,9 @@ impl Repository {
             }
         }
 
-        Ok((files, SourceDelta::new(changed_files, is_discovery_changed)))
+        Ok((
+            files,
+            SourceDelta::new(changed_sources, is_discovery_changed),
+        ))
     }
 }

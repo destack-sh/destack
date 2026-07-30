@@ -2,11 +2,12 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::artifact::ArtifactReader;
+use crate::provider::ArtifactAttemptRecorder;
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{ArtifactBase, ArtifactResolution, ArtifactState};
+use crate::{ArtifactBase, ArtifactBindingState, ArtifactResolution};
 use destack_artifact::{
     ArtifactBinding, ArtifactBindingId, ArtifactBindingPin, ArtifactDependency, ArtifactFailure,
-    ArtifactFlush, ArtifactInput, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactSidecar,
+    ArtifactFlush, ArtifactKey, ArtifactOutcome, ArtifactPayload, ArtifactRecord, ArtifactSidecar,
     ArtifactVersion,
 };
 use destack_source::DiagnosticCollection;
@@ -29,31 +30,13 @@ impl Repository {
         Ok(versions.into_iter().next().flatten())
     }
 
-    /// Return the exact bound version for one revision-scoped artifact key.
-    pub fn bound_artifact_version(
-        &self,
-        revision: Revision,
-        artifact_key: &ArtifactKey,
-    ) -> Result<Option<ArtifactVersion>, RepositoryError> {
-        let Some(state) = self.artifact_state(revision, *artifact_key)? else {
-            return Ok(None);
-        };
-        let binding = self.require_artifact_binding(state.binding)?;
-        let version = binding.version;
-        if self.artifact_table().outcome(&version).is_none() {
-            return Err(RepositoryError::MissingArtifact { version });
-        }
-
-        Ok(Some(version))
-    }
-
     /// Return the terminal outcome for one exact current revision binding.
     pub fn current_artifact_outcome(
         &self,
         revision: Revision,
         artifact_key: &ArtifactKey,
     ) -> Result<Option<ArtifactOutcome>, RepositoryError> {
-        let Some(state) = self.artifact_state(revision, *artifact_key)? else {
+        let Some(state) = self.artifact_binding_state(revision, *artifact_key)? else {
             return Ok(None);
         };
         if !state.is_clean() {
@@ -98,7 +81,7 @@ impl Repository {
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<Option<Arc<ArtifactBase>>, RepositoryError> {
-        let Some(state) = self.artifact_state(revision, artifact_key)? else {
+        let Some(state) = self.artifact_binding_state(revision, artifact_key)? else {
             return Ok(None);
         };
         let binding = self.require_artifact_binding(state.binding)?;
@@ -128,165 +111,136 @@ impl Repository {
         Ok(Some(Arc::new(base)))
     }
 
-    /// Bind one recorded artifact input to one revision when present.
-    pub fn bind_artifact_input(
+    /// Bind one recorded artifact version to one revision when present.
+    pub fn bind_artifact_version(
         &self,
         revision: Revision,
-        input: ArtifactInput,
-    ) -> Result<Option<ArtifactVersion>, RepositoryError> {
-        let Some(binding_id) = self.artifact_table().binding_id(&input) else {
-            return Ok(None);
-        };
-        let binding_pin = self.artifact_table().pin_binding(binding_id).ok_or(
-            RepositoryError::MissingArtifactBindingId {
-                binding: binding_id,
-            },
-        )?;
-        let binding = self.require_artifact_binding(binding_id)?;
-        if self.artifact_table().outcome(&binding.version).is_none() {
-            return Err(RepositoryError::MissingArtifact {
-                version: binding.version,
-            });
-        }
-
-        self.bind_artifact(revision, binding_pin.binding())?;
-
-        Ok(Some(binding.version))
-    }
-
-    /// Load one ready artifact result from the persistent store when present.
-    pub fn load_artifact(&self, version: ArtifactVersion) -> Result<bool, RepositoryError> {
-        let Some(result) = self
-            .artifact_store()
-            .load_result(&version, self.string_pool())
-            .map_err(|error| RepositoryError::ArtifactStore {
-                message: error.to_string(),
-            })?
-        else {
+        version: ArtifactVersion,
+        dependencies: impl Into<Arc<[ArtifactDependency]>>,
+    ) -> Result<bool, RepositoryError> {
+        if self.artifact_table().outcome(&version).is_none() {
             return Ok(false);
-        };
-        if result.version != version {
-            return Err(RepositoryError::ArtifactStore {
-                message: "artifact store returned a different result version".to_owned(),
-            });
         }
-        let payload = result
-            .decode()
-            .map_err(|error| RepositoryError::ArtifactStore {
+        let binding = self
+            .artifact_table()
+            .publish_binding(version, dependencies)
+            .map_err(|error| RepositoryError::InvalidArtifact {
                 message: error.to_string(),
             })?;
 
-        self.artifact_table()
-            .publish_result(result.version, payload, result.diagnostics, result.sidecars)
-            .map_err(|error| RepositoryError::ArtifactStore {
-                message: error.to_string(),
-            })?;
+        self.bind_artifact(revision, binding.binding())?;
 
         Ok(true)
     }
 
-    /// Load one artifact binding and result by exact input identity.
-    pub fn load_artifact_input(
+    /// Load one artifact from the persistent store when present.
+    pub fn load_artifact(
         &self,
-        revision: Revision,
-        input: ArtifactInput,
-    ) -> Result<Option<ArtifactVersion>, RepositoryError> {
-        let Some(binding) = self
-            .artifact_store()
-            .load_binding(&input, self.string_pool())
-            .map_err(|error| RepositoryError::ArtifactStore {
-                message: error.to_string(),
-            })?
-        else {
+        version: ArtifactVersion,
+    ) -> Result<Option<ArtifactPayload>, RepositoryError> {
+        let Some((_record, payload)) = self.load_artifact_record(version)? else {
             return Ok(None);
         };
-        if binding.input != input {
-            return Err(RepositoryError::ArtifactStore {
-                message: "artifact store returned a different input binding".to_owned(),
-            });
-        }
-        let Some(result) = self
-            .artifact_store()
-            .load_result(&binding.version, self.string_pool())
-            .map_err(|error| RepositoryError::ArtifactStore {
-                message: error.to_string(),
-            })?
-        else {
-            return Err(RepositoryError::ArtifactStore {
-                message: "artifact binding references a missing result".to_owned(),
-            });
+
+        Ok(Some(payload))
+    }
+
+    /// Load one persisted result and select its exact revision binding.
+    pub fn load_artifact_binding(
+        &self,
+        revision: Revision,
+        version: ArtifactVersion,
+        dependencies: impl Into<Arc<[ArtifactDependency]>>,
+        recorder: Option<&ArtifactAttemptRecorder>,
+    ) -> Result<bool, RepositoryError> {
+        let Some((record, payload)) = self.load_artifact_record(version)? else {
+            return Ok(false);
         };
-        let payload = result
-            .decode()
-            .map_err(|error| RepositoryError::ArtifactStore {
-                message: error.to_string(),
-            })?;
-
-        let (published, binding_pin) = self.publish_artifact_result(
-            binding.input,
+        let binding = self.publish_artifact_result(
+            version,
             payload,
-            binding.dependencies.into(),
-            result.diagnostics,
-            result.sidecars,
+            dependencies.into(),
+            record.diagnostics,
+            record.sidecars,
+            recorder,
         )?;
-        if published != binding.version {
-            return Err(RepositoryError::ArtifactStore {
-                message: "persisted artifact result changed while publishing".to_owned(),
-            });
-        }
-        self.bind_artifact(revision, binding_pin.binding())?;
+        self.bind_artifact(revision, binding.binding())?;
 
-        Ok(Some(binding.version))
+        Ok(true)
     }
 
     /// Complete one ready artifact and queue it for persistence.
     pub fn complete_artifact(
         &self,
         revision: Revision,
-        input: ArtifactInput,
+        version: ArtifactVersion,
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
-    ) -> Result<ArtifactVersion, RepositoryError> {
-        // publish the live result before encoding its persistent record
-        let version = self.publish_ready_artifact(
-            revision,
-            input,
-            payload,
-            dependencies.into(),
-            diagnostics,
-            sidecars,
-        )?;
-        self.pending_artifact_inputs.lock().insert(input);
+        recorder: Option<&ArtifactAttemptRecorder>,
+    ) -> Result<(), RepositoryError> {
+        let dependencies = dependencies.into();
 
-        Ok(version)
+        // publish the immutable result and binding
+        let publish = || {
+            self.publish_artifact_result(
+                version,
+                payload,
+                Arc::clone(&dependencies),
+                diagnostics,
+                sidecars,
+                recorder,
+            )
+        };
+        let binding_pin = match recorder {
+            Some(recorder) => recorder.breakdown("artifact publish", publish),
+            None => publish(),
+        }?;
+
+        // select the published binding in this revision
+        let bind = || self.bind_artifact(revision, binding_pin.binding());
+        match recorder {
+            Some(recorder) => recorder.breakdown("revision bind", bind),
+            None => bind(),
+        }?;
+
+        // queue the version for persistent storage
+        let queue = || {
+            self.pending_artifacts
+                .entry(version)
+                .or_insert(dependencies);
+        };
+        match recorder {
+            Some(recorder) => recorder.breakdown("persistence queue", queue),
+            None => queue(),
+        };
+
+        Ok(())
     }
 
     /// Flush pending artifacts into the persistent artifact store.
     pub fn flush_artifacts(&self) -> Result<ArtifactFlush, RepositoryError> {
         let pending = self
-            .pending_artifact_inputs
-            .lock()
+            .pending_artifacts
             .iter()
-            .copied()
+            .map(|entry| (*entry.key(), Arc::clone(entry.value())))
             .collect::<Vec<_>>();
 
-        // encode and transfer every completed artifact input to the persistent store
-        for input in &pending {
+        // encode and transfer every completed artifact version to the persistent store
+        for (version, dependencies) in &pending {
             let record = self
                 .artifact_table()
-                .record(input, self.string_pool())
+                .record(*version, dependencies, self.string_pool())
                 .map_err(|error| RepositoryError::ArtifactStore {
                     message: error.to_string(),
-                })?
-                .ok_or(RepositoryError::MissingArtifactInput { input: *input })?;
+                })?;
             self.artifact_store().store(record).map_err(|error| {
                 RepositoryError::ArtifactStore {
                     message: error.to_string(),
                 }
             })?;
-            self.pending_artifact_inputs.lock().remove(input);
+            self.pending_artifacts.remove(version);
         }
         let flush = self
             .artifact_store()
@@ -302,7 +256,7 @@ impl Repository {
     pub fn fail_artifact(
         &self,
         revision: Revision,
-        input: ArtifactInput,
+        version: ArtifactVersion,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
@@ -311,10 +265,10 @@ impl Repository {
         let dependencies = dependencies.into();
 
         // store failure before exposing the revision binding
-        let (_version, binding_pin) = self
+        let binding_pin = self
             .artifact_table()
-            .fail(input, dependencies, diagnostics, sidecars, failure)
-            .map_err(|error| RepositoryError::ArtifactStore {
+            .fail(version, dependencies, diagnostics, sidecars, failure)
+            .map_err(|error| RepositoryError::InvalidArtifact {
                 message: error.to_string(),
             })?;
         self.bind_artifact(revision, binding_pin.binding())?;
@@ -342,17 +296,13 @@ impl Repository {
         }
 
         let revision_state = self.revision(revision)?;
-        let bindings = revision_state
-            .artifacts
-            .read()
-            .bindings()
-            .collect::<Vec<_>>();
+        let bindings = revision_state.artifacts.bindings();
         let mut versions = Vec::with_capacity(bindings.len());
         for binding in bindings {
             versions.push(self.require_artifact_binding(binding)?.version);
         }
 
-        // resolve every selected key against one captured artifact graph
+        // resolve every selected artifact key
         let keys = versions
             .iter()
             .map(|version| version.key)
@@ -457,7 +407,7 @@ impl Repository {
         revision: Revision,
         artifact_key: &ArtifactKey,
     ) -> Result<Option<ArtifactBinding>, RepositoryError> {
-        let Some(state) = self.artifact_state(revision, *artifact_key)? else {
+        let Some(state) = self.artifact_binding_state(revision, *artifact_key)? else {
             return Ok(None);
         };
         let binding = self.require_artifact_binding(state.binding)?;
@@ -466,17 +416,16 @@ impl Repository {
     }
 
     /// Return one revision artifact state.
-    fn artifact_state(
+    fn artifact_binding_state(
         &self,
         revision: Revision,
         artifact_key: ArtifactKey,
-    ) -> Result<Option<ArtifactState>, RepositoryError> {
+    ) -> Result<Option<ArtifactBindingState>, RepositoryError> {
         let revision = self.revision(revision)?;
         let Some(artifact) = self.artifact_table().artifact_id(artifact_key) else {
             return Ok(None);
         };
-        let artifacts = revision.artifacts.read();
-        let Some(state) = artifacts.state(artifact) else {
+        let Some(state) = revision.artifacts.state(artifact) else {
             return Ok(None);
         };
 
@@ -497,20 +446,7 @@ impl Repository {
             .ok_or(RepositoryError::MissingArtifactId {
                 key: binding.version.key,
             })?;
-        let mut artifacts = revision.artifacts.write();
-        let previous = artifacts
-            .binding(artifact)
-            .map(|binding| self.require_artifact_binding(binding))
-            .transpose()?;
-        artifacts.bind(
-            artifact,
-            binding_id,
-            previous
-                .as_ref()
-                .map(|binding| binding.dependencies.as_ref()),
-            &binding.dependencies,
-            |key| self.artifact_table().artifact_id(key),
-        )?;
+        revision.artifacts.bind(artifact, binding_id);
 
         Ok(())
     }
@@ -525,42 +461,64 @@ impl Repository {
             .ok_or(RepositoryError::MissingArtifactBindingId { binding })
     }
 
-    /// Publish one ready payload without writing the persistent store.
-    fn publish_ready_artifact(
-        &self,
-        revision: Revision,
-        input: ArtifactInput,
-        payload: ArtifactPayload,
-        dependencies: Arc<[ArtifactDependency]>,
-        diagnostics: DiagnosticCollection,
-        sidecars: Vec<ArtifactSidecar>,
-    ) -> Result<ArtifactVersion, RepositoryError> {
-        let (version, binding_pin) =
-            self.publish_artifact_result(input, payload, dependencies, diagnostics, sidecars)?;
-        self.bind_artifact(revision, binding_pin.binding())?;
-
-        Ok(version)
-    }
-
-    /// Publish one immutable result and its artifact input entry.
+    /// Publish one immutable artifact result and binding.
     fn publish_artifact_result(
         &self,
-        input: ArtifactInput,
+        version: ArtifactVersion,
         payload: ArtifactPayload,
         dependencies: Arc<[ArtifactDependency]>,
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
-    ) -> Result<(ArtifactVersion, ArtifactBindingPin), RepositoryError> {
-        self.load_artifact_contents(&payload)?;
+        recorder: Option<&ArtifactAttemptRecorder>,
+    ) -> Result<ArtifactBindingPin, RepositoryError> {
+        let load_contents = || self.load_artifact_contents(&payload);
+        match recorder {
+            Some(recorder) => recorder.breakdown("content retain", load_contents),
+            None => load_contents(),
+        }?;
 
-        let publication = self
-            .artifact_table()
-            .publish(input, payload, dependencies, diagnostics, sidecars)
+        let publish = || {
+            self.artifact_table()
+                .publish(version, payload, dependencies, diagnostics, sidecars)
+                .map_err(|error| RepositoryError::InvalidArtifact {
+                    message: error.to_string(),
+                })
+        };
+        let binding = match recorder {
+            Some(recorder) => recorder.breakdown("table publish", publish),
+            None => publish(),
+        }?;
+
+        Ok(binding)
+    }
+
+    /// Load and decode one persisted artifact record.
+    fn load_artifact_record(
+        &self,
+        version: ArtifactVersion,
+    ) -> Result<Option<(ArtifactRecord, ArtifactPayload)>, RepositoryError> {
+        let Some(record) = self
+            .artifact_store()
+            .load(&version, self.string_pool())
+            .map_err(|error| RepositoryError::ArtifactStore {
+                message: error.to_string(),
+            })?
+        else {
+            return Ok(None);
+        };
+        if record.version != version {
+            return Err(RepositoryError::ArtifactStore {
+                message: "artifact store returned a different version".to_owned(),
+            });
+        }
+        let payload = record
+            .decode(self.build_fingerprint(), self.string_pool())
             .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;
+        self.load_artifact_contents(&payload)?;
 
-        Ok(publication)
+        Ok(Some((record, payload)))
     }
 
     /// Load all content ids referenced by one artifact payload.

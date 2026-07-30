@@ -38,23 +38,22 @@ impl Repository {
     pub fn prune_unreachable(&self) -> Result<(), RepositoryError> {
         let reachable_revisions = self.reachable_file_revisions();
         let selected_bindings = self.selected_artifact_bindings(&reachable_revisions);
-        let retained_artifacts = self
+        let retained_versions = self
             .artifact_table()
             .retain_bindings(&selected_bindings)
-            .map_err(|error| RepositoryError::ArtifactStore {
+            .map_err(|error| RepositoryError::InvalidArtifact {
                 message: error.to_string(),
             })?;
         let reachable_contents =
-            self.reachable_content_ids(&reachable_revisions, &retained_artifacts.versions)?;
+            self.reachable_content_ids(&reachable_revisions, &retained_versions)?;
 
         self.revisions
             .retain(|revision, _| reachable_revisions.contains(revision));
         self.compact_revision_trees(&reachable_revisions);
-        self.pending_artifact_inputs
-            .lock()
-            .retain(|input| retained_artifacts.inputs.contains(input));
+        self.pending_artifacts
+            .retain(|version, _dependencies| retained_versions.contains(version));
         self.artifact_store()
-            .retain(&retained_artifacts.inputs, self.string_pool())
+            .retain(&retained_versions, self.string_pool())
             .map_err(|error| RepositoryError::ArtifactStore {
                 message: error.to_string(),
             })?;
@@ -87,7 +86,7 @@ impl Repository {
             };
 
             let revision = revision.state();
-            bindings.extend(revision.artifacts.read().bindings());
+            bindings.extend(revision.artifacts.bindings());
         }
 
         bindings
@@ -252,8 +251,9 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use destack_artifact::{
-        ArtifactDependency, ArtifactInput, ArtifactKey, Bundle, BundleFile, BundleMode,
-        BundleSection, DiskBlobStore, EmitFormat, GlobalEnvironment, LanguageEnvironment,
+        ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactProjection,
+        ArtifactProjectionKey, ArtifactVersion, Bundle, BundleFile, BundleMode, BundleSection,
+        ComponentGraph, DiskBlobStore, EmitFormat, GlobalEnvironment, LanguageEnvironment,
         SourceDependency,
     };
     use destack_dir::{GlobalSymbolId, LocalSymbolId};
@@ -394,15 +394,16 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
-        let input = ArtifactInput::new(key, repository.build_fingerprint(), []);
-        let version = repository
+        let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
+        repository
             .complete_artifact(
                 revision,
-                input,
+                version,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),
                 Vec::new(),
+                None,
             )
             .expect("bundle should publish");
         repository
@@ -412,10 +413,10 @@ mod tests {
         let repository = test_repository(&root);
         let loaded = repository
             .load_artifact(version)
-            .expect("artifact should load from store");
+            .expect("artifact should load from store")
+            .expect("artifact should exist in the store");
 
-        assert!(loaded);
-        assert!(repository.artifact_table().bundle(&version).is_some());
+        assert!(matches!(loaded, ArtifactPayload::Bundle(_)));
         assert!(repository.content(content).is_ok());
 
         let _ = fs::remove_dir_all(&root);
@@ -449,15 +450,16 @@ mod tests {
             global_targets_by_key: IndexMap::new(),
         };
         let key = ArtifactKey::global_environment(profile);
-        let input = ArtifactInput::new(key, repository.build_fingerprint(), []);
-        let version = repository
+        let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
+        repository
             .complete_artifact(
                 revision,
-                input,
+                version,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),
                 Vec::new(),
+                None,
             )
             .expect("environment should publish");
         repository
@@ -467,22 +469,17 @@ mod tests {
         let repository = test_repository(&root);
         let loaded = repository
             .load_artifact(version)
-            .expect("artifact should load from store");
+            .expect("artifact should load from store")
+            .expect("artifact should exist in the store");
 
-        assert!(loaded);
         assert_eq!(
             repository.string_pool().get_maybe(string),
             Some("CachedSymbol")
         );
-        assert_eq!(
-            repository
-                .artifact_table()
-                .global_environment(&version)
-                .expect("environment should load")
-                .language
-                .symbol_by_name("CachedSymbol"),
-            Some(symbol)
-        );
+        let ArtifactPayload::GlobalEnvironment(loaded) = loaded else {
+            panic!("stored environment should decode as an environment");
+        };
+        assert_eq!(loaded.language.symbol_by_name("CachedSymbol"), Some(symbol));
 
         let _ = fs::remove_dir_all(&root);
     }
@@ -555,11 +552,11 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// Retain only the exact input binding selected by a live revision.
+    /// Retain only the exact artifact version selected by a live revision.
     #[test]
-    fn test_prune_unselected_artifact_input() {
-        let root = unique_test_root("repository-artifact-input-prune");
-        fs::create_dir_all(&root).expect("repository artifact input test root should exist");
+    fn test_prune_unselected_artifact_version() {
+        let root = unique_test_root("repository-artifact-version-prune");
+        fs::create_dir_all(&root).expect("repository artifact version test root should exist");
 
         let repository = test_repository(&root);
         let reference = Ref::for_root(&root);
@@ -578,7 +575,7 @@ mod tests {
             first_content,
         ))];
 
-        // publish the first input binding
+        // publish the first artifact version
         let package = PackageId::new(1);
         let target = TargetId::new(package, "browser");
         let output_content = repository
@@ -598,27 +595,28 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
-        let first_input = ArtifactInput::new(
+        let first_version = ArtifactVersion::new(
             key,
             repository.build_fingerprint(),
             first_dependencies.clone(),
         );
-        let first_version = repository
+        repository
             .complete_artifact(
                 first_revision,
-                first_input,
+                first_version,
                 output.clone().into(),
                 first_dependencies,
                 DiagnosticCollection::new(),
                 Vec::new(),
+                None,
             )
-            .expect("first artifact input should publish");
-        let branch = Ref::new("branch:artifact-input-prune");
+            .expect("first artifact version should publish");
+        let branch = Ref::new("branch:artifact-version-prune");
         repository
             .fork_ref(&reference, branch.clone())
             .expect("artifact branch should fork");
 
-        // publish a different input binding with the same result
+        // publish a different version with the same payload
         let second_revision = publish_edits(
             &repository,
             &reference,
@@ -632,44 +630,45 @@ mod tests {
             file_id,
             second_content,
         ))];
-        let second_input = ArtifactInput::new(
+        let second_version = ArtifactVersion::new(
             key,
             repository.build_fingerprint(),
             second_dependencies.clone(),
         );
-        let second_version = repository
+        repository
             .complete_artifact(
                 second_revision,
-                second_input,
-                output.into(),
+                second_version,
+                output.clone().into(),
                 second_dependencies,
                 DiagnosticCollection::new(),
                 Vec::new(),
+                None,
             )
-            .expect("second artifact input should publish");
-        assert_eq!(first_version, second_version);
+            .expect("second artifact version should publish");
+        assert_ne!(first_version, second_version);
         repository
             .flush_artifacts()
-            .expect("artifact inputs should persist");
+            .expect("artifact versions should persist");
 
-        // retain both exact input bindings while separate refs select them
+        // retain both exact versions while separate refs select them
         repository
             .prune_unreachable()
             .expect("repository should retain both branches");
         assert!(
             repository
                 .artifact_table()
-                .binding_id(&first_input)
+                .payload(&first_version)
                 .is_some()
         );
         assert!(
             repository
                 .artifact_table()
-                .binding_id(&second_input)
+                .payload(&second_version)
                 .is_some()
         );
 
-        // release the first branch and prune its exact input binding
+        // release the first branch and prune its exact version
         repository
             .set_ref(&branch, second_revision)
             .expect("artifact branch should advance");
@@ -679,32 +678,212 @@ mod tests {
         assert!(
             repository
                 .artifact_table()
-                .binding_id(&first_input)
+                .payload(&first_version)
                 .is_none()
         );
         assert!(
             repository
                 .artifact_table()
-                .binding_id(&second_input)
+                .payload(&second_version)
                 .is_some()
         );
 
-        // retain the same exact input selection on disk
-        let repository = test_repository(&root);
-        let revision = repository
-            .current(&Ref::for_root(&root))
-            .expect("root ref should exist");
-        assert_eq!(
-            repository
-                .load_artifact_input(revision, first_input)
-                .expect("pruned artifact input lookup should complete"),
-            None
+        // reuse released binding storage while continuing from the retained branch
+        let third_revision = publish_edits(
+            &repository,
+            &reference,
+            [Edit::set_text("src/input.ds", "export const value = 3;")],
         );
-        assert_eq!(
+        let third_content = repository
+            .file_content_id(third_revision, file_id)
+            .expect("third source content should resolve")
+            .expect("third source content should exist");
+        let third_dependencies = vec![ArtifactDependency::Source(SourceDependency::file_content(
+            file_id,
+            third_content,
+        ))];
+        let third_version = ArtifactVersion::new(
+            key,
+            repository.build_fingerprint(),
+            third_dependencies.clone(),
+        );
+        repository
+            .complete_artifact(
+                third_revision,
+                third_version,
+                output.into(),
+                third_dependencies,
+                DiagnosticCollection::new(),
+                Vec::new(),
+                None,
+            )
+            .expect("third artifact version should publish");
+        assert!(
             repository
-                .load_artifact_input(revision, second_input)
-                .expect("retained artifact input should load"),
-            Some(second_version)
+                .artifact_table()
+                .payload(&second_version)
+                .is_some()
+        );
+        assert!(
+            repository
+                .artifact_table()
+                .payload(&third_version)
+                .is_some()
+        );
+
+        // retain the same exact version on disk
+        let repository = test_repository(&root);
+        assert!(
+            repository
+                .load_artifact(first_version)
+                .expect("pruned artifact version lookup should complete")
+                .is_none()
+        );
+        assert!(
+            repository
+                .load_artifact(second_version)
+                .expect("retained artifact version should load")
+                .is_some()
+        );
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Reuse one result across branches with different exact projection owners.
+    #[test]
+    fn test_reuse_artifact_version_across_branch_projection_bindings() {
+        let root = unique_test_root("repository-artifact-projection-branches");
+        fs::create_dir_all(&root).expect("repository projection test root should exist");
+
+        let repository = Arc::new(test_repository(&root));
+        let reference = Ref::for_root(&root);
+        let first_revision = publish_edits(
+            &repository,
+            &reference,
+            [Edit::add_text("src/input.ds", "export const value = 1;")],
+        );
+        let branch = Ref::new("branch:artifact-projection");
+        repository
+            .fork_ref(&reference, branch.clone())
+            .expect("artifact branch should fork");
+
+        // build one projected owner and dependent result on the first branch
+        let package = PackageId::new(1);
+        let module = ModuleId::new(package, 1);
+        let profile = ProfileId::new(1);
+        let file = repository.file_id(&root.join("src/input.ds"));
+        let first_content = repository
+            .file_content_id(first_revision, file)
+            .expect("first source content should resolve")
+            .expect("first source content should exist");
+        let first_owner_dependencies = vec![ArtifactDependency::Source(
+            SourceDependency::file_content(file, first_content),
+        )];
+        let edges = IndexMap::from([(module, Arc::from([]))]);
+        let owner = ComponentGraph::from_edges(profile, edges.clone(), edges, Vec::new())
+            .expect("component graph should build");
+        let owner_key = ArtifactKey::component_graph(profile);
+        let first_owner = ArtifactVersion::new(
+            owner_key,
+            repository.build_fingerprint(),
+            first_owner_dependencies.clone(),
+        );
+        repository
+            .complete_artifact(
+                first_revision,
+                first_owner,
+                owner.clone().into(),
+                first_owner_dependencies,
+                DiagnosticCollection::new(),
+                Vec::new(),
+                None,
+            )
+            .expect("first component graph should publish");
+        let projection =
+            ArtifactProjection::new(owner_key, ArtifactProjectionKey::ReferenceComponent(module));
+        let fingerprint = repository
+            .artifact_table()
+            .projection_fingerprint(&first_owner, &projection)
+            .expect("component projection should exist");
+        let first_dependency =
+            ArtifactDependency::projection(first_owner, projection.key, fingerprint);
+        let dependent_key = ArtifactKey::global_environment(profile);
+        let dependent = ArtifactVersion::new(
+            dependent_key,
+            repository.build_fingerprint(),
+            [first_dependency.clone()],
+        );
+        repository
+            .complete_artifact(
+                first_revision,
+                dependent,
+                GlobalEnvironment::default().into(),
+                vec![first_dependency],
+                DiagnosticCollection::new(),
+                Vec::new(),
+                None,
+            )
+            .expect("dependent result should publish");
+
+        // change only the owner's exact source observation on the second branch
+        let second_revision = publish_edits(
+            &repository,
+            &reference,
+            [Edit::set_text("src/input.ds", "export const value = 2;")],
+        );
+        let second_content = repository
+            .file_content_id(second_revision, file)
+            .expect("second source content should resolve")
+            .expect("second source content should exist");
+        let second_owner_dependencies = vec![ArtifactDependency::Source(
+            SourceDependency::file_content(file, second_content),
+        )];
+        let second_owner = ArtifactVersion::new(
+            owner_key,
+            repository.build_fingerprint(),
+            second_owner_dependencies.clone(),
+        );
+        assert_ne!(first_owner, second_owner);
+        repository
+            .complete_artifact(
+                second_revision,
+                second_owner,
+                owner.into(),
+                second_owner_dependencies,
+                DiagnosticCollection::new(),
+                Vec::new(),
+                None,
+            )
+            .expect("second component graph should publish");
+
+        // reuse the dependent version while refreshing its exact owner binding
+        let resolved = repository
+            .artifact_version(second_revision, &dependent_key)
+            .expect("dependent result should resolve");
+        assert_eq!(resolved, Some(dependent));
+        let first_base = repository
+            .artifact_base(first_revision, dependent_key)
+            .expect("first branch binding should resolve")
+            .expect("first branch binding should exist");
+        let second_base = repository
+            .artifact_base(second_revision, dependent_key)
+            .expect("second branch binding should resolve")
+            .expect("second branch binding should exist");
+        let [ArtifactDependency::Projection(first_projection)] = first_base.dependencies.as_ref()
+        else {
+            panic!("first branch should select one projection dependency");
+        };
+        let [ArtifactDependency::Projection(second_projection)] = second_base.dependencies.as_ref()
+        else {
+            panic!("second branch should select one projection dependency");
+        };
+        assert_eq!(first_base.version, dependent);
+        assert_eq!(second_base.version, dependent);
+        assert_eq!(first_projection.version(), first_owner);
+        assert_eq!(second_projection.version(), second_owner);
+        assert_eq!(
+            first_projection.fingerprint(),
+            second_projection.fingerprint()
         );
 
         let _ = fs::remove_dir_all(&root);
@@ -744,15 +923,16 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
-        let input = ArtifactInput::new(key, repository.build_fingerprint(), []);
-        let _version = repository
+        let version = ArtifactVersion::new(key, repository.build_fingerprint(), []);
+        repository
             .complete_artifact(
                 revision,
-                input,
+                version,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),
                 Vec::new(),
+                None,
             )
             .expect("bundle should publish");
         repository

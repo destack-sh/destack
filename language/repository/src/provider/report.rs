@@ -73,6 +73,7 @@ impl TraceReport {
 
         let mut output = String::new();
         self.render_summary(&mut output);
+        self.render_counters(&mut output);
         if self.is_timeline_enabled {
             self.render_timelines(&mut output);
         }
@@ -124,6 +125,45 @@ impl TraceReport {
                 Cell::colored(stats.parked.to_string(), outcome_color("parked")),
                 Cell::colored(stats.failed.to_string(), outcome_color("failed")),
             ]);
+        }
+
+        table.render(output);
+    }
+
+    /// Render named trace and artifact attempt counters.
+    fn render_counters(&self, output: &mut String) {
+        let names = self.counter_names();
+        if names.is_empty() {
+            return;
+        }
+
+        let mut table = TextTable::new("counters", self.use_color);
+        let mut header = vec![Cell::bold("trace")];
+        header.extend(names.iter().map(Cell::bold));
+        table = table.row(header);
+
+        // add one counter row per trace
+        for row in &self.rows {
+            let mut cells = vec![Cell::new(&row.name)];
+            for name in &names {
+                let trace_value = row
+                    .trace
+                    .counters
+                    .iter()
+                    .filter(|counter| counter.name == *name)
+                    .map(|counter| counter.value)
+                    .sum::<u64>();
+                let attempt_value = row
+                    .trace
+                    .attempts
+                    .iter()
+                    .flat_map(|attempt| &attempt.counters)
+                    .filter(|counter| counter.name == *name)
+                    .map(|counter| counter.value)
+                    .sum::<u64>();
+                cells.push(Cell::new((trace_value + attempt_value).to_string()));
+            }
+            table = table.row(cells);
         }
 
         table.render(output);
@@ -261,6 +301,27 @@ impl TraceReport {
             for time in &row.trace.times {
                 if !names.contains(&time.name) {
                     names.push(time.name.clone());
+                }
+            }
+        }
+
+        names
+    }
+
+    /// Return counter names in first-seen order.
+    fn counter_names(&self) -> Vec<String> {
+        let mut names = Vec::new();
+        for row in &self.rows {
+            for counter in &row.trace.counters {
+                if !names.contains(&counter.name) {
+                    names.push(counter.name.clone());
+                }
+            }
+            for attempt in &row.trace.attempts {
+                for counter in &attempt.counters {
+                    if !names.contains(&counter.name) {
+                        names.push(counter.name.clone());
+                    }
                 }
             }
         }

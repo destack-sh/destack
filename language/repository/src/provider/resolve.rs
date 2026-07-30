@@ -3,7 +3,8 @@ use destack_artifact::{
     ArtifactVersion,
 };
 
-use crate::provider::{ArtifactBase, ProviderError, ProviderResult};
+use crate::ArtifactResolution;
+use crate::provider::{ArtifactAttemptRecorder, ArtifactBase, ProviderError, ProviderResult};
 use crate::repository::{Repository, Revision};
 
 /// The repository resolution of one collected artifact dependency set.
@@ -32,9 +33,13 @@ impl Repository {
     pub fn resolve_dependency_set(
         &self,
         revision: Revision,
-        set: ArtifactDependencySet,
+        mut set: ArtifactDependencySet,
         base: Option<&ArtifactBase>,
+        recorder: &ArtifactAttemptRecorder,
     ) -> ProviderResult<DependencySetResolution> {
+        let artifact_requirements = set.requirements.len() as u64;
+        let source_dependencies = set.sources.len() as u64;
+        recorder.breakdown("dependency order", || set.normalize());
         let base = base.filter(|base| set.matches(&base.dependencies));
         let artifact_keys = set
             .requirements
@@ -45,41 +50,53 @@ impl Repository {
                 is_dirty.then_some(requirement.artifact_key())
             })
             .collect::<Vec<_>>();
-        let versions = self
-            .artifact_versions(revision, &artifact_keys)
-            .map_err(|error| ProviderError::internal(error.to_string()))?;
-        let mut versions = versions.into_iter();
+        let resolved_requirements = artifact_keys.len() as u64;
+        recorder.record_counters([
+            ("artifact requirements", artifact_requirements),
+            ("source dependencies", source_dependencies),
+            ("resolved requirements", resolved_requirements),
+        ]);
+        let resolutions = recorder.breakdown("dependency resolution", || {
+            self.resolve_artifacts(revision, &artifact_keys)
+                .map_err(|error| ProviderError::internal(error.to_string()))
+        })?;
+        let mut resolutions = resolutions.into_iter();
 
         // classify each declared artifact requirement
-        let capacity = set.requirements.len() + set.sources.len();
-        let mut dependencies = Vec::with_capacity(capacity);
-        let mut pending = Vec::new();
-        let mut failed = None;
-        for (dependency, requirement) in set.requirements.iter().enumerate() {
-            let previous = base
-                .filter(|base| !base.is_dependency_dirty(dependency))
-                .map(|base| base.dependencies[dependency].clone());
+        let (dependencies, pending, failed) =
+            recorder.breakdown("dependency values", || -> ProviderResult<_> {
+                let capacity = set.requirements.len() + set.sources.len();
+                let mut dependencies = Vec::with_capacity(capacity);
+                let mut pending = Vec::new();
+                let mut failed = None;
+                for (dependency, requirement) in set.requirements.iter().enumerate() {
+                    let previous = base
+                        .filter(|base| !base.is_dependency_dirty(dependency))
+                        .map(|base| base.dependencies[dependency].clone());
 
-            if let Some(previous) = previous {
-                dependencies.push(previous);
-            } else {
-                let version = versions.next().ok_or_else(|| {
-                    ProviderError::internal("resolved dependency versions are incomplete")
-                })?;
-                self.resolve_requirement(
-                    *requirement,
-                    version,
-                    &mut dependencies,
-                    &mut pending,
-                    &mut failed,
-                )?;
-            }
-        }
+                    if let Some(previous) = previous {
+                        dependencies.push(previous);
+                    } else {
+                        let resolution = resolutions.next().ok_or_else(|| {
+                            ProviderError::internal("resolved dependencies are incomplete")
+                        })?;
+                        self.resolve_requirement(
+                            *requirement,
+                            resolution,
+                            &mut dependencies,
+                            &mut pending,
+                            &mut failed,
+                        )?;
+                    }
+                }
 
-        // fold in primitive source observations
-        for source in &set.sources {
-            dependencies.push(ArtifactDependency::Source(*source));
-        }
+                // fold in primitive source observations
+                for source in &set.sources {
+                    dependencies.push(ArtifactDependency::Source(*source));
+                }
+
+                Ok((dependencies, pending, failed))
+            })?;
 
         // resolve immediately when a dependency already failed
         if let Some(failed) = failed {
@@ -113,31 +130,33 @@ impl Repository {
     fn resolve_requirement(
         &self,
         requirement: ArtifactRequirement,
-        version: Option<ArtifactVersion>,
+        resolution: ArtifactResolution,
         dependencies: &mut Vec<ArtifactDependency>,
         pending: &mut Vec<ArtifactKey>,
         failed: &mut Option<ArtifactKey>,
     ) -> ProviderResult<()> {
         let artifact_key = requirement.artifact_key();
-        let Some(version) = version else {
-            pending.push(artifact_key);
-
-            return Ok(());
-        };
-
-        match self.artifact_table().outcome(&version) {
-            None => {
-                return Err(ProviderError::internal(format!(
-                    "resolved artifact version is missing: {version:?}"
-                ))
-                .into());
-            }
-            Some(ArtifactOutcome::Failed(_)) => {
+        match resolution {
+            ArtifactResolution::Terminal {
+                version,
+                outcome: ArtifactOutcome::Failed(_),
+            } => {
                 failed.get_or_insert(artifact_key);
                 dependencies.push(ArtifactDependency::artifact(version));
             }
-            Some(ArtifactOutcome::Ok) => {
+            ArtifactResolution::Terminal {
+                version,
+                outcome: ArtifactOutcome::Ok,
+            } => {
                 self.resolve_completed_requirement(requirement, version, dependencies)?;
+            }
+            ArtifactResolution::Pending {
+                frontier: dependency_frontier,
+            } => {
+                pending.extend(dependency_frontier);
+            }
+            ArtifactResolution::Stale => {
+                pending.push(artifact_key);
             }
         }
 

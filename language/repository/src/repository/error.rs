@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
-use destack_artifact::{ArtifactBindingId, ArtifactInput, ArtifactKey, ArtifactVersion};
+use destack_artifact::{ArtifactBindingId, ArtifactKey, ArtifactVersion};
 use destack_source::{ContentId, File, FileId, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::{Ref, Revision};
@@ -81,11 +81,9 @@ pub enum RepositoryError {
     MissingProfile { profile: ProfileId },
     /// The requested artifact entry does not exist in the repository store.
     MissingArtifact { version: ArtifactVersion },
-    /// The requested artifact input does not exist in the repository table.
-    MissingArtifactInput { input: ArtifactInput },
     /// The requested artifact binding does not exist in the repository table.
     MissingArtifactBindingId { binding: ArtifactBindingId },
-    /// The artifact table does not contain one required semantic artifact id.
+    /// The artifact table does not contain one required dense artifact id.
     MissingArtifactId { key: ArtifactKey },
     /// An artifact binding does not contain one recorded dependency ordinal.
     MissingArtifactDependency {
@@ -96,8 +94,8 @@ pub enum RepositoryError {
     },
     /// Artifact bindings form a dependency cycle.
     CircularArtifactBinding { key: ArtifactKey },
-    /// The revision artifact graph violates one of its internal invariants.
-    InvalidArtifactGraph { message: String },
+    /// Artifact state violates an internal invariant.
+    InvalidArtifact { message: String },
     /// The requested file does not exist in the base revision.
     MissingFile { path: String },
     /// The requested file already exists in the base revision.
@@ -242,9 +240,6 @@ impl fmt::Display for RepositoryError {
             Self::MissingArtifact { version } => {
                 write!(formatter, "missing repository artifact '{version:?}'")
             }
-            Self::MissingArtifactInput { input } => {
-                write!(formatter, "missing repository artifact input '{input:?}'")
-            }
             Self::MissingArtifactBindingId { binding } => {
                 write!(
                     formatter,
@@ -266,8 +261,8 @@ impl fmt::Display for RepositoryError {
                     "circular repository artifact binding dependency at '{key:?}'"
                 )
             }
-            Self::InvalidArtifactGraph { message } => {
-                write!(formatter, "invalid repository artifact graph: {message}")
+            Self::InvalidArtifact { message } => {
+                write!(formatter, "invalid repository artifact state: {message}")
             }
             Self::MissingFile { path } => {
                 write!(formatter, "missing file '{path}'")

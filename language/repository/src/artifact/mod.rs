@@ -1,8 +1,8 @@
 mod artifact;
+mod binding;
 mod reader;
 mod resolver;
-mod state;
 
+pub(crate) use binding::*;
 pub use reader::*;
 pub use resolver::*;
-pub(crate) use state::*;

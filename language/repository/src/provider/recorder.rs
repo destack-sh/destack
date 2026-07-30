@@ -57,6 +57,18 @@ impl ArtifactAttemptRecorder {
         value
     }
 
+    /// Record one timed breakdown around a closure.
+    pub fn breakdown<T>(&self, name: &'static str, work: impl FnOnce() -> T) -> T {
+        let started = self.trace.now();
+        let value = work();
+        let span = self
+            .trace
+            .span_from(name, started, TraceSpanKind::Breakdown);
+        self.spans.lock().push(span);
+
+        value
+    }
+
     /// Record one interior span that started at one clock reading.
     pub fn record_span(&self, name: &'static str, started: Option<Moment>) {
         let span = self
@@ -69,6 +81,12 @@ impl ArtifactAttemptRecorder {
     /// Record one named counter.
     pub fn record_counter(&self, name: &'static str, value: u64) {
         self.counters.lock().push(TraceCounter { name, value });
+    }
+
+    /// Record several named counters together.
+    pub fn record_counters<const N: usize>(&self, counters: [(&'static str, u64); N]) {
+        let counters = counters.map(|(name, value)| TraceCounter { name, value });
+        self.counters.lock().extend(counters);
     }
 
     /// Record the exact artifact dependencies resolved for this attempt.

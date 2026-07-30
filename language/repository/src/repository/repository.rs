@@ -3,19 +3,17 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_artifact::{
-    ArtifactInput, ArtifactStore, ArtifactTable, BlobStore, ContentStore, RepositoryStoreLayout,
-    SegmentedArtifactStore,
+    ArtifactDependency, ArtifactStore, ArtifactTable, ArtifactVersion, BlobStore, ContentStore,
+    RepositoryStoreLayout, SegmentedArtifactStore,
 };
 use destack_core::{StringPool, TreapRoot};
 use destack_source::{Content, ContentEntry, ContentId, File, FileSystem};
-use parking_lot::Mutex;
-use rustc_hash::FxHashSet;
 
 use crate::repository::{
     ContentPool, EmbeddedBuiltinPackage, Files, Ref, RepositoryError, Revision, RevisionEntry,
     RevisionState,
 };
-use crate::{ArtifactGraph, DestackLayout, Host, Root, RootKind, Settings};
+use crate::{ArtifactBindingTable, DestackLayout, Host, Root, RootKind, Settings};
 
 const BUILD_FINGERPRINT: &str = include_str!("../../../../VERSION.txt");
 
@@ -48,8 +46,8 @@ pub struct Repository {
     pub(crate) artifact_table: Arc<ArtifactTable>,
     /// Persistent artifact records.
     pub(crate) artifact_store: Arc<dyn ArtifactStore>,
-    /// Completed artifact inputs awaiting persistence.
-    pub(crate) pending_artifact_inputs: Mutex<FxHashSet<ArtifactInput>>,
+    /// Dependency observations needed to persist completed artifact versions.
+    pub(crate) pending_artifacts: DashMap<ArtifactVersion, Arc<[ArtifactDependency]>>,
     /// Named physical bases for dependency roots outside the workspace.
     pub(crate) mounts: DashMap<String, PathBuf>,
     /// Shared interned strings for this repository.
@@ -79,7 +77,7 @@ impl Repository {
             files: Files::new(),
             artifact_table: Arc::new(ArtifactTable::default()),
             artifact_store,
-            pending_artifact_inputs: Mutex::new(FxHashSet::default()),
+            pending_artifacts: DashMap::new(),
             content_pool,
             mounts: DashMap::new(),
             embedded_builtin: EmbeddedBuiltinPackage::new(),
@@ -93,7 +91,7 @@ impl Repository {
         let initial_revision = Arc::new(RevisionState::new(
             TreapRoot::new(),
             Arc::new(repository.host.environment().clone()),
-            ArtifactGraph::new(),
+            ArtifactBindingTable::new(),
         ));
         let initial_revision_id = initial_revision.revision();
         repository.revisions.insert(

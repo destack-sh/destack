@@ -3,14 +3,14 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use destack_artifact::SourceDependency;
 use destack_core::{TreapRoot, stable_hash_value_256};
 use destack_serde::Reflect;
-use destack_source::FileId;
 use parking_lot::{RwLock, RwLockWriteGuard};
 use serde::{Deserialize, Serialize};
 
 use crate::repository::{Repository, RepositoryError, RevisionCache};
-use crate::{ArtifactGraph, Environment};
+use crate::{ArtifactBindingTable, Environment};
 
 /// Content identity for one repository source and environment state.
 #[repr(transparent)]
@@ -141,15 +141,15 @@ impl RevisionEntry {
     }
 }
 
-/// Source state and derived artifact graph for one revision.
+/// Source state and derived artifact bindings for one revision.
 #[derive(Debug)]
 pub(crate) struct RevisionState {
     /// File bindings included in this revision.
     files: RwLock<TreapRoot>,
     /// Environment inputs captured in this revision.
     pub environment: Arc<Environment>,
-    /// Artifact binding selections and direct reverse dependencies.
-    pub(crate) artifacts: RwLock<ArtifactGraph>,
+    /// Derived artifact bindings.
+    pub(crate) artifacts: ArtifactBindingTable,
     /// Lazily derived data for this revision.
     pub cache: RevisionCache,
 }
@@ -159,12 +159,12 @@ impl RevisionState {
     pub(crate) fn new(
         files: TreapRoot,
         environment: Arc<Environment>,
-        artifacts: ArtifactGraph,
+        artifacts: ArtifactBindingTable,
     ) -> Self {
         Self {
             files: RwLock::new(files),
             environment,
-            artifacts: RwLock::new(artifacts),
+            artifacts,
             cache: RevisionCache::new(),
         }
     }
@@ -193,28 +193,40 @@ impl RevisionState {
 /// Source changes applied while forking one revision.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct SourceDelta {
-    /// The changed source file ids.
-    files: Arc<[FileId]>,
+    /// The exact source observations invalidated by the edits.
+    sources: Arc<[SourceDependency]>,
     /// Whether package or module discovery inputs changed.
     is_discovery_changed: bool,
 }
 
 impl SourceDelta {
-    /// Build a source delta from changed files.
-    pub(crate) fn new(files: impl IntoIterator<Item = FileId>, is_discovery_changed: bool) -> Self {
-        let mut files = files.into_iter().collect::<Vec<_>>();
-        files.sort_unstable();
-        files.dedup();
+    /// Build a source delta from invalidated observations.
+    pub(crate) fn new(
+        sources: impl IntoIterator<Item = SourceDependency>,
+        is_discovery_changed: bool,
+    ) -> Self {
+        let mut sources = sources.into_iter().collect::<Vec<_>>();
+        sources.sort_unstable();
+        sources.dedup();
 
         Self {
-            files: files.into(),
+            sources: sources.into(),
             is_discovery_changed,
         }
     }
 
-    /// Return the changed source file ids.
-    pub(crate) fn files(&self) -> &[FileId] {
-        &self.files
+    /// Add invalidated source observations.
+    pub(crate) fn extend(&mut self, invalidated: impl IntoIterator<Item = SourceDependency>) {
+        let mut sources = self.sources.to_vec();
+        sources.extend(invalidated);
+        sources.sort_unstable();
+        sources.dedup();
+        self.sources = sources.into();
+    }
+
+    /// Return the invalidated source observations.
+    pub(crate) fn sources(&self) -> &[SourceDependency] {
+        &self.sources
     }
 
     /// Return whether package or module discovery inputs changed.
