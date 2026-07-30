@@ -236,8 +236,11 @@ impl Indexer {
         }
 
         let revision = context.revision();
-        let artifacts = ArtifactReader::new(self.repository(), revision)
-            .restrict(context.artifact_key(), context.artifact_dependencies());
+        let artifacts = ArtifactReader::new(self.repository(), revision).restrict(
+            context.artifact_dependencies().ok_or_else(|| {
+                ProviderError::internal("program index provider has no frozen dependencies")
+            })?,
+        );
 
         // build the exact selected index family
         let payload = match kind {
@@ -284,8 +287,11 @@ impl Indexer {
             .into());
         }
 
-        let artifacts = ArtifactReader::new(self.repository(), context.revision())
-            .restrict(context.artifact_key(), context.artifact_dependencies());
+        let artifacts = ArtifactReader::new(self.repository(), context.revision()).restrict(
+            context.artifact_dependencies().ok_or_else(|| {
+                ProviderError::internal("module index provider has no frozen dependencies")
+            })?,
+        );
         let checked = artifacts.dir_checked_component(component_id, profile_id)?;
         if checked.component != component_id {
             return Err(ProviderError::internal(format!(
