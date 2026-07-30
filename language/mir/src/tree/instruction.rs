@@ -320,6 +320,17 @@ pub enum Instruction {
         /// The dynamic value whose concrete type is read.
         dynamic: Value,
     },
+    /// Read one dispatch slot through a dynamic value's concrete table.
+    DynamicRead {
+        /// The SSA value to define with the slot value.
+        destination: Value,
+        /// The dynamic value whose entry is read.
+        dynamic: Value,
+        /// The zero-based slot in the constraint's dynamic shape.
+        slot: u32,
+        /// The result type of the slot value.
+        result_type: TypeId,
+    },
 
     // vector operations
     /// Broadcast a scalar to all vector lanes.
@@ -918,6 +929,7 @@ impl Instruction {
             Instruction::DynamicBind { destination, .. } => Some(*destination),
             Instruction::DynamicPayload { destination, .. } => Some(*destination),
             Instruction::DynamicType { destination, .. } => Some(*destination),
+            Instruction::DynamicRead { destination, .. } => Some(*destination),
             Instruction::VectorSplat { destination, .. } => Some(*destination),
             Instruction::VectorExtract { destination, .. } => Some(*destination),
             Instruction::VectorInsert { destination, .. } => Some(*destination),
@@ -1029,6 +1041,7 @@ impl Instruction {
             Instruction::DynamicBind { payload, .. } => smallvec![*payload],
             Instruction::DynamicPayload { dynamic, .. } => smallvec![*dynamic],
             Instruction::DynamicType { dynamic, .. } => smallvec![*dynamic],
+            Instruction::DynamicRead { dynamic, .. } => smallvec![*dynamic],
             Instruction::VectorSplat { value, .. } => smallvec![*value],
             Instruction::VectorExtract { vector, index, .. } => smallvec![*vector, *index],
             Instruction::VectorInsert {

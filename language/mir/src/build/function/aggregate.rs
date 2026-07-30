@@ -250,6 +250,25 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Read one dispatch slot through a dynamic value's concrete table.
+    pub fn dynamic_read(
+        &mut self,
+        dynamic: Value,
+        slot: u32,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::DynamicRead {
+            destination,
+            dynamic,
+            slot,
+            result_type: TypeId::from(result_type),
+        });
+        self.define_value(destination, result_type);
+
+        destination
+    }
+
     // instruction builders: vector operations
 
     /// Broadcast a scalar to all vector lanes.

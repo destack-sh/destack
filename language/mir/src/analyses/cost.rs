@@ -316,6 +316,7 @@ impl CostModel {
             | mir::Instruction::DynamicBind { .. }
             | mir::Instruction::DynamicPayload { .. }
             | mir::Instruction::DynamicType { .. }
+        | mir::Instruction::DynamicRead { .. }
             | mir::Instruction::FunctionPointer { .. }
             | mir::Instruction::FunctionEnvironment { .. }
             | mir::Instruction::FunctionEnvironmentCurrent { .. }

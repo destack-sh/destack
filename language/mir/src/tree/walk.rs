@@ -130,6 +130,7 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::VariantNew { result_type, .. }
         | Instruction::SliceView { result_type, .. }
         | Instruction::DynamicPayload { result_type, .. }
+        | Instruction::DynamicRead { result_type, .. }
         | Instruction::NewComplete { result_type, .. }
         | Instruction::Pin { result_type, .. }
         | Instruction::AtomicLoad { result_type, .. } => {

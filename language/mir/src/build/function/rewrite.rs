@@ -131,6 +131,9 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::DynamicType {
                     dynamic: argument, ..
                 }
+                | Instruction::DynamicRead {
+                    dynamic: argument, ..
+                }
                 | Instruction::Free { value: argument }
                 | Instruction::Pin {
                     value: argument, ..
