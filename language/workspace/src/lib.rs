@@ -5,6 +5,7 @@ mod diagnostic;
 mod file;
 mod payload;
 pub mod protocol;
+mod run;
 mod server;
 #[cfg(not(target_arch = "wasm32"))]
 mod service;
@@ -20,6 +21,7 @@ pub use diagnostic::{DiagnosticRun, DiagnosticsRequest, Error, FileDiagnostics};
 pub use file::{Commit, FileImage, FileOperation, FileUpdate, SourceUpdate, UpdateKind};
 pub use payload::*;
 pub use protocol::*;
+pub use run::*;
 pub use server::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use service::*;

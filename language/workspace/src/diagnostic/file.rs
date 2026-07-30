@@ -5,9 +5,10 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_repository::Revision;
-use destack_session::{ArtifactCancellation, ArtifactPriority, ArtifactRun};
+use destack_session::{ArtifactPriority, ArtifactRun};
 use destack_source::{Diagnostic, File, FileId, ModuleId, Uri};
 
+use crate::RunGuard;
 use crate::diagnostic::Error;
 use crate::workspace::{LocalWorkspace, SessionPin};
 
@@ -88,12 +89,15 @@ impl DiagnosticRun {
             .collect()
     }
 
-    /// Return cancellation access for every root artifact run.
-    pub fn cancellations(&self) -> Vec<ArtifactCancellation> {
-        self.reads
+    /// Cancel this diagnostic read when its caller abandons the operation.
+    pub fn guard(&self) -> RunGuard {
+        let cancellations = self
+            .reads
             .iter()
             .map(|read| read.artifact_run.cancellation())
-            .collect()
+            .collect();
+
+        RunGuard::new(cancellations)
     }
 
     /// Complete every root and read its exact diagnostics.

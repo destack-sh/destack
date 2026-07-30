@@ -16,10 +16,11 @@ use destack_query::{
 };
 use destack_repository::{ArtifactReader, RepositoryError, Revision, Trace};
 use destack_serde::Reflect;
-use destack_session::{ArtifactCancellation, ArtifactPriority, ArtifactRun};
+use destack_session::{ArtifactPriority, ArtifactRun};
 use destack_source::{File, ProfileId, Span};
 use serde::{Deserialize, Serialize};
 
+use crate::RunGuard;
 use crate::diagnostic::Error;
 
 use super::{LocalWorkspace, SessionPin};
@@ -170,14 +171,14 @@ impl QueryRun {
         self.trace.clone()
     }
 
-    /// Return cancellation access for this query's artifact runs.
-    pub fn cancellations(&self) -> Vec<ArtifactCancellation> {
+    /// Cancel this query when its caller abandons the operation.
+    pub fn guard(&self) -> RunGuard {
         let mut cancellations = vec![self.required.cancellation()];
         if let Some(diagnostics) = self.diagnostics.as_ref() {
             cancellations.push(diagnostics.cancellation());
         }
 
-        cancellations
+        RunGuard::new(cancellations)
     }
 
     /// Wait for ready artifacts and execute the exact query.
