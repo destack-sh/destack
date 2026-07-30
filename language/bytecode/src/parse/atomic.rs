@@ -237,7 +237,7 @@ impl Parser<'_> {
                 "local" => StorageSet::LOCAL,
                 "shared" => StorageSet::SHARED,
                 "frame" => StorageSet::FRAME,
-                "static" => StorageSet::STATIC,
+                "global" => StorageSet::GLOBAL,
                 "device" => StorageSet::DEVICE,
                 "workgroup" => StorageSet::WORKGROUP,
                 _ => return Err(ParseError::new("expected storage region", token.span)),

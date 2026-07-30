@@ -55,7 +55,7 @@ impl CallTarget {
                 slot,
             } => {
                 instruction.register(receiver);
-                instruction.reference(reference.kind(), reference.space());
+                instruction.reference(reference.kind(), reference.storage());
                 instruction.u32(dispatch_offset);
                 instruction.u16(slot);
             }

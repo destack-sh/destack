@@ -1,6 +1,6 @@
 use crate::{
     CounterId, Error, Label, Opcode, Placement, ReferenceKind, RegisterId, RegisterSpan,
-    Relocation, RelocationTag, Result, SamplerId, Scalar, Space, TensorOperand, ValueType,
+    Relocation, RelocationTag, Result, SamplerId, Scalar, Storage, TensorOperand, ValueType,
     VectorType,
 };
 
@@ -167,10 +167,10 @@ impl InstructionBuilder {
         self.u16(vector.lane_count);
     }
 
-    /// Append one reference ownership and space operand.
-    pub fn reference(&mut self, kind: ReferenceKind, space: Space) {
-        self.bytes.push(kind.0);
-        self.bytes.push(space.0);
+    /// Append one reference ownership and storage operand.
+    pub fn reference(&mut self, kind: ReferenceKind, storage: Storage) {
+        self.bytes.push(kind.code());
+        self.bytes.push(storage.code());
     }
 
     /// Append one tensor operand.

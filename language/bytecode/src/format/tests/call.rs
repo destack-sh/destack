@@ -16,7 +16,7 @@ function f2 {
     dynamic.bind r5:r6, r4,d0
 call r7, f0,r0:r1
 call.indirect r7, r2:r3,r0:r1
-call.virtual r7, r4,ref<managed,space(local)>,0,0,r0:r1
+call.virtual r7, r4,ref<managed,local>,0,0,r0:r1
 call.dynamic r7, r5:r6,0,r0:r1
 dynamic.type r8, r5:r6
 extract r9, r5:r6,0,8
@@ -40,7 +40,7 @@ function f2 {
     dynamic.bind r5:r6, r4, d0
     call r7, f0, r0:r1
     call.indirect r7, r2:r3, r0:r1
-    call.virtual r7, r4, ref<managed, space(local)>, 0, 0, r0:r1
+    call.virtual r7, r4, ref<managed, local>, 0, 0, r0:r1
     call.dynamic r7, r5:r6, 0, r0:r1
     dynamic.type r8, r5:r6
     extract r9, r5:r6, 0, 8

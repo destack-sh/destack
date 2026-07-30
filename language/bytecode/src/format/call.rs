@@ -184,7 +184,7 @@ impl InstructionFormatter<'_, '_, '_> {
                 self.write_comma()?;
                 write!(
                     self.formatter,
-                    [&ValueType::reference(reference.kind(), reference.space())]
+                    [&ValueType::reference(reference.kind(), reference.storage())]
                 )?;
                 self.write_comma()?;
                 self.write_text(&dispatch_offset)?;

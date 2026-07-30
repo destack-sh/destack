@@ -41,6 +41,11 @@ impl ReferenceKind {
     /// Unowned direct access.
     pub const RAW: Self = Self(3);
 
+    /// Return the stable bytecode code.
+    pub const fn code(self) -> u8 {
+        self.0
+    }
+
     /// Return the reference kind with one canonical name.
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
@@ -69,37 +74,111 @@ impl ReferenceKind {
     }
 }
 
-/// The memory space named by one bytecode reference.
+/// One heap ownership domain.
 #[repr(transparent)]
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
 )]
-pub struct Space(pub u8);
+pub struct Space(u8);
 
 impl Space {
     /// Worker-local runtime storage.
     pub const LOCAL: Self = Self(0);
     /// Runtime-shared storage.
     pub const SHARED: Self = Self(1);
-    /// Activation frame storage.
-    pub const FRAME: Self = Self(2);
-    /// Program static storage.
-    pub const STATIC: Self = Self(3);
 
+    /// Return the stable bytecode code.
+    pub const fn code(self) -> u8 {
+        self.0
+    }
+
+    /// Decode one stable heap ownership domain.
+    pub const fn from_code(code: u8) -> Option<Self> {
+        match code {
+            0 => Some(Self::LOCAL),
+            1 => Some(Self::SHARED),
+            _ => None,
+        }
+    }
     /// Return the space with one canonical name.
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "local" => Some(Self::LOCAL),
             "shared" => Some(Self::SHARED),
-            "frame" => Some(Self::FRAME),
-            "static" => Some(Self::STATIC),
             _ => None,
         }
     }
 
     /// Return whether this space is defined by the bytecode ISA.
     pub const fn is_defined(self) -> bool {
-        self.0 <= Self::STATIC.0
+        self.0 <= Self::SHARED.0
+    }
+
+    /// Return the canonical bytecode text name.
+    pub const fn name(self) -> Option<&'static str> {
+        match self {
+            Self::LOCAL => Some("local"),
+            Self::SHARED => Some("shared"),
+            _ => None,
+        }
+    }
+}
+
+/// The backing storage named by one bytecode reference.
+#[repr(transparent)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
+)]
+pub struct Storage(u8);
+
+impl Storage {
+    /// Worker-local heap storage.
+    pub const LOCAL: Self = Self(0);
+    /// Runtime-shared heap storage.
+    pub const SHARED: Self = Self(1);
+    /// Current activation frame storage.
+    pub const FRAME: Self = Self(2);
+    /// Immutable Program constant storage.
+    pub const CONSTANT: Self = Self(3);
+    /// Worker-local global storage.
+    pub const LOCAL_GLOBAL: Self = Self(4);
+    /// Runtime-shared global storage.
+    pub const SHARED_GLOBAL: Self = Self(5);
+
+    /// Return the stable bytecode code.
+    pub const fn code(self) -> u8 {
+        self.0
+    }
+
+    /// Decode one stable reference storage.
+    pub const fn from_code(code: u8) -> Option<Self> {
+        match code {
+            0 => Some(Self::LOCAL),
+            1 => Some(Self::SHARED),
+            2 => Some(Self::FRAME),
+            3 => Some(Self::CONSTANT),
+            4 => Some(Self::LOCAL_GLOBAL),
+            5 => Some(Self::SHARED_GLOBAL),
+            _ => None,
+        }
+    }
+
+    /// Return the storage with one canonical name.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "local" => Some(Self::LOCAL),
+            "shared" => Some(Self::SHARED),
+            "frame" => Some(Self::FRAME),
+            "constant" => Some(Self::CONSTANT),
+            "global" => Some(Self::LOCAL_GLOBAL),
+            "shared global" => Some(Self::SHARED_GLOBAL),
+            _ => None,
+        }
+    }
+
+    /// Return whether this storage is defined by the bytecode ISA.
+    pub const fn is_defined(self) -> bool {
+        self.0 <= Self::SHARED_GLOBAL.0
     }
 
     /// Return the canonical bytecode text name.
@@ -108,13 +187,29 @@ impl Space {
             Self::LOCAL => Some("local"),
             Self::SHARED => Some("shared"),
             Self::FRAME => Some("frame"),
-            Self::STATIC => Some("static"),
+            Self::CONSTANT => Some("constant"),
+            Self::LOCAL_GLOBAL => Some("global"),
+            Self::SHARED_GLOBAL => Some("shared global"),
+            _ => None,
+        }
+    }
+
+    /// Return the storage for one heap ownership domain.
+    pub const fn heap(space: Space) -> Self {
+        Self(space.0)
+    }
+
+    /// Return the heap ownership domain when this is heap storage.
+    pub const fn heap_space(self) -> Option<Space> {
+        match self {
+            Self::LOCAL => Some(Space::LOCAL),
+            Self::SHARED => Some(Space::SHARED),
             _ => None,
         }
     }
 }
 
-/// The ownership and memory space of one bytecode reference.
+/// The ownership and storage of one bytecode reference.
 #[repr(C)]
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
@@ -122,20 +217,20 @@ impl Space {
 pub struct ReferenceType {
     /// The reference ownership.
     kind: ReferenceKind,
-    /// The referenced memory space.
-    space: Space,
+    /// The referenced storage.
+    storage: Storage,
 }
 
 impl ReferenceType {
     /// Create one reference type.
-    pub const fn new(kind: ReferenceKind, space: Space) -> Self {
-        Self { kind, space }
+    pub const fn new(kind: ReferenceKind, storage: Storage) -> Self {
+        Self { kind, storage }
     }
 
     /// Decode one stable reference operand.
     pub const fn from_bits(bits: u16) -> Option<Self> {
         let bytes = bits.to_le_bytes();
-        let reference = Self::new(ReferenceKind(bytes[0]), Space(bytes[1]));
+        let reference = Self::new(ReferenceKind(bytes[0]), Storage(bytes[1]));
 
         if reference.is_defined() {
             Some(reference)
@@ -146,7 +241,7 @@ impl ReferenceType {
 
     /// Encode this reference type into one stable operand.
     pub const fn bits(self) -> u16 {
-        u16::from_le_bytes([self.kind.0, self.space.0])
+        u16::from_le_bytes([self.kind.0, self.storage.0])
     }
 
     /// Return the reference ownership.
@@ -154,14 +249,14 @@ impl ReferenceType {
         self.kind
     }
 
-    /// Return the referenced memory space.
-    pub const fn space(self) -> Space {
-        self.space
+    /// Return the referenced storage.
+    pub const fn storage(self) -> Storage {
+        self.storage
     }
 
     /// Return whether this reference type is defined by the bytecode ISA.
     pub const fn is_defined(self) -> bool {
-        self.kind.is_defined() && self.space.is_defined()
+        self.kind.is_defined() && self.storage.is_defined()
     }
 }
 
@@ -239,13 +334,16 @@ impl ValueType {
     }
 
     /// Create one initialized reference value type.
-    pub const fn reference(kind: ReferenceKind, space: Space) -> Self {
-        Self::new_reference(ValueTag::REFERENCE, ReferenceType::new(kind, space))
+    pub const fn reference(kind: ReferenceKind, storage: Storage) -> Self {
+        Self::new_reference(ValueTag::REFERENCE, ReferenceType::new(kind, storage))
     }
 
     /// Create one uninitialized reference token value type.
-    pub const fn uninit_reference(kind: ReferenceKind, space: Space) -> Self {
-        Self::new_reference(ValueTag::UNINIT_REFERENCE, ReferenceType::new(kind, space))
+    pub const fn uninit_reference(kind: ReferenceKind, storage: Storage) -> Self {
+        Self::new_reference(
+            ValueTag::UNINIT_REFERENCE,
+            ReferenceType::new(kind, storage),
+        )
     }
 
     /// Create one unowned native pointer value type.
@@ -271,16 +369,16 @@ impl ValueType {
     }
 
     /// Create one initialized slice value type.
-    pub const fn slice(element: TypeId, kind: ReferenceKind, space: Space) -> Self {
-        Self::new_slice(ValueTag::SLICE, element, ReferenceType::new(kind, space))
+    pub const fn slice(element: TypeId, kind: ReferenceKind, storage: Storage) -> Self {
+        Self::new_slice(ValueTag::SLICE, element, ReferenceType::new(kind, storage))
     }
 
     /// Create one uninitialized slice value type.
-    pub const fn uninit_slice(element: TypeId, kind: ReferenceKind, space: Space) -> Self {
+    pub const fn uninit_slice(element: TypeId, kind: ReferenceKind, storage: Storage) -> Self {
         Self::new_slice(
             ValueTag::UNINIT_SLICE,
             element,
-            ReferenceType::new(kind, space),
+            ReferenceType::new(kind, storage),
         )
     }
 
@@ -289,7 +387,7 @@ impl ValueType {
         Self {
             tag: ValueTag::DYNAMIC,
             scalar: 0,
-            reference: ReferenceType::new(ReferenceKind::MANAGED, space),
+            reference: ReferenceType::new(ReferenceKind::MANAGED, Storage::heap(space)),
             word_count: 2,
             lane_count: 0,
             type_id: constraint.0,
@@ -301,7 +399,7 @@ impl ValueType {
         Self {
             tag: ValueTag::TENSOR,
             scalar: scalar.code(),
-            reference: ReferenceType::new(ReferenceKind::MANAGED, space),
+            reference: ReferenceType::new(ReferenceKind::MANAGED, Storage::heap(space)),
             word_count: 1,
             lane_count: 0,
             type_id: ty.0,
@@ -694,7 +792,7 @@ impl ValueType {
             self.tag.0,
             self.scalar,
             self.reference.kind.0,
-            self.reference.space.0,
+            self.reference.storage.0,
             word_count[0],
             word_count[1],
             lane_count[0],
@@ -711,7 +809,7 @@ impl ValueType {
         let ty = Self {
             tag: ValueTag(bytes[0]),
             scalar: bytes[1],
-            reference: ReferenceType::new(ReferenceKind(bytes[2]), Space(bytes[3])),
+            reference: ReferenceType::new(ReferenceKind(bytes[2]), Storage(bytes[3])),
             word_count: u16::from_le_bytes([bytes[4], bytes[5]]),
             lane_count: u16::from_le_bytes([bytes[6], bytes[7]]),
             type_id: u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]),
@@ -731,7 +829,7 @@ impl ValueType {
         Self {
             tag,
             scalar,
-            reference: ReferenceType::new(ReferenceKind::MANAGED, Space::LOCAL),
+            reference: ReferenceType::new(ReferenceKind::MANAGED, Storage::LOCAL),
             word_count,
             lane_count,
             type_id,
@@ -775,6 +873,7 @@ impl ValueType {
 
 const _: () = assert!(size_of::<ReferenceKind>() == 1);
 const _: () = assert!(size_of::<Space>() == 1);
+const _: () = assert!(size_of::<Storage>() == 1);
 const _: () = assert!(size_of::<ReferenceType>() == 2);
 const _: () = assert!(size_of::<ValueTag>() == 1);
 const _: () = assert!(size_of::<ValueType>() == 12);

@@ -195,32 +195,32 @@ opcodes! {
     // references and pointers
     FRAME_ADDRESS = 0x0030 {
         text: "frame.address",
-        signature: "(value: value) => ref<space(frame)>",
+        signature: "(value: value) => ref<frame>",
         operands: [Result, RegisterSpan],
     }
     GLOBAL_ADDRESS = 0x0031 {
         text: "global.address",
-        signature: "(global: GlobalId) => ref<space(static)>",
+        signature: "(global: GlobalId) => ref<global>",
         operands: [Result, Global],
     }
     POINTER_FRAME = 0x0032 {
         text: "pointer.frame",
-        signature: "(reference: ref<space(frame)>) => pointer",
+        signature: "(reference: ref<frame>) => pointer",
         operands: [Result, Register],
     }
     POINTER_GLOBAL = 0x0033 {
         text: "pointer.global",
-        signature: "(reference: ref<space(static)>) => pointer",
+        signature: "(reference: ref<global>) => pointer",
         operands: [Result, Register],
     }
     POINTER_LOCAL = 0x0034 {
         text: "pointer.local",
-        signature: "(reference: ref<space(local)>) => pointer",
+        signature: "(reference: ref<local>) => pointer",
         operands: [Result, Register],
     }
     POINTER_SHARED = 0x0035 {
         text: "pointer.shared",
-        signature: "(reference: ref<space(shared)>) => pointer",
+        signature: "(reference: ref<shared>) => pointer",
         operands: [Result, Register],
     }
     POINTER_ADD_IMMEDIATE = 0x0036 {

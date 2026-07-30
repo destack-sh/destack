@@ -29,11 +29,15 @@ impl<'a> BytecodeFormatContext<'a> {
                 let reference = ty.dynamic_reference().ok_or(FormatError::SyntaxError {
                     message: "dynamic value has no payload reference",
                 })?;
-                let space = reference.space().name().ok_or(FormatError::SyntaxError {
-                    message: "dynamic value has an invalid space",
-                })?;
+                let space = reference
+                    .storage()
+                    .heap_space()
+                    .and_then(|space| space.name())
+                    .ok_or(FormatError::SyntaxError {
+                        message: "dynamic value has an invalid space",
+                    })?;
 
-                Ok(format!("dynamic<{name}, space({space})>"))
+                Ok(format!("dynamic<{name}, {space}>"))
             }
             ValueTag::TENSOR | ValueTag::TENSOR_VIEW => self.tensor_type_text(ty),
             ValueTag::VECTOR => ty
@@ -68,10 +72,10 @@ impl<'a> BytecodeFormatContext<'a> {
         let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
             message: "reference value has invalid ownership",
         })?;
-        let space = reference.space().name().ok_or(FormatError::SyntaxError {
-            message: "reference value has invalid space",
+        let storage = reference.storage().name().ok_or(FormatError::SyntaxError {
+            message: "reference value has invalid storage",
         })?;
-        let value = format!("ref<{kind}, space({space})>");
+        let value = format!("ref<{kind}, {storage}>");
 
         // wrap references whose storage is not initialized yet
         if ty.tag() == ValueTag::UNINIT_REFERENCE {
@@ -92,11 +96,11 @@ impl<'a> BytecodeFormatContext<'a> {
             let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
                 message: "function value has invalid environment ownership",
             })?;
-            let space = reference.space().name().ok_or(FormatError::SyntaxError {
-                message: "function value has invalid environment space",
+            let storage = reference.storage().name().ok_or(FormatError::SyntaxError {
+                message: "function value has invalid environment storage",
             })?;
 
-            Ok(format!("function<{kind}, space({space})>"))
+            Ok(format!("function<{kind}, {storage}>"))
         }
     }
 
@@ -112,10 +116,10 @@ impl<'a> BytecodeFormatContext<'a> {
         let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
             message: "slice value has invalid ownership",
         })?;
-        let space = reference.space().name().ok_or(FormatError::SyntaxError {
-            message: "slice value has invalid space",
+        let storage = reference.storage().name().ok_or(FormatError::SyntaxError {
+            message: "slice value has invalid storage",
         })?;
-        let value = format!("slice<{element}, {kind}, space({space})>");
+        let value = format!("slice<{element}, {kind}, {storage}>");
 
         // wrap slices whose storage is not initialized yet
         if ty.tag() == ValueTag::UNINIT_SLICE {
@@ -147,12 +151,12 @@ impl<'a> BytecodeFormatContext<'a> {
             let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
                 message: "tensor view has invalid reference ownership",
             })?;
-            let space = reference.space().name().ok_or(FormatError::SyntaxError {
-                message: "tensor view has invalid space",
+            let storage = reference.storage().name().ok_or(FormatError::SyntaxError {
+                message: "tensor view has invalid storage",
             })?;
 
             Ok(format!(
-                "{constructor}<{name}, {}, {kind}, space({space}), {}>",
+                "{constructor}<{name}, {}, {kind}, {storage}, {}>",
                 scalar.name(),
                 ty.word_count()
             ))
@@ -160,14 +164,15 @@ impl<'a> BytecodeFormatContext<'a> {
             let reference = ty.tensor_reference().ok_or(FormatError::SyntaxError {
                 message: "tensor value has no storage reference",
             })?;
-            let space = reference.space().name().ok_or(FormatError::SyntaxError {
-                message: "tensor value has invalid space",
-            })?;
+            let space = reference
+                .storage()
+                .heap_space()
+                .and_then(|space| space.name())
+                .ok_or(FormatError::SyntaxError {
+                    message: "tensor value has invalid space",
+                })?;
 
-            Ok(format!(
-                "{constructor}<{name}, {}, space({space})>",
-                scalar.name()
-            ))
+            Ok(format!("{constructor}<{name}, {}, {space}>", scalar.name()))
         }
     }
 }

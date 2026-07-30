@@ -120,7 +120,7 @@ impl InstructionFormatter<'_, '_, '_> {
             (StorageSet::LOCAL, "local"),
             (StorageSet::SHARED, "shared"),
             (StorageSet::FRAME, "frame"),
-            (StorageSet::STATIC, "static"),
+            (StorageSet::GLOBAL, "global"),
             (StorageSet::DEVICE, "device"),
             (StorageSet::WORKGROUP, "workgroup"),
         ];

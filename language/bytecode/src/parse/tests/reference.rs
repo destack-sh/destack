@@ -1,6 +1,6 @@
 use crate::{
     FunctionId, Opcode, ReferenceKind, ReferenceType, RegisterId, RegisterSpan, RelocationTag,
-    Space, ValueType,
+    Storage, ValueType,
 };
 
 use super::TestParser;
@@ -55,7 +55,7 @@ function f1 {    load r4, r0, 8
     assert_eq!(operands.register().expect("object register"), RegisterId(4));
     assert_eq!(
         operands.reference().expect("object representation"),
-        ReferenceType::new(ReferenceKind::MANAGED, Space::LOCAL)
+        ReferenceType::new(ReferenceKind::MANAGED, Storage::LOCAL)
     );
 
     // retain the complete logical value and direct destructor identity
@@ -82,6 +82,6 @@ function f1 {    load r4, r0, 8
     );
     assert_eq!(
         operands.reference().expect("reference representation"),
-        ReferenceType::new(ReferenceKind::UNIQUE, Space::LOCAL)
+        ReferenceType::new(ReferenceKind::UNIQUE, Storage::LOCAL)
     );
 }

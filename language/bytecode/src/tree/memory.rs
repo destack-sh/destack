@@ -304,8 +304,8 @@ impl StorageSet {
     pub const SHARED: Self = Self(1 << 1);
     /// Activation-frame storage.
     pub const FRAME: Self = Self(1 << 2);
-    /// Program static storage.
-    pub const STATIC: Self = Self(1 << 3);
+    /// Program global storage.
+    pub const GLOBAL: Self = Self(1 << 3);
     /// Accelerator device storage.
     pub const DEVICE: Self = Self(1 << 4);
     /// Accelerator workgroup storage.
@@ -315,7 +315,7 @@ impl StorageSet {
         Self::LOCAL.0
             | Self::SHARED.0
             | Self::FRAME.0
-            | Self::STATIC.0
+            | Self::GLOBAL.0
             | Self::DEVICE.0
             | Self::WORKGROUP.0,
     );

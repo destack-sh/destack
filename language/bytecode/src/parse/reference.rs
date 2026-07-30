@@ -1,6 +1,6 @@
 use crate::{
     InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceKind, ReferenceType,
-    RegisterSpan, RelocationTag, Space, Token, TokenType,
+    RegisterSpan, RelocationTag, Space, Storage, Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -53,7 +53,7 @@ impl Parser<'_> {
         // encode the lifetime transition
         let mut instruction = InstructionBuilder::new(opcode);
         instruction.register(value);
-        instruction.reference(reference.kind(), reference.space());
+        instruction.reference(reference.kind(), reference.storage());
 
         function.emit(instruction, results, self.empty_span())
     }
@@ -95,7 +95,7 @@ impl Parser<'_> {
         // encode the write barrier
         let mut instruction = InstructionBuilder::new(Opcode::BARRIER);
         instruction.register(object);
-        instruction.reference(reference.kind(), reference.space());
+        instruction.reference(reference.kind(), reference.storage());
         instruction.register(offset);
         instruction.register(byte_len);
 
@@ -119,6 +119,6 @@ impl Parser<'_> {
         let space = Space::from_name(space)
             .ok_or_else(|| ParseError::new("unknown reference space", token.span))?;
 
-        Ok((operation, ReferenceType::new(kind, space)))
+        Ok((operation, ReferenceType::new(kind, Storage::heap(space))))
     }
 }

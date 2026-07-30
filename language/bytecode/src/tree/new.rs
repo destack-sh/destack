@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{ReferenceKind, ReferenceType, Space, TypeId, ValueType};
+use crate::{ReferenceKind, ReferenceType, Space, Storage, TypeId, ValueType};
 
 /// One exact `new` operation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -24,23 +24,23 @@ impl New {
 
     /// Return the reference representation produced by this operation.
     pub const fn reference(self) -> ReferenceType {
-        ReferenceType::new(self.ownership, self.space)
+        ReferenceType::new(self.ownership, Storage::heap(self.space))
     }
 
     /// Return the value type produced for one allocated element type.
     pub const fn result_type(self, ty: TypeId) -> ValueType {
         match (self.kind, self.initialization) {
             (NewKind::Value, Initialization::Zeroed) => {
-                ValueType::reference(self.ownership, self.space)
+                ValueType::reference(self.ownership, Storage::heap(self.space))
             }
             (NewKind::Value, Initialization::Uninit) => {
-                ValueType::uninit_reference(self.ownership, self.space)
+                ValueType::uninit_reference(self.ownership, Storage::heap(self.space))
             }
             (NewKind::Slice, Initialization::Zeroed) => {
-                ValueType::slice(ty, self.ownership, self.space)
+                ValueType::slice(ty, self.ownership, Storage::heap(self.space))
             }
             (NewKind::Slice, Initialization::Uninit) => {
-                ValueType::uninit_slice(ty, self.ownership, self.space)
+                ValueType::uninit_slice(ty, self.ownership, Storage::heap(self.space))
             }
         }
     }

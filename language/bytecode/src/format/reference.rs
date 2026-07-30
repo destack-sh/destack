@@ -76,9 +76,13 @@ impl InstructionFormatter<'_, '_, '_> {
         operation: &str,
         reference: ReferenceType,
     ) -> FormatResult<()> {
-        let space = reference.space().name().ok_or(FormatError::SyntaxError {
-            message: "reference operation has an invalid space",
-        })?;
+        let space = reference
+            .storage()
+            .heap_space()
+            .and_then(|space| space.name())
+            .ok_or(FormatError::SyntaxError {
+                message: "reference operation requires heap storage",
+            })?;
         let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
             message: "reference operation has an invalid ownership",
         })?;
