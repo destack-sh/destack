@@ -384,8 +384,18 @@ impl Machine {
             )
             .boxed());
         };
+        let (function, reference, storage) = match drop.reference {
+            DropReference::Local(reference) => (entry.local.get(), reference.bits(), "local"),
+            DropReference::Shared(reference) => (entry.shared.get(), reference.bits(), "shared"),
+        };
+        let function = function.ok_or_else(|| {
+            RuntimeError::Internal {
+                message: format!("drop {} has no {} destructor", drop.drop.index(), storage),
+            }
+            .boxed()
+        })?;
         let parameter = program
-            .function_parameters(entry.function)
+            .function_parameters(function)
             .and_then(|parameters| parameters.first())
             .copied()
             .ok_or_else(|| {
@@ -394,15 +404,11 @@ impl Machine {
                 }
                 .boxed()
             })?;
-        let reference = match drop.reference {
-            DropReference::Local(reference) => reference.bits(),
-            DropReference::Shared(reference) => reference.bits(),
-        };
         let value = program
             .value(parameter, [program::Word::from_bits(reference as u64)])
             .map_err(Box::<RuntimeError>::from)?;
 
-        self.run_destructor(&mut activation, entry.function, value)
+        self.run_destructor(&mut activation, function, value)
     }
 
     /// Destroy one scheduler-owned runtime value to completion.

@@ -64,11 +64,14 @@ impl TestProgram {
             .parameters
             .first()
             .expect("runtime test destructor should accept one parameter");
-        let mir::Type::Reference { pointee, .. } = self.lowered.tree.get(parameter.ty) else {
+        let mir::Type::Reference {
+            pointee, storage, ..
+        } = self.lowered.tree.get(parameter.ty)
+        else {
             panic!("runtime test destructor should accept one reference");
         };
         let ty = *pointee;
-        self.lowered.drops.set_destructor(ty, function);
+        self.lowered.drops.set_destructor(ty, *storage, function);
 
         self
     }

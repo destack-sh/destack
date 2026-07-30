@@ -115,8 +115,8 @@ fn test_collect_reclaims_shared_allocation_after_drop() {
     };
     let program = TestProgram::mir(
         r#"
-function Item.destruct(v0: ref<int32, borrowed, exclusive, space(shared)>): void {
-entry(v0: ref<int32, borrowed, exclusive, space(shared)>):
+function Item.destruct(v0: ref<int32, borrowed, exclusive, shared>): void {
+entry(v0: ref<int32, borrowed, exclusive, shared>):
     return
 }
 
@@ -161,8 +161,8 @@ fn test_host_event_queues_shared_root_publication() {
     let options = RuntimeOptions::default();
     let program = TestProgram::mir(
         r#"
-export function retain(v0: ref<int32, managed, mutable, space(shared)>): void {
-entry(v0: ref<int32, managed, mutable, space(shared)>):
+export function retain(v0: ref<int32, managed, mutable, shared>): void {
+entry(v0: ref<int32, managed, mutable, shared>):
     return
 }
 "#,
@@ -224,8 +224,8 @@ fn test_safepoint_publishes_shared_roots() {
     let options = RuntimeOptions::default();
     let program = TestProgram::mir(
         r#"
-export function retain(v0: ref<int32, managed, mutable, space(shared)>): void {
-entry(v0: ref<int32, managed, mutable, space(shared)>):
+export function retain(v0: ref<int32, managed, mutable, shared>): void {
+entry(v0: ref<int32, managed, mutable, shared>):
     return
 }
 "#,
