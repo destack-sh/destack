@@ -22,8 +22,10 @@ destack_dir = { workspace = true }
 destack_program = { workspace = true }
 destack_js = { workspace = true }
 destack_mir = { workspace = true }
+destack_native = { workspace = true }
 destack_serde = { workspace = true }
 destack_source = { workspace = true }
+destack_webassembly = { workspace = true }
 
 # general
 blake3 = { workspace = true }

@@ -1,8 +1,9 @@
 use destack_bytecode as bytecode;
 use destack_mir as mir;
-use destack_program::{native, wasm};
+use destack_native as native;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
+use destack_webassembly as wasm;
 use serde::{Deserialize, Serialize};
 
 use super::{
