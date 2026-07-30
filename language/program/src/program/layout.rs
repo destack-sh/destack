@@ -396,143 +396,6 @@ impl WordBytes {
     }
 }
 
-/// Packed reference flags used by program layouts.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct ReferenceFlags {
-    bits: u16,
-}
-
-impl ReferenceFlags {
-    /// Mask for the packed reference kind.
-    const KIND_MASK: u16 = 0x7;
-    /// Mask for the packed reference access.
-    const ACCESS_MASK: u16 = 0x3;
-    /// Mask for the packed reference nullability.
-    const NULLABILITY_MASK: u16 = 0x3;
-    /// Mask for the packed reference storage.
-    const STORAGE_MASK: u16 = 0x7;
-    /// Shift for the packed reference access.
-    const ACCESS_SHIFT: u8 = 3;
-    /// Shift for the packed reference nullability.
-    const NULLABILITY_SHIFT: u8 = 5;
-    /// Shift for the packed reference storage.
-    const STORAGE_SHIFT: u8 = 7;
-
-    /// Empty reference flags.
-    pub const NONE: Self = Self { bits: 0 };
-
-    /// Create reference flags from raw bits.
-    pub fn from_bits(bits: u16) -> Self {
-        Self { bits }
-    }
-
-    /// Create reference flags.
-    pub fn new(
-        kind: ReferenceKind,
-        storage: Storage,
-        access: Access,
-        nullability: Nullability,
-    ) -> Self {
-        let kind_bits = match kind {
-            ReferenceKind::Managed => 1,
-            ReferenceKind::Unique => 2,
-            ReferenceKind::Borrowed => 3,
-            ReferenceKind::Raw => 4,
-        };
-        let access_bits = match access {
-            Access::Readonly => 0,
-            Access::Mutable => 1,
-            Access::Exclusive => 2,
-        };
-        let storage_bits = u16::from(Self::storage_bits(storage));
-        let nullability_bits = match nullability {
-            Nullability::None => 0,
-            Nullability::Null => 1,
-            Nullability::Undefined => 2,
-            Nullability::NullOrUndefined => 3,
-        };
-
-        let mut bits = kind_bits & Self::KIND_MASK;
-        bits |= access_bits << Self::ACCESS_SHIFT;
-        bits |= nullability_bits << Self::NULLABILITY_SHIFT;
-        bits |= storage_bits << Self::STORAGE_SHIFT;
-
-        Self { bits }
-    }
-
-    /// Decode reference storage from packed bits.
-    fn storage_from_bits(bits: u8) -> Option<Storage> {
-        match bits {
-            0 => Some(Storage::Heap(Space::Local)),
-            1 => Some(Storage::Heap(Space::Shared)),
-            2 => Some(Storage::Frame),
-            3 => Some(Storage::Global(GlobalStorage::Constant)),
-            4 => Some(Storage::Global(GlobalStorage::Local)),
-            5 => Some(Storage::Global(GlobalStorage::Shared)),
-            _ => None,
-        }
-    }
-
-    /// Encode reference storage as packed bits.
-    fn storage_bits(storage: Storage) -> u8 {
-        match storage {
-            Storage::Heap(Space::Local) => 0,
-            Storage::Heap(Space::Shared) => 1,
-            Storage::Frame => 2,
-            Storage::Global(GlobalStorage::Constant) => 3,
-            Storage::Global(GlobalStorage::Local) => 4,
-            Storage::Global(GlobalStorage::Shared) => 5,
-        }
-    }
-
-    /// Return the reference kind when available.
-    pub fn kind(self) -> Option<ReferenceKind> {
-        match self.bits & Self::KIND_MASK {
-            0 => None,
-            1 => Some(ReferenceKind::Managed),
-            2 => Some(ReferenceKind::Unique),
-            3 => Some(ReferenceKind::Borrowed),
-            4 => Some(ReferenceKind::Raw),
-            _ => None,
-        }
-    }
-
-    /// Return the reference access when available.
-    pub fn access(self) -> Option<Access> {
-        self.kind()?;
-
-        match (self.bits >> Self::ACCESS_SHIFT) & Self::ACCESS_MASK {
-            0 => Some(Access::Readonly),
-            1 => Some(Access::Mutable),
-            2 => Some(Access::Exclusive),
-            _ => None,
-        }
-    }
-
-    /// Return the reference nullability.
-    pub fn nullability(self) -> Nullability {
-        match (self.bits >> Self::NULLABILITY_SHIFT) & Self::NULLABILITY_MASK {
-            1 => Nullability::Null,
-            2 => Nullability::Undefined,
-            3 => Nullability::NullOrUndefined,
-            _ => Nullability::None,
-        }
-    }
-
-    /// Return the reference storage.
-    pub fn storage(self) -> Option<Storage> {
-        let bits = ((self.bits >> Self::STORAGE_SHIFT) & Self::STORAGE_MASK) as u8;
-
-        Self::storage_from_bits(bits)
-    }
-
-    /// Return the raw flags bits.
-    pub fn bits(self) -> u16 {
-        self.bits
-    }
-}
-
 /// Concrete memory layout for one runtime value.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
@@ -630,7 +493,7 @@ pub enum LayoutShape {
     /// Object storage.
     Object(ObjectLayout),
     /// Runtime dynamic value layout.
-    Dynamic,
+    Dynamic(DynamicLayout),
     /// Runtime function value storage.
     Function(FunctionLayout),
     /// Transparent nominal storage.
@@ -651,19 +514,110 @@ pub struct SliceLayout {
 pub struct ReferenceLayout {
     /// The referenced value type.
     pub pointee: TypeId,
-    /// The packed reference flags.
-    pub flags: ReferenceFlags,
+    /// Packed ownership, storage, access, and nullability.
+    bits: u16,
+    /// Explicit initialized row padding.
+    padding: [u8; 2],
 }
 
 impl ReferenceLayout {
+    /// Mask for the packed reference kind.
+    const KIND_MASK: u16 = 0x7;
+    /// Mask for the packed reference access.
+    const ACCESS_MASK: u16 = 0x3;
+    /// Mask for the packed reference nullability.
+    const NULLABILITY_MASK: u16 = 0x3;
+    /// Mask for the packed reference storage.
+    const STORAGE_MASK: u16 = 0x7;
+    /// Shift for the packed reference access.
+    const ACCESS_SHIFT: u8 = 3;
+    /// Shift for the packed reference nullability.
+    const NULLABILITY_SHIFT: u8 = 5;
+    /// Shift for the packed reference storage.
+    const STORAGE_SHIFT: u8 = 7;
+
+    /// Create one reference layout.
+    pub fn new(
+        pointee: TypeId,
+        kind: ReferenceKind,
+        storage: Storage,
+        access: Access,
+        nullability: Nullability,
+    ) -> Self {
+        let kind = match kind {
+            ReferenceKind::Managed => 1,
+            ReferenceKind::Unique => 2,
+            ReferenceKind::Borrowed => 3,
+            ReferenceKind::Raw => 4,
+        };
+        let access = match access {
+            Access::Readonly => 0,
+            Access::Mutable => 1,
+            Access::Exclusive => 2,
+        };
+        let storage = u16::from(Self::storage_bits(storage));
+        let nullability = match nullability {
+            Nullability::None => 0,
+            Nullability::Null => 1,
+            Nullability::Undefined => 2,
+            Nullability::NullOrUndefined => 3,
+        };
+
+        let mut bits = kind & Self::KIND_MASK;
+        bits |= access << Self::ACCESS_SHIFT;
+        bits |= nullability << Self::NULLABILITY_SHIFT;
+        bits |= storage << Self::STORAGE_SHIFT;
+
+        Self {
+            pointee,
+            bits,
+            padding: [0; 2],
+        }
+    }
+
+    /// Return the reference kind.
+    pub fn kind(self) -> Option<ReferenceKind> {
+        match self.bits & Self::KIND_MASK {
+            1 => Some(ReferenceKind::Managed),
+            2 => Some(ReferenceKind::Unique),
+            3 => Some(ReferenceKind::Borrowed),
+            4 => Some(ReferenceKind::Raw),
+            _ => None,
+        }
+    }
+
+    /// Return the reference access.
+    pub fn access(self) -> Option<Access> {
+        self.kind()?;
+
+        match (self.bits >> Self::ACCESS_SHIFT) & Self::ACCESS_MASK {
+            0 => Some(Access::Readonly),
+            1 => Some(Access::Mutable),
+            2 => Some(Access::Exclusive),
+            _ => None,
+        }
+    }
+
+    /// Return the reference nullability.
+    pub fn nullability(self) -> Nullability {
+        match (self.bits >> Self::NULLABILITY_SHIFT) & Self::NULLABILITY_MASK {
+            1 => Nullability::Null,
+            2 => Nullability::Undefined,
+            3 => Nullability::NullOrUndefined,
+            _ => Nullability::None,
+        }
+    }
+
     /// Return the storage implied by this reference.
-    pub fn storage(&self) -> Option<Storage> {
-        self.flags.storage()
+    pub fn storage(self) -> Option<Storage> {
+        let bits = ((self.bits >> Self::STORAGE_SHIFT) & Self::STORAGE_MASK) as u8;
+
+        Self::storage_from_bits(bits)
     }
 
     /// Return the traced heap space when this reference names heap storage.
-    pub fn heap_space(&self) -> Option<Space> {
-        let kind = self.flags.kind()?;
+    pub fn heap_space(self) -> Option<Space> {
+        let kind = self.kind()?;
         if kind == ReferenceKind::Raw {
             return None;
         }
@@ -675,11 +629,48 @@ impl ReferenceLayout {
     }
 
     /// Return the word layout for this reference.
-    pub fn word_layout(&self) -> Option<WordLayout> {
-        self.flags.kind()?;
+    pub fn word_layout(self) -> Option<WordLayout> {
+        self.kind()?;
 
         Some(WordLayout::reference(self.storage()?))
     }
+
+    /// Decode reference storage from packed bits.
+    fn storage_from_bits(bits: u8) -> Option<Storage> {
+        match bits {
+            0 => Some(Storage::Heap(Space::Local)),
+            1 => Some(Storage::Heap(Space::Shared)),
+            2 => Some(Storage::Frame),
+            3 => Some(Storage::Global(GlobalStorage::Constant)),
+            4 => Some(Storage::Global(GlobalStorage::Local)),
+            5 => Some(Storage::Global(GlobalStorage::Shared)),
+            _ => None,
+        }
+    }
+
+    /// Encode reference storage as packed bits.
+    fn storage_bits(storage: Storage) -> u8 {
+        match storage {
+            Storage::Heap(Space::Local) => 0,
+            Storage::Heap(Space::Shared) => 1,
+            Storage::Frame => 2,
+            Storage::Global(GlobalStorage::Constant) => 3,
+            Storage::Global(GlobalStorage::Local) => 4,
+            Storage::Global(GlobalStorage::Shared) => 5,
+        }
+    }
+}
+
+const _: () = assert!(std::mem::size_of::<ReferenceLayout>() == 8);
+
+/// Concrete layout for one dynamic value.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct DynamicLayout {
+    /// The accepted runtime type constraint.
+    pub constraint: TypeId,
+    /// The nullish values accepted by this descriptor.
+    pub nullability: Nullability,
 }
 
 /// Concrete layout for one closure value.
@@ -688,9 +679,12 @@ impl ReferenceLayout {
 pub struct FunctionLayout {
     /// The callable signature.
     pub signature: SignatureId,
-    /// The captured environment type.
-    pub environment: TypeId,
+    /// The nullish values accepted by this descriptor.
+    pub nullability: Nullability,
 }
+
+const _: () = assert!(std::mem::size_of::<DynamicLayout>() == 8);
+const _: () = assert!(std::mem::size_of::<FunctionLayout>() == 8);
 
 /// Layout for inline indexed element storage.
 #[repr(C)]
@@ -964,9 +958,9 @@ pub enum LayoutShapeBuilder {
     /// Object storage.
     Object(ObjectLayoutBuilder),
     /// Runtime dynamic value layout.
-    Dynamic,
+    Dynamic(DynamicLayout),
     /// Runtime function value storage.
-    Function(FunctionLayoutBuilder),
+    Function(FunctionLayout),
     /// Transparent nominal storage.
     Newtype(NewtypeLayout),
 }
@@ -1006,11 +1000,8 @@ impl LayoutShapeBuilder {
                 dispatch_offset: Optional::from(object.dispatch_offset),
                 fields: fields.append(object.fields),
             }),
-            Self::Dynamic => LayoutShape::Dynamic,
-            Self::Function(function) => LayoutShape::Function(FunctionLayout {
-                signature: function.signature,
-                environment: function.environment,
-            }),
+            Self::Dynamic(dynamic) => LayoutShape::Dynamic(dynamic),
+            Self::Function(function) => LayoutShape::Function(function),
             Self::Newtype(newtype) => LayoutShape::Newtype(newtype),
         }
     }
@@ -1039,25 +1030,6 @@ impl ObjectLayoutBuilder {
         self.dispatch_offset = Some(offset);
 
         self
-    }
-}
-
-/// Build-time concrete layout for one closure value.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FunctionLayoutBuilder {
-    /// The callable signature.
-    signature: SignatureId,
-    /// The captured environment type.
-    environment: TypeId,
-}
-
-impl FunctionLayoutBuilder {
-    /// Create one closure layout builder.
-    pub fn new(signature: SignatureId, environment: TypeId) -> Self {
-        Self {
-            signature,
-            environment,
-        }
     }
 }
 
@@ -1236,16 +1208,19 @@ mod tests {
     };
 
     use crate::{
-        LayoutBuilder, LayoutId, LayoutShape, LayoutShapeBuilder, LayoutTable, ReferenceFlags,
-        ReferenceLayout, TypeId, VariantCaseLayout, VariantLayoutBuilder, WordLayout,
+        LayoutBuilder, LayoutId, LayoutShape, LayoutShapeBuilder, LayoutTable, ReferenceLayout,
+        TypeId, VariantCaseLayout, VariantLayoutBuilder, WordLayout,
     };
 
     /// Create one reference layout for reference storage tests.
     fn reference(kind: ReferenceKind, storage: Storage) -> ReferenceLayout {
-        ReferenceLayout {
-            pointee: TypeId(1),
-            flags: ReferenceFlags::new(kind, storage, Access::Readonly, Nullability::None),
-        }
+        ReferenceLayout::new(
+            TypeId(1),
+            kind,
+            storage,
+            Access::Readonly,
+            Nullability::None,
+        )
     }
 
     /// Managed local references trace local heap storage.
