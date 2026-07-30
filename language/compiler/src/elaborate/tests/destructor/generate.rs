@@ -1,4 +1,4 @@
-use destack_mir::Function;
+use destack_mir::{Function, Space, Storage};
 
 use crate::tests::TestProgram;
 
@@ -33,7 +33,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<float64, unique, mutable>):
         .tree
         .iter_nodes::<Function>()
         .filter_map(|(_, function)| {
-            (program.strings.get(function.name) == "Box.destruct")
+            (program.strings.get(function.name) == "Box.destruct.frame")
                 .then_some((&function.arguments, function.symbol))
         })
         .collect::<Vec<_>>();
@@ -45,6 +45,42 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<float64, unique, mutable>):
 }
 
 #[test]
+fn test_generate_destructors_for_reachable_storage() {
+    let mut program = TestProgram::mir(
+        r#"
+type Item {
+    value: ref<int32, unique, mutable>;
+}
+
+function test(): void {
+entry:
+    v0: ref<Item, managed, mutable> = new.zeroed Item
+    v1: ref<Item, managed, mutable, shared> = new.zeroed Item
+    return
+}
+"#,
+    );
+
+    // generate only the heap placements reached by allocation operations
+    let _ = program.run_elaborate();
+    let item = program.type_by_name("Item");
+    let local = program
+        .lowered
+        .drops
+        .destructor(item, Storage::Heap(Space::Local));
+    let shared = program
+        .lowered
+        .drops
+        .destructor(item, Storage::Heap(Space::Shared));
+    let frame = program.lowered.drops.destructor(item, Storage::Frame);
+
+    assert!(local.is_some());
+    assert!(shared.is_some());
+    assert_ne!(local, shared);
+    assert_eq!(frame, None);
+}
+
+#[test]
 fn test_insert_drop_calls_destructor_for_hook() {
     let mut program = TestProgram::mir(
         r#"
@@ -52,7 +88,7 @@ type Box {
     value: ref<int32, unique, mutable>;
 }
 
-external function dropBox(ref<Box, borrowed, exclusive>): void
+external function dropBox(ref<Box, borrowed, exclusive, frame>): void
 
 function test(v0: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>):
@@ -69,7 +105,7 @@ type Box {
     value: ref<int32, unique, mutable>;
 }
 
-external function dropBox(ref<Box, borrowed, exclusive>): void
+external function dropBox(ref<Box, borrowed, exclusive, frame>): void
 
 function test(v0: ref<int32, unique, mutable>): void {
 entry(v0: ref<int32, unique, mutable>):
@@ -78,11 +114,11 @@ entry(v0: ref<int32, unique, mutable>):
     return
 }
 
-function Box.destruct(v0: ref<Box, borrowed, exclusive>): void {
-entry(v0: ref<Box, borrowed, exclusive>):
-    v1: ref<Box, borrowed, exclusive> = cast.bit v0 -> ref<Box, borrowed, exclusive>
-    call dropBox(v1): (ref<Box, borrowed, exclusive>) => void
-    v2: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+function Box.destruct.frame(v0: ref<Box, borrowed, exclusive, frame>): void {
+entry(v0: ref<Box, borrowed, exclusive, frame>):
+    v1: ref<Box, borrowed, exclusive, frame> = cast.bit v0 -> ref<Box, borrowed, exclusive, frame>
+    call dropBox(v1): (ref<Box, borrowed, exclusive, frame>) => void
+    v2: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 0
     v3: ref<int32, unique, mutable> = load v2
     free v3
     return
@@ -99,8 +135,8 @@ type Box {
     value: ref<int32, unique, mutable>;
 }
 
-function dropBox(v0: ref<Box, borrowed, exclusive>): void {
-entry(v0: ref<Box, borrowed, exclusive>):
+function dropBox(v0: ref<Box, borrowed, exclusive, frame>): void {
+entry(v0: ref<Box, borrowed, exclusive, frame>):
     return
 }
 
@@ -119,8 +155,8 @@ type Box {
     value: ref<int32, unique, mutable>;
 }
 
-function dropBox(v0: ref<Box, borrowed, exclusive>): void {
-entry(v0: ref<Box, borrowed, exclusive>):
+function dropBox(v0: ref<Box, borrowed, exclusive, frame>): void {
+entry(v0: ref<Box, borrowed, exclusive, frame>):
     return
 }
 
@@ -131,11 +167,11 @@ entry(v0: ref<int32, unique, mutable>):
     return
 }
 
-function Box.destruct(v0: ref<Box, borrowed, exclusive>): void {
-entry(v0: ref<Box, borrowed, exclusive>):
-    v1: ref<Box, borrowed, exclusive> = cast.bit v0 -> ref<Box, borrowed, exclusive>
-    call dropBox(v1): (ref<Box, borrowed, exclusive>) => void
-    v2: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+function Box.destruct.frame(v0: ref<Box, borrowed, exclusive, frame>): void {
+entry(v0: ref<Box, borrowed, exclusive, frame>):
+    v1: ref<Box, borrowed, exclusive, frame> = cast.bit v0 -> ref<Box, borrowed, exclusive, frame>
+    call dropBox(v1): (ref<Box, borrowed, exclusive, frame>) => void
+    v2: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 0
     v3: ref<int32, unique, mutable> = load v2
     free v3
     return
@@ -175,12 +211,12 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     return
 }
 
-function Pair.destruct(v0: ref<Pair, borrowed, exclusive>): void {
-entry(v0: ref<Pair, borrowed, exclusive>):
-    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 1
+function Pair.destruct.frame(v0: ref<Pair, borrowed, exclusive, frame>): void {
+entry(v0: ref<Pair, borrowed, exclusive, frame>):
+    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 1
     v2: ref<int32, unique, mutable> = load v1
     free v2
-    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 0
     v4: ref<int32, unique, mutable> = load v3
     free v4
     return
@@ -197,7 +233,7 @@ type Item {
     value: ref<int32, unique, mutable>;
 }
 
-external function dropItem(ref<Item, borrowed, exclusive>): void
+external function dropItem(ref<Item, borrowed, exclusive, local>): void
 
 function test(): ref<Item, managed, mutable> {
 entry:
@@ -222,7 +258,7 @@ entry:
     return v0
 }
 
-function Item.destruct(v0: ref<Item, borrowed, exclusive>): void {
+function Item.destruct.local(v0: ref<Item, borrowed, exclusive>): void {
 entry(v0: ref<Item, borrowed, exclusive>):
     v1: ref<Item, borrowed, exclusive> = cast.bit v0 -> ref<Item, borrowed, exclusive>
     call dropItem(v1): (ref<Item, borrowed, exclusive>) => void
@@ -243,7 +279,7 @@ type Item {
     value: ref<int32, unique, mutable>;
 }
 
-external function dropItem(ref<Item, borrowed, exclusive>): void
+external function dropItem(ref<Item, borrowed, exclusive, local>): void
 
 function test(): uninit<ref<Item, managed, mutable>> {
 entry:
@@ -268,7 +304,7 @@ entry:
     return v0
 }
 
-function Item.destruct(v0: ref<Item, borrowed, exclusive>): void {
+function Item.destruct.local(v0: ref<Item, borrowed, exclusive>): void {
 entry(v0: ref<Item, borrowed, exclusive>):
     v1: ref<Item, borrowed, exclusive> = cast.bit v0 -> ref<Item, borrowed, exclusive>
     call dropItem(v1): (ref<Item, borrowed, exclusive>) => void
@@ -351,9 +387,9 @@ entry(v0: slice<int32, unique, mutable>):
     return
 }
 
-function Buffer.destruct(v0: ref<Buffer, borrowed, exclusive>): void {
-entry(v0: ref<Buffer, borrowed, exclusive>):
-    v1: ref<slice<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+function Buffer.destruct.frame(v0: ref<Buffer, borrowed, exclusive, frame>): void {
+entry(v0: ref<Buffer, borrowed, exclusive, frame>):
+    v1: ref<slice<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 0
     v2: slice<int32, unique, mutable> = load v1
     free v2
     return
@@ -391,9 +427,9 @@ entry(v0: tensorView<int32, unique, mutable, (2, 2)>):
     return
 }
 
-function Buffer.destruct(v0: ref<Buffer, borrowed, exclusive>): void {
-entry(v0: ref<Buffer, borrowed, exclusive>):
-    v1: ref<tensorView<int32, unique, mutable, (2, 2)>, borrowed, exclusive> = field.address v0, 0
+function Buffer.destruct.frame(v0: ref<Buffer, borrowed, exclusive, frame>): void {
+entry(v0: ref<Buffer, borrowed, exclusive, frame>):
+    v1: ref<tensorView<int32, unique, mutable, (2, 2)>, borrowed, exclusive, frame> = field.address v0, 0
     v2: tensorView<int32, unique, mutable, (2, 2)> = load v1
     free v2
     return
@@ -431,23 +467,19 @@ entry(v0: Value):
     return
 }
 
-function Value.destruct(v0: ref<Value, borrowed, exclusive>): void {
-    local l0: ValueStorage
-
-entry(v0: ref<Value, borrowed, exclusive>):
-    v1: Value = load v0
-    v2: uint8 = field.get v1, 0
-    v3: ValueStorage = field.get v1, 1
-    local.set l0, v3
-    v4: ref<ValueStorage, borrowed, exclusive, space(frame)> = local.address l0
-    v5: uint8 = 0
-    v6: boolean = int.eq v2, v5
-    branch v6, b1, b2
+function Value.destruct.frame(v0: ref<Value, borrowed, exclusive, frame>): void {
+entry(v0: ref<Value, borrowed, exclusive, frame>):
+    v1: ref<uint8, borrowed, exclusive, frame> = field.address v0, 0
+    v2: uint8 = load v1
+    v3: ref<ValueStorage, borrowed, exclusive, frame> = field.address v0, 1
+    v4: uint8 = 0
+    v5: boolean = int.eq v2, v4
+    branch v5, b1, b2
 
 b1:
-    v7: ref<ref<int32, unique, mutable>, borrowed, exclusive, space(frame)> = cast.bit v4 -> ref<ref<int32, unique, mutable>, borrowed, exclusive, space(frame)>
-    v8: ref<int32, unique, mutable> = load v7
-    free v8
+    v6: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = cast.bit v3 -> ref<ref<int32, unique, mutable>, borrowed, exclusive, frame>
+    v7: ref<int32, unique, mutable> = load v6
+    free v7
     jump b2
 
 b2:
@@ -484,8 +516,8 @@ entry(v0: slice<Box, unique, mutable>):
     return
 }
 
-function slice.Box.destruct(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive>): void {
-entry(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive>):
+function slice.Box.destruct.frame(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive, frame>): void {
+entry(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive, frame>):
     v1: slice<Box, unique, mutable> = load v0
     v2: usize = slice.length v1
     v3: usize = 0
@@ -510,7 +542,7 @@ b3:
     return
 }
 
-function Box.destruct(v0: ref<Box, borrowed, exclusive>): void {
+function Box.destruct.local(v0: ref<Box, borrowed, exclusive>): void {
 entry(v0: ref<Box, borrowed, exclusive>):
     v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
     v2: ref<int32, unique, mutable> = load v1
@@ -548,8 +580,8 @@ entry(v0: slice<slice<Box, unique, mutable>, unique, mutable>):
     return
 }
 
-function slice.slice.Box.unique.destruct(v0: ref<slice<slice<Box, unique, mutable>, unique, mutable>, borrowed, exclusive>): void {
-entry(v0: ref<slice<slice<Box, unique, mutable>, unique, mutable>, borrowed, exclusive>):
+function slice.slice.Box.unique.destruct.frame(v0: ref<slice<slice<Box, unique, mutable>, unique, mutable>, borrowed, exclusive, frame>): void {
+entry(v0: ref<slice<slice<Box, unique, mutable>, unique, mutable>, borrowed, exclusive, frame>):
     v1: slice<slice<Box, unique, mutable>, unique, mutable> = load v0
     v2: usize = slice.length v1
     v3: usize = 0
@@ -592,7 +624,7 @@ b6:
     jump b1(v7)
 }
 
-function slice.Box.destruct(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive>): void {
+function slice.Box.destruct.local(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive>): void {
 entry(v0: ref<slice<Box, unique, mutable>, borrowed, exclusive>):
     v1: slice<Box, unique, mutable> = load v0
     v2: usize = slice.length v1
@@ -618,7 +650,7 @@ b3:
     return
 }
 
-function Box.destruct(v0: ref<Box, borrowed, exclusive>): void {
+function Box.destruct.local(v0: ref<Box, borrowed, exclusive>): void {
 entry(v0: ref<Box, borrowed, exclusive>):
     v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
     v2: ref<int32, unique, mutable> = load v1
@@ -693,7 +725,15 @@ entry(v0: ref<Box, unique, mutable>):
     return
 }
 
-function Box.destruct(v0: ref<Box, borrowed, exclusive>): void {
+function Box.destruct.frame(v0: ref<Box, borrowed, exclusive, frame>): void {
+entry(v0: ref<Box, borrowed, exclusive, frame>):
+    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 0
+    v2: ref<int32, unique, mutable> = load v1
+    free v2
+    return
+}
+
+function Box.destruct.local(v0: ref<Box, borrowed, exclusive>): void {
 entry(v0: ref<Box, borrowed, exclusive>):
     v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
     v2: ref<int32, unique, mutable> = load v1

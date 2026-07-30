@@ -99,7 +99,7 @@ impl ElaborateState<'_> {
         value: mir::Value,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Vec<mir::Instruction> {
-        let has_destructor = self.drops.destructor(ty).is_some();
+        let has_destructor = self.drops.destructor(ty, mir::Storage::Frame).is_some();
         let mut instructions = self.instructions_for_contents(function_id, value, ty);
 
         // release trivial owned storage not already handled by a destructor
@@ -117,7 +117,7 @@ impl ElaborateState<'_> {
         value: mir::Value,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Vec<mir::Instruction> {
-        if self.drops.destructor(ty).is_some() {
+        if self.drops.destructor(ty, mir::Storage::Frame).is_some() {
             return vec![mir::Instruction::Drop { value }];
         }
 
@@ -158,7 +158,7 @@ impl ElaborateState<'_> {
 
     /// Return whether dropping a value of this type emits MIR.
     fn type_emits_drop_code(&self, ty: mir::LocalNodeId<mir::Type>) -> bool {
-        if self.drops.destructor(ty).is_some() {
+        if self.drops.destructor(ty, mir::Storage::Frame).is_some() {
             return true;
         }
         if self.tree.get(ty).is_unique_storage() {

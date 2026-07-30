@@ -400,12 +400,12 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     return
 }
 
-function Pair.destruct(v0: ref<Pair, borrowed, exclusive>): void {
-entry(v0: ref<Pair, borrowed, exclusive>):
-    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 1
+function Pair.destruct.frame(v0: ref<Pair, borrowed, exclusive, frame>): void {
+entry(v0: ref<Pair, borrowed, exclusive, frame>):
+    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 1
     v2: ref<int32, unique, mutable> = load v1
     free v2
-    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 0
     v4: ref<int32, unique, mutable> = load v3
     free v4
     return
@@ -479,27 +479,27 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<
     return
 }
 
-function Pair.destruct(v0: ref<Pair, borrowed, exclusive>): void {
-entry(v0: ref<Pair, borrowed, exclusive>):
-    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 1
+function Pair.destruct.frame(v0: ref<Pair, borrowed, exclusive, frame>): void {
+entry(v0: ref<Pair, borrowed, exclusive, frame>):
+    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 1
     v2: ref<int32, unique, mutable> = load v1
     free v2
-    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 0
     v4: ref<int32, unique, mutable> = load v3
     free v4
     return
 }
 
-function Outer.destruct(v0: ref<Outer, borrowed, exclusive>): void {
-entry(v0: ref<Outer, borrowed, exclusive>):
-    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 1
+function Outer.destruct.frame(v0: ref<Outer, borrowed, exclusive, frame>): void {
+entry(v0: ref<Outer, borrowed, exclusive, frame>):
+    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 1
     v2: ref<int32, unique, mutable> = load v1
     free v2
-    v3: ref<Pair, borrowed, exclusive> = field.address v0, 0
-    v4: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v3, 1
+    v3: ref<Pair, borrowed, exclusive, frame> = field.address v0, 0
+    v4: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v3, 1
     v5: ref<int32, unique, mutable> = load v4
     free v5
-    v6: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v3, 0
+    v6: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v3, 0
     v7: ref<int32, unique, mutable> = load v6
     free v7
     return
@@ -533,22 +533,18 @@ entry(v0: Value):
     return
 }
 
-function Value.destruct(v0: ref<Value, borrowed, exclusive>): void {
-    local l0: ref<int32, unique, mutable>
-
-entry(v0: ref<Value, borrowed, exclusive>):
-    v1: Value = load v0
-    v2: uint8 = field.get v1, 0
-    v3: ref<int32, unique, mutable> = field.get v1, 1
-    local.set l0, v3
-    v4: ref<ref<int32, unique, mutable>, borrowed, exclusive, space(frame)> = local.address l0
-    v5: uint8 = 0
-    v6: boolean = int.eq v2, v5
-    branch v6, b1, b2
+function Value.destruct.frame(v0: ref<Value, borrowed, exclusive, frame>): void {
+entry(v0: ref<Value, borrowed, exclusive, frame>):
+    v1: ref<uint8, borrowed, exclusive, frame> = field.address v0, 0
+    v2: uint8 = load v1
+    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.address v0, 1
+    v4: uint8 = 0
+    v5: boolean = int.eq v2, v4
+    branch v5, b1, b2
 
 b1:
-    v7: ref<int32, unique, mutable> = load v4
-    free v7
+    v6: ref<int32, unique, mutable> = load v3
+    free v6
     jump b2
 
 b2:
