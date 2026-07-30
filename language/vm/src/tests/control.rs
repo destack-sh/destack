@@ -9,6 +9,7 @@ fn test_execute_scalar_call_control_flow() {
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
+    poll
     int.add.int32 r1, r0, r0
     return r1
 }

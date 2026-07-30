@@ -259,12 +259,16 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         position = self.cursor.position();
                     }
 
-                    // profiling and stops
+                    // profiling and runtime cooperation
                     Opcode::PROFILE_INCREMENT | Opcode::PROFILE_SAMPLE => {
                         if PROFILE {
                             self.execute_profile(instruction)?;
                         }
                     }
+                    // the register interpreter requires no poll materialization
+                    Opcode::POLL => {}
+
+                    // stops
                     Opcode::BREAKPOINT => {
                         self.cursor.set_position(position);
 
