@@ -28,13 +28,25 @@
 
 (function_expression
   name: (identifier) @function)
-(function_declaration
+
+([
+  (function_declaration)
+  (generator_function_declaration)
+  (declare_function_signature)
+  (function_signature)
+]
   name: (identifier) @function)
-(method_definition
+
+([
+  (method_definition)
+  (method_signature)
+  (abstract_method_signature)
+]
   name: [(property_identifier) (private_property_identifier)] @function.method)
+
 (method_definition
-    name: (property_identifier) @constructor
-    (#eq? @constructor "constructor"))
+  name: (property_identifier) @constructor
+  (#eq? @constructor "constructor"))
 
 (pair
   key: [(property_identifier) (private_property_identifier)] @function.method
@@ -52,6 +64,23 @@
 (assignment_expression
   left: (identifier) @function
   right: [(function_expression) (arrow_function)])
+
+; decorators
+
+(decorator
+  "@" @punctuation.special)
+
+(decorator
+  (identifier) @attribute)
+
+(decorator
+  (call_expression
+    function: (identifier) @attribute))
+
+(decorator
+  (call_expression
+    function: (member_expression
+      property: (property_identifier) @attribute)))
 
 ; parameters
 
@@ -84,7 +113,7 @@
 (type_predicate
   name: (identifier) @variable.parameter)
 
-; special identifiers
+; types
 
 (lifetime) @label
 (type_annotation) @type
@@ -92,17 +121,38 @@
 (predefined_type) @type.builtin
 
 (type_alias_declaration
-  (type_identifier) @type)
+  name: (type_identifier) @type)
 
 (type_alias_declaration
   value: (_
     (type_identifier) @type))
 
 (interface_declaration
-  (type_identifier) @type)
+  name: (type_identifier) @type)
 
 (class_declaration
-  (type_identifier) @type.class)
+  name: (type_identifier) @type.class)
+
+(abstract_class_declaration
+  name: (type_identifier) @type.class)
+
+(struct_declaration
+  name: (type_identifier) @type)
+
+(enum_declaration
+  name: (identifier) @type)
+
+(extension_declaration
+  name: (type_identifier) @type)
+
+(associated_type_declaration
+  name: (type_identifier) @type)
+
+(associated_const_declaration
+  name: (type_identifier) @constant)
+
+(type_parameter
+  name: (type_identifier) @type.parameter)
 
 (extends_clause
   value: (identifier) @type.class)
@@ -112,6 +162,17 @@
 
 (implements_clause
   (type_identifier) @type)
+
+; enum members
+
+(enum_body
+  name: (_) @constant)
+
+(enum_assignment
+  name: (_) @constant)
+
+(enum_static_field
+  name: (_) @constant)
 
 ; literals
 
@@ -231,12 +292,12 @@
   "debugger"
   "declare"
   "default"
-  "delete"
   "exclusive"
   "extends"
   "final"
   "finally"
   "get"
+  "global"
   "implements"
   "in"
   "infer"
@@ -258,7 +319,6 @@
   "set"
   "shared"
   "static"
-  "target"
   "throw"
   "try"
   "typeof"
@@ -318,8 +378,6 @@
 (type_parameters
   "<" @punctuation.bracket
   ">" @punctuation.bracket)
-
-(decorator "@" @punctuation.special)
 
 (union_type
   ("|") @punctuation.special)
