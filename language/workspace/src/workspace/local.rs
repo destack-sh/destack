@@ -725,12 +725,8 @@ impl LocalWorkspace {
             return Ok(payload);
         }
 
-        if self.repository.load_artifact(artifact.version)? {
-            return self
-                .artifact_payload_in_memory(artifact)?
-                .ok_or_else(|| Error::Internal {
-                    detail: format!("artifact payload did not load for {:?}", artifact.version),
-                });
+        if let Some(payload) = self.repository.load_artifact(artifact.version)? {
+            return Ok(payload);
         }
 
         Err(Error::Internal {
