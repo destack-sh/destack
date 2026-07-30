@@ -34,6 +34,7 @@ members = [
 	"language/js",
 	"language/linter",
 	"language/memory",
+	"language/native",
 	"language/vm",
 	"language/mir",
 	"language/parser",
@@ -52,6 +53,7 @@ members = [
 	"language/unicode",
 	"language/repository",
 	"language/workspace",
+	"language/wasm",
 	"language/cli",
 	# app
 	"app/cli",
@@ -87,6 +89,7 @@ destack_json = { path = "language/json" }
 destack_js = { path = "language/js" }
 destack_linter = { path = "language/linter" }
 destack_memory = { path = "language/memory" }
+destack_native = { path = "language/native" }
 destack_vm = { path = "language/vm" }
 destack_mir = { path = "language/mir" }
 destack_parser = { path = "language/parser" }
@@ -100,6 +103,7 @@ destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
 destack_workspace = { path = "language/workspace", default-features = false }
+destack_webassembly = { path = "language/wasm" }
 destack_repository = { path = "language/repository" }
 destack_daemon = { path = "language/daemon" }
 destack_lsp = { path = "language/lsp" }

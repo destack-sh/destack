@@ -1,15 +1,13 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use destack_core::{SectionBuilder, SectionEntry, StringId};
+use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
 use destack_mir::TargetLayout;
 use destack_source::ContentId;
 
-use crate::native::NATIVE_ABI_VERSION;
+use crate::abi;
 
-use super::{
-    CodeMap, CodeMapBuilder, EntryTable, EntryTableBuilder, Image, ImportTable, ImportTableBuilder,
-};
+use super::{CodeMap, CodeMapBuilder, Entry, Image, ImportTable, ImportTableBuilder};
 
 /// Durable native code produced for one program.
 #[repr(C)]
@@ -28,7 +26,7 @@ pub struct Code {
     /// Native code map for safepoints and deoptimization.
     pub map: CodeMap,
     /// Native entries keyed by program ids.
-    pub entries: EntryTable,
+    entries: SectionSlice<Optional<Entry>>,
 }
 
 /// Build-time native code payload.
@@ -45,7 +43,7 @@ pub struct CodeBuilder {
     /// Native code map.
     map: CodeMapBuilder,
     /// Native entry table.
-    entries: EntryTableBuilder,
+    entries: Vec<Option<Entry>>,
 }
 
 impl CodeBuilder {
@@ -57,7 +55,7 @@ impl CodeBuilder {
             image,
             imports: ImportTableBuilder::default(),
             map: CodeMapBuilder::default(),
-            entries: EntryTableBuilder::default(),
+            entries: Vec::new(),
         }
     }
 
@@ -76,31 +74,48 @@ impl CodeBuilder {
     }
 
     /// Set the native entry table.
-    pub fn entries(mut self, entries: EntryTableBuilder) -> Self {
-        self.entries = entries;
+    pub fn entries(mut self, entries: impl IntoIterator<Item = Option<Entry>>) -> Self {
+        self.entries = entries.into_iter().collect();
 
         self
     }
 
     /// Build this native code payload into program sections.
-    pub(crate) fn build(self, sections: &mut SectionBuilder) -> Code {
+    pub fn build(self, sections: &mut SectionBuilder) -> Code {
         let imports = self.imports.build(sections);
         let map = self.map.build(sections);
-        let entries = self.entries.build(sections);
+        let entries = self
+            .entries
+            .into_iter()
+            .map(Optional::from)
+            .collect::<Vec<_>>();
 
         Code {
-            abi_version: NATIVE_ABI_VERSION,
+            abi_version: abi::VERSION,
             target: self.target,
             target_layout: self.target_layout,
             image: self.image,
             imports,
             map,
-            entries,
+            entries: sections.insert(entries),
         }
     }
 }
 
 impl Code {
+    /// Return one native function entry.
+    pub fn entry(&self, sections: SectionImage<'_>, function: usize) -> Option<Entry> {
+        sections
+            .entries(self.entries)
+            .get(function)
+            .and_then(|entry| entry.get())
+    }
+
+    /// Return native function entries in dense Program function order.
+    pub fn entries<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<Entry>] {
+        sections.entries(self.entries)
+    }
+
     /// Return all content ids referenced by this native code.
     pub fn content_ids(&self) -> Vec<ContentId> {
         self.image.content_ids()

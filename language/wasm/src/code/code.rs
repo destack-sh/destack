@@ -1,14 +1,13 @@
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
-    StringId,
+    EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
 };
 use destack_serde::Reflect;
 use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
-use crate::{FrameStateId, FunctionId};
+use super::{Entry, FrameMap, FrameMapBuilder, FrameSlot};
 
-const WASM_ABI_VERSION: u32 = 1;
+const ABI_VERSION: u32 = 1;
 
 /// Durable WebAssembly code produced for one Program.
 #[repr(C)]
@@ -28,18 +27,18 @@ pub struct Code {
 
 impl Code {
     /// Return one exported WebAssembly entry.
-    pub fn entry(self, sections: SectionImage<'_>, function: FunctionId) -> Option<Entry> {
+    pub fn entry(self, sections: SectionImage<'_>, function: usize) -> Option<Entry> {
         sections
             .entries(self.entries)
-            .get(function.index())
+            .get(function)
             .and_then(|entry| entry.get())
     }
 
     /// Return one physical WebAssembly frame map.
-    pub fn frame(self, sections: SectionImage<'_>, state: FrameStateId) -> Option<FrameMap> {
+    pub fn frame(self, sections: SectionImage<'_>, state: usize) -> Option<FrameMap> {
         sections
             .entries(self.frames)
-            .get(state.index())
+            .get(state)
             .and_then(|frame| frame.get())
     }
 
@@ -90,7 +89,7 @@ impl CodeBuilder {
     }
 
     /// Build this WebAssembly code into Program sections.
-    pub(crate) fn build(self, sections: &mut SectionBuilder) -> Code {
+    pub fn build(self, sections: &mut SectionBuilder) -> Code {
         let mut slots = EntryStore::new();
         let frames = self
             .frames
@@ -105,77 +104,11 @@ impl CodeBuilder {
             .collect::<Vec<_>>();
 
         Code {
-            abi_version: WASM_ABI_VERSION,
+            abi_version: ABI_VERSION,
             module: self.module,
             entries: sections.insert(entries),
             frames: sections.insert(frames),
             slots: sections.insert(slots.into_entries()),
         }
-    }
-}
-
-/// One WebAssembly export implementing a Program function.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct Entry {
-    /// The generated WebAssembly export name.
-    pub export: StringId,
-}
-
-impl Entry {
-    /// Create one exported WebAssembly function entry.
-    pub const fn new(export: StringId) -> Self {
-        Self { export }
-    }
-}
-
-/// Physical WebAssembly projection of one canonical frame state.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct FrameMap {
-    /// Materialized slots in canonical Program frame slot order.
-    slots: EntryRange<FrameSlot>,
-}
-
-/// Mutable WebAssembly frame map before Program section packing.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct FrameMapBuilder {
-    /// Materialized slots in canonical Program frame slot order.
-    slots: Vec<FrameSlot>,
-}
-
-impl FrameMapBuilder {
-    /// Create one empty WebAssembly frame map builder.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Set materialized slots in canonical Program frame slot order.
-    pub fn slots(mut self, slots: impl IntoIterator<Item = FrameSlot>) -> Self {
-        self.slots = slots.into_iter().collect();
-
-        self
-    }
-
-    /// Build this frame map into flattened slot storage.
-    fn build(self, slots: &mut EntryStore<FrameSlot>) -> FrameMap {
-        FrameMap {
-            slots: slots.append(self.slots),
-        }
-    }
-}
-
-/// One canonical value materialized in WebAssembly activation memory.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct FrameSlot {
-    /// Byte offset from the WebAssembly activation frame base.
-    pub offset: u32,
-}
-
-impl FrameSlot {
-    /// Create one materialized WebAssembly frame slot.
-    pub const fn new(offset: u32) -> Self {
-        Self { offset }
     }
 }

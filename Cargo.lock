@@ -861,9 +861,11 @@ dependencies = [
  "destack_dir",
  "destack_js",
  "destack_mir",
+ "destack_native",
  "destack_program",
  "destack_serde",
  "destack_source",
+ "destack_webassembly",
  "fs2",
  "indexmap",
  "libc",
@@ -940,12 +942,14 @@ dependencies = [
  "destack_heap",
  "destack_js",
  "destack_mir",
+ "destack_native",
  "destack_parser",
  "destack_program",
  "destack_query",
  "destack_repository",
  "destack_session",
  "destack_source",
+ "destack_webassembly",
  "filetime",
  "indexmap",
  "mime_guess",
@@ -1218,6 +1222,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_native"
+version = "0.55.4"
+dependencies = [
+ "destack_core",
+ "destack_mir",
+ "destack_serde",
+ "destack_source",
+ "serde",
+]
+
+[[package]]
 name = "destack_parser"
 version = "0.55.4"
 dependencies = [
@@ -1259,8 +1274,10 @@ dependencies = [
  "destack_heap",
  "destack_memory",
  "destack_mir",
+ "destack_native",
  "destack_serde",
  "destack_source",
+ "destack_webassembly",
  "serde",
 ]
 
@@ -1328,6 +1345,7 @@ dependencies = [
  "destack_heap",
  "destack_memory",
  "destack_mir",
+ "destack_native",
  "destack_program",
  "destack_repository",
  "destack_serde",
@@ -1467,6 +1485,16 @@ dependencies = [
  "destack",
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "destack_webassembly"
+version = "0.55.4"
+dependencies = [
+ "destack_core",
+ "destack_serde",
+ "destack_source",
+ "serde",
 ]
 
 [[package]]

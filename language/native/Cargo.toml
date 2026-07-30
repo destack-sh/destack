@@ -1,6 +1,6 @@
 [package]
-name = "destack_program"
-description = "Destack program format"
+name = "destack_native"
+description = "Destack native code format and ABI"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,19 +12,11 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-# language
-destack_bytecode = { workspace = true }
 destack_core = { workspace = true }
-destack_heap = { workspace = true }
-destack_memory = { workspace = true }
 destack_mir = { workspace = true }
-destack_native = { workspace = true }
 destack_serde = { workspace = true }
 destack_source = { workspace = true }
-destack_webassembly = { workspace = true }
-
-# general
-serde = { workspace = true, features = ["derive", "rc"] }
+serde = { workspace = true, features = ["derive"] }
 
 [lints]
 workspace = true

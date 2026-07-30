@@ -8,8 +8,10 @@ use destack_heap::{
 };
 use destack_memory::{MemoryMap, MemoryResult};
 use destack_mir::{Space, Storage, TargetLayout, TraceId, TraceMap};
+use destack_native as native;
 use destack_serde::Reflect;
 use destack_source::ContentId;
+use destack_webassembly as wasm;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -22,7 +24,7 @@ use crate::{
     SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, SuspensionSite,
     SuspensionSiteId, Symbol, TensorDimension, TensorLayout, TensorViewLayout, TypeFingerprint,
     TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word,
-    WordLayout, native, wasm,
+    WordLayout,
 };
 
 /// Linked program.

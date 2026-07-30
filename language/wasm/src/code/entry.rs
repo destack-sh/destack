@@ -1,0 +1,18 @@
+use destack_core::{SectionEntry, StringId};
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
+
+/// One WebAssembly export implementing a Program function.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct Entry {
+    /// The generated WebAssembly export name.
+    pub export: StringId,
+}
+
+impl Entry {
+    /// Create one exported WebAssembly function entry.
+    pub const fn new(export: StringId) -> Self {
+        Self { export }
+    }
+}

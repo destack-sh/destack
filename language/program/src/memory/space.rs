@@ -2,30 +2,11 @@ use std::sync::Arc;
 
 use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_memory::{MemoryMap, MemoryRange, MemoryResult};
+use destack_native::abi;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{Global, GlobalAddress};
-
-/// Native projection of immutable constant memory.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NativeConstantSpace {
-    /// The first byte in the constant space.
-    pub bytes: *const u8,
-    /// The constant space byte count.
-    pub byte_len: usize,
-}
-
-/// Native projection of mutable static memory.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NativeStaticSpace {
-    /// The first byte in the static space.
-    pub bytes: *mut u8,
-    /// The static space byte count.
-    pub byte_len: usize,
-}
 
 /// Section-backed static memory image carried by a program.
 #[repr(C)]
@@ -100,10 +81,10 @@ impl StaticImage {
     }
 
     /// Return a native projection of this constant image.
-    pub fn as_native_constants(&self, sections: SectionImage<'_>) -> NativeConstantSpace {
+    pub fn as_native_constants(&self, sections: SectionImage<'_>) -> abi::ConstantSpace {
         let bytes = sections.entries(self.bytes);
 
-        NativeConstantSpace {
+        abi::ConstantSpace {
             bytes: bytes.as_ptr(),
             byte_len: bytes.len(),
         }
@@ -230,8 +211,8 @@ impl StaticSpace {
     }
 
     /// Return a native projection of this static space.
-    pub fn as_native_statics(&mut self) -> NativeStaticSpace {
-        NativeStaticSpace {
+    pub fn as_native_statics(&mut self) -> abi::StaticSpace {
+        abi::StaticSpace {
             bytes: (self.memory.base_address() + self.range.offset) as *mut u8,
             byte_len: self.range.byte_len,
         }

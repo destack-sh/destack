@@ -4,12 +4,12 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 /// Native trap code.
-pub type NativeTrapCode = u32;
+pub type TrapCode = u32;
 
 /// Low-level trap reported by generated native code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(u32)]
-pub enum NativeTrap {
+pub enum Trap {
     /// Integer arithmetic overflowed.
     IntegerOverflow = 1,
     /// A checked cast failed.
@@ -24,32 +24,32 @@ pub enum NativeTrap {
     StackOverflow = 6,
 }
 
-impl NativeTrap {
+impl Trap {
     /// Return the native ABI trap code.
-    pub const fn code(self) -> NativeTrapCode {
-        self as NativeTrapCode
+    pub const fn code(self) -> TrapCode {
+        self as TrapCode
     }
 }
 
 /// Native trap code conversion error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct NativeTrapError {
+pub struct TrapError {
     /// The invalid trap code.
-    pub code: NativeTrapCode,
+    pub code: TrapCode,
 }
 
-impl fmt::Display for NativeTrapError {
+impl fmt::Display for TrapError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "invalid native trap code {}", self.code)
     }
 }
 
-impl Error for NativeTrapError {}
+impl Error for TrapError {}
 
-impl TryFrom<NativeTrapCode> for NativeTrap {
-    type Error = NativeTrapError;
+impl TryFrom<TrapCode> for Trap {
+    type Error = TrapError;
 
-    fn try_from(code: NativeTrapCode) -> Result<Self, Self::Error> {
+    fn try_from(code: TrapCode) -> Result<Self, Self::Error> {
         match code {
             1 => Ok(Self::IntegerOverflow),
             2 => Ok(Self::InvalidCast),
@@ -57,7 +57,7 @@ impl TryFrom<NativeTrapCode> for NativeTrap {
             4 => Ok(Self::NullReference),
             5 => Ok(Self::Unreachable),
             6 => Ok(Self::StackOverflow),
-            code => Err(NativeTrapError { code }),
+            code => Err(TrapError { code }),
         }
     }
 }

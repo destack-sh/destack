@@ -4,12 +4,12 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 /// Native runtime operation status code.
-pub type NativeRuntimeStatusCode = u32;
+pub type RuntimeStatusCode = u32;
 
 /// Native runtime operation status.
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum NativeRuntimeStatus {
+pub enum RuntimeStatus {
     /// Native execution may continue.
     Continue = 0,
     /// The operation failed normally and native code should take its failure edge.
@@ -20,19 +20,19 @@ pub enum NativeRuntimeStatus {
 
 /// Native runtime status code conversion error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NativeRuntimeStatusError {
+pub struct RuntimeStatusError {
     /// The invalid status code.
-    pub code: NativeRuntimeStatusCode,
+    pub code: RuntimeStatusCode,
 }
 
-impl NativeRuntimeStatus {
+impl RuntimeStatus {
     /// Return the native runtime status code.
-    pub const fn code(self) -> NativeRuntimeStatusCode {
-        self as NativeRuntimeStatusCode
+    pub const fn code(self) -> RuntimeStatusCode {
+        self as RuntimeStatusCode
     }
 }
 
-impl fmt::Display for NativeRuntimeStatusError {
+impl fmt::Display for RuntimeStatusError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -42,17 +42,17 @@ impl fmt::Display for NativeRuntimeStatusError {
     }
 }
 
-impl Error for NativeRuntimeStatusError {}
+impl Error for RuntimeStatusError {}
 
-impl TryFrom<NativeRuntimeStatusCode> for NativeRuntimeStatus {
-    type Error = NativeRuntimeStatusError;
+impl TryFrom<RuntimeStatusCode> for RuntimeStatus {
+    type Error = RuntimeStatusError;
 
-    fn try_from(code: NativeRuntimeStatusCode) -> Result<Self, Self::Error> {
+    fn try_from(code: RuntimeStatusCode) -> Result<Self, Self::Error> {
         match code {
             0 => Ok(Self::Continue),
             1 => Ok(Self::Failed),
             2 => Ok(Self::Exit),
-            code => Err(NativeRuntimeStatusError { code }),
+            code => Err(RuntimeStatusError { code }),
         }
     }
 }

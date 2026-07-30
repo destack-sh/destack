@@ -5,18 +5,19 @@ use destack_core::{Optional, SectionBuilder, SectionEntry, SectionStorage, Strin
 use destack_heap::TraceTable;
 use destack_mir as mir;
 use destack_mir::TargetLayout;
+use destack_native as native;
+use destack_webassembly as wasm;
 
 use super::Program;
 use crate::{
     BindingBuilder, BindingTable, DispatchTable, DispatchTableBuilder, DropEntry, DropTable,
     FrameTable, FrameTableBuilder, FunctionTable, FunctionTableBuilder, GlobalTable,
     GlobalTableBuilder, LayoutBuilder, LayoutTable, ProgramInfo, ProgramInfoBuilder, SiteTable,
-    SiteTableBuilder, StaticImage, StringEntry, StringTable, TypeTable, TypeTableBuilder, native,
-    wasm,
+    SiteTableBuilder, StaticImage, StringEntry, StringTable, TypeTable, TypeTableBuilder,
 };
 
 const PROGRAM_MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
-const PROGRAM_VERSION: u16 = 6;
+const PROGRAM_VERSION: u16 = 7;
 
 /// Program image load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]

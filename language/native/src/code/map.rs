@@ -4,8 +4,6 @@ use destack_core::{
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{FrameStateId, FunctionId, TypeId};
-
 use super::{FrameLocation, FrameMap, FrameMapBuilder, FrameValue};
 
 /// Native code map for entries, safepoints, roots, and deoptimization.
@@ -19,7 +17,7 @@ pub struct CodeMap {
     /// Native safepoints keyed by safepoint id.
     safepoint: SectionSlice<Optional<Safepoint>>,
     /// Native roots referenced by safepoints.
-    root: SectionSlice<NativeRoot>,
+    root: SectionSlice<Root>,
     /// Canonical native frame values.
     value: SectionSlice<FrameValue>,
     /// Physical locations containing canonical frame values.
@@ -71,7 +69,7 @@ impl CodeMapBuilder {
 
     /// Build this code map into program sections.
     pub(super) fn build(self, sections: &mut SectionBuilder) -> CodeMap {
-        let mut roots = EntryStore::<NativeRoot>::new();
+        let mut roots = EntryStore::<Root>::new();
         let mut values = EntryStore::<FrameValue>::new();
         let mut locations = EntryStore::<FrameLocation>::new();
         let safepoints = self
@@ -119,7 +117,7 @@ impl CodeMap {
     }
 
     /// Return native roots for one safepoint.
-    pub fn roots<'a>(&self, sections: SectionImage<'a>, safepoint: Safepoint) -> &'a [NativeRoot] {
+    pub fn roots<'a>(&self, sections: SectionImage<'a>, safepoint: Safepoint) -> &'a [Root] {
         safepoint.roots.slice(sections.entries(self.root))
     }
 
@@ -149,15 +147,15 @@ impl CodeMap {
     Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub struct FunctionCode {
-    /// The function covered by this range.
-    pub function: FunctionId,
+    /// The dense Program function index covered by this range.
+    pub function: u32,
     /// The native code byte range.
     pub range: CodeRange,
 }
 
 impl FunctionCode {
     /// Create one native function code range.
-    pub fn new(function: FunctionId, range: CodeRange) -> Self {
+    pub const fn new(function: u32, range: CodeRange) -> Self {
         Self { function, range }
     }
 }
@@ -188,17 +186,17 @@ pub struct Safepoint {
     /// The safepoint id passed through the native ABI.
     pub id: u32,
     /// The function containing this safepoint.
-    pub function: FunctionId,
+    pub function: u32,
     /// The byte offset from the native image base.
     pub offset: u32,
     /// The runtime frame state corresponding to this safepoint.
-    pub frame_state: FrameStateId,
+    pub frame_state: u32,
     /// Native roots live at this safepoint.
-    pub roots: EntryRange<NativeRoot>,
+    pub roots: EntryRange<Root>,
     /// Physical projection of the canonical frame state.
     pub frame: FrameMap,
     /// Materialization target when this safepoint can deoptimize.
-    pub deopt: Optional<FrameStateId>,
+    pub deopt: Optional<u32>,
 }
 
 /// Mutable native safepoint before section flattening.
@@ -207,26 +205,26 @@ pub struct SafepointBuilder {
     /// The safepoint id passed through the native ABI.
     id: u32,
     /// The function containing this safepoint.
-    function: FunctionId,
+    function: u32,
     /// The byte offset from the native image base.
     offset: u32,
     /// The runtime frame state corresponding to this safepoint.
-    frame_state: FrameStateId,
+    frame_state: u32,
     /// Native roots live at this safepoint.
-    roots: Vec<NativeRoot>,
+    roots: Vec<Root>,
     /// Physical projection of the canonical frame state.
     frame: FrameMapBuilder,
     /// Materialization target when this safepoint can deoptimize.
-    deopt: Option<FrameStateId>,
+    deopt: Option<u32>,
 }
 
 impl SafepointBuilder {
     /// Create one native safepoint.
     pub fn new(
         id: u32,
-        function: FunctionId,
+        function: u32,
         offset: u32,
-        frame_state: FrameStateId,
+        frame_state: u32,
         frame: FrameMapBuilder,
     ) -> Self {
         Self {
@@ -241,14 +239,14 @@ impl SafepointBuilder {
     }
 
     /// Set native roots live at this safepoint.
-    pub fn roots(mut self, roots: impl IntoIterator<Item = NativeRoot>) -> Self {
+    pub fn roots(mut self, roots: impl IntoIterator<Item = Root>) -> Self {
         self.roots = roots.into_iter().collect();
 
         self
     }
 
     /// Set the materialization target.
-    pub fn deopt(mut self, deopt: FrameStateId) -> Self {
+    pub fn deopt(mut self, deopt: u32) -> Self {
         self.deopt = Some(deopt);
 
         self
@@ -257,7 +255,7 @@ impl SafepointBuilder {
     /// Build this safepoint into one section entry.
     fn build(
         self,
-        roots: &mut EntryStore<NativeRoot>,
+        roots: &mut EntryStore<Root>,
         values: &mut EntryStore<FrameValue>,
         locations: &mut EntryStore<FrameLocation>,
     ) -> Safepoint {
@@ -279,16 +277,16 @@ impl SafepointBuilder {
 /// One native root location at one safepoint.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
-pub struct NativeRoot {
+pub struct Root {
     /// Signed byte offset from the native frame base.
     pub offset: i32,
     /// The root value type.
-    pub ty: TypeId,
+    pub ty: u32,
 }
 
-impl NativeRoot {
+impl Root {
     /// Create one native root location.
-    pub fn new(offset: i32, ty: TypeId) -> Self {
+    pub const fn new(offset: i32, ty: u32) -> Self {
         Self { offset, ty }
     }
 }
@@ -298,7 +296,7 @@ mod tests {
     use destack_core::{SectionBuilder, SectionImage};
 
     use super::*;
-    use crate::native::{FrameSource, FrameValueBuilder};
+    use crate::{FrameSource, FrameValueBuilder};
 
     /// Preserve complete canonical frame projections in native code maps.
     #[test]
@@ -308,8 +306,7 @@ mod tests {
             FrameLocation::new(FrameSource::Stack, -16, 8, 8),
         ]);
         let frame = FrameMapBuilder::new().values([value]);
-        let safepoint = SafepointBuilder::new(7, FunctionId(2), 24, FrameStateId(4), frame)
-            .roots([NativeRoot::new(-16, TypeId(3))]);
+        let safepoint = SafepointBuilder::new(7, 2, 24, 4, frame).roots([Root::new(-16, 3)]);
         let mut sections = SectionBuilder::new();
         let map = CodeMapBuilder::new()
             .safepoints([Some(safepoint)])
@@ -332,10 +329,7 @@ mod tests {
                 FrameLocation::new(FrameSource::Stack, -16, 8, 8),
             ]
         );
-        assert_eq!(
-            map.roots(sections, safepoint),
-            &[NativeRoot::new(-16, TypeId(3))]
-        );
+        assert_eq!(map.roots(sections, safepoint), &[Root::new(-16, 3)]);
         assert_eq!(map.constants(sections), &[1, 2, 3, 4]);
     }
 }
