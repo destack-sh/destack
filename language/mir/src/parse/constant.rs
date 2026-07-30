@@ -275,6 +275,7 @@ impl Parser {
     /// Parse a primitive type from string.
     pub(super) fn parse_primitive_type(&self, text: &str) -> Option<Type> {
         Some(match text {
+            "never" => Type::Never,
             "int8" => Type::Int {
                 width: 8,
                 is_signed: true,

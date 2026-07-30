@@ -73,6 +73,7 @@ impl SymbolMangler {
 
         match tree.get(id) {
             Type::Error => self.hasher.write_u8(0),
+            Type::Never => self.hasher.write_u8(27),
             Type::Void => self.hasher.write_u8(1),
             Type::Boolean => self.hasher.write_u8(2),
             Type::Int { width, is_signed } => {

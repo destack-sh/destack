@@ -317,7 +317,8 @@ impl StorageLayoutBuilder<'_> {
 
         // build the canonical physical representation for the repr type
         let mut layout = match self.tree.get(ty) {
-            mir::Type::Void
+            mir::Type::Never
+            | mir::Type::Void
             | mir::Type::Boolean
             | mir::Type::Int { .. }
             | mir::Type::Isize

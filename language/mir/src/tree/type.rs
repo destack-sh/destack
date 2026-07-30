@@ -318,6 +318,8 @@ impl TensorDimension {
 pub enum Type {
     /// Invalid type produced while recovering malformed MIR text.
     Error,
+    /// Uninhabited type for execution that cannot complete normally.
+    Never,
     /// Void / unit type (no value).
     Void,
     /// Boolean (1 bit logical, typically 1 byte).
@@ -794,6 +796,9 @@ impl Type {
         match self {
             // parse recovery nodes are never copyable semantic values
             Type::Error => Copy::No,
+
+            // the uninhabited type has no values to move
+            Type::Never => Copy::Yes,
 
             // lifetime application preserves the represented type's copy property
             Type::WithLifetimes { base, .. } => tree.get(*base).copy(tree),

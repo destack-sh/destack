@@ -245,6 +245,7 @@ fn format_type_inner<'a>(
 
     match ty {
         Type::Error => write!(f, [token("<error>")]),
+        Type::Never => write!(f, [token("never")]),
         Type::Void => write!(f, [token("void")]),
         Type::Boolean => write!(f, [token("boolean")]),
         Type::Int {

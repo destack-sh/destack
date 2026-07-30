@@ -308,7 +308,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Type, id.id);
 
     match ty {
-        Type::Error => {}
+        Type::Error | Type::Never => {}
         Type::Reference { pointee, .. } => {
             walk_type_id(visitor, tree, pointee);
         }

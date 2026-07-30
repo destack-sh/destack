@@ -144,6 +144,7 @@ impl Tree {
         let representation = match ty {
             // leaves already carry their complete runtime representation
             Type::Error
+            | Type::Never
             | Type::Void
             | Type::Boolean
             | Type::Int { .. }
@@ -333,6 +334,7 @@ impl Tree {
         let instantiated = match ty {
             // leaves cannot contain lifetime slots
             Type::Error
+            | Type::Never
             | Type::Void
             | Type::Boolean
             | Type::Int { .. }

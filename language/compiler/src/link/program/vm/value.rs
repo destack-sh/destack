@@ -113,7 +113,7 @@ impl<'a> OperandLowerer<'a> {
     /// Return the operand for one MIR type.
     fn operand_node(&self, ty: TypeId, type_shape: &mir::Type) -> Option<Operand> {
         match type_shape {
-            mir::Type::Error => None,
+            mir::Type::Error | mir::Type::Never => None,
             mir::Type::WithLifetimes { .. }
             | mir::Type::Uninit { .. }
             | mir::Type::ManuallyDrop { .. }

@@ -188,7 +188,9 @@ impl<'a> LayoutLinker<'a> {
         layout: &StorageLayout,
     ) -> LinkResult<mir::LayoutShape> {
         match self.tree.get(self.tree.repr_type(type_id)) {
-            mir::Type::Void | mir::Type::FunctionSignature { .. } => Ok(mir::LayoutShape::None),
+            mir::Type::Void | mir::Type::Never | mir::Type::FunctionSignature { .. } => {
+                Ok(mir::LayoutShape::None)
+            }
             mir::Type::Boolean
             | mir::Type::Int { .. }
             | mir::Type::Isize
