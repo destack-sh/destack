@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactDependencySet, ArtifactFailure, ArtifactInput, ArtifactKey,
-    ArtifactOutcome, ArtifactPayload, ArtifactProvider, ArtifactSidecar,
+    ArtifactDependency, ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactOutcome,
+    ArtifactPayload, ArtifactProvider, ArtifactSidecar, ArtifactVersion,
 };
 use destack_repository::{
     ArtifactAttemptOutcome, ArtifactResolution, DependencySetResolution, ProviderError,
@@ -175,7 +175,12 @@ impl Worker {
                 }
             };
             let resolution = recorder.span("dependencies", || {
-                repository.resolve_dependency_set(task.revision, dependency_set, base.as_deref())
+                repository.resolve_dependency_set(
+                    task.revision,
+                    dependency_set,
+                    base.as_deref(),
+                    recorder.as_ref(),
+                )
             });
             let resolution = match resolution {
                 Ok(resolution) => resolution,
@@ -228,9 +233,9 @@ impl Worker {
         let dependencies = Arc::<[ArtifactDependency]>::from(dependencies);
         recorder.record_dependencies(&dependencies);
 
-        // identify reusable results from the complete semantic input set
-        let input = recorder.span("input", || {
-            ArtifactInput::new(
+        // identify the reusable result from its dependency observations
+        let version = recorder.span("version", || {
+            ArtifactVersion::new(
                 task.key,
                 repository.build_fingerprint(),
                 dependencies.iter().cloned(),
@@ -246,7 +251,7 @@ impl Worker {
                 self.fail(
                     run.id(),
                     task,
-                    input,
+                    version,
                     dependencies,
                     diagnostics,
                     sidecars,
@@ -260,7 +265,7 @@ impl Worker {
 
         // bind a committed payload when the dependency set already produced it
         let reused = recorder.span("memory_cache", || {
-            repository.bind_artifact_input(task.revision, input)
+            repository.bind_artifact_version(task.revision, version, Arc::clone(&dependencies))
         });
         let reused = match reused {
             Ok(reused) => reused,
@@ -272,16 +277,21 @@ impl Worker {
                 });
             }
         };
-        if reused.is_some() {
+        if reused {
             recorder.finish(ArtifactAttemptOutcome::MemoryCached);
             self.finish_ready(run.id(), task);
 
             return Ok(());
         }
 
-        // load a committed record before running the provider
+        // load and select a committed result before running the provider
         let loaded = recorder.span("store_cache", || {
-            repository.load_artifact_input(task.revision, input)
+            repository.load_artifact_binding(
+                task.revision,
+                version,
+                Arc::clone(&dependencies),
+                Some(recorder.as_ref()),
+            )
         });
         let loaded = match loaded {
             Ok(loaded) => loaded,
@@ -293,7 +303,7 @@ impl Worker {
                 });
             }
         };
-        if loaded.is_some() {
+        if loaded {
             recorder.finish(ArtifactAttemptOutcome::StoreCached);
             self.finish_ready(run.id(), task);
 
@@ -310,11 +320,12 @@ impl Worker {
                 let result = recorder.span("complete", || {
                     self.state.repository().complete_artifact(
                         task.revision,
-                        input,
+                        version,
                         payload,
                         dependencies,
                         attempt.diagnostics(),
                         attempt.sidecars(),
+                        Some(recorder.as_ref()),
                     )
                 });
                 match result {
@@ -332,7 +343,7 @@ impl Worker {
             }
             Err(error) => {
                 let result = recorder.span("complete", || {
-                    self.fail_provider(&attempt, run.id(), task, input, dependencies, *error)
+                    self.fail_provider(&attempt, run.id(), task, version, dependencies, *error)
                 });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
 
@@ -347,7 +358,7 @@ impl Worker {
         attempt: &ProviderAttempt,
         run: ArtifactRunId,
         task: Task,
-        input: ArtifactInput,
+        version: ArtifactVersion,
         dependencies: Arc<[ArtifactDependency]>,
         error: ProviderError,
     ) -> Result<(), SessionError> {
@@ -361,7 +372,7 @@ impl Worker {
                 self.fail(
                     run,
                     task,
-                    input,
+                    version,
                     dependencies,
                     diagnostics,
                     sidecars,
@@ -371,7 +382,7 @@ impl Worker {
             ProviderError::Failed { failure } => self.fail(
                 run,
                 task,
-                input,
+                version,
                 dependencies,
                 diagnostics,
                 sidecars,
@@ -422,7 +433,7 @@ impl Worker {
         &self,
         run: ArtifactRunId,
         task: Task,
-        input: ArtifactInput,
+        version: ArtifactVersion,
         dependencies: Arc<[ArtifactDependency]>,
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
@@ -430,7 +441,7 @@ impl Worker {
     ) -> Result<(), SessionError> {
         self.state.repository().fail_artifact(
             task.revision,
-            input,
+            version,
             dependencies,
             diagnostics,
             sidecars,
