@@ -429,7 +429,9 @@ function read(): int32 {
 Imported references use the declaration signature from the defining module.
 
 ```ds library.ds
-export function greet(): void {}
+export function greet(): string {
+    return "one";
+}
 ```
 
 ```ds main.ds
@@ -440,7 +442,31 @@ greet();
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 signature="export function greet(): void" location=library.ds:1:1-1:33 selection=library.ds:1:17-1:22 range=main.ds#reference
+@hover.item index=0 signature="export function greet(): string" location=library.ds:1:1-3:2 selection=library.ds:1:17-1:22 range=main.ds#reference
+```
+
+```diff library.ds
+@@ -1,3 +1,3 @@
+ export function greet(): string {
+-    return "one";
++    return "two";
+ }
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="export function greet(): string" location=library.ds:1:1-3:2 selection=library.ds:1:17-1:22 range=main.ds#reference
+```
+
+```diff library.ds
+@@ -1,3 +1,3 @@
+-export function greet(): string {
++export function welcome(): string {
+     return "two";
+ }
+```
+
+```query hover main.ds#reference
+@hover.none
 ```
 
 ### Hover through a re-export
@@ -625,6 +651,24 @@ function unrelated(): int32 {
  function unrelated(): int32 {
 -    return 1;
 +    return 2;
+ }
+```
+
+```query hover main.ds#reference
+@hover.item index=0 signature="function message(): string" location=main.ds:1:1-3:2 selection=main.ds#definition range=main.ds#reference
+```
+
+```diff main.ds
+@@ -1,4 +1,4 @@
+ function message(): string {
+          ^^^^^^^ definition
+-    return "two";
++    return "three";
+ }
+@@ -9,3 +9,3 @@
+ function unrelated(): int32 {
+-    return 2;
++    return 3;
  }
 ```
 
