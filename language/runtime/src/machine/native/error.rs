@@ -1,8 +1,8 @@
 use std::fmt;
 
 use destack_core::StringId;
+use destack_native::abi;
 use destack_program as program;
-use destack_program::native::{NativeExitError, NativeExitKind, NativeTrap, NativeTrapError};
 use destack_program::{TypeId, Value};
 use serde::{Deserialize, Serialize};
 
@@ -29,12 +29,12 @@ pub enum Error {
     /// Native execution reported a trap.
     Trapped {
         /// The reported trap.
-        trap: NativeTrap,
+        trap: abi::Trap,
     },
     /// Native execution exited without a restorable machine state.
     StateUnavailable {
         /// The exit that requires machine state.
-        kind: NativeExitKind,
+        kind: abi::ExitKind,
         /// The safepoint that exited.
         safepoint: u32,
     },
@@ -44,9 +44,9 @@ pub enum Error {
         payload: Option<Value>,
     },
     /// A native exit code could not be decoded.
-    InvalidExit(NativeExitError),
+    InvalidExit(abi::ExitError),
     /// A native trap code could not be decoded.
-    InvalidTrap(NativeTrapError),
+    InvalidTrap(abi::TrapError),
     /// Program metadata rejected one native call value.
     Program(Box<program::Error>),
     /// The program has no native code.

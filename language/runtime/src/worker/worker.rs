@@ -144,10 +144,11 @@ impl Worker {
         runtime_heap: &SharedHeap,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
-        program: Arc<program::Program>,
         binding_table: Arc<BindingTable>,
         engine: &Engine,
     ) -> RuntimeResult<Self> {
+        let program = engine.program().clone();
+
         // resources
         let resources = ResourceTable::new(worker_id);
 
@@ -163,7 +164,7 @@ impl Worker {
             heap_options.options,
         )
         .map_err(Box::<RuntimeError>::from)?;
-        let machine = engine.spawn(program.clone(), runtime_heap.memory().clone())?;
+        let machine = engine.spawn(runtime_heap.memory().clone())?;
         let local_static = program.materialize_local_statics(runtime_heap.memory().clone())?;
         let shared_mark_worker = runtime_heap.register_mark_worker();
         let shared_cache = runtime_heap.shared.allocation_cache();
@@ -477,11 +478,12 @@ impl Worker {
         options: Arc<RuntimeOptions>,
         conditions: Arc<ConditionSet>,
         image: &WorkerImage,
-        program: Arc<program::Program>,
         binding_table: Arc<BindingTable>,
         engine: &Engine,
         restore: RestoreContext<'_>,
     ) -> RuntimeResult<Self> {
+        let program = engine.program().clone();
+
         // resources
         let resources = ResourceTable::new(worker_id);
 
@@ -501,7 +503,7 @@ impl Worker {
             program.trace_view(),
         )
         .map_err(Box::<RuntimeError>::from)?;
-        let mut machine = engine.spawn(program.clone(), runtime_heap.memory().clone())?;
+        let mut machine = engine.spawn(runtime_heap.memory().clone())?;
         machine.restore(&image.machine)?;
         let local_static =
             program::StaticSpace::from_image(runtime_heap.memory().clone(), &image.local_static);

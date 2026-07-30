@@ -34,13 +34,12 @@ impl TestWorld {
         let environment = Arc::new(Environment::default());
         let mut world = World::new(options, environment.clone()).expect("world should build");
         let program = Arc::new(program.build());
-        let engine = Engine::vm(vm::MachineLimits::test());
+        let engine = Engine::new(program, vm::MachineLimits::test());
         let runtime_id = world
             .spawn_runtime(
                 environment,
                 options,
                 TestWorker::conditions(),
-                program,
                 Arc::new(BindingTable::new()),
                 engine,
             )
@@ -139,14 +138,13 @@ impl TestWorld {
     ) -> RuntimeId {
         let environment = Arc::new(Environment::default());
         let program = Arc::new(program.build());
-        let engine = Engine::vm(vm::MachineLimits::test());
+        let engine = Engine::new(program, vm::MachineLimits::test());
 
         self.world
             .spawn_runtime(
                 environment,
                 options,
                 TestWorker::conditions(),
-                program,
                 Arc::new(BindingTable::new()),
                 engine,
             )

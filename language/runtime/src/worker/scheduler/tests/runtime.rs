@@ -24,11 +24,10 @@ entry(v0: int32):
 }
 "#,
     );
-    let mut runtime = TestWorker::build(
+    let mut runtime = TestWorker::bytecode(
         &RuntimeOptions::default(),
         program.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     runtime.enqueue_task("run", 1);
 
@@ -152,11 +151,10 @@ entry(v0: int32):
 }
 "#,
     );
-    let mut runtime = TestWorker::build(
+    let mut runtime = TestWorker::bytecode(
         &RuntimeOptions::default(),
         program.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     runtime.start_profile(program::ProfileOptions::STANDARD);
     runtime.enqueue_task("run", 1);
@@ -182,11 +180,10 @@ entry(v0: int32):
 }
 "#,
     );
-    let mut runtime = TestWorker::build(
+    let mut runtime = TestWorker::bytecode(
         &RuntimeOptions::default(),
         program.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     runtime.enqueue_task("run", 9);
 
@@ -211,11 +208,10 @@ entry(v0: int32):
 }
 "#,
     );
-    let mut runtime = TestWorker::build(
+    let mut runtime = TestWorker::bytecode(
         &RuntimeOptions::default(),
         program.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     runtime.add_timer_waiter("run", 77, 31);
     runtime.schedule_timer(77, 0, None);
@@ -247,11 +243,10 @@ entry(v0: int32):
 }
 "#,
     );
-    let mut runtime = TestWorker::build(
+    let mut runtime = TestWorker::bytecode(
         &RuntimeOptions::default(),
         program.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     runtime.add_resource_waiter("run", 5, 41);
     runtime.enqueue_io_event(5, 91, 9);
@@ -277,11 +272,10 @@ entry(v0: int32):
 }
 "#,
     );
-    let mut runtime = TestWorker::build(
+    let mut runtime = TestWorker::bytecode(
         &RuntimeOptions::default(),
         program.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     runtime.add_host_waiter("run", HostEventKind::Lifecycle, 42);
     runtime.enqueue_lifecycle_host_event(LifecycleState::Running);
@@ -380,14 +374,14 @@ fn test_world_spawn_runtime_records_observation() {
     let before = world.moment();
 
     // spawn one runtime and read the emitted observation
+    let engine = Engine::new(program, vm::MachineLimits::test());
     let runtime_id = world
         .spawn_runtime(
             Environment::default(),
             &options,
             TestWorker::conditions(),
-            program,
             Arc::new(BindingTable::new()),
-            Engine::vm(vm::MachineLimits::test()),
+            engine,
         )
         .expect("runtime should spawn");
     let observations = world.observations().records_after(None);

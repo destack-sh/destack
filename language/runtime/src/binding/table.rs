@@ -116,18 +116,8 @@ impl BindingTable {
     /// Ensure every binding required by one program is registered.
     pub fn require(&self, program: &Program) -> RuntimeResult<()> {
         for binding in program.bindings() {
-            let Some(function) = program
-                .bytecode()
-                .function(program.sections(), binding.function.index())
-            else {
-                return Err(RuntimeError::Internal {
-                    message: format!("binding references missing function {:?}", binding.function),
-                }
-                .boxed());
-            };
-
             // program-defined bindings execute through their linked implementation
-            if function.code().is_some() {
+            if !binding.is_imported() {
                 continue;
             }
 

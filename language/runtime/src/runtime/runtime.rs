@@ -71,12 +71,11 @@ impl Runtime {
         world: &mut WorldState,
         memory: Arc<MemoryMap>,
         collector: Arc<SharedCollector>,
-        program: impl Into<Arc<program::Program>>,
         binding_table: Arc<BindingTable>,
         engine: Engine,
     ) -> RuntimeResult<Self> {
         let environment = environment.into();
-        let program = program.into();
+        let program = engine.program().clone();
         let options = Arc::new(options.clone());
         binding_table.require(&program)?;
 
@@ -97,7 +96,6 @@ impl Runtime {
             &heap,
             runtime_id,
             default_worker_id,
-            program.clone(),
             binding_table.clone(),
             &engine,
         )?;
@@ -237,7 +235,6 @@ impl Runtime {
             &self.heap,
             self.id,
             worker_id,
-            self.program.clone(),
             self.binding_table.clone(),
             &self.engine,
         )?;

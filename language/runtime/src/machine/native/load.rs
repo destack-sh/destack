@@ -1,4 +1,5 @@
-use destack_program::{Program, native};
+use destack_native as native;
+use destack_program::Program;
 
 use super::{Code, Error};
 

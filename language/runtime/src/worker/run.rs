@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::{Activation, RunnableProgress, RunnableScope, Worker};
-use crate::diagnostic::{MachineError, RuntimeError, RuntimeResult};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{Host, HostQueue};
 use crate::machine::Entry;
 use crate::runtime::SharedHeap;
@@ -122,11 +122,7 @@ impl Worker {
                 return Err(RuntimeError::execution_stopped().boxed());
             }
             Outcome::Awaited { .. } | Outcome::Yielded { .. } => {
-                return Err(RuntimeError::machine(
-                    self.machine.kind(),
-                    MachineError::UnownedSuspension,
-                )
-                .boxed());
+                return Err(RuntimeError::suspension_escaped().boxed());
             }
         };
 
@@ -809,11 +805,9 @@ impl Worker {
 
                 Ok(WorkerRunOutcome::Stopped { reason })
             }
-            Outcome::Awaited { .. } | Outcome::Yielded { .. } => Err(RuntimeError::machine(
-                self.machine.kind(),
-                MachineError::UnownedSuspension,
-            )
-            .boxed()),
+            Outcome::Awaited { .. } | Outcome::Yielded { .. } => {
+                Err(RuntimeError::suspension_escaped().boxed())
+            }
         }
     }
 
@@ -1097,11 +1091,9 @@ impl Worker {
                 message: "awaitable park completed through cancellation".to_string(),
             }
             .boxed()),
-            Outcome::Awaited { .. } | Outcome::Yielded { .. } => Err(RuntimeError::machine(
-                self.machine.kind(),
-                MachineError::UnownedSuspension,
-            )
-            .boxed()),
+            Outcome::Awaited { .. } | Outcome::Yielded { .. } => {
+                Err(RuntimeError::suspension_escaped().boxed())
+            }
         }
     }
 

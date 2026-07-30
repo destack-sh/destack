@@ -44,8 +44,6 @@ pub enum RuntimeError {
     },
     /// Runtime machine operation failed.
     Machine {
-        /// Machine kind that failed.
-        machine: MachineKind,
         /// Machine failure reason.
         reason: MachineError,
     },
@@ -180,6 +178,8 @@ pub enum Entity {
 /// Runtime execution failure reason.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RuntimeFailure {
+    /// No execution form implements one requested entry.
+    EntryUnavailable { entry: String },
     /// Event loop became idle before completing a task.
     EventLoopIdle { task_id: u64 },
     /// Runtime cannot remove its last remaining worker.
@@ -190,6 +190,8 @@ pub enum RuntimeFailure {
     HostTimeAdvance,
     /// Execution stopped outside a stepping or debugging entrypoint.
     ExecutionStopped,
+    /// Coroutine suspension escaped its language-level owner.
+    SuspensionEscaped,
 }
 
 /// Runtime memory failure reason.
@@ -406,17 +408,22 @@ impl RuntimeFailure {
     /// Return the stable runtime error code for this runtime failure.
     pub const fn code(&self) -> u16 {
         match self {
+            Self::EntryUnavailable { .. } => 149,
             Self::EventLoopIdle { .. } => 104,
             Self::LastWorkerRemoval => 132,
             Self::DefaultWorkerRemoval => 133,
             Self::HostTimeAdvance => 137,
             Self::ExecutionStopped => 147,
+            Self::SuspensionEscaped => 148,
         }
     }
 
     /// Return a human-readable runtime failure message.
     pub fn message(&self) -> String {
         match self {
+            Self::EntryUnavailable { entry } => {
+                format!("no execution form implements {entry} entry")
+            }
             Self::EventLoopIdle { task_id } => {
                 format!("event loop idle before completing task {task_id}")
             }
@@ -428,6 +435,9 @@ impl RuntimeFailure {
                 "cannot advance virtual time while world uses host time".to_string()
             }
             Self::ExecutionStopped => "execution stopped outside a stepping entrypoint".to_string(),
+            Self::SuspensionEscaped => {
+                "coroutine suspension escaped its language-level owner".to_string()
+            }
         }
     }
 }
@@ -530,12 +540,8 @@ impl CaptureError {
 /// Machine failure reason.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MachineError {
-    /// Requested machine entry is unavailable.
-    EntryUnavailable { entry: String },
     /// Machine feature is unsupported.
     Unsupported { feature: String },
-    /// Coroutine suspension has no language owner.
-    UnownedSuspension,
     /// Destructor reached a runtime stop point.
     DropStopped,
     /// Destructor attempted to suspend.
@@ -544,19 +550,10 @@ pub enum MachineError {
     DropCancelled,
 }
 
-/// Runtime execution machine kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum MachineKind {
-    /// Destack bytecode virtual machine.
-    Vm,
-    /// Native machine code.
-    Native,
-}
-
 impl RuntimeError {
     /// Create one machine operation failure.
-    pub const fn machine(machine: MachineKind, reason: MachineError) -> Self {
-        Self::Machine { machine, reason }
+    pub const fn machine(reason: MachineError) -> Self {
+        Self::Machine { reason }
     }
 
     /// Return a binding-not-found error.
@@ -729,6 +726,15 @@ impl RuntimeError {
         }
     }
 
+    /// Return an unavailable execution entry error.
+    pub fn entry_unavailable(entry: impl Into<String>) -> Self {
+        Self::Runtime {
+            reason: RuntimeFailure::EntryUnavailable {
+                entry: entry.into(),
+            },
+        }
+    }
+
     /// Return a last-worker-removal error.
     pub fn last_worker_removal() -> Self {
         Self::Runtime {
@@ -754,6 +760,13 @@ impl RuntimeError {
     pub fn execution_stopped() -> Self {
         Self::Runtime {
             reason: RuntimeFailure::ExecutionStopped,
+        }
+    }
+
+    /// Return an escaped coroutine suspension error.
+    pub fn suspension_escaped() -> Self {
+        Self::Runtime {
+            reason: RuntimeFailure::SuspensionEscaped,
         }
     }
 
@@ -851,7 +864,7 @@ impl RuntimeError {
             RuntimeError::Entity { reason } => reason.message(),
             RuntimeError::Runtime { reason } => reason.message(),
             RuntimeError::Trace { reason } => reason.message(),
-            RuntimeError::Machine { machine, reason } => reason.message(*machine),
+            RuntimeError::Machine { reason } => reason.message(),
             RuntimeError::Capture { reason } => reason.message(),
             RuntimeError::Configuration { scope, detail } => {
                 format!("invalid runtime configuration for {scope}: {detail}")
@@ -906,31 +919,12 @@ impl RuntimeError {
 
 impl MachineError {
     /// Return a human-readable machine failure message.
-    pub fn message(&self, machine: MachineKind) -> String {
-        let machine = match machine {
-            MachineKind::Vm => "VM",
-            MachineKind::Native => "native",
-        };
-
+    pub fn message(&self) -> String {
         match self {
-            Self::EntryUnavailable { entry } => {
-                format!("{machine} machine cannot run {entry} entry")
-            }
-            Self::Unsupported { feature } => {
-                format!("{machine} machine does not support {feature}")
-            }
-            Self::UnownedSuspension => {
-                format!("{machine} machine suspended without a coroutine owner")
-            }
-            Self::DropStopped => {
-                format!("{machine} machine stopped while dropping a value")
-            }
-            Self::DropSuspended => {
-                format!("{machine} machine suspended while dropping a value")
-            }
-            Self::DropCancelled => {
-                format!("{machine} machine cancelled while dropping a value")
-            }
+            Self::Unsupported { feature } => format!("machine does not support {feature}"),
+            Self::DropStopped => "machine stopped while dropping a value".to_string(),
+            Self::DropSuspended => "machine suspended while dropping a value".to_string(),
+            Self::DropCancelled => "machine cancelled while dropping a value".to_string(),
         }
     }
 }

@@ -1,11 +1,8 @@
 use std::fmt;
 
+use destack_native::abi;
 use destack_program as program;
 use destack_program::Runtime;
-use destack_program::native::{
-    NativeCall, NativeContext, NativeExit, NativeExitCode, NativeRuntimeStatus,
-    NativeRuntimeStatusCode,
-};
 
 use crate::diagnostic::RuntimeError;
 use crate::worker::Activation;
@@ -38,18 +35,16 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
         }
     }
 
-    /// Build the ABI context borrowing this call.
-    pub fn context(&mut self, exit: &mut NativeExit) -> NativeContext {
-        let call = (self as *mut Self).cast::<NativeCall>();
+    /// Build the ABI activation borrowing this call.
+    pub fn activation(&mut self, exit: &mut abi::Exit) -> abi::Activation {
+        let call = (self as *mut Self).cast::<abi::Call>();
         let memory = &mut self.activation.memory;
 
-        NativeContext::new(
+        abi::Activation::new(
             call,
-            memory
-                .constant_space
-                .as_native_constants(self.program.sections()),
-            memory.shared_static.as_native_statics(),
-            memory.local_static.as_native_statics(),
+            memory.constant_space.native(self.program.sections()),
+            memory.shared_static.native(),
+            memory.local_static.native(),
             exit,
         )
     }
@@ -66,15 +61,16 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
 
     /// Call one linked runtime binding.
     unsafe extern "C" fn binding(
-        context: *mut NativeContext,
-        function: program::FunctionId,
-        arguments: *const program::Word,
+        activation: *mut abi::Activation,
+        function: u32,
+        arguments: *const u64,
         argument_count: usize,
-        result: *mut program::Word,
+        result: *mut u64,
         result_count: usize,
-    ) -> NativeRuntimeStatusCode {
-        // SAFETY: generated code passes the active context supplied to NativeEntry
-        let call = unsafe { Self::from_context(context) };
+    ) -> abi::RuntimeStatusCode {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let function = program::FunctionId(function);
         let Some(binding) = call.program.function_binding(function) else {
             return call.fail(RuntimeError::Internal {
                 message: format!("function {function:?} has no runtime binding"),
@@ -90,12 +86,12 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
         let arguments = if argument_count == 0 {
             &[]
         } else {
-            unsafe { std::slice::from_raw_parts(arguments, argument_count) }
+            unsafe { std::slice::from_raw_parts(arguments.cast(), argument_count) }
         };
         let result = if result_count == 0 {
             &mut []
         } else {
-            unsafe { std::slice::from_raw_parts_mut(result, result_count) }
+            unsafe { std::slice::from_raw_parts_mut(result.cast(), result_count) }
         };
         let memory = call.activation.memory.reborrow();
         match call
@@ -103,85 +99,86 @@ impl<'program, 'runtime, 'memory, 'state> Call<'program, 'runtime, 'memory, 'sta
             .runtime
             .call_binding(memory, binding, arguments, result)
         {
-            Ok(()) => NativeRuntimeStatus::Continue.code(),
+            Ok(()) => abi::RuntimeStatus::Continue.code(),
             Err(error) => call.fail_boxed(error),
         }
     }
 
     /// Record one payloadless language panic.
-    unsafe extern "C" fn panic(context: *mut NativeContext) -> NativeExitCode {
-        // SAFETY: generated code passes the active context supplied to NativeEntry
-        let call = unsafe { Self::from_context(context) };
+    unsafe extern "C" fn panic(activation: *mut abi::Activation) -> abi::ExitCode {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
         call.panic = None;
 
-        // SAFETY: the active context owns one live exit record
-        let exit = unsafe { &mut *(*context).exit };
+        // SAFETY: the active activation owns one live exit record
+        let exit = unsafe { &mut *(*activation).exit };
 
         exit.panic()
     }
 
     /// Copy one typed language panic payload into this call.
     unsafe extern "C" fn panic_value(
-        context: *mut NativeContext,
-        ty: program::TypeId,
-        words: *const program::Word,
-    ) -> NativeExitCode {
-        // SAFETY: generated code passes the active context supplied to NativeEntry
-        let call = unsafe { Self::from_context(context) };
+        activation: *mut abi::Activation,
+        ty: u32,
+        words: *const u64,
+    ) -> abi::ExitCode {
+        // SAFETY: generated code passes the active activation supplied to abi::Entry
+        let call = unsafe { Self::from_activation(activation) };
+        let ty = program::TypeId(ty);
         let Some(byte_len) = call.program.type_byte_len(ty) else {
             call.error = Some(Error::TypeMissing { ty }.into());
 
-            // SAFETY: the active context owns one live exit record
-            let exit = unsafe { &mut *(*context).exit };
+            // SAFETY: the active activation owns one live exit record
+            let exit = unsafe { &mut *(*activation).exit };
 
             return exit.panic();
         };
 
         // SAFETY: generated code keeps the exact typed payload words live for this callback
         let word_count = byte_len.div_ceil(program::Word::BYTE_LEN);
-        let words = unsafe { std::slice::from_raw_parts(words, word_count) };
+        let words = unsafe { std::slice::from_raw_parts(words.cast(), word_count) };
 
         match call.program.value(ty, words.iter().copied()) {
             Ok(payload) => call.panic = Some(payload),
             Err(error) => call.error = Some(Error::from(error).into()),
         }
 
-        // SAFETY: the active context owns one live exit record
-        let exit = unsafe { &mut *(*context).exit };
+        // SAFETY: the active activation owns one live exit record
+        let exit = unsafe { &mut *(*activation).exit };
 
         exit.panic()
     }
 
-    /// Recover the runtime call owning one ABI context.
-    unsafe fn from_context<'call>(context: *mut NativeContext) -> &'call mut Self {
-        // SAFETY: NativeContext.call was built from this exact Call type
-        unsafe { &mut *(*context).call.cast::<Self>() }
+    /// Recover the runtime call owning one ABI activation.
+    unsafe fn from_activation<'call>(activation: *mut abi::Activation) -> &'call mut Self {
+        // SAFETY: abi::Activation.call was built from this exact Call type
+        unsafe { &mut *(*activation).call.cast::<Self>() }
     }
 
     /// Retain one runtime operation failure and stop native execution.
-    fn fail(&mut self, error: impl Into<Box<RuntimeError>>) -> NativeRuntimeStatusCode {
+    fn fail(&mut self, error: impl Into<Box<RuntimeError>>) -> abi::RuntimeStatusCode {
         self.fail_boxed(error.into())
     }
 
     /// Retain one boxed runtime failure and stop native execution.
-    fn fail_boxed(&mut self, error: Box<RuntimeError>) -> NativeRuntimeStatusCode {
+    fn fail_boxed(&mut self, error: Box<RuntimeError>) -> abi::RuntimeStatusCode {
         self.error = Some(error);
 
-        NativeRuntimeStatus::Exit.code()
+        abi::RuntimeStatus::Exit.code()
     }
 
     /// Return the runtime binding operation.
-    pub const fn binding_entry() -> program::native::NativeBindingCall {
+    pub const fn binding_entry() -> abi::BindingCall {
         Self::binding
     }
 
     /// Return the payloadless panic runtime operation.
-    pub const fn panic_entry() -> program::native::NativePanic {
+    pub const fn panic_entry() -> abi::Panic {
         Self::panic
     }
 
     /// Return the typed panic runtime operation.
-    pub const fn panic_value_entry() -> program::native::NativePanicValue {
+    pub const fn panic_value_entry() -> abi::PanicValue {
         Self::panic_value
     }
 }

@@ -129,7 +129,6 @@ impl Runtime {
             self.options.clone(),
             self.conditions.clone(),
             image,
-            self.program.clone(),
             self.binding_table.clone(),
             &self.engine,
             restore,
@@ -197,7 +196,7 @@ impl Runtime {
         }
         let program = image.program.clone();
         let binding_table = restore.binding_table(&program)?;
-        let engine = Engine::restore(program.as_ref(), image.engine, restore.native_loader())?;
+        let engine = Engine::restore(program.clone(), image.engine, restore.native_loader())?;
         let constant_space = *program.constants();
         let shared = SharedHeap::from_image(
             &image.shared_heap,
@@ -220,7 +219,6 @@ impl Runtime {
                 image.options.clone(),
                 image.conditions.clone(),
                 worker_image.as_ref(),
-                program.clone(),
                 binding_table.clone(),
                 &engine,
                 restore,

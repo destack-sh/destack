@@ -6,116 +6,172 @@ use destack_program as program;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-use super::{Machine, MachineState, native};
-use crate::diagnostic::{MachineError, MachineKind, RuntimeError, RuntimeResult};
+use super::{Machine, native};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 
-/// Immutable execution engine shared by one runtime.
+/// Process-local execution of one immutable Program.
 #[derive(Clone)]
-pub enum Engine {
-    /// Interpret Program bytecode.
-    Vm {
-        /// VM machine limits.
-        limits: vm::MachineLimits,
-    },
-    /// Execute process-local native code.
-    Native {
-        /// Loaded native code.
-        code: Arc<native::Code>,
-    },
-}
-
-/// Captured configuration for one runtime execution engine.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum EngineImage {
-    /// Interpret Program bytecode.
-    Vm {
-        /// VM machine limits.
-        limits: vm::MachineLimits,
-    },
-    /// Execute process-local native code.
-    Native,
+pub struct Engine {
+    /// The immutable Program executed by this engine.
+    program: Arc<program::Program>,
+    /// Current execution targets keyed by dense function id.
+    entries: Arc<EntryTable>,
+    /// Limits used by worker-local bytecode machines.
+    limits: vm::MachineLimits,
+    /// Process-loaded native code when available.
+    native: Option<Arc<native::Code>>,
 }
 
 impl Engine {
-    /// Create a bytecode interpreter.
-    pub const fn vm(limits: vm::MachineLimits) -> Self {
-        Self::Vm { limits }
-    }
+    /// Create one engine for an immutable Program.
+    pub fn new(program: impl Into<Arc<program::Program>>, limits: vm::MachineLimits) -> Self {
+        let program = program.into();
+        let entries = Arc::new(EntryTable::new(&program, None));
 
-    /// Create a native execution engine.
-    pub fn native(code: native::Code) -> Self {
-        Self::Native {
-            code: Arc::new(code),
+        Self {
+            program,
+            entries,
+            limits,
+            native: None,
         }
     }
 
-    /// Capture this runtime execution engine configuration.
+    /// Add loaded native code and prefer its available entries.
+    pub fn native(mut self, native: native::Code) -> Self {
+        let native = Arc::new(native);
+        self.entries = Arc::new(EntryTable::new(&self.program, Some(&native)));
+        self.native = Some(native);
+
+        self
+    }
+
+    /// Return the immutable Program executed by this engine.
+    pub fn program(&self) -> &Arc<program::Program> {
+        &self.program
+    }
+
+    /// Return the current target for one Program function.
+    pub(crate) fn target(&self, function: program::FunctionId) -> Option<Target> {
+        self.entries.target(function)
+    }
+
+    /// Return loaded native code when available.
+    pub(crate) fn loaded_native(&self) -> Option<&native::Code> {
+        self.native.as_deref()
+    }
+
+    /// Return the worker-local bytecode machine limits.
+    pub(crate) const fn limits(&self) -> vm::MachineLimits {
+        self.limits
+    }
+
+    /// Capture the process-local engine configuration.
     pub const fn image(&self) -> EngineImage {
-        match self {
-            Self::Vm { limits } => EngineImage::Vm { limits: *limits },
-            Self::Native { .. } => EngineImage::Native,
+        EngineImage {
+            limits: self.limits,
+            is_native_loaded: self.native.is_some(),
         }
     }
 
-    /// Restore an execution engine from one captured runtime.
+    /// Restore one process-local engine for a captured Program.
     pub fn restore(
-        program: &program::Program,
+        program: Arc<program::Program>,
         image: EngineImage,
         loader: Option<&dyn native::Loader>,
     ) -> RuntimeResult<Self> {
-        match image {
-            EngineImage::Vm { limits } => Ok(Self::vm(limits)),
-            EngineImage::Native => {
-                let Some(loader) = loader else {
-                    return Err(RuntimeError::machine(
-                        MachineKind::Native,
-                        MachineError::Unsupported {
-                            feature: "image restore without native loader".to_string(),
-                        },
-                    )
-                    .boxed());
-                };
-                let code = loader.load(program).map_err(Box::<RuntimeError>::from)?;
-
-                Ok(Self::native(code))
-            }
+        let engine = Self::new(program.clone(), image.limits);
+        if !image.is_native_loaded {
+            return Ok(engine);
         }
+
+        // reload process-local native code before selecting native entries
+        let loader = loader.ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "native engine restore requires a native loader".to_string(),
+            }
+            .boxed()
+        })?;
+        let code = loader.load(&program).map_err(Box::<RuntimeError>::from)?;
+
+        Ok(engine.native(code))
     }
 
-    /// Spawn one worker-owned machine.
-    pub fn spawn(
-        &self,
-        program: Arc<program::Program>,
-        memory: Arc<MemoryMap>,
-    ) -> RuntimeResult<Machine> {
-        let state = match self {
-            Self::Vm { limits } => {
-                let machine = vm::Machine::new(program, memory, *limits)
-                    .map_err(Box::<RuntimeError>::from)?;
-
-                MachineState::Vm(Box::new(machine))
-            }
-            Self::Native { code } => {
-                MachineState::Native(native::Machine::new(program, code.clone()))
-            }
-        };
-
-        Ok(Machine::from_state(state))
+    /// Spawn one worker-local machine.
+    pub fn spawn(&self, memory: Arc<MemoryMap>) -> RuntimeResult<Machine> {
+        Machine::new(self.clone(), memory)
     }
 }
 
 impl fmt::Debug for Engine {
-    /// Format the engine without exposing executable internals.
+    /// Format the engine without exposing executable addresses.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Vm { limits } => formatter
-                .debug_struct("Vm")
-                .field("limits", limits)
-                .finish(),
-            Self::Native { code } => formatter
-                .debug_struct("Native")
-                .field("code", code)
-                .finish(),
-        }
+        formatter
+            .debug_struct("Engine")
+            .field("program", &self.program)
+            .field("entries", &self.entries)
+            .field("limits", &self.limits)
+            .field("loaded_native", &self.native)
+            .finish()
     }
+}
+
+/// Captured process-local engine configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EngineImage {
+    /// Limits used by worker-local bytecode machines.
+    pub limits: vm::MachineLimits,
+    /// Whether native code was loaded.
+    pub is_native_loaded: bool,
+}
+
+/// Dense current execution targets keyed by Program function id.
+#[derive(Debug)]
+struct EntryTable {
+    /// Current target for every Program function.
+    entries: Box<[Option<Target>]>,
+}
+
+impl EntryTable {
+    /// Build current targets from available execution forms.
+    fn new(program: &program::Program, native: Option<&native::Code>) -> Self {
+        let bytecode = program.bytecode().copied();
+        let entries = program
+            .functions()
+            .entries(program.sections())
+            .iter()
+            .enumerate()
+            .map(|(index, _)| {
+                let function = program::FunctionId(index as u32);
+
+                // prefer loaded native code over interpreted bytecode
+                if native.is_some_and(|native| native.entry(function).is_some()) {
+                    Some(Target::Native)
+                } else if bytecode
+                    .and_then(|bytecode| bytecode.function(program.sections(), index))
+                    .and_then(|function| function.code())
+                    .is_some()
+                {
+                    Some(Target::Bytecode)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        Self { entries }
+    }
+
+    /// Return the current target for one Program function.
+    fn target(&self, function: program::FunctionId) -> Option<Target> {
+        self.entries.get(function.index()).copied().flatten()
+    }
+}
+
+/// Current execution form for one Program function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Target {
+    /// Interpret linked bytecode.
+    Bytecode,
+    /// Execute loaded native code.
+    Native,
 }

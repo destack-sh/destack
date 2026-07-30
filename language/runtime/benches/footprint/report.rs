@@ -116,9 +116,8 @@ fn print_component_sizes() {
 /// Print retained allocation samples.
 fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
     let mut world = runtime.world();
-    let program = runtime.program();
     let engine = runtime.engine();
-    let runtime_spawn = ALLOCATOR.measure(|| runtime.spawn_runtime(&mut world, program, engine));
+    let runtime_spawn = ALLOCATOR.measure(|| runtime.spawn_runtime(&mut world, engine));
     let (mut world, runtime_id) = runtime.world_with_runtime();
     let worker_spawn = ALLOCATOR.measure(|| runtime.spawn_worker(&mut world, runtime_id));
 

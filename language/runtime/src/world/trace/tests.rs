@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use destack_native::abi;
 use destack_program as program;
 use destack_repository::Environment;
 use destack_repository::config::ExecutionMode;
@@ -342,7 +343,7 @@ fn test_replay_entropy_native_error_roundtrip() {
     let subject = test_entropy_subject("destack.test.random.native.error");
     let stream_id = RandomStreamId::new(29);
     let error = native::Error::Trapped {
-        trap: program::native::NativeTrap::Bounds,
+        trap: abi::Trap::Bounds,
     };
     let record_error = record_state
         .run_random_u64(

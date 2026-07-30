@@ -3,12 +3,10 @@ use destack_heap as heap;
 use destack_mir::TraceMap;
 use destack_program as program;
 use destack_repository::{ExecutionMode, RuntimeOptions};
-use destack_vm as vm;
 
 use crate::binding::BindingTable;
 use crate::diagnostic::RuntimeError;
 use crate::host::{HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState};
-use crate::machine::Engine;
 use crate::tests::{TestProgram, TestWorker, TestWorld};
 use crate::world::RunOutcome;
 
@@ -30,11 +28,10 @@ entry:
     )
     .destructor("Item.destruct");
     let machine = program;
-    let mut runtime = TestWorker::build(
+    let mut runtime = TestWorker::bytecode(
         &RuntimeOptions::default(),
         machine.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     let drop = heap::DropId::from_index(0);
     let element = heap::AllocationShape::new(4, 4, None, TraceMap::empty())
@@ -77,11 +74,10 @@ entry:
     )
     .destructor("Item.destruct");
     let machine = program;
-    let mut runtime = TestWorker::build(
+    let mut runtime = TestWorker::bytecode(
         &RuntimeOptions::default(),
         machine.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     let drop = heap::DropId::from_index(0);
     let shape = heap::AllocationShape::new(4, 1, None, TraceMap::empty())

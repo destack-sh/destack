@@ -7,244 +7,42 @@ use destack_program as program;
 use destack_vm as vm;
 use program::{Outcome, Value};
 
-use super::{Entry, MachineImage, MachineStateImage, native};
-use crate::diagnostic::{MachineError, MachineKind, RuntimeError, RuntimeResult};
+use super::{Engine, Entry, MachineImage, Target};
+use crate::diagnostic::{MachineError, RuntimeError, RuntimeResult};
 use crate::worker::Activation;
 
 /// Worker-owned runtime machine.
 pub struct Machine {
+    /// Shared process-local execution engine.
+    engine: Engine,
     /// Worker-local continuation storage.
     continuations: program::ContinuationTable,
-    /// Concrete execution state.
-    state: MachineState,
-}
-
-/// Concrete worker machine state.
-pub(crate) enum MachineState {
-    /// Bytecode machine.
-    Vm(Box<vm::Machine>),
-    /// Native machine.
-    Native(native::Machine),
-}
-
-impl MachineState {
-    /// Return the immutable program.
-    fn program(&self) -> &program::Program {
-        match self {
-            Self::Vm(machine) => machine.program(),
-            Self::Native(machine) => machine.program(),
-        }
-    }
-
-    /// Run one linked function.
-    fn run<'run>(
-        &mut self,
-        continuations: &mut program::ContinuationTable,
-        mut activation: program::Activation<'run, 'run, Activation<'_>>,
-        function: program::FunctionId,
-        environment: Option<&program::Value>,
-        arguments: &[program::Value],
-        stop_points: Option<&'run program::StopSet>,
-        watch_points: Option<&'run program::WatchSet>,
-        profile: Option<&'run mut program::Profile>,
-    ) -> RuntimeResult<Outcome<Value>> {
-        match self {
-            Self::Vm(machine) => machine.run(
-                continuations,
-                activation,
-                function,
-                environment,
-                arguments,
-                stop_points,
-                watch_points,
-                profile,
-            ),
-            Self::Native(machine) => {
-                Self::reject_native_hooks(stop_points, watch_points, profile.as_deref())?;
-
-                // enter native code after hook support is established
-                machine.run(&mut activation, function, environment, arguments)
-            }
-        }
-    }
-
-    /// Resume one canonical coroutine continuation.
-    fn resume<'run>(
-        &mut self,
-        continuations: &mut program::ContinuationTable,
-        activation: program::Activation<'run, 'run, Activation<'_>>,
-        continuation: program::Continuation,
-        value: &program::Value,
-        stop_points: Option<&'run program::StopSet>,
-        watch_points: Option<&'run program::WatchSet>,
-        profile: Option<&'run mut program::Profile>,
-    ) -> RuntimeResult<Outcome<Value>> {
-        let machine = match self {
-            Self::Vm(machine) => machine.as_mut(),
-            Self::Native(_) => {
-                return Err(Self::unsupported_native("continuation resume"));
-            }
-        };
-        let outcome = machine.resume(
-            continuations,
-            activation,
-            continuation,
-            value,
-            stop_points,
-            watch_points,
-            profile,
-        )?;
-
-        Ok(outcome)
-    }
-
-    /// Complete one canonical generator continuation.
-    fn complete<'run>(
-        &mut self,
-        continuations: &mut program::ContinuationTable,
-        activation: program::Activation<'run, 'run, Activation<'_>>,
-        continuation: program::Continuation,
-        value: &program::Value,
-        stop_points: Option<&'run program::StopSet>,
-        watch_points: Option<&'run program::WatchSet>,
-        profile: Option<&'run mut program::Profile>,
-    ) -> RuntimeResult<Outcome<Value>> {
-        let machine = match self {
-            Self::Vm(machine) => machine.as_mut(),
-            Self::Native(_) => {
-                return Err(Self::unsupported_native("continuation completion"));
-            }
-        };
-        let outcome = machine.complete(
-            continuations,
-            activation,
-            continuation,
-            value,
-            stop_points,
-            watch_points,
-            profile,
-        )?;
-
-        Ok(outcome)
-    }
-
-    /// Cancel one canonical asynchronous continuation.
-    fn cancel<'run>(
-        &mut self,
-        continuations: &mut program::ContinuationTable,
-        activation: program::Activation<'run, 'run, Activation<'_>>,
-        continuation: program::Continuation,
-        stop_points: Option<&'run program::StopSet>,
-        watch_points: Option<&'run program::WatchSet>,
-        profile: Option<&'run mut program::Profile>,
-    ) -> RuntimeResult<Outcome<Value>> {
-        let machine = match self {
-            Self::Vm(machine) => machine.as_mut(),
-            Self::Native(_) => {
-                return Err(Self::unsupported_native("continuation cancellation"));
-            }
-        };
-        let outcome = machine.cancel(
-            continuations,
-            activation,
-            continuation,
-            stop_points,
-            watch_points,
-            profile,
-        )?;
-
-        Ok(outcome)
-    }
-
-    /// Continue the execution retained by this machine.
-    fn continue_execution<'run>(
-        &mut self,
-        continuations: &mut program::ContinuationTable,
-        activation: program::Activation<'run, 'run, Activation<'_>>,
-        stop_points: Option<&'run program::StopSet>,
-        watch_points: Option<&'run program::WatchSet>,
-        profile: Option<&'run mut program::Profile>,
-        resume_skip: Option<program::ResumeSkip>,
-    ) -> RuntimeResult<Outcome<Value>> {
-        let machine = match self {
-            Self::Vm(machine) => machine.as_mut(),
-            Self::Native(_) => {
-                return Err(Self::unsupported_native("retained execution"));
-            }
-        };
-        let outcome = machine.continue_execution(
-            continuations,
-            activation,
-            stop_points,
-            watch_points,
-            profile,
-            resume_skip,
-        )?;
-
-        Ok(outcome)
-    }
-
-    /// Reject runtime hooks that native code does not implement.
-    fn reject_native_hooks(
-        stop_points: Option<&program::StopSet>,
-        watch_points: Option<&program::WatchSet>,
-        profile: Option<&program::Profile>,
-    ) -> RuntimeResult<()> {
-        if profile.is_some() {
-            return Err(RuntimeError::machine(
-                MachineKind::Native,
-                MachineError::Unsupported {
-                    feature: "profile recording".to_string(),
-                },
-            )
-            .boxed());
-        }
-        if stop_points.is_some_and(|points| !points.is_empty()) {
-            return Err(RuntimeError::machine(
-                MachineKind::Native,
-                MachineError::Unsupported {
-                    feature: "stop points".to_string(),
-                },
-            )
-            .boxed());
-        }
-        if watch_points.is_some_and(|points| !points.is_empty()) {
-            return Err(RuntimeError::machine(
-                MachineKind::Native,
-                MachineError::Unsupported {
-                    feature: "watch points".to_string(),
-                },
-            )
-            .boxed());
-        }
-
-        Ok(())
-    }
-
-    /// Return one unsupported native execution error.
-    fn unsupported_native(feature: &str) -> Box<RuntimeError> {
-        RuntimeError::machine(
-            MachineKind::Native,
-            MachineError::Unsupported {
-                feature: feature.to_string(),
-            },
-        )
-        .boxed()
-    }
+    /// Worker-local bytecode execution state when bytecode is available.
+    vm: Option<vm::Machine>,
 }
 
 impl Machine {
-    /// Create one worker-owned machine from concrete state.
-    pub(crate) fn from_state(state: MachineState) -> Self {
-        Self {
+    /// Create one worker-owned machine from a shared engine.
+    pub(crate) fn new(engine: Engine, memory: Arc<MemoryMap>) -> RuntimeResult<Self> {
+        let vm = if engine.program().bytecode().is_some() {
+            let machine = vm::Machine::new(engine.program().clone(), memory, engine.limits())
+                .map_err(Box::<RuntimeError>::from)?;
+
+            Some(machine)
+        } else {
+            None
+        };
+
+        Ok(Self {
+            engine,
             continuations: program::ContinuationTable::default(),
-            state,
-        }
+            vm,
+        })
     }
 
     /// Return the immutable program.
     pub fn program(&self) -> &program::Program {
-        self.state.program()
+        self.engine.program()
     }
 
     /// Run one entrypoint.
@@ -260,17 +58,8 @@ impl Machine {
         let function = self
             .program()
             .function_id_by_name(entry.name())
-            .ok_or_else(|| {
-                RuntimeError::machine(
-                    self.kind(),
-                    MachineError::EntryUnavailable {
-                        entry: entry.name().to_string(),
-                    },
-                )
-                .boxed()
-            })?;
-        let outcome = self.state.run(
-            &mut self.continuations,
+            .ok_or_else(|| Self::entry_unavailable(entry.name()))?;
+        let outcome = self.execute(
             activation,
             function,
             None,
@@ -294,8 +83,7 @@ impl Machine {
         watch_points: Option<&'run program::WatchSet>,
         profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
-        self.state.run(
-            &mut self.continuations,
+        self.execute(
             activation,
             function,
             environment,
@@ -316,8 +104,13 @@ impl Machine {
         watch_points: Option<&'run program::WatchSet>,
         profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
-        self.state.resume(
-            &mut self.continuations,
+        let Self {
+            continuations, vm, ..
+        } = self;
+        let machine = Self::require_vm(vm, "continuation resume")?;
+
+        machine.resume(
+            continuations,
             activation,
             continuation,
             value,
@@ -337,8 +130,13 @@ impl Machine {
         watch_points: Option<&'run program::WatchSet>,
         profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
-        self.state.complete(
-            &mut self.continuations,
+        let Self {
+            continuations, vm, ..
+        } = self;
+        let machine = Self::require_vm(vm, "continuation completion")?;
+
+        machine.complete(
+            continuations,
             activation,
             continuation,
             value,
@@ -357,8 +155,13 @@ impl Machine {
         watch_points: Option<&'run program::WatchSet>,
         profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
-        self.state.cancel(
-            &mut self.continuations,
+        let Self {
+            continuations, vm, ..
+        } = self;
+        let machine = Self::require_vm(vm, "continuation cancellation")?;
+
+        machine.cancel(
+            continuations,
             activation,
             continuation,
             stop_points,
@@ -376,13 +179,10 @@ impl Machine {
         // resolve the executable destructor
         let program = self.program();
         let Some(entry) = program.drop_entry(drop.drop) else {
-            return Err(RuntimeError::machine(
-                self.kind(),
-                MachineError::EntryUnavailable {
-                    entry: format!("drop {}", drop.drop.index()),
-                },
-            )
-            .boxed());
+            return Err(Self::entry_unavailable(format!(
+                "drop {}",
+                drop.drop.index()
+            )));
         };
         let (function, reference, storage) = match drop.reference {
             DropReference::Local(reference) => (entry.local.get(), reference.bits(), "local"),
@@ -417,14 +217,12 @@ impl Machine {
         activation: program::Activation<'run, 'run, Activation<'_>>,
         value: program::Value,
     ) -> RuntimeResult<()> {
-        match &mut self.state {
-            MachineState::Vm(machine) => {
-                machine.destroy_value(&mut self.continuations, activation, value)
-            }
-            MachineState::Native(_) => Err(MachineState::unsupported_native(
-                "scheduler value destruction",
-            )),
-        }
+        let Self {
+            continuations, vm, ..
+        } = self;
+        let machine = Self::require_vm(vm, "scheduler value destruction")?;
+
+        machine.destroy_value(continuations, activation, value)
     }
 
     /// Run one value destructor to completion.
@@ -437,8 +235,7 @@ impl Machine {
         let args = [value];
 
         // execute without debugger or profiler hooks
-        let outcome = self.state.run(
-            &mut self.continuations,
+        let outcome = self.execute(
             activation.reborrow(),
             function,
             None,
@@ -449,14 +246,12 @@ impl Machine {
         )?;
         let result = match outcome {
             Outcome::Completed { .. } => Ok(()),
-            Outcome::Cancelled => {
-                Err(RuntimeError::machine(self.kind(), MachineError::DropCancelled).boxed())
-            }
+            Outcome::Cancelled => Err(RuntimeError::machine(MachineError::DropCancelled).boxed()),
             Outcome::Stopped { .. } => {
-                Err(RuntimeError::machine(self.kind(), MachineError::DropStopped).boxed())
+                Err(RuntimeError::machine(MachineError::DropStopped).boxed())
             }
             Outcome::Awaited { .. } | Outcome::Yielded { .. } => {
-                Err(RuntimeError::machine(self.kind(), MachineError::DropSuspended).boxed())
+                Err(RuntimeError::machine(MachineError::DropSuspended).boxed())
             }
         };
         if result.is_err() {
@@ -475,8 +270,12 @@ impl Machine {
         profile: Option<&'run mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
     ) -> RuntimeResult<Outcome<Value>> {
-        let outcome = self.state.continue_execution(
-            &mut self.continuations,
+        let Self {
+            continuations, vm, ..
+        } = self;
+        let machine = Self::require_vm(vm, "retained execution")?;
+        let outcome = machine.continue_execution(
+            continuations,
             activation,
             stop_points,
             watch_points,
@@ -489,32 +288,33 @@ impl Machine {
 
     /// Capture retained physical execution state.
     pub fn image(&self) -> RuntimeResult<MachineImage> {
-        let state = match &self.state {
-            MachineState::Vm(machine) => {
-                MachineStateImage::Vm(machine.capture().map_err(Box::<RuntimeError>::from)?)
-            }
-            MachineState::Native(machine) => MachineStateImage::Native(machine.image()),
-        };
+        let vm = self
+            .vm
+            .as_ref()
+            .map(vm::Machine::capture)
+            .transpose()
+            .map_err(Box::<RuntimeError>::from)?;
 
-        Ok(MachineImage::new(self.continuations.fork(), state))
+        Ok(MachineImage::new(self.continuations.fork(), vm))
     }
 
     /// Restore retained physical execution state.
     pub fn restore(&mut self, image: &MachineImage) -> RuntimeResult<()> {
-        match (&mut self.state, image.state()) {
-            (MachineState::Vm(machine), MachineStateImage::Vm(image)) => {
+        match (&mut self.vm, image.vm()) {
+            (Some(machine), Some(image)) => {
                 machine.restore(image).map_err(Box::<RuntimeError>::from)?;
             }
-            (MachineState::Native(machine), MachineStateImage::Native(image)) => {
-                machine.restore(image);
-            }
-            _ => {
+            (None, None) => {}
+            (Some(machine), None) => machine.clear(),
+            (None, Some(_)) => {
                 return Err(RuntimeError::Internal {
-                    message: "machine image kind does not match machine state".to_string(),
+                    message: "machine image requires unavailable bytecode state".to_string(),
                 }
                 .boxed());
             }
         };
+
+        // restore canonical continuations after physical machine state
         self.continuations = image.continuation_table().fork();
 
         Ok(())
@@ -522,9 +322,8 @@ impl Machine {
 
     /// Clear retained physical execution state.
     pub(crate) fn clear(&mut self) {
-        match &mut self.state {
-            MachineState::Vm(machine) => machine.clear(),
-            MachineState::Native(machine) => machine.clear(),
+        if let Some(machine) = &mut self.vm {
+            machine.clear();
         }
     }
 
@@ -533,16 +332,15 @@ impl Machine {
         &mut self,
         visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
-        let program = match &mut self.state {
-            MachineState::Vm(machine) => {
-                machine
-                    .visit_root_slots(visit)
-                    .map_err(Box::<RuntimeError>::from)?;
+        if let Some(machine) = &mut self.vm {
+            machine
+                .visit_root_slots(visit)
+                .map_err(Box::<RuntimeError>::from)?;
+        }
 
-                machine.program()
-            }
-            MachineState::Native(machine) => machine.program(),
-        };
+        // visit canonical continuations shared by all execution forms
+        let program = self.engine.program();
+
         self.continuations
             .visit_root_slots(program, visit)
             .map_err(Box::<RuntimeError>::from)?;
@@ -552,27 +350,113 @@ impl Machine {
 
     /// Fork this machine over already-forked memory.
     pub fn fork(&self, memory: Arc<MemoryMap>) -> RuntimeResult<Self> {
-        let state = match &self.state {
-            MachineState::Vm(machine) => {
-                let machine = machine.fork(memory.clone());
-
-                MachineState::Vm(Box::new(machine))
-            }
-            MachineState::Native(machine) => MachineState::Native(machine.fork()),
-        };
+        let vm = self.vm.as_ref().map(|machine| machine.fork(memory));
 
         Ok(Self {
+            engine: self.engine.clone(),
             continuations: self.continuations.fork(),
-            state,
+            vm,
         })
     }
 
-    /// Return the concrete machine kind.
-    pub(crate) const fn kind(&self) -> MachineKind {
-        match &self.state {
-            MachineState::Vm(_) => MachineKind::Vm,
-            MachineState::Native(_) => MachineKind::Native,
+    /// Execute one linked function through its current engine entry.
+    #[allow(clippy::too_many_arguments)]
+    fn execute<'run>(
+        &mut self,
+        mut activation: program::Activation<'run, 'run, Activation<'_>>,
+        function: program::FunctionId,
+        environment: Option<&program::Value>,
+        arguments: &[program::Value],
+        stop_points: Option<&'run program::StopSet>,
+        watch_points: Option<&'run program::WatchSet>,
+        profile: Option<&'run mut program::Profile>,
+    ) -> RuntimeResult<Outcome<Value>> {
+        let target = self
+            .engine
+            .target(function)
+            .ok_or_else(|| Self::entry_unavailable(format!("function {}", function.index())))?;
+
+        match target {
+            Target::Bytecode => {
+                let machine = self.vm.as_mut().ok_or_else(|| {
+                    RuntimeError::Internal {
+                        message: "bytecode entry has no worker machine".to_string(),
+                    }
+                    .boxed()
+                })?;
+
+                machine.run(
+                    &mut self.continuations,
+                    activation,
+                    function,
+                    environment,
+                    arguments,
+                    stop_points,
+                    watch_points,
+                    profile,
+                )
+            }
+            Target::Native => {
+                Self::reject_native_hooks(stop_points, watch_points, profile.as_deref())?;
+                let code = self.engine.loaded_native().ok_or_else(|| {
+                    RuntimeError::Internal {
+                        message: "native entry has no loaded code".to_string(),
+                    }
+                    .boxed()
+                })?;
+
+                code.run(
+                    self.engine.program(),
+                    &mut activation,
+                    program::EntryPoint::from(function),
+                    environment,
+                    arguments,
+                )
+            }
         }
+    }
+
+    /// Return the worker-local bytecode machine required by one operation.
+    fn require_vm<'machine>(
+        vm: &'machine mut Option<vm::Machine>,
+        feature: &str,
+    ) -> RuntimeResult<&'machine mut vm::Machine> {
+        vm.as_mut().ok_or_else(|| {
+            RuntimeError::machine(MachineError::Unsupported {
+                feature: feature.to_string(),
+            })
+            .boxed()
+        })
+    }
+
+    /// Reject runtime hooks that native code does not implement.
+    fn reject_native_hooks(
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
+        profile: Option<&program::Profile>,
+    ) -> RuntimeResult<()> {
+        let feature = if profile.is_some() {
+            Some("profile recording")
+        } else if stop_points.is_some_and(|points| !points.is_empty()) {
+            Some("stop points")
+        } else if watch_points.is_some_and(|points| !points.is_empty()) {
+            Some("watch points")
+        } else {
+            None
+        };
+        let Some(feature) = feature else {
+            return Ok(());
+        };
+
+        Err(RuntimeError::machine(MachineError::Unsupported {
+            feature: feature.to_string(),
+        })
+        .boxed())
+    }
+
+    /// Return one unavailable entry error.
+    fn entry_unavailable(entry: impl Into<String>) -> Box<RuntimeError> {
+        RuntimeError::entry_unavailable(entry).boxed()
     }
 }
 
@@ -581,18 +465,9 @@ impl fmt::Debug for Machine {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Machine")
+            .field("engine", &self.engine)
             .field("continuations", &self.continuations)
-            .field("state", &self.state)
+            .field("vm", &self.vm)
             .finish()
-    }
-}
-
-impl fmt::Debug for MachineState {
-    /// Format the machine state without exposing runtime internals.
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Vm(machine) => formatter.debug_tuple("Vm").field(machine).finish(),
-            Self::Native(machine) => formatter.debug_tuple("Native").field(machine).finish(),
-        }
     }
 }

@@ -1,8 +1,9 @@
 use std::fmt;
 
+use destack_native as native;
+use destack_native::abi;
 use destack_program as program;
-use destack_program::native::{NativeEntry, NativeExit, NativeExitKind, NativeTrap};
-use destack_program::{EntryPoint, FunctionId, Outcome, Program, Value, native};
+use destack_program::{EntryPoint, FunctionId, Outcome, Program, Value};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::worker::Activation;
@@ -29,19 +30,19 @@ impl Code {
         image: Image,
         program: &Program,
         native: &native::Code,
-        mut function: impl FnMut(&str) -> Option<NativeEntry>,
+        mut function: impl FnMut(&str) -> Option<abi::Entry>,
     ) -> Result<Self, Error> {
-        let entries = &native.entries;
         let sections = program.sections();
         let mut code = Self {
             image,
-            entries: vec![None; entries.functions(sections).len()],
+            entries: vec![None; native.entries(sections).len()],
         };
 
-        for entry in entries
-            .functions(sections)
+        for (index, entry) in native
+            .entries(sections)
             .iter()
-            .filter_map(|entry| entry.get())
+            .enumerate()
+            .filter_map(|(index, entry)| entry.get().map(|entry| (index, entry)))
         {
             let Some(symbol) = program.string(entry.symbol) else {
                 return Err(Error::ProgramStringMissing {
@@ -54,7 +55,7 @@ impl Code {
                 });
             };
 
-            code.set_entry(entry.function, function);
+            code.set_entry(FunctionId(index as u32), function);
         }
 
         Ok(code)
@@ -71,7 +72,7 @@ impl Code {
     }
 
     /// Insert one native function pointer.
-    pub fn set_entry(&mut self, function: FunctionId, entry: NativeEntry) {
+    pub fn set_entry(&mut self, function: FunctionId, entry: abi::Entry) {
         let index = function.index();
         if index >= self.entries.len() {
             self.entries.resize_with(index + 1, || None);
@@ -154,12 +155,12 @@ impl Code {
             .map_err(Box::<RuntimeError>::from)?;
         let mut result =
             vec![program::Word::ZERO; result_byte_len.div_ceil(program::Word::BYTE_LEN)];
-        let mut exit = NativeExit::new();
+        let mut exit = abi::Exit::new();
         let mut call = Call::new(program, activation);
-        let mut context = call.context(&mut exit);
+        let mut activation = call.activation(&mut exit);
 
         // enter generated native code
-        let code = entry.call(&mut context, &arguments, &mut result);
+        let code = entry.call(&mut activation, &arguments, &mut result);
 
         self.outcome_from_exit(program, result_type, code, result, exit, &mut call)
     }
@@ -171,36 +172,40 @@ impl Code {
         result_type: program::TypeId,
         code: u32,
         result: Vec<program::Word>,
-        exit: NativeExit,
+        exit: abi::Exit,
         call: &mut Call<'_, '_, '_, '_>,
     ) -> RuntimeResult<Outcome<Value>> {
         if let Some(error) = call.take_error() {
             return Err(error);
         }
 
-        let kind = NativeExitKind::try_from(code)
+        let kind = abi::ExitKind::try_from(code)
             .map_err(Error::InvalidExit)
             .map_err(Box::<RuntimeError>::from)?;
 
         match kind {
-            NativeExitKind::Completed => {
+            abi::ExitKind::Completed => {
                 let value = program.value(result_type, result)?;
 
                 Ok(Outcome::Completed { value })
             }
-            NativeExitKind::Trapped => {
-                let trap = NativeTrap::try_from(exit.trap)
+            abi::ExitKind::Cancelled => Ok(Outcome::Cancelled),
+            abi::ExitKind::Trapped => {
+                let trap = abi::Trap::try_from(exit.trap)
                     .map_err(Error::InvalidTrap)
                     .map_err(Box::<RuntimeError>::from)?;
 
                 Err(Error::Trapped { trap }.into())
             }
-            NativeExitKind::Deoptimized | NativeExitKind::Stopped => Err(Error::StateUnavailable {
+            abi::ExitKind::Awaited
+            | abi::ExitKind::Yielded
+            | abi::ExitKind::Deoptimized
+            | abi::ExitKind::Stopped => Err(Error::StateUnavailable {
                 kind,
                 safepoint: exit.safepoint,
             }
             .into()),
-            NativeExitKind::Panicked => {
+            abi::ExitKind::Panicked => {
                 let payload = call.take_panic();
 
                 Err(Error::Panicked { payload }.into())

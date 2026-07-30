@@ -23,7 +23,6 @@ impl World {
         environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
         conditions: impl Into<Arc<ConditionSet>>,
-        program: impl Into<Arc<program::Program>>,
         binding_table: Arc<BindingTable>,
         engine: Engine,
     ) -> RuntimeResult<RuntimeId> {
@@ -40,7 +39,6 @@ impl World {
             world,
             memory,
             collector,
-            program,
             binding_table,
             engine,
         )?;

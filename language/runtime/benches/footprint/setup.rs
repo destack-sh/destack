@@ -110,18 +110,12 @@ impl RuntimeSetup {
     }
 
     /// Spawn one VM runtime into an existing world.
-    pub(crate) fn spawn_runtime(
-        &self,
-        world: &mut World,
-        program: Arc<program::Program>,
-        engine: Engine,
-    ) -> RuntimeId {
+    pub(crate) fn spawn_runtime(&self, world: &mut World, engine: Engine) -> RuntimeId {
         world
             .spawn_runtime(
                 self.environment.clone(),
                 &self.options,
                 self.conditions.clone(),
-                program,
                 Arc::new(BindingTable::new()),
                 engine,
             )
@@ -131,9 +125,8 @@ impl RuntimeSetup {
     /// Create one world with one VM runtime.
     pub(crate) fn world_with_runtime(&self) -> (World, RuntimeId) {
         let mut world = self.world();
-        let program = self.program();
         let engine = self.engine();
-        let runtime_id = self.spawn_runtime(&mut world, program, engine);
+        let runtime_id = self.spawn_runtime(&mut world, engine);
 
         (world, runtime_id)
     }
@@ -151,7 +144,6 @@ impl RuntimeSetup {
             self.options.clone(),
             self.conditions.clone(),
             self.environment.clone(),
-            self.program(),
             Arc::new(BindingTable::new()),
             self.engine(),
             Entry::new(ENTRY),
@@ -167,7 +159,7 @@ impl RuntimeSetup {
 
     /// Build worker machine construction state.
     pub(crate) fn engine(&self) -> Engine {
-        Engine::vm(MachineLimits::unbounded())
+        Engine::new(self.program(), MachineLimits::unbounded())
     }
 }
 

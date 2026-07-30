@@ -1,6 +1,6 @@
 use std::fmt;
 
-use destack_program::native::{NativeContext, NativeEntry, NativeExitCode};
+use destack_native::abi;
 use destack_program::{FunctionId, Word};
 
 /// One native entry.
@@ -9,24 +9,30 @@ pub struct Entry {
     /// The function implemented by this entry.
     pub function: FunctionId,
     /// The native entry function pointer.
-    pub entry: NativeEntry,
+    pub entry: abi::Entry,
 }
 
 impl Entry {
     /// Create one native entry.
-    pub fn new(function: FunctionId, entry: NativeEntry) -> Self {
+    pub fn new(function: FunctionId, entry: abi::Entry) -> Self {
         Self { function, entry }
     }
 
     /// Call this native entry.
     pub fn call(
         &self,
-        context: &mut NativeContext,
+        activation: &mut abi::Activation,
         arguments: &[Word],
         result: &mut [Word],
-    ) -> NativeExitCode {
+    ) -> abi::ExitCode {
         // native entries are produced by the native linker with this ABI
-        unsafe { (self.entry)(context, arguments.as_ptr(), result.as_mut_ptr()) }
+        unsafe {
+            (self.entry)(
+                activation,
+                arguments.as_ptr().cast(),
+                result.as_mut_ptr().cast(),
+            )
+        }
     }
 }
 

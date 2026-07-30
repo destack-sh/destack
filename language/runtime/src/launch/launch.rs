@@ -17,8 +17,6 @@ pub struct Launch {
     pub conditions: Arc<ConditionSet>,
     /// Ambient environment exposed to the launched runtime.
     pub environment: Arc<Environment>,
-    /// Durable program instantiated by the runtime.
-    pub program: Arc<program::Program>,
     /// Runtime binding implementations.
     pub binding_table: Arc<BindingTable>,
     /// Immutable execution engine for runtime workers.
@@ -47,7 +45,6 @@ impl std::fmt::Debug for Launch {
             .field("options", &self.options)
             .field("conditions", &self.conditions)
             .field("environment", &self.environment)
-            .field("program", &self.program)
             .field("binding_table", &self.binding_table)
             .field("engine", &self.engine)
             .field("entry", &self.entry)
@@ -62,7 +59,6 @@ impl Launch {
         options: RuntimeOptions,
         conditions: impl Into<Arc<ConditionSet>>,
         environment: impl Into<Arc<Environment>>,
-        program: impl Into<Arc<program::Program>>,
         binding_table: impl Into<Arc<BindingTable>>,
         engine: Engine,
         entry: Entry,
@@ -71,7 +67,6 @@ impl Launch {
             options,
             conditions: conditions.into(),
             environment: environment.into(),
-            program: program.into(),
             binding_table: binding_table.into(),
             engine,
             entry,
@@ -85,7 +80,6 @@ impl Launch {
             options,
             conditions,
             environment,
-            program,
             binding_table,
             engine,
             entry,
@@ -94,14 +88,8 @@ impl Launch {
         let mut world = World::new(&options, environment.clone())?;
 
         // bootstrap the initial runtime
-        let runtime_id = world.spawn_runtime(
-            environment,
-            &options,
-            conditions,
-            program,
-            binding_table,
-            engine,
-        )?;
+        let runtime_id =
+            world.spawn_runtime(environment, &options, conditions, binding_table, engine)?;
         let value = world.run_entrypoint(runtime_id, &entry, &entry_args)?;
 
         // drain work scheduled by the entrypoint

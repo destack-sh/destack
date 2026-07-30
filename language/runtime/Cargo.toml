@@ -39,6 +39,7 @@ destack_core = { workspace = true }
 destack_program = { workspace = true }
 destack_heap = { workspace = true }
 destack_memory = { workspace = true }
+destack_native = { workspace = true }
 destack_serde = { workspace = true }
 destack_source = { workspace = true }
 destack_vm = { workspace = true }

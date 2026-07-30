@@ -1,16 +1,16 @@
+use destack_native::abi;
 use destack_program as program;
-use destack_program::native::{NativeContext, NativeExitCode, NativeExitKind, NativeRuntimeStatus};
 use destack_repository::RuntimeOptions;
-use destack_vm as vm;
 
 use crate::binding::{Binding, BindingTable, ReplayPayload};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::family_name;
-use crate::machine::Engine;
 use crate::machine::native::{Call, Code, Image};
 use crate::tests::{TestProgram, TestWorker, TestWorld};
 use crate::worker::{Activation, WorkerRunOutcome};
 use crate::world::{FrameSource, RunOutcome, View};
+
+const TOUCH_FUNCTION: program::FunctionId = program::FunctionId(2);
 
 /// Execute one Program implementation attached to a binding identity.
 #[test]
@@ -27,12 +27,7 @@ entry(v0: int32):
 "#,
     )
     .build();
-    let mut worker = TestWorker::build(
-        &RuntimeOptions::default(),
-        program,
-        BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
-    );
+    let mut worker = TestWorker::bytecode(&RuntimeOptions::default(), program, BindingTable::new());
 
     let value = worker
         .run_entrypoint("task", 41)
@@ -45,12 +40,7 @@ entry(v0: int32):
 #[test]
 fn test_execute_vm_binding() {
     let program = touch_program();
-    let mut worker = TestWorker::build(
-        &RuntimeOptions::default(),
-        program,
-        bindings(),
-        Engine::vm(vm::MachineLimits::test()),
-    );
+    let mut worker = TestWorker::bytecode(&RuntimeOptions::default(), program, bindings());
 
     let value = worker
         .run_entrypoint("task", 41)
@@ -86,12 +76,7 @@ entry(v0: int32):
         family_name()
     );
     let program = TestProgram::mir(&source).build();
-    let mut worker = TestWorker::build(
-        &RuntimeOptions::default(),
-        program,
-        bindings(),
-        Engine::vm(vm::MachineLimits::test()),
-    );
+    let mut worker = TestWorker::bytecode(&RuntimeOptions::default(), program, bindings());
 
     let value = worker
         .run_entrypoint("task", 41)
@@ -110,19 +95,21 @@ fn test_execute_native_binding() {
     let [binding] = program.bindings() else {
         panic!("native test should link one runtime binding");
     };
-    assert_eq!(binding.function, program::FunctionId(1));
+    assert_eq!(binding.function, TOUCH_FUNCTION);
+    assert!(binding.is_imported());
     let mut code = Code::new(Image::resident(), Vec::new());
     code.set_entry(task, native_task);
-    let mut worker = TestWorker::build(
-        &RuntimeOptions::default(),
-        program,
-        bindings(),
-        Engine::native(code),
-    );
+    let mut worker = TestWorker::native(&RuntimeOptions::default(), program, bindings(), code);
 
     let value = worker
         .run_entrypoint("task", 41)
         .expect("native runtime binding should execute");
+    assert_eq!(value.words(), &[program::Word::int32(42)]);
+
+    // fall back to bytecode when no native entry is installed for one function
+    let value = worker
+        .run_entrypoint("fallback", 41)
+        .expect("missing native entry should fall back to bytecode");
     assert_eq!(value.words(), &[program::Word::int32(42)]);
 
     // preserve the same runtime failure across the native ABI callback
@@ -164,11 +151,10 @@ unwind:
 }
 "#,
     );
-    let mut worker = TestWorker::build(
+    let mut worker = TestWorker::bytecode(
         &RuntimeOptions::default(),
         program.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     worker.enqueue_task("task", 7);
 
@@ -275,11 +261,10 @@ unwind:
 }
 "#,
     );
-    let mut worker = TestWorker::build(
+    let mut worker = TestWorker::bytecode(
         &RuntimeOptions::default(),
         program.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     worker.enqueue_task("task", 59);
 
@@ -331,11 +316,10 @@ entry(v0: int32):
 }
 "#,
     );
-    let mut worker = TestWorker::build(
+    let mut worker = TestWorker::bytecode(
         &RuntimeOptions::default(),
         program.build(),
         BindingTable::new(),
-        Engine::vm(vm::MachineLimits::test()),
     );
     worker.enqueue_task("task", 53);
 
@@ -397,6 +381,13 @@ entry(v0: int32):
     v1: int32 = call touch(v0): (int32) => int32
     return v1
 }
+
+export function fallback(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 1
+    v2: int32 = int.add v0, v1
+    return v2
+}
 "#,
     )
     .build()
@@ -404,18 +395,17 @@ entry(v0: int32):
 
 /// Call the runtime binding imported by one resident native entry.
 unsafe extern "C" fn native_task(
-    context: *mut NativeContext,
-    arguments: *const program::Word,
-    result: *mut program::Word,
-) -> NativeExitCode {
-    // SAFETY: the runtime supplies one active native context and exact ABI value ranges
-    let status = unsafe {
-        (Call::binding_entry())(context, program::FunctionId(1), arguments, 1, result, 1)
-    };
-    if status == NativeRuntimeStatus::Continue.code() {
-        NativeExitKind::Completed.code()
+    activation: *mut abi::Activation,
+    arguments: *const u64,
+    result: *mut u64,
+) -> abi::ExitCode {
+    // SAFETY: the runtime supplies one active native activation and exact ABI value ranges
+    let status =
+        unsafe { (Call::binding_entry())(activation, TOUCH_FUNCTION.0, arguments, 1, result, 1) };
+    if status == abi::RuntimeStatus::Continue.code() {
+        abi::ExitKind::Completed.code()
     } else {
-        // SAFETY: the runtime context owns one live exit record
-        unsafe { (*(*context).exit).kind }
+        // SAFETY: the runtime activation owns one live exit record
+        unsafe { (*(*activation).exit).kind }
     }
 }

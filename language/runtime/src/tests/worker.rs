@@ -4,6 +4,7 @@ use destack_artifact::{ConditionSet, Host, Platform, Runtime};
 use destack_heap as heap;
 use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
+use destack_vm as vm;
 
 use crate::binding::BindingTable;
 use crate::diagnostic::RuntimeResult;
@@ -15,6 +16,7 @@ use crate::host::time::TimerClock;
 use crate::host::{
     HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId,
 };
+use crate::machine::native::Code;
 use crate::machine::{Engine, Entry};
 use crate::runtime::SharedHeap;
 use crate::worker::scheduler::{
@@ -40,10 +42,35 @@ pub(crate) struct TestWorker {
 }
 
 impl TestWorker {
-    /// Build one test worker.
-    pub(crate) fn build(
+    /// Build one bytecode test worker.
+    pub(crate) fn bytecode(
         options: &RuntimeOptions,
         program: program::Program,
+        bindings: BindingTable,
+    ) -> Self {
+        let program = Arc::new(program);
+        let engine = Engine::new(program.clone(), vm::MachineLimits::test());
+
+        Self::build(options, program, bindings, engine)
+    }
+
+    /// Build one native test worker.
+    pub(crate) fn native(
+        options: &RuntimeOptions,
+        program: program::Program,
+        bindings: BindingTable,
+        code: Code,
+    ) -> Self {
+        let program = Arc::new(program);
+        let engine = Engine::new(program.clone(), vm::MachineLimits::test()).native(code);
+
+        Self::build(options, program, bindings, engine)
+    }
+
+    /// Build one test worker from its complete execution engine.
+    fn build(
+        options: &RuntimeOptions,
+        program: Arc<program::Program>,
         bindings: BindingTable,
         engine: Engine,
     ) -> Self {
@@ -51,7 +78,6 @@ impl TestWorker {
             World::new(options, Environment::default()).expect("runtime test world should build");
 
         // build program and runtime-owned storage
-        let program = Arc::new(program);
         let shared = SharedHeap::new(
             world.memory.clone(),
             world.shared_collector.clone(),
@@ -93,7 +119,6 @@ impl TestWorker {
             &shared,
             runtime_id,
             worker_id,
-            program,
             Arc::new(bindings),
             &engine,
         )

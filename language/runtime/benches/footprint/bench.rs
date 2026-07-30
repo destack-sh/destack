@@ -25,10 +25,8 @@ fn bench_footprint(criterion: &mut Criterion) {
 
     group.bench_function("runtime.spawn.empty.vm", |bencher| {
         bencher.iter_batched(
-            || (runtime.world(), runtime.program(), runtime.engine()),
-            |(mut world, program, engine)| {
-                black_box(runtime.spawn_runtime(&mut world, program, engine))
-            },
+            || (runtime.world(), runtime.engine()),
+            |(mut world, engine)| black_box(runtime.spawn_runtime(&mut world, engine)),
             BatchSize::SmallInput,
         )
     });
