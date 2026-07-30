@@ -534,6 +534,7 @@ impl<'a> FunctionEmitter<'a> {
                 bytecode::Initialization::Uninit,
                 Some(*length),
             ),
+            mir::Instruction::Poll => self.emit_empty(bytecode::Opcode::POLL),
             mir::Instruction::Breakpoint => self.emit_empty(bytecode::Opcode::BREAKPOINT),
 
             mir::Instruction::Error => Err(self.invalid_input("invalid instruction")),
