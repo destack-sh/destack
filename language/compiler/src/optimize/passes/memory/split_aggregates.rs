@@ -161,8 +161,8 @@ struct SplitCandidate {
 struct ReferenceSpec {
     /// The reference kind.
     kind: mir::ReferenceKind,
-    /// The space for the reference.
-    space: mir::Space,
+    /// The storage for the reference.
+    storage: mir::Storage,
     /// The access for the reference.
     access: mir::Access,
     /// The nullability for the reference.
@@ -174,7 +174,7 @@ impl ReferenceSpec {
     fn from_type(ty: &mir::Type) -> Option<Self> {
         let mir::Type::Reference {
             kind,
-            space,
+            storage,
             access,
             nullability,
             ..
@@ -185,7 +185,7 @@ impl ReferenceSpec {
 
         Some(Self {
             kind: *kind,
-            space: *space,
+            storage: *storage,
             access: *access,
             nullability: *nullability,
         })
@@ -524,7 +524,7 @@ fn split_local(
         let result_type = tree.intern_type(mir::Type::Reference {
             kind: candidate.reference_spec.kind,
             lifetime: mir::Lifetime::empty(),
-            space: candidate.reference_spec.space,
+            storage: candidate.reference_spec.storage,
             access: candidate.reference_spec.access,
             pointee: elem_type,
             nullability: candidate.reference_spec.nullability,
@@ -816,7 +816,7 @@ type Point {
 function test(): int32 {
     local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
+    v0: ref<Point, raw, mutable, frame> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 42
     store v1, v2
@@ -835,8 +835,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v5: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v4: ref<int32, raw, mutable, frame> = local.address l0
+    v5: ref<int32, raw, mutable, frame> = local.address l1
     v2: int32 = 42
     store v4, v2
     v3: int32 = load v4
@@ -858,7 +858,7 @@ entry:
 function test(): int32 {
     local l0: (int32, int64)
 entry:
-    v0: ref<(int32, int64), raw, mutable, space(frame)> = local.address l0
+    v0: ref<(int32, int64), raw, mutable, frame> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 42
     store v1, v2
@@ -872,8 +872,8 @@ function test(): int32 {
     local l1: int64
 
 entry:
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v5: ref<int64, raw, mutable, space(frame)> = local.address l1
+    v4: ref<int32, raw, mutable, frame> = local.address l0
+    v5: ref<int64, raw, mutable, frame> = local.address l1
     v2: int32 = 42
     store v4, v2
     v3: int32 = load v4
@@ -895,7 +895,7 @@ entry:
 function test(): int32 {
     local l0: [int32; 4]
 entry:
-    v0: ref<[int32; 4], raw, mutable, space(frame)> = local.address l0
+    v0: ref<[int32; 4], raw, mutable, frame> = local.address l0
     v1: int64 = 0
     v2: ref<int32, borrowed, mutable> = element.address v0, v1
     v3: int32 = 42
@@ -912,10 +912,10 @@ function test(): int32 {
     local l3: int32
 
 entry:
-    v5: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v6: ref<int32, raw, mutable, space(frame)> = local.address l1
-    v7: ref<int32, raw, mutable, space(frame)> = local.address l2
-    v8: ref<int32, raw, mutable, space(frame)> = local.address l3
+    v5: ref<int32, raw, mutable, frame> = local.address l0
+    v6: ref<int32, raw, mutable, frame> = local.address l1
+    v7: ref<int32, raw, mutable, frame> = local.address l2
+    v8: ref<int32, raw, mutable, frame> = local.address l3
     v1: int64 = 0
     v3: int32 = 42
     store v5, v3
@@ -938,7 +938,7 @@ entry:
 function test(): int32 {
     local l0: [int32; 100]
 entry:
-    v0: ref<[int32; 100], raw, mutable, space(frame)> = local.address l0
+    v0: ref<[int32; 100], raw, mutable, frame> = local.address l0
     v1: int64 = 0
     v2: ref<int32, borrowed, mutable> = element.address v0, v1
     v3: int32 = 42
@@ -970,7 +970,7 @@ external function imported(ref<Point, raw, mutable>): void
 function test(): void {
     local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
+    v0: ref<Point, raw, mutable, frame> = local.address l0
     call imported(v0): (ref<Point, raw, mutable>) => void
     return
 }
@@ -991,7 +991,7 @@ entry:
 function test(v0: int64): int32 {
     local l0: [int32; 4]
 entry(v0: int64):
-    v1: ref<[int32; 4], raw, mutable, space(frame)> = local.address l0
+    v1: ref<[int32; 4], raw, mutable, frame> = local.address l0
     v2: ref<int32, borrowed, mutable> = element.address v1, v0
     v3: int32 = 42
     store v2, v3
@@ -1020,7 +1020,7 @@ type Point {
 function test(): int32 {
     local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
+    v0: ref<Point, raw, mutable, frame> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 10
     store v1, v2
@@ -1044,8 +1044,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v8: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v9: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v8: ref<int32, raw, mutable, frame> = local.address l0
+    v9: ref<int32, raw, mutable, frame> = local.address l1
     v2: int32 = 10
     store v8, v2
     v4: int32 = 20
@@ -1082,7 +1082,7 @@ type Outer {
 function test(): int64 {
     local l0: Outer
 entry:
-    v0: ref<Outer, raw, mutable, space(frame)> = local.address l0
+    v0: ref<Outer, raw, mutable, frame> = local.address l0
     v1: ref<int64, borrowed, mutable> = field.address v0, 1
     v2: int64 = 42
     store v1, v2
@@ -1106,8 +1106,8 @@ function test(): int64 {
     local l1: int64
 
 entry:
-    v4: ref<Inner, raw, mutable, space(frame)> = local.address l0
-    v5: ref<int64, raw, mutable, space(frame)> = local.address l1
+    v4: ref<Inner, raw, mutable, frame> = local.address l0
+    v5: ref<int64, raw, mutable, frame> = local.address l1
     v2: int64 = 42
     store v5, v2
     v3: int64 = load v5
@@ -1129,7 +1129,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v1: int32 = 42
     store v0, v1
     v2: int32 = load v0
@@ -1156,7 +1156,7 @@ type Point {
 function test(v0: ref<ref<Point, raw, mutable>, raw, mutable>): void {
     local l0: Point
 entry(v0: ref<ref<Point, raw, mutable>, raw, mutable>):
-    v1: ref<Point, raw, mutable, space(frame)> = local.address l0
+    v1: ref<Point, raw, mutable, frame> = local.address l0
     store v0, v1
     return
 }
@@ -1181,7 +1181,7 @@ type Wrapper {
 function test(): int32 {
     local l0: Wrapper
 entry:
-    v0: ref<Wrapper, raw, mutable, space(frame)> = local.address l0
+    v0: ref<Wrapper, raw, mutable, frame> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = 42
     store v1, v2
@@ -1198,7 +1198,7 @@ function test(): int32 {
     local l0: int32
 
 entry:
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 42
     store v4, v2
     v3: int32 = load v4
@@ -1225,7 +1225,7 @@ type Point {
 function test(v0: boolean): void {
     local l0: Point
 entry(v0: boolean):
-    v1: ref<Point, raw, mutable, space(frame)> = local.address l0
+    v1: ref<Point, raw, mutable, frame> = local.address l0
     branch v0, b1(v1), b2
 
 b1(v2: ref<Point, raw, mutable>):
@@ -1252,7 +1252,7 @@ entry(v0: boolean):
     branch v0, b1(v1), b1(v1)
 
 b1(v2: int64):
-    v3: ref<[int32; 2], raw, mutable, space(frame)> = local.address l0
+    v3: ref<[int32; 2], raw, mutable, frame> = local.address l0
     v4: ref<int32, borrowed, mutable> = element.address v3, v2
     v5: int32 = 42
     store v4, v5
@@ -1266,8 +1266,8 @@ function test(v0: boolean): int32 {
     local l1: int32
 
 entry(v0: boolean):
-    v7: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v8: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v7: ref<int32, raw, mutable, frame> = local.address l0
+    v8: ref<int32, raw, mutable, frame> = local.address l1
     v1: int64 = 0
     branch v0, b1(v1), b1(v1)
 
@@ -1296,7 +1296,7 @@ type Point {
 function test(): int32 {
     local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
+    v0: ref<Point, raw, mutable, frame> = local.address l0
     v1: int32 = 1
     v2: int32 = 2
     v3: Point = aggregate (v1, v2)
@@ -1317,8 +1317,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v6: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v7: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v6: ref<int32, raw, mutable, frame> = local.address l0
+    v7: ref<int32, raw, mutable, frame> = local.address l1
     v1: int32 = 1
     v2: int32 = 2
     v3: Point = aggregate (v1, v2)
@@ -1346,7 +1346,7 @@ entry:
 function test(): int32 {
     local l0: [int32; 2]
 entry:
-    v0: ref<[int32; 2], raw, mutable, space(frame)> = local.address l0
+    v0: ref<[int32; 2], raw, mutable, frame> = local.address l0
     v1: int32 = 10
     v2: int32 = 20
     v3: [int32; 2] = aggregate (v1, v2)
@@ -1363,8 +1363,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v7: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v8: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v7: ref<int32, raw, mutable, frame> = local.address l0
+    v8: ref<int32, raw, mutable, frame> = local.address l1
     v1: int32 = 10
     v2: int32 = 20
     v3: [int32; 2] = aggregate (v1, v2)
@@ -1398,7 +1398,7 @@ type Point {
 function test(): int32 {
     local l0: Point
 entry:
-    v0: ref<Point, raw, mutable, space(frame)> = local.address l0
+    v0: ref<Point, raw, mutable, frame> = local.address l0
     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     v2: int32 = load v1
     return v2

@@ -1164,7 +1164,7 @@ b4:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int64 = 4
     jump b1
 
@@ -1181,7 +1181,7 @@ b2:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int64 = 4
     v3: int32 = intrinsic.memory.raw.compareBytes(v1, v1, v2)
     jump b1
@@ -1262,8 +1262,8 @@ function test(v0: boolean): int32 {
     local l0: int32
     local l1: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v2: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v1: ref<int32, raw, mutable, frame> = local.address l0
+    v2: ref<int32, raw, mutable, frame> = local.address l1
     v3: int32 = 1
     store v1, v3
     jump b1
@@ -1283,8 +1283,8 @@ function test(v0: boolean): int32 {
     local l0: int32
     local l1: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
-    v2: ref<int32, raw, mutable, space(frame)> = local.address l1
+    v1: ref<int32, raw, mutable, frame> = local.address l0
+    v2: ref<int32, raw, mutable, frame> = local.address l1
     v3: int32 = 1
     store v1, v3
     v4: int32 = 2
@@ -1313,7 +1313,7 @@ b2:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 1
     store v1, v2
     jump b1
@@ -1333,7 +1333,7 @@ function test(v0: boolean): int32 {
     local l0: int32
 
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 1
     store v1, v2
     v4: int32 = 2
@@ -1362,7 +1362,7 @@ b2:
 function test(v0: boolean, v1: boolean): int32 {
     local l0: int32
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v2: ref<int32, raw, mutable, frame> = local.address l0
     v3: int32 = 1
     store v2, v3
     jump b1
@@ -1442,7 +1442,7 @@ b2:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v1: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 1
     store v1, v2
     jump b1

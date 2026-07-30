@@ -23,7 +23,7 @@ declare_pass! {
     ///     v1 = 0uint32
     ///     v2 = 4uint32
     ///     v3 = 1uint32
-    ///     v4 = local.address l0 -> ref<int32, raw, mutable, space(frame)>
+    ///     v4 = local.address l0 -> ref<int32, raw, mutable, frame>
     ///     jump b1(v1)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v2
@@ -50,7 +50,7 @@ declare_pass! {
     ///     v1 = 0uint32
     ///     v2 = 4uint32
     ///     v3 = 1uint32
-    ///     v4 = local.address l0 -> ref<int32, raw, mutable, space(frame)>
+    ///     v4 = local.address l0 -> ref<int32, raw, mutable, frame>
     ///     jump b2(v1)
     /// b1(v5: uint32):
     ///     v6 = int.lt.u v5, v2
@@ -475,7 +475,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -508,7 +508,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v5: int32 = 0
     jump b2(v1)
 
@@ -549,7 +549,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     jump b1(v1)
 
 b1(v5: uint32):
@@ -589,7 +589,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     jump b1(v1)
 
 b1(v5: uint32):
@@ -632,7 +632,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -674,7 +674,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -716,7 +716,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -757,7 +757,7 @@ entry(v0: boolean, v1: uint32):
     v2: uint32 = 0
     v3: uint32 = 4
     v4: uint32 = 1
-    v5: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v5: ref<int32, raw, mutable, frame> = local.address l0
     v6: int32 = 0
     branch v0, b2(v2), b1(v2)
 
@@ -793,7 +793,7 @@ entry(v0: boolean, v1: uint32):
     v2: uint32 = 0
     v3: uint32 = 4
     v4: uint32 = 1
-    v5: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v5: ref<int32, raw, mutable, frame> = local.address l0
     v6: int32 = 0
     branch v0, b2(v2), b1(v2)
 
@@ -837,7 +837,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -881,7 +881,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -914,7 +914,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -955,7 +955,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 
@@ -988,7 +988,7 @@ entry(v0: uint32):
     v1: uint32 = 0
     v2: uint32 = 4
     v3: uint32 = 1
-    v4: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v4: ref<int32, raw, mutable, frame> = local.address l0
     v5: int32 = 0
     jump b1(v1)
 

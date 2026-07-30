@@ -494,7 +494,7 @@ b2:
 function test(): void {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v1: int32 = load v0
     return
 }
@@ -533,7 +533,7 @@ entry:
 function test(): void {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = 2
@@ -892,7 +892,7 @@ entry(v0: int32):
 function test(): void {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v1: int32 = 1
     v2: int32 = 2
     store v0, v1
@@ -907,7 +907,7 @@ function test(): void {
     local l0: int32
 
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v2: int32 = 2
     store v0, v2
     return
@@ -928,7 +928,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v1: int32 = 1
     store v0, v1
     v2: int32 = load v0

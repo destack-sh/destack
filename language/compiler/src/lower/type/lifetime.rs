@@ -155,7 +155,7 @@ impl ModuleLowerer<'_> {
                 dir::MemoryLiteral::Lifetime(dir::Lifetime::Static) => {
                     Ok(mir::Lifetime::static_storage())
                 }
-                dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame) => Ok(mir::Lifetime::empty()),
+                dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame) => Ok(mir::Lifetime::frame()),
                 _ => Err(CompilerError::Internal {
                     message: "a lifetime in the wrong domain".to_string(),
                 }),

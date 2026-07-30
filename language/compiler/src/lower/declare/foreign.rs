@@ -166,7 +166,7 @@ impl ModuleLowerer<'_> {
                 builder.tree_mut().intern_type(mir::Type::Reference {
                     kind: mir::ReferenceKind::Borrowed,
                     lifetime: mir::Lifetime::empty(),
-                    space: mir::Space::Local,
+                    storage: mir::Storage::Heap(mir::Space::Local),
                     access: mir::Access::Exclusive,
                     pointee,
                     nullability: mir::Nullability::None,

@@ -273,19 +273,19 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // references occupy one pointer, nullish values in the zero page
-            mir::Type::Reference { kind, space, .. } => Ok(mir::Layout {
+            mir::Type::Reference { kind, storage, .. } => Ok(mir::Layout {
                 shape: mir::LayoutShape::Scalar,
                 size: self.pointer_bytes(),
                 alignment: self.pointer_alignment(),
-                trace_map: Self::reference_trace(kind, space),
+                trace_map: Self::reference_trace(kind, storage),
             }),
 
             // slices store their base reference followed by one element count
-            mir::Type::Slice { kind, space, .. } => Ok(mir::Layout {
+            mir::Type::Slice { kind, storage, .. } => Ok(mir::Layout {
                 shape: mir::LayoutShape::Slice,
                 size: self.pointer_bytes() * 2,
                 alignment: self.pointer_alignment(),
-                trace_map: Self::reference_trace(kind, space),
+                trace_map: Self::reference_trace(kind, storage),
             }),
 
             // fixed arrays repeat one aligned element representation
@@ -418,7 +418,7 @@ impl<'tree> LayoutBuilder<'tree> {
             // tensor views store a base, offset, dimensions, and strides
             mir::Type::TensorView {
                 kind,
-                space,
+                storage,
                 element,
                 shape,
                 format,
@@ -445,7 +445,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     }),
                     size,
                     alignment: self.pointer_alignment(),
-                    trace_map: Self::reference_trace(kind, space),
+                    trace_map: Self::reference_trace(kind, storage),
                 })
             }
 
@@ -550,14 +550,14 @@ impl<'tree> LayoutBuilder<'tree> {
     }
 
     /// Return the trace map for one reference value.
-    fn reference_trace(kind: mir::ReferenceKind, space: mir::Space) -> mir::TraceMap {
+    fn reference_trace(kind: mir::ReferenceKind, storage: mir::Storage) -> mir::TraceMap {
         // raw pointers never participate in managed tracing or frame relocation
         if kind == mir::ReferenceKind::Raw {
             return mir::TraceMap::Empty;
         }
 
         // frame references must be rewritten when continuations move
-        if space == mir::Space::Frame {
+        if storage == mir::Storage::Frame {
             return mir::TraceMap::Fixed {
                 local_offsets: Box::new([]),
                 shared_offsets: Box::new([]),
@@ -566,7 +566,9 @@ impl<'tree> LayoutBuilder<'tree> {
         }
 
         // only managed references keep heap allocations live
-        if kind == mir::ReferenceKind::Managed {
+        if kind == mir::ReferenceKind::Managed
+            && let Some(space) = storage.heap_space()
+        {
             return Self::managed_trace(space);
         }
 
@@ -586,12 +588,6 @@ impl<'tree> LayoutBuilder<'tree> {
                 shared_offsets: Box::new([0]),
                 frame_offsets: Box::new([]),
             },
-            mir::Space::Frame => mir::TraceMap::Fixed {
-                local_offsets: Box::new([]),
-                shared_offsets: Box::new([]),
-                frame_offsets: Box::new([0]),
-            },
-            mir::Space::Static => mir::TraceMap::Empty,
         }
     }
 

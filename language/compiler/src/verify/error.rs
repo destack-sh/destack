@@ -115,8 +115,8 @@ pub enum VerifyError {
     /// Exclusive borrowed access cannot be created from shared managed storage.
     ///
     /// ```mir
-    /// v1: ref<int32, borrowed, exclusive, space(shared)> = field.address v0, 0
-    /// // v0: ref<User, managed, mutable, space(shared)>
+    /// v1: ref<int32, borrowed, exclusive, shared> = field.address v0, 0
+    /// // v0: ref<User, managed, mutable, shared>
     /// ```
     #[diagnostic(
         id = "exclusive-borrow-from-shared-managed",

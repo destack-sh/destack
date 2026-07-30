@@ -804,7 +804,7 @@ fn arrays_are_value_types(
 /// Return the space for a reference type.
 fn reference_space(ty_id: mir::TypeId, tree: &mir::Tree) -> Option<mir::Space> {
     match tree.get(ty_id) {
-        mir::Type::Reference { space, .. } => Some(*space),
+        mir::Type::Reference { storage, .. } => storage.heap_space(),
         _ => None,
     }
 }

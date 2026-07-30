@@ -1272,7 +1272,7 @@ b1:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v1: int32 = load v0
     jump b1
 
@@ -1287,7 +1287,7 @@ function test(): int32 {
     local l0: int32
 
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v1: int32 = load v0
     jump b1
 
@@ -1309,7 +1309,7 @@ b1:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = 1
     store v0, v2
@@ -1375,7 +1375,7 @@ external function imported(ref<int32, raw, mutable>): void
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v1: int32 = load v0
     call imported(v0): (ref<int32, raw, mutable>) => void
     v2: int32 = load v0
@@ -1390,7 +1390,7 @@ function test(): int32 {
     local l0: int32
 
 entry:
-    v0: ref<int32, raw, mutable, space(frame)> = local.address l0
+    v0: ref<int32, raw, mutable, frame> = local.address l0
     v1: int32 = load v0
     call imported(v0): (ref<int32, raw, mutable>) => void
     v3: int32 = int.add v1, v1

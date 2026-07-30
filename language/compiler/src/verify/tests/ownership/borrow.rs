@@ -222,7 +222,7 @@ function test(v0: int32, v1: int32): void {
 
 entry(v0: int32, v1: int32):
     local.set l0, v0
-    v2: ref<int32, borrowed, mutable, space(frame)> = local.address l0
+    v2: ref<int32, borrowed, mutable, frame> = local.address l0
     local.set l0, v1
     v3: int32 = load v2
     return
@@ -316,9 +316,9 @@ type User {
     id: int32;
 }
 
-function test(v0: ref<User, managed, mutable, space(shared)>): int32 {
-entry(v0: ref<User, managed, mutable, space(shared)>):
-    v1: ref<int32, borrowed, readonly, space(shared)> = field.address v0, 0
+function test(v0: ref<User, managed, mutable, shared>): int32 {
+entry(v0: ref<User, managed, mutable, shared>):
+    v1: ref<int32, borrowed, readonly, shared> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -336,9 +336,9 @@ type User {
     id: int32;
 }
 
-function test(v0: ref<User, managed, mutable, space(shared)>): int32 {
-entry(v0: ref<User, managed, mutable, space(shared)>):
-    v1: ref<int32, borrowed, exclusive, space(shared)> = field.address v0, 0
+function test(v0: ref<User, managed, mutable, shared>): int32 {
+entry(v0: ref<User, managed, mutable, shared>):
+    v1: ref<int32, borrowed, exclusive, shared> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }

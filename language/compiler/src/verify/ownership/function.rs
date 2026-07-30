@@ -1227,7 +1227,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return false;
         };
 
-        self.context.drops.hook(ty).is_some()
+        self.context.drops.has_hook(ty)
     }
 
     /// Return whether one value has a variant type.
@@ -1480,7 +1480,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
 
     /// Return a managed borrow source for one type.
     fn managed_source_for_type(&self, ty: &mir::Type) -> BorrowSources {
-        let Some(space) = Self::reference_space(ty).cloned() else {
+        let Some(space) = Self::reference_storage(ty).and_then(mir::Storage::heap_space) else {
             return BorrowSources::none();
         };
 
@@ -1520,12 +1520,12 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         *value
     }
 
-    /// Return the space for a reference-like type.
-    fn reference_space(ty: &mir::Type) -> Option<&mir::Space> {
+    /// Return the storage for a reference-like type.
+    fn reference_storage(ty: &mir::Type) -> Option<mir::Storage> {
         match ty {
-            mir::Type::Reference { space, .. }
-            | mir::Type::Slice { space, .. }
-            | mir::Type::TensorView { space, .. } => Some(space),
+            mir::Type::Reference { storage, .. }
+            | mir::Type::Slice { storage, .. }
+            | mir::Type::TensorView { storage, .. } => Some(*storage),
             _ => None,
         }
     }
@@ -1534,6 +1534,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     fn sources_from_lifetime(&self, lifetime: &mir::Lifetime) -> BorrowSources {
         BorrowSources::new(lifetime.terms.iter().map(|origin| match origin {
             mir::LifetimeTerm::Static => BorrowSource::Static,
+            mir::LifetimeTerm::Frame => BorrowSource::Owned,
             mir::LifetimeTerm::Slot(slot) => BorrowSource::Lifetime(*slot),
         }))
     }

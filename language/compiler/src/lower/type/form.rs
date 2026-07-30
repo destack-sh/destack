@@ -100,7 +100,7 @@ impl TypeLowerer<'_, '_> {
                 kind,
                 lifetime,
                 element,
-                space: mir::Space::Local,
+                storage: mir::Storage::Heap(mir::Space::Local),
                 access,
                 nullability: mir::Nullability::None,
             }));
@@ -112,7 +112,7 @@ impl TypeLowerer<'_, '_> {
         Ok(self.tree.intern_type(mir::Type::Reference {
             kind,
             lifetime,
-            space: mir::Space::Local,
+            storage: mir::Storage::Heap(mir::Space::Local),
             access,
             pointee,
             nullability: mir::Nullability::None,
@@ -390,14 +390,14 @@ impl TypeLowerer<'_, '_> {
             mir::Type::Reference {
                 kind,
                 lifetime,
-                space,
+                storage,
                 access,
                 pointee,
                 ..
             } => mir::Type::Reference {
                 kind,
                 lifetime,
-                space,
+                storage,
                 access,
                 pointee,
                 nullability,
@@ -407,21 +407,24 @@ impl TypeLowerer<'_, '_> {
                 kind,
                 lifetime,
                 element,
-                space,
+                storage,
                 access,
                 ..
             } => mir::Type::Slice {
                 kind,
                 lifetime,
                 element,
-                space,
+                storage,
                 access,
                 nullability,
             },
             // niche erased pairs in their concrete word
-            mir::Type::Dynamic { constraint, .. } => mir::Type::Dynamic {
+            mir::Type::Dynamic {
+                constraint, space, ..
+            } => mir::Type::Dynamic {
                 constraint,
                 nullability,
+                space,
             },
             _ => {
                 return Err(LowerError::Unsupported {
@@ -444,7 +447,7 @@ impl TypeLowerer<'_, '_> {
         self.tree.intern_type(mir::Type::Reference {
             kind,
             lifetime: mir::Lifetime::empty(),
-            space: mir::Space::Local,
+            storage: mir::Storage::Heap(mir::Space::Local),
             access,
             pointee,
             nullability: mir::Nullability::None,

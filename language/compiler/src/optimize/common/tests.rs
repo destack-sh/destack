@@ -1401,7 +1401,7 @@ entry:
         let borrowed_ref = tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
-            space: mir::Space::Frame,
+            storage: mir::Storage::Frame,
             access: mir::Access::Mutable,
             pointee,
             nullability: mir::Nullability::None,
@@ -1449,7 +1449,7 @@ entry:
         let raw_ref = tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Raw,
             lifetime: mir::Lifetime::empty(),
-            space: mir::Space::Frame,
+            storage: mir::Storage::Frame,
             access: mir::Access::Mutable,
             pointee,
             nullability: mir::Nullability::None,
@@ -1457,7 +1457,7 @@ entry:
         let borrowed_ref = tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
-            space: mir::Space::Frame,
+            storage: mir::Storage::Frame,
             access: mir::Access::Mutable,
             pointee,
             nullability: mir::Nullability::None,

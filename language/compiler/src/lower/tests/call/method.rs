@@ -47,7 +47,7 @@ entry:
     v1: int32 = 4
     v2: Point = aggregate (v0, v1)
     local.set l0, v2
-    v3: ref<Point, borrowed, exclusive> = local.address l0
+    v3: ref<Point, borrowed, 'frame, exclusive> = local.address l0
     v4: int32 = call test.main.Point.length(v3): <'a>(ref<Point, borrowed, 'a, exclusive>) => int32
     return v4
 }
@@ -103,7 +103,7 @@ entry:
     v0: int32 = 0
     v1: Counter = aggregate (v0)
     local.set l0, v1
-    v2: ref<Counter, borrowed, exclusive> = local.address l0
+    v2: ref<Counter, borrowed, 'frame, exclusive> = local.address l0
     v3: int32 = 5
     call test.main.Counter.bump(v2, v3): <'a>(ref<Counter, borrowed, 'a, exclusive>, int32) => void
     v4: Counter = local.get l0
@@ -197,7 +197,7 @@ function test.main.probe(v0: Status): boolean {
 
 entry(v0: Status):
     local.set l0, v0
-    v1: ref<Status, borrowed, exclusive> = local.address l0
+    v1: ref<Status, borrowed, 'frame, exclusive> = local.address l0
     v2: boolean = call test.main.Status.isActive(v1): <'a>(ref<Status, borrowed, 'a, exclusive>) => boolean
     return v2
 }
