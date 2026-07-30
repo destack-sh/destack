@@ -1,49 +1,15 @@
-; Variables
+; variables
 
 (identifier) @variable
 
-(call_expression
-  function: (member_expression
-    object: (identifier) @type
-    (#any-of?
-      @type
-      "Promise"
-      "Array"
-      "Object"
-      "Map"
-      "Set"
-      "WeakMap"
-      "WeakSet"
-      "Date"
-      "Error"
-      "TypeError"
-      "RangeError"
-      "SyntaxError"
-      "ReferenceError"
-      "EvalError"
-      "URIError"
-      "RegExp"
-      "Function"
-      "Number"
-      "String"
-      "Boolean"
-      "Symbol"
-      "BigInt"
-      "Proxy"
-      "ArrayBuffer"
-      "DataView"
-    )
-  )
-)
-
-; Properties
+; properties
 
 (property_identifier) @property
 (shorthand_property_identifier) @property
 (shorthand_property_identifier_pattern) @property
 (private_property_identifier) @property
 
-; Function and method calls
+; function and method calls
 
 (call_expression
   function: (identifier) @function)
@@ -58,7 +24,7 @@
 (nested_type_identifier
   module: (identifier) @type)
 
-; Function and method definitions
+; function and method definitions
 
 (function_expression
   name: (identifier) @function)
@@ -87,7 +53,7 @@
   left: (identifier) @function
   right: [(function_expression) (arrow_function)])
 
-; Parameters
+; parameters
 
 (required_parameter
   (identifier) @variable.parameter)
@@ -118,8 +84,9 @@
 (type_predicate
   name: (identifier) @variable.parameter)
 
-; Special identifiers
+; special identifiers
 
+(lifetime) @label
 (type_annotation) @type
 (type_identifier) @type
 (predefined_type) @type.builtin
@@ -146,14 +113,7 @@
 (implements_clause
   (type_identifier) @type)
 
-([
-  (identifier)
-  (shorthand_property_identifier)
-  (shorthand_property_identifier_pattern)
- ] @constant
- (#match? @constant "^_*[A-Z_][A-Z\\d_]*$"))
-
-; Literals
+; literals
 
 (this) @variable.special
 (super) @variable.special
@@ -182,7 +142,7 @@
 (regex_flags) @keyword.operator.regex
 (number) @number
 
-; Tokens
+; tokens
 
 [
   ";"
@@ -259,17 +219,23 @@
   ] @operator
 )
 
-; Keywords
+; keywords
 [
   "abstract"
+  "asserts"
   "as"
   "async"
   "await"
+  "catch"
+  "comptime"
   "debugger"
   "declare"
   "default"
   "delete"
+  "exclusive"
   "extends"
+  "final"
+  "finally"
   "get"
   "implements"
   "in"
@@ -277,8 +243,10 @@
   "instanceof"
   "is"
   "keyof"
+  "local"
+  "loop"
+  "match"
   "module"
-  "namespace"
   "new"
   "of"
   "override"
@@ -288,21 +256,21 @@
   "readonly"
   "satisfies"
   "set"
+  "shared"
   "static"
   "target"
+  "throw"
+  "try"
   "typeof"
+  "virtual"
   "where"
   "using"
-  "match"
-  "loop"
-  "comptime"
   "with"
 ] @keyword
 
 [
   "const"
   "let"
-  "var"
   "function"
   "class"
   "enum"
@@ -423,102 +391,3 @@
 (jsx_self_closing_element (["<" "/>"]) @punctuation.bracket.jsx)
 (jsx_attribute "=" @punctuation.delimiter.jsx)
 (jsx_text) @text.jsx
-
-; destack overlay
-
-; fallback for keywords that parse as identifiers in the tsx baseline
-((identifier) @keyword
- (#any-of? @keyword
-  "public"
-  "protected"
-  "private"
-  "readonly"
-  "exclusive"
-  "local"
-  "shared"
-  "static"
-  "final"
-  "virtual"
-  "accessor"
-  "default"
-  "this"
-  "super"
-  "package"
-  "import"
-  "export"
-  "from"
-  "const"
-  "let"
-  "var"
-  "namespace"
-  "type"
-  "newtype"
-  "struct"
-  "class"
-  "enum"
-  "union"
-  "interface"
-  "function"
-  "extension"
-  "declare"
-  "new"
-  "delete"
-  "constructor"
-  "asserts"
-  "extends"
-  "implements"
-  "satisfies"
-  "abstract"
-  "override"
-  "instanceof"
-  "where"
-  "typeof"
-  "null"
-  "keyof"
-  "infer"
-  "any"
-  "never"
-  "void"
-  "undefined"
-  "as"
-  "is"
-  "in"
-  "of"
-  "using"
-  "provides"
-  "comptime"
-  "if"
-  "else"
-  "match"
-  "switch"
-  "case"
-  "do"
-  "while"
-  "for"
-  "loop"
-  "assert"
-  "break"
-  "continue"
-  "debugger"
-  "return"
-  "yield"
-  "try"
-  "catch"
-  "throw"
-  "finally"
-  "goto"
-  "async"
-  "await"
-  "get"
-  "set"
-  "move"
-  "with"))
-
-; destack builtin and tspp numeric aliases
-([
-  (identifier)
-  (type_identifier)
-] @type.builtin
- (#match?
-  @type.builtin
-  "^(?:unknown|boolean|bool|character|char|string|str|number|symbol|bigint|isize|usize|int(?:\\d+)?|uint(?:\\d+)?|float(?:\\d+)?|i\\d+|u\\d+|f\\d+)$"))

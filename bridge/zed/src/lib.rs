@@ -1,7 +1,7 @@
 use zed_extension_api as zed;
 
-mod language;
+mod extension;
 
-use language::DestackExtension;
+use extension::DestackExtension;
 
 zed::register_extension!(DestackExtension);

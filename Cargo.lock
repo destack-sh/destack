@@ -1502,9 +1502,8 @@ dependencies = [
 
 [[package]]
 name = "destack_zed"
-version = "0.54.0"
+version = "0.55.4"
 dependencies = [
- "cc",
  "zed_extension_api",
 ]
 

@@ -1,18 +1,21 @@
 id = "destack"
 name = "Destack"
-description = "Destack language, library, and platform support with LSP for DS, JS, TS, and TSX."
+description = "Destack language and toolchain support."
 version = "0.55.4"
 schema_version = 1
 authors = ["Florian Cäsar <florian@symbol.industries>"]
 repository = "https://github.com/destack-sh/destack"
-themes = []
-icon_themes = []
-languages = ["languages/destack", "languages/mir"]
+languages = ["languages/ds", "languages/dsm", "languages/dsa"]
 
 [[capabilities]]
 kind = "process:exec"
 command = "*"
 args = ["--version"]
+
+[[capabilities]]
+kind = "download_file"
+host = "github.com"
+path = ["destack-sh", "destack", "releases", "download", "**"]
 
 [lib]
 kind = "Rust"
@@ -20,21 +23,20 @@ version = "0.7.0"
 
 [language_servers.destack-lsp]
 name = "Destack Language Server"
-languages = ["Destack", "JavaScript", "TypeScript", "TSX"]
-language_ids = { Destack = "destack", JavaScript = "javascript", TypeScript = "typescript", TSX = "typescriptreact" }
+languages = ["Destack"]
+language_ids = { Destack = "destack" }
 
 [grammars.destack]
 repository = "https://github.com/destack-sh/destack"
-rev = "main"
+rev = "8b71e889b7ab54ae94c82bcb32c04c86f2615c7f"
 path = "language/grammar/destack/destack"
 
 [grammars.mir]
 repository = "https://github.com/destack-sh/destack"
-rev = "main"
+rev = "8b71e889b7ab54ae94c82bcb32c04c86f2615c7f"
 path = "language/grammar/mir"
 
-[context_servers]
-
-[agent_servers]
-
-[slash_commands]
+[grammars.destack_bytecode]
+repository = "https://github.com/destack-sh/destack"
+rev = "8b71e889b7ab54ae94c82bcb32c04c86f2615c7f"
+path = "language/grammar/bytecode"
