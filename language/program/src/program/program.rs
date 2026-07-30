@@ -20,8 +20,9 @@ use crate::{
     GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId, LayoutShape, LayoutTable,
     ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature,
     SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, SuspensionSite,
-    SuspensionSiteId, TensorDimension, TensorLayout, TensorViewLayout, TypeId, TypeTable, Value,
-    VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout, native, wasm,
+    SuspensionSiteId, Symbol, TensorDimension, TensorLayout, TensorViewLayout, TypeFingerprint,
+    TypeId, TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word,
+    WordLayout, native, wasm,
 };
 
 /// Linked program.
@@ -115,6 +116,21 @@ impl Program {
     /// Return the program function table.
     pub fn functions(&self) -> &FunctionTable {
         &self.functions
+    }
+
+    /// Return one stable function symbol.
+    pub fn function_symbol(&self, function: FunctionId) -> Option<Symbol> {
+        self.functions.symbol(self.sections(), function)
+    }
+
+    /// Return one stable type fingerprint.
+    pub fn type_fingerprint(&self, ty: TypeId) -> Option<TypeFingerprint> {
+        self.types.fingerprint(self.sections(), ty)
+    }
+
+    /// Return one stable global symbol.
+    pub fn global_symbol(&self, global: GlobalId) -> Option<Symbol> {
+        self.globals.symbol(self.sections(), global)
     }
 
     /// Return a read-only view of program sections.

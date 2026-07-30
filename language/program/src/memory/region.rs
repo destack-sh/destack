@@ -2,7 +2,7 @@ use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::TypeId;
+use crate::{Symbol, TypeId};
 
 /// Dense program global id.
 #[repr(transparent)]
@@ -102,16 +102,24 @@ impl Global {
     Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub struct GlobalTable {
+    /// Stable symbols keyed by dense global id.
+    symbols: SectionSlice<Symbol>,
     /// Global entries keyed by dense global id.
     globals: SectionSlice<Global>,
 }
 
 impl GlobalTable {
     /// Pack one global table.
-    pub(crate) fn pack(sections: &mut SectionBuilder, globals: Vec<Global>) -> Self {
+    pub(crate) fn pack(builder: GlobalTableBuilder, sections: &mut SectionBuilder) -> Self {
         Self {
-            globals: sections.insert(globals),
+            symbols: sections.insert(builder.symbols),
+            globals: sections.insert(builder.globals),
         }
+    }
+
+    /// Return one stable global symbol.
+    pub fn symbol(&self, sections: SectionImage<'_>, global: GlobalId) -> Option<Symbol> {
+        sections.entries(self.symbols).get(global.index()).copied()
     }
 
     /// Return one global by id.
@@ -137,5 +145,28 @@ impl GlobalTable {
             .filter_map(move |(index, global)| {
                 (global.location == location).then_some((GlobalId(index as u32), global))
             })
+    }
+}
+
+/// Mutable global table before section packing.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct GlobalTableBuilder {
+    /// Stable symbols in dense global id order.
+    symbols: Vec<Symbol>,
+    /// Globals in dense global id order.
+    globals: Vec<Global>,
+}
+
+impl GlobalTableBuilder {
+    /// Create one empty global table builder.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set globals in dense global id order.
+    pub fn globals(mut self, globals: impl IntoIterator<Item = (Symbol, Global)>) -> Self {
+        (self.symbols, self.globals) = globals.into_iter().unzip();
+
+        self
     }
 }

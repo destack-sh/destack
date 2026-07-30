@@ -35,10 +35,42 @@ impl From<TypeId> for u32 {
     }
 }
 
+/// Stable structural type identity across Program versions.
+#[repr(transparent)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
+)]
+pub struct TypeFingerprint(u128);
+
+impl TypeFingerprint {
+    /// Restore one type fingerprint from its persistent bits.
+    pub const fn from_raw(raw: u128) -> Self {
+        Self(raw)
+    }
+
+    /// Return the persistent fingerprint bits.
+    pub const fn raw(self) -> u128 {
+        self.0
+    }
+}
+
 /// Runtime type table carried by one durable program.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TypeTable {
+    /// Stable fingerprints keyed by program type id.
+    fingerprints: SectionSlice<TypeFingerprint>,
     /// Dense runtime type descriptors keyed by program type id.
     descriptors: SectionSlice<TypeDescriptor>,
     /// Flattened runtime supertype ids.
@@ -47,15 +79,12 @@ pub struct TypeTable {
 
 impl TypeTable {
     /// Pack one runtime type table.
-    pub(crate) fn pack(
-        sections: &mut SectionBuilder,
-        descriptors: Vec<TypeDescriptorBuilder>,
-    ) -> Self {
-        let mut entries = Vec::with_capacity(descriptors.len());
+    pub(crate) fn pack(builder: TypeTableBuilder, sections: &mut SectionBuilder) -> Self {
+        let mut entries = Vec::with_capacity(builder.descriptors.len());
         let mut supertypes = EntryStore::new();
 
         // flatten variable descriptor payloads
-        for descriptor in descriptors {
+        for descriptor in builder.descriptors {
             let supertype_range = supertypes.append(descriptor.supertypes);
 
             entries.push(TypeDescriptor {
@@ -69,9 +98,15 @@ impl TypeTable {
         let supertypes = sections.insert(supertypes.into_entries());
 
         Self {
+            fingerprints: sections.insert(builder.fingerprints),
             descriptors,
             supertypes,
         }
+    }
+
+    /// Return one stable type fingerprint.
+    pub fn fingerprint(&self, sections: SectionImage<'_>, ty: TypeId) -> Option<TypeFingerprint> {
+        sections.entries(self.fingerprints).get(ty.index()).copied()
     }
 
     /// Return one runtime type descriptor.
@@ -115,6 +150,32 @@ impl TypeTable {
         descriptor
             .supertypes
             .slice(sections.entries(self.supertypes))
+    }
+}
+
+/// Mutable runtime type table before section packing.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct TypeTableBuilder {
+    /// Stable fingerprints in dense type id order.
+    fingerprints: Vec<TypeFingerprint>,
+    /// Runtime descriptors in dense type id order.
+    descriptors: Vec<TypeDescriptorBuilder>,
+}
+
+impl TypeTableBuilder {
+    /// Create one empty runtime type table builder.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set runtime types in dense type id order.
+    pub fn types(
+        mut self,
+        types: impl IntoIterator<Item = (TypeFingerprint, TypeDescriptorBuilder)>,
+    ) -> Self {
+        (self.fingerprints, self.descriptors) = types.into_iter().unzip();
+
+        self
     }
 }
 

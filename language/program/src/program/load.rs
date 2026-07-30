@@ -9,9 +9,10 @@ use destack_mir::TargetLayout;
 use super::Program;
 use crate::{
     BindingBuilder, BindingTable, DispatchTable, DispatchTableBuilder, DropEntry, DropTable,
-    FrameTable, FrameTableBuilder, FunctionTable, FunctionTableBuilder, Global, GlobalTable,
-    LayoutBuilder, LayoutTable, ProgramInfo, ProgramInfoBuilder, SiteTable, SiteTableBuilder,
-    StaticImage, StringEntry, StringTable, TypeDescriptorBuilder, TypeTable, native, wasm,
+    FrameTable, FrameTableBuilder, FunctionTable, FunctionTableBuilder, GlobalTable,
+    GlobalTableBuilder, LayoutBuilder, LayoutTable, ProgramInfo, ProgramInfoBuilder, SiteTable,
+    SiteTableBuilder, StaticImage, StringEntry, StringTable, TypeTable, TypeTableBuilder, native,
+    wasm,
 };
 
 const PROGRAM_MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
@@ -60,7 +61,7 @@ pub struct ProgramBuilder {
     /// Prepared program string bytes.
     string_bytes: Vec<u8>,
     /// Runtime type descriptors.
-    types: Vec<TypeDescriptorBuilder>,
+    types: TypeTableBuilder,
     /// Destructors keyed by drop id.
     drops: Vec<DropEntry>,
     /// Runtime layouts.
@@ -78,7 +79,7 @@ pub struct ProgramBuilder {
     /// Compiler trace maps.
     traces: mir::TraceTable,
     /// Program globals.
-    globals: Vec<Global>,
+    globals: GlobalTableBuilder,
     /// Optional program reflection.
     info: Option<ProgramInfoBuilder>,
 
@@ -191,7 +192,7 @@ impl ProgramBuilder {
             target_layout,
             string_entries: Vec::new(),
             string_bytes: Vec::new(),
-            types: Vec::new(),
+            types: TypeTableBuilder::default(),
             drops: Vec::new(),
             layouts: Vec::new(),
             frames: FrameTableBuilder::default(),
@@ -200,7 +201,7 @@ impl ProgramBuilder {
             dispatch: DispatchTableBuilder::default(),
             sites: SiteTableBuilder::default(),
             traces: mir::TraceTable::default(),
-            globals: Vec::new(),
+            globals: GlobalTableBuilder::default(),
             info: None,
             constant_space: Vec::new(),
             shared_static_space: Vec::new(),
@@ -241,8 +242,8 @@ impl ProgramBuilder {
     }
 
     /// Set the runtime type table.
-    pub fn types(mut self, types: impl IntoIterator<Item = TypeDescriptorBuilder>) -> Self {
-        self.types = types.into_iter().collect();
+    pub fn types(mut self, types: TypeTableBuilder) -> Self {
+        self.types = types;
 
         self
     }
@@ -304,8 +305,8 @@ impl ProgramBuilder {
     }
 
     /// Set the program global table.
-    pub fn globals(mut self, globals: impl IntoIterator<Item = Global>) -> Self {
-        self.globals = globals.into_iter().collect();
+    pub fn globals(mut self, globals: GlobalTableBuilder) -> Self {
+        self.globals = globals;
 
         self
     }
@@ -360,7 +361,7 @@ impl ProgramBuilder {
 
         // pack runtime tables in canonical order
         header.strings = StringTable::pack(&mut sections, self.string_entries, self.string_bytes);
-        header.types = TypeTable::pack(&mut sections, self.types);
+        header.types = TypeTable::pack(self.types, &mut sections);
         header.drops = DropTable::pack(&mut sections, self.drops);
         header.layouts = LayoutTable::pack(&mut sections, self.layouts);
         header.frames = FrameTable::pack(self.frames, &mut sections);
@@ -369,7 +370,7 @@ impl ProgramBuilder {
         header.dispatch = self.dispatch.build(&mut sections);
         header.sites = self.sites.build(&mut sections);
         header.traces = TraceTable::pack(&mut sections, &self.traces);
-        header.globals = GlobalTable::pack(&mut sections, self.globals);
+        header.globals = GlobalTable::pack(self.globals, &mut sections);
         if let Some(info) = self.info {
             header.info = Optional::some(info.build(&mut sections));
         }
@@ -468,8 +469,8 @@ mod tests {
     use destack_mir::{TargetLayout, TraceTable};
 
     use crate::{
-        DispatchTableBuilder, FunctionTableBuilder, Program, ProgramBuilder, ProgramInfoBuilder,
-        SiteTableBuilder,
+        DispatchTableBuilder, FunctionTableBuilder, GlobalTableBuilder, Program, ProgramBuilder,
+        ProgramInfoBuilder, SiteTableBuilder, TypeTableBuilder,
     };
 
     /// Load one complete Program directly from its retained image storage.
@@ -495,14 +496,14 @@ mod tests {
 
         let program = ProgramBuilder::new(TargetLayout::default(), bytecode)
             .strings(&strings, [name])
-            .types([])
+            .types(TypeTableBuilder::new())
             .drops([])
             .layouts([])
             .functions(FunctionTableBuilder::new())
             .dispatch(DispatchTableBuilder::new())
             .sites(SiteTableBuilder::new())
             .traces(traces)
-            .globals([])
+            .globals(GlobalTableBuilder::new())
             .info(ProgramInfoBuilder::new())
             .constant_space([])
             .shared_static_space([])

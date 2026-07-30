@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
-use super::{TypeId, Word};
+use super::{Symbol, TypeId, Word};
 
 /// Durable runtime function id inside one program.
 #[repr(transparent)]
@@ -69,6 +69,8 @@ impl From<FunctionId> for Word {
     Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub struct FunctionTable {
+    /// Stable symbols keyed by program function id.
+    symbols: SectionSlice<Symbol>,
     /// Dense signature entries keyed by signature id.
     signatures: SectionSlice<SignatureEntry>,
     /// Dense function entries keyed by program function id.
@@ -80,6 +82,14 @@ pub struct FunctionTable {
 }
 
 impl FunctionTable {
+    /// Return one stable function symbol.
+    pub fn symbol(&self, sections: SectionImage<'_>, function: FunctionId) -> Option<Symbol> {
+        sections
+            .entries(self.symbols)
+            .get(function.index())
+            .copied()
+    }
+
     /// Return one function entry.
     pub fn get<'a>(
         &self,
@@ -212,6 +222,8 @@ pub struct Function {
     pub signature: SignatureId,
     /// The function coroutine behavior.
     pub coroutine: CoroutineKind,
+    /// Reserved function bytes.
+    reserved: [u8; 3],
 }
 
 impl Function {
@@ -235,7 +247,7 @@ impl Function {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, SectionEntry,
 )]
-pub struct CoroutineKind(pub u32);
+pub struct CoroutineKind(pub u8);
 
 impl CoroutineKind {
     /// A synchronous function.
@@ -296,6 +308,8 @@ pub struct Signature {
 /// Build-time function table.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FunctionTableBuilder {
+    /// Stable symbols in dense function id order.
+    symbols: Vec<Symbol>,
     /// Callable signatures in dense id order.
     signatures: Vec<Signature>,
     /// Function entries in dense id order.
@@ -318,8 +332,11 @@ impl FunctionTableBuilder {
     }
 
     /// Set function entries in dense id order.
-    pub fn functions(mut self, functions: impl IntoIterator<Item = FunctionBuilder>) -> Self {
-        self.functions = functions.into_iter().collect();
+    pub fn functions(
+        mut self,
+        functions: impl IntoIterator<Item = (Symbol, FunctionBuilder)>,
+    ) -> Self {
+        (self.symbols, self.functions) = functions.into_iter().unzip();
 
         self
     }
@@ -353,10 +370,12 @@ impl FunctionTableBuilder {
                 environment: function.environment.into(),
                 signature: function.signature,
                 coroutine: function.coroutine,
+                reserved: [0; 3],
             });
         }
 
         FunctionTable {
+            symbols: sections.insert(self.symbols),
             signatures: sections.insert(signatures),
             functions: sections.insert(functions),
             parameters: sections.insert(parameters.into_entries()),
@@ -365,10 +384,10 @@ impl FunctionTableBuilder {
     }
 }
 
-const _: () = assert!(size_of::<FunctionTable>() == 64);
+const _: () = assert!(size_of::<FunctionTable>() == 80);
 const _: () = assert!(size_of::<FunctionExport>() == 16);
 const _: () = assert!(size_of::<Function>() == 24);
-const _: () = assert!(size_of::<CoroutineKind>() == 4);
+const _: () = assert!(size_of::<CoroutineKind>() == 1);
 const _: () = assert!(size_of::<SignatureId>() == 4);
 const _: () = assert!(size_of::<SignatureEntry>() == 16);
 
