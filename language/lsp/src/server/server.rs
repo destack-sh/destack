@@ -1,312 +1,93 @@
-use std::collections::{HashMap, HashSet};
-use std::fmt::Display;
+use std::collections::HashMap;
+use std::iter;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
-use std::{fs, iter};
 
-#[cfg(test)]
-use destack_artifact::MemoryBlobStore;
-use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
+use destack_lsp_server::{Client, LanguageServer, LspService, Server, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::{
-    DestackLayoutOverride, Environment, Revision, Settings, open_repository_from_fs,
-};
-use destack_source::{
-    DiagnosticReference, FileId, FileSystem, OverlayFileSystem, PatchSet, PhysicalFileSystem,
-    TextRange, Uri,
-};
+use destack_repository::Revision;
+use destack_source::{FileId, TextRange, Uri};
 use destack_workspace::{
     DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, LocalWorkspace,
     QueryFile, QueryRun, ReloadReason, ReloadRequest, RevisionPolicy, RunQueryRequest,
     RunQueryResponse, Workspace,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::{from_value, to_value};
+use serde_json::{Value, to_value};
 
-use crate::server::artifact::ArtifactRunGuard;
-use crate::server::error::{internal_error, workspace_error};
-use crate::server::navigation::HierarchyContinuation;
-use crate::server::source::SourceFiles;
-use crate::server::{
-    assist, completion, diagnostic, edit, format, navigation, position, source, token,
+use super::{ClientCapabilities, ServerSession, ServerSettings, internal_error, workspace_error};
+use crate::query::{
+    ActionContext, ActionContinuation, DiagnosticDelivery, DiagnosticPublisher, Document,
+    DocumentSet, DocumentUri, HierarchyContinuation, SemanticTokenStream, SourceSync,
 };
-use crate::uri;
-
-const AUTO_IMPORT_DETAIL_PREFIX: &str = "Auto import from ";
-
-/// Canonicalize a root path for stable dedupe comparisons.
-fn canonical_path(path: &Path) -> jsonrpc::Result<PathBuf> {
-    fs::canonicalize(path).map_err(|error| {
-        jsonrpc::Error::invalid_params(format!(
-            "failed to canonicalize workspace root {}: {error}",
-            path.display()
-        ))
-    })
-}
-
-/// State carried into a code action resolve request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct CodeActionContinuation {
-    /// The semantic revision that produced these edits.
-    revision: Revision,
-    /// The file path that anchored the action request.
-    path: PathBuf,
-    /// The workspace edits for the selected code action.
-    patches: PatchSet,
-}
-
-/// Configuration for completion behavior.
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CompletionSettings {
-    /// Whether auto import completions are enabled.
-    auto_imports: Option<bool>,
-}
-
-impl Default for CompletionSettings {
-    fn default() -> Self {
-        Self {
-            auto_imports: Some(true),
-        }
-    }
-}
-
-/// Configuration for inlay hint behavior.
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct InlayHintSettings {
-    /// Whether parameter name hints are enabled.
-    parameter_hints: Option<bool>,
-    /// Whether inferred type hints are enabled.
-    type_hints: Option<bool>,
-}
-
-impl Default for InlayHintSettings {
-    fn default() -> Self {
-        Self {
-            parameter_hints: Some(true),
-            type_hints: Some(true),
-        }
-    }
-}
-
-/// Destack-specific client initialization options.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
-struct InitializationOptions {
-    /// Code lens commands implemented by the client bridge.
-    code_lens_commands: Vec<CodeLensCommand>,
-}
-
-/// One code lens command implemented by a client bridge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum CodeLensCommand {
-    /// Show references at one declaration.
-    References,
-    /// Show implementations at one declaration.
-    Implementations,
-}
-
-/// LSP configuration settings.
-#[derive(Debug)]
-struct LspSettings {
-    /// Whether auto import completions are enabled.
-    completion_auto_imports: AtomicBool,
-    /// Whether parameter name inlay hints are enabled.
-    parameter_inlay_hints: AtomicBool,
-    /// Whether inferred type inlay hints are enabled.
-    type_inlay_hints: AtomicBool,
-}
-
-impl Default for LspSettings {
-    /// Create default LSP settings.
-    fn default() -> Self {
-        Self {
-            completion_auto_imports: AtomicBool::new(true),
-            parameter_inlay_hints: AtomicBool::new(true),
-            type_inlay_hints: AtomicBool::new(true),
-        }
-    }
-}
-
-/// LSP features supported by the connected client.
-#[derive(Debug)]
-struct ClientCapabilities {
-    /// Whether completion label details are supported.
-    completion_label_details: bool,
-    /// Whether code action data payloads are supported.
-    code_action_data: bool,
-    /// Whether code action edits can be resolved lazily.
-    code_action_edit_resolve: bool,
-    /// Code lens commands implemented by the client bridge.
-    code_lens_commands: Vec<CodeLensCommand>,
-}
-
-impl ClientCapabilities {
-    /// Return whether one code lens action is executable by the client.
-    fn supports_code_lens(&self, action: &query::CodeLensAction) -> bool {
-        let command = match action {
-            query::CodeLensAction::References { .. } => CodeLensCommand::References,
-            query::CodeLensAction::Implementations { .. } => CodeLensCommand::Implementations,
-        };
-
-        self.code_lens_commands.contains(&command)
-    }
-}
 
 /// The Destack language server.
 #[derive(Debug)]
 pub struct DestackLanguageServer {
     /// The client connection.
     pub(super) client: Client,
-    /// Workspace used for semantic state.
-    workspace: OnceLock<Arc<LocalWorkspace>>,
-    /// The watch registration ID.
-    watch_registration_id: OnceLock<String>,
-    /// Features supported by the connected client.
-    client_capabilities: OnceLock<ClientCapabilities>,
-    /// LSP configuration settings.
-    settings: LspSettings,
-    /// Pending diagnostic publications.
-    diagnostic_tasks: diagnostic::DiagnosticScheduler,
+    /// State installed after initialization.
+    session: OnceLock<ServerSession>,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl DestackLanguageServer {
     /// Create a new language server instance.
     pub fn new(client: Client) -> Self {
-        // initialize server state
         Self {
             client,
-            workspace: OnceLock::new(),
-            watch_registration_id: OnceLock::new(),
-            client_capabilities: OnceLock::new(),
-            settings: LspSettings::default(),
-            diagnostic_tasks: diagnostic::DiagnosticScheduler::default(),
+            session: OnceLock::new(),
         }
+    }
+
+    /// Run the language server over stdio.
+    pub async fn run_stdio() -> Result<(), Box<dyn std::error::Error>> {
+        let stdin = tokio::io::stdin();
+        let stdout = tokio::io::stdout();
+        let (service, socket) = LspService::new(Self::new);
+
+        Server::new(stdin, stdout, socket).serve(service).await;
+
+        Ok(())
+    }
+
+    /// Return the initialized server session.
+    fn session(&self) -> jsonrpc::Result<&ServerSession> {
+        self.session
+            .get()
+            .ok_or_else(|| internal_error("language server is not initialized"))
     }
 
     /// Return the workspace after initialization.
     #[inline]
     fn workspace(&self) -> jsonrpc::Result<&Arc<LocalWorkspace>> {
-        self.workspace
-            .get()
-            .ok_or_else(|| internal_error("language server is not initialized"))
+        Ok(&self.session()?.workspace)
     }
 
     /// Return features supported by the initialized client.
     fn client_capabilities(&self) -> jsonrpc::Result<&ClientCapabilities> {
-        self.client_capabilities
-            .get()
-            .ok_or_else(|| internal_error("client capabilities are not initialized"))
+        Ok(&self.session()?.client_capabilities)
     }
 
-    /// Build commit characters for completion items.
-    fn completion_commit_characters(
-        kind: query::CompletionItemKind,
-        is_snippet: bool,
-    ) -> Option<Vec<String>> {
-        // snippets already contain their committed punctuation
-        if is_snippet {
-            return None;
-        }
-
-        let commit_characters: &[&str] = match kind {
-            query::CompletionItemKind::AssociatedConst
-            | query::CompletionItemKind::AssociatedType
-            | query::CompletionItemKind::Method
-            | query::CompletionItemKind::Function
-            | query::CompletionItemKind::Constructor
-            | query::CompletionItemKind::Field
-            | query::CompletionItemKind::Variable
-            | query::CompletionItemKind::Class
-            | query::CompletionItemKind::Interface
-            | query::CompletionItemKind::NewtypeInterface
-            | query::CompletionItemKind::Newtype
-            | query::CompletionItemKind::TypeAlias
-            | query::CompletionItemKind::Extension
-            | query::CompletionItemKind::Module
-            | query::CompletionItemKind::Property
-            | query::CompletionItemKind::Enum
-            | query::CompletionItemKind::EnumMember
-            | query::CompletionItemKind::Struct
-            | query::CompletionItemKind::Constant
-            | query::CompletionItemKind::TypeParameter
-            | query::CompletionItemKind::ValueParameter
-            | query::CompletionItemKind::BuiltinType => &[".", ",", ";", "("],
-            query::CompletionItemKind::Keyword => &[" ", ";"],
-            _ => &[],
-        };
-
-        if commit_characters.is_empty() {
-            return None;
-        }
-
-        Some(
-            commit_characters
-                .iter()
-                .map(|character| (*character).to_string())
-                .collect(),
-        )
+    /// Return diagnostics after initialization.
+    fn diagnostics(&self) -> jsonrpc::Result<&DiagnosticDelivery> {
+        Ok(&self.session()?.diagnostics)
     }
 
-    /// Refresh configuration from the client.
-    async fn refresh_configuration(&self) -> jsonrpc::Result<()> {
-        let items = vec![
-            lsp::ConfigurationItem {
-                scope_uri: None,
-                section: Some("destack.completion".to_string()),
-            },
-            lsp::ConfigurationItem {
-                scope_uri: None,
-                section: Some("destack.inlayHints".to_string()),
-            },
-        ];
-        let values = self.client.configuration(items).await?;
-
-        // update completion settings
-        let completion = values
-            .first()
-            .ok_or_else(|| internal_error("client omitted completion configuration"))?;
-        if !completion.is_null() {
-            let parsed =
-                from_value::<CompletionSettings>(completion.clone()).map_err(internal_error)?;
-            if let Some(auto_imports) = parsed.auto_imports {
-                self.settings
-                    .completion_auto_imports
-                    .store(auto_imports, Ordering::Relaxed);
-            }
-        }
-
-        // update inlay hint settings
-        let inlay_hints = values
-            .get(1)
-            .ok_or_else(|| internal_error("client omitted inlay hint configuration"))?;
-        if !inlay_hints.is_null() {
-            let parsed =
-                from_value::<InlayHintSettings>(inlay_hints.clone()).map_err(internal_error)?;
-            if let Some(parameter_hints) = parsed.parameter_hints {
-                self.settings
-                    .parameter_inlay_hints
-                    .store(parameter_hints, Ordering::Relaxed);
-            }
-            if let Some(type_hints) = parsed.type_hints {
-                self.settings
-                    .type_inlay_hints
-                    .store(type_hints, Ordering::Relaxed);
-            }
-        }
-
-        Ok(())
+    /// Return mutable editor configuration after initialization.
+    fn settings(&self) -> jsonrpc::Result<&ServerSettings> {
+        Ok(&self.session()?.settings)
     }
 
     /// Report an asynchronous LSP failure to the client.
-    async fn report_error(&self, operation: &str, error: impl Display) {
+    async fn report_error(&self, operation: &str, error: jsonrpc::Error) {
+        let detail = error
+            .data
+            .as_ref()
+            .and_then(Value::as_str)
+            .unwrap_or(error.message.as_ref());
         self.client
-            .log_message(lsp::MessageType::ERROR, format!("{operation}: {error}"))
+            .log_message(lsp::MessageType::ERROR, format!("{operation}: {detail}"))
             .await;
     }
 
@@ -327,7 +108,7 @@ impl DestackLanguageServer {
         self.wait_query(root, run).await
     }
 
-    /// Resolve one LSP document to exact workspace query state.
+    /// Resolve one LSP document to workspace query state.
     fn resolve_query_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Option<QueryFile>> {
         let Some(path) = uri.to_file_path().map(|path| path.into_owned()) else {
             return Ok(None);
@@ -357,7 +138,7 @@ impl DestackLanguageServer {
             .map_err(workspace_error)
     }
 
-    /// Execute one module query against an exact file revision.
+    /// Execute one module query against its file revision.
     async fn query_module(
         &self,
         file: &QueryFile,
@@ -378,12 +159,12 @@ impl DestackLanguageServer {
 
     /// Wait for one scheduled query without blocking the async server.
     async fn wait_query(&self, root: PathBuf, run: QueryRun) -> jsonrpc::Result<RunQueryResponse> {
-        let mut guard = ArtifactRunGuard::new(run.cancellations());
+        let guard = run.guard();
         let response = tokio::task::spawn_blocking(move || run.wait())
             .await
             .map_err(internal_error)?
             .map_err(workspace_error)?;
-        guard.disarm();
+        guard.finish();
 
         // reject results invalidated while the query was running
         let current = self.workspace()?.revision(&root).map_err(workspace_error)?;
@@ -394,23 +175,15 @@ impl DestackLanguageServer {
         Ok(response)
     }
 
-    /// Load source files from one exact query revision.
-    fn source_files(
+    /// Load documents from one query revision.
+    fn load_documents(
         &self,
         path: &Path,
         revision: Revision,
         file_ids: impl IntoIterator<Item = FileId>,
-    ) -> jsonrpc::Result<SourceFiles> {
+    ) -> jsonrpc::Result<DocumentSet> {
         let workspace = self.workspace()?;
-        SourceFiles::load(workspace.as_ref(), path, revision, file_ids).map_err(workspace_error)
-    }
-
-    /// Load every source file referenced by one file's diagnostics.
-    fn diagnostic_files(&self, diagnostics: &FileDiagnostics) -> jsonrpc::Result<SourceFiles> {
-        let publisher =
-            diagnostic::DiagnosticPublisher::new(self.client.clone(), self.workspace()?.clone());
-
-        publisher.files(diagnostics)
+        DocumentSet::load(workspace.as_ref(), path, revision, file_ids)
     }
 
     /// Read diagnostics without blocking the async server.
@@ -429,12 +202,12 @@ impl DestackLanguageServer {
     /// Wait for scheduled diagnostics and reject superseded revisions.
     async fn wait_diagnostics(&self, run: DiagnosticRun) -> jsonrpc::Result<Vec<FileDiagnostics>> {
         let revisions = run.revisions();
-        let mut guard = ArtifactRunGuard::new(run.cancellations());
+        let guard = run.guard();
         let diagnostics = tokio::task::spawn_blocking(move || run.wait())
             .await
             .map_err(internal_error)?
             .map_err(workspace_error)?;
-        guard.disarm();
+        guard.finish();
 
         // reject any root invalidated while diagnostics were running
         let workspace = self.workspace()?;
@@ -448,131 +221,9 @@ impl DestackLanguageServer {
         Ok(diagnostics)
     }
 
-    /// Convert an LSP code action kind into service query kinds.
-    fn query_code_action_kinds(kind: &lsp::CodeActionKind) -> Vec<query::CodeActionKind> {
-        let kind_name = kind.as_str();
-
-        // quick fixes and sub kinds
-        if kind_name == lsp::CodeActionKind::QUICKFIX.as_str() || kind_name.starts_with("quickfix.")
-        {
-            return vec![query::CodeActionKind::QuickFix];
-        }
-
-        // extract refactors and sub kinds
-        if kind_name == lsp::CodeActionKind::REFACTOR_EXTRACT.as_str()
-            || kind_name.starts_with("refactor.extract.")
-        {
-            return vec![query::CodeActionKind::RefactorExtract];
-        }
-
-        // inline refactors and sub kinds
-        if kind_name == lsp::CodeActionKind::REFACTOR_INLINE.as_str()
-            || kind_name.starts_with("refactor.inline.")
-        {
-            return vec![query::CodeActionKind::RefactorInline];
-        }
-
-        // umbrella refactor kind
-        if kind_name == lsp::CodeActionKind::REFACTOR.as_str() {
-            return vec![
-                query::CodeActionKind::RefactorExtract,
-                query::CodeActionKind::RefactorInline,
-            ];
-        }
-
-        Vec::new()
-    }
-
-    /// Build query code action context from LSP code action context.
-    fn query_code_action_context(
-        context: &lsp::CodeActionContext,
-    ) -> jsonrpc::Result<query::CodeActionContext> {
-        let mut only = Vec::new();
-        let mut seen = HashSet::new();
-
-        // map each requested lsp kind to query code action kinds
-        if let Some(kinds) = context.only.as_ref() {
-            for kind in kinds {
-                for query_kind in Self::query_code_action_kinds(kind) {
-                    if seen.insert(query_kind) {
-                        only.push(query_kind);
-                    }
-                }
-            }
-        }
-
-        // retain every exact diagnostic supplied by the client
-        let mut diagnostics = Vec::new();
-        for diagnostic in &context.diagnostics {
-            let Some(diagnostic) = Self::query_diagnostic_reference(diagnostic)? else {
-                continue;
-            };
-            diagnostics.push(diagnostic);
-        }
-
-        Ok(query::CodeActionContext {
-            only,
-            diagnostics: Some(diagnostics),
-        })
-    }
-
-    /// Convert one LSP diagnostic into an exact source diagnostic reference.
-    fn query_diagnostic_reference(
-        diagnostic: &lsp::Diagnostic,
-    ) -> jsonrpc::Result<Option<DiagnosticReference>> {
-        if diagnostic.source.as_deref() != Some("destack") {
-            return Ok(None);
-        }
-
-        // require the opaque identity emitted with every Destack diagnostic
-        let data = diagnostic.data.clone().ok_or_else(|| {
-            jsonrpc::Error::invalid_params("Destack diagnostic is missing its source reference")
-        })?;
-        let reference = from_value(data).map_err(|error| {
-            jsonrpc::Error::invalid_params(format!(
-                "Destack diagnostic has an invalid source reference: {error}"
-            ))
-        })?;
-
-        Ok(Some(reference))
-    }
-
-    /// Return the LSP diagnostics addressed by one query code action.
-    fn code_action_diagnostics(
-        action: &query::CodeAction,
-        context: &lsp::CodeActionContext,
-    ) -> jsonrpc::Result<Option<Vec<lsp::Diagnostic>>> {
-        let mut diagnostics = Vec::with_capacity(action.diagnostics.len());
-
-        // match each exact query diagnostic to its client counterpart
-        for reference in &action.diagnostics {
-            let mut matched = None;
-            for diagnostic in &context.diagnostics {
-                let candidate = Self::query_diagnostic_reference(diagnostic)?;
-                if candidate.as_ref() == Some(reference) {
-                    matched = Some(diagnostic.clone());
-                    break;
-                }
-            }
-
-            let Some(matched) = matched else {
-                return Err(internal_error(format!(
-                    "code action diagnostic is absent from the request: {reference:?}"
-                )));
-            };
-            diagnostics.push(matched);
-        }
-
-        Ok((!diagnostics.is_empty()).then_some(diagnostics))
-    }
-
     /// Register file watchers with the client.
     async fn register_file_watchers(&self) -> jsonrpc::Result<()> {
-        if self.watch_registration_id.get().is_some() {
-            return Ok(());
-        }
-
-        let watchers = source::file_watchers();
+        let watchers = SourceSync::file_watchers();
         let options = lsp::DidChangeWatchedFilesRegistrationOptions { watchers };
         let register_options = Some(to_value(options).map_err(internal_error)?);
         let registration = lsp::Registration {
@@ -582,9 +233,6 @@ impl DestackLanguageServer {
         };
 
         self.client.register_capability(vec![registration]).await?;
-        self.watch_registration_id
-            .set("destack.watch".to_string())
-            .map_err(|_| internal_error("file watcher registration changed concurrently"))?;
 
         Ok(())
     }
@@ -603,7 +251,7 @@ impl DestackLanguageServer {
 
     /// Schedule diagnostics for one workspace root.
     fn schedule_diagnostics(&self, root: PathBuf) -> jsonrpc::Result<()> {
-        self.diagnostic_tasks
+        self.diagnostics()?
             .schedule(root, self.workspace()?.clone(), self.client.clone());
 
         Ok(())
@@ -620,7 +268,7 @@ impl DestackLanguageServer {
 
     /// Reload configuration and schedule diagnostics for every root.
     async fn change_configuration(&self) -> jsonrpc::Result<()> {
-        self.refresh_configuration().await?;
+        self.settings()?.refresh(&self.client).await?;
         self.reload_workspace()?;
 
         self.schedule_workspace_diagnostics()
@@ -635,7 +283,7 @@ impl DestackLanguageServer {
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
         let uri = Uri::from_string(params.text_document.uri.to_string());
-        let content = source::normalize_line_endings(params.text_document.text);
+        let content = params.text_document.text;
         let workspace = self.workspace()?;
         workspace
             .file(FileOperation::OpenText {
@@ -667,7 +315,7 @@ impl DestackLanguageServer {
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
         let uri = Uri::from_string(params.text_document.uri.to_string());
-        let changes = source::changes(params.content_changes);
+        let changes = SourceSync::text_changes(params.content_changes);
         let workspace = self.workspace()?;
         workspace
             .file(FileOperation::PatchText {
@@ -691,7 +339,7 @@ impl DestackLanguageServer {
             .to_file_path()
             .map(|path| path.into_owned())
             .ok_or_else(|| jsonrpc::Error::invalid_params("document URI is not a file URI"))?;
-        let content = params.text.map(source::normalize_line_endings);
+        let content = params.text;
         let workspace = self.workspace()?;
         workspace
             .file(FileOperation::SaveText {
@@ -759,7 +407,7 @@ impl DestackLanguageServer {
         }
         for path in removed {
             workspace.close(&path).map_err(workspace_error)?;
-            self.diagnostic_tasks.clear(&path, &self.client).await;
+            self.diagnostics()?.remove_root(&path, &self.client).await;
         }
 
         Ok(())
@@ -808,9 +456,7 @@ impl DestackLanguageServer {
             return Ok(());
         }
 
-        self.client
-            .publish_diagnostics(old_uri, Vec::new(), None)
-            .await;
+        self.diagnostics()?.remove_file(old_uri, &self.client).await;
 
         Ok(())
     }
@@ -834,7 +480,7 @@ impl DestackLanguageServer {
             return Ok(());
         }
 
-        self.client.publish_diagnostics(uri, Vec::new(), None).await;
+        self.diagnostics()?.remove_file(uri, &self.client).await;
 
         Ok(())
     }
@@ -849,144 +495,16 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::InitializeParams,
     ) -> jsonrpc::Result<lsp::InitializeResult> {
-        // determine root from params
-        #[allow(deprecated)]
-        let cwd = if let Some(path) = params
-            .root_uri
-            .as_ref()
-            .and_then(|uri| uri.to_file_path().map(|p| p.into_owned()))
-        {
-            path
-        } else if let Some(path) = params.root_path.clone().map(PathBuf::from) {
-            path
-        } else {
-            std::env::current_dir().map_err(|error| {
-                jsonrpc::Error::invalid_params(format!(
-                    "failed to resolve current directory for initialize: {error}"
-                ))
-            })?
-        };
-        let cwd = canonical_path(&cwd)?;
-
-        // collect initialization roots from workspace folders
-        let mut initialize_roots = Vec::new();
-        if let Some(workspace_folders) = params.workspace_folders.as_ref() {
-            for folder in workspace_folders {
-                let path = folder
-                    .uri
-                    .to_file_path()
-                    .map(|path| path.into_owned())
-                    .ok_or_else(|| {
-                        jsonrpc::Error::invalid_params("workspace folder URI is not a file URI")
-                    })?;
-
-                let path = canonical_path(&path)?;
-                if !initialize_roots.contains(&path) {
-                    initialize_roots.push(path);
-                }
-            }
-        }
-        if initialize_roots.is_empty() {
-            initialize_roots.push(cwd.clone());
-        }
-
-        // create repository with overlay filesystem
-        let physical_fs = Arc::new(PhysicalFileSystem::new());
-        let overlay_fs = Arc::new(OverlayFileSystem::with_inner(physical_fs));
-        let repository = open_repository_from_fs(
-            cwd.clone(),
-            overlay_fs.clone(),
-            Environment::capture_process(),
-            Settings::default(),
-            DestackLayoutOverride::default(),
-        )
-        .map_err(internal_error)?;
-        #[cfg(test)]
-        let repository = repository.with_blob_store(Arc::new(MemoryBlobStore::new()));
-        let root = canonical_path(repository.path())?;
-
-        // merge discovery root with initialize roots
-        let mut opened_roots = vec![root.clone()];
-        for initialize_root in initialize_roots {
-            if !opened_roots.contains(&initialize_root) {
-                opened_roots.push(initialize_root);
-            }
-        }
-
-        let repository = Arc::new(repository);
-        // open the semantic workspace for the editor session
-        let workspace = Arc::new(
-            LocalWorkspace::new(
-                repository.clone(),
-                Some(overlay_fs),
-                None,
-                opened_roots,
-                LocalWorkspace::default_worker_count(),
-                None,
-            )
-            .map_err(internal_error)?,
-        );
-        self.workspace
-            .set(workspace)
-            .map_err(|_| internal_error("language server workspace changed concurrently"))?;
-
-        // read Destack-specific client capabilities
-        let initialization_options = params
-            .initialization_options
-            .clone()
-            .map(from_value::<InitializationOptions>)
-            .transpose()
-            .map_err(|error| {
-                jsonrpc::Error::invalid_params(format!(
-                    "invalid Destack initialization options: {error}"
-                ))
-            })?
-            .unwrap_or_default();
-        let code_lens_commands = initialization_options.code_lens_commands;
-        let has_code_lenses = !code_lens_commands.is_empty();
-
-        // record capabilities used by query projections
-        let completion_label_details = params
-            .capabilities
-            .text_document
-            .as_ref()
-            .and_then(|text| text.completion.as_ref())
-            .and_then(|completion| completion.completion_item.as_ref())
-            .and_then(|item| item.label_details_support)
-            .unwrap_or(false);
-        let code_action_capabilities = params
-            .capabilities
-            .text_document
-            .as_ref()
-            .and_then(|text| text.code_action.as_ref());
-        let code_action_data = code_action_capabilities
-            .and_then(|capabilities| capabilities.data_support)
-            .unwrap_or(false);
-        let code_action_edit_resolve = code_action_capabilities
-            .and_then(|capabilities| capabilities.resolve_support.as_ref())
-            .is_some_and(|resolve| resolve.properties.iter().any(|property| property == "edit"));
-        let client_capabilities = ClientCapabilities {
-            completion_label_details,
-            code_action_data,
-            code_action_edit_resolve,
-            code_lens_commands,
-        };
-        self.client_capabilities
-            .set(client_capabilities)
-            .map_err(|_| internal_error("client capabilities changed concurrently"))?;
+        // build the complete initialized session
+        let session = ServerSession::open(&params)?;
+        let supports_code_lenses = session.client_capabilities.supports_code_lenses();
+        let supports_pull_diagnostics = session.client_capabilities.supports_pull_diagnostics;
+        self.session
+            .set(session)
+            .map_err(|_| internal_error("language server initialized more than once"))?;
 
         // build file operation filters for root notifications
-        let file_operation_filters: Vec<lsp::FileOperationFilter> = source::tracked_file_globs()
-            .into_iter()
-            .map(|glob| lsp::FileOperationFilter {
-                scheme: Some("file".to_string()),
-                pattern: lsp::FileOperationPattern {
-                    glob: glob.to_string(),
-                    matches: Some(lsp::FileOperationPatternKind::File),
-                    options: None,
-                },
-            })
-            .collect();
+        let file_operation_filters = SourceSync::file_operation_filters();
 
         // declare server capabilities
         let capabilities = lsp::ServerCapabilities {
@@ -1025,22 +543,22 @@ impl LanguageServer for DestackLanguageServer {
             semantic_tokens_provider: Some(
                 lsp::SemanticTokensServerCapabilities::SemanticTokensOptions(
                     lsp::SemanticTokensOptions {
-                        legend: token::legend(),
+                        legend: SemanticTokenStream::legend(),
                         range: Some(true),
                         full: Some(lsp::SemanticTokensFullOptions::Bool(true)),
                         work_done_progress_options: lsp::WorkDoneProgressOptions::default(),
                     },
                 ),
             ),
-            diagnostic_provider: Some(lsp::DiagnosticServerCapabilities::Options(
-                lsp::DiagnosticOptions {
+            diagnostic_provider: supports_pull_diagnostics.then_some(
+                lsp::DiagnosticServerCapabilities::Options(lsp::DiagnosticOptions {
                     identifier: Some("destack".to_string()),
                     inter_file_dependencies: true,
                     workspace_diagnostics: true,
                     markup_message_support: None,
                     work_done_progress_options: lsp::WorkDoneProgressOptions::default(),
-                },
-            )),
+                }),
+            ),
             document_formatting_provider: Some(lsp::OneOf::Left(true)),
             document_range_formatting_provider: Some(lsp::OneOf::Left(true)),
             document_on_type_formatting_provider: Some(lsp::DocumentOnTypeFormattingOptions {
@@ -1069,7 +587,7 @@ impl LanguageServer for DestackLanguageServer {
                     work_done_progress_options: Default::default(),
                 },
             )),
-            code_lens_provider: has_code_lenses.then_some(lsp::CodeLensOptions {
+            code_lens_provider: supports_code_lenses.then_some(lsp::CodeLensOptions {
                 resolve_provider: None,
             }),
             inlay_hint_provider: Some(lsp::OneOf::Left(true)),
@@ -1077,7 +595,7 @@ impl LanguageServer for DestackLanguageServer {
             call_hierarchy_provider: Some(lsp::CallHierarchyServerCapability::Simple(true)),
             type_hierarchy_provider: Some(lsp::OneOf::Left(true)),
             execute_command_provider: Some(lsp::ExecuteCommandOptions {
-                commands: vec!["destack.reload".to_string(), "destack.reindex".to_string()],
+                commands: vec!["destack.reload".to_string()],
                 work_done_progress_options: Default::default(),
             }),
             workspace: Some(lsp::WorkspaceServerCapabilities {
@@ -1115,13 +633,34 @@ impl LanguageServer for DestackLanguageServer {
     }
 
     async fn initialized(&self, _: lsp::InitializedParams) {
-        if let Err(error) = self.register_file_watchers().await {
+        let capabilities = match self.client_capabilities() {
+            Ok(capabilities) => capabilities,
+            Err(error) => {
+                self.report_error("failed to read client capabilities", error)
+                    .await;
+
+                return;
+            }
+        };
+
+        // register watched files when the client supports dynamic registration
+        if capabilities.supports_dynamic_file_watching
+            && let Err(error) = self.register_file_watchers().await
+        {
             self.report_error("failed to register file watchers", error)
                 .await;
         }
-        if let Err(error) = self.refresh_configuration().await {
-            self.report_error("failed to load editor configuration", error)
-                .await;
+
+        // request settings when the client supports workspace configuration
+        if capabilities.supports_configuration {
+            let result = match self.settings() {
+                Ok(settings) => settings.refresh(&self.client).await,
+                Err(error) => Err(error),
+            };
+            if let Err(error) = result {
+                self.report_error("failed to load editor configuration", error)
+                    .await;
+            }
         }
     }
 
@@ -1257,8 +796,8 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         let file_ids = edit.files.iter().map(|file| file.file);
-        let files = self.source_files(&query_root, revision, file_ids)?;
-        let workspace_edit = edit::workspace(&edit, &files)?;
+        let documents = self.load_documents(&query_root, revision, file_ids)?;
+        let workspace_edit = documents.workspace_edit(&edit)?;
 
         Ok(Some(workspace_edit))
     }
@@ -1331,9 +870,10 @@ impl LanguageServer for DestackLanguageServer {
                 });
             return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
         };
-        let files = self.diagnostic_files(&file_diagnostics)?;
+        let publisher = DiagnosticPublisher::new(self.client.clone(), self.workspace()?.clone());
+        let documents = publisher.load_documents(&file_diagnostics)?;
         let diagnostics = file_diagnostics.diagnostics;
-        let result_id = diagnostic::result_id(&diagnostics);
+        let result_id = DiagnosticPublisher::result_id(&diagnostics);
 
         if params.previous_result_id.as_ref() == Some(&result_id) {
             let report = lsp::DocumentDiagnosticReport::Unchanged(
@@ -1349,7 +889,7 @@ impl LanguageServer for DestackLanguageServer {
 
         let items = diagnostics
             .into_iter()
-            .map(|diagnostic| diagnostic::item(&diagnostic, &files))
+            .map(|diagnostic| documents.diagnostic(&diagnostic))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         let report =
@@ -1377,19 +917,20 @@ impl LanguageServer for DestackLanguageServer {
         let diagnostics = self.read_diagnostics(DiagnosticsRequest::All).await?;
 
         let mut items = Vec::new();
+        let publisher = DiagnosticPublisher::new(self.client.clone(), self.workspace()?.clone());
         for file_diagnostics in diagnostics {
-            let uri = uri::source(&file_diagnostics.uri).ok_or_else(|| {
+            let uri = DocumentUri::source(&file_diagnostics.uri).ok_or_else(|| {
                 internal_error(format!(
                     "diagnostic URI is not representable by LSP: {}",
                     file_diagnostics.uri
                 ))
             })?;
-            let files = self.diagnostic_files(&file_diagnostics)?;
+            let documents = publisher.load_documents(&file_diagnostics)?;
             let diagnostics = file_diagnostics.diagnostics;
-            let result_id = diagnostic::result_id(&diagnostics);
+            let result_id = DiagnosticPublisher::result_id(&diagnostics);
             let version = file_diagnostics.version.map(|version| version as i64);
-            let uri_str = uri.to_string();
-            let report = if previous_ids.get(&uri_str) == Some(&result_id) {
+            let uri_string = uri.to_string();
+            let report = if previous_ids.get(&uri_string) == Some(&result_id) {
                 lsp::WorkspaceDocumentDiagnosticReport::Unchanged(
                     lsp::WorkspaceUnchangedDocumentDiagnosticReport {
                         uri,
@@ -1401,7 +942,7 @@ impl LanguageServer for DestackLanguageServer {
             } else {
                 let lsp_diagnostics = diagnostics
                     .into_iter()
-                    .map(|diagnostic| diagnostic::item(&diagnostic, &files))
+                    .map(|diagnostic| documents.diagnostic(&diagnostic))
                     .collect::<jsonrpc::Result<Vec<_>>>()?;
 
                 lsp::WorkspaceDocumentDiagnosticReport::Full(
@@ -1432,7 +973,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::ExecuteCommandParams,
     ) -> jsonrpc::Result<Option<lsp::LSPAny>> {
         match params.command.as_str() {
-            "destack.reload" | "destack.reindex" => {
+            "destack.reload" => {
                 self.reload_workspace()?;
                 self.schedule_workspace_diagnostics()?;
 
@@ -1456,9 +997,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset =
-            position::offset(&source_file, &params.text_document_position_params.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request =
             query::QueryRequest::GotoDefinition(query::GotoDefinitionRequest { position });
@@ -1468,13 +1008,17 @@ impl LanguageServer for DestackLanguageServer {
             return Err(internal_error("query did not return goto definition"));
         };
 
-        // convert every exact target
+        // build targets
         let file_ids = response
             .targets
             .iter()
             .flat_map(|target| [target.origin.span.file, target.target.span.file]);
-        let files = self.source_files(&query_file.path, revision, file_ids)?;
-        let links = navigation::links(&response.targets, &files)?;
+        let documents = self.load_documents(&query_file.path, revision, file_ids)?;
+        let links = response
+            .targets
+            .iter()
+            .map(|query_target| documents.location_link(query_target))
+            .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         if links.is_empty() {
             return Ok(None);
@@ -1491,9 +1035,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset =
-            position::offset(&source_file, &params.text_document_position_params.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request =
             query::QueryRequest::GotoDeclaration(query::GotoDeclarationRequest { position });
@@ -1503,13 +1046,17 @@ impl LanguageServer for DestackLanguageServer {
             return Err(internal_error("query did not return goto declaration"));
         };
 
-        // convert every exact target
+        // build targets
         let file_ids = response
             .targets
             .iter()
             .flat_map(|target| [target.origin.span.file, target.target.span.file]);
-        let files = self.source_files(&query_file.path, revision, file_ids)?;
-        let links = navigation::links(&response.targets, &files)?;
+        let documents = self.load_documents(&query_file.path, revision, file_ids)?;
+        let links = response
+            .targets
+            .iter()
+            .map(|query_target| documents.location_link(query_target))
+            .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         if links.is_empty() {
             return Ok(None);
@@ -1526,9 +1073,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset =
-            position::offset(&source_file, &params.text_document_position_params.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request =
             query::QueryRequest::GotoTypeDefinition(query::GotoTypeDefinitionRequest { position });
@@ -1538,13 +1084,17 @@ impl LanguageServer for DestackLanguageServer {
             return Err(internal_error("query did not return goto type definition"));
         };
 
-        // convert every exact target
+        // build targets
         let file_ids = response
             .targets
             .iter()
             .flat_map(|target| [target.origin.span.file, target.target.span.file]);
-        let files = self.source_files(&query_file.path, revision, file_ids)?;
-        let links = navigation::links(&response.targets, &files)?;
+        let documents = self.load_documents(&query_file.path, revision, file_ids)?;
+        let links = response
+            .targets
+            .iter()
+            .map(|query_target| documents.location_link(query_target))
+            .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         if links.is_empty() {
             return Ok(None);
@@ -1561,8 +1111,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset = position::offset(&source_file, &params.text_document_position.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::FindReferences(query::FindReferencesRequest {
             position,
@@ -1578,14 +1128,14 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        // convert to LSP locations
+        // build LSP locations
         let file_ids = references
             .iter()
             .map(|reference| reference.target.span.file);
-        let files = self.source_files(&query_file.path, revision, file_ids)?;
+        let documents = self.load_documents(&query_file.path, revision, file_ids)?;
         let locations = references
             .iter()
-            .map(|reference| position::location(reference.target.span, &files))
+            .map(|reference| documents.location(reference.target.span))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(locations))
@@ -1598,7 +1148,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
+        let document = Document::new(query_file.file.clone());
         let request = query::QueryRequest::Outline(query::OutlineRequest {
             module: query_file.module,
             file_id: query_file.file.id,
@@ -1612,10 +1162,10 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        // convert to LSP symbols
+        // build LSP symbols
         let lsp_symbols = symbols
             .iter()
-            .map(|symbol| navigation::outline(&source_file, symbol))
+            .map(|query_symbol| document.document_symbol(query_symbol))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp::DocumentSymbolResponse::Nested(lsp_symbols)))
@@ -1661,7 +1211,7 @@ impl LanguageServer for DestackLanguageServer {
         symbols.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)));
         symbols.truncate(100);
 
-        // convert to LSP
+        // build LSP symbols
         let mut lsp_symbols = Vec::new();
         let mut file_ids_by_root: HashMap<PathBuf, (Revision, Vec<FileId>)> = HashMap::new();
         for (_, root, revision, symbol) in symbols.iter() {
@@ -1676,20 +1226,20 @@ impl LanguageServer for DestackLanguageServer {
             }
             entry.1.push(symbol.target.span.file);
         }
-        let mut files_by_root = HashMap::with_capacity(file_ids_by_root.len());
+        let mut documents_by_root = HashMap::with_capacity(file_ids_by_root.len());
         for (root, (revision, file_ids)) in file_ids_by_root {
-            let files = self.source_files(&root, revision, file_ids)?;
-            files_by_root.insert(root, files);
+            let documents = self.load_documents(&root, revision, file_ids)?;
+            documents_by_root.insert(root, documents);
         }
 
         for (_, root, _, symbol) in symbols.iter() {
-            let Some(files) = files_by_root.get(root) else {
+            let Some(documents) = documents_by_root.get(root) else {
                 return Err(internal_error(format!(
                     "symbol search file map is missing root {}",
                     root.display()
                 )));
             };
-            let lsp_symbol = navigation::search_symbol(symbol, files)?;
+            let lsp_symbol = documents.symbol_information(symbol)?;
             lsp_symbols.push(lsp_symbol);
         }
 
@@ -1708,9 +1258,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset =
-            position::offset(&source_file, &params.text_document_position_params.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::Highlight(query::HighlightRequest { position });
         let response = self.query_module(&query_file, request).await?;
@@ -1722,10 +1271,10 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        // convert to LSP highlights
+        // build LSP highlights
         let lsp_highlights = highlights
             .iter()
-            .map(|highlight| navigation::highlight(&source_file, highlight))
+            .map(|query_highlight| document.highlight(query_highlight))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp_highlights))
@@ -1740,9 +1289,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset =
-            position::offset(&source_file, &params.text_document_position_params.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::Hover(query::HoverRequest { position });
         let response = self.query_module(&query_file, request).await?;
@@ -1756,9 +1304,9 @@ impl LanguageServer for DestackLanguageServer {
 
         // project every declaration target from the response revision
         let file_ids = hover_info.items.iter().map(|item| item.target.span.file);
-        let files = self.source_files(&query_file.path, revision, file_ids)?;
-        let markdown = assist::hover(&hover_info.items, &files)?;
-        let range = position::range(&source_file, hover_info.range)?;
+        let documents = self.load_documents(&query_file.path, revision, file_ids)?;
+        let markdown = documents.render_hover(&hover_info.items)?;
+        let range = document.range(hover_info.range)?;
 
         Ok(Some(lsp::Hover {
             contents: lsp::HoverContents::Markup(lsp::MarkupContent {
@@ -1774,7 +1322,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::CompletionParams,
     ) -> jsonrpc::Result<Option<lsp::CompletionResponse>> {
         // map the LSP trigger kind to completion behavior
-        let trigger = match params.context.as_ref().map(|ctx| ctx.trigger_kind) {
+        let trigger = match params.context.as_ref().map(|context| context.trigger_kind) {
             Some(kind) if kind == lsp::CompletionTriggerKind::TRIGGER_CHARACTER => {
                 let character = params
                     .context
@@ -1812,13 +1360,10 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset = position::offset(&source_file, &params.text_document_position.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position.position)?;
         let position = query_file.position(offset);
-        let include_auto_imports = self
-            .settings
-            .completion_auto_imports
-            .load(Ordering::Relaxed);
+        let include_auto_imports = self.settings()?.completion_auto_imports();
         let request = query::QueryRequest::Completion(query::CompletionRequest {
             position,
             trigger,
@@ -1834,113 +1379,11 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        // convert to LSP completion items
-        let completion_label_details = self.client_capabilities()?.completion_label_details;
+        // build LSP completion items
         let items: Vec<lsp::CompletionItem> = completions
             .into_iter()
             .enumerate()
-            .map(|(index, item)| {
-                let insert_text_format = if item.edit.is_snippet {
-                    Some(lsp::InsertTextFormat::SNIPPET)
-                } else {
-                    None
-                };
-                let insert_text_mode = if item.edit.is_snippet {
-                    Some(lsp::InsertTextMode::ADJUST_INDENTATION)
-                } else {
-                    None
-                };
-                let commit_characters =
-                    Self::completion_commit_characters(item.kind, item.edit.is_snippet);
-
-                // convert additional text edits
-                let additional_text_edits = if item.additional_edits.is_empty() {
-                    None
-                } else {
-                    let edits = item
-                        .additional_edits
-                        .iter()
-                        .map(|edit| {
-                            if edit.span.file != query_file.file.id {
-                                return Err(internal_error(format!(
-                                    "completion edit targets another file: {:?}",
-                                    edit.span
-                                )));
-                            }
-
-                            Ok(lsp::TextEdit {
-                                range: position::range(&source_file, edit.span)?,
-                                new_text: edit.new_text.clone(),
-                            })
-                        })
-                        .collect::<jsonrpc::Result<_>>()?;
-
-                    Some(edits)
-                };
-
-                // preserve the query response order in clients that sort completion items
-                let sort_text = Some(format!("{index:020}"));
-                if item.edit.span.file != query_file.file.id {
-                    return Err(internal_error(format!(
-                        "completion edit targets another file: {:?}",
-                        item.edit.span
-                    )));
-                }
-                let text_edit = lsp::TextEdit {
-                    range: position::range(&source_file, item.edit.span)?,
-                    new_text: item.edit.new_text,
-                };
-
-                // move auto import sources into label details when supported
-                let (detail, label_details) = if item.is_auto_import
-                    && completion_label_details
-                    && let Some(detail_text) = item.detail.as_ref()
-                    && let Some(path) = detail_text.strip_prefix(AUTO_IMPORT_DETAIL_PREFIX)
-                {
-                    (
-                        None,
-                        Some(lsp::CompletionItemLabelDetails {
-                            detail: None,
-                            description: Some(path.to_string()),
-                        }),
-                    )
-                } else {
-                    (item.detail.clone(), None)
-                };
-
-                // transcribe documentation directly because the query already produced it
-                let documentation = item.documentation.map(|documentation| {
-                    lsp::Documentation::MarkupContent(lsp::MarkupContent {
-                        kind: lsp::MarkupKind::Markdown,
-                        value: documentation,
-                    })
-                });
-                let (deprecated, tags) = if item.is_deprecated {
-                    (Some(true), Some(vec![lsp::CompletionItemTag::DEPRECATED]))
-                } else {
-                    (None, None)
-                };
-
-                Ok(lsp::CompletionItem {
-                    label: item.label,
-                    label_details,
-                    kind: Some(completion::kind(item.kind)),
-                    detail,
-                    documentation,
-                    insert_text: None,
-                    insert_text_format,
-                    insert_text_mode,
-                    sort_text,
-                    preselect: if item.preselect { Some(true) } else { None },
-                    deprecated,
-                    tags,
-                    commit_characters,
-                    additional_text_edits,
-                    data: None,
-                    text_edit: Some(text_edit.into()),
-                    ..Default::default()
-                })
-            })
+            .map(|(index, item)| document.completion_item(index, item))
             .collect::<jsonrpc::Result<_>>()?;
 
         Ok(Some(lsp::CompletionResponse::List(lsp::CompletionList {
@@ -1958,9 +1401,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset =
-            position::offset(&source_file, &params.text_document_position_params.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::SignatureHelp(query::SignatureHelpRequest { position });
         let response = self.query_module(&query_file, request).await?;
@@ -1971,42 +1413,7 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
-        // convert to LSP signature help
-        let signatures: Vec<lsp::SignatureInformation> = help
-            .signatures
-            .into_iter()
-            .map(|signature| lsp::SignatureInformation {
-                label: signature.label,
-                documentation: signature.documentation.map(|documentation| {
-                    lsp::Documentation::MarkupContent(lsp::MarkupContent {
-                        kind: lsp::MarkupKind::Markdown,
-                        value: documentation,
-                    })
-                }),
-                parameters: Some(
-                    signature
-                        .parameters
-                        .into_iter()
-                        .map(|parameter| lsp::ParameterInformation {
-                            label: lsp::ParameterLabel::Simple(parameter.label),
-                            documentation: parameter.documentation.map(|documentation| {
-                                lsp::Documentation::MarkupContent(lsp::MarkupContent {
-                                    kind: lsp::MarkupKind::Markdown,
-                                    value: documentation,
-                                })
-                            }),
-                        })
-                        .collect(),
-                ),
-                active_parameter: None,
-            })
-            .collect();
-
-        Ok(Some(lsp::SignatureHelp {
-            signatures,
-            active_signature: Some(help.active_signature as u32),
-            active_parameter: help.active_parameter.map(|parameter| parameter as u32),
-        }))
+        Ok(Some(document.signature_help(help)))
     }
 
     // ------------------------------------------------------------------------
@@ -2020,7 +1427,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
+        let document = Document::new(query_file.file.clone());
         let request = query::QueryRequest::SemanticTokens(query::SemanticTokensRequest {
             module: query_file.module,
             file_id: query_file.file.id,
@@ -2031,8 +1438,8 @@ impl LanguageServer for DestackLanguageServer {
         };
         let tokens = response.tokens;
 
-        // convert to LSP
-        let lsp_tokens = token::encode(&source_file, &tokens)?;
+        // build LSP tokens
+        let lsp_tokens = document.semantic_tokens(&tokens)?;
 
         Ok(Some(lsp::SemanticTokensResult::Tokens(
             lsp::SemanticTokens {
@@ -2049,9 +1456,9 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let start = position::offset(&source_file, &params.range.start)?;
-        let end = position::offset(&source_file, &params.range.end)?;
+        let document = Document::new(query_file.file.clone());
+        let start = document.offset(&params.range.start)?;
+        let end = document.offset(&params.range.end)?;
         let range = query_file
             .range(start, end)
             .ok_or_else(|| jsonrpc::Error::invalid_params("range is reversed"))?;
@@ -2063,8 +1470,8 @@ impl LanguageServer for DestackLanguageServer {
         };
         let tokens = response.tokens;
 
-        // convert to LSP
-        let lsp_tokens = token::encode(&source_file, &tokens)?;
+        // build LSP tokens
+        let lsp_tokens = document.semantic_tokens(&tokens)?;
 
         Ok(Some(lsp::SemanticTokensRangeResult::Tokens(
             lsp::SemanticTokens {
@@ -2082,27 +1489,10 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::FoldingRangeParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::FoldingRange>>> {
-        // resolve file
-        let Some(path) = params
-            .text_document
-            .uri
-            .to_file_path()
-            .map(|path| path.into_owned())
-        else {
-            return Ok(None);
-        };
-        if !self
-            .workspace()?
-            .is_file_open(&path)
-            .map_err(workspace_error)?
-        {
-            return Ok(None);
-        }
-
-        // query for folding ranges
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
+        let document = Document::new(query_file.file.clone());
         let request = query::QueryRequest::FoldingRanges(query::FoldingRangesRequest {
             module: query_file.module,
             file_id: query_file.file.id,
@@ -2116,21 +1506,9 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        // convert to LSP folding ranges
         let lsp_ranges = ranges
             .into_iter()
-            .map(|range| lsp::FoldingRange {
-                start_line: range.start_line,
-                start_character: range.start_character,
-                end_line: range.end_line,
-                end_character: range.end_character,
-                kind: range.kind.map(|kind| match kind {
-                    query::FoldingRangeKind::Comment => lsp::FoldingRangeKind::Comment,
-                    query::FoldingRangeKind::Imports => lsp::FoldingRangeKind::Imports,
-                    query::FoldingRangeKind::Region => lsp::FoldingRangeKind::Region,
-                }),
-                collapsed_text: range.collapsed_text,
-            })
+            .map(|range| document.folding_range(range))
             .collect();
 
         Ok(Some(lsp_ranges))
@@ -2147,7 +1525,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(edit) = self.format_file(&params.text_document.uri, None)? else {
             return Ok(None);
         };
-        let edit = format::edit(edit)?;
+        let document = Document::new(edit.file.clone());
+        let edit = document.text_edit(edit)?;
 
         Ok(Some(vec![edit]))
     }
@@ -2156,11 +1535,12 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentRangeFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
-        let range = source::text_range(params.range);
+        let range = SourceSync::text_range(params.range);
         let Some(edit) = self.format_file(&params.text_document.uri, Some(range))? else {
             return Ok(None);
         };
-        let edit = format::edit(edit)?;
+        let document = Document::new(edit.file.clone());
+        let edit = document.text_edit(edit)?;
 
         Ok(Some(vec![edit]))
     }
@@ -2177,35 +1557,36 @@ impl LanguageServer for DestackLanguageServer {
                 "formatting trigger is empty",
             ));
         }
-        let Some(start_character) = end.character.checked_sub(trigger_width) else {
-            return Ok(None);
-        };
+        let start_character = end.character.checked_sub(trigger_width).ok_or_else(|| {
+            jsonrpc::Error::invalid_params("formatting trigger starts before its source line")
+        })?;
         let start = lsp::Position {
             line: end.line,
             character: start_character,
         };
-        let range = source::text_range(lsp::Range { start, end });
+        let range = SourceSync::text_range(lsp::Range { start, end });
 
-        // format against one exact workspace file
+        // format the workspace file
         let uri = &params.text_document_position.text_document.uri;
         let Some(edit) = self.format_file(uri, Some(range))? else {
             return Ok(None);
         };
 
         // require the exact workspace source to contain the reported trigger
-        let start_offset = position::offset(&edit.file, &start)?;
-        let end_offset = position::offset(&edit.file, &end)?;
+        let document = Document::new(edit.file.clone());
+        let start_offset = document.offset(&start)?;
+        let end_offset = document.offset(&end)?;
         if edit
             .file
             .text()
             .get(start_offset as usize..end_offset as usize)
             != Some(params.ch.as_str())
         {
-            return Ok(None);
+            return Err(jsonrpc::Error::content_modified());
         }
 
         // return the selected formatting edit
-        let edit = format::edit(edit)?;
+        let edit = document.text_edit(edit)?;
 
         Ok(Some(vec![edit]))
     }
@@ -2221,11 +1602,11 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
+        let document = Document::new(query_file.file.clone());
         let positions: Vec<u32> = params
             .positions
             .iter()
-            .map(|position| position::offset(&source_file, position))
+            .map(|position| document.offset(position))
             .collect::<jsonrpc::Result<_>>()?;
         let request = query::QueryRequest::SelectionRanges(query::SelectionRangesRequest {
             module: query_file.module,
@@ -2238,10 +1619,10 @@ impl LanguageServer for DestackLanguageServer {
         };
         let ranges = response.ranges;
 
-        // convert to LSP
+        // build LSP selection ranges
         let lsp_ranges = ranges
             .into_iter()
-            .map(|range| navigation::selection(&source_file, range))
+            .map(|range| document.selection_range(range))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp_ranges))
@@ -2255,9 +1636,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset =
-            position::offset(&source_file, &params.text_document_position_params.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request =
             query::QueryRequest::GotoImplementation(query::GotoImplementationRequest { position });
@@ -2267,13 +1647,17 @@ impl LanguageServer for DestackLanguageServer {
             return Err(internal_error("query did not return goto implementation"));
         };
 
-        // convert every exact target
+        // build targets
         let file_ids = response
             .targets
             .iter()
             .flat_map(|target| [target.origin.span.file, target.target.span.file]);
-        let files = self.source_files(&query_file.path, revision, file_ids)?;
-        let links = navigation::links(&response.targets, &files)?;
+        let documents = self.load_documents(&query_file.path, revision, file_ids)?;
+        let links = response
+            .targets
+            .iter()
+            .map(|query_target| documents.location_link(query_target))
+            .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         if links.is_empty() {
             return Ok(None);
@@ -2293,7 +1677,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
+        let document = Document::new(query_file.file.clone());
         let request = query::QueryRequest::Links(query::LinksRequest {
             module: query_file.module,
             file_id: query_file.file.id,
@@ -2307,10 +1691,10 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        // convert to LSP
+        // build LSP links
         let lsp_links = links
             .iter()
-            .map(|link| navigation::document_link(&source_file, link))
+            .map(|query_link| document.link(query_link))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp_links))
@@ -2324,30 +1708,26 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::CodeActionParams,
     ) -> jsonrpc::Result<Option<lsp::CodeActionResponse>> {
-        let has_only_filter = params
-            .context
-            .only
-            .as_ref()
-            .is_some_and(|kinds| !kinds.is_empty());
-
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let context = Self::query_code_action_context(&params.context)?;
+        let document = Document::new(query_file.file.clone());
+        let context = ActionContext::try_from(&params.context)?;
 
-        // skip when lsp only filters were provided but none map to query kinds
-        if has_only_filter && context.only.is_empty() {
+        // skip unsupported action filters
+        if context.excludes_all() {
             return Ok(None);
         }
 
-        let start = position::offset(&source_file, &params.range.start)?;
-        let end = position::offset(&source_file, &params.range.end)?;
+        let start = document.offset(&params.range.start)?;
+        let end = document.offset(&params.range.end)?;
         let range = query_file
             .range(start, end)
             .ok_or_else(|| jsonrpc::Error::invalid_params("range is reversed"))?;
-        let request =
-            query::QueryRequest::CodeActions(query::CodeActionsRequest { range, context });
+        let request = query::QueryRequest::CodeActions(query::CodeActionsRequest {
+            range,
+            context: context.query_context(),
+        });
         let response = self.query_module(&query_file, request).await?;
         let revision = response.revision;
         let query::QueryResponse::CodeActions(response) = response.response else {
@@ -2359,12 +1739,12 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
-        // convert to LSP
+        // build LSP actions
         let mut lsp_actions = Vec::new();
         let client_capabilities = self.client_capabilities()?;
-        let prefer_lazy_code_action_edits =
-            client_capabilities.code_action_data && client_capabilities.code_action_edit_resolve;
-        let file_ids = if prefer_lazy_code_action_edits {
+        let is_code_action_edit_deferred = client_capabilities.supports_code_action_data
+            && client_capabilities.supports_code_action_edit_resolve;
+        let file_ids = if is_code_action_edit_deferred {
             Vec::new()
         } else {
             actions
@@ -2373,24 +1753,20 @@ impl LanguageServer for DestackLanguageServer {
                 .map(|file| file.file)
                 .collect()
         };
-        let files = self.source_files(&query_file.path, revision, file_ids)?;
+        let documents = self.load_documents(&query_file.path, revision, file_ids)?;
         for action in actions.iter() {
-            let data = if prefer_lazy_code_action_edits {
-                let data = to_value(CodeActionContinuation {
-                    revision,
-                    path: query_file.path.clone(),
-                    patches: action.patches.clone(),
-                })
-                .map_err(internal_error)?;
+            let (edit, data) = if is_code_action_edit_deferred {
+                let continuation =
+                    ActionContinuation::new(revision, &query_file.path, action.patches.clone());
+                let data = continuation.into_value()?;
 
-                Some(data)
+                (None, Some(data))
+            } else if action.patches.is_empty() {
+                (None, None)
             } else {
-                None
+                (Some(documents.workspace_edit(&action.patches)?), None)
             };
-            let include_edit = !prefer_lazy_code_action_edits;
-            let diagnostics = Self::code_action_diagnostics(action, &params.context)?;
-            let lsp_action =
-                diagnostic::code_action(action, diagnostics, include_edit, data, &files)?;
+            let lsp_action = context.code_action(action, edit, data)?;
             lsp_actions.push(lsp_action);
         }
 
@@ -2413,12 +1789,11 @@ impl LanguageServer for DestackLanguageServer {
             ));
         };
 
-        let resolved = from_value::<CodeActionContinuation>(data)
-            .map_err(|error| jsonrpc::Error::invalid_params(error.to_string()))?;
+        let resolved = ActionContinuation::from_value(data)?;
 
-        let file_ids = resolved.patches.files.iter().map(|file| file.file);
-        let files = self.source_files(&resolved.path, resolved.revision, file_ids)?;
-        params.edit = Some(edit::workspace(&resolved.patches, &files)?);
+        let file_ids = resolved.file_ids();
+        let documents = self.load_documents(&resolved.path, resolved.revision, file_ids)?;
+        params.edit = Some(documents.workspace_edit(&resolved.patches)?);
 
         Ok(params)
     }
@@ -2434,7 +1809,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
+        let document = Document::new(query_file.file.clone());
         let request = query::QueryRequest::CodeLenses(query::CodeLensesRequest {
             module: query_file.module,
             file_id: query_file.file.id,
@@ -2445,12 +1820,12 @@ impl LanguageServer for DestackLanguageServer {
         };
         let lenses = response.lenses;
 
-        // convert only actions implemented by the connected client bridge
+        // build only actions implemented by the connected client bridge
         let capabilities = self.client_capabilities()?;
         let mut lsp_lenses = Vec::new();
         for lens in &lenses {
             if capabilities.supports_code_lens(&lens.action) {
-                lsp_lenses.push(assist::lens(&source_file, lens)?);
+                lsp_lenses.push(document.code_lens(lens)?);
             }
         }
 
@@ -2468,14 +1843,14 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let start = position::offset(&source_file, &params.range.start)?;
-        let end = position::offset(&source_file, &params.range.end)?;
+        let document = Document::new(query_file.file.clone());
+        let start = document.offset(&params.range.start)?;
+        let end = document.offset(&params.range.end)?;
         let range = query_file
             .range(start, end)
             .ok_or_else(|| jsonrpc::Error::invalid_params("range is reversed"))?;
-        let type_hints = self.settings.type_inlay_hints.load(Ordering::Relaxed);
-        let parameter_hints = self.settings.parameter_inlay_hints.load(Ordering::Relaxed);
+        let type_hints = self.settings()?.type_inlay_hints();
+        let parameter_hints = self.settings()?.parameter_inlay_hints();
         let request = query::QueryRequest::InlayHints(query::InlayHintsRequest {
             range,
             type_hints,
@@ -2487,10 +1862,10 @@ impl LanguageServer for DestackLanguageServer {
         };
         let hints = response.hints;
 
-        // convert to LSP
+        // build LSP hints
         let lsp_hints = hints
             .iter()
-            .map(|hint| assist::hint(&source_file, hint))
+            .map(|query_hint| document.inlay_hint(query_hint))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp_hints))
@@ -2507,8 +1882,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset = position::offset(&source_file, &params.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::RenameTarget(query::RenameTargetRequest { position });
         let response = self.query_module(&query_file, request).await?;
@@ -2519,8 +1894,8 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
-        // convert to LSP
-        let range = position::range(&source_file, target.target.span)?;
+        // build LSP rename range
+        let range = document.range(target.target.span)?;
         Ok(Some(lsp::PrepareRenameResponse::RangeWithPlaceholder {
             range,
             placeholder: target.placeholder,
@@ -2536,8 +1911,8 @@ impl LanguageServer for DestackLanguageServer {
         else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset = position::offset(&source_file, &params.text_document_position.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::Rename(query::RenameRequest {
             position,
@@ -2552,10 +1927,10 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
-        // convert to LSP
+        // build LSP workspace edit
         let file_ids = edit.files.iter().map(|file| file.file);
-        let files = self.source_files(&query_file.path, revision, file_ids)?;
-        let workspace_edit = edit::workspace(&edit, &files)?;
+        let documents = self.load_documents(&query_file.path, revision, file_ids)?;
+        let workspace_edit = documents.workspace_edit(&edit)?;
 
         Ok(Some(workspace_edit))
     }
@@ -2572,9 +1947,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset =
-            position::offset(&source_file, &params.text_document_position_params.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::CallItem(query::CallItemRequest { position });
         let response = self.query_module(&query_file, request).await?;
@@ -2586,9 +1960,9 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
-        // convert to LSP
-        let files = self.source_files(&query_file.path, revision, [item.target.span.file])?;
-        let lsp_item = navigation::call_item(&query_file.path, revision, &item, &files)?;
+        // build LSP call item
+        let documents = self.load_documents(&query_file.path, revision, [item.target.span.file])?;
+        let lsp_item = documents.call_hierarchy_item(&query_file.path, revision, &item)?;
 
         Ok(Some(vec![lsp_item]))
     }
@@ -2597,10 +1971,9 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::CallHierarchyIncomingCallsParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyIncomingCall>>> {
-        // decode the exact hierarchy continuation
+        // read the hierarchy continuation
         let continuation =
-            HierarchyContinuation::<query::CallItem>::decode(params.item.data.as_ref())
-                .map_err(jsonrpc::Error::invalid_params)?;
+            HierarchyContinuation::<query::CallItem>::from_value(params.item.data.as_ref())?;
         let HierarchyContinuation {
             path,
             revision,
@@ -2618,12 +1991,12 @@ impl LanguageServer for DestackLanguageServer {
         };
         let calls = response.calls;
 
-        // convert to LSP
+        // build LSP incoming calls
         let file_ids = calls.iter().map(|call| call.from.target.span.file);
-        let files = self.source_files(&path, revision, file_ids)?;
+        let documents = self.load_documents(&path, revision, file_ids)?;
         let lsp_calls: Vec<lsp::CallHierarchyIncomingCall> = calls
             .iter()
-            .map(|call| navigation::incoming_call(&path, revision, call, &files))
+            .map(|call| documents.incoming_call(&path, revision, call))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp_calls))
@@ -2633,10 +2006,9 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::CallHierarchyOutgoingCallsParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyOutgoingCall>>> {
-        // decode the exact hierarchy continuation
+        // read the hierarchy continuation
         let continuation =
-            HierarchyContinuation::<query::CallItem>::decode(params.item.data.as_ref())
-                .map_err(jsonrpc::Error::invalid_params)?;
+            HierarchyContinuation::<query::CallItem>::from_value(params.item.data.as_ref())?;
         let HierarchyContinuation {
             path,
             revision,
@@ -2655,14 +2027,14 @@ impl LanguageServer for DestackLanguageServer {
         };
         let calls = response.calls;
 
-        // convert to LSP
+        // build LSP outgoing calls
         let file_ids =
             iter::once(source_file_id).chain(calls.iter().map(|call| call.to.target.span.file));
-        let files = self.source_files(&path, revision, file_ids)?;
-        let source_file = files.file(source_file_id).map_err(workspace_error)?;
+        let documents = self.load_documents(&path, revision, file_ids)?;
+        let document = documents.document(source_file_id)?;
         let lsp_calls: Vec<lsp::CallHierarchyOutgoingCall> = calls
             .iter()
-            .map(|call| navigation::outgoing_call(&path, revision, call, &source_file, &files))
+            .map(|call| documents.outgoing_call(&path, revision, call, document))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp_calls))
@@ -2680,9 +2052,8 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.resolve_query_file(uri)? else {
             return Ok(None);
         };
-        let source_file = query_file.file.clone();
-        let offset =
-            position::offset(&source_file, &params.text_document_position_params.position)?;
+        let document = Document::new(query_file.file.clone());
+        let offset = document.offset(&params.text_document_position_params.position)?;
         let position = query_file.position(offset);
         let request = query::QueryRequest::TypeItem(query::TypeItemRequest { position });
         let response = self.query_module(&query_file, request).await?;
@@ -2694,8 +2065,8 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
-        let files = self.source_files(&query_file.path, revision, [item.target.span.file])?;
-        let lsp_item = navigation::type_item(&query_file.path, revision, &item, &files)?;
+        let documents = self.load_documents(&query_file.path, revision, [item.target.span.file])?;
+        let lsp_item = documents.type_hierarchy_item(&query_file.path, revision, &item)?;
 
         Ok(Some(vec![lsp_item]))
     }
@@ -2704,10 +2075,9 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::TypeHierarchySupertypesParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
-        // decode the exact hierarchy continuation
+        // read the hierarchy continuation
         let continuation =
-            HierarchyContinuation::<query::TypeItem>::decode(params.item.data.as_ref())
-                .map_err(jsonrpc::Error::invalid_params)?;
+            HierarchyContinuation::<query::TypeItem>::from_value(params.item.data.as_ref())?;
         let HierarchyContinuation {
             path,
             revision,
@@ -2725,12 +2095,12 @@ impl LanguageServer for DestackLanguageServer {
         };
         let supertypes = response.items;
 
-        // convert to LSP
+        // build LSP supertypes
         let file_ids = supertypes.iter().map(|item| item.target.span.file);
-        let files = self.source_files(&path, revision, file_ids)?;
+        let documents = self.load_documents(&path, revision, file_ids)?;
         let lsp_items: Vec<lsp::TypeHierarchyItem> = supertypes
             .iter()
-            .map(|item| navigation::type_item(&path, revision, item, &files))
+            .map(|item| documents.type_hierarchy_item(&path, revision, item))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp_items))
@@ -2740,10 +2110,9 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::TypeHierarchySubtypesParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
-        // decode the exact hierarchy continuation
+        // read the hierarchy continuation
         let continuation =
-            HierarchyContinuation::<query::TypeItem>::decode(params.item.data.as_ref())
-                .map_err(jsonrpc::Error::invalid_params)?;
+            HierarchyContinuation::<query::TypeItem>::from_value(params.item.data.as_ref())?;
         let HierarchyContinuation {
             path,
             revision,
@@ -2761,12 +2130,12 @@ impl LanguageServer for DestackLanguageServer {
         };
         let subtypes = response.items;
 
-        // convert to LSP
+        // build LSP subtypes
         let file_ids = subtypes.iter().map(|item| item.target.span.file);
-        let files = self.source_files(&path, revision, file_ids)?;
+        let documents = self.load_documents(&path, revision, file_ids)?;
         let lsp_items: Vec<lsp::TypeHierarchyItem> = subtypes
             .iter()
-            .map(|item| navigation::type_item(&path, revision, item, &files))
+            .map(|item| documents.type_hierarchy_item(&path, revision, item))
             .collect::<jsonrpc::Result<Vec<_>>>()?;
 
         Ok(Some(lsp_items))

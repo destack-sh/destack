@@ -12,8 +12,8 @@ pub(crate) fn internal_error(detail: impl Display) -> jsonrpc::Error {
     error
 }
 
-/// Convert a workspace error into an LSP response error.
-pub(super) fn workspace_error(error: Error) -> jsonrpc::Error {
+/// Build an LSP response error from one workspace error.
+pub(crate) fn workspace_error(error: Error) -> jsonrpc::Error {
     let mut response = if matches!(&error, Error::StaleRevision { .. }) {
         jsonrpc::Error::content_modified()
     } else {

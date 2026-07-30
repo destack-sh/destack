@@ -1,18 +1,7 @@
-mod artifact;
-pub(crate) mod assist;
-pub(crate) mod completion;
-pub(crate) mod diagnostic;
-pub(crate) mod edit;
-pub(crate) mod error;
-pub(crate) mod format;
-mod language;
-pub(crate) mod navigation;
-pub(crate) mod position;
-pub(crate) mod source;
-pub(crate) mod symbol;
-pub(crate) mod token;
+mod error;
+mod server;
+mod session;
 
-pub use language::DestackLanguageServer;
-
-#[cfg(test)]
-mod tests;
+pub(crate) use error::*;
+pub use server::DestackLanguageServer;
+use session::*;
