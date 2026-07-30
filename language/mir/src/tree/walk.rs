@@ -240,6 +240,7 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::Assume { .. }
         | Instruction::ProfileIncrement { .. }
         | Instruction::ProfileSample { .. }
+        | Instruction::Poll
         | Instruction::Breakpoint
         | Instruction::Intrinsic { .. } => {}
     }

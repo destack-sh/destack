@@ -100,7 +100,7 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::TaskCancel { task } | Instruction::TaskDetach { task } => {
                     Self::replace_value_in_slot(task, from, to);
                 }
-                Instruction::Breakpoint => {}
+                Instruction::Poll | Instruction::Breakpoint => {}
                 Instruction::Binary { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);

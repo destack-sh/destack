@@ -1302,12 +1302,11 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::NewZeroed { .. }
             | mir::Instruction::NewUninit { .. }
             | mir::Instruction::NewSliceZeroed { .. }
-            | mir::Instruction::NewSliceUninit { .. } => {
-                Self::single_effect(MemoryAccessEffect::read_write(
-                    MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                    false,
-                ))
-            }
+            | mir::Instruction::NewSliceUninit { .. }
+            | mir::Instruction::Poll => Self::single_effect(MemoryAccessEffect::read_write(
+                MemoryRegion::any_spaces(mir::StorageSet::ANY),
+                false,
+            )),
             mir::Instruction::Intrinsic {
                 intrinsic,
                 arguments,

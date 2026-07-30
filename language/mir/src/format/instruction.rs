@@ -1804,6 +1804,7 @@ impl FormatNode for Instruction {
                 )
             }
 
+            Instruction::Poll => write!(f, [token("poll")]),
             Instruction::Breakpoint => write!(f, [token("breakpoint")]),
 
             Instruction::Intrinsic {

@@ -102,6 +102,7 @@ impl Parser {
                     | "atomic.store"
                     | "atomic.fence"
                     | "assume"
+                    | "poll"
                     | "breakpoint"
                     | "profile.increment"
                     | "profile.sample"
@@ -323,6 +324,9 @@ impl Parser {
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::ProfileSample { sampler, value }
             }
+
+            // runtime control
+            "poll" => Instruction::Poll,
 
             // debug control
             "breakpoint" => Instruction::Breakpoint,

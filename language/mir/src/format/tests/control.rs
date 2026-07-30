@@ -7,6 +7,7 @@ fn test_format_switch() {
         r#"
 function dispatch(v0: int32): int32 {
 entry(v0: int32):
+    poll
     switch v0, b3, 0 => b1, 1 => b2
 
 b1:

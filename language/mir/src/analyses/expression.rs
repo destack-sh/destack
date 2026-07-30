@@ -245,6 +245,7 @@ impl PureExpression {
             | mir::Instruction::DynamicFind { .. }
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileSample { .. }
+            | mir::Instruction::Poll
             | mir::Instruction::Breakpoint => None,
         }
     }

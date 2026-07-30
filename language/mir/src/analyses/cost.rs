@@ -402,6 +402,7 @@ impl CostModel {
             | mir::Instruction::TaskPark { .. }
             | mir::Instruction::TaskCancel { .. }
             | mir::Instruction::TaskDetach { .. }
+            | mir::Instruction::Poll
             | mir::Instruction::Intrinsic { .. } => cost.intrinsic_call += 1,
         }
 

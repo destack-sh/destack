@@ -919,6 +919,10 @@ pub enum Instruction {
         value: Value,
     },
 
+    // runtime control
+    /// Cooperate with runtime work at one explicit statepoint.
+    Poll,
+
     // debug control
     /// Debugger breakpoint.
     Breakpoint,
@@ -1035,7 +1039,7 @@ impl Instruction {
             Instruction::Assume { .. } => None,
             Instruction::ProfileIncrement { .. } => None,
             Instruction::ProfileSample { .. } => None,
-            Instruction::Breakpoint => None,
+            Instruction::Poll | Instruction::Breakpoint => None,
             Instruction::Intrinsic { destination, .. } => *destination,
         }
     }
@@ -1191,7 +1195,7 @@ impl Instruction {
             Instruction::Assume { condition } => smallvec![*condition],
             Instruction::ProfileIncrement { .. } => smallvec![],
             Instruction::ProfileSample { value, .. } => smallvec![*value],
-            Instruction::Breakpoint => smallvec![],
+            Instruction::Poll | Instruction::Breakpoint => smallvec![],
             Instruction::Intrinsic { .. } => smallvec![],
         }
     }

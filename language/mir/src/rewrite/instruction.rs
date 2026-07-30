@@ -132,7 +132,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
 
         // instrumentation and intrinsics may have side effects
         mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileSample { .. } => false,
-        mir::Instruction::Breakpoint => false,
+        mir::Instruction::Poll | mir::Instruction::Breakpoint => false,
         mir::Instruction::Intrinsic { .. } => false,
     }
 }
@@ -312,8 +312,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         // profile instrumentation must be preserved
         mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileSample { .. } => true,
 
-        // debugger control must be preserved
-        mir::Instruction::Breakpoint => true,
+        // runtime and debugger control must be preserved
+        mir::Instruction::Poll | mir::Instruction::Breakpoint => true,
 
         // intrinsics may have side effects, check purity for safe removal
         mir::Instruction::Intrinsic { intrinsic, .. } => {
@@ -1218,6 +1218,7 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::NewZeroed { .. }
         | mir::Instruction::NewUninit { .. }
         | mir::Instruction::ProfileIncrement { .. }
+        | mir::Instruction::Poll
         | mir::Instruction::Breakpoint
         | mir::Instruction::Intrinsic { .. } => instruction.clone(),
     }
@@ -2796,6 +2797,7 @@ pub fn instruction_map(
             sampler: *sampler,
             value: remap(*value),
         },
+        mir::Instruction::Poll => mir::Instruction::Poll,
         mir::Instruction::Breakpoint => mir::Instruction::Breakpoint,
     }
 }
@@ -3614,6 +3616,7 @@ pub fn instruction_map_with_locals(
             sampler: *sampler,
             value: remap(*value),
         },
+        mir::Instruction::Poll => mir::Instruction::Poll,
         mir::Instruction::Breakpoint => mir::Instruction::Breakpoint,
     }
 }

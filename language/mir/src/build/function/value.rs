@@ -325,12 +325,21 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    // instruction builders: intrinsics
+    // instruction builders: runtime control
+
+    /// Insert one runtime poll.
+    pub fn poll(&mut self) {
+        self.insert_instruction(Instruction::Poll);
+    }
+
+    // instruction builders: debug control
 
     /// Insert one debugger breakpoint.
     pub fn breakpoint(&mut self) {
         self.insert_instruction(Instruction::Breakpoint);
     }
+
+    // instruction builders: intrinsics
 
     /// Call an intrinsic that returns a value.
     pub fn intrinsic(
