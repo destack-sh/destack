@@ -1,5 +1,5 @@
 use crate::{
-    Command, InsertTextFormat, Range, StaticRegistrationOptions, TextDocumentPositionParams,
+    Command, Range, StaticRegistrationOptions, StringValue, TextDocumentPositionParams,
     TextDocumentRegistrationOptions, WorkDoneProgressOptions, WorkDoneProgressParams,
 };
 use serde::{Deserialize, Serialize};
@@ -143,9 +143,9 @@ pub struct InlineCompletionList {
 pub struct InlineCompletionItem {
     /// The text to replace the range with. Must be set.
     /// Is used both for the preview and the accept operation.
-    pub insert_text: String,
+    pub insert_text: InlineCompletionText,
     /// A text that is used to decide if this inline completion should be
-    /// shown. When `falsy` the [`InlineCompletionItem::insertText`] is
+    /// shown. When omitted or empty, [`InlineCompletionItem::insert_text`] is
     /// used.
     ///
     /// An inline completion is shown if the text to replace is a prefix of the
@@ -163,8 +163,14 @@ pub struct InlineCompletionItem {
     /// completion.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command: Option<Command>,
-    /// The format of the insert text. The format applies to the `insertText`.
-    /// If omitted defaults to `InsertTextFormat.PlainText`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub insert_text_format: Option<InsertTextFormat>,
+}
+
+/// Text inserted by an inline completion.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum InlineCompletionText {
+    /// Plain text.
+    Plain(String),
+    /// A snippet template.
+    Snippet(StringValue),
 }
