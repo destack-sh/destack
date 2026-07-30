@@ -15,7 +15,7 @@ use crate::{
 };
 
 const PROGRAM_MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
-const PROGRAM_VERSION: u16 = 4;
+const PROGRAM_VERSION: u16 = 5;
 
 /// Program image load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]

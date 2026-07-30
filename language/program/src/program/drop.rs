@@ -1,16 +1,33 @@
-use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_heap::DropId;
+use destack_mir::{Space, Storage};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use super::FunctionId;
 
-/// One program destructor.
+/// Placement-specific destructors for one program type.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct DropEntry {
-    /// The destructor function.
-    pub function: FunctionId,
+    /// The destructor for values retained in activation frames.
+    pub frame: Optional<FunctionId>,
+    /// The destructor for worker-local heap allocations.
+    pub local: Optional<FunctionId>,
+    /// The destructor for runtime-shared heap allocations.
+    pub shared: Optional<FunctionId>,
+}
+
+impl DropEntry {
+    /// Return the destructor for one storage placement.
+    pub fn destructor(self, storage: Storage) -> Option<FunctionId> {
+        match storage {
+            Storage::Frame => self.frame.get(),
+            Storage::Heap(Space::Local) => self.local.get(),
+            Storage::Heap(Space::Shared) => self.shared.get(),
+            Storage::Global(_) => None,
+        }
+    }
 }
 
 /// Destructors carried by one program.

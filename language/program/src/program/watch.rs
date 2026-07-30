@@ -32,8 +32,6 @@ pub enum MemoryRange {
     SharedHeap(ByteRange),
     /// Native address range.
     Address(ByteRange),
-    /// Frame-owned stack allocation range.
-    Stack(ByteRange),
     /// Frame value range.
     Frame(ByteRange),
     /// Program global range.
@@ -150,11 +148,6 @@ impl MemoryRange {
         Self::Address(ByteRange::new(start, byte_len))
     }
 
-    /// Create one stack allocation range.
-    pub const fn stack(start: u64, byte_len: u64) -> Self {
-        Self::Stack(ByteRange::new(start, byte_len))
-    }
-
     /// Create one frame value range.
     pub const fn frame(start: u64, byte_len: u64) -> Self {
         Self::Frame(ByteRange::new(start, byte_len))
@@ -176,7 +169,6 @@ impl MemoryRange {
             (Self::LocalHeap(left), Self::LocalHeap(right)) => left.overlaps(right),
             (Self::SharedHeap(left), Self::SharedHeap(right)) => left.overlaps(right),
             (Self::Address(left), Self::Address(right)) => left.overlaps(right),
-            (Self::Stack(left), Self::Stack(right)) => left.overlaps(right),
             (Self::Frame(left), Self::Frame(right)) => left.overlaps(right),
             (Self::Global(left), Self::Global(right)) => left.overlaps(right),
             _ => false,

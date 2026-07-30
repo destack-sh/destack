@@ -7,7 +7,7 @@ use destack_heap::{
     SharedHeapOptions, TraceTable, TraceView, visit_heap_root_slots,
 };
 use destack_memory::{MemoryMap, MemoryResult};
-use destack_mir::{Space, TargetLayout, TraceId, TraceMap};
+use destack_mir::{Space, Storage, TargetLayout, TraceId, TraceMap};
 use destack_serde::Reflect;
 use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
@@ -370,7 +370,7 @@ impl Program {
     }
 
     /// Return the destructor for one concrete type when it requires cleanup.
-    pub fn destructor(&self, ty: TypeId) -> Result<Option<FunctionId>> {
+    pub fn destructor(&self, ty: TypeId, storage: Storage) -> Result<Option<FunctionId>> {
         let descriptor = self
             .types()
             .descriptor(self.sections(), ty)
@@ -386,7 +386,7 @@ impl Program {
             .drop_entry(drop)
             .ok_or_else(|| Error::undefined_drop(drop))?;
 
-        Ok(Some(entry.function))
+        Ok(entry.destructor(storage))
     }
 
     /// Return the heap allocation shape for one concrete type.
