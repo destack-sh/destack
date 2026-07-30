@@ -29,15 +29,14 @@ impl<'a> BytecodeFormatContext<'a> {
                 let reference = ty.dynamic_reference().ok_or(FormatError::SyntaxError {
                     message: "dynamic value has no payload reference",
                 })?;
-                let space = reference
-                    .storage()
-                    .heap_space()
-                    .and_then(|space| space.name())
-                    .ok_or(FormatError::SyntaxError {
-                        message: "dynamic value has an invalid space",
-                    })?;
+                let kind = reference.kind().name().ok_or(FormatError::SyntaxError {
+                    message: "dynamic value has invalid payload ownership",
+                })?;
+                let storage = reference.storage().name().ok_or(FormatError::SyntaxError {
+                    message: "dynamic value has invalid payload storage",
+                })?;
 
-                Ok(format!("dynamic<{name}, {space}>"))
+                Ok(format!("dynamic<{name}, {kind}, {storage}>"))
             }
             ValueTag::TENSOR | ValueTag::TENSOR_VIEW => self.tensor_type_text(ty),
             ValueTag::VECTOR => ty

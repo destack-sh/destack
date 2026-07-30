@@ -52,7 +52,7 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_text(&value)
     }
 
-    /// Format one nullish pointer or reference constant.
+    /// Format one nullish reference-like constant.
     fn format_nullish(&mut self, opcode: Opcode) -> FormatResult<()> {
         let literal = if opcode == Opcode::CONSTANT_NULL {
             "constant.null"
@@ -61,7 +61,7 @@ impl InstructionFormatter<'_, '_, '_> {
         };
         self.write_opcode(literal)?;
 
-        self.result()?;
+        self.result_span()?;
 
         Ok(())
     }

@@ -177,17 +177,17 @@ opcodes! {
         operands: [ResultRange, Bits128],
     }
     CONSTANT_NULL = 0x0023 {
-        text: "null",
+        text: "constant.null",
         signature: "() => value",
-        operands: [Result],
+        operands: [ResultRange],
     }
     CONSTANT_UNDEFINED = 0x0024 {
-        text: "undefined",
+        text: "constant.undefined",
         signature: "() => value",
-        operands: [Result],
+        operands: [ResultRange],
     }
     CONSTANT_ZEROED = 0x0026 {
-        text: "zeroed",
+        text: "constant.zeroed",
         signature: "() => uninit",
         operands: [ResultRange],
     }
@@ -521,8 +521,8 @@ opcodes! {
     }
 
     // runtime checks
-    CHECK_NULL = 0x00d0 {
-        text: "check.null",
+    CHECK_NULLISH = 0x00d0 {
+        text: "check.nullish",
         signature: "(value: value, failure: label) => void",
         operands: [Register, Branch],
     }

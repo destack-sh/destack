@@ -224,7 +224,7 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             Opcode::ATOMIC_FENCE => self.format_fence(),
 
             // runtime checks
-            Opcode::CHECK_NULL | Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE => {
+            Opcode::CHECK_NULLISH | Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE => {
                 self.format_runtime_check(opcode)
             }
 

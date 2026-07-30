@@ -383,11 +383,11 @@ impl ValueType {
     }
 
     /// Create one dynamic value type.
-    pub const fn dynamic(constraint: TypeId, space: Space) -> Self {
+    pub const fn dynamic(constraint: TypeId, reference: ReferenceType) -> Self {
         Self {
             tag: ValueTag::DYNAMIC,
             scalar: 0,
-            reference: ReferenceType::new(ReferenceKind::MANAGED, Storage::heap(space)),
+            reference,
             word_count: 2,
             lane_count: 0,
             type_id: constraint.0,
@@ -740,7 +740,6 @@ impl ValueType {
                 self.scalar == 0
                     && self.word_count == 2
                     && self.reference.is_defined()
-                    && self.reference.kind().0 == ReferenceKind::MANAGED.0
                     && self.lane_count == 0
             }
             ValueTag::SLICE | ValueTag::UNINIT_SLICE => {

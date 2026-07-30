@@ -41,10 +41,14 @@ impl Parser<'_> {
                 self.eat_token(TokenType::LessThan)?;
                 let constraint = self.parse_type_id()?;
                 self.eat_token(TokenType::Comma)?;
-                let space = self.parse_space()?;
+                let kind = self.parse_reference_kind()?;
+                self.eat_token(TokenType::Comma)?;
+                let storage = self.parse_storage()?;
                 self.eat_token(TokenType::GreaterThan)?;
 
-                Ok(ValueType::dynamic(constraint, space))
+                let reference = ReferenceType::new(kind, storage);
+
+                Ok(ValueType::dynamic(constraint, reference))
             }
             "tensor" => {
                 let (ty, scalar, space) = self.parse_tensor_type()?;

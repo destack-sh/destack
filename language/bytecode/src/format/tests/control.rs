@@ -38,7 +38,7 @@ function f0 {
     check.nonzero.int32 r0 else b3
 poll
 check.type r2, t0 else b3
-check.null r3 else b3
+check.nullish r3 else b3
 branch.lt.int32 r0,r1=>b0,b2
 b0:
 switch r0{0=>b1,default=>b2}
@@ -55,7 +55,7 @@ function f0 {
     check.nonzero.int32 r0 else b3
     poll
     check.type r2, t0 else b3
-    check.null r3 else b3
+    check.nullish r3 else b3
     branch.lt.int32 r0, r1 => b0, b2
 
 b0:

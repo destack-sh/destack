@@ -269,8 +269,8 @@ impl Parser<'_> {
         let name = name
             .strip_prefix("check.")
             .ok_or_else(|| ParseError::new("expected check operation", token.span))?;
-        let mut instruction = if name == "null" {
-            self.parse_null_check()?
+        let mut instruction = if name == "nullish" {
+            self.parse_nullish_check()?
         } else if name == "type" || name == "subtype" {
             self.parse_type_check(name)?
         } else {
@@ -286,10 +286,10 @@ impl Parser<'_> {
         function.emit(instruction, &results, self.empty_span())
     }
 
-    /// Parse one null check before its failure destination.
-    fn parse_null_check(&mut self) -> ParseResult<InstructionBuilder> {
+    /// Parse one nullish check before its failure destination.
+    fn parse_nullish_check(&mut self) -> ParseResult<InstructionBuilder> {
         let value = self.parse_register()?;
-        let mut instruction = InstructionBuilder::new(Opcode::CHECK_NULL);
+        let mut instruction = InstructionBuilder::new(Opcode::CHECK_NULLISH);
         instruction.register(value);
 
         Ok(instruction)
