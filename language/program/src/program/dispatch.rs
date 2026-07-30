@@ -61,6 +61,8 @@ pub struct DispatchTable {
     dynamic_shapes: SectionSlice<DynamicShape>,
     /// Flattened dynamic slots.
     dynamic_slots: SectionSlice<DynamicSlot>,
+    /// Flattened name-keyed dynamic entries.
+    dynamic_names: SectionSlice<DynamicNamedEntry>,
 }
 
 impl DispatchTable {
@@ -89,13 +91,16 @@ impl DispatchTable {
         }
 
         // flatten dynamic table payloads
+        let mut dynamic_names = EntryStore::new();
         for dynamic in dynamic_tables {
             let entries = dynamic_entries.append(dynamic.entries);
+            let names = dynamic_names.append(dynamic.names);
 
             dynamic_table_entries.push(DynamicTable {
                 concrete: dynamic.concrete,
                 constraint: dynamic.constraint,
                 entries,
+                names,
             });
         }
 
@@ -115,6 +120,7 @@ impl DispatchTable {
         let dynamic_entries = sections.insert(dynamic_entries.into_entries());
         let dynamic_shapes = sections.insert(dynamic_shape_entries);
         let dynamic_slots = sections.insert(dynamic_slots.into_entries());
+        let dynamic_names = sections.insert(dynamic_names.into_entries());
 
         Self {
             virtual_tables,
@@ -123,6 +129,7 @@ impl DispatchTable {
             dynamic_entries,
             dynamic_shapes,
             dynamic_slots,
+            dynamic_names,
         }
     }
 
@@ -252,6 +259,18 @@ pub struct DynamicTable {
     pub constraint: TypeId,
     /// Entries in runtime slot order.
     pub entries: EntryRange<DynamicEntry>,
+    /// Name-keyed concrete field entries sorted by name.
+    pub names: EntryRange<DynamicNamedEntry>,
+}
+
+/// One name-keyed entry in a dynamic dispatch table.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct DynamicNamedEntry {
+    /// The concrete field name.
+    pub name: StringId,
+    /// The entry backing the name.
+    pub entry: DynamicEntry,
 }
 
 /// Dynamic table shape for one constraint type.
@@ -282,6 +301,8 @@ pub struct DynamicTableBuilder {
     pub constraint: TypeId,
     /// Entries in runtime slot order.
     pub entries: Vec<DynamicEntry>,
+    /// Name-keyed concrete field entries sorted by name.
+    pub names: Vec<DynamicNamedEntry>,
 }
 
 /// Build-time dynamic table shape.
@@ -320,6 +341,14 @@ impl DynamicEntry {
         }
     }
 
+    /// Create an absent entry, read as undefined.
+    pub fn absent() -> Self {
+        Self {
+            kind: DynamicEntryKind::Absent,
+            value: 0,
+        }
+    }
+
     /// Return the field byte offset when this is a field entry.
     pub fn field_offset_value(self) -> Option<u32> {
         (self.kind == DynamicEntryKind::FieldOffset).then_some(self.value)
@@ -339,6 +368,8 @@ pub enum DynamicEntryKind {
     FieldOffset = 0,
     /// Function entry.
     Function = 1,
+    /// Absent entry, read as undefined.
+    Absent = 2,
 }
 
 /// Dynamic dispatch slot.
@@ -391,3 +422,4 @@ unsafe impl SectionEntry for DynamicTable {}
 unsafe impl SectionEntry for DynamicShape {}
 unsafe impl SectionEntry for DynamicEntry {}
 unsafe impl SectionEntry for DynamicSlot {}
+unsafe impl SectionEntry for DynamicNamedEntry {}

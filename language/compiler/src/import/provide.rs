@@ -31,7 +31,7 @@ impl Compiler {
         if let Some((module, _)) = self.tree_builder_reference(profile, context)? {
             globals.push(module);
         }
-        let artifacts = self.artifact_reader(context.revision());
+        let artifacts = self.artifact_reader(context);
         self.collect_exported_modules(globals, profile, &artifacts, &mut dependencies)?;
 
         Ok(dependencies)
