@@ -81,7 +81,7 @@ impl StaticImage {
     }
 
     /// Return a native projection of this constant image.
-    pub fn as_native_constants(&self, sections: SectionImage<'_>) -> abi::ConstantSpace {
+    pub fn native(&self, sections: SectionImage<'_>) -> abi::ConstantSpace {
         let bytes = sections.entries(self.bytes);
 
         abi::ConstantSpace {
@@ -211,7 +211,7 @@ impl StaticSpace {
     }
 
     /// Return a native projection of this static space.
-    pub fn as_native_statics(&mut self) -> abi::StaticSpace {
+    pub fn native(&mut self) -> abi::StaticSpace {
         abi::StaticSpace {
             bytes: (self.memory.base_address() + self.range.offset) as *mut u8,
             byte_len: self.range.byte_len,
