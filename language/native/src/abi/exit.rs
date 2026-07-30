@@ -14,7 +14,7 @@ pub type ExitCode = u32;
 pub struct Exit {
     /// Exit kind written by runtime operations that leave native execution.
     pub kind: ExitCode,
-    /// Safepoint associated with stop or deoptimization.
+    /// Safepoint associated with one non-completion exit.
     pub safepoint: u32,
     /// Trap code associated with trap exits.
     pub trap: TrapCode,
@@ -26,14 +26,20 @@ pub struct Exit {
 pub enum ExitKind {
     /// Execution completed normally.
     Completed = 0,
-    /// Execution trapped.
-    Trapped = 1,
-    /// Execution deoptimized into interpreter state.
-    Deoptimized = 2,
+    /// Execution completed through cancellation cleanup.
+    Cancelled = 1,
+    /// Execution awaited one asynchronous value.
+    Awaited = 2,
+    /// Execution yielded one generator value.
+    Yielded = 3,
     /// Execution stopped with a language panic.
-    Panicked = 3,
+    Panicked = 4,
     /// Execution stopped for host inspection.
-    Stopped = 4,
+    Stopped = 5,
+    /// Execution deoptimized into interpreter state.
+    Deoptimized = 6,
+    /// Execution trapped.
+    Trapped = 7,
 }
 
 /// Native exit code conversion error.
@@ -83,10 +89,13 @@ impl TryFrom<ExitCode> for ExitKind {
     fn try_from(code: ExitCode) -> Result<Self, Self::Error> {
         match code {
             0 => Ok(Self::Completed),
-            1 => Ok(Self::Trapped),
-            2 => Ok(Self::Deoptimized),
-            3 => Ok(Self::Panicked),
-            4 => Ok(Self::Stopped),
+            1 => Ok(Self::Cancelled),
+            2 => Ok(Self::Awaited),
+            3 => Ok(Self::Yielded),
+            4 => Ok(Self::Panicked),
+            5 => Ok(Self::Stopped),
+            6 => Ok(Self::Deoptimized),
+            7 => Ok(Self::Trapped),
             code => Err(ExitError { code }),
         }
     }

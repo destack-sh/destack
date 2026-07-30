@@ -10,18 +10,24 @@ pub type TrapCode = u32;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(u32)]
 pub enum Trap {
-    /// Integer arithmetic overflowed.
-    IntegerOverflow = 1,
-    /// A checked cast failed.
-    InvalidCast = 2,
+    /// Integer division or remainder used a zero divisor.
+    DivisionByZero = 1,
+    /// Checked integer arithmetic overflowed.
+    IntegerOverflow = 2,
+    /// Explicit arithmetic validation failed.
+    InvalidArithmetic = 3,
+    /// Execution reached an unreachable instruction.
+    Unreachable = 4,
+    /// The explicit abort trap was reached.
+    Abort = 5,
     /// A bounds check failed.
-    Bounds = 3,
-    /// A null reference was used.
-    NullReference = 4,
-    /// An unreachable block executed.
-    Unreachable = 5,
+    Bounds = 6,
+    /// A null check failed.
+    Null = 7,
+    /// A runtime type check failed.
+    Type = 8,
     /// Native stack capacity was exceeded.
-    StackOverflow = 6,
+    StackOverflow = 9,
 }
 
 impl Trap {
@@ -51,12 +57,15 @@ impl TryFrom<TrapCode> for Trap {
 
     fn try_from(code: TrapCode) -> Result<Self, Self::Error> {
         match code {
-            1 => Ok(Self::IntegerOverflow),
-            2 => Ok(Self::InvalidCast),
-            3 => Ok(Self::Bounds),
-            4 => Ok(Self::NullReference),
-            5 => Ok(Self::Unreachable),
-            6 => Ok(Self::StackOverflow),
+            1 => Ok(Self::DivisionByZero),
+            2 => Ok(Self::IntegerOverflow),
+            3 => Ok(Self::InvalidArithmetic),
+            4 => Ok(Self::Unreachable),
+            5 => Ok(Self::Abort),
+            6 => Ok(Self::Bounds),
+            7 => Ok(Self::Null),
+            8 => Ok(Self::Type),
+            9 => Ok(Self::StackOverflow),
             code => Err(TrapError { code }),
         }
     }
