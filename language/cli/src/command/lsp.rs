@@ -18,8 +18,8 @@ pub fn run(_args: &LspArgs) -> i32 {
     };
 
     runtime.block_on(async {
-        if let Err(e) = destack_lsp::run_stdio_server().await {
-            console::error(&format!("lsp error: {e}"));
+        if let Err(error) = destack_lsp::DestackLanguageServer::run_stdio().await {
+            console::error(&format!("lsp error: {error}"));
             return 1;
         }
         0
