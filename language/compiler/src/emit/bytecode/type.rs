@@ -142,8 +142,8 @@ impl<'a> TypeEmitter<'a> {
 
     /// Return the bytecode register representation for one MIR type.
     pub(crate) fn register_type(&self, ty: mir::TypeId) -> Result<bytecode::ValueType, EmitError> {
-        let storage = self.storage_type(ty);
-        let definition = self.optimized.tree.get(storage);
+        let representation = self.storage_type(ty);
+        let definition = self.optimized.tree.get(representation);
         let value_type = match definition {
             mir::Type::Never | mir::Type::Void => return Err(self.unsupported_type()),
             mir::Type::Boolean => bytecode::ValueType::scalar(bytecode::Scalar::Boolean),
@@ -156,22 +156,22 @@ impl<'a> TypeEmitter<'a> {
             | mir::Type::Waiter { .. } => bytecode::ValueType::scalar(bytecode::Scalar::Uint64),
             mir::Type::Float(format) => bytecode::ValueType::scalar(self.float(*format)),
             mir::Type::TypeId => bytecode::ValueType::type_id(),
-            mir::Type::Reference { kind, space, .. } => {
-                bytecode::ValueType::reference(self.reference_kind(*kind)?, self.space(*space)?)
+            mir::Type::Reference { kind, storage, .. } => {
+                bytecode::ValueType::reference(self.reference_kind(*kind)?, self.storage(*storage))
             }
             mir::Type::Slice {
                 kind,
                 element,
-                space,
+                storage,
                 ..
             } => bytecode::ValueType::slice(
                 self.type_id(*element)?,
                 self.reference_kind(*kind)?,
-                self.space(*space)?,
+                self.storage(*storage),
             ),
             mir::Type::Uninit { value } => self.uninitialized(*value)?,
             mir::Type::Dynamic { constraint, space } => {
-                bytecode::ValueType::dynamic(self.type_id(*constraint)?, self.space(*space)?)
+                bytecode::ValueType::dynamic(self.type_id(*constraint)?, self.space(*space))
             }
             mir::Type::Vector { element, lanes, .. } => {
                 let scalar = self.scalar(*element)?;
@@ -181,13 +181,13 @@ impl<'a> TypeEmitter<'a> {
             }
             mir::Type::Tensor { element, space, .. } => bytecode::ValueType::tensor(
                 self.scalar(*element)?,
-                self.type_id(storage)?,
-                self.space(*space)?,
+                self.type_id(representation)?,
+                self.space(*space),
             ),
             mir::Type::TensorView {
                 kind,
                 element,
-                space,
+                storage,
                 shape,
                 ..
             } => {
@@ -197,8 +197,11 @@ impl<'a> TypeEmitter<'a> {
 
                 bytecode::ValueType::tensor_view(
                     self.scalar(*element)?,
-                    self.type_id(storage)?,
-                    bytecode::ReferenceType::new(self.reference_kind(*kind)?, self.space(*space)?),
+                    self.type_id(representation)?,
+                    bytecode::ReferenceType::new(
+                        self.reference_kind(*kind)?,
+                        self.storage(*storage),
+                    ),
                     word_count,
                 )
             }
@@ -216,12 +219,12 @@ impl<'a> TypeEmitter<'a> {
             | mir::Type::Struct { .. }
             | mir::Type::Variant { .. }
             | mir::Type::Newtype { .. } => {
-                let word_count = self.word_count(storage)?;
+                let word_count = self.word_count(representation)?;
                 if word_count == 0 {
                     return Err(self.unsupported_type());
                 }
 
-                bytecode::ValueType::indexed(self.type_id(storage)?, word_count)
+                bytecode::ValueType::indexed(self.type_id(representation)?, word_count)
             }
             mir::Type::Atomic { .. }
             | mir::Type::ManuallyDrop { .. }
@@ -264,19 +267,21 @@ impl<'a> TypeEmitter<'a> {
     /// Return one uninitialized bytecode representation.
     fn uninitialized(&self, ty: mir::TypeId) -> Result<bytecode::ValueType, EmitError> {
         match self.optimized.tree.get(self.storage_type(ty)) {
-            mir::Type::Reference { kind, space, .. } => Ok(bytecode::ValueType::uninit_reference(
-                self.reference_kind(*kind)?,
-                self.space(*space)?,
-            )),
+            mir::Type::Reference { kind, storage, .. } => {
+                Ok(bytecode::ValueType::uninit_reference(
+                    self.reference_kind(*kind)?,
+                    self.storage(*storage),
+                ))
+            }
             mir::Type::Slice {
                 kind,
-                space,
+                storage,
                 element,
                 ..
             } => Ok(bytecode::ValueType::uninit_slice(
                 self.type_id(*element)?,
                 self.reference_kind(*kind)?,
-                self.space(*space)?,
+                self.storage(*storage),
             )),
             _ => Err(self.unsupported_type()),
         }
@@ -333,13 +338,23 @@ impl<'a> TypeEmitter<'a> {
         }
     }
 
-    /// Return one bytecode reference space.
-    fn space(&self, space: mir::Space) -> Result<bytecode::Space, EmitError> {
+    /// Return one bytecode heap ownership domain.
+    fn space(&self, space: mir::Space) -> bytecode::Space {
         match space {
-            mir::Space::Local => Ok(bytecode::Space::LOCAL),
-            mir::Space::Shared => Ok(bytecode::Space::SHARED),
-            mir::Space::Frame => Ok(bytecode::Space::FRAME),
-            mir::Space::Static => Ok(bytecode::Space::STATIC),
+            mir::Space::Local => bytecode::Space::LOCAL,
+            mir::Space::Shared => bytecode::Space::SHARED,
+        }
+    }
+
+    /// Return one bytecode reference storage.
+    fn storage(&self, storage: mir::Storage) -> bytecode::Storage {
+        match storage {
+            mir::Storage::Heap(mir::Space::Local) => bytecode::Storage::LOCAL,
+            mir::Storage::Heap(mir::Space::Shared) => bytecode::Storage::SHARED,
+            mir::Storage::Frame => bytecode::Storage::FRAME,
+            mir::Storage::Global(mir::GlobalStorage::Constant) => bytecode::Storage::CONSTANT,
+            mir::Storage::Global(mir::GlobalStorage::Local) => bytecode::Storage::LOCAL_GLOBAL,
+            mir::Storage::Global(mir::GlobalStorage::Shared) => bytecode::Storage::SHARED_GLOBAL,
         }
     }
 

@@ -38,7 +38,7 @@ entry(v0: int32):
 
 export function readAnswer(): int32 {
 entry:
-    v0: ref<int32, raw, mutable, space(static)> = global.address answer
+    v0: ref<int32, raw, mutable, global> = global.address answer
     v1: int32 = load v0
     return v1
 }

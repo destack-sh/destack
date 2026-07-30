@@ -1,7 +1,6 @@
 mod binding;
 mod bytecode;
 mod dispatch;
-mod drop;
 mod frame;
 mod function;
 mod layout;
@@ -16,7 +15,6 @@ mod tests;
 pub(crate) use binding::BindingLinker;
 pub(crate) use bytecode::BytecodeLinker;
 pub(crate) use dispatch::DispatchLinker;
-pub(crate) use drop::DropLinker;
 pub(crate) use frame::FrameLinker;
 pub(crate) use function::FunctionLinker;
 pub(crate) use layout::LayoutLinker;

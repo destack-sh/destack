@@ -134,8 +134,8 @@ impl<'a> GlobalLinker<'a> {
             None => vec![0; layout.byte_len()],
         };
 
-        match global.space {
-            mir::Space::Static => self.define_global_bytes(
+        match global.storage {
+            mir::GlobalStorage::Constant => self.define_global_bytes(
                 constants,
                 globals,
                 GlobalLocation::Constant,
@@ -144,7 +144,7 @@ impl<'a> GlobalLinker<'a> {
                 false,
                 &bytes,
             )?,
-            mir::Space::Shared => self.define_global_bytes(
+            mir::GlobalStorage::Shared => self.define_global_bytes(
                 shared,
                 globals,
                 GlobalLocation::SharedStatic,
@@ -153,7 +153,7 @@ impl<'a> GlobalLinker<'a> {
                 global.is_mutable(),
                 &bytes,
             )?,
-            mir::Space::Local => self.define_global_bytes(
+            mir::GlobalStorage::Local => self.define_global_bytes(
                 local,
                 globals,
                 GlobalLocation::LocalStatic,
@@ -162,11 +162,6 @@ impl<'a> GlobalLinker<'a> {
                 global.is_mutable(),
                 &bytes,
             )?,
-            mir::Space::Frame => {
-                return Err(self
-                    .program
-                    .invalid_input(format!("global {global_id:?} cannot use frame storage")));
-            }
         }
 
         Ok(())
@@ -634,7 +629,7 @@ impl<'a> GlobalLinker<'a> {
             | mir::Type::TypeId => Ok(()),
             mir::Type::Reference {
                 kind: _,
-                space: _,
+                storage: _,
                 access: _,
                 nullability,
                 ..

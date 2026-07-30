@@ -1078,14 +1078,14 @@ impl<'a> FunctionEmitter<'a> {
         reference: mir::Value,
     ) -> Result<bytecode::RegisterId, EmitError> {
         let ty = self.value_type(reference)?;
-        let mir::Type::Reference { space, .. } = self.optimized.tree.get(ty) else {
+        let mir::Type::Reference { storage, .. } = self.optimized.tree.get(ty) else {
             return Err(self.invalid_input("memory access requires a reference"));
         };
-        let opcode = match space {
-            mir::Space::Local => bytecode::Opcode::POINTER_LOCAL,
-            mir::Space::Shared => bytecode::Opcode::POINTER_SHARED,
-            mir::Space::Frame => bytecode::Opcode::POINTER_FRAME,
-            mir::Space::Static => bytecode::Opcode::POINTER_GLOBAL,
+        let opcode = match storage {
+            mir::Storage::Heap(mir::Space::Local) => bytecode::Opcode::POINTER_LOCAL,
+            mir::Storage::Heap(mir::Space::Shared) => bytecode::Opcode::POINTER_SHARED,
+            mir::Storage::Frame => bytecode::Opcode::POINTER_FRAME,
+            mir::Storage::Global(_) => bytecode::Opcode::POINTER_GLOBAL,
         };
         let pointer = self.scratch(bytecode::ValueType::pointer())?;
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
@@ -1117,8 +1117,12 @@ impl<'a> FunctionEmitter<'a> {
             bytecode::NewKind::Slice => result.slice_reference(),
         }
         .ok_or_else(|| self.invalid_input("allocation result is not a reference"))?;
+        let space = reference
+            .storage()
+            .heap_space()
+            .ok_or_else(|| self.invalid_input("allocation requires heap storage"))?;
         let operation = bytecode::New {
-            space: reference.space(),
+            space,
             ownership: reference.kind(),
             kind,
             initialization,
@@ -1155,7 +1159,7 @@ impl<'a> FunctionEmitter<'a> {
         let destructor = self
             .optimized
             .drops
-            .destructor(ty)
+            .destructor(ty, mir::Storage::Frame)
             .ok_or_else(|| self.invalid_input("missing destructor"))?;
         let destructor = self.types.function_id(destructor)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::DROP);

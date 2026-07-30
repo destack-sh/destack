@@ -373,7 +373,8 @@ impl Sites {
         storage_type: mir::TypeId,
         result_type: mir::TypeId,
     ) -> Result<AllocationSite, EmitError> {
-        let space = Self::reference_space(optimized, result_type)
+        let space = Self::reference_storage(optimized, result_type)
+            .and_then(mir::Storage::heap_space)
             .ok_or_else(|| ObjectEmitter::invalid(module, "missing allocation space"))?;
 
         Ok(AllocationSite {
@@ -392,36 +393,39 @@ impl Sites {
         point: Point,
         access: &mir::MemoryAccess,
     ) -> Result<MemorySite, EmitError> {
-        let (space, value_type) = match access.target {
+        let (storage, value_type) = match access.target {
             mir::MemoryTarget::Reference(value) => {
                 let ty = function.value_type(value).ok_or_else(|| {
                     ObjectEmitter::invalid(module, "missing memory reference type")
                 })?;
-                let space = Self::reference_space(optimized, ty).ok_or_else(|| {
-                    ObjectEmitter::invalid(module, "missing memory reference space")
+                let storage = Self::reference_storage(optimized, ty).ok_or_else(|| {
+                    ObjectEmitter::invalid(module, "missing memory reference storage")
                 })?;
                 let value_type = Self::reference_value_type(optimized, ty).ok_or_else(|| {
                     ObjectEmitter::invalid(module, "missing memory reference value type")
                 })?;
 
-                (space, value_type)
+                (storage, value_type)
             }
             mir::MemoryTarget::Local(local) => {
                 let local = optimized.tree.get(local);
 
-                (mir::Space::Frame, Self::storage_type(optimized, local.ty))
+                (mir::Storage::Frame, Self::storage_type(optimized, local.ty))
             }
             mir::MemoryTarget::Global(global) => {
                 let global = optimized.tree.get(global);
 
-                (mir::Space::Static, Self::storage_type(optimized, global.ty))
+                (
+                    mir::Storage::Global(global.storage),
+                    Self::storage_type(optimized, global.ty),
+                )
             }
         };
 
         Ok(MemorySite {
             point,
             access: access.operation,
-            space,
+            storage,
             value_type,
         })
     }
@@ -444,9 +448,11 @@ impl Sites {
                 let receiver_type = function.value_type(receiver).ok_or_else(|| {
                     ObjectEmitter::invalid(module, "missing virtual receiver type")
                 })?;
-                let space = Self::reference_space(optimized, receiver_type).ok_or_else(|| {
-                    ObjectEmitter::invalid(module, "missing virtual receiver space")
-                })?;
+                let space = Self::reference_storage(optimized, receiver_type)
+                    .and_then(mir::Storage::heap_space)
+                    .ok_or_else(|| {
+                        ObjectEmitter::invalid(module, "missing virtual receiver space")
+                    })?;
 
                 (Some(space), Some(class))
             }
@@ -509,13 +515,13 @@ impl Sites {
         }
     }
 
-    /// Return the storage space carried by one reference-like MIR type.
-    fn reference_space(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::Space> {
+    /// Return the storage carried by one reference-like MIR type.
+    fn reference_storage(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::Storage> {
         match optimized.tree.get(Self::storage_type(optimized, ty)) {
-            mir::Type::Reference { space, .. }
-            | mir::Type::Slice { space, .. }
-            | mir::Type::TensorView { space, .. }
-            | mir::Type::Tensor { space, .. } => Some(*space),
+            mir::Type::Reference { storage, .. }
+            | mir::Type::Slice { storage, .. }
+            | mir::Type::TensorView { storage, .. } => Some(*storage),
+            mir::Type::Tensor { space, .. } => Some(mir::Storage::Heap(*space)),
             _ => None,
         }
     }

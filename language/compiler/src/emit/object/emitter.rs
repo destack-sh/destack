@@ -101,7 +101,7 @@ impl ObjectEmitter {
                         symbol: global.symbol,
                         ty: global.ty,
                         mutability: global.mutability,
-                        space: global.space,
+                        storage: global.storage,
                         linkage: global.linkage,
                         initializer: global.initializer.clone(),
                     }

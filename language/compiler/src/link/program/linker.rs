@@ -3,20 +3,20 @@ use std::sync::Arc;
 
 use artifact::{EmitFormat, Object};
 use destack_artifact as artifact;
-use destack_core::{StringId, StringPool};
+use destack_core::{Optional, StringId, StringPool};
 use destack_heap::DropId;
 use destack_mir as mir;
 use destack_program::{
-    AllocationSiteId, CounterId, DynamicTableId, FunctionId, GlobalId, LayoutId, Program,
-    ProgramBuilder, SamplerId, Signature, SignatureId, TypeId, VirtualTableId,
+    AllocationSiteId, CounterId, DropEntry, DynamicTableId, FunctionId, GlobalId, LayoutId,
+    Program, ProgramBuilder, SamplerId, Signature, SignatureId, TypeId, VirtualTableId,
 };
 use destack_source::{ModuleId, PackageId, TargetId};
 
 use crate::{LinkError, LinkResult};
 
 use super::{
-    BindingLinker, BytecodeLinker, DispatchLinker, DropLinker, FrameLinker, FunctionLinker,
-    LayoutLinker, SiteLinker, StaticLinker, TypeLinker,
+    BindingLinker, BytecodeLinker, DispatchLinker, FrameLinker, FunctionLinker, LayoutLinker,
+    SiteLinker, StaticLinker, TypeLinker,
 };
 
 /// Build one Program from optimized module objects and an immutable string pool.
@@ -52,8 +52,8 @@ pub struct ProgramLinker<'a> {
     types_by_id: Vec<(ModuleId, mir::TypeId)>,
     /// Dense drop ids keyed by program type id.
     drop_ids: HashMap<TypeId, DropId>,
-    /// MIR destructors in dense drop id order.
-    destructors: Vec<(ModuleId, mir::FunctionId)>,
+    /// Program destructors in dense drop id order.
+    drops: Vec<DropEntry>,
     /// Dense virtual table ids keyed by canonical concrete type.
     virtual_table_ids: HashMap<TypeId, VirtualTableId>,
     /// Dense dynamic table ids keyed by canonical concrete and constraint types.
@@ -86,7 +86,7 @@ impl<'a> ProgramLinker<'a> {
             Self::build_function_ids(package, &objects, &type_ids, strings)?;
         let (signatures, function_signatures, type_signatures) =
             Self::build_signatures(&objects, &type_ids);
-        let (drop_ids, destructors) = Self::build_drops(
+        let (drop_ids, drops) = Self::build_drops(
             package,
             &objects,
             &type_ids,
@@ -116,7 +116,7 @@ impl<'a> ProgramLinker<'a> {
             type_ids,
             types_by_id,
             drop_ids,
-            destructors,
+            drops,
             virtual_table_ids,
             dynamic_table_ids,
             global_ids,
@@ -159,7 +159,6 @@ impl<'a> ProgramLinker<'a> {
         let functions = FunctionLinker::new(&self).link()?;
         let bindings = BindingLinker::new(&self).link()?;
         let sites = SiteLinker::new(&self, &frame_linker).link()?;
-        let drops = DropLinker::new(&self).link();
         let types = TypeLinker::new(&self).link()?;
         let statics = StaticLinker::new(&self).link()?;
         let dispatch = DispatchLinker::new(&self).link()?;
@@ -168,7 +167,7 @@ impl<'a> ProgramLinker<'a> {
         let program = ProgramBuilder::new(self.target_layout, bytecode)
             .strings(self.strings, self.string_ids()?)
             .types(types)
-            .drops(drops)
+            .drops(self.drops)
             .layouts(layouts.layouts)
             .frames(frames)
             .functions(functions)
@@ -300,11 +299,6 @@ impl<'a> ProgramLinker<'a> {
         let ty = self.type_id(module, ty);
 
         self.drop_ids.get(&ty).copied()
-    }
-
-    /// Iterate destructors in dense drop id order.
-    pub(crate) fn destructors(&self) -> impl Iterator<Item = (ModuleId, mir::FunctionId)> + '_ {
-        self.destructors.iter().copied()
     }
 
     /// Return MIR functions in dense program function order.
@@ -809,46 +803,64 @@ impl<'a> ProgramLinker<'a> {
         type_ids: &HashMap<(ModuleId, mir::TypeId), TypeId>,
         type_count: usize,
         function_ids: &HashMap<(ModuleId, mir::FunctionId), FunctionId>,
-    ) -> LinkResult<(HashMap<TypeId, DropId>, Vec<(ModuleId, mir::FunctionId)>)> {
-        let mut destructor_by_type = HashMap::new();
+    ) -> LinkResult<(HashMap<TypeId, DropId>, Vec<DropEntry>)> {
+        let mut functions = HashMap::new();
 
-        // resolve every local destructor into canonical program identity
+        // resolve every specialized destructor into canonical program identity
         for (module, object) in objects {
-            for ty in object.types() {
-                let Some(function) = object.drops().destructor(ty.id) else {
-                    continue;
-                };
-                let ty = type_ids[&(*module, ty.id)];
-                let function_id = function_ids[&(*module, function)];
+            for (&(ty, storage), &function) in &object.drops().destructors {
+                if matches!(storage, mir::Storage::Global(_)) {
+                    return Err(Self::invalid_input_for(
+                        package,
+                        format!("type {ty:?} defines a destructor for global storage"),
+                    ));
+                }
 
-                if let Some((previous_module, previous_function)) = destructor_by_type.get(&ty) {
+                let ty = type_ids[&(*module, ty)];
+                let function_id = function_ids[&(*module, function)];
+                let key = (ty, storage);
+
+                if let Some((previous_module, previous_function)) = functions.get(&key) {
                     let previous_id = function_ids[&(*previous_module, *previous_function)];
                     if previous_id != function_id {
                         return Err(Self::invalid_input_for(
                             package,
-                            format!("type {ty:?} has multiple destructors"),
+                            format!("type {ty:?} has multiple {storage:?} destructors"),
                         ));
                     }
                 } else {
-                    destructor_by_type.insert(ty, (*module, function));
+                    functions.insert(key, (*module, function));
                 }
             }
         }
 
         // assign drop ids in canonical program type order
         let mut ids = HashMap::new();
-        let mut destructors = Vec::new();
+        let mut drops = Vec::new();
         for index in 0..type_count {
             let ty = TypeId::from(index as u32);
-            let Some(destructor) = destructor_by_type.remove(&ty) else {
+            let frame = functions
+                .remove(&(ty, mir::Storage::Frame))
+                .map(|(module, function)| function_ids[&(module, function)]);
+            let local = functions
+                .remove(&(ty, mir::Storage::Heap(mir::Space::Local)))
+                .map(|(module, function)| function_ids[&(module, function)]);
+            let shared = functions
+                .remove(&(ty, mir::Storage::Heap(mir::Space::Shared)))
+                .map(|(module, function)| function_ids[&(module, function)]);
+            if frame.is_none() && local.is_none() && shared.is_none() {
                 continue;
-            };
+            }
 
-            ids.insert(ty, DropId::from_index(destructors.len() as u32));
-            destructors.push(destructor);
+            ids.insert(ty, DropId::from_index(drops.len() as u32));
+            drops.push(DropEntry {
+                frame: Optional::from(frame),
+                local: Optional::from(local),
+                shared: Optional::from(shared),
+            });
         }
 
-        Ok((ids, destructors))
+        Ok((ids, drops))
     }
 
     /// Build dense virtual table ids from canonical concrete types.
@@ -1010,7 +1022,7 @@ impl<'a> ProgramLinker<'a> {
                     definition.ty,
                     type_ids,
                 ) || global.mutability != definition.mutability
-                    || global.space != definition.space
+                    || global.storage != definition.storage
                 {
                     return Err(Self::invalid_input_for(
                         package,

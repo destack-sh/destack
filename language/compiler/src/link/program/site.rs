@@ -140,7 +140,7 @@ impl<'a> SiteLinker<'a> {
                 mir::MemoryOperation::Write => MemoryAccess::Write,
                 mir::MemoryOperation::ReadWrite => MemoryAccess::ReadWrite,
             },
-            space: site.space,
+            storage: site.storage,
             value_type: self.program.type_id(module, site.value_type),
         }
     }

@@ -297,14 +297,14 @@ impl<'a> ObjectTypes<'a> {
         match type_shape {
             mir::Type::Reference {
                 kind,
-                space,
+                storage,
                 access,
                 pointee,
                 nullability,
                 ..
             } => Some(LayoutShapeBuilder::Reference(ReferenceLayout {
                 pointee: self.type_id(*pointee),
-                flags: ReferenceFlags::new(*kind, *space, *access, *nullability),
+                flags: ReferenceFlags::new(*kind, *storage, *access, *nullability),
             })),
             mir::Type::FunctionPointer { signature } => Some(LayoutShapeBuilder::FunctionPointer(
                 self.signature(*signature)?,
@@ -317,7 +317,7 @@ impl<'a> ObjectTypes<'a> {
     fn slice_layout_shape(&self, type_shape: &mir::Type) -> Option<LayoutShapeBuilder> {
         let mir::Type::Slice {
             kind,
-            space,
+            storage,
             access,
             element,
             nullability,
@@ -330,7 +330,7 @@ impl<'a> ObjectTypes<'a> {
         Some(LayoutShapeBuilder::Slice(SliceLayout {
             reference: ReferenceLayout {
                 pointee: self.type_id(*element),
-                flags: ReferenceFlags::new(*kind, *space, *access, *nullability),
+                flags: ReferenceFlags::new(*kind, *storage, *access, *nullability),
             },
         }))
     }
@@ -343,7 +343,7 @@ impl<'a> ObjectTypes<'a> {
     ) -> Option<LayoutShapeBuilder> {
         let mir::Type::TensorView {
             kind,
-            space,
+            storage,
             access,
             element,
             shape,
@@ -355,7 +355,7 @@ impl<'a> ObjectTypes<'a> {
         };
         let reference = ReferenceLayout {
             pointee: self.type_id(*element),
-            flags: ReferenceFlags::new(*kind, *space, *access, *nullability),
+            flags: ReferenceFlags::new(*kind, *storage, *access, *nullability),
         };
         let layout = TensorViewLayoutBuilder::new(
             reference,
