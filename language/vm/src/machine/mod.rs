@@ -9,7 +9,6 @@ mod stack;
 
 pub(crate) use activation::*;
 pub(crate) use callee::*;
-pub(crate) use continuation::*;
 pub(crate) use cursor::*;
 pub(crate) use frame::*;
 pub use image::*;

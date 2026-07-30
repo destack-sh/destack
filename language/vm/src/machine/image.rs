@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_bytecode::{CodeOffset, FrameMap, RegisterSpan};
+use destack_bytecode::{Code, CodeOffset, FrameMap, RegisterSpan};
 use destack_heap::{HeapResult, RootSlot};
 use destack_memory::{MemoryImage, MemoryRange};
 use destack_mir as mir;
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Error, Result};
 
-use super::{Frame, FrameRestore, Machine};
+use super::{Frame, Machine};
 
 /// Immutable image produced by one bytecode machine.
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,11 +51,13 @@ pub(crate) struct FrameMapping {
 
 impl FrameMapping {
     /// Return canonical slots paired with their physical register spans.
-    fn values<'a>(&'a self, program: &'a Program) -> Result<(&'a [FrameSlot], &'a [RegisterSpan])> {
+    fn values<'a>(
+        &'a self,
+        program: &'a Program,
+        bytecode: Code,
+    ) -> Result<(&'a [FrameSlot], &'a [RegisterSpan])> {
         let slots = program.frame_slots(&self.layout);
-        let spans = self
-            .map
-            .registers(program.bytecode().registers(program.sections()));
+        let spans = self.map.registers(bytecode.registers(program.sections()));
         if slots.len() != spans.len() {
             return Err(Error::invalid_image());
         }
@@ -96,6 +98,10 @@ impl MachineImage {
         program: &Program,
         index: usize,
     ) -> Result<Vec<u8>> {
+        let bytecode = program
+            .bytecode()
+            .copied()
+            .ok_or_else(Error::bytecode_unavailable)?;
         let image = self.frames.get(index).ok_or_else(Error::invalid_image)?;
         let state = program
             .frame_state(image.state)
@@ -103,11 +109,10 @@ impl MachineImage {
         let layout = program
             .frame_layout(state.layout)
             .ok_or_else(Error::invalid_image)?;
-        let map = program
-            .bytecode()
+        let map = bytecode
             .frame(program.sections(), image.state.index())
             .ok_or_else(Error::invalid_image)?;
-        let spans = map.registers(program.bytecode().registers(program.sections()));
+        let spans = map.registers(bytecode.registers(program.sections()));
         let slots = program.frame_slots(layout);
         if slots.len() != spans.len() {
             return Err(Error::invalid_image());
@@ -147,7 +152,7 @@ impl Machine {
 
         // retain caller to callee and slot acquisition order
         for mapping in mappings {
-            let (slots, spans) = mapping.values(&self.program)?;
+            let (slots, spans) = mapping.values(&self.program, self.bytecode)?;
 
             for (slot, span) in slots.iter().zip(spans) {
                 let Some(function) = self
@@ -228,7 +233,7 @@ impl Machine {
 
         // visit each live physical value through its canonical Program type
         for mapping in mappings {
-            let (slots, spans) = mapping.values(program)?;
+            let (slots, spans) = mapping.values(program, self.bytecode)?;
             for (slot, span) in slots.iter().zip(spans) {
                 let byte_offset = mapping.frame.range(*span) * Word::BYTE_LEN;
                 let bytes = stack.bytes_mut(byte_offset, slot.byte_len as usize)?;
@@ -286,53 +291,8 @@ impl Machine {
         self.frame_state_at(frame, frame.pc)
     }
 
-    /// Allocate physical frames described by one immutable image.
-    pub(crate) fn restore_frame_mappings(
-        &mut self,
-        frames: &[FrameRestore],
-    ) -> Result<Vec<FrameMapping>> {
-        let mut mappings = Vec::with_capacity(frames.len());
-        let mut byte_offset = 0usize;
-
-        // allocate every frame before restoring cross-frame addresses
-        for image in frames {
-            let state = self
-                .program
-                .frame_state(image.state)
-                .copied()
-                .ok_or_else(Error::invalid_image)?;
-            let linked = self
-                .program
-                .bytecode()
-                .function(self.program.sections(), state.point.function().index())
-                .ok_or_else(|| Error::undefined_function(state.point.function()))?;
-            let code = linked
-                .code()
-                .ok_or_else(|| Error::undefined_function(state.point.function()))?;
-            let layout = self.frame_layout(image.state)?;
-            byte_offset = byte_offset.next_multiple_of(layout.alignment() as usize);
-            if image.byte_offset != byte_offset {
-                return Err(Error::invalid_image());
-            }
-            let register_offset = self.stack.push_words(linked.register_count())?;
-            let mut frame = Frame::new(
-                state.point.function(),
-                code,
-                register_offset,
-                linked.register_count,
-                image.return_to,
-            );
-            frame.pc = image.pc;
-            self.frames.push(frame);
-            mappings.push(self.frame_mapping(frame, image.state, byte_offset)?);
-            byte_offset += layout.byte_len() as usize;
-        }
-
-        Ok(mappings)
-    }
-
     /// Resolve one physical frame map and canonical layout.
-    fn frame_mapping(
+    pub(crate) fn frame_mapping(
         &self,
         frame: Frame,
         state: FrameStateId,
@@ -359,7 +319,7 @@ impl Machine {
 
     /// Resolve one frame state at a physical function operation.
     pub(crate) fn frame_state_at(&self, frame: Frame, pc: CodeOffset) -> Result<FrameStateId> {
-        let bytecode = self.program.bytecode();
+        let bytecode = self.bytecode;
         let function = bytecode
             .function(self.program.sections(), frame.function.index())
             .ok_or_else(|| Error::undefined_function(frame.function))?;
@@ -387,8 +347,7 @@ impl Machine {
 
     /// Resolve one physical frame map.
     pub(crate) fn frame_map(&self, state: FrameStateId) -> Result<FrameMap> {
-        self.program
-            .bytecode()
+        self.bytecode
             .frame(self.program.sections(), state.index())
             .copied()
             .ok_or_else(Error::invalid_image)
@@ -403,7 +362,7 @@ impl Machine {
 
         // copy every live value before rewriting embedded frame addresses
         for mapping in mappings {
-            let (slots, spans) = mapping.values(&self.program)?;
+            let (slots, spans) = mapping.values(&self.program, self.bytecode)?;
             for (slot, span) in slots.iter().zip(spans) {
                 if span.end() > mapping.frame.register_count as u32 {
                     return Err(Error::invalid_image());
@@ -459,7 +418,7 @@ impl Machine {
 
         // copy canonical live values into their physical register spans
         for mapping in mappings {
-            let (slots, spans) = mapping.values(&self.program)?;
+            let (slots, spans) = mapping.values(&self.program, self.bytecode)?;
             for (slot, span) in slots.iter().zip(spans) {
                 let source = Self::slot_bytes(
                     &mut bytes,
@@ -559,7 +518,7 @@ impl Machine {
     /// Translate one physical frame offset into a canonical image offset.
     fn canonical_offset(&self, offset: usize, mappings: &[FrameMapping]) -> Result<Option<usize>> {
         for mapping in mappings {
-            let (slots, spans) = mapping.values(&self.program)?;
+            let (slots, spans) = mapping.values(&self.program, self.bytecode)?;
             let Some(physical) = offset.checked_sub(mapping.frame.byte_offset()) else {
                 continue;
             };
@@ -581,7 +540,7 @@ impl Machine {
     /// Translate one canonical image offset into a physical frame offset.
     fn physical_offset(&self, offset: usize, mappings: &[FrameMapping]) -> Result<Option<usize>> {
         for mapping in mappings {
-            let (slots, spans) = mapping.values(&self.program)?;
+            let (slots, spans) = mapping.values(&self.program, self.bytecode)?;
 
             for (slot, span) in slots.iter().zip(spans) {
                 let start = mapping.byte_offset + slot.offset as usize;

@@ -1,4 +1,4 @@
-use destack_bytecode::{CodeRange, Function};
+use destack_bytecode::{Code, CodeRange, Function};
 use destack_program::{Binding, FunctionId, Program};
 
 use crate::diagnostic::{Error, Result};
@@ -19,9 +19,12 @@ pub(crate) enum Callee<'a> {
 
 impl<'a> Callee<'a> {
     /// Resolve one Program function call destination.
-    pub(crate) fn resolve(program: &'a Program, function: FunctionId) -> Result<Self> {
-        let linked = program
-            .bytecode()
+    pub(crate) fn resolve(
+        program: &'a Program,
+        bytecode: Code,
+        function: FunctionId,
+    ) -> Result<Self> {
+        let linked = bytecode
             .function(program.sections(), function.index())
             .ok_or_else(|| Error::undefined_function(function))?;
         if let Some(code) = linked.code() {

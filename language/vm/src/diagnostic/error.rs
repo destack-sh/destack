@@ -98,6 +98,11 @@ impl Error {
         Self::new(ErrorReason::Machine(MachineError::InvalidImage))
     }
 
+    /// Create one unavailable bytecode error.
+    pub fn bytecode_unavailable() -> Self {
+        Self::new(ErrorReason::Machine(MachineError::BytecodeUnavailable))
+    }
+
     /// Create one active execution error.
     pub fn execution_active() -> Self {
         Self::new(ErrorReason::Machine(MachineError::ExecutionActive))

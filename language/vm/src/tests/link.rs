@@ -11,8 +11,8 @@ use destack_program::{
     BindingAffinity, BindingBuilder, BindingEffect, BindingId, BindingProvider, BindingReplay,
     DispatchTableBuilder, DropEntry, FrameLayoutBuilder, FrameLayoutId, FramePoint, FrameSlot,
     FrameState, FrameTableBuilder, FunctionBuilder, FunctionId, FunctionTableBuilder,
-    LayoutBuilder, LayoutId, Program, ProgramBuilder, ProgramPoint, SignatureId,
-    TypeDescriptorBuilder, TypeId, Word,
+    GlobalTableBuilder, LayoutBuilder, LayoutId, Program, ProgramBuilder, ProgramPoint,
+    SignatureId, Symbol, TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, Word,
 };
 use destack_source::FileId;
 
@@ -63,6 +63,16 @@ impl TestProgram {
         let (globals, constants, shared_statics, local_statics) = self.globals();
         let (types, layouts, traces, drops) = self.types(&object);
         let (strings, names, functions, bindings) = self.functions(&object);
+        let types = TypeTableBuilder::new().types(
+            (0..types.len())
+                .map(|index| TypeFingerprint::from_raw(index as u128))
+                .zip(types),
+        );
+        let globals = GlobalTableBuilder::new().globals(
+            (0..globals.len())
+                .map(|index| Symbol::from_raw(index as u64))
+                .zip(globals),
+        );
         let suspensions = self.suspensions.into_iter().map(|site| {
             let point = FramePoint::operation(site.point());
             let frame_state = *frame_states
@@ -72,7 +82,8 @@ impl TestProgram {
             site.link(frame_state)
         });
         let sites = self.sites.suspensions(suspensions);
-        let program = ProgramBuilder::new(Default::default(), code)
+        let program = ProgramBuilder::new(Default::default())
+            .bytecode(code)
             .strings(&strings, names)
             .functions(functions)
             .bindings(bindings)
@@ -290,6 +301,9 @@ impl TestProgram {
             functions.push(entry);
         }
 
+        let functions = (0..functions.len())
+            .map(|index| Symbol::from_raw(index as u64))
+            .zip(functions);
         let table = FunctionTableBuilder::new()
             .signatures(signatures)
             .functions(functions);

@@ -229,8 +229,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let frame = self.frame();
         let (results, target, byte_len) = {
             let program = &self.machine.program;
-            let instruction = program
-                .bytecode()
+            let instruction = self
+                .machine
+                .bytecode
                 .instruction(program.sections(), frame.function.index(), frame.pc)?
                 .ok_or_else(|| self.invalid_instruction())?;
             let mut operands = self.operands(instruction);

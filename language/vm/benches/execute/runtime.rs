@@ -13,8 +13,8 @@ use destack_program as program;
 use destack_program::{
     AllocationSite, FrameTableBuilder, FunctionBuilder, FunctionId, FunctionTableBuilder,
     LayoutBuilder, LayoutId, LayoutShapeBuilder, ProgramBuilder, ProgramPoint, ScalarFormat,
-    Signature, SignatureId, SiteTableBuilder, TensorDimension, TensorLayoutBuilder,
-    TypeDescriptorBuilder, TypeId, Value, Word,
+    Signature, SignatureId, SiteTableBuilder, Symbol, TensorDimension, TensorLayoutBuilder,
+    TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, Value, Word,
 };
 use destack_source::FileId;
 use destack_vm::{Error, Machine, MachineLimits, Result};
@@ -236,8 +236,14 @@ impl Runtime {
         let code = Self::code(object);
         let (types, layouts, traces) = Self::types(tensor_dimensions);
         let sites = Self::sites(object, tensor_dimensions.is_some());
+        let types = TypeTableBuilder::new().types(
+            (0..types.len())
+                .map(|index| TypeFingerprint::from_raw(index as u128))
+                .zip(types),
+        );
 
-        ProgramBuilder::new(Default::default(), code)
+        ProgramBuilder::new(Default::default())
+            .bytecode(code)
             .strings(&strings, string_ids)
             .types(types)
             .layouts(layouts)
@@ -359,6 +365,9 @@ impl Runtime {
             functions.push(FunctionBuilder::new(name, signature));
         }
 
+        let functions = (0..functions.len())
+            .map(|index| Symbol::from_raw(index as u64))
+            .zip(functions);
         let table = FunctionTableBuilder::new()
             .signatures(signatures)
             .functions(functions);

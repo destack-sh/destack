@@ -107,7 +107,9 @@ where
         function: FunctionId,
         arguments: &[Word],
     ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
-        if let Callee::Binding(binding) = Callee::resolve(&self.machine.program, function)? {
+        if let Callee::Binding(binding) =
+            Callee::resolve(&self.machine.program, self.machine.bytecode, function)?
+        {
             let result_count = self.binding_result_word_count(function)?;
             let mut result = vec![Word::ZERO; result_count];
             let memory = self.activation.memory.reborrow();
@@ -236,7 +238,9 @@ where
                 frame_count,
             },
         };
-        if let Callee::Binding(binding) = Callee::resolve(&self.machine.program, function)? {
+        if let Callee::Binding(binding) =
+            Callee::resolve(&self.machine.program, self.machine.bytecode, function)?
+        {
             let Return::Call {
                 registers, normal, ..
             } = return_to
@@ -337,7 +341,7 @@ where
         }
         let current = self.frame();
         let argument_start = current.range(arguments);
-        let callee = Callee::resolve(&self.machine.program, function)?;
+        let callee = Callee::resolve(&self.machine.program, self.machine.bytecode, function)?;
         if let Callee::Binding(binding) = callee {
             let result_count = self.binding_result_word_count(function)?;
             Self::call_binding(
@@ -629,7 +633,7 @@ where
         let active = *frame;
         let frame = ptr::from_mut(frame);
         let sections = self.machine.program.sections();
-        let bytes = self.machine.program.bytecode().bytes(sections);
+        let bytes = self.machine.bytecode.bytes(sections);
 
         // materialize native addresses only for this activation
         let code = unsafe { bytes.as_ptr().add(active.code.byte_offset as usize) };
@@ -700,10 +704,11 @@ where
     /// Return the Program point at one exact bytecode operation offset when present.
     pub(crate) fn point_at(&self, frame: Frame, offset: CodeOffset) -> Option<ProgramPoint> {
         let program = &self.machine.program;
-        let operation =
-            program
-                .bytecode()
-                .operation_at(program.sections(), frame.function.index(), offset)?;
+        let operation = self.machine.bytecode.operation_at(
+            program.sections(),
+            frame.function.index(),
+            offset,
+        )?;
 
         Some(ProgramPoint::new(frame.function, operation))
     }

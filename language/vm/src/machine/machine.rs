@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_bytecode::{CodeRange, Function};
+use destack_bytecode::{Code, CodeRange, Function};
 use destack_memory::MemoryMap;
 use destack_mir as mir;
 use destack_program as program;
@@ -19,6 +19,8 @@ use super::{Activation, Callee, Frame, Return, Stack};
 pub struct Machine {
     /// The immutable linked Program.
     pub(crate) program: Arc<Program>,
+    /// The copied section view of linked bytecode selected for this machine.
+    pub(crate) bytecode: Code,
     /// The machine resource limits.
     pub(crate) limits: MachineLimits,
     /// The active call frames.
@@ -36,6 +38,10 @@ impl Machine {
         memory: Arc<MemoryMap>,
         limits: MachineLimits,
     ) -> Result<Self> {
+        let bytecode = program
+            .bytecode()
+            .copied()
+            .ok_or_else(Error::bytecode_unavailable)?;
         let host_pointer_bytes = size_of::<usize>() as u8;
         if program.pointer_bytes() != host_pointer_bytes {
             return Err(Error::incompatible_pointer_width(
@@ -49,6 +55,7 @@ impl Machine {
 
         Ok(Self {
             program,
+            bytecode,
             limits,
             frames: Vec::new(),
             stack,
@@ -61,6 +68,7 @@ impl Machine {
         let stack = self.stack.fork(memory);
         Self {
             program: self.program.clone(),
+            bytecode: self.bytecode,
             limits: self.limits,
             frames: self.frames.clone(),
             stack,
@@ -322,7 +330,7 @@ impl Machine {
 
     /// Return executable code for one bytecode function.
     pub(crate) fn bytecode(&self, function: FunctionId) -> Result<(&Function, CodeRange)> {
-        match Callee::resolve(&self.program, function)? {
+        match Callee::resolve(&self.program, self.bytecode, function)? {
             Callee::Bytecode { function, code } => Ok((function, code)),
             Callee::Binding(_) => Err(Error::invalid_instruction()),
         }

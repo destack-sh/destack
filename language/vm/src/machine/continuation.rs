@@ -5,20 +5,7 @@ use destack_program::{
 
 use crate::diagnostic::{Error, Result};
 
-use super::{Frame, Machine, Return};
-
-/// One physical frame reconstructed from canonical continuation state.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct FrameRestore {
-    /// Canonical frame state describing live values.
-    pub(crate) state: FrameStateId,
-    /// Canonical frame byte offset inside the continuation.
-    pub(crate) byte_offset: usize,
-    /// Instruction entered when this frame resumes.
-    pub(crate) pc: CodeOffset,
-    /// Transition taken when this frame returns.
-    pub(crate) return_to: Return,
-}
+use super::{Frame, FrameMapping, Machine, Return};
 
 impl Machine {
     /// Capture one coroutine entry frame before its first instruction.
@@ -155,9 +142,8 @@ impl Machine {
         }
 
         // rebuild physical return transitions from canonical Program call sites
-        let frames = self.continuation_frames(continuation.states(), return_to)?;
         let result = self
-            .restore_frame_mappings(&frames)
+            .restore_continuation_frames(continuation.states(), return_to)
             .and_then(|frames| self.unpack_frames(&frames, continuation.bytes()));
         if result.is_err() {
             self.clear();
@@ -178,9 +164,8 @@ impl Machine {
             .last()
             .map(|frame| frame.byte_offset() + frame.register_count as usize * Word::BYTE_LEN)
             .ok_or_else(Error::invalid_image)?;
-        let frames = self.continuation_frames(continuation.states(), return_to)?;
         let result = self
-            .restore_frame_mappings(&frames)
+            .restore_continuation_frames(continuation.states(), return_to)
             .and_then(|frames| self.unpack_frames(&frames, continuation.bytes()));
         if result.is_err() {
             self.frames.truncate(first_frame);
@@ -190,41 +175,63 @@ impl Machine {
         result
     }
 
-    /// Project canonical continuation states into physical VM frames.
-    fn continuation_frames(
-        &self,
+    /// Restore physical VM frames from canonical continuation states.
+    fn restore_continuation_frames(
+        &mut self,
         states: &[FrameStateId],
         root_return: Return,
-    ) -> Result<Vec<FrameRestore>> {
+    ) -> Result<Vec<FrameMapping>> {
         if states.is_empty() {
             return Err(Error::invalid_image());
         }
         let mut frames = Vec::with_capacity(states.len());
         let mut byte_offset = 0usize;
 
-        // rebuild each child return from its caller's canonical call site
+        // rebuild each physical frame from canonical Program state
         for (index, state) in states.iter().copied().enumerate() {
             let linked = self
                 .program
                 .frame_state(state)
+                .copied()
                 .ok_or_else(Error::invalid_image)?;
+            let function = linked.point.function();
             let pc = match linked.point {
                 FramePoint::Entry { .. } => CodeOffset(0),
                 FramePoint::Operation(point) => self.pc(point)?,
             };
+
+            // rebuild the child return from its caller's canonical call site
             let return_to = if index == 0 {
                 root_return
             } else {
                 self.frame_return(states[index - 1])?
             };
+
+            // resolve the physical bytecode frame
+            let linked = self
+                .bytecode
+                .function(self.program.sections(), function.index())
+                .ok_or_else(|| Error::undefined_function(function))?;
+            let code = linked
+                .code()
+                .ok_or_else(|| Error::undefined_function(function))?;
+
+            // allocate physical registers at the canonical frame alignment
             let layout = self.frame_layout(state)?;
             byte_offset = byte_offset.next_multiple_of(layout.alignment() as usize);
-            frames.push(FrameRestore {
-                state,
-                byte_offset,
-                pc,
+            let register_offset = self.stack.push_words(linked.register_count())?;
+            let mut frame = Frame::new(
+                function,
+                code,
+                register_offset,
+                linked.register_count,
                 return_to,
-            });
+            );
+            frame.pc = pc;
+
+            // retain the frame and its canonical live value mapping
+            self.frames.push(frame);
+            frames.push(self.frame_mapping(frame, state, byte_offset)?);
             byte_offset += layout.byte_len() as usize;
         }
 
@@ -242,8 +249,7 @@ impl Machine {
             .operation_point()
             .ok_or_else(Error::invalid_image)?;
         let instruction = self
-            .program
-            .bytecode()
+            .bytecode
             .operation(
                 self.program.sections(),
                 point.function.index(),
@@ -352,8 +358,7 @@ impl Machine {
 
     /// Resolve one canonical program point into a bytecode offset.
     fn pc(&self, point: ProgramPoint) -> Result<CodeOffset> {
-        self.program
-            .bytecode()
+        self.bytecode
             .operation_offset(
                 self.program.sections(),
                 point.function.index(),

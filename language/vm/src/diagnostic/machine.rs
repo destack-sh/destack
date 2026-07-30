@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 /// One VM state or host compatibility failure.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum MachineError {
+    /// The Program carries no executable bytecode.
+    BytecodeUnavailable,
     /// A new execution was requested while stopped execution remains active.
     ExecutionActive,
     /// Continue was requested without stopped execution.
@@ -25,6 +27,7 @@ impl fmt::Display for MachineError {
     /// Format one VM state or host compatibility failure.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::BytecodeUnavailable => formatter.write_str("program carries no bytecode"),
             Self::ExecutionActive => formatter.write_str("execution is already active"),
             Self::ExecutionNotStopped => formatter.write_str("execution is not stopped"),
             Self::InvalidImage => formatter.write_str("invalid machine image"),
