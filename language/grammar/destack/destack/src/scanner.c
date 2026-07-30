@@ -2,6 +2,8 @@
 #define DESTACK_WHERE_CONTINUATION
 // an attached `?` is try-propagation in destack only
 #define DESTACK_ATTACHED_TRY
+// tick names without closing quotes are lifetimes in destack only
+#define DESTACK_LIFETIME
 
 #include "../../common/scanner.h"
 

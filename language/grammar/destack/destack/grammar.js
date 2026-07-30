@@ -6,6 +6,7 @@ module.exports = grammar(JavaScript, {
   externals: ($, previous) => previous.concat([
     $._function_signature_automatic_semicolon,
     $.__error_recovery,
+    $._lifetime,
   ]),
 
   supertypes: ($, previous) => previous.concat([
@@ -2025,6 +2026,7 @@ module.exports = grammar(JavaScript, {
       $.conditional_type,
       $.key_in_type,
       $.primary_type,
+      $.lifetime,
       $.optional_type,
       $.interval_type,
       $.readonly_type,
@@ -2431,7 +2433,7 @@ module.exports = grammar(JavaScript, {
           optional('in'),
           optional('out'),
           optional('...'),
-          field('name', $._type_identifier),
+          field('name', choice($._type_identifier, $.lifetime)),
           field('constraint', optional($.constraint)),
           field('value', optional($.default_type)),
         ),
@@ -2546,7 +2548,12 @@ module.exports = grammar(JavaScript, {
 
     memory_type: $ => prec.right('unary', choice(
       seq('^', optional('readonly'), $.primary_type),
-      seq('&', optional(choice('readonly', 'exclusive')), $.primary_type),
+      seq(
+        '&',
+        field('lifetime', optional($.lifetime)),
+        optional(choice('readonly', 'exclusive')),
+        $.primary_type,
+      ),
       seq('*', $.primary_type),
     )),
     placement_type: $ => prec.right('unary', seq(choice('local', 'shared'), $.primary_type)),
@@ -2626,6 +2633,8 @@ module.exports = grammar(JavaScript, {
     ),
 
     _type_identifier: $ => alias($.identifier, $.type_identifier),
+
+    lifetime: $ => $._lifetime,
 
     _reserved_identifier: (_, previous) => choice(
       'declare',

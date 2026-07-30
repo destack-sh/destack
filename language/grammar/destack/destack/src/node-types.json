@@ -592,6 +592,10 @@
         "named": true
       },
       {
+        "type": "lifetime",
+        "named": true
+      },
+      {
         "type": "optional_type",
         "named": true
       },
@@ -5720,6 +5724,11 @@
     }
   },
   {
+    "type": "lifetime",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "literal_try_propagation_expression",
     "named": true,
     "fields": {
@@ -6293,7 +6302,18 @@
   {
     "type": "memory_type",
     "named": true,
-    "fields": {},
+    "fields": {
+      "lifetime": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "lifetime",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": false,
       "required": true,
@@ -9328,6 +9348,10 @@
         "required": false,
         "types": [
           {
+            "type": "lifetime",
+            "named": true
+          },
+          {
             "type": "type_identifier",
             "named": true
           }
@@ -10513,11 +10537,11 @@
   },
   {
     "type": "number",
-    "named": false
+    "named": true
   },
   {
     "type": "number",
-    "named": true
+    "named": false
   },
   {
     "type": "object",

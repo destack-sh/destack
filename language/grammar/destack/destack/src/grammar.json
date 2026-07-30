@@ -15457,6 +15457,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "lifetime"
+        },
+        {
+          "type": "SYMBOL",
           "name": "optional_type"
         },
         {
@@ -17348,8 +17352,17 @@
                   "type": "FIELD",
                   "name": "name",
                   "content": {
-                    "type": "SYMBOL",
-                    "name": "_type_identifier"
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "SYMBOL",
+                        "name": "_type_identifier"
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "lifetime"
+                      }
+                    ]
                   }
                 },
                 {
@@ -17997,6 +18010,22 @@
               {
                 "type": "STRING",
                 "value": "&"
+              },
+              {
+                "type": "FIELD",
+                "name": "lifetime",
+                "content": {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "lifetime"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                }
               },
               {
                 "type": "CHOICE",
@@ -18718,6 +18747,10 @@
       },
       "named": true,
       "value": "type_identifier"
+    },
+    "lifetime": {
+      "type": "SYMBOL",
+      "name": "_lifetime"
     }
   },
   "extras": [
@@ -19838,6 +19871,10 @@
     {
       "type": "SYMBOL",
       "name": "__error_recovery"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_lifetime"
     }
   ],
   "inline": [

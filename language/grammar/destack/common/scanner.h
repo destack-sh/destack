@@ -13,11 +13,45 @@ enum TokenType {
     JSX_TEXT,
     FUNCTION_SIGNATURE_AUTOMATIC_SEMICOLON,
     ERROR_RECOVERY,
+#ifdef DESTACK_LIFETIME
+    LIFETIME,
+#endif
 };
 
 static void advance(TSLexer *lexer) { lexer->advance(lexer, false); }
 
 static void skip(TSLexer *lexer) { lexer->advance(lexer, true); }
+
+#ifdef DESTACK_LIFETIME
+static bool scan_lifetime(TSLexer *lexer) {
+    // skip whitespace before the token
+    while (iswspace(lexer->lookahead)) {
+        skip(lexer);
+    }
+
+    // require a tick followed by an identifier start
+    if (lexer->lookahead != '\'') {
+        return false;
+    }
+    advance(lexer);
+
+    if (lexer->lookahead != '_' && lexer->lookahead != '$' && !iswalpha(lexer->lookahead)) {
+        return false;
+    }
+    advance(lexer);
+
+    // consume the remaining identifier
+    while (lexer->lookahead == '_' || lexer->lookahead == '$' || iswalnum(lexer->lookahead)) {
+        advance(lexer);
+    }
+
+    // leave immediately closed tick names to the string lexer
+    lexer->mark_end(lexer);
+    lexer->result_symbol = LIFETIME;
+
+    return lexer->lookahead != '\'';
+}
+#endif
 
 static bool scan_template_chars(TSLexer *lexer) {
     lexer->result_symbol = TEMPLATE_CHARS;
@@ -351,6 +385,12 @@ static bool scan_jsx_text(TSLexer *lexer) {
 }
 
 static inline bool external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid_symbols) {
+#ifdef DESTACK_LIFETIME
+    if (valid_symbols[LIFETIME] && scan_lifetime(lexer)) {
+        return true;
+    }
+#endif
+
     if (valid_symbols[TEMPLATE_CHARS]) {
         if (valid_symbols[AUTOMATIC_SEMICOLON]) {
             return false;

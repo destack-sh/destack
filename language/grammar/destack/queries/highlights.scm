@@ -2,6 +2,7 @@
 
 (type_identifier) @type
 (predefined_type) @type.builtin
+(lifetime) @label
 
 ((identifier) @type
  (#match? @type "^[A-Z]"))
