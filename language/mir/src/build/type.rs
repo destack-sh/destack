@@ -42,49 +42,9 @@ impl ModuleBuilder {
         self.tree.intern_type(Type::Usize)
     }
 
-    /// Create a 32-bit signed integer type.
-    pub fn type_i32(&mut self) -> LocalNodeId<Type> {
-        self.type_int(32, true)
-    }
-
-    /// Create a 64-bit signed integer type.
-    pub fn type_i64(&mut self) -> LocalNodeId<Type> {
-        self.type_int(64, true)
-    }
-
-    /// Create a 32-bit unsigned integer type.
-    pub fn type_u32(&mut self) -> LocalNodeId<Type> {
-        self.type_int(32, false)
-    }
-
-    /// Create a 64-bit unsigned integer type.
-    pub fn type_u64(&mut self) -> LocalNodeId<Type> {
-        self.type_int(64, false)
-    }
-
     /// Create a float type.
     pub fn type_float(&mut self, float_type: FloatType) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Float(float_type))
-    }
-
-    /// Create a 16-bit IEEE-754 float type.
-    pub fn type_f16(&mut self) -> LocalNodeId<Type> {
-        self.type_float(FloatType::Float16)
-    }
-
-    /// Create a 16-bit BF16 float type.
-    pub fn type_bf16(&mut self) -> LocalNodeId<Type> {
-        self.type_float(FloatType::Bfloat16)
-    }
-
-    /// Create a 32-bit float type.
-    pub fn type_f32(&mut self) -> LocalNodeId<Type> {
-        self.type_float(FloatType::Float32)
-    }
-
-    /// Create a 64-bit float type.
-    pub fn type_f64(&mut self) -> LocalNodeId<Type> {
-        self.type_float(FloatType::Float64)
     }
 
     /// Create a type descriptor handle type.
@@ -100,38 +60,25 @@ impl ModuleBuilder {
     /// Create a dynamic erased value type.
     pub fn type_dynamic(
         &mut self,
-        constraint: LocalNodeId<Type>,
-        nullability: Nullability,
-        space: Space,
-    ) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::Dynamic {
-            constraint,
-            nullability,
-            space,
-        })
-    }
-
-    /// Create a reference type.
-    pub fn reference_type(
-        &mut self,
         kind: ReferenceKind,
-        pointee: LocalNodeId<Type>,
+        lifetime: Lifetime,
+        constraint: LocalNodeId<Type>,
         access: Access,
         storage: Storage,
         nullability: Nullability,
     ) -> LocalNodeId<Type> {
-        self.reference_type_with_lifetime(
+        self.tree.intern_type(Type::Dynamic {
             kind,
-            Lifetime::empty(),
-            pointee,
-            access,
+            lifetime,
+            constraint,
             storage,
+            access,
             nullability,
-        )
+        })
     }
 
-    /// Create a reference type with an explicit lifetime.
-    pub fn reference_type_with_lifetime(
+    /// Create a reference type.
+    pub fn type_reference(
         &mut self,
         kind: ReferenceKind,
         lifetime: Lifetime,
@@ -148,125 +95,6 @@ impl ModuleBuilder {
             pointee,
             nullability,
         })
-    }
-
-    /// Create a borrowed reference type.
-    pub fn type_borrowed_reference(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-        access: Access,
-    ) -> LocalNodeId<Type> {
-        self.reference_type(
-            ReferenceKind::Borrowed,
-            pointee,
-            access,
-            Storage::Heap(Space::Local),
-            Nullability::None,
-        )
-    }
-
-    /// Create a raw pointer type (manual memory management).
-    pub fn type_raw_pointer(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.type_raw_pointer_with_access(pointee, Access::Readonly)
-    }
-
-    /// Create a raw pointer type with explicit access.
-    pub fn type_raw_pointer_with_access(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-        access: Access,
-    ) -> LocalNodeId<Type> {
-        self.reference_type(
-            ReferenceKind::Raw,
-            pointee,
-            access,
-            Storage::Heap(Space::Local),
-            Nullability::None,
-        )
-    }
-
-    /// Create a mutable raw pointer type.
-    pub fn type_raw_pointer_mutable(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.type_raw_pointer_with_access(pointee, Access::Mutable)
-    }
-
-    /// Create a managed reference type (runtime-tracked).
-    pub fn type_managed_reference(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.type_managed_reference_with_access(pointee, Access::Readonly)
-    }
-
-    /// Create a managed reference type with explicit access.
-    pub fn type_managed_reference_with_access(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-        access: Access,
-    ) -> LocalNodeId<Type> {
-        self.reference_type(
-            ReferenceKind::Managed,
-            pointee,
-            access,
-            Storage::Heap(Space::Local),
-            Nullability::None,
-        )
-    }
-
-    /// Create a mutable managed reference type.
-    pub fn type_managed_reference_mutable(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-    ) -> LocalNodeId<Type> {
-        self.type_managed_reference_with_access(pointee, Access::Mutable)
-    }
-
-    /// Create a nullable managed reference type.
-    pub fn type_managed_reference_nullable(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-    ) -> LocalNodeId<Type> {
-        self.type_managed_reference_nullable_with_access(pointee, Access::Readonly)
-    }
-
-    /// Create a nullable managed reference type with explicit access.
-    pub fn type_managed_reference_nullable_with_access(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-        access: Access,
-    ) -> LocalNodeId<Type> {
-        self.reference_type(
-            ReferenceKind::Managed,
-            pointee,
-            access,
-            Storage::Heap(Space::Local),
-            Nullability::Null,
-        )
-    }
-
-    /// Create a mutable nullable managed reference type.
-    pub fn type_managed_reference_nullable_mutable(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-    ) -> LocalNodeId<Type> {
-        self.type_managed_reference_nullable_with_access(pointee, Access::Mutable)
-    }
-
-    /// Create a unique typed heap reference.
-    pub fn type_unique_reference(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.type_unique_reference_with_access(pointee, Access::Mutable)
-    }
-
-    /// Create a unique typed heap reference with explicit access.
-    pub fn type_unique_reference_with_access(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-        access: Access,
-    ) -> LocalNodeId<Type> {
-        self.reference_type(
-            ReferenceKind::Unique,
-            pointee,
-            access,
-            Storage::Heap(Space::Local),
-            Nullability::None,
-        )
     }
 
     /// Create a vector type.
@@ -307,6 +135,7 @@ impl ModuleBuilder {
     pub fn type_tensor_view(
         &mut self,
         kind: ReferenceKind,
+        lifetime: Lifetime,
         element: LocalNodeId<Type>,
         access: Access,
         storage: Storage,
@@ -317,7 +146,7 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::TensorView {
             kind,
-            lifetime: Lifetime::empty(),
+            lifetime,
             storage,
             access,
             element,
@@ -342,25 +171,15 @@ impl ModuleBuilder {
         })
     }
 
-    /// Create a slice type with explicit storage semantics.
-    pub fn type_slice_with(
+    /// Create a slice type.
+    pub fn type_slice(
         &mut self,
         kind: ReferenceKind,
-        element: LocalNodeId<Type>,
-        access: Access,
-        storage: Storage,
-    ) -> LocalNodeId<Type> {
-        self.type_slice_with_lifetime(kind, element, Lifetime::empty(), access, storage)
-    }
-
-    /// Create a slice type with explicit storage semantics and lifetime.
-    pub fn type_slice_with_lifetime(
-        &mut self,
-        kind: ReferenceKind,
-        element: LocalNodeId<Type>,
         lifetime: Lifetime,
+        element: LocalNodeId<Type>,
         access: Access,
         storage: Storage,
+        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Slice {
             kind,
@@ -368,18 +187,8 @@ impl ModuleBuilder {
             element,
             storage,
             access,
-            nullability: Nullability::None,
+            nullability,
         })
-    }
-
-    /// Create a local mutable slice type.
-    pub fn type_slice(&mut self, element: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.type_slice_with(
-            ReferenceKind::Managed,
-            element,
-            Access::Mutable,
-            Storage::Heap(Space::Local),
-        )
     }
 
     /// Create a tuple type with explicit copy.
@@ -454,12 +263,20 @@ impl ModuleBuilder {
     /// Create a function value type.
     pub fn type_function(
         &mut self,
+        kind: ReferenceKind,
+        lifetime: Lifetime,
         signature: LocalNodeId<Type>,
-        environment: LocalNodeId<Type>,
+        access: Access,
+        storage: Storage,
+        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Function {
+            kind,
+            lifetime,
             signature,
-            environment,
+            storage,
+            access,
+            nullability,
         })
     }
 }

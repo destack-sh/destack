@@ -207,8 +207,8 @@ entry(v0: (int32, float64, boolean), v1: [int32; 10]):
 fn test_format_callable_types() {
     assert_format(
         r#"
-function callbacks(v0: fn(int32, int32) => int64, v1: (int32) => int32): (int32) => int32 {
-entry(v0: fn(int32, int32) => int64, v1: (int32) => int32):
+function callbacks(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, managed, mutable, nullish>): function<(int32) => int32, managed, mutable, nullish> {
+entry(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, managed, mutable, nullish>):
     return v1
 }
 "#,
@@ -223,6 +223,19 @@ fn test_format_execution_types() {
 function executionTypes(v0: continuation<void, never, int32>, v1: waiter<int32>): continuation<void, never, int32> {
 entry(v0: continuation<void, never, int32>, v1: waiter<int32>):
     return v0
+}
+"#,
+    );
+}
+
+/// Formats explicit initialization and destruction storage forms canonically.
+#[test]
+fn test_format_storage_forms() {
+    assert_format(
+        r#"
+function storageForms(v0: uninit<int32>, v1: manual<int32>): manual<int32> {
+entry(v0: uninit<int32>, v1: manual<int32>):
+    return v1
 }
 "#,
     );
@@ -250,13 +263,13 @@ type Writer {
     write: fn() => uint32;
 }
 
-function erased(v0: dynamic<Writer>): dynamic<Writer> {
-entry(v0: dynamic<Writer>):
+function erased(v0: dynamic<Writer, managed, mutable>): dynamic<Writer, managed, mutable> {
+entry(v0: dynamic<Writer, managed, mutable>):
     return v0
 }
 
-function sharedErased(v0: dynamic<Writer, shared>): dynamic<Writer, shared> {
-entry(v0: dynamic<Writer, shared>):
+function sharedErased(v0: dynamic<Writer, managed, mutable, nullish, shared>): dynamic<Writer, managed, mutable, nullish, shared> {
+entry(v0: dynamic<Writer, managed, mutable, nullish, shared>):
     return v0
 }
 "#,

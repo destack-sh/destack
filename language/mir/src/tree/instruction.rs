@@ -354,13 +354,13 @@ pub enum Instruction {
     },
 
     // dynamic values
-    /// Bind a typed managed payload to its concrete runtime type.
+    /// Bind a typed reference payload to its concrete dispatch implementation.
     DynamicBind {
         /// The SSA value to define with the dynamic value.
         destination: Value,
-        /// The typed local managed payload.
+        /// The typed payload reference.
         payload: Value,
-        /// The concrete payload type.
+        /// The concrete payload type paired with the destination constraint.
         concrete: TypeId,
     },
     /// Read the erased payload from a dynamic value.
@@ -372,7 +372,7 @@ pub enum Instruction {
         /// The result type of the payload value.
         result_type: TypeId,
     },
-    /// Read the concrete type id from a dynamic value.
+    /// Read the concrete type id from a dynamic value's dispatch table.
     DynamicType {
         /// The SSA value to define with the type id.
         destination: Value,
@@ -807,11 +807,11 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeId,
     },
-    /// Release unique heap storage (`free`).
+    /// Release one unique carrier's backing heap allocation (`free`).
     ///
-    /// This is only valid for unique references after drop elaboration has run.
+    /// This is valid after drop elaboration has destroyed the allocation contents.
     Free {
-        /// The unique heap reference to free.
+        /// The unique heap carrier whose backing allocation is released.
         value: Value,
     },
 

@@ -221,21 +221,24 @@ impl Tree {
             | Type::TypeDescriptor
             | Type::TypeId => return id,
 
-            // erase pure lifetime applications
-            Type::WithLifetimes { base, .. } => return self.intern_representation(base),
-
             // normalize transparent and storage wrappers
             Type::Atomic { value } => Type::Atomic {
                 value: self.intern_representation(value),
             },
             Type::Dynamic {
+                kind,
+                lifetime: _,
                 constraint,
+                storage,
+                access,
                 nullability,
-                space,
             } => Type::Dynamic {
+                kind,
+                lifetime: Lifetime::empty(),
                 constraint: self.intern_representation(constraint),
+                storage,
+                access,
                 nullability,
-                space,
             },
             Type::Uninit { value } => Type::Uninit {
                 value: self.intern_representation(value),
@@ -383,11 +386,19 @@ impl Tree {
                 result: self.intern_representation(result),
             },
             Type::Function {
+                kind,
+                lifetime: _,
                 signature,
-                environment,
+                storage,
+                access,
+                nullability,
             } => Type::Function {
+                kind,
+                lifetime: Lifetime::empty(),
                 signature: self.intern_representation(signature),
-                environment: self.intern_representation(environment),
+                storage,
+                access,
+                nullability,
             },
             Type::FunctionPointer { signature } => Type::FunctionPointer {
                 signature: self.intern_representation(signature),
@@ -404,6 +415,9 @@ impl Tree {
             Type::Waiter { value_type } => Type::Waiter {
                 value_type: self.intern_representation(value_type),
             },
+
+            // erase pure lifetime applications
+            Type::Application { base, .. } => return self.intern_representation(base),
         };
 
         self.intern_type(representation)
@@ -431,27 +445,24 @@ impl Tree {
             | Type::TypeDescriptor
             | Type::TypeId => return id,
 
-            // instantiate explicit applications without entering their identified base
-            Type::WithLifetimes { base, lifetimes } => Type::WithLifetimes {
-                base,
-                lifetimes: lifetimes
-                    .iter()
-                    .map(|lifetime| self.substitute_lifetime(lifetime, arguments))
-                    .collect(),
-            },
-
             // instantiate transparent and storage wrappers
             Type::Atomic { value } => Type::Atomic {
                 value: self.instantiate_type_lifetimes(value, arguments),
             },
             Type::Dynamic {
+                kind,
+                lifetime,
                 constraint,
+                storage,
+                access,
                 nullability,
-                space,
             } => Type::Dynamic {
+                kind,
+                lifetime: self.substitute_lifetime(&lifetime, arguments),
                 constraint: self.instantiate_type_lifetimes(constraint, arguments),
+                storage,
+                access,
                 nullability,
-                space,
             },
             Type::Uninit { value } => Type::Uninit {
                 value: self.instantiate_type_lifetimes(value, arguments),
@@ -610,11 +621,19 @@ impl Tree {
                 result: self.instantiate_type_lifetimes(result, arguments),
             },
             Type::Function {
+                kind,
+                lifetime,
                 signature,
-                environment,
+                storage,
+                access,
+                nullability,
             } => Type::Function {
+                kind,
+                lifetime: self.substitute_lifetime(&lifetime, arguments),
                 signature: self.instantiate_type_lifetimes(signature, arguments),
-                environment: self.instantiate_type_lifetimes(environment, arguments),
+                storage,
+                access,
+                nullability,
             },
             Type::FunctionPointer { signature } => Type::FunctionPointer {
                 signature: self.instantiate_type_lifetimes(signature, arguments),
@@ -630,6 +649,15 @@ impl Tree {
             },
             Type::Waiter { value_type } => Type::Waiter {
                 value_type: self.instantiate_type_lifetimes(value_type, arguments),
+            },
+
+            // instantiate explicit applications without entering their identified base
+            Type::Application { base, lifetimes } => Type::Application {
+                base,
+                lifetimes: lifetimes
+                    .iter()
+                    .map(|lifetime| self.substitute_lifetime(lifetime, arguments))
+                    .collect(),
             },
         };
 
@@ -782,11 +810,11 @@ mod tests {
         let mut tree = Tree::new();
         let nominal = tree.reserve_type(Symbol::named(StringId::for_text("Nominal")));
         tree.define_type(nominal, Type::Void);
-        let local = tree.intern_type(Type::WithLifetimes {
+        let local = tree.intern_type(Type::Application {
             base: nominal,
             lifetimes: vec![Lifetime::slot(0)],
         });
-        let static_ = tree.intern_type(Type::WithLifetimes {
+        let static_ = tree.intern_type(Type::Application {
             base: nominal,
             lifetimes: vec![Lifetime::static_storage()],
         });

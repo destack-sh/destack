@@ -49,18 +49,10 @@ entry:
     );
 }
 
-/// Formats callable typed declarations canonically.
+/// Formats function signature declarations canonically.
 #[test]
 fn test_format_callable_type_declaration() {
-    assert_format_eq(
-        r#"
-type Callable = (int32) => int32;
-
-function use(v0: Callable): Callable {
-entry(v0: Callable):
-    return v0
-}
-"#,
+    assert_format(
         r#"
 type Callable = (int32) => int32;
 

@@ -107,7 +107,7 @@ fn static_type_needs_keyword(ty: TypeId, tree: &Tree) -> bool {
         | Type::Struct { .. }
         | Type::FunctionSignature { .. }
         | Type::Function { .. } => true,
-        Type::WithLifetimes { base, .. } => static_type_needs_keyword(*base, tree),
+        Type::Application { base, .. } => static_type_needs_keyword(*base, tree),
         _ => false,
     }
 }

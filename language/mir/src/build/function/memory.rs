@@ -28,25 +28,6 @@ impl<'a> FunctionBuilder<'a> {
         local
     }
 
-    /// Create a reference type for inline instruction typing.
-    pub fn reference_type(
-        &mut self,
-        kind: ReferenceKind,
-        pointee: LocalNodeId<Type>,
-        access: Access,
-        storage: Storage,
-        nullability: Nullability,
-    ) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::Reference {
-            kind,
-            lifetime: Lifetime::empty(),
-            storage,
-            access,
-            pointee,
-            nullability,
-        })
-    }
-
     /// Load from a local variable.
     pub fn local_get(&mut self, local: LocalNodeId<Local>) -> Value {
         let destination = self.allocate_value();
@@ -107,13 +88,14 @@ impl<'a> FunctionBuilder<'a> {
     pub fn load_global(&mut self, global: LocalNodeId<Global>) -> Value {
         let global_ty = self.tree.get(global).ty;
         let global_storage = self.tree.get(global).storage;
-        let global_pointer = self.reference_type(
-            ReferenceKind::Raw,
-            global_ty,
-            Access::Readonly,
-            Storage::Global(global_storage),
-            Nullability::None,
-        );
+        let global_pointer = self.tree.intern_type(Type::Reference {
+            kind: ReferenceKind::Raw,
+            lifetime: Lifetime::empty(),
+            storage: Storage::Global(global_storage),
+            access: Access::Readonly,
+            pointee: global_ty,
+            nullability: Nullability::None,
+        });
         let pointer = self.global_addr(global, global_pointer);
 
         self.load(pointer, global_ty)
@@ -123,13 +105,14 @@ impl<'a> FunctionBuilder<'a> {
     pub fn store_global(&mut self, global: LocalNodeId<Global>, value: Value) {
         let global_ty = self.tree.get(global).ty;
         let global_storage = self.tree.get(global).storage;
-        let global_pointer = self.reference_type(
-            ReferenceKind::Raw,
-            global_ty,
-            Access::Mutable,
-            Storage::Global(global_storage),
-            Nullability::None,
-        );
+        let global_pointer = self.tree.intern_type(Type::Reference {
+            kind: ReferenceKind::Raw,
+            lifetime: Lifetime::empty(),
+            storage: Storage::Global(global_storage),
+            access: Access::Mutable,
+            pointee: global_ty,
+            nullability: Nullability::None,
+        });
         let pointer = self.global_addr(global, global_pointer);
 
         self.store(pointer, value);
@@ -245,7 +228,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::Drop { value });
     }
 
-    /// Free unique heap storage after drop elaboration.
+    /// Release one unique carrier's backing heap allocation after drop elaboration.
     pub fn free(&mut self, value: Value) {
         self.insert_instruction(Instruction::Free { value });
     }

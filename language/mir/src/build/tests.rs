@@ -2,9 +2,9 @@ use destack_core::StringPool;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Callee, Copy, ExecutionScope, FenceAccess, FormatOptions, Formatter, Lifetime,
-    LifetimeParameter, MemoryOrdering, Mutability, Nullability, ReferenceKind, Space, Storage,
-    StorageSet, Symbol, TargetLayout, Tree, Type, TypeId,
+    Access, Callee, Copy, ExecutionScope, FenceAccess, FloatType, FormatOptions, Formatter,
+    Lifetime, LifetimeParameter, MemoryOrdering, Mutability, Nullability, ReferenceKind, Space,
+    Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeId,
 };
 
 /// Format one test MIR tree.
@@ -51,7 +51,7 @@ entry:
 fn test_build_function_with_parameters() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
 
     // build add function
     let header = module
@@ -85,7 +85,7 @@ entry(v0: int32, v1: int32):
 fn test_build_function_with_locals() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i64_type = module.type_i64();
+    let i64_type = module.type_int(64, true);
 
     // build function with local
     let header = module.function_header("withLocal").result(i64_type);
@@ -124,7 +124,7 @@ fn test_build_function_with_branch() {
     // setup
     let mut module = ModuleBuilder::new();
     let bool_type = module.type_boolean();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
 
     // build function with branch
     let header = module
@@ -191,7 +191,7 @@ b3:
 fn test_build_function_with_invoke() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let callee_header = module
         .function_header("callee")
@@ -260,7 +260,7 @@ fn test_build_calls_from_callee_and_signature() {
     // setup callable declarations
     let mut module = ModuleBuilder::new();
     let void_type = module.type_void();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
     let identity_signature = module.type_function_signature(vec![i32_type], i32_type);
     let sink_signature = module.type_function_signature(vec![i32_type], void_type);
     let identity_header = module
@@ -322,8 +322,15 @@ entry(v0: int32):
 fn test_build_function_with_panic_terminator() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
-    let string_type = module.type_managed_reference(i32_type);
+    let i32_type = module.type_int(32, true);
+    let string_type = module.type_reference(
+        ReferenceKind::Managed,
+        Lifetime::empty(),
+        i32_type,
+        Access::Readonly,
+        Storage::Heap(Space::Local),
+        Nullability::None,
+    );
     let void_type = module.type_void();
 
     // build function
@@ -353,7 +360,7 @@ entry:
 fn test_ssa_define_use_single_block() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
 
     // build function
     let header = module.function_header("varTest").result(i32_type);
@@ -391,7 +398,7 @@ entry:
 fn test_ssa_redefine_variable() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
 
     // build function
     let header = module.function_header("redefine").result(i32_type);
@@ -433,7 +440,7 @@ fn test_ssa_branch_with_phi() {
     // setup
     let mut module = ModuleBuilder::new();
     let bool_type = module.type_boolean();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
 
     // build function
     let header = module
@@ -506,7 +513,7 @@ fn test_ssa_trivial_phi_removal() {
     // setup
     let mut module = ModuleBuilder::new();
     let bool_type = module.type_boolean();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
 
     // build function
     let header = module
@@ -576,7 +583,7 @@ fn test_ssa_trivial_phi_unsealed() {
     // setup
     let mut module = ModuleBuilder::new();
     let bool_type = module.type_boolean();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
 
     // build function
     let header = module
@@ -644,7 +651,7 @@ b3:
 fn test_build_arithmetic_operations() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
 
     // build function
     let header = module
@@ -687,7 +694,7 @@ entry(v0: int32, v1: int32):
 fn test_build_comparison_operations() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
 
     // build function
@@ -736,17 +743,30 @@ fn test_type_construction() {
     let void_type = module.type_void();
     let bool_type = module.type_boolean();
     let character_type = module.type_character();
-    let i32_type = module.type_i32();
-    let i64_type = module.type_i64();
-    let f32_type = module.type_f32();
-    let f64_type = module.type_f64();
-    let pointer_type = module.type_raw_pointer(i32_type);
+    let i32_type = module.type_int(32, true);
+    let i64_type = module.type_int(64, true);
+    let f32_type = module.type_float(FloatType::Float32);
+    let f64_type = module.type_float(FloatType::Float64);
+    let pointer_type = module.type_reference(
+        ReferenceKind::Raw,
+        Lifetime::empty(),
+        i32_type,
+        Access::Readonly,
+        Storage::Heap(Space::Local),
+        Nullability::None,
+    );
     let array_type = module.type_fixed_array(i32_type, 10, Copy::Yes);
     let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copy::Yes);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let function_pointer_type = module.type_function_pointer(signature);
-    let environment_type = module.tree_mut().ensure_function_environment_type();
-    let callable_type = module.type_function(signature, environment_type);
+    let callable_type = module.type_function(
+        ReferenceKind::Managed,
+        Lifetime::empty(),
+        signature,
+        Access::Mutable,
+        Storage::Heap(Space::Local),
+        Nullability::None,
+    );
 
     // verify types
     let (tree, _strings) = module.finish_tree();
@@ -840,13 +860,55 @@ fn test_managed_reference_types() {
     let mut module = ModuleBuilder::new();
 
     // create managed reference types
-    let i32_type = module.type_i32();
-    let managed_readonly_type = module.type_managed_reference(i32_type);
-    let managed_mutable_type = module.type_managed_reference_mutable(i32_type);
-    let managed_nullable_readonly_type = module.type_managed_reference_nullable(i32_type);
-    let managed_nullable_mutable_type = module.type_managed_reference_nullable_mutable(i32_type);
-    let raw_readonly_type = module.type_raw_pointer(i32_type);
-    let raw_mutable_type = module.type_raw_pointer_mutable(i32_type);
+    let i32_type = module.type_int(32, true);
+    let managed_readonly_type = module.type_reference(
+        ReferenceKind::Managed,
+        Lifetime::empty(),
+        i32_type,
+        Access::Readonly,
+        Storage::Heap(Space::Local),
+        Nullability::None,
+    );
+    let managed_mutable_type = module.type_reference(
+        ReferenceKind::Managed,
+        Lifetime::empty(),
+        i32_type,
+        Access::Mutable,
+        Storage::Heap(Space::Local),
+        Nullability::None,
+    );
+    let managed_nullable_readonly_type = module.type_reference(
+        ReferenceKind::Managed,
+        Lifetime::empty(),
+        i32_type,
+        Access::Readonly,
+        Storage::Heap(Space::Local),
+        Nullability::Null,
+    );
+    let managed_nullable_mutable_type = module.type_reference(
+        ReferenceKind::Managed,
+        Lifetime::empty(),
+        i32_type,
+        Access::Mutable,
+        Storage::Heap(Space::Local),
+        Nullability::Null,
+    );
+    let raw_readonly_type = module.type_reference(
+        ReferenceKind::Raw,
+        Lifetime::empty(),
+        i32_type,
+        Access::Readonly,
+        Storage::Heap(Space::Local),
+        Nullability::None,
+    );
+    let raw_mutable_type = module.type_reference(
+        ReferenceKind::Raw,
+        Lifetime::empty(),
+        i32_type,
+        Access::Mutable,
+        Storage::Heap(Space::Local),
+        Nullability::None,
+    );
 
     // verify types
     let (tree, _strings) = module.finish_tree();
@@ -911,8 +973,15 @@ fn test_managed_reference_types() {
 fn test_build_new_zeroed() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
-    let ref_type = module.type_managed_reference(i32_type);
+    let i32_type = module.type_int(32, true);
+    let ref_type = module.type_reference(
+        ReferenceKind::Managed,
+        Lifetime::empty(),
+        i32_type,
+        Access::Readonly,
+        Storage::Heap(Space::Local),
+        Nullability::None,
+    );
 
     // build function with new.zeroed
     let header = module.function_header("allocTest").result(ref_type);
@@ -941,9 +1010,16 @@ entry:
 fn test_build_new_slice_zeroed() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
-    let i64_type = module.type_i64();
-    let slice_type = module.type_slice(i32_type);
+    let i32_type = module.type_int(32, true);
+    let i64_type = module.type_int(64, true);
+    let slice_type = module.type_slice(
+        ReferenceKind::Managed,
+        Lifetime::empty(),
+        i32_type,
+        Access::Mutable,
+        Storage::Heap(Space::Local),
+        Nullability::None,
+    );
 
     // build function with new.slice.zeroed
     let header = module
@@ -976,15 +1052,23 @@ entry(v0: int64):
 fn test_build_slice_view() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
-    let i64_type = module.type_i64();
-    let source_type = module.type_slice(i32_type);
-    let slice_type = module.type_slice_with_lifetime(
-        ReferenceKind::Borrowed,
+    let i32_type = module.type_int(32, true);
+    let i64_type = module.type_int(64, true);
+    let source_type = module.type_slice(
+        ReferenceKind::Managed,
+        Lifetime::empty(),
         i32_type,
-        Lifetime::slot(0),
         Access::Mutable,
         Storage::Heap(Space::Local),
+        Nullability::None,
+    );
+    let slice_type = module.type_slice(
+        ReferenceKind::Borrowed,
+        Lifetime::slot(0),
+        i32_type,
+        Access::Mutable,
+        Storage::Heap(Space::Local),
+        Nullability::None,
     );
 
     // build function with slice view
@@ -1023,7 +1107,7 @@ fn test_build_intrinsics() {
 
     // setup
     let mut module = ModuleBuilder::new();
-    let f64_type = module.type_f64();
+    let f64_type = module.type_float(FloatType::Float64);
 
     // build function with intrinsics
     let header = module
@@ -1097,8 +1181,8 @@ entry:
 fn test_build_struct_aggregate() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
-    let f64_type = module.type_f64();
+    let i32_type = module.type_int(32, true);
+    let f64_type = module.type_float(FloatType::Float64);
 
     // create a struct type {i32, f64}
     let value0 = module.field(None, i32_type);
@@ -1138,7 +1222,7 @@ entry(v0: int32, v1: float64):
 fn test_build_tuple_aggregate() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
     let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
 
@@ -1175,7 +1259,7 @@ entry(v0: int32, v1: boolean):
 fn test_build_array_aggregate() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
     let array_type = module.type_fixed_array(i32_type, 3, Copy::Yes);
 
     // build function that constructs an array
@@ -1212,8 +1296,8 @@ entry:
 fn test_build_field_get_struct() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
-    let f64_type = module.type_f64();
+    let i32_type = module.type_int(32, true);
+    let f64_type = module.type_float(FloatType::Float64);
     let value0 = module.field(None, i32_type);
     let value1 = module.field(None, f64_type);
     let struct_type = module.type_struct(vec![value0, value1], Copy::Yes);
@@ -1250,7 +1334,7 @@ entry(v0: { int32, float64 }):
 fn test_build_field_get_tuple() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
     let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
 
@@ -1286,7 +1370,7 @@ entry(v0: (int32, boolean)):
 fn test_build_field_get_from_lifetime_applied_type() {
     // define the referenced user type
     let mut module = ModuleBuilder::new();
-    let int32 = module.type_i32();
+    let int32 = module.type_int(32, true);
     let user_field_name = module.strings().intern("id");
     let user_field = module.field(Some(user_field_name), int32);
     let user_name = module.strings().intern("User");
@@ -1303,7 +1387,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
         .insert_type_declaration(user_name, Vec::new(), Vec::new(), user);
 
     // define a lifetime-polymorphic aggregate borrowing the user
-    let borrowed_user = module.reference_type_with_lifetime(
+    let borrowed_user = module.type_reference(
         ReferenceKind::Borrowed,
         Lifetime::slot(0),
         user,
@@ -1332,11 +1416,11 @@ fn test_build_field_get_from_lifetime_applied_type() {
         .insert_type_declaration(view_name, Vec::new(), lifetime_parameters, view);
 
     // project the field from one concrete lifetime application
-    let static_view = module.tree_mut().intern_type(Type::WithLifetimes {
+    let static_view = module.tree_mut().intern_type(Type::Application {
         base: view,
         lifetimes: vec![Lifetime::static_storage()],
     });
-    let static_user = module.reference_type_with_lifetime(
+    let static_user = module.type_reference(
         ReferenceKind::Borrowed,
         Lifetime::static_storage(),
         user,
@@ -1384,8 +1468,8 @@ entry(v0: View<'static>):
 fn test_build_element_get_array() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
-    let i64_type = module.type_i64();
+    let i32_type = module.type_int(32, true);
+    let i64_type = module.type_int(64, true);
     let array_type = module.type_fixed_array(i32_type, 3, Copy::Yes);
 
     // build function that extracts one fixed element
@@ -1429,7 +1513,7 @@ entry(v0: [int32; 3], v1: int64):
 fn test_ssa_passthrough_intermediate_block() {
     // setup
     let mut module = ModuleBuilder::new();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
 
     // build function
@@ -1528,7 +1612,7 @@ fn test_ssa_multiple_phis_at_merge() {
     // setup
     let mut module = ModuleBuilder::new();
     let bool_type = module.type_boolean();
-    let i32_type = module.type_i32();
+    let i32_type = module.type_int(32, true);
 
     // build function
     let header = module

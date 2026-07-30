@@ -8,25 +8,7 @@ use crate::{
 /// Preserves declaration comments while normalizing canonical separators and names.
 #[test]
 fn test_format_declaration_comments() {
-    assert_format_eq(
-        r#"
-// declarations
-type Callable = (int32) => int32;
-
-// imports
-external function callee(int32): int32
-
-// globals
-readonly global Count: int32 = 1
-
-function use(v0: Callable): int32 {
-entry(v0: Callable):
-    v1: ref<int32, raw, readonly> = global.address Count
-    v2: int32 = load v1
-    v3: int32 = call.indirect v0(v2): (int32) => int32
-    return v3
-}
-"#,
+    assert_format(
         r#"
 // declarations
 type Callable = (int32) => int32;

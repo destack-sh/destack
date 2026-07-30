@@ -180,39 +180,42 @@ impl TypeHasher {
 
         match tree.get(id) {
             Type::Error => self.hasher.write_u8(0),
-            Type::Void => self.hasher.write_u8(1),
-            Type::Boolean => self.hasher.write_u8(2),
+            Type::Never => self.hasher.write_u8(1),
+            Type::Void => self.hasher.write_u8(2),
+            Type::Boolean => self.hasher.write_u8(3),
+            Type::Character => self.hasher.write_u8(4),
             Type::Int { width, is_signed } => {
-                self.hasher.write_u8(3);
+                self.hasher.write_u8(5);
                 self.hasher.write_u16(*width);
                 self.hash_boolean(*is_signed);
             }
-            Type::Isize => self.hasher.write_u8(4),
-            Type::Usize => self.hasher.write_u8(5),
+            Type::Isize => self.hasher.write_u8(6),
+            Type::Usize => self.hasher.write_u8(7),
             Type::Float(format) => {
-                self.hasher.write_u8(6);
+                self.hasher.write_u8(8);
                 self.hash_float_type(*format);
             }
-            Type::TypeDescriptor => self.hasher.write_u8(7),
-            Type::TypeId => self.hasher.write_u8(8),
+            Type::TypeDescriptor => self.hasher.write_u8(9),
+            Type::TypeId => self.hasher.write_u8(10),
             Type::Atomic { value } => {
-                self.hasher.write_u8(9);
+                self.hasher.write_u8(11);
                 self.hash_type(*value, tree);
             }
             Type::Dynamic {
+                kind,
+                lifetime,
                 constraint,
+                storage,
+                access,
                 nullability,
-                space,
             } => {
-                self.hasher.write_u8(10);
+                self.hasher.write_u8(12);
+                self.hash_reference_kind(*kind);
+                self.hash_lifetime(lifetime);
                 self.hash_type(*constraint, tree);
+                self.hash_storage(*storage);
+                self.hash_access(*access);
                 self.hash_nullability(*nullability);
-                self.hash_space(*space);
-            }
-            Type::WithLifetimes { base, lifetimes } => {
-                self.hasher.write_u8(11);
-                self.hash_type(*base, tree);
-                self.hash_lifetimes(lifetimes);
             }
             Type::Reference {
                 kind,
@@ -222,7 +225,7 @@ impl TypeHasher {
                 pointee,
                 nullability,
             } => {
-                self.hasher.write_u8(12);
+                self.hasher.write_u8(13);
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
                 self.hash_storage(*storage);
@@ -238,7 +241,7 @@ impl TypeHasher {
                 access,
                 nullability,
             } => {
-                self.hasher.write_u8(13);
+                self.hasher.write_u8(14);
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
                 self.hash_type(*element, tree);
@@ -247,11 +250,11 @@ impl TypeHasher {
                 self.hash_nullability(*nullability);
             }
             Type::Uninit { value } => {
-                self.hasher.write_u8(14);
+                self.hasher.write_u8(15);
                 self.hash_type(*value, tree);
             }
             Type::ManuallyDrop { value } => {
-                self.hasher.write_u8(15);
+                self.hasher.write_u8(16);
                 self.hash_type(*value, tree);
             }
             Type::FixedArray {
@@ -259,18 +262,18 @@ impl TypeHasher {
                 length,
                 copy,
             } => {
-                self.hasher.write_u8(16);
+                self.hasher.write_u8(17);
                 self.hash_type(*element, tree);
                 self.hasher.write_u64(*length);
                 self.hash_copy(*copy);
             }
             Type::Tuple { elements, copy } => {
-                self.hasher.write_u8(17);
+                self.hasher.write_u8(18);
                 self.hash_types(elements, tree);
                 self.hash_copy(*copy);
             }
             Type::Struct { fields, copy } => {
-                self.hasher.write_u8(18);
+                self.hasher.write_u8(19);
                 self.hash_length(fields.len());
                 for field in fields {
                     self.hash_field(*field, tree);
@@ -278,7 +281,7 @@ impl TypeHasher {
                 self.hash_copy(*copy);
             }
             Type::Newtype { inner, copy } => {
-                self.hasher.write_u8(19);
+                self.hasher.write_u8(20);
                 self.hash_type(*inner, tree);
                 self.hash_copy(*copy);
             }
@@ -288,7 +291,7 @@ impl TypeHasher {
                 cases,
                 copy,
             } => {
-                self.hasher.write_u8(20);
+                self.hasher.write_u8(21);
                 self.hash_type(*discriminant, tree);
                 self.hash_type(*storage, tree);
                 self.hash_length(cases.len());
@@ -303,7 +306,7 @@ impl TypeHasher {
                 lanes,
                 copy,
             } => {
-                self.hasher.write_u8(21);
+                self.hasher.write_u8(22);
                 self.hash_type(*element, tree);
                 self.hasher.write_u32(*lanes);
                 self.hash_copy(*copy);
@@ -316,7 +319,7 @@ impl TypeHasher {
                 sharding,
                 copy,
             } => {
-                self.hasher.write_u8(22);
+                self.hasher.write_u8(23);
                 self.hash_type(*element, tree);
                 self.hash_space(*space);
                 self.hash_tensor_shape(shape);
@@ -335,7 +338,7 @@ impl TypeHasher {
                 sharding,
                 nullability,
             } => {
-                self.hasher.write_u8(23);
+                self.hasher.write_u8(24);
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
                 self.hash_storage(*storage);
@@ -351,7 +354,7 @@ impl TypeHasher {
                 parameters,
                 result,
             } => {
-                self.hasher.write_u8(24);
+                self.hasher.write_u8(25);
                 self.hash_lifetime_parameters(lifetimes);
                 self.hash_length(parameters.len());
                 for parameter in parameters {
@@ -360,32 +363,43 @@ impl TypeHasher {
                 self.hash_type(*result, tree);
             }
             Type::Function {
+                kind,
+                lifetime,
                 signature,
-                environment,
+                storage,
+                access,
+                nullability,
             } => {
-                self.hasher.write_u8(25);
+                self.hasher.write_u8(26);
+                self.hash_reference_kind(*kind);
+                self.hash_lifetime(lifetime);
                 self.hash_type(*signature, tree);
-                self.hash_type(*environment, tree);
+                self.hash_storage(*storage);
+                self.hash_access(*access);
+                self.hash_nullability(*nullability);
             }
             Type::FunctionPointer { signature } => {
-                self.hasher.write_u8(26);
+                self.hasher.write_u8(27);
                 self.hash_type(*signature, tree);
             }
-            Type::Character => self.hasher.write_u8(27),
-            Type::Never => self.hasher.write_u8(28),
             Type::Continuation {
                 resume_type,
                 yield_type,
                 return_type,
             } => {
-                self.hasher.write_u8(29);
+                self.hasher.write_u8(28);
                 self.hash_type(*resume_type, tree);
                 self.hash_type(*yield_type, tree);
                 self.hash_type(*return_type, tree);
             }
             Type::Waiter { value_type } => {
-                self.hasher.write_u8(30);
+                self.hasher.write_u8(29);
                 self.hash_type(*value_type, tree);
+            }
+            Type::Application { base, lifetimes } => {
+                self.hasher.write_u8(30);
+                self.hash_type(*base, tree);
+                self.hash_lifetimes(lifetimes);
             }
         }
     }

@@ -325,9 +325,6 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::Dynamic { constraint, .. } => {
             walk_type_id(visitor, tree, constraint);
         }
-        Type::WithLifetimes { base, .. } => {
-            walk_type_id(visitor, tree, base);
-        }
         Type::Uninit { value } => {
             walk_type_id(visitor, tree, value);
         }
@@ -386,12 +383,8 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::FunctionPointer { signature } => {
             walk_type_id(visitor, tree, signature);
         }
-        Type::Function {
-            signature,
-            environment,
-        } => {
+        Type::Function { signature, .. } => {
             walk_type_id(visitor, tree, signature);
-            walk_type_id(visitor, tree, environment);
         }
         Type::Continuation {
             resume_type,
@@ -404,6 +397,9 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         }
         Type::Waiter { value_type } => {
             walk_type_id(visitor, tree, value_type);
+        }
+        Type::Application { base, .. } => {
+            walk_type_id(visitor, tree, base);
         }
         Type::Never
         | Type::Void

@@ -202,7 +202,7 @@ impl Tree {
     /// Split one optional lifetime application into its base and arguments.
     pub fn split_lifetime_application(&self, ty: TypeId) -> (TypeId, &[Lifetime]) {
         match self.get(ty) {
-            Type::WithLifetimes { base, lifetimes } => (*base, lifetimes),
+            Type::Application { base, lifetimes } => (*base, lifetimes),
             _ => (ty, &[]),
         }
     }
@@ -211,11 +211,25 @@ impl Tree {
     pub fn repr_type(&self, mut ty: TypeId) -> TypeId {
         loop {
             match self.get(ty) {
-                Type::Newtype { inner, .. } | Type::WithLifetimes { base: inner, .. } => {
+                Type::Newtype { inner, .. } | Type::Application { base: inner, .. } => {
                     ty = *inner;
                 }
                 _ => return ty,
             }
+        }
+    }
+
+    /// Return the transparent storage type.
+    pub fn storage_type(&self, mut ty: TypeId) -> TypeId {
+        loop {
+            ty = match self.get(ty) {
+                Type::Uninit { value: base }
+                | Type::Atomic { value: base }
+                | Type::ManuallyDrop { value: base } => *base,
+                Type::Newtype { inner, .. } => *inner,
+                Type::Application { base, .. } => *base,
+                _ => return ty,
+            };
         }
     }
 
@@ -249,7 +263,12 @@ impl Tree {
         }
 
         match self.get(ty) {
-            Type::Reference {
+            Type::Dynamic {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::Reference {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
                 ..
@@ -260,6 +279,11 @@ impl Tree {
                 ..
             }
             | Type::TensorView {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::Function {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
                 ..
@@ -276,12 +300,6 @@ impl Tree {
                 .filter(|lifetime| !lifetime.is_empty())
             }
             Type::Newtype { inner, .. } => self.type_lifetime_inner(*inner, lifetime_args, visited),
-            Type::Dynamic { constraint, .. } => {
-                self.type_lifetime_inner(*constraint, lifetime_args, visited)
-            }
-            Type::WithLifetimes { base, lifetimes } => {
-                self.type_lifetime_inner(*base, lifetimes, visited)
-            }
             Type::Uninit { value } => self.type_lifetime_inner(*value, lifetime_args, visited),
             Type::Variant {
                 discriminant,
@@ -322,6 +340,9 @@ impl Tree {
             | Type::Atomic { value: element } => {
                 self.type_lifetime_inner(*element, lifetime_args, visited)
             }
+            Type::Application { base, lifetimes } => {
+                self.type_lifetime_inner(*base, lifetimes, visited)
+            }
             _ => None,
         }
     }
@@ -339,8 +360,6 @@ impl Tree {
                 self.type_contains_borrowed_refs(field.ty)
             }),
             Type::Newtype { inner, .. } => self.type_contains_borrowed_refs(*inner),
-            Type::Dynamic { constraint, .. } => self.type_contains_borrowed_refs(*constraint),
-            Type::WithLifetimes { base, .. } => self.type_contains_borrowed_refs(*base),
             Type::Uninit { value } => self.type_contains_borrowed_refs(*value),
             Type::Variant {
                 discriminant,
@@ -363,6 +382,7 @@ impl Tree {
             | Type::Tensor { element, .. }
             | Type::TensorView { element, .. }
             | Type::Atomic { value: element } => self.type_contains_borrowed_refs(*element),
+            Type::Application { base, .. } => self.type_contains_borrowed_refs(*base),
             _ => false,
         }
     }
@@ -408,7 +428,12 @@ impl Tree {
     ) {
         match self.get(ty) {
             // record borrowed reference-like leaves
-            Type::Reference {
+            Type::Dynamic {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::Reference {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
                 ..
@@ -419,6 +444,11 @@ impl Tree {
                 ..
             }
             | Type::TensorView {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::Function {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
                 ..
@@ -461,21 +491,8 @@ impl Tree {
                     );
                 }
             }
-            // substitute outer lifetime arguments
-            Type::WithLifetimes { base, lifetimes } => {
-                self.collect_type_borrowed_paths(
-                    *base,
-                    lifetimes,
-                    is_empty_included,
-                    path,
-                    borrowed_paths,
-                );
-            }
             // descend through transparent storage wrappers
             Type::Newtype { inner, .. }
-            | Type::Dynamic {
-                constraint: inner, ..
-            }
             | Type::Uninit { value: inner }
             | Type::Atomic { value: inner } => {
                 self.collect_type_borrowed_paths(
@@ -510,6 +527,16 @@ impl Tree {
 
                 self.collect_type_borrowed_paths(
                     *element,
+                    lifetimes,
+                    is_empty_included,
+                    path,
+                    borrowed_paths,
+                );
+            }
+            // substitute outer lifetime arguments
+            Type::Application { base, lifetimes } => {
+                self.collect_type_borrowed_paths(
+                    *base,
                     lifetimes,
                     is_empty_included,
                     path,

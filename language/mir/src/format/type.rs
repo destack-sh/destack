@@ -1,4 +1,4 @@
-use destack_fir::format::{Allocator, Format, FormatResult};
+use destack_fir::format::{Allocator, Format, FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
@@ -288,19 +288,18 @@ fn format_type_inner<'a>(
             write!(f, [token(">")])
         }
         Type::Dynamic {
+            kind,
+            lifetime,
             constraint,
+            storage,
+            access,
             nullability,
-            space: ty_space,
         } => {
             write!(f, [token("dynamic"), token("<")])?;
             format_type_id(*constraint, f)?;
-            format_nullability(*nullability, f)?;
-            if !ty_space.is_local() {
-                write!(f, [token(","), space(), token(ty_space.label())])?;
-            }
+            format_reference_qualifiers(*kind, lifetime, *storage, *access, *nullability, f)?;
             write!(f, [token(">")])
         }
-        Type::WithLifetimes { base, lifetimes } => format_type_application(*base, lifetimes, f),
         Type::Uninit { value } => {
             write!(f, [token("uninit"), token("<")])?;
             format_type_id(*value, f)?;
@@ -515,34 +514,34 @@ fn format_type_inner<'a>(
             parameters,
             result,
         } => format_function_signature(lifetimes, parameters, *result, f),
-        Type::FunctionPointer { signature } | Type::Function { signature, .. } => {
+        Type::FunctionPointer { signature } => {
             let signature_type = f.context().tree.get(*signature);
-            if let Type::FunctionSignature {
+            let Type::FunctionSignature {
                 lifetimes,
                 parameters,
                 result,
             } = signature_type
-            {
-                if matches!(ty, Type::FunctionPointer { .. }) {
-                    write!(f, [token("fn")])?;
-                }
+            else {
+                return Err(FormatError::SyntaxError {
+                    message: "MIR function pointer does not reference a function signature",
+                });
+            };
 
-                format_function_signature(lifetimes, parameters, *result, f)?;
-                return Ok(());
-            }
-
-            write!(
-                f,
-                [
-                    token("("),
-                    signature,
-                    token(")"),
-                    space(),
-                    token("=>"),
-                    space(),
-                    token("<?>")
-                ]
-            )
+            write!(f, [token("fn")])?;
+            format_function_signature(lifetimes, parameters, *result, f)
+        }
+        Type::Function {
+            kind,
+            lifetime,
+            signature,
+            storage,
+            access,
+            nullability,
+        } => {
+            write!(f, [token("function"), token("<")])?;
+            format_type_id(*signature, f)?;
+            format_reference_qualifiers(*kind, lifetime, *storage, *access, *nullability, f)?;
+            write!(f, [token(">")])
         }
         Type::Continuation {
             resume_type,
@@ -572,6 +571,7 @@ fn format_type_inner<'a>(
                 token(">")
             ]
         ),
+        Type::Application { base, lifetimes } => format_type_application(*base, lifetimes, f),
     }
 }
 

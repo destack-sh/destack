@@ -199,7 +199,7 @@ impl Parser {
             return Ok(base);
         }
 
-        self.intern_type(Type::WithLifetimes { base, lifetimes })
+        self.intern_type(Type::Application { base, lifetimes })
     }
 
     /// Return whether the next tokens start type lifetime arguments.
@@ -372,6 +372,7 @@ impl Parser {
             TokenType::Identifier | TokenType::TypeName => {
                 return self.parse_named_type(&token_text, token_start);
             }
+            TokenType::Function => self.parse_function_type()?,
             TokenType::Ref => self.parse_reference_type()?,
             TokenType::TensorView => self.parse_tensor_view_type()?,
             TokenType::Tensor => self.parse_tensor_type()?,
@@ -409,6 +410,7 @@ impl Parser {
             "continuation" => self.parse_continuation_type()?,
             "waiter" => self.parse_waiter_type()?,
             "uninit" => self.parse_uninit_type()?,
+            "manual" => self.parse_manual_type()?,
             "variant" => self.parse_variant_type()?,
             _ => {
                 self.bump();
@@ -501,23 +503,34 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let (constraint, _) = self.parse_type_use_part()?;
-        let mut nullability = Nullability::None;
-        let mut space = Space::Local;
-
-        // parse each explicit dynamic qualifier
-        while self.eat_token_if(TokenType::Comma) {
-            if let Some(value) = self.parse_nullability()? {
-                nullability = value;
-            } else {
-                space = self.parse_space()?;
-            }
-        }
+        self.eat_token(TokenType::Comma)?;
+        let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
         self.eat_token(TokenType::GreaterThan)?;
-
         Ok(Type::Dynamic {
+            kind: qualifiers.kind,
+            lifetime: qualifiers.lifetime,
             constraint,
-            nullability,
-            space,
+            storage: qualifiers.storage,
+            access: qualifiers.access,
+            nullability: qualifiers.nullability,
+        })
+    }
+
+    /// Parse a captured function value type.
+    fn parse_function_type(&mut self) -> ParseResult<Type> {
+        self.bump();
+        self.eat_token(TokenType::LessThan)?;
+        let signature = self.parse_signature(Vec::new())?;
+        self.eat_token(TokenType::Comma)?;
+        let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
+        self.eat_token(TokenType::GreaterThan)?;
+        Ok(Type::Function {
+            kind: qualifiers.kind,
+            lifetime: qualifiers.lifetime,
+            signature,
+            storage: qualifiers.storage,
+            access: qualifiers.access,
+            nullability: qualifiers.nullability,
         })
     }
 
@@ -559,6 +572,16 @@ impl Parser {
         Ok(Type::Uninit { value })
     }
 
+    /// Parse a manually dropped storage type.
+    fn parse_manual_type(&mut self) -> ParseResult<Type> {
+        self.bump();
+        self.eat_token(TokenType::LessThan)?;
+        let (value, _) = self.parse_type_use_part()?;
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok(Type::ManuallyDrop { value })
+    }
+
     /// Parse a vector type.
     fn parse_vector_type(&mut self) -> ParseResult<Type> {
         self.bump();
@@ -594,17 +617,19 @@ impl Parser {
         })
     }
 
-    /// Parse a tuple or function value type.
+    /// Parse a tuple or function signature type.
     fn parse_parenthesized_type(&mut self) -> ParseResult<Type> {
         let parameters = self.parse_parenthesized_type_parameters()?;
 
         if self.eat_token_if(TokenType::FatArrow) {
-            let signature = self.parse_signature_result(Vec::new(), parameters)?;
-            let environment = self.tree.ensure_function_environment_type();
+            let (result, _) = self.parse_type_use_part()?;
+            let mut lifetimes = Vec::new();
+            self.parse_lifetime_where(&mut lifetimes)?;
 
-            return Ok(Type::Function {
-                signature,
-                environment,
+            return Ok(Type::FunctionSignature {
+                lifetimes,
+                parameters,
+                result,
             });
         }
 

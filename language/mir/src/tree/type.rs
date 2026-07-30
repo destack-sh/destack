@@ -237,8 +237,11 @@ impl ReferenceKind {
     }
 }
 
-/// Invalid-value niches carried by pointer-like values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+/// Nullish values admitted by reference-like types.
+#[repr(u8)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect, SectionEntry,
+)]
 pub enum Nullability {
     /// No nullish values are allowed.
     #[default]
@@ -483,19 +486,18 @@ pub enum Type {
     },
     /// Runtime-erased value satisfying one dynamic constraint.
     Dynamic {
+        /// The reference kind of the erased payload.
+        kind: ReferenceKind,
+        /// Lifetime roots for a borrowed erased payload.
+        lifetime: Lifetime,
         /// The lowered dynamic constraint type.
         constraint: TypeId,
-        /// The nullish values allowed by this erased value.
+        /// The backing storage of the erased payload.
+        storage: Storage,
+        /// The access exposed through the erased payload.
+        access: Access,
+        /// The nullish values allowed by this dynamic descriptor.
         nullability: Nullability,
-        /// The space of the erased managed payload.
-        space: Space,
-    },
-    /// Type use with applied lifetime arguments.
-    WithLifetimes {
-        /// The type being applied.
-        base: TypeId,
-        /// The applied lifetime arguments.
-        lifetimes: Vec<Lifetime>,
     },
     /// Reference with explicit kind and access.
     Reference {
@@ -637,10 +639,18 @@ pub enum Type {
     },
     /// Function value type.
     Function {
+        /// The reference kind of the captured environment.
+        kind: ReferenceKind,
+        /// Lifetime roots for a borrowed captured environment.
+        lifetime: Lifetime,
         /// The bare function signature.
         signature: TypeId,
-        /// The captured environment reference.
-        environment: TypeId,
+        /// The backing storage of the captured environment.
+        storage: Storage,
+        /// The access exposed through the captured environment.
+        access: Access,
+        /// The nullish values allowed by this function descriptor.
+        nullability: Nullability,
     },
     /// Function pointer type.
     FunctionPointer {
@@ -661,6 +671,14 @@ pub enum Type {
     Waiter {
         /// The value accepted when queueing the suspended execution.
         value_type: TypeId,
+    },
+
+    /// Type use with applied lifetime arguments.
+    Application {
+        /// The type being applied.
+        base: TypeId,
+        /// The applied lifetime arguments.
+        lifetimes: Vec<Lifetime>,
     },
 }
 
@@ -805,7 +823,6 @@ impl Type {
             Type::Isize | Type::Usize => byte_width(pointer_width_bits),
             Type::Continuation { .. } | Type::Waiter { .. } => byte_width(u64::BITS as u16),
             Type::Float(format) => byte_width(format.width()),
-            Type::WithLifetimes { base, .. } => tree.get(*base).byte_size(tree, pointer_width_bits),
             Type::Uninit { value } | Type::ManuallyDrop { value } => {
                 tree.get(*value).byte_size(tree, pointer_width_bits)
             }
@@ -817,6 +834,7 @@ impl Type {
 
                 element_size.checked_mul(*length)
             }
+            Type::Application { base, .. } => tree.get(*base).byte_size(tree, pointer_width_bits),
             _ => None,
         }
     }
@@ -829,14 +847,6 @@ impl Type {
     /// Whether this type is a managed reference.
     pub fn is_managed_reference(&self) -> bool {
         self.reference_kind() == Some(ReferenceKind::Managed)
-    }
-
-    /// Whether this type is any kind of pointer or reference.
-    pub fn is_pointer_like(&self) -> bool {
-        matches!(
-            self,
-            Type::Reference { .. } | Type::TensorView { .. } | Type::Slice { .. }
-        )
     }
 
     /// Whether this type is a borrowed reference.
@@ -864,10 +874,16 @@ impl Type {
             Type::Reference {
                 kind: ReferenceKind::Unique,
                 ..
+            } | Type::Dynamic {
+                kind: ReferenceKind::Unique,
+                ..
             } | Type::Slice {
                 kind: ReferenceKind::Unique,
                 ..
             } | Type::TensorView {
+                kind: ReferenceKind::Unique,
+                ..
+            } | Type::Function {
                 kind: ReferenceKind::Unique,
                 ..
             }
@@ -877,9 +893,11 @@ impl Type {
     /// Return the reference kind for reference-like values.
     pub fn reference_kind(&self) -> Option<ReferenceKind> {
         match self {
-            Type::Reference { kind, .. }
+            Type::Dynamic { kind, .. }
+            | Type::Reference { kind, .. }
             | Type::Slice { kind, .. }
-            | Type::TensorView { kind, .. } => Some(*kind),
+            | Type::TensorView { kind, .. }
+            | Type::Function { kind, .. } => Some(*kind),
             _ => None,
         }
     }
@@ -887,9 +905,11 @@ impl Type {
     /// Return the lifetime for reference-like values.
     pub fn reference_lifetime(&self) -> Option<&Lifetime> {
         match self {
-            Type::Reference { lifetime, .. }
+            Type::Dynamic { lifetime, .. }
+            | Type::Reference { lifetime, .. }
             | Type::Slice { lifetime, .. }
-            | Type::TensorView { lifetime, .. } => Some(lifetime),
+            | Type::TensorView { lifetime, .. }
+            | Type::Function { lifetime, .. } => Some(lifetime),
             _ => None,
         }
     }
@@ -897,9 +917,23 @@ impl Type {
     /// Return the access for reference-like values.
     pub fn reference_access(&self) -> Option<Access> {
         match self {
-            Type::Reference { access, .. }
+            Type::Dynamic { access, .. }
+            | Type::Reference { access, .. }
             | Type::Slice { access, .. }
-            | Type::TensorView { access, .. } => Some(*access),
+            | Type::TensorView { access, .. }
+            | Type::Function { access, .. } => Some(*access),
+            _ => None,
+        }
+    }
+
+    /// Return the storage addressed by one reference-like value.
+    pub fn reference_storage(&self) -> Option<Storage> {
+        match self {
+            Type::Dynamic { storage, .. }
+            | Type::Reference { storage, .. }
+            | Type::Slice { storage, .. }
+            | Type::TensorView { storage, .. }
+            | Type::Function { storage, .. } => Some(*storage),
             _ => None,
         }
     }
@@ -907,11 +941,28 @@ impl Type {
     /// Return the nullish values accepted by one reference-like type.
     pub fn nullability(&self) -> Option<Nullability> {
         match self {
-            Type::Reference { nullability, .. }
+            Type::Dynamic { nullability, .. }
+            | Type::Reference { nullability, .. }
             | Type::Slice { nullability, .. }
-            | Type::TensorView { nullability, .. } => Some(*nullability),
+            | Type::TensorView { nullability, .. }
+            | Type::Function { nullability, .. } => Some(*nullability),
             _ => None,
         }
+    }
+
+    /// Set the nullish values admitted by one reference-like type.
+    pub fn set_nullability(&mut self, value: Nullability) -> bool {
+        let nullability = match self {
+            Type::Dynamic { nullability, .. }
+            | Type::Reference { nullability, .. }
+            | Type::Slice { nullability, .. }
+            | Type::TensorView { nullability, .. }
+            | Type::Function { nullability, .. } => nullability,
+            _ => return false,
+        };
+        *nullability = value;
+
+        true
     }
 
     /// Return the hidden storage types for one slice value.
@@ -973,9 +1024,6 @@ impl Type {
 
             // the uninhabited type has no values to move
             Type::Never => Copy::Yes,
-            // lifetime application preserves the represented type's copy property
-            Type::WithLifetimes { base, .. } => tree.get(*base).copy(tree),
-
             // primitives are always trivially copyable
             Type::Void
             | Type::Boolean
@@ -990,20 +1038,15 @@ impl Type {
             // atomic cells are storage, not freely copied values
             Type::Atomic { .. } => Copy::No,
 
-            // dynamic values carry one managed payload reference and witness table
-            Type::Dynamic { .. } => Copy::Yes,
-
             // initialization tokens are linear capabilities
             Type::Uninit { .. } | Type::ManuallyDrop { .. } => Copy::No,
 
-            // unique references carry ownership of typed heap storage
-            Type::Reference { kind, .. } => match kind {
-                ReferenceKind::Unique => Copy::No,
-                ReferenceKind::Managed | ReferenceKind::Borrowed | ReferenceKind::Raw => Copy::Yes,
-            },
-
-            // unique slices carry ownership of typed heap storage
-            Type::Slice { kind, .. } => match kind {
+            // unique reference-like values carry ownership of their backing storage
+            Type::Dynamic { kind, .. }
+            | Type::Reference { kind, .. }
+            | Type::Slice { kind, .. }
+            | Type::TensorView { kind, .. }
+            | Type::Function { kind, .. } => match kind {
                 ReferenceKind::Unique => Copy::No,
                 ReferenceKind::Managed | ReferenceKind::Borrowed | ReferenceKind::Raw => Copy::Yes,
             },
@@ -1017,19 +1060,14 @@ impl Type {
             | Type::Vector { copy, .. }
             | Type::Tensor { copy, .. } => *copy,
 
-            // unique tensor views carry ownership of typed heap storage
-            Type::TensorView { kind, .. } => match kind {
-                ReferenceKind::Unique => Copy::No,
-                ReferenceKind::Managed | ReferenceKind::Borrowed | ReferenceKind::Raw => Copy::Yes,
-            },
-
-            // function values copy the handle, not the environment payload
-            Type::FunctionSignature { .. }
-            | Type::FunctionPointer { .. }
-            | Type::Function { .. } => Copy::Yes,
+            // signatures and thin function pointers contain no captured storage
+            Type::FunctionSignature { .. } | Type::FunctionPointer { .. } => Copy::Yes,
 
             // execution handles uniquely own suspended execution
             Type::Continuation { .. } | Type::Waiter { .. } => Copy::No,
+
+            // lifetime application preserves the represented type's copy property
+            Type::Application { base, .. } => tree.get(*base).copy(tree),
         }
     }
 }

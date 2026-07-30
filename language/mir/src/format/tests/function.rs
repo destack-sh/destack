@@ -96,7 +96,7 @@ entry(v0: int32):
 function caller(): int32 {
 entry:
     v0: ref<void, managed, mutable> = function.environment.current
-    v1: (int32) => int32 = function.bind callee, v0
+    v1: function<(int32) => int32, managed, mutable> = function.bind callee, v0
     v2: ref<void, managed, mutable> = function.environment v1
     v3: int32 = 1
     v4: int32 = call.indirect v1(v3): (int32) => int32
