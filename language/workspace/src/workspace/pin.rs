@@ -121,21 +121,19 @@ impl SessionPin {
         Ok(profile_ids)
     }
 
-    /// Return diagnostic artifact roots for selected programs and modules.
+    /// Return checked DIR artifacts for selected modules.
     pub(crate) fn diagnostic_artifacts(
         &self,
         modules: &[ModuleId],
     ) -> Result<Vec<ArtifactKey>, Error> {
         let mut artifacts = Vec::new();
 
-        // lint every selected semantic program
+        // check selected authored modules in their package profile
         for (target_id, profile_id) in self.selected_targets()? {
-            artifacts.push(ArtifactKey::program_linted(profile_id, target_id));
-
-            // lint selected authored modules at their target
             for module_id in modules.iter().copied() {
                 if module_id.package_id == target_id.package_id() {
-                    artifacts.push(ArtifactKey::module_linted(module_id, profile_id, target_id));
+                    // FUGU #Incomplete: should request module_linted but that is not ready yet
+                    artifacts.push(ArtifactKey::dir_checked(module_id, profile_id));
                 }
             }
         }
