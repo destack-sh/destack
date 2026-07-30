@@ -5,6 +5,8 @@ class Counter {
 // <- keyword.declaration.type.ds
     public readonly value: int32;
     readonly label: string;
+    static new(): Counter { return Counter("zero"); }
+//         ^^^ entity.name.function.definition.ds
     constructor(label: string) {
         this.label = label;
     }

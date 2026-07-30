@@ -11,7 +11,7 @@ comptime {
 
 // expressions / comptime / static if annotations
 @if(import.meta.runtime == "js")
-// <- entity.name.function.decorator.ds
+// <~-- entity.name.function.decorator.ds
 function runtimeName(): string {
     "js"
 }

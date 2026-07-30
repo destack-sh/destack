@@ -2,10 +2,10 @@
 
 // memory / ownership / owned borrowed and shared types
 let owned: ^User = ^User.create();
-//         ^ keyword.operator.elementwise.ds
+//         ^ keyword.operator.owned.ds
 
 let borrowed: &readonly User = &readonly owned;
-//            ^ keyword.operator.elementwise.ds
+//            ^ keyword.operator.borrow.ds
 
 let shared: shared User = User.create();
 //          ^^^^^^ keyword.other.modifier.ds

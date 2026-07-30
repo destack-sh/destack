@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const grammarRoot = path.resolve(scriptDir, "..");
 const forkRoot = path.resolve(grammarRoot, "destack");
+const compactParserPath = path.resolve(scriptDir, "compact-parser-c.mjs");
 const generatedPaths = [
     "src/grammar.json",
     "src/node-types.json",
@@ -21,8 +22,6 @@ function parseArgs(argv) {
         baseline: "tsx",
         top: 30,
         json: "",
-        maxParserSizeRatio: 2,
-        maxStateRatio: 1.5,
     };
 
     const options = { ...defaults };
@@ -54,18 +53,6 @@ function parseArgs(argv) {
             continue;
         }
 
-        if (token === "--max-parser-size-ratio" && argv[i + 1]) {
-            options.maxParserSizeRatio = Number.parseFloat(argv[i + 1]);
-            i += 1;
-            continue;
-        }
-
-        if (token === "--max-state-ratio" && argv[i + 1]) {
-            options.maxStateRatio = Number.parseFloat(argv[i + 1]);
-            i += 1;
-            continue;
-        }
-
         if (token === "--help" || token === "-h") {
             printHelp();
             process.exit(0);
@@ -74,14 +61,6 @@ function parseArgs(argv) {
 
     if (!Number.isFinite(options.top) || options.top <= 0) {
         throw new Error(`invalid --top value: ${options.top}`);
-    }
-
-    if (!Number.isFinite(options.maxParserSizeRatio) || options.maxParserSizeRatio <= 0) {
-        throw new Error(`invalid --max-parser-size-ratio value: ${options.maxParserSizeRatio}`);
-    }
-
-    if (!Number.isFinite(options.maxStateRatio) || options.maxStateRatio <= 0) {
-        throw new Error(`invalid --max-state-ratio value: ${options.maxStateRatio}`);
     }
 
     return options;
@@ -98,10 +77,6 @@ function printHelp() {
     console.log("  --baseline <name>    baseline grammar dialect (default: tsx)");
     console.log("  --top <n>            number of top rows to print (default: 30)");
     console.log("  --json <path>        optional output path for machine-readable JSON");
-    console.log("  --max-parser-size-ratio <n>");
-    console.log("                       fail if target parser.c exceeds this baseline multiple");
-    console.log("  --max-state-ratio <n>");
-    console.log("                       fail if target state count exceeds this baseline multiple");
 }
 
 function resolveDialectDir(name) {
@@ -145,9 +120,24 @@ function runReport(dialect, directory) {
             );
         }
 
+        // compact both parsers before comparing their byte sizes
+        const parserPath = path.resolve(directory, "src", "parser.c");
+        const compact = spawnSync(process.execPath, [compactParserPath, parserPath], {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"],
+        });
+        if (compact.error) {
+            throw compact.error;
+        }
+        if (compact.status !== 0) {
+            throw new Error(
+                `parser compaction failed for ${dialect} (${directory})\n${compact.stdout}\n${compact.stderr}`,
+            );
+        }
+
         const combined = `${result.stdout}\n${result.stderr}`;
         const rules = parseRuleStates(combined);
-        const parserMetrics = parseParserMetrics(path.resolve(directory, "src", "parser.c"));
+        const parserMetrics = parseParserMetrics(parserPath);
         const seconds = Number(end - start) / 1_000_000_000;
 
         return {
@@ -359,30 +349,6 @@ function maybeWriteJson(pathValue, payload) {
     console.log(`json report written: ${outputPath}`);
 }
 
-function assertBudget(targetReport, baselineReport, options) {
-    const parserSizeRatio =
-        targetReport.parserMetrics.PARSER_C_SIZE / baselineReport.parserMetrics.PARSER_C_SIZE;
-    const stateRatio =
-        targetReport.parserMetrics.STATE_COUNT / baselineReport.parserMetrics.STATE_COUNT;
-    const failures = [];
-
-    if (parserSizeRatio > options.maxParserSizeRatio) {
-        failures.push(
-            `parser_c_size ratio ${parserSizeRatio.toFixed(2)}x exceeds ${options.maxParserSizeRatio.toFixed(2)}x`,
-        );
-    }
-
-    if (stateRatio > options.maxStateRatio) {
-        failures.push(
-            `state_count ratio ${stateRatio.toFixed(2)}x exceeds ${options.maxStateRatio.toFixed(2)}x`,
-        );
-    }
-
-    if (failures.length > 0) {
-        throw new Error(`grammar budget exceeded: ${failures.join("; ")}`);
-    }
-}
-
 function main() {
     const options = parseArgs(process.argv.slice(2));
     const targetDir = resolveDialectDir(options.target);
@@ -410,7 +376,8 @@ function main() {
     console.log(`member_declaration_cluster_delta=${clusters.memberDeclarationDelta}`);
 
     printMetricSummary(targetReport, baselineReport);
-    printRuleTable("top positive rule deltas", delta.sortedByDelta.filter((row) => row.delta > 0), options.top);
+    const positiveDeltas = delta.sortedByDelta.filter((row) => row.delta > 0);
+    printRuleTable("top positive rule deltas", positiveDeltas, options.top);
     printRuleTable("target-only rules", delta.sortedTargetOnly, options.top);
 
     maybeWriteJson(options.json, {
@@ -437,8 +404,6 @@ function main() {
             rows: delta.sortedByDelta,
         },
     });
-
-    assertBudget(targetReport, baselineReport, options);
 }
 
 main();

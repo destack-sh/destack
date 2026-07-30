@@ -13,7 +13,7 @@ module {
 }
 
 @noHeap
-// <- entity.name.function.decorator.ds
+// <~------ entity.name.function.decorator.ds
 module {
     const product = "editor";
 }

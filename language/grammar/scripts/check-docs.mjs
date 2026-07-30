@@ -17,64 +17,25 @@ const languages = {
         name: "destack",
         extension: "ds",
         grammarRoot: path.join(repoRoot, "language", "grammar", "destack", "destack"),
-        textmateGrammarPath: path.join(bridgeVscodeRoot, "destack.tmLanguage.json"),
+        textmateGrammarPath: path.join(bridgeVscodeRoot, "destack-ds.tmLanguage.json"),
         textmateScope: "source.ds",
         matches: (tag) => tag === "ds" || tag.startsWith("ds:"),
-        attempts: [
-            {
-                name: "source",
-                wrap: (source) => source,
-            },
-            {
-                name: "expression",
-                wrap: (source) => `const __destackGrammarExpression = (${source.trim()});\n`,
-            },
-            {
-                name: "type",
-                wrap: (source) => `type __DestackGrammarType = ${source.trim()};\n`,
-            },
-            {
-                name: "type-lines",
-                wrap: (source) => source
-                    .split(/\r?\n/u)
-                    .map((line) => line.replace(/\/\/.*$/u, "").trim())
-                    .filter(Boolean)
-                    .map((line, index) => `type __DestackGrammarType${index} = ${line};`)
-                    .join("\n"),
-            },
-            {
-                name: "statement",
-                wrap: (source) => `function __destackGrammarStatement() {\n${source}\n}\n`,
-            },
-        ],
     },
     mir: {
         name: "mir",
         extension: "dsm",
         grammarRoot: path.join(repoRoot, "language", "grammar", "mir"),
-        textmateGrammarPath: path.join(bridgeVscodeRoot, "destack-mir.tmLanguage.json"),
+        textmateGrammarPath: path.join(bridgeVscodeRoot, "destack-dsm.tmLanguage.json"),
         textmateScope: "source.dsm",
         matches: (tag) => tag === "mir" || tag.startsWith("mir:") || tag === "dsm" || tag.startsWith("dsm:"),
-        attempts: [
-            {
-                name: "source",
-                wrap: (source) => source,
-            },
-        ],
     },
     bytecode: {
         name: "bytecode",
         extension: "dsa",
         grammarRoot: path.join(repoRoot, "language", "grammar", "bytecode"),
-        textmateGrammarPath: path.join(bridgeVscodeRoot, "destack-bytecode.tmLanguage.json"),
+        textmateGrammarPath: path.join(bridgeVscodeRoot, "destack-dsa.tmLanguage.json"),
         textmateScope: "source.dsa",
         matches: (tag) => tag === "dsa" || tag.startsWith("dsa:"),
-        attempts: [
-            {
-                name: "source",
-                wrap: (source) => source,
-            },
-        ],
     },
 };
 const languageList = Object.values(languages);
@@ -190,17 +151,16 @@ function collectLanguageExamples(filePath) {
     return examples;
 }
 
-function writeExample(example, language, attempt, tempDirectory) {
+function writeExample(example, language, tempDirectory) {
     const safeName = [
         example.index.toString().padStart(4, "0"),
-        attempt.name,
         example.relativePath.replaceAll(path.sep, "-").replaceAll(/[^A-Za-z0-9_.-]/g, "-"),
     ].join("-");
     const tempPath = path.join(tempDirectory, `${safeName}.${language.extension}`);
 
-    fs.writeFileSync(tempPath, attempt.wrap(example.source));
+    fs.writeFileSync(tempPath, example.source);
 
-    return { ...example, tempPath, attempt: attempt.name };
+    return { ...example, tempPath };
 }
 
 function parseBatch(examples, language) {
@@ -229,44 +189,22 @@ function parseBatch(examples, language) {
 }
 
 function parseExamples(examples, language, tempDirectory) {
-    let remaining = examples;
-    const passedByAttempt = new Map();
+    const tempExamples = examples.map((example) => writeExample(example, language, tempDirectory));
+    const failures = [];
     const batchSize = 100;
 
-    for (const attempt of language.attempts) {
-        const tempExamples = remaining.map((example) => writeExample(example, language, attempt, tempDirectory));
-        const failedExamples = [];
+    for (let index = 0; index < tempExamples.length; index += batchSize) {
+        const batch = tempExamples.slice(index, index + batchSize);
+        const result = parseBatch(batch, language);
 
-        for (let index = 0; index < tempExamples.length; index += batchSize) {
-            const batch = tempExamples.slice(index, index + batchSize);
-            const result = parseBatch(batch, language);
-
-            if (result.status !== 0 && result.failedPaths.size === 0) {
-                failedExamples.push(...batch);
-            } else {
-                failedExamples.push(...batch.filter((example) => result.failedPaths.has(example.tempPath)));
-            }
-        }
-
-        const failedIndexes = new Set(failedExamples.map((example) => example.index));
-
-        for (const example of remaining) {
-            if (!failedIndexes.has(example.index)) {
-                passedByAttempt.set(example.index, attempt.name);
-            }
-        }
-
-        remaining = failedExamples.map(({ tempPath, attempt, ...example }) => example);
-
-        if (remaining.length === 0) {
-            break;
+        if (result.status !== 0 && result.failedPaths.size === 0) {
+            failures.push(...batch);
+        } else {
+            failures.push(...batch.filter((example) => result.failedPaths.has(example.tempPath)));
         }
     }
 
-    return {
-        failures: remaining,
-        passedByAttempt,
-    };
+    return failures.map(({ tempPath, ...example }) => example);
 }
 
 function countBy(values, callback) {
@@ -284,29 +222,23 @@ function firstCodeLine(source) {
     return source.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "";
 }
 
-function printParseBreakdown(language, examples, result, limit) {
-    const passed = language.attempts.map((attempt) => {
-        const count = [...result.passedByAttempt.values()].filter((name) => name === attempt.name).length;
-        return `${attempt.name}=${count}`;
-    });
+function printParseBreakdown(language, examples, failures, limit) {
+    console.log(`${language.name}: ${examples.length - failures.length}/${examples.length} examples parsed`);
 
-    console.log(`${language.name}: ${examples.length - result.failures.length}/${examples.length} examples parsed`);
-    console.log(`passed by attempt: ${passed.join(" ")}`);
-
-    if (result.failures.length === 0) {
+    if (failures.length === 0) {
         return;
     }
 
-    console.log(`failed all attempts: ${result.failures.length}`);
+    console.log(`unparsed: ${failures.length}`);
     console.log("");
     console.log("by top directory:");
-    for (const [name, count] of countBy(result.failures, (failure) => failure.relativePath.split(path.sep)[0])) {
+    for (const [name, count] of countBy(failures, (failure) => failure.relativePath.split(path.sep)[0])) {
         console.log(`${count.toString().padStart(3, " ")} ${name}`);
     }
 
     console.log("");
     console.log("by file:");
-    for (const [name, count] of countBy(result.failures, (failure) => failure.relativePath)) {
+    for (const [name, count] of countBy(failures, (failure) => failure.relativePath)) {
         console.log(`${count.toString().padStart(3, " ")} ${name}`);
     }
 
@@ -316,15 +248,21 @@ function printParseBreakdown(language, examples, result, limit) {
 
     console.log("");
     console.log("samples:");
-    for (const failure of result.failures.slice(0, limit)) {
+    for (const failure of failures.slice(0, limit)) {
         console.log(`${failure.relativePath}:${failure.line}: ${failure.info}: ${firstCodeLine(failure.source)}`);
     }
 }
 
 async function loadTextMateRegistry() {
-    const textmate = require(path.join(bridgeVscodeRoot, "node_modules", "vscode-textmate"));
-    const oniguruma = require(path.join(bridgeVscodeRoot, "node_modules", "vscode-oniguruma"));
-    const wasmPath = path.join(bridgeVscodeRoot, "node_modules", "vscode-oniguruma", "release", "onig.wasm");
+    const textmate = require("vscode-textmate");
+    const oniguruma = require("vscode-oniguruma");
+    const onigurumaPath = require.resolve("vscode-oniguruma");
+    const wasmPath = path.join(
+        path.dirname(onigurumaPath),
+        "..",
+        "release",
+        "onig.wasm",
+    );
     const wasm = fs.readFileSync(wasmPath);
     await oniguruma.loadWASM(wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength));
 
@@ -344,7 +282,7 @@ async function loadTextMateRegistry() {
     });
 }
 
-async function smokeTextMateExamples(examplesByLanguage) {
+async function tokenizeTextMateExamples(examplesByLanguage) {
     const registry = await loadTextMateRegistry();
     const failuresByLanguage = new Map();
 
@@ -410,14 +348,14 @@ async function main() {
         console.log("language docs parse:");
         for (const language of languageList) {
             const languageExamples = examplesByLanguage.get(language.name) ?? [];
-            const result = parseExamples(languageExamples, language, tempDirectory);
-            printParseBreakdown(language, languageExamples, result, options.limit);
-            hasFailures ||= result.failures.length > 0;
+            const failures = parseExamples(languageExamples, language, tempDirectory);
+            printParseBreakdown(language, languageExamples, failures, options.limit);
+            hasFailures ||= failures.length > 0;
         }
 
         console.log("");
-        console.log("language TextMate smoke:");
-        const textMateFailures = await smokeTextMateExamples(examplesByLanguage);
+        console.log("language TextMate tokenization:");
+        const textMateFailures = await tokenizeTextMateExamples(examplesByLanguage);
         for (const language of languageList) {
             const languageExamples = examplesByLanguage.get(language.name) ?? [];
             const failures = textMateFailures.get(language.name) ?? [];

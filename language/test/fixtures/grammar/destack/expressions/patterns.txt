@@ -24,7 +24,7 @@ match (value) {
 
 // expressions / patterns / let catch and if-let
 let Some(value) = maybe else {
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
     return none;
 };
 
@@ -40,6 +40,6 @@ if (let { id, name } = input) {
 }
 
 let (left, ...tail) = tuple;
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 
 let { name: displayName = "Ada", ...rest } = object;

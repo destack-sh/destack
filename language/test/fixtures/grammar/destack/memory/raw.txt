@@ -5,10 +5,10 @@ let pointer: *uint8 = &bytes[0];
 //           ^ keyword.operator.pointer.ds
 
 let byte = *pointer;
-//         ^ keyword.operator.multiplication.ds
+//         ^ keyword.operator.pointer.ds
 
 @unsafe
-// <- entity.name.function.decorator.ds
+// <~------ entity.name.function.decorator.ds
 function readRaw(pointer: *uint8): uint8 {
     read(pointer)
 }

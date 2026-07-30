@@ -5,4 +5,4 @@ let task: Pin<Box<Task>> = Box.pin(source);
 //        ^^^ entity.name.type.ds
 
 let handle: &readonly Pin<Box<Task>> = &readonly task;
-//          ^ keyword.operator.elementwise.ds
+//          ^ keyword.operator.borrow.ds

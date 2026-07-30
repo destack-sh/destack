@@ -2,7 +2,7 @@
 
 // memory / synchronization / shared mutexes
 let counter: shared Mutex<Counter> = new Mutex(Counter { value: 0 });
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 const guard = counter.lock();
 //                    ^^^^ entity.name.function.call.ds
 

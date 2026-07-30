@@ -26,16 +26,23 @@ if (value is User) {
 
 // expressions / operators / ownership and ranges
 const owned = ^readonly value;
-//            ^ keyword.operator.elementwise.ds
+//            ^ keyword.operator.owned.ds
 
 const borrowed = &exclusive value;
-//               ^ keyword.operator.elementwise.ds
+//               ^ keyword.operator.borrow.ds
 
 const raw = *pointer;
-//          ^ keyword.operator.multiplication.ds
+//          ^ keyword.operator.pointer.ds
 
 const address = &value;
-//              ^ keyword.operator.elementwise.ds
+//              ^ keyword.operator.borrow.ds
+
+^owned;
+// <- keyword.operator.owned.ds
+&borrowed;
+// <- keyword.operator.borrow.ds
+*raw;
+// <- keyword.operator.pointer.ds
 
 const range = start..=end;
 //                 ^^^ keyword.operator.range.ds

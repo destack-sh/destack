@@ -2,11 +2,11 @@
 
 // memory / borrows / readonly and exclusive
 let name: &readonly string = &readonly user.name;
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 
 let writable: &exclusive Buffer = &exclusive buffer;
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 
 // memory / borrows / dereference
 let first = *pointer;
-//          ^ keyword.operator.multiplication.ds
+//          ^ keyword.operator.pointer.ds

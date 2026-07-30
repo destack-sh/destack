@@ -2,10 +2,10 @@
 
 // memory / conversions / owned to borrowed
 let point = ^Point { x: 1 };
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 let borrow = &point;
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 
 // memory / conversions / mutable to readonly
 let view: &readonly Point = borrow;
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds

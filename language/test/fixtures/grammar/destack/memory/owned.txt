@@ -2,7 +2,7 @@
 
 // memory / owned / owned placement and dereference
 let owned: ^User = ^User.create();
-//         ^ keyword.operator.elementwise.ds
+//         ^ keyword.operator.owned.ds
 
 let value = *owned;
-//          ^ keyword.operator.multiplication.ds
+//          ^ keyword.operator.pointer.ds

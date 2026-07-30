@@ -12,7 +12,7 @@ newtype Rectangle = {
 
 // types / newtypes / tagged unions
 @derive(Tagged)
-// <- entity.name.function.decorator.ds
+// <~------ entity.name.function.decorator.ds
 newtype Shape =
     | { kind: "rectangle"; width: int32; height: int32 }
     | { kind: "circle"; radius: int32 };
@@ -20,4 +20,3 @@ newtype Shape =
 // types / newtypes / constructors
 const id = UserId(1);
 //         ^^^^^^ entity.name.function.call.ds
-

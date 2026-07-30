@@ -2,7 +2,7 @@
 
 // expressions / dispatch / overloads interfaces operators and unions
 function parse(value: string): string {
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.function.ds
     return value;
 }
 

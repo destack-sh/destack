@@ -2,21 +2,20 @@
 
 // expressions / assignment / declarations
 const id: UserId = UserId(1);
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 
 let count = 0;
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 
 // expressions / assignment / destructuring
 const { name, profile: { age } } = user;
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 
 let [head, ...tail] = items;
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 
 // expressions / assignment / updates
 count += 1;
 //    ^^ keyword.operator.assignment.addition.ds
 
 user.name = "Ada";
-

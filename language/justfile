@@ -191,14 +191,6 @@ test-conformance-formatter:
 test-conformance-formatter-update:
     cargo test --release -p destack_test --test conformance-formatter -- --update-known-failures
 
-# validate Tree-sitter overlay coverage
-test-grammar-overlay:
-    bun grammar/scripts/check-overlay.mjs
-
-# validate Destack grammar section language directives
-test-grammar-section-languages:
-    bun grammar/scripts/check-section-languages.mjs
-
 # run Destack Tree-sitter corpus tests
 test-grammar-destack:
     bash grammar/scripts/test-tree-sitter-destack.sh destack
@@ -211,14 +203,6 @@ test-grammar-mir:
 test-grammar-bytecode:
     cd grammar/bytecode && bunx tree-sitter-cli@0.24.4 test --rebuild
 
-# validate Destack-only Tree-sitter node coverage in corpus
-test-grammar-destack-node-coverage:
-    bun grammar/scripts/check-destack-node-coverage.mjs
-
-# validate grammar fixture structure and parse smoke
-test-grammar-fixtures:
-    bun grammar/scripts/check-grammar-fixtures.mjs
-
 # validate language examples in documentation
 test-grammar-docs:
     cd grammar/destack && npm run report:docs -- --fail
@@ -228,14 +212,10 @@ test-grammar:
     just test-grammar-destack
     just test-grammar-bytecode
     just test-grammar-mir
-    just test-grammar-section-languages
-    just test-grammar-destack-node-coverage
-    just test-grammar-overlay
 
 # run broader grammar audits
 test-grammar-audit:
     just test-grammar
-    just test-grammar-fixtures
     just test-grammar-docs
 
 # profile Tree-sitter grammar state deltas

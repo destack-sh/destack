@@ -3,7 +3,7 @@
 // memory / suspension / borrows across awaits
 async function read(user: ^User): Promise<string> {
     const name = &readonly user.name;
-//  ^^^^^ keyword.declaration.type.ds
+//  ^^^^^ keyword.declaration.variable.ds
 
     await tick();
 //        ^^^^ entity.name.function.call.ds

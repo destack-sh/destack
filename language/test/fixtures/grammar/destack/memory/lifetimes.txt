@@ -6,5 +6,5 @@ declare const value: Borrowed<int32, "static">;
 
 function first<T, L: Lifetime>(items: Borrowed<[T], L>): Borrowed<T, L> {
     return &items[0];
-//         ^ keyword.operator.elementwise.ds
+//         ^ keyword.operator.borrow.ds
 }

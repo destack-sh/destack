@@ -10,7 +10,7 @@ const label = if (ready) {
 
 // expressions / values / tuples
 const pair = (left, right);
-// <- keyword.declaration.type.ds
+// <- keyword.declaration.variable.ds
 
 const one = (value,);
 

@@ -5,7 +5,7 @@ newtype route = (string,);
 // <- keyword.declaration.type.ds
 
 @route("/users")
-// <- entity.name.function.decorator.ds
+// <~----- entity.name.function.decorator.ds
 function users(): string {
     return "users";
 }
