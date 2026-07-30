@@ -41,7 +41,7 @@ impl StaticImage {
         address: GlobalAddress,
         byte_len: usize,
     ) -> Option<usize> {
-        let start = address.byte_offset();
+        let start = address.byte_offset()?;
         let end = start.checked_add(byte_len)?;
         if end > global.byte_len() {
             return None;
@@ -173,7 +173,7 @@ impl StaticSpace {
         address: GlobalAddress,
         byte_len: usize,
     ) -> Option<usize> {
-        let start = address.byte_offset();
+        let start = address.byte_offset()?;
         let end = start.checked_add(byte_len)?;
         if end > global.byte_len() {
             return None;
@@ -189,7 +189,9 @@ impl StaticSpace {
         address: GlobalAddress,
         byte_len: usize,
     ) -> MemoryResult<Option<usize>> {
-        let start = address.byte_offset();
+        let Some(start) = address.byte_offset() else {
+            return Ok(None);
+        };
         let Some(end) = start.checked_add(byte_len) else {
             return Ok(None);
         };

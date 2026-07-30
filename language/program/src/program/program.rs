@@ -489,7 +489,7 @@ impl Program {
     /// Resolve one constant byte range to a native address.
     pub fn constant_address(&self, address: GlobalAddress, byte_len: usize) -> Option<usize> {
         let sections = self.sections();
-        let global = self.global(address.global())?;
+        let global = self.global(address.global()?)?;
         if global.location != GlobalLocation::Constant {
             return None;
         }
@@ -501,7 +501,10 @@ impl Program {
     /// Return whether constants own one byte range.
     pub fn constants_own_address_range(&self, address: GlobalAddress, byte_len: usize) -> bool {
         let sections = self.sections();
-        let Some(global) = self.global(address.global()) else {
+        let Some(global_id) = address.global() else {
+            return false;
+        };
+        let Some(global) = self.global(global_id) else {
             return false;
         };
         if global.location != GlobalLocation::Constant {

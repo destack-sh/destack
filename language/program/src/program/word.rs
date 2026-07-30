@@ -12,6 +12,10 @@ pub struct Word(u64);
 impl Word {
     /// The zero word.
     pub const ZERO: Self = Self(0);
+    /// The canonical null reference word.
+    pub const NULL: Self = Self(0);
+    /// The canonical undefined reference word.
+    pub const UNDEFINED: Self = Self(1);
     /// The bit width of one word.
     pub const BIT_LEN: u8 = u64::BITS as u8;
     /// The byte width of one word.
@@ -25,6 +29,24 @@ impl Word {
     /// Return this word's exact bits.
     pub const fn bits(self) -> u64 {
         self.0
+    }
+
+    /// Return whether this word is the canonical null value.
+    #[inline(always)]
+    pub const fn is_null(self) -> bool {
+        self.0 == Self::NULL.0
+    }
+
+    /// Return whether this word is the canonical undefined value.
+    #[inline(always)]
+    pub const fn is_undefined(self) -> bool {
+        self.0 == Self::UNDEFINED.0
+    }
+
+    /// Return whether this word is either canonical nullish value.
+    #[inline(always)]
+    pub const fn is_nullish(self) -> bool {
+        self.is_null() || self.is_undefined()
     }
 
     /// View this word as a boolean.

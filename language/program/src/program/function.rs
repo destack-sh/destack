@@ -29,9 +29,29 @@ use super::{Symbol, TypeId, Word};
 pub struct FunctionId(pub u32);
 
 impl FunctionId {
+    /// The callable word bias after null and undefined.
+    const WORD_BIAS: u64 = 2;
+
     /// Return this id as a dense table index.
     pub const fn index(self) -> usize {
         self.0 as usize
+    }
+
+    /// Decode one non-null callable value.
+    pub const fn from_word(word: Word) -> Option<Self> {
+        let Some(id) = word.bits().checked_sub(Self::WORD_BIAS) else {
+            return None;
+        };
+        if id > u32::MAX as u64 {
+            return None;
+        }
+
+        Some(Self(id as u32))
+    }
+
+    /// Encode this id as one non-null callable value.
+    pub const fn word(self) -> Word {
+        Word::from_bits(self.0 as u64 + Self::WORD_BIAS)
     }
 }
 
@@ -49,17 +69,10 @@ impl From<FunctionId> for u32 {
     }
 }
 
-impl From<Word> for FunctionId {
-    /// Decode one function pointer word.
-    fn from(word: Word) -> Self {
-        Self(word.bits() as u32)
-    }
-}
-
 impl From<FunctionId> for Word {
     /// Encode one function pointer word.
     fn from(function: FunctionId) -> Self {
-        Self::from_bits(function.0 as u64)
+        function.word()
     }
 }
 
