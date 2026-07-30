@@ -107,24 +107,53 @@ impl ComponentGraphBase {
 impl ComponentGraphDependencies {
     /// Read the component graph provider's dependency rows.
     fn read(dependencies: &[ArtifactDependency]) -> Option<Self> {
-        let (module_set, rows) = dependencies.split_last()?;
-        if !matches!(
-            module_set,
-            ArtifactDependency::Source(SourceDependency::Modules { .. })
-        ) {
+        let mut component_edges = Vec::new();
+        let mut inference_exports = Vec::new();
+        let mut is_module_set_observed = false;
+
+        // collect both projections for every module
+        for dependency in dependencies {
+            match dependency {
+                ArtifactDependency::Projection(dependency) => {
+                    let projection = dependency.projection();
+                    let module = projection.artifact.module_id()?;
+                    let fingerprints = match projection.key {
+                        ArtifactProjectionKey::DirComponentEdges => &mut component_edges,
+                        ArtifactProjectionKey::DirInferenceExports => &mut inference_exports,
+                        _ => return None,
+                    };
+                    fingerprints.push((module, dependency.fingerprint()));
+                }
+                ArtifactDependency::Source(SourceDependency::Modules { .. })
+                    if !is_module_set_observed =>
+                {
+                    is_module_set_observed = true;
+                }
+                ArtifactDependency::Artifact(_) | ArtifactDependency::Source(_) => return None,
+            }
+        }
+        if !is_module_set_observed || component_edges.len() != inference_exports.len() {
             return None;
         }
 
+        component_edges.sort_unstable_by_key(|(module, _fingerprint)| *module);
+        inference_exports.sort_unstable_by_key(|(module, _fingerprint)| *module);
+
+        // join each module's exact projection fingerprints
         let mut modules = FxHashMap::default();
-        let mut rows = rows.chunks_exact(2);
-        for row in &mut rows {
-            let (module, dependencies) = ModuleGraphDependencies::read(row)?;
+        for ((module, component_edges), (inference_module, inference_exports)) in
+            component_edges.into_iter().zip(inference_exports)
+        {
+            if module != inference_module {
+                return None;
+            }
+            let dependencies = ModuleGraphDependencies {
+                component_edges,
+                inference_exports,
+            };
             if modules.insert(module, dependencies).is_some() {
                 return None;
             }
-        }
-        if !rows.remainder().is_empty() {
-            return None;
         }
 
         Some(Self { modules })
@@ -136,37 +165,6 @@ impl ComponentGraphDependencies {
             && modules
                 .iter()
                 .all(|module| self.modules.contains_key(module))
-    }
-}
-
-impl ModuleGraphDependencies {
-    /// Read one module's component graph dependency row.
-    fn read(row: &[ArtifactDependency]) -> Option<(ModuleId, Self)> {
-        let [
-            ArtifactDependency::Projection(edges),
-            ArtifactDependency::Projection(inference),
-        ] = row
-        else {
-            return None;
-        };
-        if edges.projection().key != ArtifactProjectionKey::DirComponentEdges
-            || inference.projection().key != ArtifactProjectionKey::DirInferenceExports
-        {
-            return None;
-        }
-
-        let module = edges.projection().artifact.module_id()?;
-        if inference.projection().artifact.module_id() != Some(module) {
-            return None;
-        }
-
-        Some((
-            module,
-            Self {
-                component_edges: edges.fingerprint(),
-                inference_exports: inference.fingerprint(),
-            },
-        ))
     }
 }
 

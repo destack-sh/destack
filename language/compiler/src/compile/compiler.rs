@@ -49,9 +49,12 @@ impl Compiler {
         &'a self,
         context: &'a dyn ProviderContext,
     ) -> ArtifactReader<'a> {
-        self.repository
-            .artifact_reader(context.revision())
-            .restrict(context.artifact_key(), context.artifact_dependencies())
+        let artifacts = self.repository.artifact_reader(context.revision());
+        let Some(dependencies) = context.artifact_dependencies() else {
+            return artifacts;
+        };
+
+        artifacts.restrict(dependencies)
     }
 
     /// Add one diagnostic produced during a provider attempt.
