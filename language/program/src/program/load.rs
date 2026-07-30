@@ -95,7 +95,7 @@ pub struct ProgramBuilder {
     /// Optional native code.
     native: Option<native::CodeBuilder>,
     /// Optional WebAssembly code.
-    wasm: Option<wasm::Code>,
+    wasm: Option<wasm::CodeBuilder>,
 }
 
 /// Fixed header stored at byte zero of every Program image.
@@ -354,7 +354,7 @@ impl ProgramBuilder {
     }
 
     /// Set WebAssembly code.
-    pub fn wasm(mut self, wasm: wasm::Code) -> Self {
+    pub fn wasm(mut self, wasm: wasm::CodeBuilder) -> Self {
         self.wasm = Some(wasm);
 
         self
@@ -395,7 +395,7 @@ impl ProgramBuilder {
             header.native = Optional::some(native.build(&mut sections));
         }
         if let Some(wasm) = self.wasm {
-            header.wasm = Optional::some(wasm);
+            header.wasm = Optional::some(wasm.build(&mut sections));
         }
 
         // finalize the fixed header after all section offsets are known
