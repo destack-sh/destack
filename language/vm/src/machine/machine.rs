@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use destack_bytecode::{CodeRange, Function};
 use destack_memory::MemoryMap;
+use destack_mir as mir;
 use destack_program as program;
 use destack_program::{
     Continuation, ContinuationTable, FunctionId, Outcome, Profile, Program, ResumeSkip, Runtime,
@@ -228,7 +229,11 @@ impl Machine {
             return Err(Error::execution_active().into());
         }
         let ty = value.ty();
-        let Some(function) = self.program.destructor(ty).map_err(Error::program)? else {
+        let Some(function) = self
+            .program
+            .destructor(ty, mir::Storage::Frame)
+            .map_err(Error::program)?
+        else {
             return Ok(());
         };
         let words = self

@@ -1,5 +1,5 @@
 use destack_bytecode::{RegisterId, RegisterSpan};
-use destack_mir::Space;
+use destack_mir::{Space, Storage};
 use destack_program::{Profile, ProfileOptions, Word};
 
 use super::{TestMachine, TestProgram};
@@ -51,11 +51,10 @@ function f1 {
     return r2
 }
 "#,
-        TestProgram::words().local_global().drop(1, 0).frame(
-            1,
-            0,
-            [(RegisterSpan::new(RegisterId(0), 1), 1)],
-        ),
+        TestProgram::words()
+            .local_global()
+            .destructor(1, Storage::Frame, 0)
+            .frame(1, 0, [(RegisterSpan::new(RegisterId(0), 1), 1)]),
     );
 
     let value = machine.complete(1, &[Word::int32(53)]);

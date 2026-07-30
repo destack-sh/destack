@@ -1,4 +1,4 @@
-use destack_mir::Space;
+use destack_mir::{Space, Storage};
 use destack_program::{MemoryAccess, StopReason, WatchSet, Word};
 
 use super::{TestMachine, TestProgram};
@@ -61,7 +61,7 @@ function f1 {
 /// Execute vector memory through the observed loop and stop after the write.
 #[test]
 fn test_watch_vector_memory() {
-    let site = TestProgram::memory_site(0, 0, MemoryAccess::Write, Space::Local);
+    let site = TestProgram::memory_site(0, 0, MemoryAccess::Write, Storage::Heap(Space::Local));
     let watch = TestProgram::watchpoint(0, 0, 17, MemoryAccess::Write);
     let watchpoint_id = watch.watchpoint_id;
     let watches = WatchSet::new(vec![watch]);

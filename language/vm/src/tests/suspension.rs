@@ -1,6 +1,6 @@
 use destack_bytecode::{RegisterId, RegisterSpan};
 use destack_heap::{HeapReference, Root};
-use destack_mir::{ReferenceKind, Space};
+use destack_mir::{ReferenceKind, Space, Storage};
 use destack_program::{CoroutineKind, FunctionId, Outcome, TypeId, Waiter, Word};
 
 use super::{RuntimeCall, TestMachine, TestProgram};
@@ -99,7 +99,7 @@ fn test_trace_ready_continuation_environment() {
         .environment(0, 0)
         .coroutine(0, CoroutineKind::GENERATOR)
         .signature(1, [0], 1)
-        .reference(0, 1, ReferenceKind::Managed, Space::Local);
+        .reference(0, 1, ReferenceKind::Managed, Storage::Heap(Space::Local));
     let mut machine = TestMachine::parse(
         r#"
 function generate {
@@ -179,7 +179,7 @@ fn test_complete_ready_continuation() {
         .frame(2, 1, [])
         .continuations([site])
         .local_global()
-        .drop(0, 0);
+        .destructor(0, Storage::Frame, 0);
     let mut machine = TestMachine::parse(
         r#"
 function destroy {
@@ -231,7 +231,7 @@ fn test_destroy_ready_continuation() {
         .coroutine(1, CoroutineKind::GENERATOR)
         .frame(2, 1, [])
         .local_global()
-        .drop(0, 0);
+        .destructor(0, Storage::Frame, 0);
     let mut machine = TestMachine::parse(
         r#"
 function destroy {
@@ -278,7 +278,7 @@ fn test_destroy_suspended_continuation() {
         .suspensions([suspension])
         .continuations([continuation])
         .local_global()
-        .drop(0, 0);
+        .destructor(0, Storage::Frame, 0);
     let mut machine = TestMachine::parse(
         r#"
 function destroy {

@@ -1485,7 +1485,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         }
         let space = layout
             .reference
-            .space()
+            .heap_space()
             .ok_or_else(|| self.invalid_instruction())?;
         let edge = self.read_edge(registers.start, space)?;
         let byte_offset = self.read(registers.start.0 + 1).as_u64() as usize;

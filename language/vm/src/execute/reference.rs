@@ -14,7 +14,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         match space {
             mir::Space::Local => Ok(HeapEdge::Local(HeapReference::from_bits(bits))),
             mir::Space::Shared => Ok(HeapEdge::Shared(SharedHeapReference::from_bits(bits))),
-            _ => Err(self.invalid_instruction()),
         }
     }
 
@@ -24,9 +23,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         register: RegisterId,
         reference: ReferenceType,
     ) -> Result<HeapEdge> {
-        let space = match reference.space() {
-            Space::LOCAL => mir::Space::Local,
-            Space::SHARED => mir::Space::Shared,
+        let space = match reference.storage().heap_space() {
+            Some(Space::LOCAL) => mir::Space::Local,
+            Some(Space::SHARED) => mir::Space::Shared,
             _ => return Err(self.invalid_instruction()),
         };
 

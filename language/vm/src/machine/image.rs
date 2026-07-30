@@ -3,6 +3,7 @@ use std::sync::Arc;
 use destack_bytecode::{CodeOffset, FrameMap, RegisterSpan};
 use destack_heap::{HeapResult, RootSlot};
 use destack_memory::{MemoryImage, MemoryRange};
+use destack_mir as mir;
 use destack_program::{
     FrameLayout, FramePoint, FrameSlot, FrameStateId, FunctionId, Program, ProgramPoint, TypeId,
     Word,
@@ -149,7 +150,10 @@ impl Machine {
             let (slots, spans) = mapping.values(&self.program)?;
 
             for (slot, span) in slots.iter().zip(spans) {
-                let Some(function) = self.program.destructor(slot.ty).map_err(Error::program)?
+                let Some(function) = self
+                    .program
+                    .destructor(slot.ty, mir::Storage::Frame)
+                    .map_err(Error::program)?
                 else {
                     continue;
                 };

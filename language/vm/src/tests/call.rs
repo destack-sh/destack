@@ -110,7 +110,7 @@ function f1 {
 
 function f2 {
     new.local.managed.zeroed r0, a0
-    call.virtual r1, r0, ref<managed, space(local)>, 12, 0, r0
+    call.virtual r1, r0, ref<managed, local>, 12, 0, r0
     return r1
 }
 "#,

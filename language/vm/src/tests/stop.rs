@@ -1,5 +1,5 @@
 use destack_bytecode::{RegisterId, RegisterSpan};
-use destack_mir::{ReferenceKind, Space};
+use destack_mir::{GlobalStorage, ReferenceKind, Space, Storage};
 use destack_program::{CoroutineKind, MemoryAccess, StopReason, StopSet, WatchSet, Word};
 
 use super::{TestMachine, TestProgram};
@@ -58,7 +58,12 @@ function f0 {
 #[test]
 fn test_stop_at_watchpoint() {
     let point = TestProgram::point(0, 2);
-    let site = TestProgram::memory_site(0, 2, MemoryAccess::Write, Space::Static);
+    let site = TestProgram::memory_site(
+        0,
+        2,
+        MemoryAccess::Write,
+        Storage::Global(GlobalStorage::Local),
+    );
     let watch = TestProgram::watchpoint(0, 2, 11, MemoryAccess::Write);
     let watchpoint_id = watch.watchpoint_id;
     let watches = WatchSet::new(vec![watch]);
@@ -97,7 +102,7 @@ fn test_restore_nested_stop() {
     let reason = stop.reason;
     let stops = StopSet::new(vec![stop]);
     let program = TestProgram::words()
-        .reference(1, 0, ReferenceKind::Borrowed, Space::Frame)
+        .reference(1, 0, ReferenceKind::Borrowed, Storage::Frame)
         .frame(
             0,
             1,
@@ -144,11 +149,11 @@ fn test_restore_continuation_destruction() {
         .signature(1, [0], 0)
         .signature(2, [0], 0)
         .coroutine(1, CoroutineKind::GENERATOR)
-        .reference(1, 0, ReferenceKind::Borrowed, Space::Frame)
+        .reference(1, 0, ReferenceKind::Borrowed, Storage::Frame)
         .frame(0, 1, [(RegisterSpan::new(RegisterId(0), 1), 1)])
         .frame(2, 1, [])
         .local_global()
-        .drop(0, 0);
+        .destructor(0, Storage::Frame, 0);
     let mut machine = TestMachine::parse(
         r#"
 function destroy {
@@ -194,7 +199,7 @@ fn test_visit_stopped_roots() {
     let allocation = TestProgram::value_allocation(0, 0, Space::Local, 1);
     let program = TestProgram::words()
         .allocations([allocation])
-        .reference(1, 0, ReferenceKind::Managed, Space::Local)
+        .reference(1, 0, ReferenceKind::Managed, Storage::Heap(Space::Local))
         .frame(0, 2, [(RegisterSpan::new(RegisterId(0), 1), 1)]);
     let mut machine = TestMachine::parse(
         r#"

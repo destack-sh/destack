@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use bytecode::{CodeBuilder, Parser, RelocationTag};
 use destack_bytecode as bytecode;
-use destack_core::{EntryRange, StringPool};
+use destack_core::{EntryRange, Optional, StringPool};
 use destack_heap::DropId;
-use destack_mir::TraceTable;
+use destack_mir::{Space, Storage, TraceTable};
 use destack_program as program;
 use destack_program::{
     BindingAffinity, BindingBuilder, BindingEffect, BindingId, BindingProvider, BindingReplay,
@@ -122,7 +122,7 @@ impl TestProgram {
             count = count.max(concrete.index() + 1);
             count = count.max(constraint.index() + 1);
         }
-        for (ty, _) in &self.drops {
+        for (ty, _, _) in &self.drops {
             count = count.max(ty.index() + 1);
         }
         for signature in self.signatures.iter().flatten() {
@@ -159,13 +159,27 @@ impl TestProgram {
             let layout = LayoutId::new(index as u32 + 1);
             let mut descriptor = TypeDescriptorBuilder::new(layout);
 
-            // attach the explicitly configured destructor when present
-            if let Some((_, function)) = self.drops.iter().find(|(ty, _)| ty.index() == index) {
+            // attach the explicitly configured destructors when present
+            let mut entry = DropEntry {
+                frame: Optional::none(),
+                local: Optional::none(),
+                shared: Optional::none(),
+            };
+            let mut has_drop = false;
+            for (_, storage, function) in self.drops.iter().filter(|(ty, _, _)| ty.index() == index)
+            {
+                match storage {
+                    Storage::Frame => entry.frame = Optional::some(*function),
+                    Storage::Heap(Space::Local) => entry.local = Optional::some(*function),
+                    Storage::Heap(Space::Shared) => entry.shared = Optional::some(*function),
+                    Storage::Global(_) => panic!("test globals cannot carry destructors"),
+                }
+                has_drop = true;
+            }
+            if has_drop {
                 let drop = DropId::from_index(drops.len() as u32);
                 descriptor = descriptor.drop(drop);
-                drops.push(DropEntry {
-                    function: *function,
-                });
+                drops.push(entry);
             }
 
             types.push(descriptor);

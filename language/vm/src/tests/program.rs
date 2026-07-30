@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_bytecode as bytecode;
 use destack_core::Optional;
 use destack_mir::{
-    Access, Nullability, ReferenceKind, Space, TensorFormat, TensorViewFormat, TraceMap,
+    Access, Nullability, ReferenceKind, Space, Storage, TensorFormat, TensorViewFormat, TraceMap,
 };
 use destack_program as program;
 use destack_program::{
@@ -41,8 +41,8 @@ pub(crate) struct TestProgram {
     pub(super) dynamic_tables: Vec<DynamicTableBuilder>,
     /// Dense dynamic table ids keyed by bytecode type pair.
     pub(super) dynamic_table_ids: HashMap<(bytecode::TypeId, bytecode::TypeId), u32>,
-    /// Destructor functions keyed by object-local type id.
-    pub(super) drops: Vec<(TypeId, FunctionId)>,
+    /// Destructor functions keyed by object-local type id and storage.
+    pub(super) drops: Vec<(TypeId, Storage, FunctionId)>,
     /// Concrete type layouts under test.
     pub(super) layouts: Vec<TestLayout>,
     /// Canonical frames required by retained execution tests.
@@ -214,12 +214,12 @@ impl TestProgram {
         function: u32,
         operation: u32,
         access: MemoryAccess,
-        space: Space,
+        storage: Storage,
     ) -> MemorySite {
         MemorySite {
             point: Self::point(function, operation),
             access,
-            space,
+            storage,
             value_type: TypeId(0),
         }
     }
@@ -497,9 +497,9 @@ impl TestProgram {
         self
     }
 
-    /// Attach one destructor function to an object-local type.
-    pub(crate) fn drop(mut self, ty: u32, function: u32) -> Self {
-        self.drops.push((TypeId(ty), FunctionId(function)));
+    /// Attach one destructor function to an object-local type and storage.
+    pub(crate) fn destructor(mut self, ty: u32, storage: Storage, function: u32) -> Self {
+        self.drops.push((TypeId(ty), storage, FunctionId(function)));
 
         self
     }
@@ -530,27 +530,27 @@ impl TestProgram {
         ty: u32,
         pointee: u32,
         kind: ReferenceKind,
-        space: Space,
+        storage: Storage,
     ) -> Self {
-        let flags = ReferenceFlags::new(kind, space, Access::Mutable, Nullability::None);
+        let flags = ReferenceFlags::new(kind, storage, Access::Mutable, Nullability::None);
         let shape = LayoutShapeBuilder::Reference(ReferenceLayout {
             pointee: TypeId(pointee),
             flags,
         });
-        let trace = match (kind, space) {
-            (ReferenceKind::Managed, Space::Local) => TraceMap::Fixed {
+        let trace = match (kind, storage) {
+            (ReferenceKind::Managed, Storage::Heap(Space::Local)) => TraceMap::Fixed {
                 local_offsets: Box::new([0]),
                 shared_offsets: Box::new([]),
                 frame_offsets: Box::new([]),
             },
-            (ReferenceKind::Managed, Space::Shared) => TraceMap::Fixed {
+            (ReferenceKind::Managed, Storage::Heap(Space::Shared)) => TraceMap::Fixed {
                 local_offsets: Box::new([]),
                 shared_offsets: Box::new([0]),
                 frame_offsets: Box::new([]),
             },
             (
                 ReferenceKind::Managed | ReferenceKind::Unique | ReferenceKind::Borrowed,
-                Space::Frame,
+                Storage::Frame,
             ) => TraceMap::Fixed {
                 local_offsets: Box::new([]),
                 shared_offsets: Box::new([]),
@@ -623,7 +623,7 @@ impl TestProgram {
             pointee: TypeId(element),
             flags: ReferenceFlags::new(
                 ReferenceKind::Borrowed,
-                space,
+                Storage::Heap(space),
                 Access::Mutable,
                 Nullability::None,
             ),

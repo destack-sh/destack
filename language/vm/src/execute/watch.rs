@@ -1,5 +1,5 @@
 use destack_bytecode::{AtomicOperation, CodeOffset, Instruction, MemoryOperation, Opcode, Scalar};
-use destack_mir::Space;
+use destack_mir::{GlobalStorage, Space, Storage};
 use destack_program::{
     GlobalAddress, GlobalLocation, MemoryAccess, MemoryRange, Outcome, Runtime, StopReason, Word,
 };
@@ -153,7 +153,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             let range = if watch_points.requires_memory_range() {
                 let (address, byte_len) = address.ok_or_else(Error::invalid_instruction)?;
 
-                Some(self.memory_range(site.space, address, byte_len)?)
+                Some(self.memory_range(site.storage, address, byte_len)?)
             } else {
                 None
             };
@@ -175,10 +175,15 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         Ok(None)
     }
 
-    /// Project one native byte range into its program memory space.
-    fn memory_range(&self, space: Space, address: usize, byte_len: usize) -> Result<MemoryRange> {
-        let range = match space {
-            Space::Local | Space::Shared => {
+    /// Project one native byte range into its program storage.
+    fn memory_range(
+        &self,
+        storage: Storage,
+        address: usize,
+        byte_len: usize,
+    ) -> Result<MemoryRange> {
+        let range = match storage {
+            Storage::Heap(space) => {
                 let offset = self
                     .activation
                     .memory
@@ -191,7 +196,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     MemoryRange::shared_heap(offset as u64, byte_len as u64)
                 }
             }
-            Space::Frame => {
+            Storage::Frame => {
                 let offset = self
                     .machine
                     .stack
@@ -200,54 +205,57 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                 MemoryRange::frame(offset as u64, byte_len as u64)
             }
-            Space::Static => self.static_range(address, byte_len)?,
+            Storage::Global(storage) => self.global_range(storage, address, byte_len)?,
         };
 
         Ok(range)
     }
 
-    /// Resolve one native static byte range to its durable global coordinate.
-    fn static_range(&self, address: usize, byte_len: usize) -> Result<MemoryRange> {
-        let locations = [
-            GlobalLocation::Constant,
-            GlobalLocation::SharedStatic,
-            GlobalLocation::LocalStatic,
-        ];
+    /// Resolve one native global byte range to its durable coordinate.
+    fn global_range(
+        &self,
+        storage: GlobalStorage,
+        address: usize,
+        byte_len: usize,
+    ) -> Result<MemoryRange> {
+        let location = match storage {
+            GlobalStorage::Constant => GlobalLocation::Constant,
+            GlobalStorage::Local => GlobalLocation::LocalStatic,
+            GlobalStorage::Shared => GlobalLocation::SharedStatic,
+        };
 
         // scan cold debugger metadata only when a range watchpoint is active
-        for location in locations {
-            for (global_id, global) in self.machine.program.globals(location) {
-                let global_address = GlobalAddress::new(global_id, 0);
-                let base = match location {
-                    GlobalLocation::Constant => self
-                        .machine
-                        .program
-                        .constant_address(global_address, global.byte_len()),
-                    GlobalLocation::SharedStatic => self.activation.memory.shared_static.address(
-                        global,
-                        global_address,
-                        global.byte_len(),
-                    ),
-                    GlobalLocation::LocalStatic => self.activation.memory.local_static.address(
-                        global,
-                        global_address,
-                        global.byte_len(),
-                    ),
-                };
-                let Some(base) = base else {
-                    continue;
-                };
-                let Some(offset) = address.checked_sub(base) else {
-                    continue;
-                };
-                if offset + byte_len <= global.byte_len() {
-                    return Ok(MemoryRange::global(
-                        global_id,
-                        location,
-                        offset as u64,
-                        byte_len as u64,
-                    ));
-                }
+        for (global_id, global) in self.machine.program.globals(location) {
+            let global_address = GlobalAddress::new(global_id, 0);
+            let base = match location {
+                GlobalLocation::Constant => self
+                    .machine
+                    .program
+                    .constant_address(global_address, global.byte_len()),
+                GlobalLocation::SharedStatic => self.activation.memory.shared_static.address(
+                    global,
+                    global_address,
+                    global.byte_len(),
+                ),
+                GlobalLocation::LocalStatic => self.activation.memory.local_static.address(
+                    global,
+                    global_address,
+                    global.byte_len(),
+                ),
+            };
+            let Some(base) = base else {
+                continue;
+            };
+            let Some(offset) = address.checked_sub(base) else {
+                continue;
+            };
+            if offset + byte_len <= global.byte_len() {
+                return Ok(MemoryRange::global(
+                    global_id,
+                    location,
+                    offset as u64,
+                    byte_len as u64,
+                ));
             }
         }
 
