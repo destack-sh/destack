@@ -5,8 +5,9 @@ use destack_artifact::{
 };
 use destack_bytecode as bytecode;
 use destack_mir as mir;
-use destack_program::{native, wasm};
+use destack_native as native;
 use destack_source::ModuleId;
+use destack_webassembly as wasm;
 
 use crate::EmitError;
 

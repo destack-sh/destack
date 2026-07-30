@@ -24,9 +24,11 @@ destack_formatter = { workspace = true }
 destack_heap = { workspace = true }
 destack_js = { workspace = true }
 destack_mir = { workspace = true }
+destack_native = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
 destack_source = { workspace = true }
+destack_webassembly = { workspace = true }
 destack_repository = { path = "../repository", default-features = false }
 
 # general
