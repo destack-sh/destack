@@ -20,6 +20,7 @@
         "client/wasm",
         "language/grammar",
         "language/grammar/destack",
+        "language/grammar/bytecode",
         "language/grammar/mir",
         "platform/site",
         "platform/stack",

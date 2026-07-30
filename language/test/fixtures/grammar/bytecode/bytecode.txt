@@ -1,0 +1,45 @@
+// SYNTAX TEST "source.dsa"
+
+// imported declaration
+// <- comment.line.double-slash.dsa
+function imported
+// <- keyword.declaration.function.dsa
+//       ^^^^^^^^ entity.name.function.dsa
+
+function dispatch {
+    constant.int128 r0, -1
+//  ^^^^^^^^^^^^^^^ keyword.operator.instruction.dsa
+//                  ^^ variable.other.register.dsa
+//                      ^^ constant.numeric.dsa
+    call.virtual r5, f0, ref<managed, local>, 0, 0, r0:r2
+//  ^^^^^^^^^^^^ keyword.operator.instruction.dsa
+//               ^^ variable.other.register.dsa
+//                   ^^ entity.name.function.dsa
+//                                                  ^^ variable.other.register.dsa
+//                                                     ^^ variable.other.register.dsa
+    tensor.contract r6, [(r0, l0), (r1, l0)], axes([], [], [1], [0]), a0
+//  ^^^^^^^^^^^^^^^ keyword.operator.instruction.dsa
+//                  ^^ variable.other.register.dsa
+//                        ^^ variable.other.register.dsa
+//                            ^^ constant.other.identity.dsa
+//                                                                    ^^ constant.other.identity.dsa
+    switch r0 { 0 => b0, default => b1 }
+//  ^^^^^^ keyword.control.flow.dsa
+//         ^^ variable.other.register.dsa
+//              ^ constant.numeric.dsa
+//                   ^^ entity.name.label.dsa
+//                       ^^^^^^^ constant.language.dsa
+//                                  ^^ entity.name.label.dsa
+b0:
+// <- entity.name.label.dsa
+    continuation.resume r7:r8, r9, r10:r11, r6, r5 => b2 | b3 | b4
+//  ^^^^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsa
+//                      ^^ variable.other.register.dsa
+//                         ^^ variable.other.register.dsa
+//                                                    ^^ entity.name.label.dsa
+b1:return r0
+// <- entity.name.label.dsa
+//^ punctuation.separator.dsa
+// ^^^^^^ keyword.control.flow.dsa
+//        ^^ variable.other.register.dsa
+}

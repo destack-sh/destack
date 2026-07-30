@@ -1,0 +1,85 @@
+==================================
+Bytecode identities and literals
+==================================
+
+function values {
+    constant.int128 r0, -1
+    constant.float16 r1, bits(0x7e01)
+    constant.float32 r2, Infinity
+    constant.float64 r3, -Infinity
+    constant.boolean r4, true
+    constant.type r5, t0
+    global.address r6, g0
+    dynamic.bind r7:r8, r6, d0
+    new.local.managed.zeroed r9, a0
+}
+
+
+---
+
+(source_file
+  (function_definition
+    (function_keyword)
+    (function_name)
+    (instruction
+      (opcode)
+      (operands
+        (register_identifier)
+        (comma)
+        (integer_literal)))
+    (instruction
+      (opcode)
+      (operands
+        (register_identifier)
+        (comma)
+        (identifier)
+        (tuple
+          (operands
+            (integer_literal)))))
+    (instruction
+      (opcode)
+      (operands
+        (register_identifier)
+        (comma)
+        (identifier)))
+    (instruction
+      (opcode)
+      (operands
+        (register_identifier)
+        (comma)
+        (identifier)))
+    (instruction
+      (opcode)
+      (operands
+        (register_identifier)
+        (comma)
+        (boolean_literal)))
+    (instruction
+      (opcode)
+      (operands
+        (register_identifier)
+        (comma)
+        (type_identifier)))
+    (instruction
+      (opcode)
+      (operands
+        (register_identifier)
+        (comma)
+        (global_identifier)))
+    (instruction
+      (opcode)
+      (operands
+        (register_span
+          (register_identifier)
+          (colon)
+          (register_identifier))
+        (comma)
+        (register_identifier)
+        (comma)
+        (dynamic_identifier)))
+    (instruction
+      (opcode)
+      (operands
+        (register_identifier)
+        (comma)
+        (allocation_identifier)))))

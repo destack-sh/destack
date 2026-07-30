@@ -50,11 +50,25 @@ const languages = {
     },
     mir: {
         name: "mir",
-        extension: "mir",
+        extension: "dsm",
         grammarRoot: path.join(repoRoot, "language", "grammar", "mir"),
         textmateGrammarPath: path.join(bridgeVscodeRoot, "destack-mir.tmLanguage.json"),
-        textmateScope: "source.dsmir",
-        matches: (tag) => tag === "mir" || tag.startsWith("mir:") || tag === "dsmir" || tag.startsWith("dsmir:"),
+        textmateScope: "source.dsm",
+        matches: (tag) => tag === "mir" || tag.startsWith("mir:") || tag === "dsm" || tag.startsWith("dsm:"),
+        attempts: [
+            {
+                name: "source",
+                wrap: (source) => source,
+            },
+        ],
+    },
+    bytecode: {
+        name: "bytecode",
+        extension: "dsa",
+        grammarRoot: path.join(repoRoot, "language", "grammar", "bytecode"),
+        textmateGrammarPath: path.join(bridgeVscodeRoot, "destack-bytecode.tmLanguage.json"),
+        textmateScope: "source.dsa",
+        matches: (tag) => tag === "dsa" || tag.startsWith("dsa:"),
         attempts: [
             {
                 name: "source",

@@ -14,6 +14,8 @@ const destackGrammarDirectory = path.join(repoRoot, "language", "grammar", "dest
 const destackPackageDirectory = path.join(repoRoot, "language", "grammar", "destack");
 const mirCorpusDirectory = path.join(repoRoot, "language", "grammar", "mir", "test", "corpus");
 const mirVscodeFixtureDirectory = path.join(grammarFixtureDirectory, "mir");
+const bytecodeCorpusDirectory = path.join(repoRoot, "language", "grammar", "bytecode", "test", "corpus");
+const bytecodeVscodeFixtureDirectory = path.join(grammarFixtureDirectory, "bytecode");
 const textmateAssertionPattern = /^\/\/\s*(?:\^|<-)/m;
 const vscodeSpecBlockHeaderPattern = /^\/\/\s+[a-z][\w-]*\s+\/\s+.+$/;
 const staleCorpusPatterns = [
@@ -183,16 +185,13 @@ function checkDestackCorpus(errors) {
     }
 }
 
-function checkMirFixtures(errors) {
-    const corpusFiles = relativeFiles(mirCorpusDirectory, ".txt");
-    const vscodeFiles = relativeFiles(mirVscodeFixtureDirectory, ".txt");
-
-    if (corpusFiles.length === 0) {
-        errors.push("MIR tree-sitter corpus is empty");
+function checkOutputFixtures(name, corpusDirectory, vscodeDirectory, errors) {
+    if (relativeFiles(corpusDirectory, ".txt").length === 0) {
+        errors.push(`${name} Tree-sitter corpus is empty`);
     }
 
-    if (vscodeFiles.length === 0) {
-        errors.push("MIR VSCode grammar fixtures are empty");
+    if (relativeFiles(vscodeDirectory, ".txt").length === 0) {
+        errors.push(`${name} VS Code grammar fixtures are empty`);
     }
 }
 
@@ -285,7 +284,13 @@ function main() {
 
     checkVscodeFixtures(errors);
     checkDestackCorpus(errors);
-    checkMirFixtures(errors);
+    checkOutputFixtures("MIR", mirCorpusDirectory, mirVscodeFixtureDirectory, errors);
+    checkOutputFixtures(
+        "Bytecode Assembly",
+        bytecodeCorpusDirectory,
+        bytecodeVscodeFixtureDirectory,
+        errors,
+    );
     checkDestackFixtureParse(errors);
 
     if (errors.length > 0) {

@@ -1,23 +1,23 @@
 {
   "grammars": [
     {
-      "name": "mir",
-      "camelcase": "MIR",
-      "scope": "source.dsm",
+      "name": "destack_bytecode",
+      "camelcase": "DestackBytecode",
+      "scope": "source.dsa",
       "path": ".",
       "file-types": [
-        "dsm"
+        "dsa"
       ],
       "highlights": [
         "queries/highlights.scm"
       ],
-      "injection-regex": "^(mir|dsm)$"
+      "injection-regex": "^(dsa|destack-bytecode)$"
     }
   ],
   "metadata": {
     "version": "0.1.0",
     "license": "MIT",
-    "description": "Destack MIR grammar for tree-sitter",
+    "description": "Destack Bytecode Assembly grammar for Tree-sitter",
     "authors": [
       {
         "name": "Destack"

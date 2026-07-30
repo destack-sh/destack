@@ -1,0 +1,41 @@
+==================================
+Function declarations and definitions
+==================================
+
+// imported declaration
+function imported
+
+function dispatch {
+b0:
+    return r0:r1
+b1:return r2
+}
+
+
+---
+
+(source_file
+  (line_comment)
+  (function_declaration
+    (function_keyword)
+    (function_name))
+  (function_definition
+    (function_keyword)
+    (function_name)
+    (label
+      (label_identifier)
+      (colon))
+    (instruction
+      (opcode)
+      (operands
+        (register_span
+          (register_identifier)
+          (colon)
+          (register_identifier))))
+    (label
+      (label_identifier)
+      (colon)
+      (instruction
+        (opcode)
+        (operands
+          (register_identifier))))))
