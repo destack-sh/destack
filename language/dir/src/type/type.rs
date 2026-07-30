@@ -86,7 +86,7 @@ pub enum Type {
 
     /// Function signature type, like `(value: int32) => string`, interned in the segment.
     FunctionSignature(FunctionSignatureId),
-    /// Fat callable value with an explicit captured environment.
+    /// Fat callable value.
     Function(FunctionType),
     /// Thin callable value with no captured environment.
     FunctionPointer(FunctionPointerType),
@@ -2315,13 +2315,11 @@ pub struct FunctionParameterType {
     pub is_rest: bool,
 }
 
-/// A fat callable value with a function signature and captured environment.
+/// A fat callable value with one assignable function signature.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct FunctionType {
     /// The function signature.
     pub signature: GlobalTypeId,
-    /// The captured environment type.
-    pub environment: GlobalTypeId,
 }
 
 /// A thin callable value with no captured environment.
