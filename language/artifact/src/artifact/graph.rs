@@ -102,13 +102,17 @@ impl ModuleGraph {
     pub fn derive(
         &self,
         updated_edges: IndexMap<ModuleId, Arc<[ModuleId]>>,
-        removed_modules: Vec<ModuleId>,
+        mut removed_modules: Vec<ModuleId>,
         extensions: Vec<InherentExtension>,
     ) -> Result<Self, ModuleId> {
+        // index removals for filtering sources and targets
+        removed_modules.sort_unstable();
+        removed_modules.dedup();
+
         // merge retained edges with the updates
         let mut edges = IndexMap::new();
         for (index, module) in self.modules.iter().enumerate() {
-            if removed_modules.contains(module) || updated_edges.contains_key(module) {
+            if removed_modules.binary_search(module).is_ok() || updated_edges.contains_key(module) {
                 continue;
             }
             let targets = self
@@ -116,10 +120,20 @@ impl ModuleGraph {
                 .targets(index)
                 .iter()
                 .map(|target| self.modules[*target as usize])
+                .filter(|target| removed_modules.binary_search(target).is_err())
                 .collect::<Arc<[ModuleId]>>();
             edges.insert(*module, targets);
         }
         for (module, targets) in updated_edges {
+            // removal wins over an edge update for the same module
+            if removed_modules.binary_search(&module).is_ok() {
+                continue;
+            }
+            let targets = targets
+                .iter()
+                .copied()
+                .filter(|target| removed_modules.binary_search(target).is_err())
+                .collect::<Arc<[ModuleId]>>();
             edges.insert(module, targets);
         }
 
