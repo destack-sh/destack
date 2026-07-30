@@ -47,9 +47,12 @@ impl Linter {
         &'a self,
         context: &'a dyn ProviderContext,
     ) -> ArtifactReader<'a> {
-        self.repository
-            .artifact_reader(context.revision())
-            .restrict(context.artifact_key(), context.artifact_dependencies())
+        let artifacts = self.repository.artifact_reader(context.revision());
+        let Some(dependencies) = context.artifact_dependencies() else {
+            return artifacts;
+        };
+
+        artifacts.restrict(dependencies)
     }
 
     /// Resolve the lints scheduled by one package and its checked source controls.
