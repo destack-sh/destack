@@ -1,5 +1,5 @@
 ======================================================
-Expression node smoke parses
+Expression values parse
 :language(destack)
 ======================================================
 
@@ -105,3 +105,99 @@ const value = Pair<Left, Right> { left: this.right, right: this.left };
             value: (member_expression
               object: (this)
               property: (property_identifier))))))))
+
+=================================================
+Type values parse
+:language(destack)
+=================================================
+
+const qualified = type Foo.Bar;
+const generic = type T<A, B>;
+const union = type 1 | 2 | 3;
+const symbolic = (type &User, type ^User, type *User, type !User);
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_value
+        (nested_type_identifier
+          (identifier)
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_value
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier)
+            (type_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_value
+        (union_type
+          (union_type
+            (literal_type
+              (number))
+            (literal_type
+              (number)))
+          (literal_type
+            (number))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (tuple_expression
+        (type_value
+          (memory_type
+            (type_identifier)))
+        (type_value
+          (memory_type
+            (type_identifier)))
+        (type_value
+          (memory_type
+            (type_identifier)))
+        (type_value
+          (negated_type
+            (type_identifier)))))))
+
+=================================================
+Type remains a contextual identifier
+:language(destack)
+=================================================
+
+let type = 1;
+type = type + 2;
+function configure(type: string): void {}
+for (type of values) {}
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (number)))
+  (expression_statement
+    (assignment_expression
+      (identifier)
+      (binary_expression
+        (identifier)
+        (number))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (type_annotation
+      (predefined_type))
+    (statement_block))
+  (for_in_statement
+    (identifier)
+    (identifier)
+    (statement_block)))

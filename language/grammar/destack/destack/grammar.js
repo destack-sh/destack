@@ -7,6 +7,8 @@ module.exports = grammar(JavaScript, {
     $._function_signature_automatic_semicolon,
     $.__error_recovery,
     $._lifetime,
+    $._type_declaration_keyword,
+    $._type_value_keyword,
   ]),
 
   supertypes: ($, previous) => previous.concat([
@@ -323,6 +325,7 @@ module.exports = grammar(JavaScript, {
       $.struct_literal_expression,
       $.fixed_array_expression,
       $.annotation_call_expression,
+      $.type_value,
       $.try_propagation_expression,
       $.memory_expression,
       $.placement_expression,
@@ -495,12 +498,6 @@ module.exports = grammar(JavaScript, {
       $.using_assignment_statement,
       $.dereference_assignment_statement,
       $.loop_expression,
-      alias($.placed_abstract_class_declaration, $.abstract_class_declaration),
-      alias($.placed_class_declaration, $.class_declaration),
-      alias($.placed_struct_declaration, $.struct_declaration),
-      alias($.placed_enum_declaration, $.enum_declaration),
-      alias($.placed_interface_declaration, $.interface_declaration),
-      alias($.placed_type_alias_declaration, $.type_alias_declaration),
       $.export_statement,
       $.import_statement,
       $.declaration,
@@ -809,7 +806,7 @@ module.exports = grammar(JavaScript, {
     )),
 
     match_struct_pattern: $ => prec(2, seq(
-      field('name', $.identifier),
+      field('name', choice($.identifier, $.nested_identifier)),
       field('pattern', $.match_object_pattern),
     )),
 
@@ -1172,18 +1169,6 @@ module.exports = grammar(JavaScript, {
 
     export_statement: ($, previous) => choice(
       previous,
-      seq(
-        'export',
-        optional('default'),
-        choice(
-          alias($.placed_abstract_class_declaration, $.abstract_class_declaration),
-          alias($.placed_class_declaration, $.class_declaration),
-          alias($.placed_struct_declaration, $.struct_declaration),
-          alias($.placed_enum_declaration, $.enum_declaration),
-          alias($.placed_interface_declaration, $.interface_declaration),
-          alias($.placed_type_alias_declaration, $.type_alias_declaration),
-        ),
-      ),
       seq(
         'export',
         choice(
@@ -1670,18 +1655,7 @@ module.exports = grammar(JavaScript, {
 
     abstract_class_declaration: $ => prec('declaration', seq(
       repeat(field('decorator', $.decorator)),
-      'abstract',
-      'class',
-      field('name', $._type_identifier),
-      field('type_parameters', optional($.type_parameters)),
-      optional($.class_heritage),
-      optional($.where_clause),
-      field('body', $.class_body),
-    )),
-
-    placed_abstract_class_declaration: $ => prec('declaration', seq(
-      repeat(field('decorator', $.decorator)),
-      field('place', $.placement_modifier),
+      field('place', optional($.placement_modifier)),
       'abstract',
       'class',
       field('name', $._type_identifier),
@@ -1693,19 +1667,7 @@ module.exports = grammar(JavaScript, {
 
     class_declaration: $ => prec.left('declaration', seq(
       repeat(field('decorator', $.decorator)),
-      optional('final'),
-      'class',
-      field('name', $._type_identifier),
-      field('type_parameters', optional($.type_parameters)),
-      optional($.class_heritage),
-      optional($.where_clause),
-      field('body', $.class_body),
-      optional($._automatic_semicolon),
-    )),
-
-    placed_class_declaration: $ => prec.left('declaration', seq(
-      repeat(field('decorator', $.decorator)),
-      field('place', $.placement_modifier),
+      field('place', optional($.placement_modifier)),
       optional('final'),
       'class',
       field('name', $._type_identifier),
@@ -1718,18 +1680,7 @@ module.exports = grammar(JavaScript, {
 
     struct_declaration: $ => prec.left('declaration', seq(
       repeat(field('decorator', $.decorator)),
-      'struct',
-      field('name', $._type_identifier),
-      field('type_parameters', optional($.type_parameters)),
-      optional($.implements_clause),
-      optional($.where_clause),
-      field('body', $.class_body),
-      optional($._automatic_semicolon),
-    )),
-
-    placed_struct_declaration: $ => prec.left('declaration', seq(
-      repeat(field('decorator', $.decorator)),
-      field('place', $.placement_modifier),
+      field('place', optional($.placement_modifier)),
       'struct',
       field('name', $._type_identifier),
       field('type_parameters', optional($.type_parameters)),
@@ -1745,6 +1696,7 @@ module.exports = grammar(JavaScript, {
     ),
 
     extension_declaration: $ => seq(
+      repeat(field('decorator', $.decorator)),
       'extension',
       field('name', optional($._type_identifier)),
       field('type_parameters', optional($.type_parameters)),
@@ -1762,17 +1714,8 @@ module.exports = grammar(JavaScript, {
     )),
 
     interface_declaration: $ => prec.right('declaration', seq(
-      optional('newtype'),
-      'interface',
-      field('name', optional($._type_identifier)),
-      field('type_parameters', optional($.type_parameters)),
-      optional($.extends_type_clause),
-      optional($.where_clause),
-      field('body', $.interface_body),
-    )),
-
-    placed_interface_declaration: $ => prec.right('declaration', seq(
-      field('place', $.placement_modifier),
+      repeat(field('decorator', $.decorator)),
+      field('place', optional($.placement_modifier)),
       optional('newtype'),
       'interface',
       field('name', optional($._type_identifier)),
@@ -1818,19 +1761,7 @@ module.exports = grammar(JavaScript, {
 
     enum_declaration: $ => seq(
       repeat(field('decorator', $.decorator)),
-      optional('const'),
-      'enum',
-      field('name', optional($.identifier)),
-      field('type_parameters', optional($.type_parameters)),
-      optional($.extends_type_clause),
-      optional($.implements_clause),
-      optional($.where_clause),
-      field('body', $.enum_body),
-    ),
-
-    placed_enum_declaration: $ => seq(
-      repeat(field('decorator', $.decorator)),
-      field('place', $.placement_modifier),
+      field('place', optional($.placement_modifier)),
       optional('const'),
       'enum',
       field('name', optional($.identifier)),
@@ -1879,26 +1810,16 @@ module.exports = grammar(JavaScript, {
       optional($._initializer),
     ),
 
-    type_alias_declaration: $ => seq(
+    type_alias_declaration: $ => prec('declaration', seq(
       repeat(field('decorator', $.decorator)),
-      choice('type', 'newtype'),
+      field('place', optional($.placement_modifier)),
+      choice(alias($._type_declaration_keyword, 'type'), 'newtype'),
       field('name', $._type_identifier),
       field('type_parameters', optional($.type_parameters)),
       '=',
       field('value', choice($.implements_type, $.type)),
       $._semicolon,
-    ),
-
-    placed_type_alias_declaration: $ => seq(
-      repeat(field('decorator', $.decorator)),
-      field('place', $.placement_modifier),
-      choice('type', 'newtype'),
-      field('name', $._type_identifier),
-      field('type_parameters', optional($.type_parameters)),
-      '=',
-      field('value', choice($.implements_type, $.type)),
-      $._semicolon,
-    ),
+    )),
 
     associated_type_declaration: $ => seq(
       'type',
@@ -2029,6 +1950,7 @@ module.exports = grammar(JavaScript, {
       $.lifetime,
       $.optional_type,
       $.interval_type,
+      $.negated_type,
       $.readonly_type,
     ),
 
@@ -2045,6 +1967,7 @@ module.exports = grammar(JavaScript, {
 
     optional_type: $ => prec.right(seq($.primary_type, token.immediate('?'))),
     rest_type: $ => prec(1, seq('...', $.type)),
+    negated_type: $ => prec.right('unary', seq('!', field('type', $.type))),
 
     _tuple_type_member: $ => choice(
       alias($.tuple_parameter, $.required_parameter),
@@ -2443,8 +2366,13 @@ module.exports = grammar(JavaScript, {
 
     default_type: $ => seq(
       '=',
-      choice($.static_value_argument, $.type, $.comptime_default_type),
+      choice($.type_value, $.static_value_argument, $.type, $.comptime_default_type),
     ),
+
+    type_value: $ => prec.right('unary', seq(
+      alias($._type_value_keyword, 'type'),
+      field('value', $.type),
+    )),
 
     comptime_default_type: $ => seq(
       'comptime',

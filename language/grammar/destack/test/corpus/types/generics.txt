@@ -320,6 +320,36 @@ let buffer: Buffer<string, comptime 4> = makeBuffer();
         (arguments)))))
 
 =================================================================
+Comptime defaults can carry types
+:language(destack)
+=================================================================
+
+type Borrowed<Q, comptime L: Lifetime = type LifetimeOr<Q, "static">> = Q;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))
+        (default_type
+          (type_value
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (type_identifier)
+                (literal_type
+                  (string
+                    (string_fragment)))))))))
+    (type_identifier)))
+
+=================================================================
 Alias static defaults must be static
 :language(destack)
 =================================================================

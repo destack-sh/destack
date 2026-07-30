@@ -17,7 +17,10 @@
         "node_modules/tree-sitter-javascript/queries/highlights.scm"
       ],
       "injections": "node_modules/tree-sitter-javascript/queries/injections.scm",
-      "locals": "node_modules/tree-sitter-javascript/queries/locals.scm",
+      "locals": [
+        "queries/locals.scm",
+        "node_modules/tree-sitter-javascript/queries/locals.scm"
+      ],
       "tags": [
         "queries/tags.scm",
         "node_modules/tree-sitter-javascript/queries/tags.scm"

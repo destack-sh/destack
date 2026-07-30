@@ -16,6 +16,10 @@ enum TokenType {
 #ifdef DESTACK_LIFETIME
     LIFETIME,
 #endif
+#ifdef DESTACK_TYPE_KEYWORD
+    TYPE_DECLARATION_KEYWORD,
+    TYPE_VALUE_KEYWORD,
+#endif
 };
 
 static void advance(TSLexer *lexer) { lexer->advance(lexer, false); }

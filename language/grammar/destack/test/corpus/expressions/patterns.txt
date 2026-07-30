@@ -85,6 +85,7 @@ match (value) {
     { kind: "ok", value } => value,
     { name: displayName = "Ada", ...rest } => rest,
     Point { x, y } if (x == y) => x,
+    Result.Ok { value } => value,
     Some(value) => value,
     State.Ready => "ready",
     ^owned => owned,
@@ -200,6 +201,17 @@ match (value) {
           (binary_expression
             (identifier)
             (identifier)))
+        (expression_statement
+          (identifier)))
+      (match_arm
+        (match_pattern
+          (match_struct_pattern
+            (nested_identifier
+              (identifier)
+              (property_identifier))
+            (match_object_pattern
+              (match_object_pattern_property
+                (property_identifier)))))
         (expression_statement
           (identifier)))
       (match_arm

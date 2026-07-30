@@ -98,6 +98,31 @@ Classes with decorators
         (statement_block)))))
 
 =======================================
+Interfaces and extensions with decorators
+:language(destack)
+=======================================
+
+@contract
+interface Reader {}
+
+@implementation
+extension of Reader {}
+
+---
+
+(program
+  (interface_declaration
+    (decorator
+      (identifier))
+    (type_identifier)
+    (interface_body))
+  (extension_declaration
+    (decorator
+      (identifier))
+    (type_identifier)
+    (class_body)))
+
+=======================================
 Decorator with parenthesized expression
 :language(destack)
 =======================================

@@ -314,6 +314,10 @@
         "named": true
       },
       {
+        "type": "type_value",
+        "named": true
+      },
+      {
         "type": "undefined",
         "named": true
       }
@@ -422,15 +426,7 @@
     "named": true,
     "subtypes": [
       {
-        "type": "abstract_class_declaration",
-        "named": true
-      },
-      {
         "type": "break_statement",
-        "named": true
-      },
-      {
-        "type": "class_declaration",
         "named": true
       },
       {
@@ -466,10 +462,6 @@
         "named": true
       },
       {
-        "type": "enum_declaration",
-        "named": true
-      },
-      {
         "type": "export_statement",
         "named": true
       },
@@ -498,10 +490,6 @@
         "named": true
       },
       {
-        "type": "interface_declaration",
-        "named": true
-      },
-      {
         "type": "labeled_statement",
         "named": true
       },
@@ -526,10 +514,6 @@
         "named": true
       },
       {
-        "type": "struct_declaration",
-        "named": true
-      },
-      {
         "type": "switch_statement",
         "named": true
       },
@@ -539,10 +523,6 @@
       },
       {
         "type": "try_statement",
-        "named": true
-      },
-      {
-        "type": "type_alias_declaration",
         "named": true
       },
       {
@@ -593,6 +573,10 @@
       },
       {
         "type": "lifetime",
+        "named": true
+      },
+      {
+        "type": "negated_type",
         "named": true
       },
       {
@@ -2580,6 +2564,10 @@
         {
           "type": "type",
           "named": true
+        },
+        {
+          "type": "type_value",
+          "named": true
         }
       ]
     }
@@ -3203,18 +3191,6 @@
       "required": false,
       "types": [
         {
-          "type": "abstract_class_declaration",
-          "named": true
-        },
-        {
-          "type": "class_declaration",
-          "named": true
-        },
-        {
-          "type": "enum_declaration",
-          "named": true
-        },
-        {
           "type": "export_clause",
           "named": true
         },
@@ -3223,19 +3199,7 @@
           "named": true
         },
         {
-          "type": "interface_declaration",
-          "named": true
-        },
-        {
           "type": "namespace_export",
-          "named": true
-        },
-        {
-          "type": "struct_declaration",
-          "named": true
-        },
-        {
-          "type": "type_alias_declaration",
           "named": true
         }
       ]
@@ -3354,6 +3318,16 @@
         "types": [
           {
             "type": "class_body",
+            "named": true
+          }
+        ]
+      },
+      "decorator": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "decorator",
             "named": true
           }
         ]
@@ -5104,6 +5078,16 @@
           }
         ]
       },
+      "decorator": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "decorator",
+            "named": true
+          }
+        ]
+      },
       "name": {
         "multiple": false,
         "required": false,
@@ -6208,6 +6192,10 @@
           {
             "type": "identifier",
             "named": true
+          },
+          {
+            "type": "nested_identifier",
+            "named": true
           }
         ]
       },
@@ -6660,6 +6648,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "negated_type",
+    "named": true,
+    "fields": {
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -9507,6 +9511,22 @@
     }
   },
   {
+    "type": "type_value",
+    "named": true,
+    "fields": {
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "unary_expression",
     "named": true,
     "fields": {
@@ -10537,11 +10557,11 @@
   },
   {
     "type": "number",
-    "named": true
+    "named": false
   },
   {
     "type": "number",
-    "named": false
+    "named": true
   },
   {
     "type": "object",
