@@ -1,14 +1,11 @@
 {
     "compilerOptions": {
-        "module": "commonjs",
-        "target": "es2020",
-        "outDir": "out",
-        "lib": ["es2020"],
-        "sourceMap": true,
-        "rootDir": "src",
+        "module": "node16",
+        "moduleResolution": "node16",
+        "target": "es2022",
+        "lib": ["es2022"],
         "strict": true,
         "noEmit": true,
-        "noImplicitAny": true,
         "esModuleInterop": true,
         "skipLibCheck": true
     },
