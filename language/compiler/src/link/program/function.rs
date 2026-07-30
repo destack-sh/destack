@@ -1,5 +1,7 @@
 use destack_mir as mir;
-use destack_program::{CoroutineKind, FunctionBuilder, FunctionExport, FunctionTableBuilder};
+use destack_program::{
+    CoroutineKind, FunctionBuilder, FunctionExport, FunctionTableBuilder, Symbol,
+};
 
 use crate::LinkResult;
 
@@ -34,7 +36,6 @@ impl<'a> FunctionLinker<'a> {
                         .invalid_input(format!("missing function {function_id:?}"))
                 })?;
             let program_function = self.program.function_id(*module, *function_id);
-
             let name = function.name;
             let signature = self.program.function_signature_id(*module, *function_id);
             let mut entry = FunctionBuilder::new(name, signature);
@@ -44,7 +45,7 @@ impl<'a> FunctionLinker<'a> {
             if let Some(environment) = function.environment {
                 entry = entry.environment(self.program.type_id(*module, environment));
             }
-            functions.push(entry);
+            functions.push((Symbol::from_raw(function.symbol.raw()), entry));
             if function.linkage.is_exported() {
                 exports.push(FunctionExport::new(name, program_function));
             }

@@ -27,7 +27,7 @@ impl<'a> BindingLinker<'a> {
         // visit canonical function declarations in dense identity order
         for (module, function_id) in self.program.functions_by_id() {
             // resolve the object declaration behind this function identity
-            let function = self
+            let declaration = self
                 .program
                 .object(*module)
                 .function(*function_id)
@@ -37,7 +37,7 @@ impl<'a> BindingLinker<'a> {
                 })?;
 
             // skip ordinary callable functions
-            let Some(binding) = &function.binding else {
+            let Some(binding) = &declaration.binding else {
                 continue;
             };
 
@@ -45,7 +45,7 @@ impl<'a> BindingLinker<'a> {
             let name = self.program.string(binding.name);
             let id = BindingId::from_name(name);
             let function = self.program.function_id(*module, *function_id);
-            let binding = BindingBuilder::new(
+            let mut binding = BindingBuilder::new(
                 id,
                 binding.name,
                 function,
@@ -58,6 +58,9 @@ impl<'a> BindingLinker<'a> {
             .platforms(binding.platforms.iter().copied())
             .families(binding.families.iter().copied())
             .hosts(binding.hosts.iter().copied());
+            if declaration.is_import() {
+                binding = binding.imported();
+            }
             bindings.push(binding);
         }
 

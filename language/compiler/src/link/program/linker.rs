@@ -164,7 +164,8 @@ impl<'a> ProgramLinker<'a> {
         let dispatch = DispatchLinker::new(&self).link()?;
 
         // assemble the durable program image
-        let program = ProgramBuilder::new(self.target_layout, bytecode)
+        let program = ProgramBuilder::new(self.target_layout)
+            .bytecode(bytecode)
             .strings(self.strings, self.string_ids()?)
             .types(types)
             .drops(self.drops)

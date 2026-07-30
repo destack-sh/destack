@@ -4,8 +4,8 @@ use destack_program::{
     ElementLayout, FunctionLayoutBuilder, LayoutField, LayoutShapeBuilder, NewtypeLayout,
     ObjectLayoutBuilder, ReferenceFlags, ReferenceLayout, ScalarFormat, SignatureId, SliceLayout,
     TensorDimension, TensorLayoutBuilder, TensorShardingAxis, TensorShardingBuilder,
-    TensorViewLayoutBuilder, TypeDescriptorBuilder, TypeId, VariantCaseLayout,
-    VariantLayoutBuilder,
+    TensorViewLayoutBuilder, TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder,
+    VariantCaseLayout, VariantLayoutBuilder,
 };
 use destack_source::ModuleId;
 
@@ -38,7 +38,7 @@ impl<'a> TypeLinker<'a> {
     }
 
     /// Link the program type table.
-    pub(crate) fn link(&self) -> LinkResult<Vec<TypeDescriptorBuilder>> {
+    pub(crate) fn link(&self) -> LinkResult<TypeTableBuilder> {
         let mut descriptors = vec![None; self.program.types_by_id().len()];
 
         // merge every module-local descriptor and reject conflicts
@@ -75,7 +75,22 @@ impl<'a> TypeLinker<'a> {
             entries.push(descriptor);
         }
 
-        Ok(entries)
+        // pair each descriptor with its stable structural identity
+        let fingerprints = self
+            .program
+            .types_by_id()
+            .iter()
+            .map(|(module, ty)| {
+                let ty = self.program.object(*module).ty(*ty).ok_or_else(|| {
+                    self.program
+                        .invalid_input("missing canonical type fingerprint")
+                })?;
+
+                Ok(TypeFingerprint::from_raw(ty.fingerprint.raw()))
+            })
+            .collect::<LinkResult<Vec<_>>>()?;
+
+        Ok(TypeTableBuilder::new().types(fingerprints.into_iter().zip(entries)))
     }
 }
 

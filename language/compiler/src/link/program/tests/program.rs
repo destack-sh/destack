@@ -95,11 +95,17 @@ completed(v2: int32):
     let generate = program
         .function_id_by_name("generate")
         .expect("generator export should exist");
-    let code = program.bytecode();
+    let code = program
+        .bytecode()
+        .expect("bytecode link should produce executable bytecode");
     let sections = program.sections();
     assert!(code.function(sections, caller.index()).is_some());
     assert!(code.function(sections, callee.index()).is_some());
     assert!(code.function(sections, read_answer.index()).is_some());
+    assert_ne!(
+        program.function_symbol(caller),
+        program.function_symbol(callee)
+    );
 
     // match the generator entry layout to its physical registers
     let state = program

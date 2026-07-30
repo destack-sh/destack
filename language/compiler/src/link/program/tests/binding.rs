@@ -61,6 +61,7 @@ entry:
         .expect("linked function should retain its binding");
     assert_eq!(binding.id, BindingId::from_name("runtime.touch"));
     assert_eq!(binding.function, function);
+    assert!(!binding.is_imported());
     assert_eq!(binding.provider, BindingProvider::Runtime);
     assert_eq!(binding.effect, BindingEffect::Deterministic);
     assert_eq!(binding.replay, BindingReplay::Forbidden);
@@ -78,6 +79,7 @@ entry:
     assert!(
         program
             .bytecode()
+            .expect("bytecode link should produce executable bytecode")
             .function(program.sections(), function.index())
             .and_then(destack_bytecode::Function::code)
             .is_some()

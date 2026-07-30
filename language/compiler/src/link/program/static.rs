@@ -1,7 +1,7 @@
 use destack_artifact::Object;
 use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
-use destack_program::{Global, GlobalAllocator, GlobalLocation};
+use destack_program::{Global, GlobalAllocator, GlobalLocation, GlobalTableBuilder, Symbol};
 use destack_source::ModuleId;
 
 use crate::LinkResult;
@@ -12,7 +12,7 @@ use super::ProgramLinker;
 #[derive(Debug)]
 pub(crate) struct ProgramStatics {
     /// Program global table.
-    pub(crate) globals: Vec<Global>,
+    pub(crate) globals: GlobalTableBuilder,
     /// Immutable program constants.
     pub(crate) constants: Vec<u8>,
     /// Shared mutable program statics.
@@ -70,6 +70,13 @@ impl<'a> StaticLinker<'a> {
         // split canonical global definitions by placement
         for &(module, global_id) in self.program.globals_by_id() {
             let object = self.program.object(module);
+            let global = object.global(global_id).ok_or_else(|| {
+                self.program
+                    .invalid_input(format!("missing global {global_id:?}"))
+            })?;
+            let symbol = Symbol::from_raw(global.symbol.raw());
+
+            // materialize the global in its selected static region
             let linker = GlobalLinker::new(
                 module,
                 object,
@@ -77,17 +84,12 @@ impl<'a> StaticLinker<'a> {
                 self.program,
                 object.layouts(),
             );
-            linker.link_global(
-                global_id,
-                &mut constants,
-                &mut shared,
-                &mut local,
-                &mut globals,
-            )?;
+            let global = linker.link_global(global_id, &mut constants, &mut shared, &mut local)?;
+            globals.push((symbol, global));
         }
 
         Ok(ProgramStatics {
-            globals,
+            globals: GlobalTableBuilder::new().globals(globals),
             constants: constants.build(),
             shared: shared.build(),
             local: local.build(),
@@ -120,8 +122,7 @@ impl<'a> GlobalLinker<'a> {
         constants: &mut GlobalAllocator,
         shared: &mut GlobalAllocator,
         local: &mut GlobalAllocator,
-        globals: &mut Vec<Global>,
-    ) -> LinkResult<()> {
+    ) -> LinkResult<Global> {
         let global = self.object.global(global_id).ok_or_else(|| {
             self.program
                 .invalid_input(format!("missing global {global_id:?}"))
@@ -134,37 +135,34 @@ impl<'a> GlobalLinker<'a> {
             None => vec![0; layout.byte_len()],
         };
 
-        match global.storage {
+        let global = match global.storage {
             mir::GlobalStorage::Constant => self.define_global_bytes(
                 constants,
-                globals,
                 GlobalLocation::Constant,
                 ty,
                 layout.alignment as usize,
                 false,
                 &bytes,
-            )?,
+            ),
             mir::GlobalStorage::Shared => self.define_global_bytes(
                 shared,
-                globals,
                 GlobalLocation::SharedStatic,
                 ty,
                 layout.alignment as usize,
                 global.is_mutable(),
                 &bytes,
-            )?,
+            ),
             mir::GlobalStorage::Local => self.define_global_bytes(
                 local,
-                globals,
                 GlobalLocation::LocalStatic,
                 ty,
                 layout.alignment as usize,
                 global.is_mutable(),
                 &bytes,
-            )?,
-        }
+            ),
+        };
 
-        Ok(())
+        Ok(global)
     }
 
     /// Encode one static initializer into bytes.
@@ -792,22 +790,19 @@ impl<'a> GlobalLinker<'a> {
     fn define_global_bytes(
         &self,
         allocator: &mut GlobalAllocator,
-        globals: &mut Vec<Global>,
         location: GlobalLocation,
         ty: mir::TypeId,
         alignment: usize,
         is_mutable: bool,
         bytes: &[u8],
-    ) -> LinkResult<()> {
+    ) -> Global {
         let (offset, byte_len) = allocator.allocate(alignment, bytes);
-        globals.push(Global::new(
+        Global::new(
             location,
             offset,
             byte_len,
             self.program.type_id(self.module, ty),
             is_mutable,
-        ));
-
-        Ok(())
+        )
     }
 }
