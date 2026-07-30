@@ -16,7 +16,7 @@ use crate::{
 };
 
 const PROGRAM_MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
-const PROGRAM_VERSION: u16 = 5;
+const PROGRAM_VERSION: u16 = 6;
 
 /// Program image load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,8 +90,8 @@ pub struct ProgramBuilder {
     /// Initial local static bytes.
     local_static_space: Vec<u8>,
 
-    /// Linked bytecode.
-    bytecode: CodeBuilder,
+    /// Optional linked bytecode.
+    bytecode: Option<CodeBuilder>,
     /// Optional native code.
     native: Option<native::CodeBuilder>,
     /// Optional WebAssembly code.
@@ -146,8 +146,8 @@ struct Header {
     /// Initial local static storage.
     local_static_space: StaticImage,
 
-    /// Linked bytecode.
-    bytecode: Code,
+    /// Optional linked bytecode.
+    bytecode: Optional<Code>,
     /// Optional native code.
     native: Optional<native::Code>,
     /// Optional WebAssembly code.
@@ -178,7 +178,7 @@ impl Header {
             constant_space: StaticImage::default(),
             shared_static_space: StaticImage::default(),
             local_static_space: StaticImage::default(),
-            bytecode: Code::default(),
+            bytecode: Optional::none(),
             native: Optional::none(),
             wasm: Optional::none(),
         }
@@ -187,7 +187,7 @@ impl Header {
 
 impl ProgramBuilder {
     /// Create one Program image builder.
-    pub fn new(target_layout: TargetLayout, bytecode: CodeBuilder) -> Self {
+    pub fn new(target_layout: TargetLayout) -> Self {
         Self {
             target_layout,
             string_entries: Vec::new(),
@@ -206,10 +206,17 @@ impl ProgramBuilder {
             constant_space: Vec::new(),
             shared_static_space: Vec::new(),
             local_static_space: Vec::new(),
-            bytecode,
+            bytecode: None,
             native: None,
             wasm: None,
         }
+    }
+
+    /// Set linked bytecode.
+    pub fn bytecode(mut self, bytecode: CodeBuilder) -> Self {
+        self.bytecode = Some(bytecode);
+
+        self
     }
 
     /// Set the program string table.
@@ -381,7 +388,9 @@ impl ProgramBuilder {
         header.local_static_space = StaticImage::pack(&mut sections, self.local_static_space);
 
         // pack executable code in canonical order
-        header.bytecode = self.bytecode.build(&mut sections);
+        if let Some(bytecode) = self.bytecode {
+            header.bytecode = Optional::some(bytecode.build(&mut sections));
+        }
         if let Some(native) = self.native {
             header.native = Optional::some(native.build(&mut sections));
         }
@@ -452,7 +461,7 @@ impl Program {
             constant_space: header.constant_space,
             shared_static_space: header.shared_static_space,
             local_static_space: header.local_static_space,
-            bytecode: header.bytecode,
+            bytecode: header.bytecode.get(),
             native: header.native.get(),
             wasm: header.wasm.get(),
             storage,
@@ -464,7 +473,6 @@ const _: () = assert!(align_of::<Header>() == 16);
 
 #[cfg(test)]
 mod tests {
-    use destack_bytecode::CodeBuilder;
     use destack_core::{SectionStorage, StringId, StringPool};
     use destack_mir::{TargetLayout, TraceTable};
 
@@ -485,6 +493,7 @@ mod tests {
 
         assert_eq!(loaded.bytes(), program.bytes());
         assert_eq!(loaded.string(name), Some("main"));
+        assert_eq!(loaded.bytecode(), None);
     }
 
     /// Build one minimal section-backed Program.
@@ -492,9 +501,7 @@ mod tests {
         let strings = StringPool::new();
         let name = strings.intern("main");
         let traces = TraceTable::new();
-        let bytecode = CodeBuilder::new();
-
-        let program = ProgramBuilder::new(TargetLayout::default(), bytecode)
+        let program = ProgramBuilder::new(TargetLayout::default())
             .strings(&strings, [name])
             .types(TypeTableBuilder::new())
             .drops([])
