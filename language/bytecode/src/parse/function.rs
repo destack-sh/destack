@@ -55,7 +55,7 @@ impl Parser<'_> {
         if !self.eat_token_if(TokenType::OpenBrace) {
             return Ok(());
         }
-        if self.functions[function_id.index()].is_some() {
+        if self.functions[function_id.index()].code().is_some() {
             return Err(ParseError::new(
                 "function is already defined",
                 self.previous().span,
@@ -84,7 +84,7 @@ impl Parser<'_> {
         let operations = self.object.push_operations(body.operations);
         let code = self.object.push_code(&body.code, body.relocations);
         let function = Function::new(Optional::some(code), operations, body.register_count);
-        self.functions[function_id.index()] = Some(function);
+        self.functions[function_id.index()] = function;
 
         Ok(())
     }
@@ -148,7 +148,7 @@ impl Parser<'_> {
 
         let id = FunctionId(self.function_names.len() as u32);
         self.function_names.push(name.clone());
-        self.functions.push(None);
+        self.functions.push(Function::declaration());
         self.function_ids.insert(name, id);
 
         id

@@ -17,8 +17,8 @@ pub struct Parser<'source> {
     pub(super) function_ids: HashMap<String, FunctionId>,
     /// Source names in dense function order.
     pub(super) function_names: Vec<String>,
-    /// Parsed physical functions in dense identity order.
-    pub(super) functions: Vec<Option<Function>>,
+    /// Object-local functions in dense identity order.
+    pub(super) functions: Vec<Function>,
 }
 
 impl fmt::Debug for Parser<'_> {
