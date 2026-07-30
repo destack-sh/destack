@@ -235,7 +235,8 @@ impl PureExpression {
             | mir::Instruction::DynamicBind { .. }
             | mir::Instruction::DynamicPayload { .. }
             | mir::Instruction::DynamicType { .. }
-        | mir::Instruction::DynamicRead { .. }
+            | mir::Instruction::DynamicRead { .. }
+            | mir::Instruction::DynamicFind { .. }
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileSample { .. }
             | mir::Instruction::Breakpoint => None,

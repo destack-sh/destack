@@ -241,7 +241,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
 
         match entry {
             mir::DynamicEntry::Function { function } => Some(*function),
-            mir::DynamicEntry::Field { .. } => None,
+            mir::DynamicEntry::Field { .. } | mir::DynamicEntry::Absent => None,
         }
     }
 
@@ -360,6 +360,7 @@ entry(v0: int32):
             concrete,
             constraint,
             entries: vec![mir::DynamicEntry::Function { function: callee }],
+            names: Vec::new(),
         });
 
         let analyses = program.tree_analysis_cache();
@@ -390,6 +391,7 @@ entry(v0: int32):
             concrete,
             constraint,
             entries: vec![mir::DynamicEntry::Field { offset: 0 }],
+            names: Vec::new(),
         });
 
         let analyses = program.tree_analysis_cache();

@@ -145,6 +145,17 @@ pub struct DynamicTable {
     pub constraint: LocalNodeId<Type>,
     /// Entries in dynamic shape order.
     pub entries: Vec<DynamicEntry>,
+    /// The concrete field entries sorted by name for keyed finds.
+    pub names: Vec<DynamicNamedEntry>,
+}
+
+/// One name-keyed entry in a dynamic dispatch table.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct DynamicNamedEntry {
+    /// The concrete field name.
+    pub name: StringId,
+    /// The entry backing the name.
+    pub entry: DynamicEntry,
 }
 
 impl DynamicTable {
@@ -181,6 +192,8 @@ pub enum DynamicEntry {
         /// The concrete function implementation.
         function: LocalNodeId<Function>,
     },
+    /// Slot without a concrete member, read as undefined.
+    Absent,
 }
 
 /// Slot descriptor for a dynamic shape.

@@ -331,6 +331,17 @@ pub enum Instruction {
         /// The result type of the slot value.
         result_type: TypeId,
     },
+    /// Find one named entry through a dynamic value's concrete table.
+    DynamicFind {
+        /// The SSA value to define with the optional entry value.
+        destination: Value,
+        /// The dynamic value whose entries are searched.
+        dynamic: Value,
+        /// The string key value naming the entry.
+        key: Value,
+        /// The result type carrying the found value or undefined.
+        result_type: TypeId,
+    },
 
     // vector operations
     /// Broadcast a scalar to all vector lanes.
@@ -930,6 +941,7 @@ impl Instruction {
             Instruction::DynamicPayload { destination, .. } => Some(*destination),
             Instruction::DynamicType { destination, .. } => Some(*destination),
             Instruction::DynamicRead { destination, .. } => Some(*destination),
+            Instruction::DynamicFind { destination, .. } => Some(*destination),
             Instruction::VectorSplat { destination, .. } => Some(*destination),
             Instruction::VectorExtract { destination, .. } => Some(*destination),
             Instruction::VectorInsert { destination, .. } => Some(*destination),
@@ -1042,6 +1054,7 @@ impl Instruction {
             Instruction::DynamicPayload { dynamic, .. } => smallvec![*dynamic],
             Instruction::DynamicType { dynamic, .. } => smallvec![*dynamic],
             Instruction::DynamicRead { dynamic, .. } => smallvec![*dynamic],
+            Instruction::DynamicFind { dynamic, key, .. } => smallvec![*dynamic, *key],
             Instruction::VectorSplat { value, .. } => smallvec![*value],
             Instruction::VectorExtract { vector, index, .. } => smallvec![*vector, *index],
             Instruction::VectorInsert {

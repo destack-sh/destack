@@ -269,6 +269,25 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Find one named entry through a dynamic value's concrete table.
+    pub fn dynamic_find(
+        &mut self,
+        dynamic: Value,
+        key: Value,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::DynamicFind {
+            destination,
+            dynamic,
+            key,
+            result_type: TypeId::from(result_type),
+        });
+        self.define_value(destination, result_type);
+
+        destination
+    }
+
     // instruction builders: vector operations
 
     /// Broadcast a scalar to all vector lanes.

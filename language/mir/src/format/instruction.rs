@@ -645,6 +645,29 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
+            Instruction::DynamicFind {
+                destination,
+                dynamic,
+                key,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("dynamic.find"),
+                        space(),
+                        dynamic,
+                        token(","),
+                        space(),
+                        key
+                    ]
+                )
+            }
+
             Instruction::VectorSplat { destination, value } => {
                 format_typed_destination(*destination, f)?;
                 write!(

@@ -377,6 +377,7 @@ impl TestMachine {
             concrete,
             constraint,
             entries,
+            names: Vec::new(),
         });
 
         Self::build(

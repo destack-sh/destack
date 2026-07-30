@@ -616,6 +616,17 @@ impl Parser {
                             result_type: destination_type,
                         }
                     }
+                    "dynamic.find" => {
+                        let dynamic = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let key = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::DynamicFind {
+                            destination,
+                            dynamic,
+                            key,
+                            result_type: destination_type,
+                        }
+                    }
 
                     // vector operations
                     "vector.splat" => {
