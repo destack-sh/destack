@@ -432,6 +432,24 @@ impl TensorDimension {
     }
 }
 
+/// Stable canonical fingerprint of one MIR type.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct TypeFingerprint(u128);
+
+impl TypeFingerprint {
+    /// Restore one fingerprint from its persistent bits.
+    pub const fn from_raw(raw: u128) -> Self {
+        Self(raw)
+    }
+
+    /// Return the persistent fingerprint bits.
+    pub const fn raw(self) -> u128 {
+        self.0
+    }
+}
+
 /// One logical MIR type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Type {

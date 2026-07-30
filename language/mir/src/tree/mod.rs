@@ -4,6 +4,7 @@ mod block;
 mod call;
 mod constant;
 mod edge;
+mod fingerprint;
 mod function;
 mod global;
 mod immediate;
