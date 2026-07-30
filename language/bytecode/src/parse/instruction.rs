@@ -79,7 +79,9 @@ impl Parser<'_> {
             // control flow
             "branch" if name != "branch" => self.parse_branch(name, token, function),
             "jump" | "branch" | "switch" | "await" | "yield" | "return" | "trap"
-            | "unreachable" | "breakpoint" => self.parse_control_operation(name, token, function),
+            | "unreachable" | "poll" | "breakpoint" => {
+                self.parse_control_operation(name, token, function)
+            }
 
             // panic and unwind
             "panic" | "unwind" => self.parse_control_operation(name, token, function),

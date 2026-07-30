@@ -237,8 +237,8 @@ impl InstructionFormatter<'_, '_, '_> {
                 self.write_text(name)
             }
 
-            // debug control
-            Opcode::BREAKPOINT => {
+            // runtime and debug control
+            Opcode::BREAKPOINT | Opcode::POLL => {
                 let name = self.opcode_name(opcode)?;
 
                 self.write_text(name)

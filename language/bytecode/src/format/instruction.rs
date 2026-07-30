@@ -212,7 +212,8 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::RETURN
             | Opcode::TRAP
             | Opcode::UNREACHABLE
-            | Opcode::BREAKPOINT => self.format_control(opcode),
+            | Opcode::BREAKPOINT
+            | Opcode::POLL => self.format_control(opcode),
 
             // panic and unwind
             Opcode::PANIC | Opcode::PANIC_VALUE | Opcode::UNWIND_RESUME => {

@@ -490,6 +490,11 @@ opcodes! {
         signature: "() => void",
         operands: [],
     }
+    POLL = 0x00bb {
+        text: "poll",
+        signature: "() => void",
+        operands: [],
+    }
 
     // panic and unwind
     PANIC = 0x00c1 {

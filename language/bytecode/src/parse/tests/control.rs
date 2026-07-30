@@ -47,6 +47,7 @@ fn test_parse_checked_control_flow() {
     let (_, opcodes) = TestParser::new(
         r#"
 function f0 {    check.nonzero.int32 r0 else b3
+    poll
     check.type r2, t0 else b3
     branch.lt.int32 r0, r1 => b0, b2
 
@@ -70,6 +71,7 @@ b3:
         opcodes,
         vec![
             Opcode::check(ScalarCheck::Nonzero, Scalar::Int32).expect("check opcode"),
+            Opcode::POLL,
             Opcode::CHECK_EXACT_TYPE,
             Opcode::branch(Comparison::LessThan, Scalar::Int32).expect("branch opcode"),
             Opcode::SWITCH,

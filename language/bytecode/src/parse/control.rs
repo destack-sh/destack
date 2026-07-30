@@ -25,6 +25,7 @@ impl Parser<'_> {
             "panic" => Opcode::PANIC,
             "unwind.resume" => Opcode::UNWIND_RESUME,
             "breakpoint" => Opcode::BREAKPOINT,
+            "poll" => Opcode::POLL,
             _ => return Err(ParseError::new("invalid control operation", token.span)),
         };
         let results = self.parse_definitions(opcode)?;
@@ -43,6 +44,9 @@ impl Parser<'_> {
             // panic and unwind
             "panic" => self.parse_panic(&results, function),
             "unwind.resume" => self.parse_empty_control(Opcode::UNWIND_RESUME, &results, function),
+
+            // runtime control
+            "poll" => self.parse_empty_control(Opcode::POLL, &results, function),
 
             // debug control
             "breakpoint" => self.parse_empty_control(Opcode::BREAKPOINT, &results, function),
