@@ -4,8 +4,6 @@ set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
 packages := "-p destack_zed"
-format-packages := "-p destack_zed"
-test-packages := "-p destack_zed"
 
 _default:
     @just --list --unsorted
@@ -33,20 +31,20 @@ build:
 
 # build vscode extension
 build-vscode:
-    cd vscode && bun run bundle && bun run package
+    cd vscode && bun run package
 
 # build zed extension
 build-zed:
-    cd zed && cargo check
+    cargo build --release --target wasm32-wasip2 {{ packages }}
 
 # format code
 format:
-    cargo fmt {{ format-packages }}
+    cargo fmt {{ packages }}
     bun x biome format --write vscode
 
 # check formatting
 format-check:
-    cargo fmt --check {{ format-packages }}
+    cargo fmt --check {{ packages }}
     bun x biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false vscode
 
 # alias for format
@@ -54,62 +52,58 @@ alias fmt := format
 
 # run static checks
 lint:
-    cargo clippy --release {{ packages }}
+    cargo clippy --release --target wasm32-wasip2 {{ packages }}
     bun run --cwd vscode compile
-    just validate-zed-grammar
 
 # clean build artifacts
 clean:
     rm -rf vscode/out vscode/*.vsix
-    rm -rf zed/grammars zed/extension.wasm
 
 # --- test ---
 
 # run tests
 test:
-    cargo test --release --all-targets {{ test-packages }}
     just test-vscode
+    just test-zed
 
 # test vscode grammar
 test-vscode:
     cd vscode && bun run test:grammar
 
+# compile zed tree-sitter queries
+test-zed:
+    for query in zed/languages/ds/*.scm; do (cd ../language/grammar/destack && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../test/fixtures/formatter/roundtrip/tree-idempotent-basic.ds") >/dev/null; done
+    for query in zed/languages/dsm/*.scm; do (cd ../language/grammar/mir && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../test/fixtures/grammar/mir/mir.txt") >/dev/null; done
+    for query in zed/languages/dsa/*.scm; do (cd ../language/grammar/bytecode && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../test/fixtures/grammar/bytecode/bytecode.txt") >/dev/null; done
+
 # default check
-check *args:
-    just check-quick {{args}}
+check:
+    just check-quick
 
 # normal check
-check-quick *args:
+check-quick:
     just format-check
     just lint
     just test
-    just validate-zed-grammar-strict {{args}}
 
-# check with slow suites
-check-full *args:
-    just check-quick {{args}}
-
-# validate zed grammar references
-validate-zed-grammar *args:
-    python3 zed/scripts/check_grammar_sources.py {{args}}
-
-# validate zed grammar references strictly
-validate-zed-grammar-strict *args:
-    python3 zed/scripts/check_grammar_sources.py --require-pinned {{args}}
+# check distributable bridge artifacts
+check-full:
+    just check-quick
+    just build
 
 # --- release ---
 
 # publish vscode extension dry by default
 publish-vscode dry="--dry-run":
-    cd vscode && bun run package
     @if [ "{{dry}}" = "--dry-run" ]; then \
+        cd vscode && bun run package; \
         echo "Dry run: would publish vscode extension"; \
     else \
         if [ -z "${VSCE_PAT:-}" ]; then \
             echo "missing VSCE_PAT env var for live vscode publish"; \
             exit 1; \
         fi; \
-        cd vscode && bunx --bun @vscode/vsce@latest publish; \
+        cd vscode && bun run publish:live; \
     fi
 
 # publish zed extension registry update dry by default
@@ -119,3 +113,4 @@ publish-zed dry="--dry-run" version="":
 # publish bridges dry by default
 publish dry="--dry-run":
     just publish-vscode "{{dry}}"
+    just publish-zed "{{dry}}"

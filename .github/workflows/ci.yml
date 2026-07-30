@@ -133,4 +133,4 @@ jobs:
         run: just client/check-quick --pin-destack-revision "${GITHUB_SHA}"
 
       - name: Check Bridges
-        run: just bridge/check-quick --pin-destack-revision "${GITHUB_SHA}"
+        run: just bridge/check-quick

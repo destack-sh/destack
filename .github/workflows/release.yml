@@ -129,7 +129,7 @@ jobs:
         run: just client/check-full --pin-destack-revision "${GITHUB_SHA}"
 
       - name: Check Bridges
-        run: just bridge/check-full --pin-destack-revision "${GITHUB_SHA}"
+        run: just bridge/check-full
 
   language-runtime-linux-check:
     name: Language Runtime Check (Linux)
