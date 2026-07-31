@@ -8,13 +8,16 @@ use destack_heap::{
     SharedHeapOptions, SharedMarkWorker,
 };
 use destack_memory::MemoryMap;
-use destack_mir::{Space, TensorFormat, TraceMap, TraceTable};
+use destack_mir::{
+    Access, Nullability, ReferenceKind, Space, Storage, TensorFormat, TraceMap, TraceTable,
+};
 use destack_program as program;
 use destack_program::{
     AllocationSite, FrameTableBuilder, FunctionBuilder, FunctionId, FunctionTableBuilder,
-    LayoutBuilder, LayoutId, LayoutShapeBuilder, ProgramBuilder, ProgramPoint, ScalarFormat,
-    Signature, SignatureId, SiteTableBuilder, Symbol, TensorDimension, TensorLayoutBuilder,
-    TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, Value, Word,
+    LayoutBuilder, LayoutId, LayoutShapeBuilder, ProgramBuilder, ProgramPoint, ReferenceLayout,
+    ScalarFormat, Signature, SignatureId, SiteTableBuilder, Symbol, TensorDimension,
+    TensorLayoutBuilder, TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, Value,
+    Word,
 };
 use destack_source::FileId;
 use destack_vm::{Error, Machine, MachineLimits, Result};
@@ -316,27 +319,38 @@ impl Runtime {
         // materialize object-local types before execution representations
         for index in 0..object_type_count {
             let layout = LayoutId::new(index as u32 + 1);
-            let shape = if index == 0
+            let (shape, layout_trace) = if index == 0
                 && let Some(dimensions) = tensor_dimensions
             {
                 let dimensions = dimensions.iter().copied().map(TensorDimension::fixed);
-                let tensor = TensorLayoutBuilder::new(
-                    Space::Local,
+                let reference = ReferenceLayout::new(
                     int32_type,
+                    ReferenceKind::Managed,
+                    Storage::Heap(Space::Local),
+                    Access::Mutable,
+                    Nullability::None,
+                );
+                let tensor = TensorLayoutBuilder::new(
+                    reference,
                     TensorFormat::dense_row_major(),
                     dimensions,
                 );
+                let tensor_trace = traces.insert(TraceMap::Fixed {
+                    local_offsets: Box::new([0]),
+                    shared_offsets: Box::new([]),
+                    frame_offsets: Box::new([]),
+                });
 
-                LayoutShapeBuilder::Tensor(tensor)
+                (LayoutShapeBuilder::Tensor(tensor), tensor_trace)
             } else {
-                LayoutShapeBuilder::Struct(Vec::new())
+                (LayoutShapeBuilder::Struct(Vec::new()), trace)
             };
             types.push(TypeDescriptorBuilder::new(layout));
             layouts.push(LayoutBuilder::new(
                 shape,
                 Word::BYTE_LEN as u32,
                 Word::BYTE_LEN as u32,
-                trace,
+                layout_trace,
             ));
         }
 

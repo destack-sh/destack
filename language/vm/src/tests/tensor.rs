@@ -234,7 +234,7 @@ function f1 {
         test,
     );
 
-    // allocate one owning tensor through bytecode
+    // allocate one managed tensor through bytecode
     let value = machine.complete(0, &[Word::int32(0)]);
 
     // describe its complete row-major payload as one borrowed view
@@ -255,7 +255,7 @@ function f1 {
     assert_eq!(value, vec![Word::int32(73)]);
 }
 
-/// Allocate and execute one owning tensor in shared storage.
+/// Allocate and execute one managed tensor in shared storage.
 #[test]
 fn test_execute_shared_tensor() {
     let matrix = TestProgram::tensor_allocation(0, 0, Space::Shared, 0);

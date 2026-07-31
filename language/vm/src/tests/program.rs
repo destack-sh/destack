@@ -563,7 +563,21 @@ impl TestProgram {
             Nullability::None,
         );
         let shape = LayoutShapeBuilder::Reference(reference);
-        let trace = match (kind, storage) {
+        let trace = Self::reference_trace(kind, storage);
+        self.insert_layout(TestLayout {
+            ty: TypeId(ty),
+            shape,
+            byte_len: Word::BYTE_LEN as u32,
+            alignment: Word::BYTE_LEN as u32,
+            trace,
+        });
+
+        self
+    }
+
+    /// Return the exact trace map for one reference carrier.
+    fn reference_trace(kind: ReferenceKind, storage: Storage) -> TraceMap {
+        match (kind, storage) {
             (ReferenceKind::Managed, Storage::Heap(Space::Local)) => TraceMap::Fixed {
                 local_offsets: Box::new([0]),
                 shared_offsets: Box::new([]),
@@ -583,19 +597,10 @@ impl TestProgram {
                 frame_offsets: Box::new([0]),
             },
             _ => TraceMap::empty(),
-        };
-        self.insert_layout(TestLayout {
-            ty: TypeId(ty),
-            shape,
-            byte_len: Word::BYTE_LEN as u32,
-            alignment: Word::BYTE_LEN as u32,
-            trace,
-        });
-
-        self
+        }
     }
 
-    /// Set one dense owning tensor layout.
+    /// Set one dense managed tensor layout.
     pub(crate) fn tensor(
         mut self,
         ty: u32,
@@ -606,18 +611,21 @@ impl TestProgram {
     ) -> Self {
         let scalar_byte_len = scalar.byte_len();
         let dimensions = dimensions.into_iter().map(TensorDimension::fixed);
-        let tensor = TensorLayoutBuilder::new(
-            space,
+        let reference = ReferenceLayout::new(
             TypeId(element),
-            TensorFormat::dense_row_major(),
-            dimensions,
+            ReferenceKind::Managed,
+            Storage::Heap(space),
+            Access::Mutable,
+            Nullability::None,
         );
+        let tensor =
+            TensorLayoutBuilder::new(reference, TensorFormat::dense_row_major(), dimensions);
         self.insert_layout(TestLayout {
             ty: TypeId(ty),
             shape: LayoutShapeBuilder::Tensor(tensor),
             byte_len: Word::BYTE_LEN as u32,
             alignment: Word::BYTE_LEN as u32,
-            trace: TraceMap::empty(),
+            trace: Self::reference_trace(ReferenceKind::Managed, Storage::Heap(space)),
         });
         self.insert_layout(TestLayout {
             ty: TypeId(element),
@@ -654,7 +662,6 @@ impl TestProgram {
         );
         let tensor = TensorViewLayoutBuilder::new(
             reference,
-            TypeId(element),
             TensorViewFormat::dense_row_major(),
             dimensions,
         );

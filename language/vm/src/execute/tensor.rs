@@ -67,7 +67,7 @@ struct TensorDimensions {
 }
 
 impl Tensor {
-    /// Resolve one dense owning tensor.
+    /// Resolve one dense tensor handle.
     fn dense(
         edge: HeapEdge,
         address: usize,
@@ -1349,7 +1349,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             return Err(self.invalid_instruction());
         };
         let source = self.tensor(source)?;
-        let scalar = self.tensor_scalar(layout.element)?;
+        let scalar = self.tensor_scalar(layout.reference.pointee)?;
         let rank = self
             .machine
             .program
@@ -1440,24 +1440,27 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .ok_or_else(|| self.invalid_instruction())?;
 
         match layout.shape {
-            LayoutShape::Tensor(layout) => self.owning_tensor(input.registers, layout),
+            LayoutShape::Tensor(layout) => self.tensor_handle(input.registers, layout),
             LayoutShape::TensorView(layout) => self.tensor_view(input.registers, layout),
             _ => Err(self.invalid_instruction()),
         }
     }
 
-    /// Resolve one owning tensor register.
-    fn owning_tensor(&self, registers: RegisterSpan, layout: TensorLayout) -> Result<Tensor> {
+    /// Resolve one tensor handle register.
+    fn tensor_handle(&self, registers: RegisterSpan, layout: TensorLayout) -> Result<Tensor> {
         if registers.word_count != 1 || !matches!(layout.sharding, TensorSharding::Unsharded) {
             return Err(Error::unsupported_tensor_sharding());
         }
-        let scalar = self.tensor_scalar(layout.element)?;
+        let scalar = self.tensor_scalar(layout.reference.pointee)?;
         let rank = self
             .machine
             .program
             .tensor_dimensions(layout.dimensions)
             .len();
-        let edge = self.read_edge(registers.start, layout.space)?;
+        let Some(mir::Storage::Heap(space)) = layout.reference.storage() else {
+            return Err(self.invalid_instruction());
+        };
+        let edge = self.read_edge(registers.start, space)?;
         let base = self.activation.memory.address(edge);
         let header_byte_len = rank
             .checked_mul(Word::BYTE_LEN)
@@ -1474,7 +1477,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if !matches!(layout.sharding, TensorSharding::Unsharded) {
             return Err(Error::unsupported_tensor_sharding());
         }
-        let scalar = self.tensor_scalar(layout.element)?;
+        let scalar = self.tensor_scalar(layout.reference.pointee)?;
         let rank = self
             .machine
             .program
@@ -1483,10 +1486,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if registers.word_count as usize != 2 + rank * 2 {
             return Err(self.invalid_instruction());
         }
-        let space = layout
-            .reference
-            .heap_space()
-            .ok_or_else(|| self.invalid_instruction())?;
+        let Some(mir::Storage::Heap(space)) = layout.reference.storage() else {
+            return Err(self.invalid_instruction());
+        };
         let edge = self.read_edge(registers.start, space)?;
         let byte_offset = self.read(registers.start.0 + 1).as_u64() as usize;
         let frame = self.frame();
@@ -1597,7 +1599,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if !matches!(layout.sharding, TensorSharding::Unsharded) {
             return Err(Error::unsupported_tensor_sharding());
         }
-        if layout.space != site.space {
+        if !matches!(
+            layout.reference.kind(),
+            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique)
+        ) {
+            return Err(self.invalid_instruction());
+        }
+        if layout.reference.storage() != Some(mir::Storage::Heap(site.space)) {
             return Err(self.invalid_instruction());
         }
         let expected_dimensions = self.machine.program.tensor_dimensions(layout.dimensions);
@@ -1674,7 +1682,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let LayoutShape::Tensor(layout) = layout.shape else {
             return Err(self.invalid_instruction());
         };
-        let scalar = self.tensor_scalar(layout.element)?;
+        let scalar = self.tensor_scalar(layout.reference.pointee)?;
 
         Ok(TensorAllocation {
             site_id,
