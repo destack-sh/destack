@@ -486,6 +486,7 @@ impl WalkState<'_, '_> {
                 template: template.map(|template| template.local_id),
                 representation: dir::Representation::default(),
                 backing: value,
+                constructors: Vec::new(),
                 discriminator: None,
                 members: Vec::new(),
             })
@@ -521,6 +522,7 @@ impl WalkState<'_, '_> {
         let source = id.into_global_any(self.module);
 
         let value = self.intern_type(dir::Type::Intrinsic)?;
+        self.commit_node_type(declaration.value, value)?;
 
         // intrinsic newtypes stay opaque
         if declaration.is_nominal {
@@ -529,6 +531,7 @@ impl WalkState<'_, '_> {
                 template: template.map(|template| template.local_id),
                 representation: dir::Representation::default(),
                 backing: value,
+                constructors: Vec::new(),
                 discriminator: None,
                 members: Vec::new(),
             });
