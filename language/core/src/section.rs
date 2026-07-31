@@ -24,6 +24,10 @@ pub enum SectionImageError {
         /// Available initialized bytes.
         available: u64,
     },
+    /// One typed section lies outside the image or violates entry alignment.
+    InvalidSection,
+    /// One typed section contains an invalid entry representation.
+    InvalidEntry,
 }
 
 impl fmt::Display for SectionImageError {
@@ -38,6 +42,8 @@ impl fmt::Display for SectionImageError {
                 formatter,
                 "truncated section image: required {required} bytes, available {available}"
             ),
+            Self::InvalidSection => formatter.write_str("invalid image section"),
+            Self::InvalidEntry => formatter.write_str("invalid image entry"),
         }
     }
 }
@@ -190,6 +196,16 @@ impl<T> EntryRange<T> {
         self.len == 0
     }
 
+    /// Return whether this range fits one sibling entry slice.
+    #[inline]
+    pub fn fits(self, entries: usize) -> bool {
+        let start = self.start as usize;
+
+        start
+            .checked_add(self.len())
+            .is_some_and(|end| end <= entries)
+    }
+
     /// Borrow this entry range from one entry slice.
     #[inline]
     pub fn slice<'a>(&self, entries: &'a [T]) -> &'a [T] {
@@ -266,32 +282,97 @@ impl<T> EntryStore<T> {
 ///
 /// Implementors must remain valid when copied to and from a trusted section image without running
 /// constructors, destructors, pointer relocation, or validity repair.
-pub unsafe trait SectionEntry: Copy + 'static {}
+pub unsafe trait SectionEntry: Copy + 'static {
+    /// Whether this representation or one referenced section requires validation.
+    const NEEDS_VALIDATION: bool;
 
-// SAFETY: primitive integers and string ids are fixed-width entry scalars.
-unsafe impl SectionEntry for u8 {}
-unsafe impl SectionEntry for u16 {}
-unsafe impl SectionEntry for u32 {}
-unsafe impl SectionEntry for u64 {}
-unsafe impl SectionEntry for u128 {}
-unsafe impl SectionEntry for i8 {}
-unsafe impl SectionEntry for i16 {}
-unsafe impl SectionEntry for i32 {}
-unsafe impl SectionEntry for i64 {}
-unsafe impl SectionEntry for i128 {}
-unsafe impl SectionEntry for f32 {}
-unsafe impl SectionEntry for f64 {}
-unsafe impl SectionEntry for StringId {}
-unsafe impl SectionEntry for NonZeroU32 {}
+    /// Validate one entry and every absolute section it references.
+    fn validate(bytes: &[u8], loader: SectionLoader<'_>) -> Result<(), SectionImageError>;
+}
 
-// SAFETY: fixed arrays preserve their entry layout and contain no additional state.
-unsafe impl<T: SectionEntry, const N: usize> SectionEntry for [T; N] {}
+macro_rules! scalar_entries {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            // SAFETY: every bit pattern is a valid scalar value.
+            unsafe impl SectionEntry for $ty {
+                const NEEDS_VALIDATION: bool = false;
 
-// SAFETY: EntryRange<T> stores only section offsets and lengths.
-unsafe impl<T: SectionEntry> SectionEntry for EntryRange<T> {}
+                fn validate(
+                    _bytes: &[u8],
+                    _loader: SectionLoader<'_>,
+                ) -> Result<(), SectionImageError> {
+                    Ok(())
+                }
+            }
+        )*
+    };
+}
 
-// SAFETY: SectionSlice<T> stores only an image offset and entry count.
-unsafe impl<T: SectionEntry> SectionEntry for SectionSlice<T> {}
+scalar_entries!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, f32, f64);
+
+// SAFETY: every bit pattern is a valid stable string identity.
+unsafe impl SectionEntry for StringId {
+    const NEEDS_VALIDATION: bool = false;
+
+    fn validate(_bytes: &[u8], _loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
+        Ok(())
+    }
+}
+
+// SAFETY: validation rejects the scalar's invalid zero representation.
+unsafe impl SectionEntry for NonZeroU32 {
+    const NEEDS_VALIDATION: bool = true;
+
+    fn validate(bytes: &[u8], _loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
+        if bytes.len() != mem::size_of::<Self>() {
+            return Err(SectionImageError::InvalidEntry);
+        }
+
+        let mut value = [0; mem::size_of::<u32>()];
+        value.copy_from_slice(bytes);
+
+        if u32::from_ne_bytes(value) == 0 {
+            Err(SectionImageError::InvalidEntry)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+// SAFETY: fixed arrays preserve their entry layout and validate every element.
+unsafe impl<T: SectionEntry, const N: usize> SectionEntry for [T; N] {
+    const NEEDS_VALIDATION: bool = T::NEEDS_VALIDATION;
+
+    fn validate(bytes: &[u8], loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
+        validate_entries::<T>(bytes, N, loader)
+    }
+}
+
+// SAFETY: EntryRange<T> stores only integer offsets and lengths.
+unsafe impl<T: SectionEntry> SectionEntry for EntryRange<T> {
+    const NEEDS_VALIDATION: bool = false;
+
+    fn validate(_bytes: &[u8], _loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
+        Ok(())
+    }
+}
+
+// SAFETY: SectionSlice<T> stores only an image offset and integer entry count.
+unsafe impl<T: SectionEntry> SectionEntry for SectionSlice<T> {
+    const NEEDS_VALIDATION: bool = true;
+
+    fn validate(bytes: &[u8], loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
+        if bytes.len() != mem::size_of::<Self>() {
+            return Err(SectionImageError::InvalidEntry);
+        }
+
+        // SAFETY: SectionSlice contains only integer fields and a zero-sized marker.
+        let section = unsafe { bytes.as_ptr().cast::<Self>().read_unaligned() };
+        loader.entries(section)?;
+
+        Ok(())
+    }
+}
 
 /// Stable optional entry value.
 #[repr(C)]
@@ -438,8 +519,37 @@ impl<T: SectionEntry> From<Option<T>> for Optional<T> {
     }
 }
 
-// SAFETY: Optional<T> is repr(C), Copy, and stores one initialized value only when present.
-unsafe impl<T: SectionEntry> SectionEntry for Optional<T> {}
+// SAFETY: Optional<T> validates its tag and every initialized value.
+unsafe impl<T: SectionEntry> SectionEntry for Optional<T> {
+    const NEEDS_VALIDATION: bool = true;
+
+    fn validate(bytes: &[u8], loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
+        if bytes.len() != mem::size_of::<Self>() {
+            return Err(SectionImageError::InvalidEntry);
+        }
+
+        // read the stable presence tag without constructing Optional<T>
+        let mut presence = [0; mem::size_of::<u32>()];
+        presence.copy_from_slice(&bytes[..mem::size_of::<u32>()]);
+        let presence = u32::from_ne_bytes(presence);
+        if presence == 0 {
+            return Ok(());
+        }
+        if presence != 1 {
+            return Err(SectionImageError::InvalidEntry);
+        }
+
+        // validate the initialized value after its representation padding
+        let value_offset = mem::offset_of!(Self, value);
+        let value_end = value_offset + mem::size_of::<T>();
+
+        if T::NEEDS_VALIDATION {
+            T::validate(&bytes[value_offset..value_end], loader)?;
+        }
+
+        Ok(())
+    }
+}
 
 /// Shared immutable memory containing one section image.
 pub trait SectionMemory: AsRef<[u8]> + fmt::Debug + Send + Sync {}
@@ -589,6 +699,13 @@ pub struct SectionImage<'a> {
     bytes: &'a [u8],
 }
 
+/// Checked loader for typed entries inside untrusted section storage.
+#[derive(Clone, Copy, Debug)]
+pub struct SectionLoader<'a> {
+    /// Complete aligned image bytes.
+    bytes: &'a [u8],
+}
+
 impl Default for SectionBuilder {
     /// Create an empty section builder.
     fn default() -> Self {
@@ -716,19 +833,12 @@ impl SectionBuilder {
 }
 
 impl<'a> SectionImage<'a> {
-    /// Borrow one aligned section image.
-    pub fn new(storage: &'a SectionStorage) -> Self {
-        // SAFETY: SectionStorage constructors retain aligned immutable image bytes.
-        unsafe { Self::from_bytes_unchecked(storage.bytes()) }
-    }
-
-    /// Create one read-only section image without checking its storage length.
+    /// Borrow one trusted read-only section image.
     ///
     /// # Safety
     ///
-    /// The byte length must fit in the storage and slices must only be read as their original
-    /// SectionEntry types.
-    pub unsafe fn new_unchecked(storage: &'a SectionStorage) -> Self {
+    /// Every accessed slice must contain valid entries of its original SectionEntry type.
+    pub unsafe fn new(storage: &'a SectionStorage) -> Self {
         unsafe { Self::from_bytes_unchecked(storage.bytes()) }
     }
 
@@ -817,6 +927,68 @@ impl<'a> SectionImage<'a> {
     }
 }
 
+impl<'a> SectionLoader<'a> {
+    /// Create one checked loader over aligned immutable storage.
+    pub fn new(storage: &'a SectionStorage) -> Result<Self, SectionImageError> {
+        let bytes = storage.bytes();
+        if !(bytes.as_ptr() as usize).is_multiple_of(SECTION_ALIGNMENT_BYTES) {
+            return Err(SectionImageError::Misaligned);
+        }
+
+        Ok(Self { bytes })
+    }
+
+    /// Load one fixed header from byte zero.
+    pub fn header<T: SectionEntry>(&self) -> Result<&'a T, SectionImageError> {
+        let byte_len = mem::size_of::<T>();
+        if self.bytes.len() < byte_len {
+            return Err(SectionImageError::Truncated {
+                required: byte_len as u64,
+                available: self.bytes.len() as u64,
+            });
+        }
+        if T::NEEDS_VALIDATION {
+            T::validate(&self.bytes[..byte_len], *self)?;
+        }
+
+        // SAFETY: the loader checks image alignment, bounds, and entry representation above.
+        Ok(unsafe { &*self.bytes.as_ptr().cast::<T>() })
+    }
+
+    /// Load one typed section after checking its complete physical representation.
+    pub fn entries<T: SectionEntry>(
+        &self,
+        section: SectionSlice<T>,
+    ) -> Result<&'a [T], SectionImageError> {
+        let byte_offset = section.byte_offset as usize;
+        let Some(byte_len) = section.len().checked_mul(mem::size_of::<T>()) else {
+            return Err(SectionImageError::InvalidSection);
+        };
+        let Some(byte_end) = byte_offset.checked_add(byte_len) else {
+            return Err(SectionImageError::InvalidSection);
+        };
+        if byte_end > self.bytes.len() || !byte_offset.is_multiple_of(mem::align_of::<T>()) {
+            return Err(SectionImageError::InvalidSection);
+        }
+
+        if T::NEEDS_VALIDATION {
+            let bytes = &self.bytes[byte_offset..byte_end];
+            validate_entries::<T>(bytes, section.len(), *self)?;
+        }
+
+        // SAFETY: bounds, alignment, and every entry representation were checked above.
+        let entries = unsafe { self.bytes.as_ptr().add(byte_offset).cast::<T>() };
+
+        // SAFETY: the checked entries remain immutable for the loader lifetime.
+        Ok(unsafe { slice::from_raw_parts(entries, section.len()) })
+    }
+
+    /// Return complete image bytes.
+    pub const fn bytes(self) -> &'a [u8] {
+        self.bytes
+    }
+}
+
 impl PartialEq for SectionImage<'_> {
     /// Compare section images by logical image content.
     fn eq(&self, other: &Self) -> bool {
@@ -825,6 +997,26 @@ impl PartialEq for SectionImage<'_> {
 }
 
 impl Eq for SectionImage<'_> {}
+
+/// Validate one contiguous sequence of section entries.
+fn validate_entries<T: SectionEntry>(
+    bytes: &[u8],
+    entry_len: usize,
+    loader: SectionLoader<'_>,
+) -> Result<(), SectionImageError> {
+    let Some(byte_len) = entry_len.checked_mul(mem::size_of::<T>()) else {
+        return Err(SectionImageError::InvalidSection);
+    };
+    if bytes.len() != byte_len {
+        return Err(SectionImageError::InvalidSection);
+    }
+
+    for entry in bytes.chunks_exact(mem::size_of::<T>()) {
+        T::validate(entry, loader)?;
+    }
+
+    Ok(())
+}
 
 fn align_usize(value: usize, alignment: usize) -> usize {
     let mask = alignment - 1;
