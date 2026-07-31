@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
 
+use destack_artifact::ArtifactKey;
 use destack_repository::{Revision, Trace};
 use parking_lot::Mutex;
 
@@ -111,6 +112,17 @@ impl ArtifactRun {
     /// Cancel this artifact run.
     pub fn cancel(&self) {
         self.executor.cancel_run(&self.state);
+    }
+
+    /// Wait until this run's initial roots have ready payloads.
+    pub fn wait_ready(&self) -> Result<(), SessionError> {
+        self.executor
+            .wait_for_run(&self.state, ArtifactRunGoal::Ready)
+    }
+
+    /// Require additional roots through this artifact run.
+    pub fn require(&self, artifact_keys: &[ArtifactKey]) -> Result<(), SessionError> {
+        self.executor.require(&self.state, artifact_keys)
     }
 
     /// Wait for this artifact run to finish.

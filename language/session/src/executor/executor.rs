@@ -172,7 +172,7 @@ impl Executor {
     }
 
     /// Require one artifact version for an immutable revision.
-    pub(crate) fn require(
+    pub(crate) fn require_version(
         self: &Arc<Self>,
         revision: Revision,
         artifact_key: ArtifactKey,
@@ -208,6 +208,7 @@ impl Executor {
     fn run_inline(
         &self,
         run: &ArtifactRunState,
+        tasks: &[Task],
         goal: ArtifactRunGoal,
     ) -> Result<(), SessionError> {
         let worker = Worker {
@@ -226,7 +227,7 @@ impl Executor {
                 return Err(SessionError::Cancelled);
             }
 
-            if self.roots_satisfy(run.roots(), goal)? {
+            if self.roots_satisfy(tasks, goal)? {
                 return Ok(());
             }
 
@@ -248,10 +249,44 @@ impl Executor {
         run: &ArtifactRunState,
         goal: ArtifactRunGoal,
     ) -> Result<(), SessionError> {
+        self.wait_for_tasks(run, run.roots(), goal)
+    }
+
+    /// Require additional roots through one active run.
+    pub(super) fn require(
+        &self,
+        run: &ArtifactRunState,
+        artifact_keys: &[ArtifactKey],
+    ) -> Result<(), SessionError> {
+        let tasks = artifact_keys
+            .iter()
+            .copied()
+            .map(|artifact_key| Task::new(run.revision(), artifact_key))
+            .collect::<Vec<_>>();
+        run.trace().add_counter("roots", tasks.len() as u64);
+
+        // return immediately when every requested payload is already ready
+        if self.roots_satisfy(&tasks, ArtifactRunGoal::Ready)? {
+            return Ok(());
+        }
+
+        // attach exact roots to this run before waiting for their payloads
+        self.scheduler.enqueue_roots(&tasks, run.id());
+
+        self.wait_for_tasks(run, &tasks, ArtifactRunGoal::Ready)
+    }
+
+    /// Wait until one task slice reaches the requested outcome.
+    fn wait_for_tasks(
+        &self,
+        run: &ArtifactRunState,
+        tasks: &[Task],
+        goal: ArtifactRunGoal,
+    ) -> Result<(), SessionError> {
         let trace = run.trace();
 
         trace.span("execute", || match self.execution {
-            Execution::Inline => self.run_inline(run, goal),
+            Execution::Inline => self.run_inline(run, tasks, goal),
             Execution::Threaded => self.scheduler.wait_until(|| {
                 if let Some(error) = run.error() {
                     return Err(error);
@@ -263,7 +298,7 @@ impl Executor {
                     return Ok((!is_executing).then_some(()));
                 }
 
-                if self.roots_satisfy(run.roots(), goal)? {
+                if self.roots_satisfy(tasks, goal)? {
                     return Ok(Some(()));
                 }
 
@@ -418,7 +453,7 @@ impl Session {
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
-        self.executor.require(revision, artifact_key)
+        self.executor.require_version(revision, artifact_key)
     }
 
     /// Persist queued artifact records for this session repository.
