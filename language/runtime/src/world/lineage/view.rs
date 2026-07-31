@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
@@ -11,7 +10,7 @@ use destack_program::FrameStateId;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::RuntimeImage;
-use crate::worker::scheduler::{Invocation, RunnableId};
+use crate::scheduler::{Invocation, RunnableId};
 use crate::worker::{WorkerId, WorkerImage};
 use crate::world::debug::Debugger;
 use crate::world::policy::Policy;
@@ -44,7 +43,7 @@ pub struct Divergence {
 
 /// One frame visible inside a world view.
 #[derive(Clone)]
-pub struct FrameView<'a> {
+pub struct FrameView {
     /// Runtime that owns the frame.
     pub runtime_id: RuntimeId,
     /// Worker that owns the frame.
@@ -54,15 +53,15 @@ pub struct FrameView<'a> {
     /// Captured frame state.
     state: FrameStateId,
     /// Canonical live frame bytes.
-    bytes: Cow<'a, [u8]>,
+    bytes: Vec<u8>,
 }
 
 /// Retained execution source for one frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameSource {
-    /// Execution retained at one debugger stop.
-    Stopped {
-        /// Stopped runnable identifier.
+    /// Execution retained at one handshake or debugger stop.
+    Retained {
+        /// Retained runnable identifier.
         runnable_id: RunnableId,
     },
     /// Continuation queued as one task.
@@ -89,15 +88,15 @@ pub enum FrameSource {
 
 impl WorkerImage {
     /// Return all frames retained by one worker image.
-    fn frames<'a>(
-        &'a self,
-        memory: &MemoryImage,
+    fn frames(
+        &self,
         program: &program::Program,
-    ) -> RuntimeResult<Vec<FrameView<'a>>> {
+        memory: &MemoryImage,
+    ) -> RuntimeResult<Vec<FrameView>> {
         let mut frames = Vec::new();
 
-        // materialize the stopped physical stack
-        self.append_machine_frames(memory, program, &mut frames)?;
+        // expose the retained canonical activation
+        self.append_machine_frames(program, memory, &mut frames)?;
 
         // expose scheduler-owned continuations under their exact owners
         if let Some(snapshot) = self.event_loop.active() {
@@ -105,24 +104,42 @@ impl WorkerImage {
                 let source = FrameSource::Task {
                     runnable_id: runnable.id,
                 };
-                self.append_invocation_frames(program, source, &runnable.invocation, &mut frames)?;
+                self.append_invocation_frames(
+                    program,
+                    memory,
+                    source,
+                    &runnable.invocation,
+                    &mut frames,
+                )?;
             }
             for runnable in &snapshot.microtasks {
                 let source = FrameSource::Microtask {
                     runnable_id: runnable.id,
                 };
-                self.append_invocation_frames(program, source, &runnable.invocation, &mut frames)?;
+                self.append_invocation_frames(
+                    program,
+                    memory,
+                    source,
+                    &runnable.invocation,
+                    &mut frames,
+                )?;
             }
             for (waiter, continuation) in snapshot.waiters() {
                 let source = FrameSource::Waiter { waiter };
-                self.append_continuation_frames(program, source, continuation, &mut frames)?;
+                self.append_continuation_frames(
+                    program,
+                    memory,
+                    source,
+                    continuation,
+                    &mut frames,
+                )?;
             }
         }
 
         // expose first-class continuation handles retained by the machine
         for (continuation_id, continuation) in self.machine.continuations() {
             let source = FrameSource::Continuation { continuation_id };
-            self.append_continuation_frames(program, source, continuation, &mut frames)?;
+            self.append_continuation_frames(program, memory, source, continuation, &mut frames)?;
         }
 
         Ok(frames)
@@ -131,26 +148,26 @@ impl WorkerImage {
     /// Append the physical call stack retained at one debugger stop.
     fn append_machine_frames(
         &self,
-        memory: &MemoryImage,
         program: &program::Program,
-        frames: &mut Vec<FrameView<'_>>,
+        memory: &MemoryImage,
+        frames: &mut Vec<FrameView>,
     ) -> RuntimeResult<()> {
         let frame_count = self.machine.frame_count();
         if frame_count == 0 {
             return Ok(());
         }
-        let Some(stop) = self.stop.as_ref() else {
+        let Some(retained) = self.retained.as_ref() else {
             return Err(RuntimeError::inconsistent_image(format!(
                 "worker {} retains frames without a stopped runnable",
                 self.worker_id.0
             ))
             .boxed());
         };
-        let source = FrameSource::Stopped {
-            runnable_id: stop.id,
+        let source = FrameSource::Retained {
+            runnable_id: retained.id,
         };
 
-        // project each physical frame into its canonical live layout
+        // append each retained canonical frame
         for index in 0..frame_count {
             let Some(state) = self.machine.frame_state(index) else {
                 return Err(RuntimeError::inconsistent_image(format!(
@@ -159,42 +176,49 @@ impl WorkerImage {
                 ))
                 .boxed());
             };
-            let bytes = self.machine.frame_bytes(memory, program, index)?;
+            let bytes = self.machine.frame_bytes(program, memory, index)?;
 
-            frames.push(FrameView::new(self, source, state, Cow::Owned(bytes)));
+            frames.push(FrameView::new(self, source, state, bytes));
         }
 
         Ok(())
     }
 
     /// Append the continuation carried by one queued invocation when present.
-    fn append_invocation_frames<'a>(
-        &'a self,
+    fn append_invocation_frames(
+        &self,
         program: &program::Program,
+        memory: &MemoryImage,
         source: FrameSource,
-        invocation: &'a Invocation,
-        frames: &mut Vec<FrameView<'a>>,
+        invocation: &Invocation,
+        frames: &mut Vec<FrameView>,
     ) -> RuntimeResult<()> {
         let Some(continuation) = invocation.continuation() else {
             return Ok(());
         };
 
-        self.append_continuation_frames(program, source, continuation, frames)
+        self.append_continuation_frames(program, memory, source, continuation, frames)
     }
 
     /// Append one canonical continuation call chain.
-    fn append_continuation_frames<'a>(
-        &'a self,
+    fn append_continuation_frames(
+        &self,
         program: &program::Program,
+        memory: &MemoryImage,
         source: FrameSource,
-        continuation: &'a program::Continuation,
-        frames: &mut Vec<FrameView<'a>>,
+        continuation: &program::Continuation,
+        frames: &mut Vec<FrameView>,
     ) -> RuntimeResult<()> {
+        let range = continuation.memory();
+        let bytes = memory
+            .read_bytes(range.offset, range.byte_len)
+            .map_err(Box::<RuntimeError>::from)?;
         let mut byte_offset = 0usize;
 
         // split canonical bytes through each retained frame layout
-        for state in continuation.states() {
-            let linked = program.frame_state(*state).ok_or_else(|| {
+        for frame in continuation.frames() {
+            let state = frame.state();
+            let linked = program.frame_state(state).ok_or_else(|| {
                 RuntimeError::inconsistent_image(format!(
                     "worker {} continuation references an undefined frame state",
                     self.worker_id.0
@@ -210,19 +234,19 @@ impl WorkerImage {
             })?;
             byte_offset = byte_offset.next_multiple_of(layout.alignment() as usize);
             let end = byte_offset + layout.byte_len() as usize;
-            let bytes = continuation.bytes().get(byte_offset..end).ok_or_else(|| {
+            let frame_bytes = bytes.get(byte_offset..end).ok_or_else(|| {
                 RuntimeError::inconsistent_image(format!(
                     "worker {} continuation frame exceeds its canonical bytes",
                     self.worker_id.0
                 ))
                 .boxed()
             })?;
-            frames.push(FrameView::new(self, source, *state, Cow::Borrowed(bytes)));
+            frames.push(FrameView::new(self, source, state, frame_bytes.to_vec()));
             byte_offset = end;
         }
 
         // reject trailing bytes that do not belong to any retained frame
-        if byte_offset != continuation.bytes().len() {
+        if byte_offset != bytes.len() {
             return Err(RuntimeError::inconsistent_image(format!(
                 "worker {} continuation has unclaimed canonical bytes",
                 self.worker_id.0
@@ -234,14 +258,9 @@ impl WorkerImage {
     }
 }
 
-impl<'a> FrameView<'a> {
+impl FrameView {
     /// Create one retained frame view.
-    fn new(
-        worker: &WorkerImage,
-        source: FrameSource,
-        state: FrameStateId,
-        bytes: Cow<'a, [u8]>,
-    ) -> Self {
+    fn new(worker: &WorkerImage, source: FrameSource, state: FrameStateId, bytes: Vec<u8>) -> Self {
         Self {
             runtime_id: worker.runtime_id,
             worker_id: worker.worker_id,
@@ -267,7 +286,7 @@ impl<'a> FrameView<'a> {
     }
 }
 
-impl fmt::Debug for FrameView<'_> {
+impl fmt::Debug for FrameView {
     /// Format one frame view without traversing canonical frame bytes.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
@@ -356,24 +375,24 @@ impl WorldView {
     }
 
     /// Return all frames visible at this moment.
-    pub fn frames(&self) -> RuntimeResult<Vec<FrameView<'_>>> {
+    pub fn frames(&self) -> RuntimeResult<Vec<FrameView>> {
         let mut frames = Vec::new();
 
         // preserve worker order while resolving every referenced runtime loudly
         for worker in self.image.workers.values() {
             let runtime = self.runtime(worker.runtime_id)?;
-            frames.extend(worker.frames(self.image.memory(), runtime.program.as_ref())?);
+            frames.extend(worker.frames(runtime.program.as_ref(), self.image.memory())?);
         }
 
         Ok(frames)
     }
 
     /// Return all frames retained by one worker at this moment.
-    pub fn worker_frames(&self, worker_id: WorkerId) -> RuntimeResult<Vec<FrameView<'_>>> {
+    pub fn worker_frames(&self, worker_id: WorkerId) -> RuntimeResult<Vec<FrameView>> {
         let worker = self.worker(worker_id)?;
         let runtime = self.runtime(worker.runtime_id)?;
 
-        worker.frames(self.image.memory(), runtime.program.as_ref())
+        worker.frames(runtime.program.as_ref(), self.image.memory())
     }
 
     /// Return the number of runtimes visible at this moment.

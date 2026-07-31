@@ -9,13 +9,13 @@ use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::{
     Host, HostError, HostQueue, family_name, host_name, monotonic_now_ns, platform_name,
 };
-use crate::worker::scheduler::{EventLoop, RunnableId};
+use crate::scheduler::{EventLoop, RunnableId};
 use crate::world::random::RandomStreamId;
 use crate::world::time::ClockSource;
 use crate::world::trace::{EntropySubject, TraceLog};
 use crate::world::{Decision, RuntimeId, WorldState};
 
-use super::{RunnableScope, WorkerId};
+use super::{Handshake, Request, RunnableScope, WorkerId};
 
 /// Runtime state exposed during one worker activation.
 #[derive(Debug)]
@@ -46,12 +46,32 @@ pub struct Activation<'a> {
     scope: RunnableScope,
     /// Worker event loop receiving language waiter operations.
     event_loop: &'a mut EventLoop,
+    /// Process-local worker execution handshake.
+    handshake: &'a Handshake,
     /// Whether this call is running on the process main thread.
     is_process_main: bool,
 }
 
 impl program::Runtime for Activation<'_> {
     type Error = Box<RuntimeError>;
+
+    /// Return whether execution must yield at the current runtime poll.
+    fn is_poll_requested(&self) -> bool {
+        self.handshake.is_pending()
+    }
+
+    /// Retain execution so the worker can service pending runtime work.
+    fn poll(
+        &mut self,
+        _memory: program::Memory<'_>,
+        _roots: &mut dyn program::RootSource<Error = Self::Error>,
+    ) -> RuntimeResult<program::Poll> {
+        if !self.handshake.is_pending() {
+            return Ok(program::Poll::Continue);
+        }
+
+        Ok(program::Poll::Pause)
+    }
 
     /// Call one linked runtime binding.
     fn call_binding(
@@ -92,15 +112,15 @@ impl program::Runtime for Activation<'_> {
         self.event_loop.start_task()
     }
 
-    /// Suspend one running task and return its runtime waiter.
+    /// Suspend one running task or return its continuation unchanged.
     fn suspend_task(
         &mut self,
         task: program::Task,
         continuation: program::Continuation,
-    ) -> RuntimeResult<program::Waiter> {
+    ) -> Result<program::Waiter, (Box<RuntimeError>, program::Continuation)> {
         self.event_loop
             .suspend_task(task, continuation)
-            .map_err(Into::into)
+            .map_err(|(error, continuation)| (error.into(), continuation))
     }
 
     /// Park one waiter until a task completes or is cancelled.
@@ -152,6 +172,7 @@ impl<'a> Activation<'a> {
         world: &'a mut WorldState,
         scope: RunnableScope,
         event_loop: &'a mut EventLoop,
+        handshake: &'a Handshake,
     ) -> Self {
         Self {
             runtime_id,
@@ -167,8 +188,19 @@ impl<'a> Activation<'a> {
             world,
             scope,
             event_loop,
+            handshake,
             is_process_main: host.is_process_main_context(),
         }
+    }
+
+    /// Return the process-local request word address used by native code.
+    pub(crate) fn poll_address(&self) -> *const u32 {
+        self.handshake.address()
+    }
+
+    /// Request interpreter continuation at the next runtime boundary.
+    pub(crate) fn deoptimize(&self) {
+        self.handshake.request(Request::Deoptimize);
     }
 
     /// Borrow the runtime diagnostics store.

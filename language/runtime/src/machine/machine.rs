@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_heap::{DropReference, GcDrop};
+use destack_heap::{DropReference, GcDrop, HeapResult, RootSlot};
 use destack_memory::MemoryMap;
 use destack_program as program;
 use destack_vm as vm;
@@ -15,8 +15,12 @@ use crate::worker::Activation;
 pub struct Machine {
     /// Shared process-local execution engine.
     engine: Engine,
+    /// World memory containing retained execution state.
+    memory: Arc<MemoryMap>,
     /// Worker-local continuation storage.
     continuations: program::ContinuationTable,
+    /// Engine-neutral execution retained outside an active engine.
+    activation: Option<program::ActivationImage>,
     /// Worker-local bytecode execution state when bytecode is available.
     vm: Option<vm::Machine>,
 }
@@ -25,8 +29,9 @@ impl Machine {
     /// Create one worker-owned machine from a shared engine.
     pub(crate) fn new(engine: Engine, memory: Arc<MemoryMap>) -> RuntimeResult<Self> {
         let vm = if engine.program().bytecode().is_some() {
-            let machine = vm::Machine::new(engine.program().clone(), memory, engine.limits())
-                .map_err(Box::<RuntimeError>::from)?;
+            let machine =
+                vm::Machine::new(engine.program().clone(), memory.clone(), engine.limits())
+                    .map_err(Box::<RuntimeError>::from)?;
 
             Some(machine)
         } else {
@@ -35,7 +40,9 @@ impl Machine {
 
         Ok(Self {
             engine,
+            memory,
             continuations: program::ContinuationTable::default(),
+            activation: None,
             vm,
         })
     }
@@ -43,6 +50,19 @@ impl Machine {
     /// Return the immutable program.
     pub fn program(&self) -> &program::Program {
         self.engine.program()
+    }
+
+    /// Return the world memory containing retained execution state.
+    pub(crate) fn memory(&self) -> Arc<MemoryMap> {
+        self.memory.clone()
+    }
+
+    /// Return the innermost point of the captured activation when present.
+    pub fn activation_point(&self) -> Option<program::ProgramPoint> {
+        self.activation
+            .as_ref()
+            .and_then(|activation| activation.frames().last())
+            .map(|frame| frame.point())
     }
 
     /// Run one entrypoint.
@@ -59,7 +79,7 @@ impl Machine {
             .program()
             .function_id_by_name(entry.name())
             .ok_or_else(|| Self::entry_unavailable(entry.name()))?;
-        let outcome = self.execute(
+        self.execute(
             activation,
             function,
             None,
@@ -67,9 +87,7 @@ impl Machine {
             stop_points,
             watch_points,
             profile,
-        )?;
-
-        Ok(outcome)
+        )
     }
 
     /// Run one linked function with an optional closure environment.
@@ -104,12 +122,23 @@ impl Machine {
         watch_points: Option<&'run program::WatchSet>,
         profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
+        if self.vm.is_none() {
+            continuation
+                .release(&self.memory)
+                .map_err(Box::<RuntimeError>::from)?;
+
+            return Err(Self::unsupported("continuation resume"));
+        }
+
         let Self {
-            continuations, vm, ..
+            activation: captured,
+            continuations,
+            vm,
+            ..
         } = self;
         let machine = Self::require_vm(vm, "continuation resume")?;
 
-        machine.resume(
+        let outcome = machine.resume(
             continuations,
             activation,
             continuation,
@@ -117,7 +146,9 @@ impl Machine {
             stop_points,
             watch_points,
             profile,
-        )
+        )?;
+
+        Self::capture_vm_outcome(captured, machine, outcome)
     }
 
     /// Complete one canonical generator continuation.
@@ -130,12 +161,23 @@ impl Machine {
         watch_points: Option<&'run program::WatchSet>,
         profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
+        if self.vm.is_none() {
+            continuation
+                .release(&self.memory)
+                .map_err(Box::<RuntimeError>::from)?;
+
+            return Err(Self::unsupported("continuation completion"));
+        }
+
         let Self {
-            continuations, vm, ..
+            activation: captured,
+            continuations,
+            vm,
+            ..
         } = self;
         let machine = Self::require_vm(vm, "continuation completion")?;
 
-        machine.complete(
+        let outcome = machine.complete(
             continuations,
             activation,
             continuation,
@@ -143,7 +185,9 @@ impl Machine {
             stop_points,
             watch_points,
             profile,
-        )
+        )?;
+
+        Self::capture_vm_outcome(captured, machine, outcome)
     }
 
     /// Cancel one canonical asynchronous continuation.
@@ -155,19 +199,32 @@ impl Machine {
         watch_points: Option<&'run program::WatchSet>,
         profile: Option<&'run mut program::Profile>,
     ) -> RuntimeResult<Outcome<Value>> {
+        if self.vm.is_none() {
+            continuation
+                .release(&self.memory)
+                .map_err(Box::<RuntimeError>::from)?;
+
+            return Err(Self::unsupported("continuation cancellation"));
+        }
+
         let Self {
-            continuations, vm, ..
+            activation: captured,
+            continuations,
+            vm,
+            ..
         } = self;
         let machine = Self::require_vm(vm, "continuation cancellation")?;
 
-        machine.cancel(
+        let outcome = machine.cancel(
             continuations,
             activation,
             continuation,
             stop_points,
             watch_points,
             profile,
-        )
+        )?;
+
+        Self::capture_vm_outcome(captured, machine, outcome)
     }
 
     /// Destroy one unreachable value to completion.
@@ -254,8 +311,10 @@ impl Machine {
                 Err(RuntimeError::machine(MachineError::DropSuspended).boxed())
             }
         };
+
+        // discard invalid retained destructor state before returning its failure
         if result.is_err() {
-            self.clear();
+            self.clear()?;
         }
 
         result
@@ -271,9 +330,19 @@ impl Machine {
         resume_skip: Option<program::ResumeSkip>,
     ) -> RuntimeResult<Outcome<Value>> {
         let Self {
-            continuations, vm, ..
+            activation: captured,
+            continuations,
+            vm,
+            ..
         } = self;
         let machine = Self::require_vm(vm, "retained execution")?;
+        let image = captured.take().ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "retained execution has no activation image".to_string(),
+            }
+            .boxed()
+        })?;
+        machine.restore(image).map_err(Box::<RuntimeError>::from)?;
         let outcome = machine.continue_execution(
             continuations,
             activation,
@@ -283,58 +352,74 @@ impl Machine {
             resume_skip,
         )?;
 
-        Ok(outcome)
+        Self::capture_vm_outcome(captured, machine, outcome)
     }
 
-    /// Capture retained physical execution state.
-    pub fn image(&self) -> RuntimeResult<MachineImage> {
-        let vm = self
-            .vm
-            .as_ref()
-            .map(vm::Machine::capture)
-            .transpose()
-            .map_err(Box::<RuntimeError>::from)?;
-
-        Ok(MachineImage::new(self.continuations.fork(), vm))
+    /// Capture retained engine-neutral execution state.
+    pub fn image(&self) -> MachineImage {
+        MachineImage::new(
+            self.continuations.inherit(),
+            self.activation
+                .as_ref()
+                .map(program::ActivationImage::inherit),
+        )
     }
 
-    /// Restore retained physical execution state.
-    pub fn restore(&mut self, image: &MachineImage) -> RuntimeResult<()> {
-        match (&mut self.vm, image.vm()) {
-            (Some(machine), Some(image)) => {
-                machine.restore(image).map_err(Box::<RuntimeError>::from)?;
-            }
-            (None, None) => {}
-            (Some(machine), None) => machine.clear(),
-            (None, Some(_)) => {
-                return Err(RuntimeError::Internal {
-                    message: "machine image requires unavailable bytecode state".to_string(),
-                }
-                .boxed());
-            }
-        };
-
-        // restore canonical continuations after physical machine state
-        self.continuations = image.continuation_table().fork();
+    /// Restore retained engine-neutral execution state.
+    pub(crate) fn restore(&mut self, image: &MachineImage) -> RuntimeResult<()> {
+        self.clear()?;
+        self.activation = image.activation().map(program::ActivationImage::inherit);
+        self.continuations = image.continuation_table().inherit();
 
         Ok(())
     }
 
-    /// Clear retained physical execution state.
-    pub(crate) fn clear(&mut self) {
-        if let Some(machine) = &mut self.vm {
-            machine.clear();
-        }
+    /// Clear retained execution state.
+    pub(crate) fn clear(&mut self) -> RuntimeResult<()> {
+        let activation = self.activation.take();
+        let continuations = std::mem::take(&mut self.continuations);
+
+        // release every owned execution range even when one release fails
+        let activation = activation
+            .map(|activation| activation.release(&self.memory))
+            .transpose()
+            .map_err(Box::<RuntimeError>::from);
+        let continuations = continuations
+            .release(&self.memory)
+            .map_err(Box::<RuntimeError>::from);
+        let vm = self
+            .vm
+            .as_mut()
+            .map(vm::Machine::clear)
+            .transpose()
+            .map_err(Box::<RuntimeError>::from);
+
+        activation?;
+        continuations?;
+        vm?;
+
+        Ok(())
     }
 
-    /// Visit mutable heap roots retained by physical execution state.
+    /// Release one continuation that cannot reach a language-level owner.
+    pub(crate) fn release_continuation(
+        &self,
+        continuation: program::Continuation,
+    ) -> RuntimeResult<()> {
+        continuation
+            .release(&self.memory)
+            .map_err(Box::<RuntimeError>::from)
+    }
+
+    /// Visit mutable heap roots retained by canonical execution state.
     pub fn visit_root_slots(
         &mut self,
-        visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> RuntimeResult<()> {
-        if let Some(machine) = &mut self.vm {
-            machine
-                .visit_root_slots(visit)
+        if let Some(activation) = &mut self.activation {
+            self.engine
+                .program()
+                .visit_activation_root_slots(&self.memory, activation, visit)
                 .map_err(Box::<RuntimeError>::from)?;
         }
 
@@ -342,21 +427,26 @@ impl Machine {
         let program = self.engine.program();
 
         self.continuations
-            .visit_root_slots(program, visit)
+            .visit_root_slots(program, &self.memory, visit)
             .map_err(Box::<RuntimeError>::from)?;
 
         Ok(())
     }
 
     /// Fork this machine over already-forked memory.
-    pub fn fork(&self, memory: Arc<MemoryMap>) -> RuntimeResult<Self> {
-        let vm = self.vm.as_ref().map(|machine| machine.fork(memory));
+    pub fn fork(&self, memory: Arc<MemoryMap>) -> Self {
+        let vm = self.vm.as_ref().map(|machine| machine.fork(memory.clone()));
 
-        Ok(Self {
+        Self {
             engine: self.engine.clone(),
-            continuations: self.continuations.fork(),
+            memory,
+            continuations: self.continuations.inherit(),
+            activation: self
+                .activation
+                .as_ref()
+                .map(program::ActivationImage::inherit),
             vm,
-        })
+        }
     }
 
     /// Execute one linked function through its current engine entry.
@@ -378,15 +468,21 @@ impl Machine {
 
         match target {
             Target::Bytecode => {
-                let machine = self.vm.as_mut().ok_or_else(|| {
+                let Self {
+                    activation: captured,
+                    continuations,
+                    vm,
+                    ..
+                } = self;
+                let machine = vm.as_mut().ok_or_else(|| {
                     RuntimeError::Internal {
                         message: "bytecode entry has no worker machine".to_string(),
                     }
                     .boxed()
                 })?;
 
-                machine.run(
-                    &mut self.continuations,
+                let outcome = machine.run(
+                    continuations,
                     activation,
                     function,
                     environment,
@@ -394,7 +490,9 @@ impl Machine {
                     stop_points,
                     watch_points,
                     profile,
-                )
+                )?;
+
+                Self::capture_vm_outcome(captured, machine, outcome)
             }
             Target::Native => {
                 Self::reject_native_hooks(stop_points, watch_points, profile.as_deref())?;
@@ -408,9 +506,11 @@ impl Machine {
                 code.run(
                     self.engine.program(),
                     &mut activation,
+                    &self.memory,
                     program::EntryPoint::from(function),
                     environment,
                     arguments,
+                    &mut self.activation,
                 )
             }
         }
@@ -421,12 +521,26 @@ impl Machine {
         vm: &'machine mut Option<vm::Machine>,
         feature: &str,
     ) -> RuntimeResult<&'machine mut vm::Machine> {
-        vm.as_mut().ok_or_else(|| {
-            RuntimeError::machine(MachineError::Unsupported {
-                feature: feature.to_string(),
-            })
-            .boxed()
-        })
+        vm.as_mut().ok_or_else(|| Self::unsupported(feature))
+    }
+
+    /// Capture canonical stopped execution from a VM into runtime ownership.
+    fn capture_vm_outcome(
+        captured: &mut Option<program::ActivationImage>,
+        machine: &mut vm::Machine,
+        outcome: Outcome<Value>,
+    ) -> RuntimeResult<Outcome<Value>> {
+        if matches!(outcome, Outcome::Stopped { .. }) {
+            let image = machine.take_activation().ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: "retained VM outcome has no activation image".to_string(),
+                }
+                .boxed()
+            })?;
+            *captured = Some(image);
+        }
+
+        Ok(outcome)
     }
 
     /// Reject runtime hooks that native code does not implement.
@@ -458,6 +572,14 @@ impl Machine {
     fn entry_unavailable(entry: impl Into<String>) -> Box<RuntimeError> {
         RuntimeError::entry_unavailable(entry).boxed()
     }
+
+    /// Return one unsupported machine feature error.
+    fn unsupported(feature: impl Into<String>) -> Box<RuntimeError> {
+        RuntimeError::machine(MachineError::Unsupported {
+            feature: feature.into(),
+        })
+        .boxed()
+    }
 }
 
 impl fmt::Debug for Machine {
@@ -469,5 +591,14 @@ impl fmt::Debug for Machine {
             .field("continuations", &self.continuations)
             .field("vm", &self.vm)
             .finish()
+    }
+}
+
+impl Drop for Machine {
+    fn drop(&mut self) {
+        // abort because dropping owned execution ranges must not corrupt world memory
+        if self.clear().is_err() {
+            std::process::abort();
+        }
     }
 }

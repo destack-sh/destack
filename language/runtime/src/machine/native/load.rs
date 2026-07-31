@@ -11,24 +11,34 @@ pub trait Loader {
             return Err(Error::NativeCodeMissing);
         };
 
-        self.load_code(code)
+        self.load_code(program, code)
     }
 
     /// Link code already resident in this process.
     fn load_resident(&self, code: &native::Code) -> Result<Code, Error>;
 
     /// Load one native library image.
-    fn load_library(&self, code: &native::Code, library: &native::Library) -> Result<Code, Error>;
+    fn load_library(
+        &self,
+        program: &Program,
+        code: &native::Code,
+        library: native::Library,
+    ) -> Result<Code, Error>;
 
-    /// Load one native object image.
-    fn load_object(&self, code: &native::Code, object: &native::Object) -> Result<Code, Error>;
+    /// Load one packed native object archive.
+    fn load_archive(
+        &self,
+        program: &Program,
+        code: &native::Code,
+        archive: native::Archive,
+    ) -> Result<Code, Error>;
 
     /// Load durable native code into process-local native code.
-    fn load_code(&self, code: &native::Code) -> Result<Code, Error> {
+    fn load_code(&self, program: &Program, code: &native::Code) -> Result<Code, Error> {
         match &code.image {
             native::Image::Resident => self.load_resident(code),
-            native::Image::Library(library) => self.load_library(code, library),
-            native::Image::Object(object) => self.load_object(code, object),
+            native::Image::Library(library) => self.load_library(program, code, *library),
+            native::Image::Archive(archive) => self.load_archive(program, code, *archive),
         }
     }
 }

@@ -271,6 +271,20 @@ struct VmRuntime;
 impl program::Runtime for VmRuntime {
     type Error = Error;
 
+    /// Return whether execution must yield at the current runtime poll.
+    fn is_poll_requested(&self) -> bool {
+        false
+    }
+
+    /// Continue footprint execution after one impossible poll request.
+    fn poll(
+        &mut self,
+        _memory: program::Memory<'_>,
+        _roots: &mut dyn program::RootSource<Error = Self::Error>,
+    ) -> Result<program::Poll> {
+        Ok(program::Poll::Continue)
+    }
+
     /// Reject runtime bindings outside runtime footprint execution.
     fn call_binding(
         &mut self,
@@ -311,9 +325,9 @@ impl program::Runtime for VmRuntime {
     fn suspend_task(
         &mut self,
         task: program::Task,
-        _continuation: program::Continuation,
-    ) -> Result<program::Waiter> {
-        Err(program::Error::UndefinedTask { task }.into())
+        continuation: program::Continuation,
+    ) -> std::result::Result<program::Waiter, (Self::Error, program::Continuation)> {
+        Err((program::Error::UndefinedTask { task }.into(), continuation))
     }
 
     /// Reject task waiting outside the runtime scheduler.
@@ -348,10 +362,10 @@ impl VmSetup {
         // emit one relocatable object through the production compiler path
         let emitter = ObjectEmitter::new(module, &optimized, [])
             .expect("footprint MIR should emit object metadata");
-        let (bytecode, frames) = BytecodeEmitter::new(module, &optimized, &emitter)
+        let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
             .emit()
             .expect("footprint MIR should emit bytecode");
-        let object = Arc::new(emitter.build(bytecode, frames));
+        let object = Arc::new(emitter.build(bytecode));
 
         // link the object into one executable Program
         let program = ProgramLinker::new(

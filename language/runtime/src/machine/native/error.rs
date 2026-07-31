@@ -35,8 +35,8 @@ pub enum Error {
     StateUnavailable {
         /// The exit that requires machine state.
         kind: abi::ExitKind,
-        /// The safepoint that exited.
-        safepoint: u32,
+        /// The native frame map that exited.
+        frame_map: u32,
     },
     /// Native execution reported a language panic.
     Panicked {
@@ -51,6 +51,11 @@ pub enum Error {
     Program(Box<program::Error>),
     /// The program has no native code.
     NativeCodeMissing,
+    /// A native entry references an undefined linked module.
+    NativeModuleMissing {
+        /// Missing native module index.
+        module: u32,
+    },
     /// A program string id could not be resolved.
     ProgramStringMissing {
         /// Missing program string id.
@@ -74,9 +79,9 @@ impl Clone for Error {
             },
             Self::TypeMissing { ty } => Self::TypeMissing { ty: *ty },
             Self::Trapped { trap } => Self::Trapped { trap: *trap },
-            Self::StateUnavailable { kind, safepoint } => Self::StateUnavailable {
+            Self::StateUnavailable { kind, frame_map } => Self::StateUnavailable {
                 kind: *kind,
-                safepoint: *safepoint,
+                frame_map: *frame_map,
             },
             Self::Panicked { payload } => Self::Panicked {
                 payload: payload.as_ref().map(Value::fork),
@@ -85,6 +90,7 @@ impl Clone for Error {
             Self::InvalidTrap(error) => Self::InvalidTrap(*error),
             Self::Program(error) => Self::Program(error.clone()),
             Self::NativeCodeMissing => Self::NativeCodeMissing,
+            Self::NativeModuleMissing { module } => Self::NativeModuleMissing { module: *module },
             Self::ProgramStringMissing { string } => Self::ProgramStringMissing { string: *string },
             Self::NativeSymbolMissing { symbol } => Self::NativeSymbolMissing {
                 symbol: symbol.clone(),
@@ -108,10 +114,10 @@ impl fmt::Display for Error {
             Self::Trapped { trap } => {
                 write!(formatter, "native execution trapped: {trap:?}")
             }
-            Self::StateUnavailable { kind, safepoint } => {
+            Self::StateUnavailable { kind, frame_map } => {
                 write!(
                     formatter,
-                    "native execution exited with {kind:?} at safepoint {safepoint} without machine state"
+                    "native execution exited with {kind:?} at frame map {frame_map} without machine state"
                 )
             }
             Self::Panicked { payload } => {
@@ -121,6 +127,9 @@ impl fmt::Display for Error {
             Self::InvalidTrap(error) => write!(formatter, "native trap error: {error}"),
             Self::Program(error) => write!(formatter, "native program error: {error}"),
             Self::NativeCodeMissing => write!(formatter, "program has no native code"),
+            Self::NativeModuleMissing { module } => {
+                write!(formatter, "native module not found: {module}")
+            }
             Self::ProgramStringMissing { string } => {
                 write!(formatter, "program string not found: {string:?}")
             }

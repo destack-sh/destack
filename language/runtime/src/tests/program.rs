@@ -4,6 +4,7 @@ use destack_artifact::{EmitFormat, MirLowered, MirOptimized};
 use destack_compiler::{BytecodeEmitter, LayoutBuilder, ObjectEmitter, ProgramLinker};
 use destack_core::StringPool;
 use destack_mir as mir;
+use destack_native as native;
 use destack_program as program;
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, TargetId, Uri,
@@ -15,6 +16,8 @@ pub(crate) struct TestProgram {
     lowered: MirLowered,
     /// Strings referenced by the MIR module.
     strings: StringPool,
+    /// Physical native frame maps attached to this test module.
+    native: Option<native::CodeMapBuilder>,
 }
 
 impl TestProgram {
@@ -53,7 +56,15 @@ impl TestProgram {
                 profile,
             },
             strings,
+            native: None,
         }
+    }
+
+    /// Attach physical native frame maps to this test program.
+    pub(crate) fn native(mut self, map: native::CodeMapBuilder) -> Self {
+        self.native = Some(map);
+
+        self
     }
 
     /// Attach one destructor from its exclusive reference parameter.
@@ -82,20 +93,42 @@ impl TestProgram {
         let module = ModuleId::new(package, 0);
         let target = TargetId::new(package, "runtime-test");
         let optimized = self.optimize(module);
+        let format = if self.native.is_some() {
+            EmitFormat::Native
+        } else {
+            EmitFormat::Bytecode
+        };
 
         // emit one relocatable object from the parsed MIR
         let emitter = ObjectEmitter::new(module, &optimized, [])
             .expect("runtime test MIR should emit object metadata");
-        let (bytecode, frames) = BytecodeEmitter::new(module, &optimized, &emitter)
+        let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
             .emit()
             .expect("runtime test MIR should emit bytecode");
-        let object = Arc::new(emitter.build(bytecode, frames));
+        let emitter = if let Some(map) = self.native {
+            let function_count = optimized.tree.iter_nodes::<mir::Function>().count();
+            let functions = std::iter::repeat_with(|| None).take(function_count);
+            let native = native::ObjectBuilder::new(
+                "runtime-test".to_string(),
+                native::ObjectFormat::Elf,
+                Vec::new(),
+                "runtime-test".to_string(),
+            )
+            .functions(functions)
+            .map(map)
+            .build();
+
+            emitter.native(native)
+        } else {
+            emitter
+        };
+        let object = Arc::new(emitter.build(bytecode));
 
         // link the object through the production Program path
         ProgramLinker::new(
             package,
             target,
-            EmitFormat::Bytecode,
+            format,
             vec![(module, object)],
             &self.strings,
         )

@@ -1,5 +1,7 @@
-use destack_memory::MemoryImage;
-use destack_program::{Continuation, ContinuationId, ContinuationTable, FrameStateId, Program};
+use destack_memory::{MemoryImage, MemoryRange};
+use destack_program::{
+    ActivationImage, Continuation, ContinuationId, ContinuationTable, FrameStateId, Program,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -9,14 +11,14 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 pub struct MachineImage {
     /// Captured first-class continuations.
     continuations: ContinuationTable,
-    /// Captured bytecode execution state when bytecode is available.
-    vm: Option<destack_vm::MachineImage>,
+    /// Captured engine-neutral execution state when present.
+    activation: Option<ActivationImage>,
 }
 
 impl Clone for MachineImage {
     /// Share retained machine storage into one immutable image copy.
     fn clone(&self) -> Self {
-        self.fork()
+        self.inherit()
     }
 }
 
@@ -24,61 +26,122 @@ impl MachineImage {
     /// Create one captured machine image.
     pub(crate) fn new(
         continuations: ContinuationTable,
-        vm: Option<destack_vm::MachineImage>,
+        activation: Option<ActivationImage>,
     ) -> Self {
-        Self { continuations, vm }
-    }
-
-    /// Fork this machine image for one forked World.
-    pub fn fork(&self) -> Self {
         Self {
-            continuations: self.continuations.fork(),
-            vm: self.vm.as_ref().map(destack_vm::MachineImage::fork),
+            continuations,
+            activation,
         }
     }
 
-    /// Return captured bytecode execution state when present.
-    pub(crate) const fn vm(&self) -> Option<&destack_vm::MachineImage> {
-        self.vm.as_ref()
+    /// Fork this machine image for one forked World.
+    pub fn inherit(&self) -> Self {
+        Self {
+            continuations: self.continuations.inherit(),
+            activation: self.activation.as_ref().map(ActivationImage::inherit),
+        }
+    }
+
+    /// Return captured engine-neutral execution state when present.
+    pub(crate) const fn activation(&self) -> Option<&ActivationImage> {
+        self.activation.as_ref()
     }
 
     /// Return whether this image contains no active execution.
     pub fn is_empty(&self) -> bool {
-        self.vm
-            .as_ref()
-            .is_none_or(destack_vm::MachineImage::is_empty)
+        self.activation.is_none()
     }
 
-    /// Return the captured physical frame count.
+    /// Return the captured logical frame count.
     pub fn frame_count(&self) -> usize {
-        self.vm
+        self.activation
             .as_ref()
-            .map_or(0, destack_vm::MachineImage::frame_count)
+            .map_or(0, |activation| activation.frames().len())
     }
 
-    /// Return one captured physical frame state.
+    /// Return one captured logical frame state.
     pub fn frame_state(&self, index: usize) -> Option<FrameStateId> {
-        self.vm
+        self.activation
             .as_ref()
-            .and_then(|machine| machine.frame_state(index))
+            .and_then(|activation| activation.frames().get(index))
+            .map(|frame| frame.state())
     }
 
-    /// Project one captured physical frame into its canonical live value layout.
+    /// Project one captured logical frame into its canonical live value layout.
     pub fn frame_bytes(
         &self,
-        memory: &MemoryImage,
         program: &Program,
+        memory: &MemoryImage,
         index: usize,
     ) -> RuntimeResult<Vec<u8>> {
-        match &self.vm {
-            Some(machine) => machine
-                .frame_bytes(memory, program, index)
-                .map_err(Box::<RuntimeError>::from),
-            None => Err(RuntimeError::Internal {
-                message: "machine image has no retained bytecode frame".to_string(),
+        let range = self.frame_range(program, index)?;
+
+        memory
+            .read_bytes(range.offset, range.byte_len)
+            .map_err(Box::<RuntimeError>::from)
+    }
+
+    /// Return the packed memory range for one retained logical frame.
+    fn frame_range(&self, program: &Program, index: usize) -> RuntimeResult<MemoryRange> {
+        let Some(activation) = &self.activation else {
+            return Err(RuntimeError::Internal {
+                message: "machine image has no retained activation".to_string(),
             }
-            .boxed()),
+            .boxed());
+        };
+        let frame = activation.frames().get(index).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "machine image frame index is out of bounds".to_string(),
+            }
+            .boxed()
+        })?;
+        let state = program.frame_state(frame.state()).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "machine image frame state is missing".to_string(),
+            }
+            .boxed()
+        })?;
+        let layout = program.frame_layout(state.layout).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "machine image frame layout is missing".to_string(),
+            }
+            .boxed()
+        })?;
+
+        // locate this frame after every aligned predecessor
+        let mut byte_offset = 0usize;
+        for prior in &activation.frames()[..index] {
+            let state = program.frame_state(prior.state()).ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: "machine image frame state is missing".to_string(),
+                }
+                .boxed()
+            })?;
+            let layout = program.frame_layout(state.layout).ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: "machine image frame layout is missing".to_string(),
+                }
+                .boxed()
+            })?;
+            byte_offset = byte_offset.next_multiple_of(layout.alignment() as usize);
+            byte_offset += layout.byte_len() as usize;
         }
+
+        // project the logical frame into canonical activation storage
+        byte_offset = byte_offset.next_multiple_of(layout.alignment() as usize);
+        let byte_len = layout.byte_len() as usize;
+        let activation_range = activation.memory();
+        if byte_offset + byte_len > activation_range.byte_len {
+            return Err(RuntimeError::Internal {
+                message: "machine image frame bytes are out of bounds".to_string(),
+            }
+            .boxed());
+        }
+
+        Ok(MemoryRange {
+            offset: activation_range.offset + byte_offset,
+            byte_len,
+        })
     }
 
     /// Iterate over every live first-class continuation.

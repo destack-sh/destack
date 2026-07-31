@@ -144,7 +144,7 @@ impl EntryTable {
                 let function = program::FunctionId(index as u32);
 
                 // prefer loaded native code over interpreted bytecode
-                if native.is_some_and(|native| native.entry(function).is_some()) {
+                if native.is_some_and(|native| native.function(function).is_some()) {
                     Some(Target::Native)
                 } else if bytecode
                     .and_then(|bytecode| bytecode.function(program.sections(), index))

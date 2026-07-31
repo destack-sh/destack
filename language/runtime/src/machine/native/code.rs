@@ -1,5 +1,7 @@
 use std::fmt;
+use std::sync::Arc;
 
+use destack_memory::MemoryMap;
 use destack_native as native;
 use destack_native::abi;
 use destack_program as program;
@@ -8,54 +10,93 @@ use destack_program::{EntryPoint, FunctionId, Outcome, Program, Value};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::worker::Activation;
 
-use super::{Call, Entry, Error, Library, Mapping};
+use super::{Call, Error, Function, Library, Mapping, ModuleTable, Stop};
 
 /// Process-local native code table.
 #[derive(Debug, Clone)]
 pub struct Code {
     /// The process-local native image backing this code.
     image: Image,
-    /// Native entries keyed by program function id.
-    entries: Vec<Option<Entry>>,
+    /// Process-local modules referenced by generated code.
+    modules: Arc<ModuleTable>,
+    /// Durable native frame maps used by runtime capture.
+    frames: native::CodeMap,
+    /// Process-local native functions keyed by Program function id.
+    functions: Vec<Option<Function>>,
 }
 
 impl Code {
     /// Create one native code table.
-    pub fn new(image: Image, entries: Vec<Option<Entry>>) -> Self {
-        Self { image, entries }
+    pub fn new(
+        image: Image,
+        modules: Arc<ModuleTable>,
+        frames: native::CodeMap,
+        functions: Vec<Option<Function>>,
+    ) -> Self {
+        Self {
+            image,
+            modules,
+            frames,
+            functions,
+        }
     }
 
     /// Link one durable native code payload into process-local native code.
     pub fn link(
         image: Image,
+        modules: Arc<ModuleTable>,
         program: &Program,
         native: &native::Code,
-        mut function: impl FnMut(&str) -> Option<abi::Entry>,
+        mut body: impl FnMut(&str) -> Option<usize>,
+        mut entry: impl FnMut(&str) -> Option<abi::Entry>,
     ) -> Result<Self, Error> {
         let sections = program.sections();
         let mut code = Self {
             image,
-            entries: vec![None; native.entries(sections).len()],
+            modules,
+            frames: native.map,
+            functions: vec![None; native.definitions(sections).len()],
         };
 
-        for (index, entry) in native
-            .entries(sections)
-            .iter()
-            .enumerate()
-            .filter_map(|(index, entry)| entry.get().map(|entry| (index, entry)))
+        for (index, definition) in
+            native
+                .definitions(sections)
+                .iter()
+                .enumerate()
+                .filter_map(|(index, definition)| {
+                    definition.get().map(|definition| (index, definition))
+                })
         {
-            let Some(symbol) = program.string(entry.symbol) else {
+            let Some(body_symbol) = program.string(definition.body) else {
                 return Err(Error::ProgramStringMissing {
-                    string: entry.symbol,
+                    string: definition.body,
                 });
             };
-            let Some(function) = function(symbol) else {
+            let Some(entry_symbol) = program.string(definition.entry) else {
+                return Err(Error::ProgramStringMissing {
+                    string: definition.entry,
+                });
+            };
+            let Some(body) = body(body_symbol) else {
                 return Err(Error::NativeSymbolMissing {
-                    symbol: symbol.to_owned(),
+                    symbol: body_symbol.to_owned(),
                 });
             };
+            let Some(entry) = entry(entry_symbol) else {
+                return Err(Error::NativeSymbolMissing {
+                    symbol: entry_symbol.to_owned(),
+                });
+            };
+            if native.module(sections, definition.module).is_none() {
+                return Err(Error::NativeModuleMissing {
+                    module: definition.module,
+                });
+            }
 
-            code.set_entry(FunctionId(index as u32), function);
+            let body_end = body + definition.body_byte_len as usize;
+            let body = body..body_end;
+            let function = Function::new(FunctionId(index as u32), entry).body(body);
+            code.set_function(function);
         }
 
         Ok(code)
@@ -66,24 +107,31 @@ impl Code {
         &self.image
     }
 
-    /// Return one native entry for one function.
-    pub fn entry(&self, function: FunctionId) -> Option<&Entry> {
-        self.entries.get(function.index()).and_then(Option::as_ref)
+    /// Borrow process-local Program identity mappings.
+    pub fn modules(&self) -> &ModuleTable {
+        &self.modules
     }
 
-    /// Insert one native function pointer.
-    pub fn set_entry(&mut self, function: FunctionId, entry: abi::Entry) {
-        let index = function.index();
-        if index >= self.entries.len() {
-            self.entries.resize_with(index + 1, || None);
+    /// Return one process-local native function.
+    pub fn function(&self, function: FunctionId) -> Option<&Function> {
+        self.functions
+            .get(function.index())
+            .and_then(Option::as_ref)
+    }
+
+    /// Insert one process-local native function.
+    pub fn set_function(&mut self, function: Function) {
+        let index = function.function.index();
+        if index >= self.functions.len() {
+            self.functions.resize_with(index + 1, || None);
         }
 
-        self.entries[index] = Some(Entry::new(function, entry));
+        self.functions[index] = Some(function);
     }
 
-    /// Return native function entries in dense function id order.
-    pub fn entries(&self) -> &[Option<Entry>] {
-        &self.entries
+    /// Return process-local native functions in dense Program id order.
+    pub fn functions(&self) -> &[Option<Function>] {
+        &self.functions
     }
 
     /// Resolve one runtime entry name into one entrypoint.
@@ -102,11 +150,13 @@ impl Code {
         &self,
         program: &'program Program,
         activation: &'program mut program::Activation<'runtime, 'memory, Activation<'state>>,
+        memory: &MemoryMap,
         entry: EntryPoint,
         environment: Option<&Value>,
         args: &[Value],
+        captured: &mut Option<program::ActivationImage>,
     ) -> RuntimeResult<Outcome<Value>> {
-        let Some(entry) = self.entry(entry.function()) else {
+        let Some(entry) = self.function(entry.function()) else {
             return Err(Error::EntryNotFound {
                 name: format!("entry {}", entry.index()),
             }
@@ -156,13 +206,21 @@ impl Code {
         let mut result =
             vec![program::Word::ZERO; result_byte_len.div_ceil(program::Word::BYTE_LEN)];
         let mut exit = abi::Exit::new();
-        let mut call = Call::new(program, activation);
+        let mut call = Call::new(program, self.frames, &self.functions, memory, activation);
         let mut activation = call.activation(&mut exit);
 
         // enter generated native code
         let code = entry.call(&mut activation, &arguments, &mut result);
 
-        self.outcome_from_exit(program, result_type, code, result, exit, &mut call)
+        self.outcome_from_exit(
+            program,
+            result_type,
+            code,
+            result,
+            exit,
+            &mut call,
+            captured,
+        )
     }
 
     /// Return one native outcome from native exit code and payloads.
@@ -174,6 +232,7 @@ impl Code {
         result: Vec<program::Word>,
         exit: abi::Exit,
         call: &mut Call<'_, '_, '_, '_>,
+        captured: &mut Option<program::ActivationImage>,
     ) -> RuntimeResult<Outcome<Value>> {
         if let Some(error) = call.take_error() {
             return Err(error);
@@ -197,12 +256,40 @@ impl Code {
 
                 Err(Error::Trapped { trap }.into())
             }
-            abi::ExitKind::Awaited
-            | abi::ExitKind::Yielded
-            | abi::ExitKind::Deoptimized
-            | abi::ExitKind::Stopped => Err(Error::StateUnavailable {
+            abi::ExitKind::Stopped => {
+                let frame = self
+                    .frames
+                    .frame(program.sections(), exit.frame_map)
+                    .ok_or_else(|| RuntimeError::Internal {
+                        message: "native stop frame map is missing".to_string(),
+                    })?;
+                let state = program
+                    .frame_state(program::FrameStateId(frame.state))
+                    .ok_or_else(|| RuntimeError::Internal {
+                        message: "native stop frame state is missing".to_string(),
+                    })?;
+                let point =
+                    state
+                        .point
+                        .operation_point()
+                        .ok_or_else(|| RuntimeError::Internal {
+                            message: "native stop does not select an executable point".to_string(),
+                        })?;
+                let activation = call.take_activation()?;
+                *captured = Some(activation);
+
+                let reason = match call.take_stop().ok_or_else(|| RuntimeError::Internal {
+                    message: "native stopped exit has no stop source".to_string(),
+                })? {
+                    Stop::Poll => program::StopReason::Pause { point },
+                    Stop::Instruction => program::StopReason::Instruction { point },
+                };
+
+                Ok(Outcome::Stopped { reason })
+            }
+            abi::ExitKind::Awaited | abi::ExitKind::Yielded => Err(Error::StateUnavailable {
                 kind,
-                safepoint: exit.safepoint,
+                frame_map: exit.frame_map,
             }
             .into()),
             abi::ExitKind::Panicked => {
