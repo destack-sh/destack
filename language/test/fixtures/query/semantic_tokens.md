@@ -84,6 +84,9 @@ newtype interface Display {}
 extension BufferAccess of UserId {}
           ^^^^^^^^^^^^ extension
                           ^^^^^^ extension_target
+
+extension of UserId {}
+             ^^^^^^ unnamed_extension_target
 ```
 
 ```query semantic_tokens main.ds
@@ -93,6 +96,7 @@ extension BufferAccess of UserId {}
 @semantic_tokens.token range=main.ds#nominal_interface type=interface modifiers=declaration
 @semantic_tokens.token range=main.ds#extension type=type modifiers=declaration
 @semantic_tokens.token range=main.ds#extension_target type=type
+@semantic_tokens.token range=main.ds#unnamed_extension_target type=type
 ```
 
 ### Classify generic declarations and references

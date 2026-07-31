@@ -278,6 +278,10 @@ impl<'owner, 'module, 'query> SemanticTokens<'owner, 'module, 'query> {
 
         // collect definition-site declaration names
         for (declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
+            if declaration.name().is_none() {
+                continue;
+            }
+
             let source_node_id = view.get_source(declaration_id);
             let Some(main_span) = self.main_span(source_node_id)? else {
                 continue;
