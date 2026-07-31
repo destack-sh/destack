@@ -338,6 +338,18 @@ impl MemberAccess {
 }
 
 impl OperationResolution<MemberAccess> {
+    /// Return the deduplicated declaration symbols selected across arms.
+    pub fn target_symbols(&self) -> Vec<GlobalSymbolId> {
+        let mut symbols = Vec::new();
+        for access in self.iter() {
+            access.target.collect_symbols(&mut symbols);
+        }
+        symbols.sort();
+        symbols.dedup();
+
+        symbols
+    }
+
     /// Return the selected member type.
     pub fn ty(&self) -> GlobalTypeId {
         match self {
@@ -587,20 +599,6 @@ pub struct Call {
 /// Callable selected at a call site.
 pub type CallResolution = OperationResolution<Call>;
 
-impl OperationResolution<Call> {
-    /// Return the deduplicated declaration symbols selected across arms.
-    pub fn target_symbols(&self) -> Vec<GlobalSymbolId> {
-        let mut symbols = self
-            .iter()
-            .filter_map(|call| call.target.symbol())
-            .collect::<Vec<_>>();
-        symbols.sort();
-        symbols.dedup();
-
-        symbols
-    }
-}
-
 impl Call {
     /// Return the selected parameter types bound to one argument source.
     pub fn argument_types(&self, source: ArgumentSource) -> Vec<GlobalTypeId> {
@@ -623,6 +621,39 @@ impl Call {
 }
 
 impl OperationResolution<Call> {
+    /// Return the deduplicated declaration symbols selected across arms.
+    pub fn target_symbols(&self) -> Vec<GlobalSymbolId> {
+        let mut symbols = self
+            .iter()
+            .filter_map(|call| call.target.symbol())
+            .collect::<Vec<_>>();
+        symbols.sort();
+        symbols.dedup();
+
+        symbols
+    }
+
+    /// Return the callable type shared by every selected arm.
+    pub fn shared_callable_type(&self) -> Option<GlobalTypeId> {
+        let first = self.iter().next()?.callable_type;
+        self.iter()
+            .all(|call| call.callable_type == first)
+            .then_some(first)
+    }
+
+    /// Return argument bindings when every selected arm uses the same source mapping.
+    pub fn shared_arguments(&self) -> Option<&[ArgumentBinding]> {
+        let first = self.iter().next()?.arguments.as_slice();
+        let is_shared = self.iter().all(|call| {
+            call.arguments.len() == first.len()
+                && call.arguments.iter().zip(first).all(|(left, right)| {
+                    left.parameter == right.parameter && left.argument == right.argument
+                })
+        });
+
+        is_shared.then_some(first)
+    }
+
     /// Return the call result type.
     pub fn return_type(&self) -> GlobalTypeId {
         match self {

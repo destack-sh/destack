@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::StringId;
+use destack_core::{StringId, StringPool};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
@@ -102,6 +102,22 @@ impl<'a> DefinitionTable<'a> {
             Some(Definition::Extension(extension)) => Some(extension),
             _ => None,
         }
+    }
+
+    /// Return the definition member carrying one exact symbol.
+    pub fn member(
+        &self,
+        symbol: GlobalSymbolId,
+    ) -> Option<(GlobalSymbolId, &Definition, &DefinitionMember)> {
+        self.segments
+            .iter()
+            .rev()
+            .flat_map(DefinitionSegment::iter_definitions)
+            .find_map(|(declaring, definition)| {
+                definition
+                    .member(symbol)
+                    .map(|member| (declaring, definition, member))
+            })
     }
 
     /// Iterate extension symbols targeting one nominal symbol.
@@ -419,7 +435,13 @@ impl Definition {
             }
             Self::Interface(definition) => map_heritages(&mut definition.extends, map),
             Self::Enum(definition) => map_implementations(&mut definition.implements, map),
-            Self::Newtype(definition) => definition.backing = map(definition.backing),
+            Self::Newtype(definition) => {
+                definition.backing = map(definition.backing);
+                for constructor in &mut definition.constructors {
+                    constructor.backing = map(constructor.backing);
+                    constructor.ty = map(constructor.ty);
+                }
+            }
             Self::Extension(definition) => {
                 match &mut definition.target {
                     ExtensionTarget::Rooted { ty, .. } | ExtensionTarget::Blanket { ty } => {
@@ -675,10 +697,21 @@ pub struct NewtypeDefinition {
     pub representation: Representation,
     /// The nominal backing type.
     pub backing: GlobalTypeId,
+    /// The constructable backing alternatives in selection order.
+    pub constructors: Vec<NewtypeConstructor>,
     /// The property discriminating derived Tagged variants.
     pub discriminator: Option<StaticKey>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
+}
+
+/// One constructable newtype backing alternative.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct NewtypeConstructor {
+    /// The reduced backing alternative selected by this constructor.
+    pub backing: GlobalTypeId,
+    /// The callable constructor type.
+    pub ty: GlobalTypeId,
 }
 
 /// How an extension declaration relates to its target type.
@@ -1026,6 +1059,30 @@ pub enum DefinitionMember {
 }
 
 impl DefinitionMember {
+    /// Return the member name.
+    pub fn name(&self, strings: &StringPool) -> Option<String> {
+        if let Some(key) = self.key() {
+            return match key {
+                StaticKey::Name(string_id) => Some(strings.get(string_id).to_string()),
+                StaticKey::Index(index) => Some(index.to_string()),
+                StaticKey::Symbol(_) => None,
+            };
+        }
+
+        match self {
+            Self::Method(method) => match method.slot {
+                MemberSlot::Constructor => Some("constructor".to_string()),
+                MemberSlot::New => Some("new".to_string()),
+                MemberSlot::Call => Some("call".to_string()),
+                MemberSlot::Key(_) => None,
+            },
+            Self::CallSignature(_) => Some("call".to_string()),
+            Self::ConstructSignature(_) => Some("new".to_string()),
+            Self::IndexSignature(_) => Some("[]".to_string()),
+            _ => None,
+        }
+    }
+
     /// Return whether this member carries a default implementation.
     pub fn is_default(&self) -> bool {
         match self {
@@ -1144,6 +1201,21 @@ impl DefinitionMember {
 }
 
 impl Definition {
+    /// Return the member carrying one exact symbol.
+    pub fn member(&self, symbol: GlobalSymbolId) -> Option<&DefinitionMember> {
+        self.members()
+            .iter()
+            .find(|member| member.symbol() == Some(symbol))
+    }
+
+    /// Return the nominal owner of this definition's members.
+    pub fn member_owner(&self, declaring: GlobalSymbolId) -> Option<GlobalSymbolId> {
+        match self {
+            Self::Extension(extension) => extension.target.root(),
+            _ => Some(declaring),
+        }
+    }
+
     /// Return the declared generic template, when the definition has one.
     pub fn template(&self) -> Option<LocalGenericTemplateId> {
         match self {

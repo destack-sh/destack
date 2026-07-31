@@ -22,6 +22,17 @@ pub struct BindingTable<'a> {
     segments: SegmentView<'a, BindingSegment>,
 }
 
+/// One keyed binding visible from a lexical scope cursor.
+#[derive(Debug, Clone, Copy)]
+pub struct VisibleBinding<'a> {
+    /// The binding key.
+    pub key: StaticKey,
+    /// The bound symbol id.
+    pub symbol_id: LocalSymbolId,
+    /// The bound symbol.
+    pub symbol: &'a Symbol,
+}
+
 impl BindingTable<'static> {
     /// Create a binding table from ordered segments.
     pub fn from_segments(segments: Vec<Arc<BindingSegment>>) -> Self {
@@ -143,6 +154,37 @@ impl<'a> BindingTable<'a> {
         let parent = self.get_scope_by_id(scope_id).parent;
 
         std::iter::successors(parent, |scope| self.get_scope(*scope).parent)
+    }
+
+    /// Iterate keyed bindings visible from a lexical scope cursor.
+    pub fn visible_bindings(
+        &self,
+        scope: LocalScope,
+    ) -> impl Iterator<Item = VisibleBinding<'_>> + '_ {
+        std::iter::successors(Some(scope), |scope| self.get_scope(*scope).parent).flat_map(
+            move |cursor| {
+                let scope = self.get_scope(cursor);
+
+                scope
+                    .bindings
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .filter_map(move |(index, binding)| {
+                        let key = binding.key?;
+                        let symbol = self.get_symbol(binding.symbol);
+                        let is_visible = symbol.visibility == SymbolVisibility::Scope
+                            || symbol.visibility == SymbolVisibility::Forward
+                                && index < cursor.mark.0 as usize;
+
+                        is_visible.then_some(VisibleBinding {
+                            key,
+                            symbol_id: binding.symbol,
+                            symbol,
+                        })
+                    })
+            },
+        )
     }
 
     /// Return the module's root namespace scope, with all bindings visible.

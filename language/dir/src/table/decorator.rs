@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, Argument, ArgumentBinding, Decorator, Expression, GlobalNodeId, GlobalNodeIdAny,
-    GlobalStaticId, GlobalSymbolId, GlobalTypeId, LanguageItem, NewtypeSelection, SegmentView,
+    GlobalStaticId, GlobalSymbolId, GlobalTypeId, LanguageItem, LocalNodeId, NewtypeSelection,
+    SegmentView,
 };
 
 /// Cumulative decorator applications for one DIR module.
@@ -79,6 +80,26 @@ impl<'a> DecoratorTable<'a> {
         }
 
         ids.into_iter().map(|id| self.get_application(id))
+    }
+
+    /// Return the application attached to one authored decorator.
+    pub fn application_for_decorator(
+        &self,
+        decorator: LocalNodeId<Decorator>,
+    ) -> Option<&DecoratorApplication> {
+        self.iter_applications()
+            .map(|(_, application)| application)
+            .find(|application| application.source.local_id == decorator)
+    }
+
+    /// Return the application selected by one decorator expression.
+    pub fn application_for_expression(
+        &self,
+        expression: LocalNodeId<Expression>,
+    ) -> Option<&DecoratorApplication> {
+        self.iter_applications()
+            .map(|(_, application)| application)
+            .find(|application| application.expression.local_id == expression)
     }
 
     /// Get a decorator application by id.
