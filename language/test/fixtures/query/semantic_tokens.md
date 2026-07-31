@@ -217,9 +217,9 @@ resource;
 @semantic_tokens.token range=main.ds#using_reference type=variable modifiers=readonly
 ```
 
-### Classify match bindings
+### Classify tuple match bindings
 
-Match-arm bindings remain immutable inside their guard and body.
+Tuple patterns bind readonly variables across each arm.
 
 ```ds main.ds
 const pair = (1, 2);
@@ -227,11 +227,12 @@ const pair = (1, 2);
 const result = match (pair) {
       ^^^^^^ result_declaration
                       ^^^^ pair_reference
-    (left, right) => left + right
+    (left, right) if (left > 0) => left + right
      ^^^^ left_declaration
            ^^^^^ right_declaration
-                     ^^^^ left_reference
-                            ^^^^^ right_reference
+                      ^^^^ left_guard_reference
+                                   ^^^^ left_reference
+                                          ^^^^^ right_reference
 };
 ```
 
@@ -241,8 +242,82 @@ const result = match (pair) {
 @semantic_tokens.token range=main.ds#pair_reference type=variable modifiers=readonly
 @semantic_tokens.token range=main.ds#left_declaration type=variable modifiers=declaration,readonly
 @semantic_tokens.token range=main.ds#right_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#left_guard_reference type=variable modifiers=readonly
 @semantic_tokens.token range=main.ds#left_reference type=variable modifiers=readonly
 @semantic_tokens.token range=main.ds#right_reference type=variable modifiers=readonly
+```
+
+### Classify nominal object match bindings
+
+A shorthand object pattern binds a readonly variable for its arm.
+
+```ds main.ds
+struct Box {
+       ^^^ box_declaration
+    value: int32;
+    ^^^^^ property_declaration
+}
+
+declare const boxed: Box;
+              ^^^^^ boxed_declaration
+                     ^^^ box_reference
+const result = match (boxed) {
+      ^^^^^^ result_declaration
+                      ^^^^^ boxed_reference
+    Box { value } => value
+    ^^^ pattern_type
+          ^^^^^ value_declaration
+                     ^^^^^ value_reference
+};
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#box_declaration type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#property_declaration type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#boxed_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#box_reference type=struct
+@semantic_tokens.token range=main.ds#result_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#boxed_reference type=variable modifiers=readonly
+@semantic_tokens.token range=main.ds#pattern_type type=struct
+@semantic_tokens.token range=main.ds#value_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#value_reference type=variable modifiers=readonly
+```
+
+### [ignored] Classify qualified tagged match bindings
+
+Qualified variant patterns classify the variant, field binding, and bound reference.
+
+```ds main.ds
+declare const result: Result<int32, string>;
+              ^^^^^^ result_declaration
+                      ^^^^^^ result_type
+const value = match (result) {
+      ^^^^^ match_value_declaration
+                     ^^^^^^ result_reference
+    Result.Ok { value } => value
+    ^^^^^^ ok_owner
+           ^^ ok_variant
+                ^^^^^ ok_value_declaration
+                           ^^^^^ value_reference
+    Result.Err { error } => 0
+    ^^^^^^ err_owner
+           ^^^ err_variant
+                 ^^^^^ error_declaration
+};
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#result_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#result_type type=type modifiers=default_library
+@semantic_tokens.token range=main.ds#match_value_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#result_reference type=variable modifiers=readonly
+@semantic_tokens.token range=main.ds#ok_owner type=type modifiers=default_library
+@semantic_tokens.token range=main.ds#ok_variant type=enum_member modifiers=default_library
+@semantic_tokens.token range=main.ds#ok_value_declaration type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#value_reference type=variable modifiers=readonly
+@semantic_tokens.token range=main.ds#err_owner type=type modifiers=default_library
+@semantic_tokens.token range=main.ds#err_variant type=enum_member modifiers=default_library
+@semantic_tokens.token range=main.ds#error_declaration type=variable modifiers=declaration,readonly
 ```
 
 ### Classify member references
