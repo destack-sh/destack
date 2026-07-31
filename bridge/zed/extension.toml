@@ -28,15 +28,15 @@ language_ids = { Destack = "destack" }
 
 [grammars.destack]
 repository = "https://github.com/destack-sh/destack"
-rev = "8b71e889b7ab54ae94c82bcb32c04c86f2615c7f"
+rev = "f3e06dd1a7c7cec3f098ae4f9abbcfbf712b6109"
 path = "language/grammar/destack/destack"
 
 [grammars.mir]
 repository = "https://github.com/destack-sh/destack"
-rev = "8b71e889b7ab54ae94c82bcb32c04c86f2615c7f"
+rev = "f3e06dd1a7c7cec3f098ae4f9abbcfbf712b6109"
 path = "language/grammar/mir"
 
 [grammars.destack_bytecode]
 repository = "https://github.com/destack-sh/destack"
-rev = "8b71e889b7ab54ae94c82bcb32c04c86f2615c7f"
+rev = "f3e06dd1a7c7cec3f098ae4f9abbcfbf712b6109"
 path = "language/grammar/bytecode"
