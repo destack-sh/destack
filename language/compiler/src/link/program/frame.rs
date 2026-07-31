@@ -36,8 +36,8 @@ impl<'a> FrameLinker<'a> {
         // build canonical layouts and collect states before assigning sorted ids
         for (module, object) in self.program.objects() {
             for state in object.frames() {
-                let types = state
-                    .types
+                let source_types = state.types().collect::<Vec<_>>();
+                let types = source_types
                     .iter()
                     .map(|ty| self.program.type_id(*module, *ty))
                     .collect::<Vec<_>>();
@@ -45,7 +45,7 @@ impl<'a> FrameLinker<'a> {
                     Some(layout) => layout,
                     None => {
                         let layout = program::FrameLayoutId(layouts.len() as u32);
-                        layouts.push(self.layout(*module, &state.types)?);
+                        layouts.push(self.layout(*module, &source_types)?);
                         layout_ids.insert(types, layout);
 
                         layout
