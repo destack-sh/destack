@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, GlobalEnvironment};
+use destack_artifact::ArtifactKey;
 use destack_query::{
     CallItemResponse, CodeActionKind, CodeActionsResponse, CodeLensesResponse, DecoratorScope,
     DecoratorsResponse, ExtractVariableResponse, FindReferencesResponse, FoldingRangesResponse,
@@ -14,7 +14,7 @@ use destack_query::{
     SemanticTokensRangeResponse, SemanticTokensResponse, SignatureHelpResponse, SubtypesResponse,
     SupertypesResponse, TypeItemResponse, rename_files, search_symbols,
 };
-use destack_repository::{ArtifactReader, RepositoryError, Revision, Trace};
+use destack_repository::{RepositoryError, Revision, Trace};
 use destack_serde::Reflect;
 use destack_session::{ArtifactPriority, ArtifactRun};
 use destack_source::{File, ProfileId, Span};
@@ -328,13 +328,6 @@ impl SessionPin {
             }
         }
 
-        // schedule the selected global environment for completion
-        if let QueryRequest::Completion(params) = request {
-            initial.push(ArtifactKey::global_environment(
-                params.position.module.profile_id,
-            ));
-        }
-
         // schedule exact diagnostic roots for requested quick fixes
         let mut diagnostics = if let QueryRequest::CodeActions(params) = request
             && params.context.includes(CodeActionKind::QuickFix)
@@ -393,11 +386,8 @@ impl SessionPin {
                 let program =
                     self.program_context(params.position.module.profile_id, require_artifacts)?;
                 let context = program.module(params.position.module.module_id)?;
-                let environment =
-                    self.global_environment(params.position.module.profile_id, require_artifacts)?;
                 let response = context.completion(
                     &program,
-                    &environment,
                     params.position.file_id,
                     params.position.offset,
                     params.trigger,
@@ -760,25 +750,5 @@ impl SessionPin {
         }
 
         Ok(programs)
-    }
-
-    /// Return the global environment for one profile.
-    fn global_environment(
-        &self,
-        profile_id: ProfileId,
-        require_artifacts: &dyn Fn(&[ArtifactKey]) -> QueryResult<()>,
-    ) -> Result<Arc<GlobalEnvironment>, Error> {
-        let repository = self.repository();
-        let revision = self.revision();
-
-        // require and read the exact payload
-        let artifact = ArtifactKey::global_environment(profile_id);
-        require_artifacts(&[artifact])?;
-        let artifacts = ArtifactReader::new(repository, revision);
-        let environment = artifacts
-            .global_environment(profile_id)
-            .map_err(QueryError::from)?;
-
-        Ok(environment)
     }
 }
