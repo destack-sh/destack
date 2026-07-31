@@ -42,16 +42,16 @@ function f1 {
     let (park, awaitable, continuation) = machine.run_to_await(0, &[Word::int32(7)]);
     assert_eq!(park, FunctionId(1));
     assert_eq!(awaitable, vec![Word::int32(7)]);
-    assert!(continuation.bytes().is_empty());
+    assert!(machine.continuation_bytes(&continuation).is_empty());
 
     // deliver fulfillment into the await result register
-    let value = machine.resume_to_completion(&continuation, &[Word::int32(11)]);
+    let value = machine.resume_to_completion(continuation, &[Word::int32(11)]);
     assert_eq!(value, vec![Word::int32(11)]);
 
     // cancellation enters cleanup without manufacturing a result value
     let (_, _, continuation) = machine.run_to_await(0, &[Word::int32(7)]);
     let outcome = machine
-        .cancel(&continuation)
+        .cancel(continuation)
         .expect("await cancellation should execute");
     assert!(matches!(outcome, Outcome::Cancelled));
 }
@@ -152,19 +152,22 @@ b2:
     // retain the yielded value and forkable generator state
     let (value, continuation) = machine.run_to_yield(0, &[Word::int32(13)]);
     assert_eq!(value, vec![Word::int32(13)]);
-    assert_eq!(continuation.bytes(), &Word::int32(5).to_bytes());
-    let fork = continuation.fork();
+    assert_eq!(
+        machine.continuation_bytes(&continuation),
+        Word::int32(5).to_bytes()
+    );
+    let fork = machine.fork_continuation(&continuation);
 
     // resume each fork with its captured value and an independent next value
-    let value = machine.resume_to_completion(&continuation, &[Word::int32(17)]);
+    let value = machine.resume_to_completion(continuation, &[Word::int32(17)]);
     assert_eq!(value, vec![Word::int32(22)]);
 
-    let value = machine.resume_to_completion(&fork, &[Word::int32(19)]);
+    let value = machine.resume_to_completion(fork, &[Word::int32(19)]);
     assert_eq!(value, vec![Word::int32(24)]);
 
     // enter the explicit completion edge with its independent result value
     let (_, continuation) = machine.run_to_yield(0, &[Word::int32(13)]);
-    let value = machine.complete_to_completion(&continuation, &[Word::int32(29)]);
+    let value = machine.complete_to_completion(continuation, &[Word::int32(29)]);
     assert_eq!(value, vec![Word::int32(29)]);
 }
 
@@ -399,7 +402,7 @@ b4:
     assert_eq!(awaitable, vec![Word::int32(9)]);
 
     // restore the pending Resume and return through its completion edge
-    let value = machine.resume_to_completion(&continuation, &[Word::int32(11)]);
+    let value = machine.resume_to_completion(continuation, &[Word::int32(11)]);
     assert_eq!(value, vec![Word::int32(11)]);
 }
 

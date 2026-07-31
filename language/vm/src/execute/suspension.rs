@@ -1,7 +1,7 @@
 use destack_bytecode::{CodeOffset, Instruction, Opcode};
 use destack_program::{FrameStateId, FunctionId, Outcome, Runtime, Suspension, Task, Word};
 
-use crate::diagnostic::{ExecutionError, ExecutionResult, Result};
+use crate::diagnostic::{Error, ExecutionError, ExecutionResult, Result};
 use crate::machine::{Activation, Return};
 
 /// Successor entered when restoring one suspension.
@@ -143,7 +143,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         }
 
         // capture the task suffix before committing the runtime waiter transition
-        let continuation = self.machine.capture_from(first_frame, state)?;
+        let continuation = self.machine.capture_suffix(first_frame, state)?;
         self.park_task_awaitable(task_pc, park, value, task, continuation, first_frame)?;
 
         Ok(None)
@@ -180,7 +180,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         if yielded_registers.word_count as usize != value.len() {
             return Err(self.invalid_instruction().into());
         }
-        let continuation = self.machine.suspend_from(first_frame, state)?;
+        let continuation = self.machine.suspend_suffix(first_frame, state)?;
         self.activate();
         let id = self.continuations.insert(continuation);
         let caller = self.frame();
@@ -200,7 +200,10 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     pub(crate) fn resume(
         &mut self,
         values: &[Word],
-    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
+    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error>
+    where
+        R::Error: From<Error>,
+    {
         self.enter_suspension(values, SuspensionEdge::Resume)?;
 
         self.execute()
@@ -210,14 +213,20 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     pub(crate) fn complete(
         &mut self,
         values: &[Word],
-    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
+    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error>
+    where
+        R::Error: From<Error>,
+    {
         self.enter_suspension(values, SuspensionEdge::Complete)?;
 
         self.execute()
     }
 
     /// Cancel one restored asynchronous suspension through its cleanup edge.
-    pub(crate) fn cancel(&mut self) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
+    pub(crate) fn cancel(&mut self) -> ExecutionResult<Outcome<Vec<Word>>, R::Error>
+    where
+        R::Error: From<Error>,
+    {
         self.enter_suspension(&[], SuspensionEdge::Cancel)?;
 
         self.execute()

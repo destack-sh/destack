@@ -29,7 +29,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let frame = self.frame();
         let byte_offset = frame.range(registers) * Word::BYTE_LEN;
 
-        self.write(target.0, Word::from_bits((byte_offset + 1) as u64));
+        self.write(target.0, Word::from_bits((byte_offset + 2) as u64));
 
         Ok(())
     }
@@ -43,7 +43,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let address = match instruction.opcode() {
             Opcode::POINTER_FRAME => {
                 let byte_offset = (bits as usize)
-                    .checked_sub(1)
+                    .checked_sub(2)
                     .filter(|offset| *offset < self.machine.stack.byte_len())
                     .ok_or_else(|| self.invalid_instruction())?;
 
@@ -271,7 +271,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Materialize one global reference in activation memory.
     fn global_pointer(&mut self, address: GlobalAddress) -> Result<usize> {
         let program = &self.machine.program;
-        let global_id = address.global();
+        let global_id = address.global().ok_or_else(|| self.invalid_instruction())?;
         let Some(global) = program.global(global_id).copied() else {
             return Err(self.invalid_instruction());
         };

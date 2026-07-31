@@ -1,13 +1,151 @@
 use destack_bytecode::{CodeOffset, Instruction, Opcode};
+use destack_program as program;
 use destack_program::{
-    CallMode, Completion, Continuation, FramePoint, FrameStateId, FunctionId, ProgramPoint, Word,
+    CallMode, Completion, Continuation, ContinuationTable, FrameImage, FrameLink, FramePoint,
+    FrameStateId, FunctionId, Outcome, Profile, ProgramPoint, Runtime, StopSet, SuspensionSite,
+    Value, WatchSet, Word,
 };
 
-use crate::diagnostic::{Error, Result};
+use crate::diagnostic::{Error, ExecutionError, Result};
 
-use super::{Frame, FrameMapping, Machine, Return};
+use super::{Activation, Frame, FrameMapping, Machine, Return};
 
 impl Machine {
+    /// Cancel one suspended asynchronous continuation through its cleanup path.
+    pub fn cancel<'run, R>(
+        &mut self,
+        continuations: &mut ContinuationTable,
+        activation: program::Activation<'run, 'run, R>,
+        continuation: Continuation,
+        stop_points: Option<&'run StopSet>,
+        watch_points: Option<&'run WatchSet>,
+        profile: Option<&'run mut Profile>,
+    ) -> std::result::Result<Outcome<Value>, R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
+        if !self.frames.is_empty() || self.activation.is_some() {
+            return Err(Error::execution_active().into());
+        }
+
+        // validate and restore before releasing the consumed canonical range
+        let function = self.consume_continuation(continuation, |machine, continuation| {
+            let (function, site) = machine.suspension(continuation)?;
+            if site.operation != program::Suspension::Await {
+                return Err(Error::invalid_image());
+            }
+            let return_to = Return::Exit {
+                completion: Completion::Cancel,
+            };
+            machine.materialize_continuation(continuation, return_to)?;
+
+            Ok(function)
+        })?;
+
+        // execute the restored cancellation path
+        let outcome = Activation::new(self, continuations, activation)
+            .instrument(stop_points, watch_points, profile, None)
+            .cancel()
+            .map_err(ExecutionError::into_error)?;
+
+        self.decode_outcome(function, outcome).map_err(Into::into)
+    }
+
+    /// Resume one suspended coroutine with one value.
+    pub fn resume<'run, R>(
+        &mut self,
+        continuations: &mut ContinuationTable,
+        activation: program::Activation<'run, 'run, R>,
+        continuation: Continuation,
+        value: &Value,
+        stop_points: Option<&'run StopSet>,
+        watch_points: Option<&'run WatchSet>,
+        profile: Option<&'run mut Profile>,
+    ) -> std::result::Result<Outcome<Value>, R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
+        if !self.frames.is_empty() || self.activation.is_some() {
+            return Err(Error::execution_active().into());
+        }
+
+        // validate and restore before releasing the consumed canonical range
+        let (function, values) =
+            self.consume_continuation(continuation, |machine, continuation| {
+                let (function, site) = machine.suspension(continuation)?;
+                let values = machine
+                    .program
+                    .value_words(site.resume_type, value)
+                    .map_err(Error::program)?
+                    .to_vec();
+                let return_to = Return::Exit {
+                    completion: continuation.completion(),
+                };
+                machine.materialize_continuation(continuation, return_to)?;
+
+                Ok((function, values))
+            })?;
+
+        // execute the restored resume path
+        let outcome = Activation::new(self, continuations, activation)
+            .instrument(stop_points, watch_points, profile, None)
+            .resume(&values)
+            .map_err(ExecutionError::into_error)?;
+
+        self.decode_outcome(function, outcome).map_err(Into::into)
+    }
+
+    /// Complete one suspended generator with one value.
+    pub fn complete<'run, R>(
+        &mut self,
+        continuations: &mut ContinuationTable,
+        activation: program::Activation<'run, 'run, R>,
+        continuation: Continuation,
+        value: &Value,
+        stop_points: Option<&'run StopSet>,
+        watch_points: Option<&'run WatchSet>,
+        profile: Option<&'run mut Profile>,
+    ) -> std::result::Result<Outcome<Value>, R::Error>
+    where
+        R: Runtime + ?Sized,
+        R::Error: From<Error>,
+    {
+        if !self.frames.is_empty() || self.activation.is_some() {
+            return Err(Error::execution_active().into());
+        }
+
+        // validate and restore before releasing the consumed canonical range
+        let (function, values) =
+            self.consume_continuation(continuation, |machine, continuation| {
+                let (function, site) = machine.suspension(continuation)?;
+                if site.operation != program::Suspension::Yield {
+                    return Err(Error::invalid_image());
+                }
+                let ty = site.complete_type.get().ok_or_else(Error::invalid_image)?;
+                let values = machine
+                    .program
+                    .value_words(ty, value)
+                    .map_err(Error::program)?
+                    .to_vec();
+                let return_to = Return::Exit {
+                    completion: continuation.completion(),
+                };
+                machine.materialize_continuation(continuation, return_to)?;
+
+                Ok((function, values))
+            })?;
+
+        // execute the restored completion path
+        let outcome = Activation::new(self, continuations, activation)
+            .instrument(stop_points, watch_points, profile, None)
+            .complete(&values)
+            .map_err(ExecutionError::into_error)?;
+
+        self.decode_outcome(function, outcome).map_err(Into::into)
+    }
+
     /// Capture one coroutine entry frame before its first instruction.
     pub(crate) fn create_continuation(
         &mut self,
@@ -53,19 +191,19 @@ impl Machine {
     }
 
     /// Capture and release one active coroutine subtree.
-    pub(crate) fn suspend_from(
+    pub(crate) fn suspend_suffix(
         &mut self,
         first_frame: usize,
         state: FrameStateId,
     ) -> Result<Continuation> {
-        let continuation = self.capture_from(first_frame, state)?;
+        let continuation = self.capture_suffix(first_frame, state)?;
         self.release_frames(first_frame)?;
 
         Ok(continuation)
     }
 
     /// Capture one active call-chain suffix without releasing its physical frames.
-    pub(crate) fn capture_from(
+    pub(crate) fn capture_suffix(
         &self,
         first_frame: usize,
         state: FrameStateId,
@@ -94,60 +232,67 @@ impl Machine {
         state: FrameStateId,
         completion: Completion,
     ) -> Result<Continuation> {
-        let frames = self.active_frame_mappings_from(first_frame, state)?;
-        let states = frames.iter().map(|frame| frame.state).collect::<Vec<_>>();
-        let bytes = self.pack_frames(&frames)?;
+        let mappings = self.frame_mappings(first_frame, state)?;
+        let frames = mappings
+            .iter()
+            .copied()
+            .map(|mapping| self.frame_image(mapping))
+            .collect::<Result<Vec<_>>>()?;
+        let bytes = self.pack_frames(&mappings)?;
+        let memory = self.store_image(&bytes)?;
 
-        Ok(Continuation::new(completion, states, bytes))
+        Ok(Continuation::new(completion, frames, memory))
     }
 
     /// Return the innermost logical coordinate retained by one continuation.
     pub(crate) fn continuation_point(&self, continuation: &Continuation) -> Result<FramePoint> {
-        let state = continuation.innermost().ok_or_else(Error::invalid_image)?;
+        let state = continuation
+            .innermost()
+            .map(FrameImage::state)
+            .ok_or_else(Error::invalid_image)?;
 
         self.program
             .frame_point(state)
             .ok_or_else(Error::invalid_image)
     }
 
-    /// Restore one suspended coroutine call chain.
-    pub(crate) fn restore_continuation(&mut self, continuation: &Continuation) -> Result<()> {
-        let return_to = Return::Exit {
-            completion: continuation.completion(),
-        };
-
-        self.restore_continuation_with(continuation, return_to)
-    }
-
-    /// Restore one suspended asynchronous call chain for cancellation.
-    pub(crate) fn restore_continuation_for_cancel(
-        &mut self,
-        continuation: &Continuation,
-    ) -> Result<()> {
-        let return_to = Return::Exit {
-            completion: Completion::Cancel,
-        };
-
-        self.restore_continuation_with(continuation, return_to)
-    }
-
-    /// Restore one suspended call chain with its root transition.
-    fn restore_continuation_with(
+    /// Materialize one suspended call chain with its root transition.
+    pub(crate) fn materialize_continuation(
         &mut self,
         continuation: &Continuation,
         return_to: Return,
     ) -> Result<()> {
-        if !self.frames.is_empty() {
-            return Err(Error::execution_active());
+        let first_frame = self.frames.len();
+        let byte_len = self.stack.byte_len();
+        let result = self
+            .materialize_frames(continuation.frames(), return_to)
+            .and_then(|frames| {
+                let mut bytes = self.load_image(continuation.memory())?;
+
+                self.unpack_frames(&frames, &mut bytes)
+            });
+        if result.is_err() {
+            self.frames.truncate(first_frame);
+            self.stack.truncate(byte_len);
         }
 
-        // rebuild physical return transitions from canonical Program call sites
-        let result = self
-            .restore_continuation_frames(continuation.states(), return_to)
-            .and_then(|frames| self.unpack_frames(&frames, continuation.bytes()));
-        if result.is_err() {
-            self.clear();
+        result
+    }
+
+    /// Apply one transition and release its consumed continuation.
+    pub(crate) fn consume_continuation<T>(
+        &mut self,
+        continuation: Continuation,
+        transition: impl FnOnce(&mut Self, &Continuation) -> Result<T>,
+    ) -> Result<T> {
+        let result = transition(self, &continuation);
+        let release = continuation
+            .release(&self.stack.memory())
+            .map_err(Error::program);
+        if release.is_err() {
+            self.clear_physical();
         }
+        release?;
 
         result
     }
@@ -155,56 +300,42 @@ impl Machine {
     /// Restore one suspended coroutine above an active caller frame.
     pub(crate) fn attach_continuation(
         &mut self,
-        continuation: &Continuation,
+        continuation: Continuation,
         return_to: Return,
     ) -> Result<()> {
-        let first_frame = self.frames.len();
-        let byte_offset = self
-            .frames
-            .last()
-            .map(|frame| frame.byte_offset() + frame.register_count as usize * Word::BYTE_LEN)
-            .ok_or_else(Error::invalid_image)?;
-        let result = self
-            .restore_continuation_frames(continuation.states(), return_to)
-            .and_then(|frames| self.unpack_frames(&frames, continuation.bytes()));
-        if result.is_err() {
-            self.frames.truncate(first_frame);
-            self.stack.truncate(byte_offset);
-        }
-
-        result
+        self.consume_continuation(continuation, |machine, continuation| {
+            machine.materialize_continuation(continuation, return_to)
+        })
     }
 
-    /// Restore physical VM frames from canonical continuation states.
-    fn restore_continuation_frames(
+    /// Materialize canonical frames with one physical root transition.
+    pub(crate) fn materialize_frames(
         &mut self,
-        states: &[FrameStateId],
+        images: &[FrameImage],
         root_return: Return,
     ) -> Result<Vec<FrameMapping>> {
-        if states.is_empty() {
+        if images.is_empty() {
             return Err(Error::invalid_image());
         }
-        let mut frames = Vec::with_capacity(states.len());
+        let mut frames = Vec::with_capacity(images.len());
         let mut byte_offset = 0usize;
 
         // rebuild each physical frame from canonical Program state
-        for (index, state) in states.iter().copied().enumerate() {
+        for (index, image) in images.iter().copied().enumerate() {
+            let state = image.state();
             let linked = self
                 .program
                 .frame_state(state)
                 .copied()
                 .ok_or_else(Error::invalid_image)?;
             let function = linked.point.function();
-            let pc = match linked.point {
-                FramePoint::Entry { .. } => CodeOffset(0),
-                FramePoint::Operation(point) => self.pc(point)?,
-            };
+            let pc = self.pc(image.point())?;
 
             // rebuild the child return from its caller's canonical call site
             let return_to = if index == 0 {
                 root_return
             } else {
-                self.frame_return(states[index - 1])?
+                self.frame_return(images[index - 1], image.link())?
             };
 
             // resolve the physical bytecode frame
@@ -239,10 +370,22 @@ impl Machine {
     }
 
     /// Rebuild one child return from its caller's canonical call state.
-    fn frame_return(&self, state: FrameStateId) -> Result<Return> {
+    pub(crate) fn frame_return(&self, parent: FrameImage, link: FrameLink) -> Result<Return> {
+        if link == FrameLink::Root {
+            return Err(Error::invalid_image());
+        }
+        if let FrameLink::Drop { frame_count } = link {
+            let pc = self.pc(parent.point())?;
+
+            return Ok(Return::Drop {
+                pc,
+                caller_state: parent.state(),
+                frame_count,
+            });
+        }
         let state = self
             .program
-            .frame_state(state)
+            .frame_state(parent.state())
             .ok_or_else(Error::invalid_image)?;
         let point = state
             .point
@@ -257,15 +400,31 @@ impl Machine {
             )
             .map_err(|_| Error::invalid_image())?
             .ok_or_else(Error::invalid_image)?;
-        if Self::is_returning_call(instruction.opcode()) {
-            self.continuation_call_return(point, instruction)
-        } else if matches!(
-            instruction.opcode(),
-            Opcode::CONTINUATION_RESUME | Opcode::CONTINUATION_COMPLETE
-        ) {
-            self.continuation_return(point, instruction)
-        } else {
-            Err(Error::invalid_image())
+        match link {
+            FrameLink::Call if Self::is_returning_call(instruction.opcode()) => {
+                self.continuation_call_return(point, instruction)
+            }
+            FrameLink::Continuation
+                if matches!(
+                    instruction.opcode(),
+                    Opcode::CONTINUATION_RESUME | Opcode::CONTINUATION_COMPLETE
+                ) =>
+            {
+                self.continuation_return(point, instruction)
+            }
+            FrameLink::Task if instruction.opcode() == Opcode::TASK_START => {
+                let mut operands = instruction.operands();
+                let task_register = operands.register().map_err(|_| Error::invalid_image())?.0;
+
+                Ok(Return::Task {
+                    pc: self.pc(point)?,
+                    task_register,
+                })
+            }
+            FrameLink::Root | FrameLink::Call | FrameLink::Continuation | FrameLink::Task => {
+                Err(Error::invalid_image())
+            }
+            FrameLink::Drop { .. } => unreachable!("drop links return before decoding callers"),
         }
     }
 
@@ -357,7 +516,7 @@ impl Machine {
     }
 
     /// Resolve one canonical program point into a bytecode offset.
-    fn pc(&self, point: ProgramPoint) -> Result<CodeOffset> {
+    pub(crate) fn pc(&self, point: ProgramPoint) -> Result<CodeOffset> {
         self.bytecode
             .operation_offset(
                 self.program.sections(),
@@ -365,5 +524,43 @@ impl Machine {
                 point.operation,
             )
             .ok_or_else(Error::invalid_image)
+    }
+
+    /// Resolve the linked site captured by one continuation.
+    pub(crate) fn suspension(
+        &self,
+        continuation: &Continuation,
+    ) -> Result<(FunctionId, SuspensionSite)> {
+        let root_state = continuation
+            .frames()
+            .first()
+            .copied()
+            .map(FrameImage::state)
+            .ok_or_else(Error::invalid_image)?;
+        let root = self
+            .program
+            .frame_state(root_state)
+            .ok_or_else(Error::invalid_image)?;
+        let suspension_state = continuation
+            .innermost()
+            .map(FrameImage::state)
+            .ok_or_else(Error::invalid_image)?;
+        let suspension = self
+            .program
+            .frame_state(suspension_state)
+            .ok_or_else(Error::invalid_image)?;
+        let point = suspension
+            .point
+            .operation_point()
+            .ok_or_else(Error::invalid_image)?;
+        let (_, site) = self
+            .program
+            .suspension(point)
+            .ok_or_else(Error::invalid_image)?;
+        if site.frame_state != suspension_state {
+            return Err(Error::invalid_image());
+        }
+
+        Ok((root.point.function(), *site))
     }
 }

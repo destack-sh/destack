@@ -1,38 +1,15 @@
-use std::sync::Arc;
-
 use destack_bytecode::{Code, CodeOffset, FrameMap, RegisterSpan};
 use destack_heap::{HeapResult, RootSlot};
-use destack_memory::{MemoryImage, MemoryRange};
+use destack_memory::MemoryRange;
 use destack_mir as mir;
 use destack_program::{
-    FrameLayout, FramePoint, FrameSlot, FrameStateId, FunctionId, Program, ProgramPoint, TypeId,
-    Word,
+    ActivationImage, FrameImage, FrameLayout, FrameLink, FramePoint, FrameSlot, FrameStateId,
+    FunctionId, Program, ProgramPoint, TypeId, Word,
 };
-use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Error, Result};
 
-use super::{Frame, Machine};
-
-/// Immutable image produced by one bytecode machine.
-#[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MachineImage {
-    /// Physical frames in caller to callee order.
-    frames: Arc<[FrameImage]>,
-    /// Retained stack allocation inside world memory.
-    stack: MemoryRange,
-    /// Live byte prefix inside the retained stack allocation.
-    byte_len: usize,
-}
-
-/// One physical frame inside a machine image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-struct FrameImage {
-    /// Canonical frame state describing live values.
-    state: FrameStateId,
-    /// Physical VM frame descriptor.
-    frame: Frame,
-}
+use super::{Frame, Machine, Return};
 
 /// One physical frame and its canonical maps during capture or restore.
 #[derive(Debug, Clone, Copy)]
@@ -66,80 +43,6 @@ impl FrameMapping {
     }
 }
 
-impl MachineImage {
-    /// Fork this immutable image through copy-on-write stack bytes.
-    pub fn fork(&self) -> Self {
-        Self {
-            frames: self.frames.clone(),
-            stack: self.stack,
-            byte_len: self.byte_len,
-        }
-    }
-
-    /// Return whether this image contains no active execution.
-    pub fn is_empty(&self) -> bool {
-        self.frames.is_empty()
-    }
-
-    /// Return the captured physical frame count.
-    pub fn frame_count(&self) -> usize {
-        self.frames.len()
-    }
-
-    /// Return one captured physical frame state.
-    pub fn frame_state(&self, index: usize) -> Option<FrameStateId> {
-        self.frames.get(index).map(|frame| frame.state)
-    }
-
-    /// Project one captured physical frame into its canonical live value layout.
-    pub fn frame_bytes(
-        &self,
-        memory: &MemoryImage,
-        program: &Program,
-        index: usize,
-    ) -> Result<Vec<u8>> {
-        let bytecode = program
-            .bytecode()
-            .copied()
-            .ok_or_else(Error::bytecode_unavailable)?;
-        let image = self.frames.get(index).ok_or_else(Error::invalid_image)?;
-        let state = program
-            .frame_state(image.state)
-            .ok_or_else(Error::invalid_image)?;
-        let layout = program
-            .frame_layout(state.layout)
-            .ok_or_else(Error::invalid_image)?;
-        let map = bytecode
-            .frame(program.sections(), image.state.index())
-            .ok_or_else(Error::invalid_image)?;
-        let spans = map.registers(bytecode.registers(program.sections()));
-        let slots = program.frame_slots(layout);
-        if slots.len() != spans.len() {
-            return Err(Error::invalid_image());
-        }
-        let mut bytes = vec![0; layout.byte_len() as usize];
-
-        // project every live register span into its Program frame slot
-        for (slot, span) in slots.iter().zip(spans) {
-            if span.end() > image.frame.register_count as u32 {
-                return Err(Error::invalid_image());
-            }
-            let source_offset = image.frame.range(*span) * Word::BYTE_LEN;
-            let source = memory
-                .read_bytes(self.stack.offset + source_offset, slot.byte_len as usize)
-                .map_err(|_| Error::invalid_image())?;
-            let target_offset = slot.offset as usize;
-            let target_end = target_offset + slot.byte_len as usize;
-            let target = bytes
-                .get_mut(target_offset..target_end)
-                .ok_or_else(Error::invalid_image)?;
-            target.copy_from_slice(&source);
-        }
-
-        Ok(bytes)
-    }
-}
-
 impl Machine {
     /// Return linked destructors for live values in one physical frame suffix.
     pub(crate) fn frame_destructors(
@@ -147,7 +50,7 @@ impl Machine {
         first_frame: usize,
         active_state: FrameStateId,
     ) -> Result<Vec<(FunctionId, usize)>> {
-        let mappings = self.active_frame_mappings_from(first_frame, active_state)?;
+        let mappings = self.frame_mappings(first_frame, active_state)?;
         let mut destructors = Vec::new();
 
         // retain caller to callee and slot acquisition order
@@ -170,64 +73,99 @@ impl Machine {
         Ok(destructors)
     }
 
-    /// Capture the retained physical call stack.
-    pub fn capture(&self) -> Result<MachineImage> {
-        if self.frames.is_empty() {
-            return Ok(MachineImage::default());
-        }
-        let active_state = self.active_state()?;
-        let mappings = self.active_frame_mappings_from(0, active_state)?;
-        let frames = mappings
-            .iter()
-            .map(|mapping| FrameImage {
-                state: mapping.state,
-                frame: mapping.frame,
-            })
-            .collect::<Vec<_>>()
-            .into();
-        Ok(MachineImage {
-            frames,
-            stack: self.stack.range(),
-            byte_len: self.stack.byte_len(),
-        })
-    }
-
-    /// Restore one retained physical call stack.
-    pub fn restore(&mut self, image: &MachineImage) -> Result<()> {
-        if !self.frames.is_empty() {
+    /// Capture physical execution as the canonical activation.
+    pub(crate) fn capture(&mut self, active_state: FrameStateId) -> Result<()> {
+        if self.activation.is_some() {
             return Err(Error::execution_active());
         }
-
-        let result = self.restore_machine(image);
-        if result.is_err() {
-            self.clear();
-        }
-
-        result
-    }
-
-    /// Restore one physical machine image after its Program was linked.
-    fn restore_machine(&mut self, image: &MachineImage) -> Result<()> {
-        if image.is_empty() {
-            return Ok(());
-        }
-
-        self.stack.restore(image.stack, image.byte_len)?;
-        self.frames = image.frames.iter().map(|image| image.frame).collect();
+        let Some(Return::Exit { completion }) = self.frames.first().map(|frame| frame.return_to)
+        else {
+            return Err(Error::invalid_image());
+        };
+        let mappings = self.frame_mappings(0, active_state)?;
+        let frames = mappings
+            .iter()
+            .copied()
+            .map(|mapping| self.frame_image(mapping))
+            .collect::<Result<Vec<_>>>()?;
+        let bytes = self.pack_frames(&mappings)?;
+        let memory = self.store_image(&bytes)?;
+        self.activation = Some(ActivationImage::new(completion, frames, memory));
+        self.clear_physical();
 
         Ok(())
     }
 
-    /// Visit mutable heap roots retained by the physical call stack.
+    /// Restore one canonical activation for later execution.
+    pub fn restore(&mut self, image: ActivationImage) -> Result<()> {
+        if !self.frames.is_empty() || self.activation.is_some() {
+            return Err(Error::execution_active());
+        }
+        self.activation = Some(image);
+
+        Ok(())
+    }
+
+    /// Materialize the captured activation into VM frames.
+    pub(crate) fn materialize(&mut self) -> Result<()> {
+        if !self.frames.is_empty() {
+            return Err(Error::execution_active());
+        }
+        let image = self
+            .activation
+            .take()
+            .ok_or_else(Error::execution_not_stopped)?;
+        let result = self.materialize_image(&image);
+        let release = image.release(&self.stack.memory()).map_err(Error::program);
+        if result.is_err() || release.is_err() {
+            self.clear_physical();
+        }
+        release?;
+
+        result
+    }
+
+    /// Materialize one canonical activation into physical VM storage.
+    fn materialize_image(&mut self, image: &ActivationImage) -> Result<()> {
+        if image.frames().first().copied().map(FrameImage::link) != Some(FrameLink::Root) {
+            return Err(Error::invalid_image());
+        }
+        let root_return = Return::Exit {
+            completion: image.completion(),
+        };
+        let mappings = self.materialize_frames(image.frames(), root_return)?;
+        let mut bytes = self.load_image(image.memory())?;
+        self.unpack_frames(&mappings, &mut bytes)?;
+
+        Ok(())
+    }
+
+    /// Visit mutable heap roots retained by this machine.
     pub fn visit_root_slots(
         &mut self,
         visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
     ) -> Result<()> {
+        if let Some(image) = &mut self.activation {
+            return self
+                .program
+                .visit_activation_root_slots(&self.stack.memory(), image, visit)
+                .map_err(Error::program);
+        }
         if self.frames.is_empty() {
             return Ok(());
         }
         let active_state = self.active_state()?;
-        let mappings = self.active_frame_mappings_from(0, active_state)?;
+
+        self.visit_root_slots_at(active_state, visit)
+    }
+
+    /// Visit mutable heap roots through one exact active frame state.
+    pub(crate) fn visit_root_slots_at(
+        &mut self,
+        active_state: FrameStateId,
+        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
+    ) -> Result<()> {
+        let mappings = self.frame_mappings(0, active_state)?;
         let program = &self.program;
         let stack = &mut self.stack;
 
@@ -246,8 +184,24 @@ impl Machine {
         Ok(())
     }
 
+    /// Store canonical frame bytes inside world memory.
+    pub(crate) fn store_image(&self, bytes: &[u8]) -> Result<MemoryRange> {
+        self.stack
+            .memory()
+            .allocate_bytes(bytes, align_of::<Word>())
+            .map_err(|error| Error::program(error.into()))
+    }
+
+    /// Load canonical frame bytes from world memory.
+    pub(crate) fn load_image(&self, range: MemoryRange) -> Result<Vec<u8>> {
+        self.stack
+            .memory()
+            .read_bytes(range.offset, range.byte_len)
+            .map_err(|error| Error::program(error.into()))
+    }
+
     /// Build canonical mappings for every retained physical frame.
-    pub(crate) fn active_frame_mappings_from(
+    pub(crate) fn frame_mappings(
         &self,
         first_frame: usize,
         active_state: FrameStateId,
@@ -317,6 +271,17 @@ impl Machine {
         })
     }
 
+    /// Convert one physical mapping into its canonical frame row.
+    pub(crate) fn frame_image(&self, mapping: FrameMapping) -> Result<FrameImage> {
+        let point = self.program_point_at(mapping.frame, mapping.frame.pc)?;
+
+        Ok(FrameImage::new(
+            mapping.state,
+            point,
+            mapping.frame.return_to.link(),
+        ))
+    }
+
     /// Resolve one frame state at a physical function operation.
     pub(crate) fn frame_state_at(&self, frame: Frame, pc: CodeOffset) -> Result<FrameStateId> {
         let bytecode = self.bytecode;
@@ -331,6 +296,16 @@ impl Machine {
         self.program
             .frame_state_at(FramePoint::operation(point))
             .ok_or_else(Error::invalid_image)
+    }
+
+    /// Resolve one physical bytecode cursor into its exact Program point.
+    fn program_point_at(&self, frame: Frame, pc: CodeOffset) -> Result<ProgramPoint> {
+        let operation = self
+            .bytecode
+            .operation_at(self.program.sections(), frame.function.index(), pc)
+            .ok_or_else(Error::invalid_image)?;
+
+        Ok(ProgramPoint::new(frame.function, operation))
     }
 
     /// Resolve one canonical frame layout.
@@ -394,21 +369,23 @@ impl Machine {
     }
 
     /// Restore canonical frame bytes into physical registers.
-    pub(crate) fn unpack_frames(&mut self, mappings: &[FrameMapping], bytes: &[u8]) -> Result<()> {
+    pub(crate) fn unpack_frames(
+        &mut self,
+        mappings: &[FrameMapping],
+        bytes: &mut [u8],
+    ) -> Result<()> {
         let expected = mappings.last().map_or(0, |mapping| {
             mapping.byte_offset + mapping.layout.byte_len() as usize
         });
         if bytes.len() != expected {
             return Err(Error::invalid_image());
         }
-        let mut bytes = bytes.to_vec();
-
         // restore every frame address before copying values into registers
         for mapping in mappings {
             let slots = self.program.frame_slots(&mapping.layout);
             for slot in slots {
                 let bytes = Self::slot_bytes(
-                    &mut bytes,
+                    bytes,
                     mapping.byte_offset + slot.offset as usize,
                     slot.byte_len as usize,
                 )?;
@@ -421,7 +398,7 @@ impl Machine {
             let (slots, spans) = mapping.values(&self.program, self.bytecode)?;
             for (slot, span) in slots.iter().zip(spans) {
                 let source = Self::slot_bytes(
-                    &mut bytes,
+                    bytes,
                     mapping.byte_offset + slot.offset as usize,
                     slot.byte_len as usize,
                 )?;
@@ -448,10 +425,10 @@ impl Machine {
 
                     return Ok(());
                 };
-                if word.bits() == 0 {
+                if word.is_nullish() {
                     return Ok(());
                 }
-                let Some(physical_offset) = (word.bits() as usize).checked_sub(1) else {
+                let Some(physical_offset) = (word.bits() as usize).checked_sub(2) else {
                     is_valid = false;
 
                     return Ok(());
@@ -462,7 +439,7 @@ impl Machine {
 
                     return Ok(());
                 };
-                address.copy_from_slice(&Word::from_bits((canonical_offset + 1) as u64).to_bytes());
+                address.copy_from_slice(&Word::from_bits((canonical_offset + 2) as u64).to_bytes());
 
                 Ok(())
             })
@@ -489,10 +466,10 @@ impl Machine {
 
                     return Ok(());
                 };
-                if word.bits() == 0 {
+                if word.is_nullish() {
                     return Ok(());
                 }
-                let Some(physical_offset) = (word.bits() as usize).checked_sub(1) else {
+                let Some(physical_offset) = (word.bits() as usize).checked_sub(2) else {
                     is_valid = false;
 
                     return Ok(());
@@ -503,7 +480,7 @@ impl Machine {
 
                     return Ok(());
                 };
-                address.copy_from_slice(&Word::from_bits((physical_offset + 1) as u64).to_bytes());
+                address.copy_from_slice(&Word::from_bits((physical_offset + 2) as u64).to_bytes());
 
                 Ok(())
             })

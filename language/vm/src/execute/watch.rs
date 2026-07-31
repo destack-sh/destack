@@ -161,9 +161,8 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 continue;
             };
 
-            // retain the physical machine after the completed memory operation
-            self.save_position();
-            self.is_retained = true;
+            // retain the completed access in an activation image
+            self.capture(frame.pc)?;
             let reason = StopReason::Watchpoint {
                 watchpoint_id,
                 point,

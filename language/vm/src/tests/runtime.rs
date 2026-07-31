@@ -12,6 +12,13 @@ pub(crate) type TestBinding =
 /// One runtime boundary call made by bytecode execution.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum RuntimeCall {
+    /// Service one runtime poll.
+    Poll {
+        /// Action returned to the machine.
+        action: program::Poll,
+        /// Managed roots visible at the poll.
+        root_count: usize,
+    },
     /// Call one linked runtime binding.
     Binding {
         /// Stable binding identity.
@@ -77,6 +84,8 @@ pub(crate) struct TestRuntime {
     next_task_index: u32,
     /// Next waiter slot issued by this runtime.
     next_waiter_index: u32,
+    /// Action returned by the next requested poll.
+    poll: Option<program::Poll>,
     /// Runtime calls in execution order.
     calls: Vec<RuntimeCall>,
 }
@@ -92,10 +101,38 @@ impl TestRuntime {
     pub(crate) fn take_calls(&mut self) -> Vec<RuntimeCall> {
         mem::take(&mut self.calls)
     }
+
+    /// Request one runtime poll action.
+    pub(crate) fn request_poll(&mut self, action: program::Poll) {
+        self.poll = Some(action);
+    }
 }
 
 impl program::Runtime for TestRuntime {
     type Error = Error;
+
+    /// Return whether execution must yield at the current runtime poll.
+    fn is_poll_requested(&self) -> bool {
+        self.poll.is_some()
+    }
+
+    /// Service one requested poll against the active roots.
+    fn poll(
+        &mut self,
+        _memory: program::Memory<'_>,
+        roots: &mut dyn program::RootSource<Error = Self::Error>,
+    ) -> Result<program::Poll> {
+        let action = self.poll.take().ok_or_else(Error::invalid_instruction)?;
+        let mut root_count = 0;
+        roots.visit(&mut |_root| {
+            root_count += 1;
+
+            Ok(())
+        })?;
+        self.calls.push(RuntimeCall::Poll { action, root_count });
+
+        Ok(action)
+    }
 
     /// Call one registered binding implementation.
     fn call_binding(
@@ -160,7 +197,7 @@ impl program::Runtime for TestRuntime {
         &mut self,
         task: program::Task,
         continuation: program::Continuation,
-    ) -> Result<program::Waiter> {
+    ) -> std::result::Result<program::Waiter, (Self::Error, program::Continuation)> {
         let waiter = program::Waiter::new(self.next_waiter_index, 1);
         self.next_waiter_index += 1;
         self.calls.push(RuntimeCall::Suspend {

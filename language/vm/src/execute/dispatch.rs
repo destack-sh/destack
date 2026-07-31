@@ -1,5 +1,5 @@
 use destack_bytecode::{AtomicOperation, MemoryOperation, Opcode, VectorOperation};
-use destack_program::{MemoryAccess, Outcome, Runtime, Word};
+use destack_program::{MemoryAccess, Outcome, Poll, Runtime, StopReason, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Trap};
 use crate::machine::Activation;
@@ -14,7 +14,10 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         const BOUNDED: bool,
     >(
         &mut self,
-    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
+    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error>
+    where
+        R::Error: From<Error>,
+    {
         let mut position = self.cursor.position();
 
         loop {
@@ -184,7 +187,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         }
                         position = self.cursor.position();
                     }
-                    Opcode::CHECK_NULL | Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE => {
+                    Opcode::CHECK_NULLISH | Opcode::CHECK_EXACT_TYPE | Opcode::CHECK_SUBTYPE => {
                         if let Some(displacement) = self.execute_runtime_check(instruction)? {
                             position.branch(displacement);
                         }
@@ -265,14 +268,34 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                             self.execute_profile(instruction)?;
                         }
                     }
-                    // the register interpreter requires no poll materialization
-                    Opcode::POLL => {}
+                    Opcode::POLL => {
+                        if self.activation.runtime.is_poll_requested() {
+                            let frame = self.frame();
+                            let state = self.machine.frame_state_at(frame, operation_pc)?;
+                            self.cursor.set_position(position);
+                            self.save_position();
+
+                            match self.poll(state)? {
+                                Poll::Continue | Poll::Deoptimize => {}
+                                Poll::Pause => {
+                                    let point = self.point(frame, operation_pc)?;
+                                    self.machine.capture(state)?;
+
+                                    return Ok(Outcome::Stopped {
+                                        reason: StopReason::Pause { point },
+                                    });
+                                }
+                            }
+                        }
+                    }
 
                     // stops
                     Opcode::BREAKPOINT => {
                         self.cursor.set_position(position);
 
-                        return self.stop_after(operation_pc).map_err(Into::into);
+                        return self
+                            .stop_after(operation_pc, position.pc())
+                            .map_err(Into::into);
                     }
 
                     // traps

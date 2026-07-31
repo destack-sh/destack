@@ -28,19 +28,21 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             return Ok(None);
         };
 
-        // retain the active physical machine at the selected instruction
-        self.save_position();
-        self.is_retained = true;
+        // retain the selected frame state in an activation image
+        self.capture(pc)?;
 
         Ok(Some(Outcome::Stopped { reason }))
     }
 
     /// Stop after one explicit breakpoint instruction.
-    pub(crate) fn stop_after(&mut self, pc: CodeOffset) -> Result<Outcome<Vec<Word>>> {
+    pub(crate) fn stop_after(
+        &mut self,
+        point_pc: CodeOffset,
+        resume_pc: CodeOffset,
+    ) -> Result<Outcome<Vec<Word>>> {
         let frame = self.frame();
-        let point = self.point(frame, pc)?;
-        self.save_position();
-        self.is_retained = true;
+        let point = self.point(frame, point_pc)?;
+        self.capture(resume_pc)?;
 
         Ok(Outcome::Stopped {
             reason: StopReason::Instruction { point },

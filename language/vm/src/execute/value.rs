@@ -90,14 +90,21 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 self.write(target.start.0 + 1, Word::from_bits((bits >> 64) as u64));
             }
             Opcode::CONSTANT_NULL | Opcode::CONSTANT_UNDEFINED => {
-                let target = operands.register()?;
-                let bits = if instruction.opcode() == Opcode::CONSTANT_NULL {
-                    0
+                let target = operands.span()?;
+                if target.word_count == 0 {
+                    return Err(self.invalid_instruction());
+                }
+                let value = if instruction.opcode() == Opcode::CONSTANT_NULL {
+                    Word::NULL
                 } else {
-                    1
+                    Word::UNDEFINED
                 };
 
-                self.write(target.0, Word::from_bits(bits));
+                // zero every word before writing the nullish tag
+                for word in 0..target.word_count {
+                    self.write(target.start.0 + word, Word::ZERO);
+                }
+                self.write(target.start.0, value);
             }
             Opcode::CONSTANT_ZEROED => {
                 let target = operands.span()?;

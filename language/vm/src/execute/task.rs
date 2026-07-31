@@ -63,12 +63,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             .continuations
             .take(continuation)
             .ok_or_else(|| self.invalid_instruction())?;
-        if !matches!(
-            self.machine.continuation_point(&continuation)?,
-            FramePoint::Entry { .. }
-        ) {
-            return Err(self.invalid_instruction().into());
-        }
         let return_to = Return::Task {
             pc,
             task_register: destination.0,
@@ -77,7 +71,17 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         // restore physical execution before publishing one live runtime task
         self.save_position();
-        self.machine.attach_continuation(&continuation, return_to)?;
+        self.machine
+            .consume_continuation(continuation, |machine, continuation| {
+                if !matches!(
+                    machine.continuation_point(continuation)?,
+                    FramePoint::Entry { .. }
+                ) {
+                    return Err(Error::invalid_instruction());
+                }
+
+                machine.materialize_continuation(continuation, return_to)
+            })?;
         let task = self.activation.runtime.start_task();
 
         // publish the handle before the eager body can stop for inspection
@@ -170,7 +174,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             {
                 Ok(frame) => frame,
                 Err(error) => {
-                    self.machine.stack.grow(stack_byte_len)?;
+                    let release = continuation
+                        .release(&self.machine.stack.memory())
+                        .map_err(Error::program);
+                    let restore = self.machine.stack.grow(stack_byte_len);
+                    release?;
+                    restore?;
 
                     return Err(error.into());
                 }
@@ -179,8 +188,13 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         // publish suspension only after the park frame can be entered
         let waiter = match self.activation.runtime.suspend_task(task, continuation) {
             Ok(waiter) => waiter,
-            Err(error) => {
-                self.machine.stack.grow(stack_byte_len)?;
+            Err((error, continuation)) => {
+                let release = continuation
+                    .release(&self.machine.stack.memory())
+                    .map_err(Error::program);
+                let restore = self.machine.stack.grow(stack_byte_len);
+                release?;
+                restore?;
 
                 return Err(ExecutionError::runtime(error));
             }

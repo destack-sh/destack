@@ -1,3 +1,4 @@
+use destack_bytecode::{RegisterId, RegisterSpan};
 use destack_mir::{Space, Storage};
 use destack_program::{MemoryAccess, StopReason, WatchSet, Word};
 
@@ -73,7 +74,9 @@ function f0 {
     return r3:r4
 }
 "#,
-        TestProgram::words().memory([site]),
+        TestProgram::words()
+            .memory([site])
+            .frame(0, 1, [(RegisterSpan::new(RegisterId(0), 1), 0)]),
     );
     let mut storage = [0_u32; 4];
     let pointer = Word::from_bits(storage.as_mut_ptr() as u64);

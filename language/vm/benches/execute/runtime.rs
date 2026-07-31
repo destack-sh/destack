@@ -55,6 +55,20 @@ struct BenchmarkRuntime;
 impl program::Runtime for BenchmarkRuntime {
     type Error = Error;
 
+    /// Return whether execution must yield at the current runtime poll.
+    fn is_poll_requested(&self) -> bool {
+        false
+    }
+
+    /// Continue benchmark execution after one impossible poll request.
+    fn poll(
+        &mut self,
+        _memory: program::Memory<'_>,
+        _roots: &mut dyn program::RootSource<Error = Self::Error>,
+    ) -> Result<program::Poll> {
+        Ok(program::Poll::Continue)
+    }
+
     /// Reject runtime bindings outside binding benchmarks.
     fn call_binding(
         &mut self,
@@ -96,7 +110,7 @@ impl program::Runtime for BenchmarkRuntime {
         &mut self,
         _task: program::Task,
         _continuation: program::Continuation,
-    ) -> Result<program::Waiter> {
+    ) -> std::result::Result<program::Waiter, (Self::Error, program::Continuation)> {
         unreachable!("direct execution benchmarks do not create tasks")
     }
 

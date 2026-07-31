@@ -2,6 +2,7 @@ use std::ops::Range;
 use std::ptr;
 
 use destack_bytecode::{CodeOffset, Instruction, Operands, RegisterId, RegisterSpan};
+use destack_heap::{HeapResult, RootSlot};
 use destack_program as program;
 use destack_program::{
     Completion, ContinuationTable, FrameStateId, FunctionId, Outcome, Profile, ProgramPoint,
@@ -41,8 +42,6 @@ where
     pub(crate) resume_skip: Option<ResumeSkip>,
     /// The located panic currently unwinding this activation.
     pub(crate) panic: Option<Error>,
-    /// Whether execution remains resident in the machine after this activation returns.
-    pub(crate) is_retained: bool,
 }
 
 impl<'machine, 'run, R> Activation<'machine, 'run, R>
@@ -67,7 +66,6 @@ where
             profile: None,
             resume_skip: None,
             panic: None,
-            is_retained: false,
         }
     }
 
@@ -106,7 +104,10 @@ where
         mut self,
         function: FunctionId,
         arguments: &[Word],
-    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
+    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error>
+    where
+        R::Error: From<Error>,
+    {
         if let Callee::Binding(binding) =
             Callee::resolve(&self.machine.program, self.machine.bytecode, function)?
         {
@@ -129,7 +130,10 @@ where
     }
 
     /// Dispatch through the exact configured execution loop.
-    pub(crate) fn execute(&mut self) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
+    pub(crate) fn execute(&mut self) -> ExecutionResult<Outcome<Vec<Word>>, R::Error>
+    where
+        R::Error: From<Error>,
+    {
         self.activate();
 
         let is_stopping = self.stop_points.is_some_and(|points| !points.is_empty());
@@ -158,7 +162,10 @@ where
         is_stopping: bool,
         is_watching: bool,
         is_profiling: bool,
-    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error> {
+    ) -> ExecutionResult<Outcome<Vec<Word>>, R::Error>
+    where
+        R::Error: From<Error>,
+    {
         match (is_stopping, is_watching, is_profiling) {
             (false, false, false) => self.dispatch::<false, false, false, BOUNDED>(),
             (false, false, true) => self.dispatch::<false, false, true, BOUNDED>(),
@@ -169,6 +176,33 @@ where
             (true, true, false) => self.dispatch::<true, true, false, BOUNDED>(),
             (true, true, true) => self.dispatch::<true, true, true, BOUNDED>(),
         }
+    }
+
+    /// Service one pending runtime poll against the live VM activation.
+    #[cold]
+    pub(crate) fn poll(&mut self, state: FrameStateId) -> ExecutionResult<program::Poll, R::Error>
+    where
+        R::Error: From<Error>,
+    {
+        let machine = &mut *self.machine;
+        let continuations = &mut *self.continuations;
+        let program = machine.program.clone();
+        let mut roots = |visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>| {
+            machine
+                .visit_root_slots_at(state, visit)
+                .map_err(R::Error::from)?;
+            continuations
+                .visit_root_slots(&program, &machine.stack.memory(), visit)
+                .map_err(Error::program)
+                .map_err(R::Error::from)?;
+            Ok(())
+        };
+        let memory = self.activation.memory.reborrow();
+
+        self.activation
+            .runtime
+            .poll(memory, &mut roots)
+            .map_err(ExecutionError::runtime)
     }
 
     /// Push one linked bytecode frame.
@@ -252,7 +286,7 @@ where
             Self::call_binding(
                 frame,
                 &self.machine.stack,
-                &mut self.machine.binding_words,
+                &mut self.machine.binding_buffer,
                 &mut self.activation,
                 binding,
                 environment,
@@ -262,10 +296,10 @@ where
 
             // publish binding results directly into the caller frame
             for index in 0..result_count {
-                let value = self.machine.binding_words[index];
+                let value = self.machine.binding_buffer[index];
                 self.write(registers.start.0 + index as u16, value);
             }
-            self.machine.binding_words.clear();
+            self.machine.binding_buffer.clear();
             if let Some(normal) = normal {
                 self.jump(normal);
             }
@@ -311,7 +345,7 @@ where
             frame_count,
         };
         let frame = self.machine.allocate_frame(function, 1, return_to)?;
-        let reference = value_offset + 1;
+        let reference = value_offset + 2;
 
         // pass one non-null stack-relative reference to retained value storage
         self.machine
@@ -347,7 +381,7 @@ where
             Self::call_binding(
                 current,
                 &self.machine.stack,
-                &mut self.machine.binding_words,
+                &mut self.machine.binding_buffer,
                 &mut self.activation,
                 binding,
                 environment,
@@ -360,12 +394,12 @@ where
             let byte_len = result_count * Word::BYTE_LEN;
             self.machine.stack.grow(current.byte_offset() + byte_len)?;
             for index in 0..result_count {
-                let value = self.machine.binding_words[index];
+                let value = self.machine.binding_buffer[index];
                 self.machine
                     .stack
                     .write(current.register_offset + index, value);
             }
-            self.machine.binding_words.clear();
+            self.machine.binding_buffer.clear();
             let results = RegisterSpan::new(RegisterId(0), result_word_count);
 
             return self.return_frame(results);
@@ -625,6 +659,15 @@ where
         self.cursor.save_position();
     }
 
+    /// Capture execution at one canonical frame state and release physical frames.
+    pub(crate) fn capture(&mut self, pc: CodeOffset) -> Result<()> {
+        let frame = self.frame();
+        let state = self.machine.frame_state_at(frame, pc)?;
+        self.save_position();
+
+        self.machine.capture(state)
+    }
+
     /// Derive native execution addresses for the active canonical frame.
     pub(crate) fn activate(&mut self) {
         let Some(frame) = self.machine.frames.last_mut() else {
@@ -772,9 +815,6 @@ where
 impl<R: Runtime + ?Sized> Drop for Activation<'_, '_, R> {
     /// Release physical state after completed or failed execution.
     fn drop(&mut self) {
-        // only debugger stops retain physical execution across activations
-        if !self.is_retained {
-            self.machine.clear();
-        }
+        self.machine.clear_physical();
     }
 }

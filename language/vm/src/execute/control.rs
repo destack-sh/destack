@@ -153,7 +153,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let value = operands.register()?;
         let value = self.read(value.0);
         let is_valid = match instruction.opcode() {
-            Opcode::CHECK_NULL => value.bits() != 0,
+            Opcode::CHECK_NULLISH => !value.is_nullish(),
             Opcode::CHECK_EXACT_TYPE => {
                 let expected = TypeId(operands.u32()?);
 

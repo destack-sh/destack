@@ -1,5 +1,5 @@
 use destack_bytecode::{CodeOffset, CodeRange, RegisterSpan};
-use destack_program::{Completion, FrameStateId, FunctionId, Word};
+use destack_program::{Completion, FrameLink, FrameStateId, FunctionId, Word};
 use serde::{Deserialize, Serialize};
 
 /// One active bytecode call frame.
@@ -90,6 +90,17 @@ impl Return {
         match self {
             Self::Drop { caller_state, .. } => Some(caller_state),
             _ => None,
+        }
+    }
+
+    /// Return the canonical child-to-parent transition.
+    pub(crate) const fn link(self) -> FrameLink {
+        match self {
+            Self::Exit { .. } => FrameLink::Root,
+            Self::Call { .. } => FrameLink::Call,
+            Self::Continuation { .. } => FrameLink::Continuation,
+            Self::Task { .. } => FrameLink::Task,
+            Self::Drop { frame_count, .. } => FrameLink::Drop { frame_count },
         }
     }
 }

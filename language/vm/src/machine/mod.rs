@@ -11,6 +11,6 @@ pub(crate) use activation::*;
 pub(crate) use callee::*;
 pub(crate) use cursor::*;
 pub(crate) use frame::*;
-pub use image::*;
+pub(crate) use image::*;
 pub use machine::*;
 pub(crate) use stack::*;

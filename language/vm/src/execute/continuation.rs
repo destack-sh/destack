@@ -1,7 +1,7 @@
 use destack_bytecode::{CodeOffset, Instruction, Opcode};
-use destack_program::{Continuation, ContinuationId, FramePoint, FunctionId, Runtime};
+use destack_program::{Continuation, ContinuationId, FrameImage, FramePoint, FunctionId, Runtime};
 
-use crate::diagnostic::Result;
+use crate::diagnostic::{Error, Result};
 use crate::machine::{Activation, Return};
 
 use super::suspension::SuspensionEdge;
@@ -75,26 +75,37 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let first_frame = self.machine.frames.len();
         let byte_len = self.machine.stack.byte_len();
         let owner = self.frame();
-        let owner_state = self.machine.frame_state_at(owner, pc)?;
-        let retained_state = continuation
-            .innermost()
-            .ok_or_else(|| self.invalid_instruction())?;
-        let return_to = Return::Drop {
-            pc,
-            caller_state: owner_state,
-            frame_count: 0,
-        };
         self.save_position();
-        self.machine.attach_continuation(&continuation, return_to)?;
-        let destructors = match self.machine.frame_destructors(first_frame, retained_state) {
-            Ok(destructors) => destructors,
-            Err(error) => {
-                self.machine.frames.truncate(first_frame);
-                self.machine.stack.truncate(byte_len);
 
-                return Err(error);
-            }
-        };
+        // materialize and release the consumed continuation as one transition
+        let (retained_state, frame_count, destructors) =
+            self.machine
+                .consume_continuation(continuation, |machine, continuation| {
+                    let owner_state = machine.frame_state_at(owner, pc)?;
+                    let return_to = Return::Drop {
+                        pc,
+                        caller_state: owner_state,
+                        frame_count: 0,
+                    };
+                    let retained_state = continuation
+                        .innermost()
+                        .map(FrameImage::state)
+                        .ok_or_else(Error::invalid_instruction)?;
+                    let frame_count = u16::try_from(continuation.frames().len())
+                        .map_err(|_| Error::invalid_instruction())?;
+                    machine.materialize_continuation(continuation, return_to)?;
+                    let destructors = match machine.frame_destructors(first_frame, retained_state) {
+                        Ok(destructors) => destructors,
+                        Err(error) => {
+                            machine.frames.truncate(first_frame);
+                            machine.stack.truncate(byte_len);
+
+                            return Err(error);
+                        }
+                    };
+
+                    Ok((retained_state, frame_count, destructors))
+                })?;
 
         // release retained frames without destructible values immediately
         if destructors.is_empty() {
@@ -103,8 +114,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
             return Ok(());
         }
-        let frame_count =
-            u16::try_from(continuation.states().len()).map_err(|_| self.invalid_instruction())?;
 
         // push in acquisition order so execution destroys in reverse order
         for (index, (function, byte_offset)) in destructors.into_iter().enumerate() {
@@ -150,6 +159,24 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         let unwind = operands.i32()?;
         let frame = self.frame();
         let id = ContinuationId::from_word(self.read(continuation.0));
+
+        let edge = match instruction.opcode() {
+            Opcode::CONTINUATION_RESUME => SuspensionEdge::Resume,
+            Opcode::CONTINUATION_COMPLETE => SuspensionEdge::Complete,
+            _ => unreachable!("continuation transfer selects one control opcode"),
+        };
+        let point = self
+            .continuations
+            .get(id)
+            .ok_or_else(Error::invalid_instruction)
+            .and_then(|continuation| self.machine.continuation_point(continuation))?;
+        if matches!(
+            (point, edge),
+            (FramePoint::Entry { .. }, SuspensionEdge::Complete)
+        ) && returned_registers.word_count != value.word_count
+        {
+            return Err(self.invalid_instruction());
+        }
         let continuation = self
             .continuations
             .take(id)
@@ -164,18 +191,11 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             unwind: Some(frame.branch_offset(unwind)),
         };
 
-        let edge = match instruction.opcode() {
-            Opcode::CONTINUATION_RESUME => SuspensionEdge::Resume,
-            Opcode::CONTINUATION_COMPLETE => SuspensionEdge::Complete,
-            _ => unreachable!("continuation transfer selects one control opcode"),
-        };
-
         // enter an initial body or complete it without executing its first instruction
-        let point = self.machine.continuation_point(&continuation)?;
         match (point, edge) {
             (FramePoint::Entry { .. }, SuspensionEdge::Resume) => {
                 self.save_position();
-                self.machine.attach_continuation(&continuation, return_to)?;
+                self.machine.attach_continuation(continuation, return_to)?;
                 self.activate();
 
                 Ok(())
@@ -185,9 +205,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     .machine
                     .stack
                     .words(frame.range(value), value.word_count as usize);
-                if returned_registers.word_count as usize != values.len() {
-                    return Err(self.invalid_instruction());
-                }
                 let target = frame.range(returned_registers);
                 for (index, value) in values.into_iter().enumerate() {
                     self.machine.stack.write(target + index, value);
@@ -202,7 +219,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     .stack
                     .words(frame.range(value), value.word_count as usize);
                 self.save_position();
-                self.machine.attach_continuation(&continuation, return_to)?;
+                self.machine.attach_continuation(continuation, return_to)?;
                 self.enter_suspension(&values, edge)
             }
             (FramePoint::Entry { .. }, SuspensionEdge::Cancel) => {

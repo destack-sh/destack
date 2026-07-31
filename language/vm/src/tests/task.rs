@@ -106,7 +106,7 @@ function owner {
         .innermost()
         .expect("suspended task should retain one frame");
     assert_eq!(
-        machine.program().frame_point(state),
+        machine.program().frame_point(state.state()),
         Some(FramePoint::operation(TestProgram::point(1, 0)))
     );
     assert_eq!(

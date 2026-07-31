@@ -6,11 +6,11 @@ use destack_heap::{
 };
 use destack_memory::MemoryMap;
 use destack_program as program;
-use destack_program::{FunctionId, Program, StopReason, StopSet, WatchSet, Word};
+use destack_program::{Completion, FunctionId, Program, StopReason, StopSet, WatchSet, Word};
 
 use crate::diagnostic::ExecutionError;
-use crate::machine::Activation;
-use crate::{Machine, MachineImage, MachineLimits, Result};
+use crate::machine::{Activation, Return};
+use crate::{Machine, MachineLimits, Result};
 
 use super::{RuntimeCall, TestBinding, TestProgram, TestRuntime};
 
@@ -137,10 +137,11 @@ impl TestMachine {
     /// Resume one suspended coroutine and return its raw machine outcome.
     pub(crate) fn resume(
         &mut self,
-        continuation: &program::Continuation,
+        continuation: program::Continuation,
         values: &[Word],
     ) -> Result<program::Outcome<Vec<Word>>> {
-        self.machine.restore_continuation(continuation)?;
+        let completion = continuation.completion();
+        self.enter_continuation(continuation, completion)?;
 
         self.activation(None, None, None, None)
             .resume(values)
@@ -150,10 +151,11 @@ impl TestMachine {
     /// Complete one suspended generator and return its raw machine outcome.
     pub(crate) fn complete_continuation(
         &mut self,
-        continuation: &program::Continuation,
+        continuation: program::Continuation,
         values: &[Word],
     ) -> Result<program::Outcome<Vec<Word>>> {
-        self.machine.restore_continuation(continuation)?;
+        let completion = continuation.completion();
+        self.enter_continuation(continuation, completion)?;
 
         self.activation(None, None, None, None)
             .complete(values)
@@ -163,9 +165,10 @@ impl TestMachine {
     /// Cancel one suspended asynchronous continuation.
     pub(crate) fn cancel(
         &mut self,
-        continuation: &program::Continuation,
+        continuation: program::Continuation,
     ) -> Result<program::Outcome<Vec<Word>>> {
-        self.machine.restore_continuation_for_cancel(continuation)?;
+        self.enter_continuation(continuation, Completion::Cancel)?;
+
         self.activation(None, None, None, None)
             .cancel()
             .map_err(ExecutionError::into_error)
@@ -212,10 +215,29 @@ impl TestMachine {
         (value, continuation)
     }
 
+    /// Return the canonical bytes retained by one continuation.
+    pub(crate) fn continuation_bytes(&self, continuation: &program::Continuation) -> Vec<u8> {
+        let range = continuation.memory();
+
+        self.memory
+            .read_bytes(range.offset, range.byte_len)
+            .expect("continuation bytes should remain readable")
+    }
+
+    /// Duplicate one continuation inside this test machine.
+    pub(crate) fn fork_continuation(
+        &self,
+        continuation: &program::Continuation,
+    ) -> program::Continuation {
+        continuation
+            .fork(&self.memory)
+            .expect("continuation should fork")
+    }
+
     /// Resume one continuation and require normal completion.
     pub(crate) fn resume_to_completion(
         &mut self,
-        continuation: &program::Continuation,
+        continuation: program::Continuation,
         values: &[Word],
     ) -> Vec<Word> {
         let outcome = self
@@ -228,7 +250,7 @@ impl TestMachine {
     /// Complete one continuation and require normal completion.
     pub(crate) fn complete_to_completion(
         &mut self,
-        continuation: &program::Continuation,
+        continuation: program::Continuation,
         values: &[Word],
     ) -> Vec<Word> {
         let outcome = self
@@ -241,6 +263,11 @@ impl TestMachine {
     /// Return and clear exact runtime boundary calls.
     pub(crate) fn take_runtime_calls(&mut self) -> Vec<RuntimeCall> {
         self.runtime.take_calls()
+    }
+
+    /// Request one runtime poll action.
+    pub(crate) fn request_poll(&mut self, action: program::Poll) {
+        self.runtime.request_poll(action);
     }
 
     /// Execute one function and require one debugger stop.
@@ -269,6 +296,8 @@ impl TestMachine {
         profile: Option<&mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
     ) -> Result<program::Outcome<Vec<Word>>> {
+        self.machine.materialize()?;
+
         self.activation(stop_points, watch_points, profile, resume_skip)
             .execute()
             .map_err(ExecutionError::into_error)
@@ -288,30 +317,31 @@ impl TestMachine {
         Self::completion("stopped execution", outcome)
     }
 
-    /// Capture the retained physical machine.
-    pub(crate) fn capture(&self) -> (MachineImage, Arc<MemoryMap>) {
+    /// Copy the captured activation into one forked memory map.
+    pub(crate) fn capture(&self) -> (program::ActivationImage, Arc<MemoryMap>) {
         let memory = Arc::new(
             self.memory
                 .fork_lazy()
                 .expect("test machine memory should fork"),
         );
-        let image = self.machine.capture().expect("test machine should capture");
+        let mut machine = self.machine.fork(memory.clone());
+        let image = machine
+            .take_activation()
+            .expect("test machine should contain one captured activation");
 
         (image, memory)
     }
 
-    /// Restore one retained physical machine over its captured memory image.
-    pub(crate) fn restore(&mut self, image: MachineImage, memory: Arc<MemoryMap>) {
+    /// Restore one canonical activation over its captured memory image.
+    pub(crate) fn restore(&mut self, image: program::ActivationImage, memory: Arc<MemoryMap>) {
         let mut machine = Machine::new(self.program.clone(), memory.clone(), MachineLimits::test())
             .expect("test machine should build");
-        machine
-            .restore(&image)
-            .expect("test machine should restore");
+        machine.restore(image).expect("test machine should restore");
         self.memory = memory;
         self.machine = machine;
     }
 
-    /// Return heap roots retained by the physical machine.
+    /// Return heap roots retained by the machine.
     pub(crate) fn roots(&mut self) -> Vec<Root> {
         let mut roots = Vec::new();
         self.machine
@@ -322,7 +352,7 @@ impl TestMachine {
             })
             .expect("test roots should visit");
         self.continuations
-            .visit_root_slots(&self.program, &mut |slot| {
+            .visit_root_slots(&self.program, &self.memory, &mut |slot| {
                 roots.push(slot.load()?);
 
                 Ok(())
@@ -339,6 +369,19 @@ impl TestMachine {
         };
 
         value
+    }
+
+    /// Enter one continuation through the raw bytecode test boundary.
+    fn enter_continuation(
+        &mut self,
+        continuation: program::Continuation,
+        completion: Completion,
+    ) -> Result<()> {
+        let return_to = Return::Exit { completion };
+        self.machine
+            .consume_continuation(continuation, |machine, continuation| {
+                machine.materialize_continuation(continuation, return_to)
+            })
     }
 
     /// Bind one clean activation to this test machine.

@@ -7,12 +7,12 @@ use destack_mir::{
 };
 use destack_program as program;
 use destack_program::{
-    AllocationSite, BreakpointId, ContinuationSite, CounterId, CounterSite, DynamicEntry,
-    DynamicTableBuilder, FunctionId, InstructionStop, LayoutId, LayoutShapeBuilder, MemoryAccess,
-    MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint, ReferenceFlags,
-    ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature, SiteTableBuilder, StopReason,
-    Suspension, SuspensionSite, TensorDimension, TensorLayoutBuilder, TensorViewLayoutBuilder,
-    TypeId, VirtualTableBuilder, WatchpointId, Word,
+    AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, ContinuationSite, CounterId,
+    CounterSite, DynamicEntry, DynamicTableBuilder, FunctionId, InstructionStop, LayoutId,
+    LayoutShapeBuilder, MemoryAccess, MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder,
+    ProgramPoint, ReferenceLayout, SampleSite, SamplerId, ScalarFormat, Signature, SignatureId,
+    SiteTableBuilder, StopReason, Suspension, SuspensionSite, TensorDimension, TensorLayoutBuilder,
+    TensorViewLayoutBuilder, TypeId, VirtualTableBuilder, WatchpointId, Word,
 };
 
 pub(super) const TEST_GLOBAL_BYTES: usize = Word::BYTE_LEN;
@@ -307,6 +307,22 @@ impl TestProgram {
         }
     }
 
+    /// Create one direct returning call site.
+    pub(crate) const fn call(function: u32, operation: u32, resume: u32, target: u32) -> CallSite {
+        CallSite {
+            point: Self::point(function, operation),
+            resume: Optional::some(Self::point(function, resume)),
+            unwind: Optional::none(),
+            mode: CallMode::Return,
+            dispatch: CallDispatch::Direct,
+            space: Optional::none(),
+            target: Optional::some(FunctionId(target)),
+            dispatch_type: Optional::none(),
+            signature: SignatureId(0),
+            slot: Optional::none(),
+        }
+    }
+
     /// Create one runtime breakpoint.
     pub(crate) const fn breakpoint(
         function: u32,
@@ -470,6 +486,13 @@ impl TestProgram {
         self
     }
 
+    /// Set function call sites.
+    pub(crate) fn calls(mut self, sites: impl IntoIterator<Item = CallSite>) -> Self {
+        self.sites = self.sites.calls(sites);
+
+        self
+    }
+
     /// Append one virtual table in dense runtime id order.
     pub(crate) fn virtual_table(mut self, ty: u32, methods: impl IntoIterator<Item = u32>) -> Self {
         let methods = methods.into_iter().map(FunctionId);
@@ -532,11 +555,14 @@ impl TestProgram {
         kind: ReferenceKind,
         storage: Storage,
     ) -> Self {
-        let flags = ReferenceFlags::new(kind, storage, Access::Mutable, Nullability::None);
-        let shape = LayoutShapeBuilder::Reference(ReferenceLayout {
-            pointee: TypeId(pointee),
-            flags,
-        });
+        let reference = ReferenceLayout::new(
+            TypeId(pointee),
+            kind,
+            storage,
+            Access::Mutable,
+            Nullability::None,
+        );
+        let shape = LayoutShapeBuilder::Reference(reference);
         let trace = match (kind, storage) {
             (ReferenceKind::Managed, Storage::Heap(Space::Local)) => TraceMap::Fixed {
                 local_offsets: Box::new([0]),
@@ -619,15 +645,13 @@ impl TestProgram {
             .map(TensorDimension::fixed)
             .collect::<Vec<_>>();
         let rank = dimensions.len() as u16;
-        let reference = ReferenceLayout {
-            pointee: TypeId(element),
-            flags: ReferenceFlags::new(
-                ReferenceKind::Borrowed,
-                Storage::Heap(space),
-                Access::Mutable,
-                Nullability::None,
-            ),
-        };
+        let reference = ReferenceLayout::new(
+            TypeId(element),
+            ReferenceKind::Borrowed,
+            Storage::Heap(space),
+            Access::Mutable,
+            Nullability::None,
+        );
         let tensor = TensorViewLayoutBuilder::new(
             reference,
             TypeId(element),
