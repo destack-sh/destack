@@ -154,6 +154,14 @@ rpc! {
             let _ = params;
         }
 
+        /// The [`$/setTrace`] notification changes systematic server trace reporting.
+        ///
+        /// [`$/setTrace`]: https://microsoft.github.io/language-server-protocol/specification#_settrace
+        #[rpc(name = "$/setTrace")]
+        async fn set_trace(&self, params: SetTraceParams) {
+            let _ = params;
+        }
+
         /// The [`shutdown`] request asks the server to gracefully shut down, but to not exit.
         ///
         /// [`shutdown`]: https://microsoft.github.io/language-server-protocol/specification#shutdown

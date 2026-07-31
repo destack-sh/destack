@@ -6,7 +6,7 @@ use std::sync::{Arc, OnceLock};
 use destack_lsp_server::{Client, LanguageServer, LspService, Server, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_repository::Revision;
+use destack_repository::{Revision, Trace, TraceReport, TraceView};
 use destack_source::{FileId, TextRange, Uri};
 use destack_workspace::{
     DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, FileOperation, LocalWorkspace,
@@ -20,6 +20,9 @@ use crate::query::{
     ActionContext, ActionContinuation, DiagnosticDelivery, DiagnosticPublisher, Document,
     DocumentSet, DocumentUri, HierarchyContinuation, SemanticTokenStream, SourceSync,
 };
+
+/// Slow artifact attempts included in verbose LSP traces.
+const TRACE_SLOW_ATTEMPTS: usize = 12;
 
 /// The Destack language server.
 #[derive(Debug)]
@@ -97,6 +100,7 @@ impl DestackLanguageServer {
         request: query::QueryRequest,
         revision: RevisionPolicy,
     ) -> jsonrpc::Result<RunQueryResponse> {
+        let method = request.method();
         let workspace = self.workspace(path)?;
         let root = workspace.root(path).map_err(workspace_error)?;
         let request = RunQueryRequest { revision, request };
@@ -104,7 +108,7 @@ impl DestackLanguageServer {
             .start_query(&root, request)
             .map_err(workspace_error)?;
 
-        self.wait_query(workspace, root, run).await
+        self.wait_query(workspace, root, method, run).await
     }
 
     /// Resolve one LSP document to workspace query state.
@@ -143,6 +147,7 @@ impl DestackLanguageServer {
         file: &QueryFile,
         request: query::QueryRequest,
     ) -> jsonrpc::Result<RunQueryResponse> {
+        let method = request.method();
         let workspace = self.workspace(&file.path)?;
         let root = workspace.root(&file.path).map_err(workspace_error)?;
         let request = RunQueryRequest {
@@ -153,7 +158,7 @@ impl DestackLanguageServer {
             .start_query(&root, request)
             .map_err(workspace_error)?;
 
-        self.wait_query(workspace, root, run).await
+        self.wait_query(workspace, root, method, run).await
     }
 
     /// Wait for one scheduled query without blocking the async server.
@@ -161,14 +166,17 @@ impl DestackLanguageServer {
         &self,
         workspace: Arc<LocalWorkspace>,
         root: PathBuf,
+        method: query::QueryMethod,
         run: QueryRun,
     ) -> jsonrpc::Result<RunQueryResponse> {
+        let revision = run.revision();
+        let trace = run.trace();
         let guard = run.guard();
-        let response = tokio::task::spawn_blocking(move || run.wait())
-            .await
-            .map_err(internal_error)?
-            .map_err(workspace_error)?;
+        let response = tokio::task::spawn_blocking(move || run.wait()).await;
         guard.finish();
+        self.report_query_trace(workspace.as_ref(), revision, method, trace)
+            .await;
+        let response = response.map_err(internal_error)?.map_err(workspace_error)?;
 
         // reject results invalidated while the query was running
         let current = workspace.revision(&root).map_err(workspace_error)?;
@@ -177,6 +185,74 @@ impl DestackLanguageServer {
         }
 
         Ok(response)
+    }
+
+    /// Report one completed query through standard LSP tracing.
+    async fn report_query_trace(
+        &self,
+        workspace: &LocalWorkspace,
+        revision: Revision,
+        method: query::QueryMethod,
+        trace: Arc<Trace>,
+    ) {
+        let trace_level = match self.session() {
+            Ok(session) => session.trace(),
+            Err(error) => {
+                self.report_error("report query trace", error).await;
+
+                return;
+            }
+        };
+        if trace_level == lsp::TraceValue::Off {
+            return;
+        }
+
+        // snapshot exact repository labels after the query has finished
+        let view = TraceView::detailed(trace_level == lsp::TraceValue::Verbose);
+        let snapshot = match workspace.snapshot_trace(revision, trace.as_ref(), view) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                self.client
+                    .log_message(
+                        lsp::MessageType::ERROR,
+                        format!("query trace failed: {error}"),
+                    )
+                    .await;
+
+                return;
+            }
+        };
+
+        // summarize the complete artifact outcome set
+        let stats = &snapshot.stats;
+        let attempts =
+            stats.built + stats.memory_cached + stats.store_cached + stats.parked + stats.failed;
+        let milliseconds = snapshot.total_micros as f64 / 1_000.0;
+        let message = format!(
+            "{}: {milliseconds:.3} ms, {attempts} attempts, {} built, {} memory, {} store, {} parked, {} failed",
+            method.name(),
+            stats.built,
+            stats.memory_cached,
+            stats.store_cached,
+            stats.parked,
+            stats.failed,
+        );
+
+        // include the standard detailed report only at verbose trace level
+        let verbose = (trace_level == lsp::TraceValue::Verbose).then(|| {
+            TraceReport::new()
+                .row(method.name(), snapshot)
+                .timelines()
+                .span_totals()
+                .slow_attempts(TRACE_SLOW_ATTEMPTS)
+                .render()
+        });
+        self.client
+            .send_notification::<lsp::notification::LogTrace>(lsp::LogTraceParams {
+                message,
+                verbose,
+            })
+            .await;
     }
 
     /// Load documents from one query revision.
@@ -683,6 +759,13 @@ impl LanguageServer for DestackLanguageServer {
                 self.report_error("failed to load editor configuration", error)
                     .await;
             }
+        }
+    }
+
+    async fn set_trace(&self, params: lsp::SetTraceParams) {
+        match self.session() {
+            Ok(session) => session.set_trace(params.value),
+            Err(error) => self.report_error("failed to set trace level", error).await,
         }
     }
 
