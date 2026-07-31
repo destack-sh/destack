@@ -1,4 +1,4 @@
-use destack_artifact::{FrameState, MirOptimized};
+use destack_artifact::MirOptimized;
 use destack_bytecode as bytecode;
 use destack_core::{EntryRange, Optional};
 use destack_mir as mir;
@@ -33,10 +33,9 @@ impl<'a> BytecodeEmitter<'a> {
         }
     }
 
-    /// Emit one relocatable bytecode object and its logical frame states.
-    pub fn emit(&self) -> Result<(bytecode::Object, Vec<FrameState>), EmitError> {
+    /// Emit one relocatable bytecode object.
+    pub fn emit(&self) -> Result<bytecode::Object, EmitError> {
         let functions = self.ordered_functions()?;
-        let mut logical_frames = Vec::new();
         let mut frames = Vec::new();
         let mut registers = Vec::new();
         let mut operations = Vec::new();
@@ -61,27 +60,29 @@ impl<'a> BytecodeEmitter<'a> {
                 function,
             )?
             .emit()?;
-            rows.push(Self::append(
+            rows.push(self.append(
                 emitted,
-                &mut logical_frames,
                 &mut frames,
                 &mut registers,
                 &mut operations,
                 &mut relocations,
                 &mut code,
-            ));
+            )?);
         }
 
-        let object = bytecode::ObjectBuilder::new()
+        // require one physical map for every logical bytecode frame state
+        if frames.len() != self.object.frames().len() {
+            return Err(self.invalid("bytecode frame map count does not match object states"));
+        }
+
+        Ok(bytecode::ObjectBuilder::new()
             .functions(rows)
             .frames(frames)
             .registers(registers)
             .operations(operations)
             .relocations(relocations)
             .code(code)
-            .build();
-
-        Ok((object, logical_frames))
+            .build())
     }
 
     /// Return MIR functions in object identity order.
@@ -106,29 +107,32 @@ impl<'a> BytecodeEmitter<'a> {
 
     /// Append one emitted function and return its physical object row.
     fn append(
+        &self,
         emitted: FunctionEmission,
-        logical_frames: &mut Vec<FrameState>,
         frames: &mut Vec<bytecode::FrameMap>,
         registers: &mut Vec<bytecode::RegisterSpan>,
         operations: &mut Vec<bytecode::CodeOffset>,
         relocations: &mut Vec<bytecode::Relocation>,
         code: &mut Vec<u8>,
-    ) -> bytecode::Function {
+    ) -> Result<bytecode::Function, EmitError> {
         let FunctionEmission {
             body,
             frames: emitted_frames,
         } = emitted;
 
-        // append matching logical and physical frame states
+        // append physical maps in canonical logical frame order
         for frame in emitted_frames {
+            let Some(state) = self.object.frames().get(frames.len()) else {
+                return Err(self.invalid("bytecode emitted an unknown frame map"));
+            };
+            if state.point != frame.point {
+                return Err(self.invalid("bytecode frame maps are not in object order"));
+            }
             let register_start = registers.len() as u32;
             let register_count = frame.registers.len() as u32;
             registers.extend(frame.registers);
-            frames.push(bytecode::FrameMap::new(EntryRange::new(
-                register_start,
-                register_count,
-            )));
-            logical_frames.push(FrameState::new(frame.point, frame.types));
+            let map = bytecode::FrameMap::new(EntryRange::new(register_start, register_count));
+            frames.push(map);
         }
 
         // append logical operation offsets
@@ -146,13 +150,22 @@ impl<'a> BytecodeEmitter<'a> {
                 .map(|relocation| relocation.rebase(code_start)),
         );
 
-        bytecode::Function::new(
+        Ok(bytecode::Function::new(
             Optional::some(bytecode::CodeRange {
                 byte_offset: code_start,
                 byte_len: code_len,
             }),
             EntryRange::new(operation_start, operation_count),
             body.register_count,
-        )
+        ))
+    }
+
+    /// Build one invalid bytecode input diagnostic.
+    fn invalid(&self, message: &str) -> EmitError {
+        EmitError::UnexpectedConstruct {
+            anchor: self.module.into(),
+            module: self.module,
+            message: message.to_owned(),
+        }
     }
 }

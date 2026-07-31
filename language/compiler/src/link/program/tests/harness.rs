@@ -72,13 +72,13 @@ impl TestModule {
         // emit common metadata and relocatable bytecode
         let object =
             ObjectEmitter::new(module, &optimized, dependencies).expect("object emission failed");
-        let (bytecode, frames) = BytecodeEmitter::new(module, &optimized, &object)
+        let bytecode = BytecodeEmitter::new(module, &optimized, &object)
             .emit()
             .expect("MIR should emit bytecode");
 
         Self {
             module,
-            object: Arc::new(object.build(bytecode, frames)),
+            object: Arc::new(object.build(bytecode)),
             strings,
         }
     }

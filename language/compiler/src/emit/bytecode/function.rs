@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_artifact::{FramePoint, MirOptimized, Point};
+use destack_artifact::{FramePlace, FramePoint, FrameState, MirOptimized};
 use destack_bytecode as bytecode;
 use destack_mir as mir;
 use destack_source::ModuleId;
@@ -23,8 +23,6 @@ pub(crate) struct FunctionEmission {
 pub(crate) struct FrameEmission {
     /// The object-local logical coordinate.
     pub(crate) point: FramePoint,
-    /// Object-local types in acquisition order.
-    pub(crate) types: Vec<mir::TypeId>,
     /// Physical register spans in acquisition order.
     pub(crate) registers: Vec<bytecode::RegisterSpan>,
 }
@@ -54,8 +52,6 @@ pub(crate) struct FunctionEmitter<'a> {
     scratches: Vec<(bytecode::ValueType, bytecode::RegisterSpan)>,
     /// Reusable contiguous outgoing call registers.
     arguments: Vec<ArgumentRegisters>,
-    /// CFG-correct MIR liveness used to materialize frame states.
-    liveness: mir::FunctionLiveness,
     /// Frame states in emitted coordinate order.
     frames: Vec<FrameEmission>,
     /// Branch labels keyed by MIR block identity.
@@ -125,7 +121,6 @@ impl<'a> FunctionEmitter<'a> {
         let RegisterAllocation {
             values: ranges,
             locals,
-            liveness,
         } = registers;
         let mut builder = bytecode::FunctionBuilder::new();
 
@@ -148,7 +143,6 @@ impl<'a> FunctionEmitter<'a> {
             locals,
             scratches: Vec::new(),
             arguments: Vec::new(),
-            liveness,
             frames: Vec::new(),
             blocks,
             stubs: Vec::new(),
@@ -166,7 +160,12 @@ impl<'a> FunctionEmitter<'a> {
 
         // retain the complete callable input before coroutine execution begins
         if self.function.coroutine.is_some() {
-            let frame = self.entry_frame()?;
+            let point = FramePoint::entry(self.function_id);
+            let state = self
+                .object
+                .frame(point)
+                .ok_or_else(|| self.invalid_input("missing coroutine entry frame state"))?;
+            let frame = self.frame(state)?;
             self.frames.push(frame);
         }
 
@@ -178,17 +177,27 @@ impl<'a> FunctionEmitter<'a> {
             self.define(label)?;
             let block = self.optimized.tree.get(block_id);
 
-            for (index, instruction_id) in block.instructions.iter().enumerate() {
+            for instruction_id in &block.instructions {
                 let instruction = self.optimized.tree.get(*instruction_id);
-                let operation = self.builder.begin_operation();
+                self.builder.begin_operation();
                 self.emit_instruction(*instruction_id, instruction)?;
-                let frame = self.instruction_frame(block_id, index, operation)?;
+                let point = FramePoint::operation(self.object.instruction_point(*instruction_id));
+                let state = self
+                    .object
+                    .frame(point)
+                    .ok_or_else(|| self.invalid_input("missing instruction frame state"))?;
+                let frame = self.frame(state)?;
                 self.frames.push(frame);
             }
 
-            let operation = self.builder.begin_operation();
+            self.builder.begin_operation();
             self.emit_terminator(self.optimized.tree.get(block.terminator))?;
-            let frame = self.terminator_frame(block_id, operation)?;
+            let point = FramePoint::operation(self.object.terminator_point(block_id));
+            let state = self
+                .object
+                .frame(point)
+                .ok_or_else(|| self.invalid_input("missing terminator frame state"))?;
+            let frame = self.frame(state)?;
             self.frames.push(frame);
         }
 
@@ -222,145 +231,26 @@ impl<'a> FunctionEmitter<'a> {
         })
     }
 
-    /// Build one coroutine's initial frame state.
-    fn entry_frame(&self) -> Result<FrameEmission, EmitError> {
-        let entry = self
-            .function
-            .entry()
-            .ok_or_else(|| self.invalid_input("missing function entry block"))?;
-        let parameters = &self.optimized.tree.get(entry).parameters;
-        let mut types =
-            Vec::with_capacity(parameters.len() + usize::from(self.function.environment.is_some()));
-        let mut registers = Vec::with_capacity(types.capacity());
-
-        // retain the hidden callable environment first
-        if let Some(environment) = self.function.environment {
-            let ty = self.types.register_type(environment)?;
-            types.push(environment);
-            registers.push(bytecode::RegisterSpan::new(
-                bytecode::RegisterId(0),
-                ty.word_count(),
-            ));
-        }
-
-        // retain every explicit argument in calling order
-        for parameter in parameters {
-            types.push(parameter.ty);
-            registers.push(self.register(parameter.value)?);
-        }
-
-        Ok(FrameEmission {
-            point: FramePoint::entry(self.function_id),
-            types,
-            registers,
-        })
-    }
-
-    /// Build one frame state before a MIR instruction.
-    fn instruction_frame(
-        &self,
-        block: mir::BlockId,
-        index: usize,
-        operation: u32,
-    ) -> Result<FrameEmission, EmitError> {
-        let mut values = self
-            .liveness
-            .value_live_before_instruction(&self.optimized.tree, block, index)
-            .into_iter()
-            .collect::<Vec<_>>();
-        values.sort_unstable();
-        let mut locals = self
-            .liveness
-            .local_live_before_instruction(&self.optimized.tree, block, index)
-            .into_iter()
-            .collect::<Vec<_>>();
-        locals.sort_unstable();
-
-        self.frame(operation, &values, &locals)
-    }
-
-    /// Build one frame state before a MIR terminator.
-    fn terminator_frame(
-        &self,
-        block: mir::BlockId,
-        operation: u32,
-    ) -> Result<FrameEmission, EmitError> {
-        let mut values = self
-            .liveness
-            .value_live_before_terminator(&self.optimized.tree, block)
-            .into_iter()
-            .collect::<Vec<_>>();
-        values.sort_unstable();
-        let mut locals = self
-            .liveness
-            .local_live_before_terminator(block)
-            .into_iter()
-            .collect::<Vec<_>>();
-        locals.sort_unstable();
-
-        self.frame(operation, &values, &locals)
-    }
-
-    /// Build one frame state from live MIR values and locals.
-    fn frame(
-        &self,
-        operation: u32,
-        values: &[mir::Value],
-        locals: &[mir::LocalId],
-    ) -> Result<FrameEmission, EmitError> {
-        let entry = self
-            .function
-            .entry()
-            .ok_or_else(|| self.invalid_input("missing function entry block"))?;
-        let parameters = &self.optimized.tree.get(entry).parameters;
-        let mut types = Vec::new();
+    /// Project one logical frame state into physical bytecode registers.
+    fn frame(&self, state: &FrameState) -> Result<FrameEmission, EmitError> {
         let mut registers = Vec::new();
 
-        // retain the hidden environment before every source value
-        if let Some(environment) = self.function.environment {
-            let ty = self.types.register_type(environment)?;
-            types.push(environment);
-            registers.push(bytecode::RegisterSpan::new(
-                bytecode::RegisterId(0),
-                ty.word_count(),
-            ));
-        }
+        // map every canonical logical place onto its assigned register range
+        for slot in &state.slots {
+            let registers_for_slot = match slot.place {
+                FramePlace::Environment => {
+                    let ty = self.types.register_type(slot.ty)?;
 
-        // retain live function parameters in calling order
-        for parameter in parameters {
-            if !values.contains(&parameter.value) {
-                continue;
-            }
-            let range = self.register(parameter.value)?;
-            types.push(parameter.ty);
-            registers.push(range);
-        }
-
-        // retain live locals in declaration order
-        for &local in locals {
-            let ty = self.optimized.tree.get(local).ty;
-            let range = self.local(local)?;
-            types.push(ty);
-            registers.push(range);
-        }
-
-        // retain remaining live SSA values in creation order
-        for &value in values {
-            if parameters.iter().any(|parameter| parameter.value == value) {
-                continue;
-            }
-            let ty = self
-                .function
-                .value_type(value)
-                .ok_or_else(|| self.invalid_input("missing live value type"))?;
-            let range = self.register(value)?;
-            types.push(ty);
-            registers.push(range);
+                    bytecode::RegisterSpan::new(bytecode::RegisterId(0), ty.word_count())
+                }
+                FramePlace::Local(local) => self.local(local)?,
+                FramePlace::Value(value) => self.register(value)?,
+            };
+            registers.push(registers_for_slot);
         }
 
         Ok(FrameEmission {
-            point: FramePoint::operation(Point::new(self.function_id, operation)),
-            types,
+            point: state.point,
             registers,
         })
     }

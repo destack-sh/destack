@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use destack_artifact::{
-    FrameState, Function, Global, MirOptimized, Object, ObjectBuilder, Point, Type,
+    FramePoint, FrameState, Function, Global, MirOptimized, Object, ObjectBuilder, Point, Type,
 };
 use destack_bytecode as bytecode;
 use destack_mir as mir;
@@ -11,6 +11,7 @@ use destack_webassembly as wasm;
 
 use crate::EmitError;
 
+use super::frame::FrameEmitter;
 use super::point::PointIndex;
 use super::site::Sites;
 
@@ -27,6 +28,8 @@ pub struct ObjectEmitter {
     global_indices: HashMap<mir::GlobalId, usize>,
     /// Object program points keyed by MIR operation identity.
     points: PointIndex,
+    /// Engine-neutral logical frame states.
+    frames: Vec<FrameState>,
     /// Allocation indices keyed by object-local program point.
     allocation_indices: HashMap<Point, u32>,
 }
@@ -110,6 +113,7 @@ impl ObjectEmitter {
 
         // collect execution metadata under object-local identities
         let points = PointIndex::build(optimized);
+        let frames = FrameEmitter::new(module, optimized, &points).emit()?;
         let sites = Sites::emit(module, optimized, &points)?;
         let allocation_indices = sites.allocation_indices;
 
@@ -137,6 +141,7 @@ impl ObjectEmitter {
             function_indices,
             global_indices,
             points,
+            frames,
             allocation_indices,
         })
     }
@@ -164,9 +169,36 @@ impl ObjectEmitter {
         self.points.instruction(instruction)
     }
 
+    /// Return one MIR terminator's object-local program point.
+    pub(crate) fn terminator_point(&self, block: mir::BlockId) -> Point {
+        self.points.terminator(block)
+    }
+
     /// Sort blocks into emitted operation order.
     pub(crate) fn order_blocks(&self, blocks: &mut [mir::BlockId]) {
         self.points.order_blocks(blocks);
+    }
+
+    /// Return engine-neutral logical frame states.
+    pub(crate) fn frames(&self) -> &[FrameState] {
+        &self.frames
+    }
+
+    /// Return the logical frame state at one operation coordinate.
+    pub(crate) fn frame(&self, point: FramePoint) -> Option<&FrameState> {
+        self.frames
+            .binary_search_by_key(&point, |frame| frame.point)
+            .ok()
+            .and_then(|index| self.frames.get(index))
+    }
+
+    /// Return the object-local logical frame-state index at one coordinate.
+    #[cfg(feature = "native")]
+    pub(crate) fn frame_index(&self, point: FramePoint) -> Option<u32> {
+        self.frames
+            .binary_search_by_key(&point, |frame| frame.point)
+            .ok()
+            .map(|index| index as u32)
     }
 
     /// Return the allocation index assigned to one object-local program point.
@@ -189,8 +221,8 @@ impl ObjectEmitter {
     }
 
     /// Build the object with its required bytecode.
-    pub fn build(self, bytecode: bytecode::Object, frames: Vec<FrameState>) -> Object {
-        self.object.frames(frames).build(bytecode)
+    pub fn build(self, bytecode: bytecode::Object) -> Object {
+        self.object.frames(self.frames).build(bytecode)
     }
 
     /// Build one invalid object input diagnostic for a module.

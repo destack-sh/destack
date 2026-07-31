@@ -15,8 +15,6 @@ pub(crate) struct RegisterAllocation {
     pub(crate) values: Vec<Option<bytecode::RegisterSpan>>,
     /// Permanent register ranges keyed by MIR local identity.
     pub(crate) locals: HashMap<mir::LocalId, bytecode::RegisterSpan>,
-    /// MIR liveness used to derive frame states in acquisition order.
-    pub(crate) liveness: mir::FunctionLiveness,
 }
 
 /// Assign reusable bytecode register ranges to MIR values.
@@ -123,7 +121,6 @@ impl<'a> RegisterAllocator<'a> {
         Ok(RegisterAllocation {
             values: self.ranges,
             locals,
-            liveness: self.liveness,
         })
     }
 

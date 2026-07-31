@@ -133,7 +133,7 @@ impl TestProgram {
             .into_iter()
             .map(|(_, name)| name)
             .collect::<Vec<_>>();
-        let (bytecode, frames) = BytecodeEmitter::new(self.module_id(), &optimized, &object)
+        let bytecode = BytecodeEmitter::new(self.module_id(), &optimized, &object)
             .emit()
             .expect("test MIR should emit bytecode");
         let formatted =
@@ -142,7 +142,7 @@ impl TestProgram {
 
         assert_snapshot(formatted, expected);
 
-        object.build(bytecode, frames)
+        object.build(bytecode)
     }
 
     /// Return the type id with one display name.

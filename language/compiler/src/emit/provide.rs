@@ -194,8 +194,8 @@ impl Compiler {
             .filter(|target| *target != module)
             .collect::<Vec<_>>();
         let object = ObjectEmitter::new(module, &mir, modules)?;
-        let (bytecode, frames) = BytecodeEmitter::new(module, &mir, &object).emit()?;
-        let output = object.build(bytecode, frames);
+        let bytecode = BytecodeEmitter::new(module, &mir, &object).emit()?;
+        let output = object.build(bytecode);
 
         Ok(ArtifactPayload::Object(Arc::new(output)))
     }
