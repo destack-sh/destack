@@ -2,7 +2,8 @@ use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar, GlobalEnvironment,
+    ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactSidecar,
+    GlobalEnvironment, SourceDependency,
 };
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
@@ -62,48 +63,6 @@ impl Compiler {
         Ok(ArtifactPayload::GlobalEnvironment(Arc::new(environment)))
     }
 
-    /// Collect inputs for the active package graph of one profile.
-    ///
-    /// The graph resolves every package's active dependency and export declarations.
-    /// It observes the complete package set, every package configuration, and the module set.
-    pub(crate) fn collect_package_graph(
-        &self,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<ArtifactDependencySet> {
-        let package_ids = self
-            .repository
-            .package_ids(context.revision())
-            .map_err(|error| CompilerError::Internal {
-                message: format!("failed to load package ids: {error}"),
-            })?;
-
-        // observe the exact package set and every package declaration
-        let mut dependencies = ArtifactDependencySet::default();
-        dependencies.observe_packages(&package_ids);
-        for package_id in package_ids {
-            self.observe_package_config(context, package_id, &mut dependencies)?;
-        }
-
-        // observe the exact module set used by import specifiers
-        let modules = self.repository.module_ids(context.revision())?;
-        dependencies.observe_modules(&modules);
-
-        Ok(dependencies)
-    }
-
-    /// Build the active package graph for one profile.
-    pub(crate) fn provide_package_graph(
-        &self,
-        profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<ArtifactPayload> {
-        let profile_state = self.profile(context.revision(), profile)?;
-        let graph =
-            self.build_package_graph(context.revision(), profile, profile_state.conditions())?;
-
-        Ok(ArtifactPayload::PackageGraph(Arc::new(graph)))
-    }
-
     /// Collect inputs for imported DIR of one module.
     pub(crate) fn collect_dir_imported(
         &self,
@@ -113,7 +72,6 @@ impl Compiler {
         let mut dependencies = ArtifactDependencySet::default();
         dependencies.require(ArtifactKey::dir_parsed(module));
         dependencies.require(ArtifactKey::dir_bound(module, profile));
-        dependencies.require(ArtifactKey::package_graph(profile));
 
         Ok(dependencies)
     }
@@ -132,12 +90,20 @@ impl Compiler {
         let bound = artifacts
             .dir_bound(module, profile)
             .map_err(CompilerError::from)?;
-        let package_graph = artifacts
-            .package_graph(profile)
-            .map_err(CompilerError::from)?;
         let module = self.module(context.revision(), module)?;
         let package = self.package(context.revision(), module.package_id)?;
         let environment = self.environment(context.revision())?;
+
+        // observe the package set backing dependency discovery
+        let packages = self
+            .repository
+            .package_ids(context.revision())
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to load package ids: {error}"),
+            })?;
+        context.observe(ArtifactDependency::Source(SourceDependency::packages(
+            &packages,
+        )));
 
         // build local module table
         let view = dir::View::new(&parsed.tree);
@@ -146,7 +112,8 @@ impl Compiler {
             module.as_ref(),
             package.as_ref(),
             environment.as_ref(),
-            package_graph.as_ref(),
+            profile_state.conditions(),
+            context,
             &profile_state.key,
             self.strings(),
             view,

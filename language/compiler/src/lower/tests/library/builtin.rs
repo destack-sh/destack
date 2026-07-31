@@ -6,7 +6,7 @@ use crate::tests::TestSession;
 /// Every builtin module lowers through the artifact path.
 #[test]
 fn test_lower_library() {
-    let session = TestSession::builder().build();
+    let session = TestSession::builder().cold().build();
     let repository = session.repository();
     let package = repository.embedded_builtin();
     let package_id = package.package_id();
@@ -33,7 +33,7 @@ fn test_lower_library() {
 #[test]
 #[ignore = "diagnostic inventory for the library lowering ratchet"]
 fn test_report_library_lowering_inventory() {
-    let session = TestSession::builder().build();
+    let session = TestSession::builder().cold().build();
     let repository = session.repository();
     let package = repository.embedded_builtin();
     let package_id = package.package_id();
@@ -51,7 +51,7 @@ fn test_report_library_lowering_inventory() {
             continue;
         };
 
-        // print the rendered diagnostics, or the raw error without any
+        // print the rendered diagnostics, or the raw error when none render
         let rendered = session.render_terminal_diagnostics_for(&[key]);
         let mut lines = rendered
             .lines()

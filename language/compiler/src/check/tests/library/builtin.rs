@@ -11,7 +11,7 @@ use crate::tests::TestSession;
 /// Check every builtin library module.
 #[test]
 fn test_check_library() {
-    let session = TestSession::builder().build();
+    let session = TestSession::builder().cold().build();
     let repository = session.repository();
     let package = repository.embedded_builtin();
     let target = TargetId::new(package.package_id(), "default");
@@ -39,7 +39,7 @@ fn test_check_library() {
 /// The core knot stays bounded: shrinking it is welcome, growing it is a defect.
 #[test]
 fn test_bound_library_check_components() {
-    let session = TestSession::builder().build();
+    let session = TestSession::builder().cold().build();
     let repository = session.repository();
     let package = repository.embedded_builtin();
     let target = TargetId::new(package.package_id(), "default");
@@ -75,7 +75,7 @@ fn test_bound_library_check_components() {
 /// stay joint, and the residue stays bounded.
 #[test]
 fn test_bound_library_inference_components() {
-    let session = TestSession::builder().build();
+    let session = TestSession::builder().cold().build();
     let repository = session.repository();
     let package = repository.embedded_builtin();
     let target = TargetId::new(package.package_id(), "default");

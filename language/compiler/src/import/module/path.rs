@@ -1,109 +1,34 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use destack_repository::Revision;
-use destack_source::{CODE_FILE_TYPES, FileType, Loader, ModuleId};
+use destack_repository::ModulePathResolution;
+use destack_source::Loader;
 
-use crate::{Compiler, CompilerResult};
-
-/// Resolution of one module path against the repository module set.
-pub(in crate::import) enum ModulePathResolution {
-    /// The path escapes the logical workspace root.
-    Unsupported,
-    /// No candidate path names a module.
-    Missing {
-        /// The candidate paths inspected.
-        candidates: usize,
-    },
-    /// Exactly one candidate path names a module.
-    Resolved {
-        /// The candidate paths inspected.
-        candidates: usize,
-        /// The exact path that selected the module.
-        path: PathBuf,
-        /// The selected module.
-        module: ModuleId,
-    },
-    /// Multiple candidate paths name modules.
-    Ambiguous {
-        /// The candidate paths inspected.
-        candidates: usize,
-        /// The matching paths and modules.
-        matches: Vec<(PathBuf, ModuleId)>,
-    },
-}
-
-impl ModulePathResolution {
-    /// Return the number of candidate paths inspected.
-    pub(in crate::import) fn candidates(&self) -> usize {
-        match self {
-            Self::Unsupported => 0,
-            Self::Missing { candidates }
-            | Self::Resolved { candidates, .. }
-            | Self::Ambiguous { candidates, .. } => *candidates,
-        }
-    }
-}
+use crate::import::ImportState;
+use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
-    /// Resolve one logical path against every applicable source extension.
+    /// Resolve one logical path, observing every candidate probe.
     pub(in crate::import) fn resolve_module_path(
         &self,
-        revision: Revision,
+        state: &mut ImportState<'_>,
         path: &Path,
         loader: Option<Loader>,
     ) -> CompilerResult<ModulePathResolution> {
-        let Some(path) = self.normalize_workspace_path(path.to_path_buf()) else {
-            return Ok(ModulePathResolution::Unsupported);
-        };
-        let paths = Self::module_candidate_paths(path, loader);
-        let candidates = paths.len();
-        let mut matches = Vec::new();
+        let mut resolution = self
+            .repository
+            .resolve_module_path(state.revision, path, loader)
+            .map_err(|error| CompilerError::Internal {
+                message: format!(
+                    "failed to resolve module path '{}': {error}",
+                    path.display()
+                ),
+            })?;
 
-        // resolve every candidate through the repository module graph
-        for path in paths {
-            let module = self.module_id_for_path(revision, &path)?;
-            if let Some(module) = module {
-                matches.push((path, module));
-            }
+        // record every candidate probe on this attempt
+        for probe in resolution.probes.drain(..) {
+            state.observe(probe);
         }
-
-        let resolution = match matches.len() {
-            0 => ModulePathResolution::Missing { candidates },
-            1 => {
-                let (path, module) = matches.remove(0);
-
-                ModulePathResolution::Resolved {
-                    candidates,
-                    path,
-                    module,
-                }
-            }
-            _ => ModulePathResolution::Ambiguous {
-                candidates,
-                matches,
-            },
-        };
 
         Ok(resolution)
-    }
-
-    /// Return candidate module paths in deterministic order.
-    fn module_candidate_paths(path: PathBuf, loader: Option<Loader>) -> Vec<PathBuf> {
-        // retain an explicit extension
-        if path.extension().is_some() {
-            vec![path]
-        }
-        // apply an explicit loader extension
-        else if let Some(extension) = loader.and_then(Loader::extension) {
-            vec![path.with_extension(extension)]
-        }
-        // try each source extension
-        else {
-            CODE_FILE_TYPES
-                .iter()
-                .filter_map(FileType::extension)
-                .map(|extension| path.with_extension(extension))
-                .collect()
-        }
     }
 }

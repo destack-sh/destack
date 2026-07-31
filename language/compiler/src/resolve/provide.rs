@@ -16,7 +16,6 @@ impl Compiler {
         &self,
         module: ModuleId,
         profile: ProfileId,
-        context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
         dependencies.require(ArtifactKey::dir_parsed(module));
@@ -24,19 +23,6 @@ impl Compiler {
         dependencies.require(ArtifactKey::dir_imported(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
         dependencies.require(ArtifactKey::global_environment(profile));
-
-        // the re-export frontier is derived from expanded DIR once built
-        let artifacts = self.artifact_reader(context);
-        let targets = match self.module_clause_targets(module, profile, &artifacts) {
-            Ok(targets) => targets,
-            Err(CompilerError::Blocked { .. }) => {
-                dependencies.mark_partial();
-
-                return Ok(dependencies);
-            }
-            Err(error) => return Err(error),
-        };
-        self.collect_exported_modules(targets, profile, &artifacts, &mut dependencies)?;
 
         Ok(dependencies)
     }
@@ -142,44 +128,5 @@ impl Compiler {
         }
 
         Ok(())
-    }
-
-    /// Return the modules one module's import and re-export clauses target.
-    fn module_clause_targets(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        artifacts: &ArtifactReader<'_>,
-    ) -> CompilerResult<Vec<ModuleId>> {
-        let parsed = artifacts.dir_parsed(module).map_err(CompilerError::from)?;
-        let bound = artifacts
-            .dir_bound(module, profile)
-            .map_err(CompilerError::from)?;
-        let imported = artifacts
-            .dir_imported(module, profile)
-            .map_err(CompilerError::from)?;
-        let expanded = artifacts
-            .dir_expanded(module, profile)
-            .map_err(CompilerError::from)?;
-
-        // build the resolve view without walking references
-        let patches = std::slice::from_ref(&expanded.patch);
-        let view = dir::View::with_patches(&parsed.tree, patches);
-        let bindings = expanded.binding_table(&bound);
-        let modules = expanded.module_table(&imported);
-        let mut state = ResolveState::new(
-            (*artifacts).clone(),
-            profile,
-            module,
-            view,
-            bindings,
-            modules,
-            self.strings(),
-        );
-
-        // module clauses are syntactic, so no reference walk is needed
-        state.collect_module_clauses(&expanded.roots);
-
-        state.module_clause_targets()
     }
 }

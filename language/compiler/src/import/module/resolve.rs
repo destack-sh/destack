@@ -5,7 +5,7 @@ use destack_core::closest_string;
 use destack_dir as dir;
 use destack_source::{Loader, ModuleId, ModuleSpecifier, PackageId, Uri};
 
-use crate::import::ModulePathResolution;
+use crate::import::ModulePathOutcome;
 use crate::{
     Compiler, CompilerResult, DiagnosticAnchor, ImportError, diagnostic_suggestion_distance,
 };
@@ -179,13 +179,11 @@ impl Compiler {
         state.stats.package_exports += 1;
 
         // require explicit dependency declarations
-        let Some(current_package) = state.package_graph.package(state.module.package_id) else {
+        let current_package_id = state.module.package_id;
+        let Some(current_package) = self.package_node(state, current_package_id)? else {
             return Err(ImportError::Internal {
                 anchor: anchor.clone(),
-                message: format!(
-                    "package {:?} is missing from package graph",
-                    state.module.package_id
-                ),
+                message: format!("package {current_package_id:?} has no configuration"),
             }
             .into());
         };
@@ -213,10 +211,10 @@ impl Compiler {
             // continue through the exact dependency package
             PackageDependency::Resolved(package_id) => package_id,
         };
-        let Some(package) = state.package_graph.package(package_id) else {
+        let Some(package) = self.package_node(state, package_id)? else {
             return Err(ImportError::Internal {
                 anchor: anchor.clone(),
-                message: format!("package {package_id:?} is missing from package graph"),
+                message: format!("package {package_id:?} has no configuration"),
             }
             .into());
         };
@@ -302,13 +300,13 @@ impl Compiler {
         specifier: &str,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
-        let resolution = self.resolve_module_path(state.revision, path, loader)?;
-        state.stats.candidates += resolution.candidates();
-        state.stats.probes += resolution.candidates();
+        let resolution = self.resolve_module_path(state, path, loader)?;
+        state.stats.candidates += resolution.candidates;
+        state.stats.probes += resolution.candidates;
 
-        match resolution {
+        match resolution.outcome {
             // unsupported logical path
-            ModulePathResolution::Unsupported => {
+            ModulePathOutcome::Unsupported => {
                 state.report_diagnostic(ImportError::UnsupportedModuleSpecifier {
                     anchor: anchor.clone(),
                     target: specifier.to_string(),
@@ -318,7 +316,7 @@ impl Compiler {
             }
 
             // no module matched
-            ModulePathResolution::Missing { .. } => {
+            ModulePathOutcome::Missing => {
                 state.report_diagnostic(ImportError::UnresolvedModule {
                     anchor: anchor.clone(),
                     target: specifier.to_string(),
@@ -329,11 +327,11 @@ impl Compiler {
             }
 
             // exactly one module matched
-            ModulePathResolution::Resolved { path, module, .. } => self
+            ModulePathOutcome::Resolved { path, module } => self
                 .resolve_export_package_match(state, anchor, package_id, &path, module, specifier),
 
             // multiple modules matched
-            ModulePathResolution::Ambiguous { matches, .. } => {
+            ModulePathOutcome::Ambiguous { matches } => {
                 let candidates = matches
                     .iter()
                     .map(|(path, _)| path.display().to_string())
@@ -430,13 +428,13 @@ impl Compiler {
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
         let path = self.relative_module_path(state, anchor, path)?;
-        let resolution = self.resolve_module_path(state.revision, &path, loader)?;
-        state.stats.candidates += resolution.candidates();
-        state.stats.probes += resolution.candidates();
+        let resolution = self.resolve_module_path(state, &path, loader)?;
+        state.stats.candidates += resolution.candidates;
+        state.stats.probes += resolution.candidates;
 
-        match resolution {
+        match resolution.outcome {
             // reject paths outside the logical workspace
-            ModulePathResolution::Unsupported => {
+            ModulePathOutcome::Unsupported => {
                 state.report_diagnostic(ImportError::UnsupportedModuleSpecifier {
                     anchor: anchor.clone(),
                     target: specifier.to_string(),
@@ -446,7 +444,7 @@ impl Compiler {
             }
 
             // no module matched
-            ModulePathResolution::Missing { .. } => {
+            ModulePathOutcome::Missing => {
                 let suggestion = self.closest_relative_module_specifier(state, specifier)?;
                 state.report_diagnostic(ImportError::UnresolvedModule {
                     anchor: anchor.clone(),
@@ -458,12 +456,12 @@ impl Compiler {
             }
 
             // exactly one module matched
-            ModulePathResolution::Resolved { path, module, .. } => {
+            ModulePathOutcome::Resolved { path, module } => {
                 self.resolve_package_match(state, anchor, &path, module, specifier)
             }
 
             // multiple modules matched
-            ModulePathResolution::Ambiguous { matches, .. } => {
+            ModulePathOutcome::Ambiguous { matches } => {
                 let candidates = matches
                     .iter()
                     .map(|(path, _)| path.display().to_string())

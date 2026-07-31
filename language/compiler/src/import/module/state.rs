@@ -1,10 +1,14 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticAnchor, DirImported, PackageGraph, ProfileKey};
+use destack_artifact::{
+    ArtifactDependency, ConditionSet, DiagnosticAnchor, DirImported, PackageNode, ProfileKey,
+    SourceDependency,
+};
 use destack_core::{StringPool, closest_string};
 use destack_dir as dir;
-use destack_repository::{Environment, Module, Package, Revision};
-use destack_source::Loader;
+use destack_repository::{Environment, Module, Package, ProviderContext, Revision};
+use destack_source::{Loader, PackageId};
+use rustc_hash::FxHashMap;
 
 use crate::{ImportError, ImportResult, diagnostic_suggestion_distance};
 
@@ -23,8 +27,12 @@ pub(crate) struct ImportState<'a> {
     pub(in crate::import) package: &'a Package,
     /// The ambient environment captured by the current revision.
     pub(in crate::import) environment: &'a Environment,
-    /// The active package graph.
-    pub(in crate::import) package_graph: &'a PackageGraph,
+    /// The active profile conditions.
+    pub(in crate::import) conditions: &'a ConditionSet,
+    /// The provider context recording source observations.
+    pub(in crate::import) context: &'a dyn ProviderContext,
+    /// Import-resolution nodes built for touched packages.
+    pub(in crate::import) packages: FxHashMap<PackageId, Option<Arc<PackageNode>>>,
     /// The active profile key.
     pub(in crate::import) profile: &'a ProfileKey,
     /// The shared string pool.
@@ -46,7 +54,8 @@ impl<'a> ImportState<'a> {
         module: &'a Module,
         package: &'a Package,
         environment: &'a Environment,
-        package_graph: &'a PackageGraph,
+        conditions: &'a ConditionSet,
+        context: &'a dyn ProviderContext,
         profile: &'a ProfileKey,
         strings: &'a StringPool,
         view: dir::View<'a>,
@@ -56,7 +65,9 @@ impl<'a> ImportState<'a> {
             module,
             package,
             environment,
-            package_graph,
+            conditions,
+            context,
+            packages: FxHashMap::default(),
             profile,
             strings,
             view,
@@ -73,6 +84,11 @@ impl<'a> ImportState<'a> {
         };
 
         (imported, self.diagnostics)
+    }
+
+    /// Record one source observation read while resolving imports.
+    pub(in crate::import) fn observe(&self, source: SourceDependency) {
+        self.context.observe(ArtifactDependency::Source(source));
     }
 
     /// Push one module import edge.

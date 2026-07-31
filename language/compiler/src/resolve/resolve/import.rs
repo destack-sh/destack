@@ -26,28 +26,6 @@ impl ResolveState<'_> {
         }
     }
 
-    /// Return exported modules required by collected module clauses.
-    pub(in crate::resolve) fn module_clause_targets(&self) -> CompilerResult<Vec<ModuleId>> {
-        let mut targets = Vec::new();
-
-        // require one imported edge for every collected module clause
-        for clause in &self.module_clauses {
-            let source = clause.source(self.module);
-            let edge = self
-                .modules
-                .edge_for_source(source, clause.relation())
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("module clause {source:?} has no imported module edge"),
-                })?;
-
-            if let Some(target) = edge.target {
-                targets.push(target);
-            }
-        }
-
-        Ok(targets)
-    }
-
     /// Resolve collected import and re-export clauses.
     ///
     /// Example:
@@ -381,24 +359,5 @@ impl ResolveState<'_> {
         }
 
         Ok(())
-    }
-}
-
-impl ModuleClause {
-    /// Return the source node represented by this clause.
-    fn source(&self, module: ModuleId) -> dir::GlobalNodeIdAny {
-        match self {
-            Self::Import { expression_id, .. } | Self::ReExport { expression_id, .. } => {
-                expression_id.into_global_any(module)
-            }
-        }
-    }
-
-    /// Return the module relation represented by this clause.
-    fn relation(&self) -> dir::ModuleRelation {
-        match self {
-            Self::Import { .. } => dir::ModuleRelation::Import,
-            Self::ReExport { .. } => dir::ModuleRelation::ReExport,
-        }
     }
 }

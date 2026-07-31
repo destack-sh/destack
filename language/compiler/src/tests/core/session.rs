@@ -12,8 +12,8 @@ use destack_artifact::{
 use destack_dir as dir;
 use destack_mir::{MirFormatContext, MirFormatOptions, format_mir};
 use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Ref, Repository, Revision,
-    Settings, TraceReport, TraceSnapshot, TraceView,
+    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Ref, Repository,
+    Revision, Settings, TraceReport, TraceSnapshot, TraceView,
 };
 use destack_session::{Session, SessionError};
 use destack_source::{
@@ -38,13 +38,17 @@ const WORKERS_ENV: &str = "DESTACK_TEST_WORKERS";
 const TRACE_ENV: &str = "DESTACK_TEST_TRACE";
 const TIMINGS_ENV: &str = "DESTACK_TIMINGS";
 const TRACE_SLOW_ARTIFACTS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_ARTIFACTS";
+const TRACE_SLOW_MS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_MS";
 const DEFAULT_TRACE_SLOW_ARTIFACTS: usize = 8;
+const SLOW_RUN_TRACE_ATTEMPTS: usize = 24;
 
 /// A test session builder.
 #[derive(Debug, Default)]
 pub(crate) struct TestSessionBuilder {
     /// Source files keyed by logical path.
     files: BTreeMap<String, Content>,
+    /// Whether to build on a fresh repository without warm bindings.
+    is_cold: bool,
 }
 
 impl TestSessionBuilder {
@@ -72,9 +76,16 @@ impl TestSessionBuilder {
         self
     }
 
+    /// Build on a fresh repository so every artifact really executes.
+    pub(crate) fn cold(mut self) -> Self {
+        self.is_cold = true;
+
+        self
+    }
+
     /// Build the test session.
     pub(crate) fn build(self) -> TestSession {
-        TestSession::build(self.files)
+        TestSession::build(self.files, self.is_cold)
     }
 }
 
@@ -116,9 +127,14 @@ impl TestSession {
     }
 
     /// Build one test session from source files.
-    fn build(files: BTreeMap<String, Content>) -> Self {
-        let (repository, revision) = shared_repository_revision();
-        let repository = repository.clone();
+    fn build(files: BTreeMap<String, Content>, is_cold: bool) -> Self {
+        let (repository, revision) = if is_cold {
+            cold_repository_revision()
+        } else {
+            let (repository, revision) = shared_repository_revision();
+
+            (repository.clone(), *revision)
+        };
 
         // publish sealed test files
         let edits = files
@@ -129,16 +145,13 @@ impl TestSession {
             })
             .collect::<Vec<_>>();
         let revision = repository
-            .fork_with_edits(*revision, edits)
+            .fork_with_edits(revision, edits)
             .expect("test repository revision should publish");
 
         let modules_by_path = Self::build_modules(repository.as_ref(), revision, &files);
         let module_path_by_id = Self::module_path_by_id(repository.as_ref(), revision, &files);
         Self::seed_parsed_artifacts(repository.as_ref(), revision, &modules_by_path);
-        let workers = env::var(WORKERS_ENV)
-            .ok()
-            .and_then(|value| value.parse::<usize>().ok())
-            .unwrap_or(1);
+        let workers = test_worker_count();
         let root = repository.path().to_path_buf();
         let session = Session::fork(
             root.clone(),
@@ -150,6 +163,10 @@ impl TestSession {
             None,
         )
         .expect("compiler test session should start");
+        let is_tracing = env::var_os(TRACE_ENV).is_some()
+            || env::var_os(TIMINGS_ENV).is_some()
+            || env::var_os(TRACE_SLOW_MS_ENV).is_some();
+        session.set_tracing(is_tracing);
 
         Self {
             repository,
@@ -424,10 +441,70 @@ impl TestSession {
             &lowered.layouts,
             strings.as_ref(),
         );
-        match layouts.is_empty() {
-            true => formatted,
-            false => format!("{formatted}\n{layouts}"),
+        let dispatch = Self::render_mir_dispatch(&lowered.dispatch, strings.as_ref());
+
+        let mut formatted = formatted;
+        for rows in [&layouts, &dispatch] {
+            if !rows.is_empty() {
+                formatted.push('\n');
+                formatted.push_str(rows);
+            }
         }
+
+        formatted
+    }
+
+    /// Render the dynamic dispatch rows of one MIR module.
+    fn render_mir_dispatch(
+        dispatch: &destack_mir::DispatchTable,
+        strings: &destack_core::StringPool,
+    ) -> String {
+        let mut rows = String::new();
+
+        // render one row per dynamic shape
+        for shape in &dispatch.dynamic_shapes {
+            rows.push_str(&format!(
+                "/// @dispatch.shape constraint={}",
+                mir_type_name(shape.constraint)
+            ));
+            for slot in &shape.slots {
+                match slot {
+                    destack_mir::DynamicSlot::Field { name, .. } => {
+                        rows.push_str(&format!(" field={}", strings.get(*name)));
+                    }
+                    destack_mir::DynamicSlot::Function { name, .. } => {
+                        let name = name.map_or("call", |name| strings.get(name));
+                        rows.push_str(&format!(" function={name}"));
+                    }
+                }
+            }
+            rows.push('\n');
+        }
+
+        // render one row per dynamic table
+        for table in &dispatch.dynamic_tables {
+            rows.push_str(&format!(
+                "/// @dispatch.table concrete={} constraint={}",
+                mir_type_name(table.concrete),
+                mir_type_name(table.constraint)
+            ));
+            for entry in &table.entries {
+                match entry {
+                    destack_mir::DynamicEntry::Field { offset } => {
+                        rows.push_str(&format!(" field+{offset}"));
+                    }
+                    destack_mir::DynamicEntry::Function { function } => {
+                        rows.push_str(&format!(" function@{}", function.id));
+                    }
+                    destack_mir::DynamicEntry::Absent => {
+                        rows.push_str(" absent");
+                    }
+                }
+            }
+            rows.push('\n');
+        }
+
+        rows
     }
 
     /// Render the aggregate layout rows of one MIR module.
@@ -707,16 +784,11 @@ impl TestSession {
         for entry in entries.values() {
             let dependencies = parsed_dependencies(repository, revision, entry.module.as_ref());
             let key = ArtifactKey::dir_parsed(entry.module.id);
-            let version = ArtifactVersion::new(
-                key,
-                repository.host().build_id(),
-                dependencies.iter().cloned(),
-            );
 
             repository
                 .complete_artifact(
                     revision,
-                    version,
+                    key,
                     ArtifactPayload::DirParsed(Arc::new(entry.dir_parsed.clone())),
                     dependencies,
                     DiagnosticCollection::new(),
@@ -1109,7 +1181,21 @@ impl TestSession {
         &self,
         key: ArtifactKey,
     ) -> Result<ArtifactVersion, SessionError> {
-        self.session.require(self.revision, key)
+        let Some(threshold) = env::var(TRACE_SLOW_MS_ENV)
+            .ok()
+            .and_then(|value| value.parse::<u128>().ok())
+        else {
+            return self.session.require(self.revision, key);
+        };
+        let started = std::time::Instant::now();
+        let result = self.session.require(self.revision, key);
+
+        // print the run trace when it exceeds the requested threshold
+        if started.elapsed().as_millis() > threshold {
+            self.print_trace("slow-run", SLOW_RUN_TRACE_ATTEMPTS);
+        }
+
+        result
     }
 
     /// Require all artifacts through the production session.
@@ -1253,26 +1339,33 @@ impl TestSession {
             .collect::<Vec<_>>();
 
         // include builtin labels for language item references
-        for module_id in self
+        let builtins = self
             .repository
             .builtin_module_ids(self.revision)
             .expect("builtin test modules should resolve")
-        {
-            if module_id == entry.module.id {
-                continue;
-            }
+            .into_iter()
+            .filter(|module_id| *module_id != entry.module.id)
+            .collect::<Vec<_>>();
 
-            let key = ArtifactKey::dir_bound(module_id, entry.profile);
-            let bound_version = self.require_artifact(key);
-            let bound = self
-                .artifacts()
-                .dir_bound(&bound_version)
+        // provide every builtin label artifact in one run, then read directly
+        let keys = builtins
+            .iter()
+            .flat_map(|module_id| {
+                [
+                    ArtifactKey::dir_bound(*module_id, entry.profile),
+                    ArtifactKey::dir_expanded(*module_id, entry.profile),
+                ]
+            })
+            .collect::<Vec<_>>();
+        self.require_all(keys)
+            .expect("test builtin label artifacts should be ready");
+        let reader = self.repository.artifact_reader(self.revision);
+        for module_id in builtins {
+            let bound = reader
+                .dir_bound(module_id, entry.profile)
                 .expect("test builtin bound artifact should exist");
-            let key = ArtifactKey::dir_expanded(module_id, entry.profile);
-            let expanded_version = self.require_artifact(key);
-            let expanded = self
-                .artifacts()
-                .dir_expanded(&expanded_version)
+            let expanded = reader
+                .dir_expanded(module_id, entry.profile)
                 .expect("test builtin expanded artifact should exist");
 
             artifacts.push((bound, expanded));
@@ -1539,46 +1632,96 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, Revision) {
     static BASE: OnceLock<(Arc<Repository>, Revision)> = OnceLock::new();
 
     BASE.get_or_init(|| {
-        let root = PathBuf::new();
-        let environment = Environment::default();
-        let layout = DestackLayout::resolve(
-            &root,
-            &root,
-            &environment,
-            &Settings::default(),
-            &DestackLayoutOverride::default(),
-            None,
-        );
-        let host = Host::new(
-            BuildId::test(),
-            environment,
-            Arc::new(MemoryFileSystem::new()),
-            shared_blob_store(),
-        );
-        let repository = Arc::new(
-            Repository::new(root, host, Settings::default(), layout)
-                .with_artifact_store(Arc::new(NullArtifactStore::new())),
-        );
-        let reference = Ref::for_root(repository.path());
-        let revision = repository
-            .current(&reference)
-            .expect("test repository root ref should exist");
+        let (repository, revision) = cold_repository_revision();
 
-        // publish the default compiler-test configuration once
-        let revision = repository
-            .fork_with_edits(
-                revision,
-                [Edit::AddFile {
-                    logical_path: "destack.json".to_string(),
-                    content: Content::Text {
-                        content: DEFAULT_DESTACK_JSON.to_string(),
-                    },
-                }],
-            )
-            .expect("test repository default config should publish");
+        // start one warmup session on the shared base
+        let root = repository.path().to_path_buf();
+        let session = Session::fork(
+            root.clone(),
+            root,
+            repository.clone(),
+            next_reference(),
+            revision,
+            1,
+            None,
+        )
+        .expect("library warmup session should start");
+
+        // resolve the builtin library's default target profile
+        let package = repository.embedded_builtin();
+        let target = TargetId::new(package.package_id(), "default");
+        let profile = repository
+            .profile_for_target(revision, target)
+            .expect("builtin library target profile should resolve")
+            .id();
+
+        // check every builtin module once so forks inherit warm bindings
+        let keys = package
+            .module_ids()
+            .map(|module| ArtifactKey::dir_checked(module, profile))
+            .collect::<Vec<_>>();
+        session
+            .provide(revision, &keys)
+            .expect("library warmup should check");
 
         (repository, revision)
     })
+}
+
+/// Build one fresh compiler-test repository at the default-config revision.
+fn cold_repository_revision() -> (Arc<Repository>, Revision) {
+    let root = PathBuf::new();
+    let environment = Environment::default();
+    let layout = DestackLayout::resolve(
+        &root,
+        &root,
+        &environment,
+        &Settings::default(),
+        &DestackLayoutOverride::default(),
+        None,
+    );
+    // run providers inline when the test uses one worker
+    let execution = match test_worker_count() {
+        1 => Execution::Inline,
+        _ => Execution::Threaded,
+    };
+    let host = Host::new(
+        environment,
+        Arc::new(MemoryFileSystem::new()),
+        shared_blob_store(),
+    )
+    .with_execution(execution);
+    let repository = Arc::new(
+        Repository::new(root, host, Settings::default(), layout)
+            .with_artifact_store(Arc::new(NullArtifactStore::new())),
+    );
+    let reference = Ref::for_root(repository.path());
+    let revision = repository
+        .current(&reference)
+        .expect("test repository root ref should exist");
+
+    // publish the default compiler-test configuration
+    let revision = repository
+        .fork_with_edits(
+            revision,
+            [Edit::AddFile {
+                logical_path: "destack.json".to_string(),
+                content: Content::Text {
+                    content: DEFAULT_DESTACK_JSON.to_string(),
+                },
+            }],
+        )
+        .expect("test repository default config should publish");
+
+    (repository, revision)
+}
+
+/// Return the configured compiler-test session worker count.
+fn test_worker_count() -> usize {
+    env::var(WORKERS_ENV)
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(1)
 }
 
 /// Allocate one private compiler test ref.
@@ -1612,6 +1755,11 @@ fn sidecar_phase(row: &'static str) -> &'static str {
     row.split_once('.')
         .map(|(phase, _)| phase)
         .unwrap_or_else(|| panic!("sidecar row `{row}` must include a phase prefix"))
+}
+
+/// Return one rendered MIR type reference.
+fn mir_type_name(ty: destack_mir::LocalNodeId<destack_mir::Type>) -> String {
+    format!("type@{}", ty.id)
 }
 
 /// Return the blob store shared by every test session in this process.
