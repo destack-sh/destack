@@ -20,9 +20,9 @@ export struct SortedMapEntry<K, V> {
 }
 
 /// Mutating access to one sorted map entry.
-export struct SortedMapEntryHandle<K, V> {
+export struct SortedMapEntryHandle<'a, K, V> {
     /// The borrowed map.
-    private map: &exclusive SortedMap<K, V>;
+    private map: &'a exclusive SortedMap<K, V>;
 
     /// The queried key.
     private entryKey: K;
@@ -67,7 +67,7 @@ export class SortedMap<K, V> {
     count: usize = 0;
 }
 
-export extension<K: Compare<K>, V> of SortedMapEntryHandle<K, V> {
+export extension<'a, K: Compare<K>, V> of SortedMapEntryHandle<'a, K, V> {
     /// Borrow the queried key.
     get key(): &readonly K {
         todo("SortedMapEntryHandle.key")

@@ -25,7 +25,7 @@ export declare function offsetFrom<T>(pointer: *T, origin: *T): int;
 /// Borrow the pointed-to value.
 @unsafe
 @intrinsic("memory.ptr.asReference")
-export declare function asReference<T>(pointer: *T): Borrowed<T, "static">;
+export declare function asReference<T>(pointer: *T): Borrowed<T, 'static>;
 
 /// Borrow the pointed-to value with readonly access.
 @unsafe

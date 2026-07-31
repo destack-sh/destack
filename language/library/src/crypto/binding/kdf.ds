@@ -6,35 +6,35 @@ import { CryptoDigestAlgorithm } from "./algorithm.ds";
 import { CryptoDerivedKey } from "./key.ds";
 
 /// HKDF derivation.
-export struct CryptoHkdf {
+export struct CryptoHkdf<'a> {
     /// Digest algorithm.
     digest: CryptoDigestAlgorithm;
     /// Input keying material.
-    inputKeyMaterial: &readonly [uint8];
+    inputKeyMaterial: &'a readonly [uint8];
     /// Optional salt bytes.
-    salt: &readonly [uint8];
+    salt: &'a readonly [uint8];
     /// Context and application info bytes.
-    info: &readonly [uint8];
+    info: &'a readonly [uint8];
 }
 
 /// PBKDF2 derivation.
-export struct CryptoPbkdf2 {
+export struct CryptoPbkdf2<'a> {
     /// Digest algorithm.
     digest: CryptoDigestAlgorithm;
     /// Password bytes.
-    password: &readonly [uint8];
+    password: &'a readonly [uint8];
     /// Salt bytes.
-    salt: &readonly [uint8];
+    salt: &'a readonly [uint8];
     /// Iteration count.
     iterations: uint32;
 }
 
 /// scrypt derivation.
-export struct CryptoScrypt {
+export struct CryptoScrypt<'a> {
     /// Password bytes.
-    password: &readonly [uint8];
+    password: &'a readonly [uint8];
     /// Salt bytes.
-    salt: &readonly [uint8];
+    salt: &'a readonly [uint8];
     /// CPU and memory cost parameter.
     cost: uint32;
     /// Block size parameter.
@@ -46,15 +46,15 @@ export struct CryptoScrypt {
 }
 
 /// Argon2id derivation.
-export struct CryptoArgon2id {
+export struct CryptoArgon2id<'a> {
     /// Password bytes.
-    password: &readonly [uint8];
+    password: &'a readonly [uint8];
     /// Salt bytes.
-    salt: &readonly [uint8];
+    salt: &'a readonly [uint8];
     /// Optional associated data bytes.
-    associatedData: &readonly [uint8];
+    associatedData: &'a readonly [uint8];
     /// Optional secret bytes.
-    secret: &readonly [uint8];
+    secret: &'a readonly [uint8];
     /// Iteration count.
     iterations: uint32;
     /// Memory size in kibibytes.
@@ -64,91 +64,91 @@ export struct CryptoArgon2id {
 }
 
 /// SP 800-108 counter-mode derivation.
-export struct CryptoSp800108Counter {
+export struct CryptoSp800108Counter<'a> {
     /// Digest algorithm.
     digest: CryptoDigestAlgorithm;
     /// Secret key bytes.
-    key: &readonly [uint8];
+    key: &'a readonly [uint8];
     /// Label bytes.
-    label: &readonly [uint8];
+    label: &'a readonly [uint8];
     /// Context bytes.
-    context: &readonly [uint8];
+    context: &'a readonly [uint8];
 }
 
 /// SP 800-56A concat derivation.
-export struct CryptoSp80056aConcat {
+export struct CryptoSp80056aConcat<'a> {
     /// Digest algorithm.
     digest: CryptoDigestAlgorithm;
     /// Shared secret bytes.
-    secret: &readonly [uint8];
+    secret: &'a readonly [uint8];
     /// Algorithm identifier bytes.
-    algorithmId: &readonly [uint8];
+    algorithmId: &'a readonly [uint8];
     /// Party U info bytes.
-    partyUInfo: &readonly [uint8];
+    partyUInfo: &'a readonly [uint8];
     /// Party V info bytes.
-    partyVInfo: &readonly [uint8];
+    partyVInfo: &'a readonly [uint8];
     /// Public supplemental info bytes.
-    publicInfo: &readonly [uint8];
+    publicInfo: &'a readonly [uint8];
     /// Private supplemental info bytes.
-    privateInfo: &readonly [uint8];
+    privateInfo: &'a readonly [uint8];
 }
 
 /// X9.63 derivation.
-export struct CryptoX963 {
+export struct CryptoX963<'a> {
     /// Digest algorithm.
     digest: CryptoDigestAlgorithm;
     /// Shared secret bytes.
-    secret: &readonly [uint8];
+    secret: &'a readonly [uint8];
     /// Shared info bytes.
-    sharedInfo: &readonly [uint8];
+    sharedInfo: &'a readonly [uint8];
 }
 
 /// X9.42 concat derivation.
-export struct CryptoX942Concat {
+export struct CryptoX942Concat<'a> {
     /// Digest algorithm.
     digest: CryptoDigestAlgorithm;
     /// Shared secret bytes.
-    secret: &readonly [uint8];
+    secret: &'a readonly [uint8];
     /// Algorithm identifier bytes.
-    algorithmId: &readonly [uint8];
+    algorithmId: &'a readonly [uint8];
     /// Party U info bytes.
-    partyUInfo: &readonly [uint8];
+    partyUInfo: &'a readonly [uint8];
     /// Party V info bytes.
-    partyVInfo: &readonly [uint8];
+    partyVInfo: &'a readonly [uint8];
     /// Public supplemental info bytes.
-    publicInfo: &readonly [uint8];
+    publicInfo: &'a readonly [uint8];
     /// Private supplemental info bytes.
-    privateInfo: &readonly [uint8];
+    privateInfo: &'a readonly [uint8];
 }
 
 /// TLS 1.2 PRF derivation.
-export struct CryptoTls12Prf {
+export struct CryptoTls12Prf<'a> {
     /// Digest algorithm.
     digest: CryptoDigestAlgorithm;
     /// Secret bytes.
-    secret: &readonly [uint8];
+    secret: &'a readonly [uint8];
     /// Label bytes.
-    label: &readonly [uint8];
+    label: &'a readonly [uint8];
     /// Seed bytes.
-    seed: &readonly [uint8];
+    seed: &'a readonly [uint8];
 }
 
 /// Key derivation.
-export newtype CryptoKdf =
-    | CryptoHkdf
-    | CryptoPbkdf2
-    | CryptoScrypt
-    | CryptoArgon2id
-    | CryptoSp800108Counter
-    | CryptoSp80056aConcat
-    | CryptoX963
-    | CryptoX942Concat
-    | CryptoTls12Prf;
+export newtype CryptoKdf<'a> =
+    | CryptoHkdf<'a>
+    | CryptoPbkdf2<'a>
+    | CryptoScrypt<'a>
+    | CryptoArgon2id<'a>
+    | CryptoSp800108Counter<'a>
+    | CryptoSp80056aConcat<'a>
+    | CryptoX963<'a>
+    | CryptoX942Concat<'a>
+    | CryptoTls12Prf<'a>;
 
 /// Key derivation raw byte request.
-export struct CryptoKdfBits {
+export struct CryptoKdfBits<'a> {
     /// Key derivation.
-    kdf: CryptoKdf;
+    kdf: CryptoKdf<'a>;
     /// Output length in bytes.
     length: uint32;
 }

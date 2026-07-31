@@ -16,9 +16,9 @@ export struct MapEntry<K, V> {
 }
 
 /// Mutating access to one map entry.
-export struct MapEntryHandle<K, V> {
+export struct MapEntryHandle<'a, K, V> {
     /// The borrowed map.
-    private map: &exclusive Map<K, V>;
+    private map: &'a exclusive Map<K, V>;
 
     /// The queried key.
     private entryKey: K;
@@ -49,7 +49,7 @@ export class Map<K, V> {
     capacity: usize = 0;
 }
 
-export extension<K: Hash, V> of MapEntryHandle<K, V> where K: Equal<K> {
+export extension<'a, K: Hash, V> of MapEntryHandle<'a, K, V> where K: Equal<K> {
     /// Borrow the queried key.
     get key(): &readonly K {
         todo("MapEntryHandle.key")

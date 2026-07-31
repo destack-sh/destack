@@ -118,7 +118,7 @@ export struct CryptoDerivedKey {
 }
 
 /// Key import request.
-export struct CryptoKeyImport {
+export struct CryptoKeyImport<'a> {
     /// Imported key shape.
     shape: CryptoKeyShape;
     /// Imported key object kind.
@@ -128,7 +128,7 @@ export struct CryptoKeyImport {
     /// Import policy.
     policy: CryptoKeyPolicy;
     /// Passphrase for encrypted private-key formats.
-    passphrase?: &readonly [uint8];
+    passphrase?: &'a readonly [uint8];
 }
 
 /// Key descriptor.
@@ -162,31 +162,31 @@ export struct CryptoSignatureParameters {
 }
 
 /// Asymmetric encryption parameters.
-export struct CryptoAsymmetricEncryptionParameters {
+export struct CryptoAsymmetricEncryptionParameters<'a> {
     /// Asymmetric encryption algorithm.
     algorithm: CryptoAsymmetricEncryptionAlgorithm;
     /// Digest algorithm.
     digest?: CryptoDigestAlgorithm;
     /// OAEP label bytes.
-    label: &readonly [uint8];
+    label: &'a readonly [uint8];
 }
 
 /// Private-key export request.
-export struct CryptoPrivateKeyExport {
+export struct CryptoPrivateKeyExport<'a> {
     /// Requested output format.
     format: CryptoKeyFormat;
     /// Passphrase for encrypted private-key formats.
-    passphrase?: &readonly [uint8];
+    passphrase?: &'a readonly [uint8];
 }
 
 /// Key-wrap parameters.
-export struct CryptoKeyWrapParameters {
+export struct CryptoKeyWrapParameters<'a> {
     /// Key-wrap algorithm.
     algorithm: CryptoKeyWrapAlgorithm;
     /// Digest algorithm for RSA-OAEP wrapping.
     digest?: CryptoDigestAlgorithm;
     /// OAEP label for RSA-OAEP wrapping.
-    label: &readonly [uint8];
+    label: &'a readonly [uint8];
 }
 
 /// Key binding family.

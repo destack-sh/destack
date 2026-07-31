@@ -13,18 +13,18 @@ export enum InstrumentKind {
 }
 
 /// Metric entry.
-export struct MetricEntry {
+export struct MetricEntry<'a> {
     /// Instrument kind.
     kind: InstrumentKind;
 
     /// Instrument name.
-    name: &readonly string;
+    name: &'a readonly string;
 
     /// Recorded value.
     value: number;
 
     /// Unit name when available.
-    unit?: &readonly string | undefined;
+    unit?: &'a readonly string | undefined;
 
     /// Structured fields attached to this entry.
     fields?: Fields | undefined;
@@ -99,7 +99,7 @@ export enum TraceEventKind {
 }
 
 /// Trace event entry.
-export struct TraceEntry {
+export struct TraceEntry<'a> {
     /// Event kind.
     kind: TraceEventKind;
 
@@ -116,10 +116,10 @@ export struct TraceEntry {
     spanKind?: SpanKind | undefined;
 
     /// Span name.
-    name: &readonly string;
+    name: &'a readonly string;
 
     /// Event name when available.
-    event?: &readonly string | undefined;
+    event?: &'a readonly string | undefined;
 
     /// Span status when available.
     status?: SpanStatus | undefined;
@@ -148,18 +148,18 @@ export enum Level {
 }
 
 /// Structured log entry.
-export struct LogEntry {
+export struct LogEntry<'a> {
     /// Log severity.
     level: Level;
 
     /// Stable event name.
-    name: &readonly string;
+    name: &'a readonly string;
 
     /// Logger name when available.
-    logger?: &readonly string | undefined;
+    logger?: &'a readonly string | undefined;
 
     /// Human-readable event message.
-    message?: &readonly string | undefined;
+    message?: &'a readonly string | undefined;
 
     /// Structured fields attached to this event.
     fields?: Fields | undefined;

@@ -4,12 +4,12 @@ import { Fields } from "./field.ds";
 import { Level, LogEntry, SpanContext } from "./record.ds";
 
 /// Structured log options.
-export type LogOptions = {
+export type LogOptions<'a> = {
     /// Structured fields attached to this event.
     fields?: Fields | undefined;
 
     /// Human-readable event message.
-    message?: &readonly string | undefined;
+    message?: &'a readonly string | undefined;
 
     /// Error value when available.
     error?: unknown | undefined;

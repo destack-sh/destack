@@ -22,19 +22,19 @@ export struct CowOwned<T> {
 
 /// Copy-on-write value.
 @derive(Tagged)
-export newtype Cow<T> = CowBorrowed<&readonly T> | CowOwned<^T>;
+export newtype Cow<'a, T> = CowBorrowed<&'a readonly T> | CowOwned<^T>;
 
 /// Readonly borrowed or owned value.
-export type MaybeOwned<T> = Cow<T>;
+export type MaybeOwned<'a, T> = Cow<'a, T>;
 
-export extension<T> of Cow<T> {
+export extension<'a, T> of Cow<'a, T> {
     /// Create a borrowed copy-on-write value.
-    static borrowed(value: &readonly T): Cow<T> {
+    static borrowed(value: &'a readonly T): Cow<'a, T> {
         todo("Cow.borrowed")
     }
 
     /// Create an owned copy-on-write value.
-    static owned(value: ^T): Cow<T> {
+    static owned(value: ^T): Cow<'a, T> {
         todo("Cow.owned")
     }
 

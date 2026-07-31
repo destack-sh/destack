@@ -82,7 +82,7 @@ export class Registry {
 }
 
 /// Return the active module registry.
-export function currentRegistry(): Borrowed<Registry, "static", "exclusive"> {
+export function currentRegistry(): Borrowed<Registry, 'static, "exclusive"> {
     todo("test.currentRegistry")
 }
 

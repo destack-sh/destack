@@ -10,7 +10,7 @@ export newtype Unique<out T> = intrinsic;
 
 export extension<T> of Unique<Owned<T>> {
     /// Leak this allocation and borrow it for static lifetime.
-    leak(this): Borrowed<T, "static"> {
+    leak(this): Borrowed<T, 'static> {
         return leakUnique<T>(this);
     }
 }
@@ -24,7 +24,7 @@ export extension<T> of Unique<[T]> {
 
 /// Leak one allocation and borrow it for static lifetime.
 @intrinsic("memory.unique.leak")
-export declare function leakUnique<T>(unique: Unique<Owned<T>>): Borrowed<T, "static">;
+export declare function leakUnique<T>(unique: Unique<Owned<T>>): Borrowed<T, 'static>;
 
 /// Create one empty slice handle without allocating.
 @intrinsic("memory.unique.empty")

@@ -17,15 +17,15 @@ export enum CryptoCipherDirection {
 }
 
 /// Cipher parameters.
-export struct CryptoCipherParameters {
+export struct CryptoCipherParameters<'a> {
     /// Symmetric cipher algorithm.
     algorithm: CryptoCipherAlgorithm;
     /// Nonce or IV bytes.
-    nonce: &readonly [uint8];
+    nonce: &'a readonly [uint8];
     /// Additional authenticated data bytes.
-    additionalData?: &readonly [uint8];
+    additionalData?: &'a readonly [uint8];
     /// Authentication tag bytes for decryption.
-    tag?: &readonly [uint8];
+    tag?: &'a readonly [uint8];
     /// Authentication tag length in bytes for encryption.
     tagLength?: uint32;
 }
