@@ -1,123 +1,51 @@
-use destack_core::{FxIndexMap, FxIndexSet};
+use destack_core::FxIndexSet;
 use std::iter;
 use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, ArtifactSidecar,
-    DirChecked, DirCheckedComponent, DirDeclaredComponent, GlobalEnvironment,
 };
-use destack_repository::{ComponentGraphReader, ProfileId, ProviderContext, ProviderError};
-use destack_source::{ComponentId, Content, ModuleId};
+use destack_repository::{ProfileId, ProviderContext, ProviderError};
+use destack_source::{Content, ModuleId};
 
-use crate::check::{AnnotatedSource, CheckExternalComponent, CheckState};
+use crate::check::{AnnotatedSource, CheckState};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
-    /// Collect inputs for one declared DIR reference component.
-    pub(crate) fn collect_dir_declared_component(
+    /// Collect inputs for one declared DIR module.
+    pub(crate) fn collect_dir_declared(
         &self,
-        component: ComponentId,
+        module: ModuleId,
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
-        let graph_key = ArtifactKey::component_graph(profile);
-        dependencies.require_projection(
-            graph_key,
-            ArtifactProjectionKey::ReferenceMembers(component),
-        );
-        dependencies.require_projection(
-            graph_key,
-            ArtifactProjectionKey::ReferenceDependencies(component),
-        );
-
-        // resolve graph projections before declaring component inputs
-        let artifacts = self.artifact_reader(context);
-        let graph = match artifacts.component_graph_reader(profile) {
-            Ok(graph) => graph,
-            Err(ProviderError::Blocked { .. }) => {
-                dependencies.mark_partial();
-
-                return Ok(dependencies);
-            }
-            Err(error) => return Err(error.into()),
-        };
+        self.require_own_stages(module, profile, &mut dependencies);
+        dependencies.require(ArtifactKey::global_environment(profile));
 
         // observe package config for check options
-        let entry = reference_entry(&graph, component)?;
-        let entry_module = self.module(context.revision(), entry)?;
-        self.observe_package_config(context, entry_module.package_id, &mut dependencies)?;
-
-        // require DIR payloads and inference components of owned members
-        let mut own_inference = FxIndexSet::default();
-        for module in graph.reference_members(component)? {
-            dependencies.require(ArtifactKey::dir_parsed(*module));
-            dependencies.require(ArtifactKey::dir_bound(*module, profile));
-            dependencies.require(ArtifactKey::dir_resolved(*module, profile));
-            dependencies.require(ArtifactKey::dir_expanded(*module, profile));
-            dependencies.require_projection(
-                graph_key,
-                ArtifactProjectionKey::InferenceComponent(*module),
-            );
-            let inference =
-                graph
-                    .inference_component(*module)?
-                    .ok_or_else(|| CompilerError::Internal {
-                        message: format!("module {module:?} has no inference component"),
-                    })?;
-            own_inference.insert(inference);
-        }
-
-        // require checked tables for direct upstream inference components
-        for inference in &own_inference {
-            dependencies.require_projection(
-                graph_key,
-                ArtifactProjectionKey::InferenceDependencies(*inference),
-            );
-            for upstream in graph.inference_dependencies(*inference)? {
-                if own_inference.contains(upstream) {
-                    continue;
-                }
-                dependencies.require_projection(
-                    graph_key,
-                    ArtifactProjectionKey::InferenceMembers(*upstream),
-                );
-                dependencies.require(ArtifactKey::dir_checked_component(*upstream, profile));
-            }
-        }
-
-        // require the profile's global environment
-        dependencies.require(ArtifactKey::global_environment(profile));
+        let repository_module = self.module(context.revision(), module)?;
+        self.observe_package_config(context, repository_module.package_id, &mut dependencies)?;
 
         Ok(dependencies)
     }
 
-    /// Provide one declared DIR reference component.
-    pub(crate) fn provide_dir_declared_component(
+    /// Provide one declared DIR module.
+    pub(crate) fn provide_dir_declared(
         &self,
-        component: ComponentId,
+        module: ModuleId,
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
-        let graph = artifacts
-            .component_graph_reader(profile)
-            .map_err(CompilerError::from)?;
-
-        // require the requested reference component
-        let modules = graph.reference_members(component)?.to_vec();
-        let entry = reference_entry(&graph, component)?;
-
-        // load context shared across the declaration check
         let global = artifacts
             .global_environment(profile)
             .map_err(CompilerError::from)?;
-        let external_components = self.external_components(&graph, component, &global)?;
         let environment = self.environment(context.revision())?;
-        let entry_module = self.module(context.revision(), entry)?;
-        let options = self.workspace_compiler_options(context, entry_module.as_ref())?;
+        let repository_module = self.module(context.revision(), module)?;
+        let options = self.workspace_compiler_options(context, repository_module.as_ref())?;
 
-        // check declarations and module state without walking callable bodies
+        // declare the module without walking callable bodies
         let mut check = CheckState::new(
             self,
             context,
@@ -125,12 +53,11 @@ impl Compiler {
             profile,
             global,
             environment,
-            external_components.modules,
-            external_components.inherent,
-            FxIndexSet::default(),
+            module,
+            false,
             options.emit_events || context.emit_events(),
-        );
-        check.declare(modules.as_slice())?;
+        )?;
+        check.solve()?;
 
         // emit solver counters for the declaration pass
         let stats = check.stats();
@@ -138,36 +65,40 @@ impl Compiler {
         context.emit_counter("solve.constraints", stats.constraints as u64);
         context.emit_counter("solve.types", stats.types as u64);
 
-        // seal every member into the declared component
-        let modules = check.write_declared()?;
+        // write the module's declared artifact
+        let declared = check.write_declared(module)?;
 
-        Ok(ArtifactPayload::DirDeclaredComponent(Arc::new(
-            DirDeclaredComponent { component, modules },
-        )))
+        Ok(ArtifactPayload::DirDeclared(Arc::new(declared)))
     }
 
-    /// Collect inputs for checked DIR side tables of one inference component.
-    pub(crate) fn collect_dir_checked_component(
+    /// Collect inputs for one checked DIR module.
+    pub(crate) fn collect_dir_checked(
         &self,
-        component: ComponentId,
+        module: ModuleId,
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
-        let graph_key = ArtifactKey::component_graph(profile);
-        dependencies.require_projection(
-            graph_key,
-            ArtifactProjectionKey::InferenceMembers(component),
-        );
-        dependencies.require_projection(
-            graph_key,
-            ArtifactProjectionKey::InferenceDependencies(component),
-        );
+        self.require_own_stages(module, profile, &mut dependencies);
+        dependencies.require(ArtifactKey::global_environment(profile));
 
-        // resolve graph projections before collecting component inputs
+        // observe package config for check options
+        let repository_module = self.module(context.revision(), module)?;
+        self.observe_package_config(context, repository_module.package_id, &mut dependencies)?;
+
+        // read direct imports and implicit globals before naming their artifacts
         let artifacts = self.artifact_reader(context);
-        let graph = match artifacts.component_graph_reader(profile) {
-            Ok(graph) => graph,
+        let resolved = match artifacts.dir_resolved(module, profile) {
+            Ok(resolved) => resolved,
+            Err(ProviderError::Blocked { .. }) => {
+                dependencies.mark_partial();
+
+                return Ok(dependencies);
+            }
+            Err(error) => return Err(error.into()),
+        };
+        let global = match artifacts.global_environment(profile) {
+            Ok(global) => global,
             Err(ProviderError::Blocked { .. }) => {
                 dependencies.mark_partial();
 
@@ -176,135 +107,36 @@ impl Compiler {
             Err(error) => return Err(error.into()),
         };
 
-        // resolve the enclosing reference component and package
-        let entry = inference_entry(&graph, component)?;
-        dependencies
-            .require_projection(graph_key, ArtifactProjectionKey::ReferenceComponent(entry));
-        let reference =
-            graph
-                .reference_component(entry)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!(
-                        "inference component {component} entry {entry:?} has no reference component"
-                    ),
-                })?;
-        dependencies.require_projection(
-            graph_key,
-            ArtifactProjectionKey::ReferenceMembers(reference),
-        );
-        let entry_module = self.module(context.revision(), entry)?;
-        self.observe_package_config(context, entry_module.package_id, &mut dependencies)?;
-
-        // require own members' DIR payloads
-        for module in graph.inference_members(component)? {
-            dependencies.require(ArtifactKey::dir_parsed(*module));
-            dependencies.require(ArtifactKey::dir_bound(*module, profile));
-            dependencies.require(ArtifactKey::dir_resolved(*module, profile));
-            dependencies.require(ArtifactKey::dir_expanded(*module, profile));
-        }
-
-        // require a shared declaration prefix only when inference splits the reference component
-        let reference_members = graph.reference_members(reference)?;
-        let inference_members = graph.inference_members(component)?;
-        if inference_members.len() < reference_members.len() {
-            let declared_key = ArtifactKey::dir_declared_component(reference, profile);
-            let inference_members = inference_members.iter().copied().collect::<FxIndexSet<_>>();
-            for module in reference_members {
-                dependencies.require_projection(
-                    declared_key,
-                    ArtifactProjectionKey::DirDeclaredModule(*module),
-                );
-                if !inference_members.contains(module) {
-                    dependencies.require(ArtifactKey::dir_parsed(*module));
-                    dependencies.require(ArtifactKey::dir_bound(*module, profile));
-                    dependencies.require(ArtifactKey::dir_resolved(*module, profile));
-                    dependencies.require(ArtifactKey::dir_expanded(*module, profile));
-                }
-            }
-        }
-
-        // require checked tables for direct upstream inference components
-        for upstream in graph.inference_dependencies(component)? {
+        // require declared artifacts of direct imports and implicit globals
+        let mut surfaces = resolved.target_modules().collect::<FxIndexSet<_>>();
+        surfaces.extend(global.implicit_modules());
+        surfaces.shift_remove(&module);
+        for import in surfaces {
             dependencies.require_projection(
-                graph_key,
-                ArtifactProjectionKey::InferenceMembers(*upstream),
+                ArtifactKey::dir_declared(import, profile),
+                ArtifactProjectionKey::Declared,
             );
-            dependencies.require(ArtifactKey::dir_checked_component(*upstream, profile));
         }
-
-        // require the profile's global environment
-        dependencies.require(ArtifactKey::global_environment(profile));
 
         Ok(dependencies)
     }
 
-    /// Provide checked DIR side tables for one inference component.
-    pub(crate) fn provide_dir_checked_component(
+    /// Provide one checked DIR module.
+    pub(crate) fn provide_dir_checked(
         &self,
-        component: ComponentId,
+        module: ModuleId,
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
-        let graph = artifacts
-            .component_graph_reader(profile)
-            .map_err(CompilerError::from)?;
-
-        // require the requested inference component
-        let modules = graph.inference_members(component)?.to_vec();
-        let entry = inference_entry(&graph, component)?;
-        let reference =
-            graph
-                .reference_component(entry)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!(
-                        "inference component {component} entry {entry:?} has no reference component"
-                    ),
-                })?;
-        let inference_modules = modules.iter().copied().collect::<FxIndexSet<_>>();
-
-        // load the shared declaration prefix only when inference splits the reference component
-        let declared = if modules.len() < graph.reference_members(reference)?.len() {
-            Some(
-                artifacts
-                    .dir_declared_component(reference, profile)
-                    .map_err(CompilerError::from)?,
-            )
-        } else {
-            None
-        };
-
-        // map sibling members to their sealed artifacts
         let global = artifacts
             .global_environment(profile)
             .map_err(CompilerError::from)?;
-        let external_components = self.external_components(&graph, reference, &global)?;
-        let mut externals = external_components.modules;
-        if declared.is_some() {
-            let mut upstream_members = FxIndexMap::default();
-            for upstream in graph.inference_dependencies(component)? {
-                for module in graph.inference_members(*upstream)? {
-                    upstream_members.insert(*module, *upstream);
-                }
-            }
-            for module in graph.reference_members(reference)? {
-                if inference_modules.contains(module) {
-                    continue;
-                }
-                let artifact = match upstream_members.get(module) {
-                    Some(key) => CheckExternalComponent::Checked(*key),
-                    None => CheckExternalComponent::Declared(reference),
-                };
-                externals.insert(*module, artifact);
-            }
-        }
-
-        // load context shared across the component check
         let environment = self.environment(context.revision())?;
-        let entry_module = self.module(context.revision(), entry)?;
-        let options = self.workspace_compiler_options(context, entry_module.as_ref())?;
+        let repository_module = self.module(context.revision(), module)?;
+        let options = self.workspace_compiler_options(context, repository_module.as_ref())?;
 
-        // check the inference component over declared component state
+        // check the module's declarations and bodies
         let emit_events = options.emit_events || context.emit_events();
         let mut check = CheckState::new(
             self,
@@ -313,12 +145,11 @@ impl Compiler {
             profile,
             global,
             environment,
-            externals,
-            external_components.inherent,
-            inference_modules,
+            module,
+            true,
             emit_events,
-        );
-        check.check(modules.as_slice(), declared.as_deref())?;
+        )?;
+        check.solve()?;
         check.report_constant_conditions()?;
 
         // emit solver counters and optional trace sidecars
@@ -345,148 +176,24 @@ impl Compiler {
         }
 
         // write checked DIR tables and diagnostics
-        let (modules, diagnostics) = check.write_checked()?;
+        let (checked, diagnostics) = check.write_checked(module)?;
         context.emit_diagnostics(diagnostics);
 
-        Ok(ArtifactPayload::DirCheckedComponent(Arc::new(
-            DirCheckedComponent { component, modules },
-        )))
+        Ok(ArtifactPayload::DirChecked(Arc::new(checked)))
     }
 
-    /// Collect inputs for the checked DIR facade of one module.
-    pub(crate) fn collect_dir_checked(
+    /// Require one module's own DIR stage payloads.
+    fn require_own_stages(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<ArtifactDependencySet> {
-        let mut dependencies = ArtifactDependencySet::default();
-        let graph_key = ArtifactKey::component_graph(profile);
-        dependencies
-            .require_projection(graph_key, ArtifactProjectionKey::InferenceComponent(module));
-
-        // resolve the graph projection before collecting the component input
-        let artifacts = self.artifact_reader(context);
-        let graph = match artifacts.component_graph_reader(profile) {
-            Ok(graph) => graph,
-            Err(ProviderError::Blocked { .. }) => {
-                dependencies.mark_partial();
-
-                return Ok(dependencies);
-            }
-            Err(error) => return Err(error.into()),
-        };
-
-        // resolve the owning inference component behind the checked facade
-        let component =
-            graph
-                .inference_component(module)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("module {module:?} is absent from the component graph"),
-                })?;
-
-        dependencies.require_projection(
-            ArtifactKey::dir_checked_component(component, profile),
-            ArtifactProjectionKey::DirCheckedModule(module),
-        );
-
-        Ok(dependencies)
+        dependencies: &mut ArtifactDependencySet,
+    ) {
+        dependencies.require(ArtifactKey::dir_parsed(module));
+        dependencies.require(ArtifactKey::dir_bound(module, profile));
+        dependencies.require(ArtifactKey::dir_resolved(module, profile));
+        dependencies.require(ArtifactKey::dir_expanded(module, profile));
     }
-
-    /// Provide the checked DIR facade for one module.
-    pub(crate) fn provide_dir_checked(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<ArtifactPayload> {
-        let artifacts = self.artifact_reader(context);
-        let graph = artifacts
-            .component_graph_reader(profile)
-            .map_err(CompilerError::from)?;
-
-        // resolve the owning inference component behind the checked facade
-        let component =
-            graph
-                .inference_component(module)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("module {module:?} is absent from the component graph"),
-                })?;
-        let checked = artifacts
-            .dir_checked_module(component, module, profile)
-            .map_err(CompilerError::from)?;
-
-        Ok(ArtifactPayload::DirChecked(Arc::new(DirChecked {
-            component,
-            fingerprint: checked.fingerprint,
-        })))
-    }
-}
-
-/// Return one reference component's entry module.
-fn reference_entry(
-    graph: &ComponentGraphReader<'_>,
-    component: ComponentId,
-) -> CompilerResult<ModuleId> {
-    graph
-        .reference_entry(component)?
-        .ok_or_else(|| CompilerError::Internal {
-            message: format!("reference component {component} has no entry module"),
-        })
-}
-
-/// Return one inference component's entry module.
-fn inference_entry(
-    graph: &ComponentGraphReader<'_>,
-    component: ComponentId,
-) -> CompilerResult<ModuleId> {
-    graph
-        .inference_entry(component)?
-        .ok_or_else(|| CompilerError::Internal {
-            message: format!("inference component {component} has no entry module"),
-        })
-}
-
-impl Compiler {
-    /// Map every transitive external module to its checked component.
-    fn external_components(
-        &self,
-        graph: &ComponentGraphReader<'_>,
-        component: ComponentId,
-        global: &GlobalEnvironment,
-    ) -> CompilerResult<ExternalComponents> {
-        let mut modules = FxIndexMap::default();
-
-        // resolve reference and Inherent Extension components
-        let external = graph.external_reference_components(component, global.implicit_modules())?;
-        let mut inherent = FxIndexSet::default();
-        for component in &external.extensions {
-            inherent.extend(graph.reference_members(*component)?.iter().copied());
-        }
-
-        // bind each reachable member to its checked component
-        for reference in external.components() {
-            for module in graph.reference_members(reference)? {
-                let component =
-                    graph
-                        .inference_component(*module)?
-                        .ok_or_else(|| CompilerError::Internal {
-                            message: format!("module {module:?} has no inference component"),
-                        })?;
-                modules.insert(*module, CheckExternalComponent::Checked(component));
-            }
-        }
-
-        Ok(ExternalComponents { modules, inherent })
-    }
-}
-
-/// External checked component inputs reached from one component.
-struct ExternalComponents {
-    /// The external modules keyed to their checked component.
-    modules: FxIndexMap<ModuleId, CheckExternalComponent>,
-    /// The inherent extension modules imported lazily on first extension lookup.
-    inherent: FxIndexSet<ModuleId>,
 }
 
 /// Return one check-phase sidecar.

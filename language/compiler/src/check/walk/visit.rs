@@ -60,7 +60,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         // demand needs every template walked; unloaded modules are sealed;
         //  declaration-level cycles resolve inside the demanded frame
-        if !self.templates_ready || !self.modules.contains_key(&symbol.module_id) {
+        if !self.templates_ready || !self.is_own_module(symbol.module_id) {
             return Ok(());
         }
 
@@ -96,7 +96,7 @@ impl CheckState<'_> {
         for root in &expanded.roots {
             walk.walk_expression(*root, tree.get(*root))?;
             walk.queue_module_expression(*root)?;
-            walk.check.propagate_induced_parameters()?;
+            walk.check.induce_signature_lifetimes()?;
         }
         walk.commit()?;
 

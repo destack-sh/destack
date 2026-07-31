@@ -121,7 +121,11 @@ impl BodyState<'_, '_> {
         let Some(symbol) = self.reference_symbol(site.node) else {
             return Ok(Answer::Ready(None));
         };
-        if self.symbol_kind(symbol) != dir::SymbolKind::Variable {
+        // foreign symbols never denote body places
+        if self
+            .symbol_kind_maybe(symbol)?
+            .is_none_or(|kind| kind != dir::SymbolKind::Variable)
+        {
             return Ok(Answer::Ready(None));
         }
 
@@ -143,19 +147,16 @@ impl BodyState<'_, '_> {
     pub(in crate::check) fn root_place(
         &mut self,
         origin: Origin,
-        module: ModuleId,
+        _module: ModuleId,
         ty: dir::GlobalTypeId,
         space: dir::Space,
         lifetime: dir::Lifetime,
     ) -> CompilerResult<Answer<dir::PlaceResolution>> {
-        let placement = self.intern_type(
-            module,
-            dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))),
-        )?;
-        let lifetime = self.intern_type(
-            module,
-            dir::Type::Memory(dir::MemoryLiteral::Lifetime(lifetime)),
-        )?;
+        let placement = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
+            dir::Place::Space(space),
+        )))?;
+        let lifetime =
+            self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(lifetime)))?;
         // owned storage stays unique even in shared space
         let exclusive = match space {
             dir::Space::Local => true,
@@ -165,13 +166,12 @@ impl BodyState<'_, '_> {
                 answer!(self.form_ownership(origin, &chain)?) == Some(dir::Ownership::Owned)
             }
         };
-        let access = self.intern_type(
-            module,
-            dir::Type::Memory(dir::MemoryLiteral::Access(match exclusive {
+        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
+            match exclusive {
                 true => dir::Access::Exclusive,
                 false => dir::Access::Mutable,
-            })),
-        )?;
+            },
+        )))?;
         let place = dir::PlaceResolution {
             placement,
             lifetime,
@@ -255,10 +255,9 @@ impl BodyState<'_, '_> {
                     Some(dir::Form::Owned)
                 );
                 if self.place_space(root)? == Some(dir::Space::Shared) && !is_owned {
-                    place.access = self.intern_type(
-                        origin.module(),
-                        dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Mutable)),
-                    )?;
+                    place.access = self.intern_type(dir::Type::Memory(
+                        dir::MemoryLiteral::Access(dir::Access::Mutable),
+                    ))?;
                 }
             }
         }
@@ -271,10 +270,9 @@ impl BodyState<'_, '_> {
             place.lifetime = borrow.lifetime;
             place.access = borrow.access;
         } else if chain.is_readonly() {
-            place.access = self.intern_type(
-                origin.module(),
-                dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
-            )?;
+            place.access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
+                dir::Access::Readonly,
+            )))?;
         }
         // the projected value can further qualify its storage view
         if qualifier != ty {
@@ -616,14 +614,14 @@ impl BodyState<'_, '_> {
                     writes.push(write);
                 }
                 let write_types = writes.iter().map(|write| write.ty).collect::<Vec<_>>();
-                let write_type = self.normalized_intersection_type(origin.module(), write_types)?;
+                let write_type = self.normalized_intersection_type(write_types)?;
                 let write = dir::OperationResolution::Union {
                     arms: writes,
                     ty: write_type,
                 };
                 let read = if use_ != PlaceUse::Write {
                     let types = reads.iter().map(|read| read.ty).collect::<Vec<_>>();
-                    let ty = self.normalized_union_type(origin.module(), types)?;
+                    let ty = self.normalized_union_type(types)?;
                     Some(dir::OperationResolution::Union { arms: reads, ty })
                 } else {
                     None
@@ -814,13 +812,10 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(receiver));
         }
 
-        let readonly = self.intern_type(
-            origin.module(),
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Readonly,
-                value: receiver,
-            }),
-        )?;
+        let readonly = self.intern_type(dir::Type::Form(dir::FormType {
+            form: dir::Form::Readonly,
+            value: receiver,
+        }))?;
 
         Ok(Answer::Ready(readonly))
     }

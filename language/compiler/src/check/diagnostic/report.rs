@@ -58,6 +58,30 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report an export whose type needs another module.
+    pub(in crate::check) fn report_export_type_not_derivable(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::ExportTypeNotDerivable { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report an exported function without a result type.
+    pub(in crate::check) fn report_missing_export_result_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::MissingExportResultType { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
     /// Report a break with no target.
     pub(in crate::check) fn report_break_outside_control_target(
         &mut self,
@@ -277,8 +301,7 @@ impl CheckState<'_> {
         // point at each conflicting candidate declaration
         let mut diagnostic = DiagnosticBuilder::new(error);
         if let Some(dir::Reference::Ambiguous(candidates)) = self
-            .modules
-            .get(&module)
+            .module_maybe(module)
             .and_then(|state| state.resolved.references.get(source.into_global(module)))
         {
             for target in candidates.clone().iter().take(4) {
@@ -618,7 +641,7 @@ impl CheckState<'_> {
         reported: &mut FxIndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        if !self.modules.contains_key(&module) || !reported.insert((module, anchor.clone())) {
+        if !self.is_own_module(module) || !reported.insert((module, anchor.clone())) {
             return Ok(());
         }
         let error = CheckError::CannotInferType {
@@ -1901,6 +1924,16 @@ impl CheckState<'_> {
                 };
                 self.report(module, error);
             }
+            ObligationFailure::CannotAssignStructuralIndex { source, receiver } => {
+                let (module, anchor) = self.source_anchor(source);
+                let receiver = self.format_type(receiver);
+                let error = CheckError::CannotAssignStructuralIndex {
+                    anchor,
+                    module,
+                    receiver,
+                };
+                self.report(module, error);
+            }
             ObligationFailure::OverwriteStabilityNotSatisfied { source, ty } => {
                 let (module, anchor) = self.source_anchor(source);
                 let ty = self.format_type(ty);
@@ -2385,39 +2418,6 @@ impl CheckState<'_> {
         let error = self.circular_type_error(origin)?;
         let module = origin.module();
 
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report one cyclic borrowed induction.
-    pub(in crate::check) fn report_circular_lifetime_induction(
-        &mut self,
-        declaration: dir::GlobalNodeIdAny,
-        reference: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.source_anchor(declaration);
-        let symbol = self
-            .module(declaration.module_id)
-            .declaration_symbol(declaration.local_id);
-        let source = match symbol {
-            Some(symbol) => self.format_symbol(symbol),
-            None => "this declaration".to_string(),
-        };
-        let through = match self
-            .module(reference.module_id)
-            .declaration_symbol(reference.local_id)
-        {
-            Some(symbol) => self.format_symbol(symbol),
-            None => source.clone(),
-        };
-
-        let error = CheckError::CircularLifetimeInduction {
-            anchor,
-            module,
-            source,
-            through,
-        };
         self.report(module, error);
 
         Ok(())

@@ -43,7 +43,7 @@ impl BodyState<'_, '_> {
         // produce the tag's return value
         let result = match return_type {
             Some(return_type) => return_type,
-            None => self.intern_type(module, dir::Type::Void)?,
+            None => self.intern_type(dir::Type::Void)?,
         };
         let call = dir::Call {
             target: dir::CallTarget::Expression {

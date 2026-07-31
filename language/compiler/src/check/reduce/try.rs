@@ -41,7 +41,7 @@ impl CheckState<'_> {
         let carrier = match carriers.as_slice() {
             [] => None,
             [single] => Some(*single),
-            _ => Some(self.normalized_union_type(module, carriers)?),
+            _ => Some(self.normalized_union_type(carriers)?),
         };
 
         // project the requested carrier type
@@ -90,9 +90,9 @@ impl CheckState<'_> {
         }
         elements.extend(projected);
         let joined = match elements.as_slice() {
-            [] => self.intern_type(module, dir::Type::Never)?,
+            [] => self.intern_type(dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(module, elements)?,
+            _ => self.normalized_union_type(elements)?,
         };
 
         Ok(Answer::Ready(Some(joined)))

@@ -20,7 +20,7 @@ impl BodyState<'_, '_> {
         match statement {
             // debugger
             dir::Expression::Debugger => {
-                let void = self.check.intern_type(module, dir::Type::Void)?;
+                let void = self.check.intern_type(dir::Type::Void)?;
                 self.check.commit_node_type(node, void)?;
 
                 Ok(Answer::Ready(()))
@@ -32,31 +32,35 @@ impl BodyState<'_, '_> {
                 else_branch,
                 ..
             } => {
-                answer!(self.check_declarator(module, *declarator, Some(*kind))?);
+                answer!(self.check_declarator(module, *declarator, Some(*kind), false)?);
                 let else_site = self.check.node_site(else_branch.into_global_any(module))?;
                 answer!(self.attempt_node(else_site, PlaceUse::Read, None)?);
-                let void = self.check.intern_type(module, dir::Type::Void)?;
+                let void = self.check.intern_type(dir::Type::Void)?;
                 self.check.commit_node_type(node, void)?;
 
                 Ok(Answer::Ready(()))
             }
             // let x = value
             dir::Expression::Let {
-                kind, declarators, ..
+                kind,
+                declarators,
+                export,
+                ..
             } => {
+                let exported = export.is_some();
                 for declarator in declarators {
-                    answer!(self.check_declarator(module, *declarator, Some(*kind))?);
+                    answer!(self.check_declarator(module, *declarator, Some(*kind), exported)?);
                 }
-                let void = self.check.intern_type(module, dir::Type::Void)?;
+                let void = self.check.intern_type(dir::Type::Void)?;
                 self.check.commit_node_type(node, void)?;
 
                 Ok(Answer::Ready(()))
             }
             dir::Expression::Using { declarators, .. } => {
                 for declarator in declarators {
-                    answer!(self.check_declarator(module, *declarator, None)?);
+                    answer!(self.check_declarator(module, *declarator, None, false)?);
                 }
-                let void = self.check.intern_type(module, dir::Type::Void)?;
+                let void = self.check.intern_type(dir::Type::Void)?;
                 self.check.commit_node_type(node, void)?;
 
                 Ok(Answer::Ready(()))
@@ -80,7 +84,7 @@ impl BodyState<'_, '_> {
                 }
                 // complete a bare return with void
                 else if let Some(return_type) = self.return_type {
-                    let void = self.check.intern_type(module, dir::Type::Void)?;
+                    let void = self.check.intern_type(dir::Type::Void)?;
                     let cause = self.check.intern_cause(Cause::root(
                         site.origin(),
                         CauseKind::Return { annotation: None },
@@ -93,7 +97,7 @@ impl BodyState<'_, '_> {
                         cause,
                     ));
                 }
-                let never = self.check.intern_type(module, dir::Type::Never)?;
+                let never = self.check.intern_type(dir::Type::Never)?;
                 self.check.commit_node_type(node, never)?;
 
                 Ok(Answer::Ready(()))
@@ -126,7 +130,7 @@ impl BodyState<'_, '_> {
                 }
                 // produce void for a bare yield
                 else if let Some(targets) = generator {
-                    let void = self.check.intern_type(module, dir::Type::Void)?;
+                    let void = self.check.intern_type(dir::Type::Void)?;
                     let cause = self
                         .check
                         .intern_cause(Cause::root(site.origin(), CauseKind::Expression));
@@ -145,7 +149,7 @@ impl BodyState<'_, '_> {
                     (Some(output), _) => output,
                     (None, Some(targets)) => targets.resumed,
                     // fall back to error outside a generator
-                    (None, None) => self.check.intern_type(module, dir::Type::Error)?,
+                    (None, None) => self.check.intern_type(dir::Type::Error)?,
                 };
                 self.check.commit_node_type(node, ty)?;
 
@@ -160,7 +164,7 @@ impl BodyState<'_, '_> {
                 answer!(self.attempt_node(body_site, PlaceUse::Read, None)?);
 
                 // complete the loop with void when the condition fails
-                let void = self.check.intern_type(module, dir::Type::Void)?;
+                let void = self.check.intern_type(dir::Type::Void)?;
                 self.check.commit_node_type(node, void)?;
 
                 Ok(Answer::Ready(()))
@@ -202,7 +206,7 @@ impl BodyState<'_, '_> {
                 }
                 let body_site = self.check.node_site(body.into_global_any(module))?;
                 answer!(self.attempt_node(body_site, PlaceUse::Read, None)?);
-                let void = self.check.intern_type(module, dir::Type::Void)?;
+                let void = self.check.intern_type(dir::Type::Void)?;
                 self.check.commit_node_type(node, void)?;
 
                 Ok(Answer::Ready(()))
@@ -211,7 +215,7 @@ impl BodyState<'_, '_> {
             dir::Expression::Throw { value } => {
                 let value_site = self.check.node_site(value.into_global_any(module))?;
                 answer!(self.attempt_node(value_site, PlaceUse::Read, None)?);
-                let never = self.check.intern_type(module, dir::Type::Never)?;
+                let never = self.check.intern_type(dir::Type::Never)?;
                 self.check.commit_node_type(node, never)?;
 
                 Ok(Answer::Ready(()))
@@ -239,13 +243,13 @@ impl BodyState<'_, '_> {
                         });
                     answer!(self.attempt_node(value_site, PlaceUse::Read, expectation)?);
                 }
-                let never = self.check.intern_type(module, dir::Type::Never)?;
+                let never = self.check.intern_type(dir::Type::Never)?;
                 self.check.commit_node_type(node, never)?;
 
                 Ok(Answer::Ready(()))
             }
             dir::Expression::Continue { .. } => {
-                let never = self.check.intern_type(module, dir::Type::Never)?;
+                let never = self.check.intern_type(dir::Type::Never)?;
                 self.check.commit_node_type(node, never)?;
 
                 Ok(Answer::Ready(()))
@@ -262,6 +266,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         id: dir::LocalNodeId<dir::Declarator>,
         binding_kind: Option<dir::LetKind>,
+        exported: bool,
     ) -> CompilerResult<Answer<()>> {
         let declarator = self.module(module).view().get(id).clone();
         let pattern = declarator.pattern;
@@ -278,6 +283,9 @@ impl BodyState<'_, '_> {
             None => None,
         };
         let target = match (declarator.value, written) {
+            // transcribe the written type while declaring, checking
+            //  validates the initializer against it
+            (Some(_), Some(written)) if self.is_declaration() => Some(written),
             (Some(value), Some(written)) => {
                 let site = self.node_site(value.into_global_any(module))?;
                 let cause = self.intern_cause(Cause::root(
@@ -303,7 +311,12 @@ impl BodyState<'_, '_> {
                     Widening::Never | Widening::Aggregate | Widening::Multiple => InferMode::Exact,
                     Widening::Always => InferMode::Widen,
                 };
-                let ty = answer!(self.infer_node(site, PlaceUse::Read, mode)?);
+                // infer exported initializers under export derivation
+                let deriving = self.check.deriving_export;
+                self.check.deriving_export |= exported;
+                let ty = self.infer_node(site, PlaceUse::Read, mode)?;
+                self.check.deriving_export = deriving;
+                let ty = answer!(ty);
 
                 Some(answer!(self.flow_type_at(site, ty)?))
             }
@@ -339,7 +352,7 @@ impl BodyState<'_, '_> {
                 dir::ConditionOperand::Binding {
                     kind, declarator, ..
                 } => {
-                    answer!(self.check_declarator(module, *declarator, Some(*kind))?);
+                    answer!(self.check_declarator(module, *declarator, Some(*kind), false)?);
                 }
             }
         }
@@ -356,7 +369,7 @@ impl BodyState<'_, '_> {
         let site = self.check.node_site(condition.into_global_any(module))?;
         let boolean = self
             .check
-            .intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+            .intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
         let expectation = Expectation {
             target: boolean,
             relation: Relation::Assignable,

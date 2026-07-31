@@ -119,7 +119,7 @@ const value = { a: 1, b: 2 } satisfies Shape;
 === annotated ===
 type Shape = { a: number };
 
-const value: { a: float64; b: float64 } = { a: 1, b: 2 } satisfies Shape;
+const value: { a: 1; b: float64 } = { a: 1, b: 2 } satisfies Shape;
 
 === checked ===
 type Shape = { a: number };
@@ -127,7 +127,7 @@ type Shape = { a: number };
 /// @definition.type symbol=Shape source="type Shape = { a: number }" value={ a: float64 }
 
 const value = { a: 1, b: 2 } satisfies Shape;
-/// @type.symbol symbol=value source=value type={ a: float64; b: float64 }
+/// @type.symbol symbol=value source=value type={ a: 1; b: float64 }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Shape target=Shape
 "#,

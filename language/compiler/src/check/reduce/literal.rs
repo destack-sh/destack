@@ -68,7 +68,6 @@ impl CheckState<'_> {
             .template_strings(id.module_id, template.strings)?
             .to_vec();
         let spans = self.type_ids(id.module_id, template.spans)?.to_vec();
-        let module = origin.module();
 
         // close every interpolated span to its printable choices
         let mut printed: Vec<Vec<String>> = Vec::with_capacity(spans.len());
@@ -80,9 +79,7 @@ impl CheckState<'_> {
 
             // a never span empties the whole template
             if matches!(self.ty(span)?, dir::Type::Never) {
-                return Ok(Answer::Ready(Some(
-                    self.intern_type(module, dir::Type::Never)?,
-                )));
+                return Ok(Answer::Ready(Some(self.intern_type(dir::Type::Never)?)));
             }
 
             // union spans distribute their printable alternatives
@@ -138,11 +135,11 @@ impl CheckState<'_> {
         for text in joined {
             let text = self.strings().intern(&text);
             let literal = dir::Type::Literal(dir::ScalarLiteral::String(text));
-            literals.push(self.intern_type(module, literal)?);
+            literals.push(self.intern_type(literal)?);
         }
         let reduced = match literals.as_slice() {
             [single] => *single,
-            _ => self.normalized_union_type(module, literals)?,
+            _ => self.normalized_union_type(literals)?,
         };
 
         Ok(Answer::Ready(Some(reduced)))
@@ -197,7 +194,7 @@ impl CheckState<'_> {
             dir::ScalarLiteral::String(right_value),
         ) = (binary.operator, left_literal, right_literal)
         {
-            let module = origin.module();
+            let _module = origin.module();
             let joined = {
                 let strings = self.strings();
 
@@ -206,13 +203,13 @@ impl CheckState<'_> {
             let joined = self.strings().intern(&joined);
             let literal = dir::Type::Literal(dir::ScalarLiteral::String(joined));
 
-            return Ok(Answer::Ready(Some(self.intern_type(module, literal)?)));
+            return Ok(Answer::Ready(Some(self.intern_type(literal)?)));
         }
 
         // evaluate scalar operators directly
         match binary.operator.apply(left_literal, right_literal) {
             Ok(literal) => {
-                let id = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
+                let id = self.intern_type(dir::Type::Literal(literal))?;
 
                 Ok(Answer::Ready(Some(id)))
             }
@@ -262,7 +259,7 @@ impl CheckState<'_> {
 
         match evaluated {
             Some(literal) => {
-                let id = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
+                let id = self.intern_type(dir::Type::Literal(literal))?;
 
                 Ok(Answer::Ready(Some(id)))
             }
@@ -273,7 +270,7 @@ impl CheckState<'_> {
     /// Apply one compiler string mapping to a string literal.
     fn reduce_string_mapping(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         mapping: dir::StringMapping,
         value: dir::StringId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -282,7 +279,7 @@ impl CheckState<'_> {
         let mapped = self.strings().intern(&mapped);
         let literal = dir::Type::Literal(dir::ScalarLiteral::String(mapped));
 
-        self.intern_type(module, literal)
+        self.intern_type(literal)
     }
 
     /// Reduce one compiler string mapping arm.
@@ -301,10 +298,7 @@ impl CheckState<'_> {
             dir::Type::Key(dir::StaticKey::Name(value)) => {
                 self.reduce_string_mapping(module, mapping, value)?
             }
-            _ => self.intern_operation(
-                module,
-                dir::TypeOperation::StringMapping { mapping, target },
-            )?,
+            _ => self.intern_operation(dir::TypeOperation::StringMapping { mapping, target })?,
         };
 
         Ok(Answer::Ready(Some(reduced)))

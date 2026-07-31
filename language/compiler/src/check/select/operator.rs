@@ -57,7 +57,6 @@ impl BodyState<'_, '_> {
         writeback: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<()>> {
         let node = site.node;
-        let module = node.module_id;
         let origin = site.origin();
 
         // equality and logic produce builtin results directly
@@ -111,8 +110,7 @@ impl BodyState<'_, '_> {
                     operands.try_into().map_err(|_| CompilerError::Internal {
                         message: "binary strict equality did not select two operands".to_string(),
                     })?;
-                let result =
-                    self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+                let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
                 return self.commit_builtin_binary_operator(
                     origin,
@@ -128,17 +126,14 @@ impl BodyState<'_, '_> {
             dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
                 if nullish_or_never || (comparable && !numeric) =>
             {
-                let result =
-                    self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+                let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
                 Some((result, left_value, right_value))
             }
             // logical joins produce the union of their operands
-            dir::BinaryOperator::And | dir::BinaryOperator::Or => Some((
-                self.normalized_union_type(module, [left, right])?,
-                left,
-                right,
-            )),
+            dir::BinaryOperator::And | dir::BinaryOperator::Or => {
+                Some((self.normalized_union_type([left, right])?, left, right))
+            }
             // try-coalesce opens the carrier and joins the alternate
             dir::BinaryOperator::Coalesce => {
                 let output = answer!(self.reduce_operation_type(
@@ -146,11 +141,7 @@ impl BodyState<'_, '_> {
                     dir::TypeOperation::TryOutput { value: left },
                 )?);
 
-                Some((
-                    self.normalized_union_type(module, [output, right])?,
-                    left,
-                    right,
-                ))
+                Some((self.normalized_union_type([output, right])?, left, right))
             }
             _ => None,
         };
@@ -302,10 +293,7 @@ impl BodyState<'_, '_> {
         };
 
         // diagnose pairwise disjoint cases and record their builtin operation
-        let boolean = self.intern_type(
-            value_source.module_id,
-            dir::Type::Primitive(dir::PrimitiveType::Boolean),
-        )?;
+        let boolean = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
         for ((case, _, ty, selector_value), selector_operand) in
             selected.into_iter().zip(selector_operands)
         {
@@ -406,8 +394,7 @@ impl BodyState<'_, '_> {
 
         // builtin logical not produces a boolean
         if matches!(operator, dir::UnaryOperator::Not) {
-            let result =
-                self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+            let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
             let operand = answer!(self.builtin_operand(origin, operand_site.node, operand)?);
 
             return self.commit_builtin_unary_operator(node, operator, operand, result);
@@ -583,7 +570,7 @@ impl BodyState<'_, '_> {
 
             Some(carrier)
         } else if has_union {
-            Some(self.normalized_union_type(origin.module(), operands.iter().copied())?)
+            Some(self.normalized_union_type(operands.iter().copied())?)
         } else {
             let mut is_equal = true;
             for operand in rest {
@@ -619,7 +606,6 @@ impl BodyState<'_, '_> {
         let integral = numeric
             && answer!(self.operand_is_integral(origin, left)?)
             && answer!(self.operand_is_integral(origin, right)?);
-        let module = origin.module();
 
         // literal operands are static operations: the comptime
         //  reduction folds them exactly and reports overflow, so the
@@ -632,14 +618,12 @@ impl BodyState<'_, '_> {
             && let Ok(static_operator) = dir::StaticBinaryOperator::try_from(operator)
             && !static_operator.yields_boolean()
         {
-            let operation = self.intern_operation(
-                module,
-                dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
+            let operation =
+                self.intern_operation(dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
                     operator: static_operator,
                     left,
                     right,
-                }),
-            )?;
+                }))?;
             let folded = answer!(self.reduce_type_head(origin, operation)?);
             if matches!(self.ty(folded)?, dir::Type::Literal(_)) {
                 return Ok(Answer::Ready(Some((folded, [left, right]))));
@@ -656,17 +640,14 @@ impl BodyState<'_, '_> {
                 let result = match self.ty(left)? {
                     // typed shifts keep the left operand's integer type
                     dir::Type::Literal(dir::ScalarLiteral::Bigint(_)) => {
-                        self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Bigint))?
+                        self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Bigint))?
                     }
-                    dir::Type::Literal(_) => self.intern_type(
-                        module,
-                        dir::Type::Primitive(dir::PrimitiveType::Integer(
-                            dir::IntegerType::Fixed {
-                                width: 64,
-                                is_signed: true,
-                            },
-                        )),
-                    )?,
+                    dir::Type::Literal(_) => self.intern_type(dir::Type::Primitive(
+                        dir::PrimitiveType::Integer(dir::IntegerType::Fixed {
+                            width: 64,
+                            is_signed: true,
+                        }),
+                    ))?,
                     _ => left,
                 };
 
@@ -712,7 +693,7 @@ impl BodyState<'_, '_> {
                     return Ok(Answer::Ready(None));
                 };
                 let boolean =
-                    self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+                    self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
                 Ok(Answer::Ready(Some((boolean, [joined, joined]))))
             }
@@ -812,7 +793,7 @@ impl BodyState<'_, '_> {
     /// Return one interval operand widened to its base scalar.
     fn interval_operand_base(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         operand: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let dir::Type::Range(range) = self.ty(operand)? else {
@@ -835,7 +816,7 @@ impl BodyState<'_, '_> {
             _ => return Ok(operand),
         };
 
-        self.intern_type(origin.module(), base)
+        self.intern_type(base)
     }
 
     /// Join two builtin numeric operands into one common operand type.
@@ -862,7 +843,7 @@ impl BodyState<'_, '_> {
         match (left_literal, right_literal) {
             // literal pairs widen to their base numeric type
             (Some(left), Some(_)) => {
-                let widened = self.intern_type(origin.module(), left.widen())?;
+                let widened = self.intern_type(left.widen())?;
 
                 Ok(Answer::Ready(Some(widened)))
             }
@@ -926,9 +907,9 @@ impl BodyState<'_, '_> {
                 }
             }
             OperatorExpressionResult::Boolean => {
-                let module = origin.module();
+                let _module = origin.module();
 
-                self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?
+                self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?
             }
         };
 

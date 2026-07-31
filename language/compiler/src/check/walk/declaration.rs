@@ -38,15 +38,17 @@ impl CheckState<'_> {
         module: ModuleId,
     ) -> CompilerResult<()> {
         let binding_table = self.module(module).binding_table();
-        let symbols = binding_table
+        let candidates = binding_table
             .symbol_ids()
             .map(|symbol: dir::LocalSymbolId| symbol.into_global(module))
-            .filter(|symbol| {
-                let kind = self.symbol_kind(*symbol);
-
-                kind.is_type_definition() && !kind.is_type_alias()
-            })
             .collect::<Vec<_>>();
+        let mut symbols = Vec::with_capacity(candidates.len());
+        for symbol in candidates {
+            let kind = self.symbol_kind(symbol)?;
+            if kind.is_type_definition() && !kind.is_type_alias() {
+                symbols.push(symbol);
+            }
+        }
 
         for symbol in symbols {
             self.bind_nominal_reference_type(symbol)?;
@@ -61,10 +63,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let ty = self.intern_type(
-            symbol.module_id,
-            dir::Type::Reference(dir::TypeReference { symbol }),
-        )?;
+        let ty = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
         self.commit_declaration_type(symbol, ty)?;
 
         Ok(())
@@ -210,7 +209,7 @@ impl WalkState<'_, '_> {
             // hypotheses need a template: where clauses, heritage
             //  assumptions, and interfaces assuming their own application
             let assumes = !where_clauses.is_empty()
-                || self.check.symbol_kind(symbol).is_interface()
+                || self.check.symbol_kind(symbol)?.is_interface()
                 || self
                     .tree
                     .get(id)
@@ -225,7 +224,7 @@ impl WalkState<'_, '_> {
         let template = self.walk_generic_template(source, parameters)?;
 
         // interfaces assume this satisfies their own application
-        if self.check.symbol_kind(symbol).is_interface()
+        if self.check.symbol_kind(symbol)?.is_interface()
             && let Some(template) = template
         {
             self.push_this_predicate(source, symbol, template)?;
@@ -265,7 +264,7 @@ impl WalkState<'_, '_> {
         interface: dir::GlobalSymbolId,
         template: GenericTemplateId,
     ) -> CompilerResult<()> {
-        let instance = self.check.declaration_instance(self.module, interface)?;
+        let instance = self.check.declaration_instance(interface)?;
         let left = self.intern_type(dir::Type::This)?;
         let right = self.intern_type(dir::Type::Application(instance))?;
         let predicate = dir::WherePredicate {
@@ -335,8 +334,18 @@ impl WalkState<'_, '_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
+        // skip foreign declarations while declaring
+        if self.check.is_declaration() && !self.check.is_own_module(symbol.module_id) {
+            return Ok(());
+        }
+
+        // load the foreign module the demand classifies against
+        if !self.check.is_own_module(symbol.module_id) {
+            self.check.import_external_module(symbol.module_id)?;
+        }
+
         // demand only type declarations, entering foreign member frames
-        if !self.check.symbol_kind(symbol).is_type_definition() {
+        if !self.check.symbol_kind(symbol)?.is_type_definition() {
             return Ok(());
         }
         if symbol.module_id != self.module {
@@ -351,16 +360,8 @@ impl WalkState<'_, '_> {
         };
         let node = declaration.into_global(self.module);
 
-        // record applications of declarations still walking their structure
+        // wait for declarations still walking their structure
         if self.check.walking_declarations.contains(&node) {
-            let through = self
-                .check
-                .walking_declarations
-                .last()
-                .copied()
-                .unwrap_or(node);
-            self.check.cyclic_inductions.entry(node).or_insert(through);
-
             return Ok(());
         }
         if self.check.walked_declarations.contains(&node) {
@@ -372,7 +373,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
         self.walk_declaration(id, self.tree.get(id))?;
-        self.check.propagate_induced_parameters()?;
+        self.check.induce_signature_lifetimes()?;
 
         Ok(())
     }
@@ -679,7 +680,11 @@ impl WalkState<'_, '_> {
             let ty = self.walk_type_expression(extends_type)?;
             self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(extends_type, ty)? {
-                if self.check.symbol_kind(instance.symbol) == dir::SymbolKind::Class {
+                if self
+                    .check
+                    .symbol_kind_maybe(instance.symbol)?
+                    .is_none_or(|kind| kind == dir::SymbolKind::Class)
+                {
                     self.relate_heritage_clause(extends_type, Relation::Extends, receiver.ty, ty);
                     extends = Some(dir::NominalHeritage { source, ty });
                     super_ty = Some(ty);
@@ -813,7 +818,11 @@ impl WalkState<'_, '_> {
 
                 continue;
             };
-            if !self.check.symbol_kind(instance.symbol).is_interface() {
+            if self
+                .check
+                .symbol_kind_maybe(instance.symbol)?
+                .is_some_and(|kind| !kind.is_interface())
+            {
                 self.check
                     .report_implementation_target_not_interface_symbol(
                         self.check.format_symbol(symbol),
@@ -1081,7 +1090,11 @@ impl WalkState<'_, '_> {
             let ty = self.walk_type_expression(*extends_type)?;
             self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*extends_type, ty)? {
-                if self.check.symbol_kind(instance.symbol).is_interface() {
+                if self
+                    .check
+                    .symbol_kind_maybe(instance.symbol)?
+                    .is_none_or(|kind| kind.is_interface())
+                {
                     extends.push(dir::NominalHeritage { source, ty });
                 } else {
                     self.check.report_interface_base_not_interface_symbol(
@@ -1186,7 +1199,12 @@ impl WalkState<'_, '_> {
             let ty = self.walk_type_expression(*implemented_type)?;
             self.push_induced_parameter_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
-                if self.check.symbol_kind(instance.symbol).is_interface() {
+                // skip kind validation on foreign symbols while declaring, checking reads their kind
+                if self
+                    .check
+                    .symbol_kind_maybe(instance.symbol)?
+                    .is_none_or(|kind| kind.is_interface())
+                {
                     implements.push(dir::InterfaceImplementation {
                         interface: dir::NominalHeritage { source, ty },
                         members: Vec::new(),
@@ -1395,6 +1413,15 @@ impl WalkState<'_, '_> {
             let source = id.into_global_any(self.module);
             self.check
                 .report_missing_declaration_body(source, self.check.format_symbol(symbol));
+        }
+
+        // require a written result type on exported functions
+        if declaration.export.is_some()
+            && declaration.signature.return_type.is_none()
+            && !declaration.signature.is_generator
+        {
+            self.check
+                .report_missing_export_result_type(self.module, id.into_any());
         }
 
         // write the function symbol type
@@ -1754,7 +1781,7 @@ impl WalkState<'_, '_> {
 
         let substitution = TypeSubstitution::default().with_receiver(scope.ty);
 
-        self.check.substitute_type(self.module, ty, &substitution)
+        self.check.substitute_type(ty, &substitution)
     }
 
     /// Walk one callable header under the template it declares.

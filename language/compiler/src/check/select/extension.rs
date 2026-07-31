@@ -112,7 +112,7 @@ impl BodyState<'_, '_> {
         let mut symbols = SmallVec::new();
 
         // collect extensions declared beside the looking module
-        if let Some(state) = self.modules.get(&module) {
+        if let Some(state) = self.module_maybe(module) {
             let definitions = &state.definitions;
             symbols.extend(definitions.target_extensions(target).iter().copied());
             symbols.extend(definitions.blanket_extensions().iter().copied());
@@ -120,7 +120,7 @@ impl BodyState<'_, '_> {
 
         // collect inherent extensions beside the target declaration
         if target.module_id != module {
-            if let Some(state) = self.modules.get(&target.module_id) {
+            if let Some(state) = self.module_maybe(target.module_id) {
                 let definitions = &state.definitions;
                 symbols.extend(definitions.target_extensions(target).iter().copied());
                 symbols.extend(definitions.blanket_extensions().iter().copied());
@@ -157,7 +157,7 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         relation: Relation,
-        module: ModuleId,
+        _module: ModuleId,
         interface_module: ModuleId,
         receiver: dir::GlobalTypeId,
         interface: &dir::GenericApplication,
@@ -167,14 +167,12 @@ impl BodyState<'_, '_> {
         let arguments = self
             .type_ids(interface_module, interface.arguments)?
             .to_vec();
-        let arguments = self.intern_type_ids(origin.module(), &arguments)?;
-        let interface_type = self.intern_type(
-            origin.module(),
-            dir::Type::Application(dir::GenericApplication {
-                symbol: interface.symbol,
-                arguments,
-            }),
-        )?;
+        let arguments = self.intern_type_ids(&arguments)?;
+        let module = self.module_id;
+        let interface_type = self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol: interface.symbol,
+            arguments,
+        }))?;
         let goal = (relation, receiver, interface_type);
         if !self.check.deciding_extensions.insert(goal) {
             return Ok(Answer::Ready(false));
@@ -270,7 +268,7 @@ impl BodyState<'_, '_> {
         &mut self,
         origin: Origin,
         relation: Relation,
-        module: ModuleId,
+        _module: ModuleId,
         interface_module: ModuleId,
         receiver: dir::GlobalTypeId,
         interface: &dir::GenericApplication,
@@ -296,7 +294,8 @@ impl BodyState<'_, '_> {
 
         // require the receiver to satisfy the bound target
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        let target = self.substitute_type(origin.module(), target_type, &substitution)?;
+        let module = self.module_id;
+        let target = self.substitute_type(target_type, &substitution)?;
         if !answer!(self.constrain_type(origin, cause, Relation::Assignable, receiver, target)?) {
             return Ok(Answer::Ready(false));
         }
@@ -401,7 +400,7 @@ impl BodyState<'_, '_> {
             None => TypeSubstitution::default().with_receiver(receiver),
         };
         // constrain the receiver against the applied extension target
-        let target_type = self.substitute_type(origin.module(), target_type, &substitution)?;
+        let target_type = self.substitute_type(target_type, &substitution)?;
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         if !answer!(self.constrain_type(
             origin,
@@ -447,7 +446,7 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(extensions));
         };
 
-        if !self.is_component_module(scope.module_id) {
+        if !self.is_own_module(scope.module_id) {
             self.import_external_module(scope.module_id)?;
         }
 
@@ -464,7 +463,7 @@ impl BodyState<'_, '_> {
         let mut symbols = SmallVec::new();
 
         // collect local blanket extensions
-        if let Some(state) = self.modules.get(&module) {
+        if let Some(state) = self.module_maybe(module) {
             symbols.extend(state.definitions.blanket_extensions().iter().copied());
         }
 
@@ -658,7 +657,7 @@ impl BodyState<'_, '_> {
                 continue;
             };
 
-            let ty = self.substitute_type(origin.module(), ty, substitution)?;
+            let ty = self.substitute_type(ty, substitution)?;
             let callable = member.callable_type(origin.module(), extension_symbol, ty, self)?;
             let access_type = member.access_type(self, ty)?;
             let access_type = match self.projected_member_type(
@@ -674,7 +673,7 @@ impl BodyState<'_, '_> {
             // substitute static projections through the same extension instance
             let written = match self.static_value(member.symbol) {
                 Some(written) => {
-                    let written = self.substitute_type(origin.module(), written, substitution)?;
+                    let written = self.substitute_type(written, substitution)?;
 
                     Some(written)
                 }

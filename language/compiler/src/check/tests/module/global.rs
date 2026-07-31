@@ -109,14 +109,9 @@ export const first = second;
 /// @resolution.access source=second root=second.second
 "#,
         r#"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=4 column=14 span="first" line_source="export const first = second;"
-/// @diagnostic.related file="second.ds" line=4 column=14 span="second" line_source="export const second = first;" message="it must equal '_' here"
-/// @diagnostic.help message="annotate the type explicitly"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=4 column=14 span="second" line_source="export const second = first;"
-/// @diagnostic.related file="first.ds" line=4 column=14 span="first" line_source="export const first = second;" message="it must equal '_' here"
-/// @diagnostic.help message="annotate the type explicitly"
+/// @diagnostic.error id=export-type-not-module-derivable message="export's type is not derivable within its module"
+/// @diagnostic.label line=4 column=22 span="second" line_source="export const first = second;"
+/// @diagnostic.help message="annotate the exported declaration"
 "#,
     );
 }

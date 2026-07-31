@@ -92,7 +92,7 @@ impl BodyState<'_, '_> {
 
     /// Return the static key and diagnostic source of one pattern field.
     fn pattern_field_key(
-        &self,
+        &mut self,
         module: ModuleId,
         field: dir::LocalNodeId<dir::PatternField>,
     ) -> CompilerResult<Option<(dir::LocalNodeIdAny, dir::StaticKey)>> {
@@ -111,7 +111,7 @@ impl BodyState<'_, '_> {
 
     /// Return the static key and diagnostic source of one assignment pattern field.
     fn assign_pattern_field_key(
-        &self,
+        &mut self,
         module: ModuleId,
         field: dir::LocalNodeId<dir::AssignPatternField>,
     ) -> CompilerResult<Option<(dir::LocalNodeIdAny, dir::StaticKey)>> {

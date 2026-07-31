@@ -25,9 +25,7 @@ impl CheckState<'_> {
                 }
             }
 
-            return Ok(Answer::Ready(
-                self.normalized_union_type(origin.module(), narrowed)?,
-            ));
+            return Ok(Answer::Ready(self.normalized_union_type(narrowed)?));
         }
 
         // declared members preserve the receiver exactly
@@ -44,20 +42,20 @@ impl CheckState<'_> {
 
         // closed member sets prove that the successful branch is unreachable
         if !answer!(self.may_have_additional_member(origin, receiver, key)?) {
-            let never = self.intern_type(origin.module(), dir::Type::Never)?;
+            let never = self.intern_type(dir::Type::Never)?;
 
             return Ok(Answer::Ready(never));
         }
 
         // open member sets retain the receiver and the property established at runtime
-        let unknown = self.intern_type(origin.module(), dir::Type::Unknown)?;
+        let unknown = self.intern_type(dir::Type::Unknown)?;
         let member = self.field_shape_type(origin.module(), key, unknown)?;
         let member_is_narrower =
             answer!(self.decide_relation(origin, Relation::Satisfies, member, receiver)?);
         let narrowed = if member_is_narrower {
             member
         } else {
-            self.normalized_intersection_type(origin.module(), [receiver, member])?
+            self.normalized_intersection_type([receiver, member])?
         };
 
         Ok(Answer::Ready(narrowed))
@@ -94,9 +92,9 @@ impl CheckState<'_> {
         }
 
         let narrowed = match kept.as_slice() {
-            [] => self.intern_type(origin.module(), dir::Type::Never)?,
+            [] => self.intern_type(dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(origin.module(), kept)?,
+            _ => self.normalized_union_type(kept)?,
         };
 
         Ok(Answer::Ready(Some(narrowed)))
@@ -134,14 +132,11 @@ impl CheckState<'_> {
         if matches!(self.ty(source)?, dir::Type::Form(_)) {
             let value = answer!(self.strip_form(origin, source)?);
             let target_value = answer!(self.strip_form(origin, target)?);
-            let operation = self.intern_operation(
-                origin.module(),
-                dir::TypeOperation::Narrow(dir::NarrowType {
-                    source: value,
-                    target: target_value,
-                    is_positive: narrow.is_positive,
-                }),
-            )?;
+            let operation = self.intern_operation(dir::TypeOperation::Narrow(dir::NarrowType {
+                source: value,
+                target: target_value,
+                is_positive: narrow.is_positive,
+            }))?;
             let narrowed = answer!(self.reduce_type_head(origin, operation)?);
             if matches!(self.ty(narrowed)?, dir::Type::Operation(_)) {
                 return Ok(Answer::Ready(None));
@@ -197,7 +192,6 @@ impl CheckState<'_> {
             },
         };
 
-        let module = origin.module();
         let mut kept = Vec::with_capacity(elements.len());
 
         // filter each arm through the guard relation
@@ -215,9 +209,9 @@ impl CheckState<'_> {
 
         // rebuild the filtered result
         let joined = match kept.as_slice() {
-            [] => self.intern_type(module, dir::Type::Never)?,
+            [] => self.intern_type(dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(module, kept)?,
+            _ => self.normalized_union_type(kept)?,
         };
 
         Ok(Answer::Ready(Some(joined)))
@@ -252,7 +246,7 @@ impl CheckState<'_> {
         // disjoint arms can be decided without assignability
         if !answer!(self.types_may_overlap(origin, source, target)?) {
             let narrowed = if is_positive {
-                self.intern_type(module, dir::Type::Never)?
+                self.intern_type(dir::Type::Never)?
             } else {
                 source
             };
@@ -266,7 +260,7 @@ impl CheckState<'_> {
             let narrowed = if is_positive {
                 source
             } else {
-                self.intern_type(module, dir::Type::Never)?
+                self.intern_type(dir::Type::Never)?
             };
 
             return Ok(Answer::Ready(narrowed));
@@ -282,7 +276,7 @@ impl CheckState<'_> {
             } else if narrowed == backing {
                 source
             } else {
-                self.normalized_intersection_type(module, [source, narrowed])?
+                self.normalized_intersection_type([source, narrowed])?
             };
 
             return Ok(Answer::Ready(narrowed));
@@ -294,7 +288,7 @@ impl CheckState<'_> {
         let narrowed = if is_positive && is_top_like {
             target
         } else if is_positive {
-            self.normalized_intersection_type(module, [source, target])?
+            self.normalized_intersection_type([source, target])?
         } else {
             source
         };

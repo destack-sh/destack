@@ -173,8 +173,7 @@ function pending<T>(): State<T> {
 /// @resolution.name source=T target=pending.T
 
     return { kind: "pending", reactions: [] };
-    /// @type.node source={ kind: "pending", reactions: [] } type=Pending<T#4>
-    /// @generic.instance source={ kind: "pending", reactions: [] } id=Pending<T#4>
+    /// @type.node source={ kind: "pending", reactions: [] } type={ kind: "pending"; reactions: Array<T#4> }
     /// @type.node source="\"pending\"" type="pending"
     /// @type.node source=[] type=Array<T#4>
 
@@ -182,10 +181,9 @@ function pending<T>(): State<T> {
 
 /// @generic.instance id=Done<T#3> template=Done arguments=(T#3)
 /// @generic.instance id=Pending<T#3> template=Pending arguments=(T#3)
-/// @generic.instance id=Pending<T#4> template=Pending arguments=(T#4)
 /// @generic.instance id=State<T#4> template=State arguments=(T#4)
 
-/// @check.stats.solve variables=0 types=26 constraints=0 obligations=4 solutions=0 bounds=0 decisions=8
+/// @check.stats.solve variables=0 types=27 constraints=0 obligations=4 solutions=0 bounds=0 decisions=8
 "#,
     );
 }

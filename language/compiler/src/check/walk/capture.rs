@@ -68,7 +68,10 @@ impl WalkState<'_, '_> {
         function: dir::GlobalSymbolId,
     ) -> bool {
         symbol.module_id == self.module
-            && self.check.symbol_kind(symbol) == dir::SymbolKind::Variable
+            && self
+                .check
+                .own_symbol_kind(symbol)
+                .is_some_and(|kind| kind == dir::SymbolKind::Variable)
             && !self.is_lexical_receiver_symbol(symbol)
             && !self
                 .check

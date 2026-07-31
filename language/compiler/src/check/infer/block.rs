@@ -65,7 +65,7 @@ impl BodyState<'_, '_> {
             false => dir::Type::Void,
         };
 
-        self.intern_type(module, ty)
+        self.intern_type(ty)
     }
 
     /// Check one block under an expected result type.

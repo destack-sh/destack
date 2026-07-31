@@ -809,7 +809,7 @@ impl WalkState<'_, '_> {
 
         // extensions have no application, so they project by reference
         if matches!(
-            self.check.symbol_kind(declaration),
+            self.check.symbol_kind(declaration)?,
             dir::SymbolKind::Extension
         ) {
             let reference = dir::Type::Reference(dir::TypeReference {
@@ -840,6 +840,22 @@ impl WalkState<'_, '_> {
             }
 
             return self.intern_type(dir::Type::Parameter(parameter));
+        }
+
+        // keep foreign references symbolic while declaring
+        if self.check.is_declaration() && !self.check.is_own_module(symbol.module_id) {
+            let positional = applied
+                .iter()
+                .filter(|argument| argument.name.is_none())
+                .map(|argument| argument.ty)
+                .collect::<Vec<_>>();
+            let arguments = self.intern_type_ids(&positional)?;
+            let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
+                symbol,
+                arguments,
+            }))?;
+
+            return self.apply_named_refinements(ty, applied);
         }
 
         // walk the referenced declaration first, so induced parameters exist
@@ -907,8 +923,19 @@ impl WalkState<'_, '_> {
                 });
             };
 
+            // slot only written lifetimes into lifetime parameters,
+            //  other arguments skip the whole lifetime group
+            let wants_lifetime = binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
+            let next_is_lifetime = cursor < written.len()
+                && self
+                    .check
+                    .written_argument_is_lifetime(written[cursor].ty)?;
+
             // bind the next written argument to the next writable slot
-            let argument = if binding.is_writable() && cursor < written.len() {
+            let argument = if binding.is_writable()
+                && cursor < written.len()
+                && (!wants_lifetime || next_is_lifetime)
+            {
                 let argument = written[cursor].ty;
                 cursor += 1;
 
@@ -916,8 +943,7 @@ impl WalkState<'_, '_> {
             }
             // evaluate defaults against the application built so far
             else if let Some(default) = binding.default {
-                self.check
-                    .substitute_type(self.module, default, &substitution)?
+                self.check.substitute_type(default, &substitution)?
             }
             // elide omitted memory parameters like unwritten borrow lifetimes
             else if let Some(kind) = binding.memory_parameter() {
@@ -1035,9 +1061,7 @@ impl WalkState<'_, '_> {
             else {
                 continue;
             };
-            let constraint = self
-                .check
-                .substitute_type(self.module, constraint, &substitution)?;
+            let constraint = self.check.substitute_type(constraint, &substitution)?;
             if self.check.type_flags(argument)?.has_infer() {
                 continue;
             }
@@ -1062,12 +1086,8 @@ impl WalkState<'_, '_> {
             if self.check.type_flags(predicate.left)?.has_this() {
                 continue;
             }
-            let left = self
-                .check
-                .substitute_type(self.module, predicate.left, &substitution)?;
-            let right = self
-                .check
-                .substitute_type(self.module, predicate.right, &substitution)?;
+            let left = self.check.substitute_type(predicate.left, &substitution)?;
+            let right = self.check.substitute_type(predicate.right, &substitution)?;
 
             self.relate_type(
                 origin,
@@ -1251,7 +1271,7 @@ impl WalkState<'_, '_> {
         let construct_signatures = self.intern_type_ids(&construct_signatures)?;
         let index_signatures = self.intern_index_signatures(&index_signatures)?;
 
-        self.intern_type(dir::Type::Shape(dir::ShapeType {
+        self.intern_type(dir::Type::from(dir::ShapeType {
             properties,
             call_signatures,
             construct_signatures,

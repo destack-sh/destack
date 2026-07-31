@@ -393,10 +393,8 @@ impl CheckState<'_> {
                     self.type_operation(root.module_id, operation)? =>
             {
                 if binary.operator.yields_boolean() {
-                    let boolean = self.intern_type(
-                        origin.module(),
-                        dir::Type::Primitive(dir::PrimitiveType::Boolean),
-                    )?;
+                    let boolean =
+                        self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
                     return Ok(Answer::Ready(Some(boolean)));
                 }
@@ -422,10 +420,8 @@ impl CheckState<'_> {
                     self.type_operation(root.module_id, operation)? =>
             {
                 if unary.operator.yields_boolean() {
-                    let boolean = self.intern_type(
-                        origin.module(),
-                        dir::Type::Primitive(dir::PrimitiveType::Boolean),
-                    )?;
+                    let boolean =
+                        self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
                     return Ok(Answer::Ready(Some(boolean)));
                 }

@@ -111,31 +111,23 @@ impl CheckState<'_> {
         // keep open domains conservative
         let source_is_open = matches!(
             source_type,
-            dir::Type::Any
-                | dir::Type::Unknown
-                | dir::Type::Object
-                | dir::Type::Variable(_)
-                | dir::Type::Error
+            dir::Type::Any | dir::Type::Unknown | dir::Type::Variable(_) | dir::Type::Error
         );
         let target_is_open = matches!(
             target_type,
-            dir::Type::Any
-                | dir::Type::Unknown
-                | dir::Type::Object
-                | dir::Type::Variable(_)
-                | dir::Type::Error
+            dir::Type::Any | dir::Type::Unknown | dir::Type::Variable(_) | dir::Type::Error
         );
         if source_is_open || target_is_open {
             return Ok(Answer::Ready(true));
         }
 
         // reject incompatible properties required by structural types
-        if let dir::Type::Shape(shape) = source_type
+        if let dir::Type::Shape(shape) | dir::Type::Object(shape) = source_type
             && !answer!(self.shape_may_overlap(origin, source, shape, target, active)?)
         {
             return Ok(Answer::Ready(false));
         }
-        if let dir::Type::Shape(shape) = target_type
+        if let dir::Type::Shape(shape) | dir::Type::Object(shape) = target_type
             && !answer!(self.shape_may_overlap(origin, target, shape, source, active)?)
         {
             return Ok(Answer::Ready(false));
@@ -308,7 +300,7 @@ impl CheckState<'_> {
                     continue;
                 }
 
-                let form = self.default_variance_form(source_instance.symbol);
+                let form = self.default_variance_form(source_instance.symbol)?;
                 match self.argument_variance(source_instance.symbol, index, form)? {
                     Variance::Bivariant | Variance::Contravariant => {}
                     Variance::Covariant => {
@@ -342,8 +334,8 @@ impl CheckState<'_> {
         }
 
         // distinct nominal declarations are disjoint, structural interfaces remain open
-        let source_is_nominal = self.symbol_kind(source_instance.symbol).is_nominal();
-        let target_is_nominal = self.symbol_kind(target_instance.symbol).is_nominal();
+        let source_is_nominal = self.symbol_kind(source_instance.symbol)?.is_nominal();
+        let target_is_nominal = self.symbol_kind(target_instance.symbol)?.is_nominal();
 
         Ok(Answer::Ready(!(source_is_nominal && target_is_nominal)))
     }

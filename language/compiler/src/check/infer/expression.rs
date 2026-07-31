@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::check::{
-    Answer, BodyState, Cause, CauseKind, CheckOutcome, ConstructResult, Expectation,
-    FlowSite, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, Cause, CauseKind, CheckOutcome, ConstructResult, Expectation, FlowSite,
+    PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -336,10 +336,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        let ty = self.intern_type(
-            site.node.module_id,
-            dir::Type::Primitive(dir::PrimitiveType::String),
-        )?;
+        let ty = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::String))?;
 
         Ok(Answer::Ready(ty))
     }
@@ -371,22 +368,34 @@ impl BodyState<'_, '_> {
             });
         };
 
+        // report foreign value reads while deriving exported types
+        if (self.is_declaration() || self.check.deriving_export)
+            && !self.is_own_module(symbol.module_id)
+        {
+            self.report_export_type_not_derivable(site.node.module_id, site.node.local_id);
+            // checking still records the runtime access path
+            if self.symbol_kind_maybe(*symbol)? == Some(dir::SymbolKind::Variable) {
+                self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
+            }
+            let ty = self.intern_type(dir::Type::Error)?;
+            self.commit_node_type(site.node, ty)?;
+
+            return Ok(Answer::Ready(()));
+        }
+
         let ty = match self.static_value(*symbol) {
             Some(value) => value,
             // type alias and class names as their written declaration reference
             None if matches!(
-                self.symbol_kind(*symbol),
-                dir::SymbolKind::TypeAlias | dir::SymbolKind::Class
+                self.symbol_kind_maybe(*symbol)?,
+                Some(dir::SymbolKind::TypeAlias | dir::SymbolKind::Class)
             ) =>
             {
-                self.intern_type(
-                    site.node.module_id,
-                    dir::Type::Reference(dir::TypeReference { symbol: *symbol }),
-                )?
+                self.intern_type(dir::Type::Reference(dir::TypeReference { symbol: *symbol }))?
             }
             None => answer!(self.symbol_type(*symbol)?),
         };
-        if self.symbol_kind(*symbol) == dir::SymbolKind::Variable {
+        if self.symbol_kind_maybe(*symbol)? == Some(dir::SymbolKind::Variable) {
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
         }
         let ty = answer!(self.flow_type_at(site, ty)?);

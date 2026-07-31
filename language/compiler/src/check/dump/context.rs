@@ -198,7 +198,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return a compact module label.
     fn module_label(&self, module: ModuleId) -> String {
-        if let Some(module) = self.check.modules.get(&module) {
+        if let Some(module) = self.check.module_maybe(module) {
             return trim_builtin_uri(module.module.uri.as_ref());
         }
 
@@ -216,7 +216,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return the visible span for one node.
     fn node_span(&self, node: dir::GlobalNodeIdAny) -> Option<Span> {
-        if let Some(module) = self.check.modules.get(&node.module_id) {
+        if let Some(module) = self.check.module_maybe(node.module_id) {
             return module.view().get_span_by_id(node.local_id.id);
         }
 
@@ -227,7 +227,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return the declaration node for one symbol.
     fn symbol_source(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalNodeIdAny> {
-        if let Some(module) = self.check.modules.get(&symbol.module_id) {
+        if let Some(module) = self.check.module_maybe(symbol.module_id) {
             return module
                 .binding_table()
                 .get_symbol_maybe(symbol.local_id)

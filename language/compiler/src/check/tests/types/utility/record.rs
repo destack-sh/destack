@@ -327,7 +327,7 @@ flags[key] satisfies boolean;
 }
 
 #[test]
-fn test_record_string_key_constraint_rejects_finite_object() {
+fn test_record_string_key_constraint_accepts_finite_object() {
     let session = TestSession::single(
         r#"
 type Bag = Record<string, int32>;
@@ -378,9 +378,7 @@ const value = read(point);
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
-/// @diagnostic.label line=7 column=20 span="point" line_source="const value = read(point);"
-/// @diagnostic.related line=7 column=15 span="read(point)" line_source="const value = read(point);" message="in this call"
+
 "#,
     );
 }

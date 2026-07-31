@@ -343,8 +343,7 @@ impl CheckState<'_> {
                     .generic_parameter(parameter)
                     .and_then(|binding| binding.constraint)
             {
-                let declared =
-                    self.substitute_type(constraint.origin.module(), declared, substitution)?;
+                let declared = self.substitute_type(declared, substitution)?;
                 satisfied = self.decide_relation(
                     constraint.origin,
                     constraint.relation,
@@ -417,7 +416,7 @@ impl CheckState<'_> {
             else {
                 continue;
             };
-            let bound = self.substitute_type(origin.module(), bound, substitution)?;
+            let bound = self.substitute_type(bound, substitution)?;
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
             constraints.push(Constraint {
                 origin,
@@ -447,8 +446,8 @@ impl CheckState<'_> {
             if requires_receiver {
                 continue;
             }
-            let source = self.substitute_type(origin.module(), predicate.left, substitution)?;
-            let target = self.substitute_type(origin.module(), predicate.right, substitution)?;
+            let source = self.substitute_type(predicate.left, substitution)?;
+            let target = self.substitute_type(predicate.right, substitution)?;
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
             constraints.push(Constraint {
                 origin,

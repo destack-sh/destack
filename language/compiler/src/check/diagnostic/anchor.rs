@@ -22,7 +22,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) -> DiagnosticAnchor {
-        let span = match self.modules.get(&module) {
+        let span = match self.module_maybe(module) {
             Some(state) => state.diagnostic_span(source),
             None => self.external_module(module).diagnostic_span(source),
         };
@@ -40,7 +40,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<DiagnosticAnchor> {
-        let span = match self.modules.get(&module) {
+        let span = match self.module_maybe(module) {
             Some(state) => state.source_span(source),
             None => self.external_module(module).diagnostic_span(source),
         };
@@ -86,7 +86,7 @@ impl CheckState<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalNodeIdAny> {
-        let source = match self.modules.get(&symbol.module_id) {
+        let source = match self.module_maybe(symbol.module_id) {
             Some(module) => module
                 .symbol_declaration_node(symbol.local_id)?
                 .into_global(symbol.module_id),

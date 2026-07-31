@@ -24,8 +24,8 @@ impl BodyState<'_, '_> {
         // add undefined where the chain can short circuit
         let result = match answer!(self.chain_short_circuits(site.origin(), module, inner)?) {
             true => {
-                let undefined = self.check.intern_type(module, dir::Type::Undefined)?;
-                self.check.normalized_union_type(module, [ty, undefined])?
+                let undefined = self.check.intern_type(dir::Type::Undefined)?;
+                self.check.normalized_union_type([ty, undefined])?
             }
             false => ty,
         };
@@ -84,10 +84,10 @@ impl BodyState<'_, '_> {
         let result = if let Some(else_expression) = else_expression {
             let else_site = self.node_site(else_expression.into_global_any(module))?;
             let else_type = answer!(self.infer_node_type(else_site, PlaceUse::Read)?);
-            self.normalized_union_type(module, [then_type, else_type])?
+            self.normalized_union_type([then_type, else_type])?
         } else {
-            let void = self.intern_type(module, dir::Type::Void)?;
-            self.normalized_union_type(module, [then_type, void])?
+            let void = self.intern_type(dir::Type::Void)?;
+            self.normalized_union_type([then_type, void])?
         };
         self.commit_node_type(node.into_any(), result)?;
 
@@ -120,7 +120,7 @@ impl BodyState<'_, '_> {
             check = check.and(else_check.outcome);
 
             // use the target when both branches hold and produce a value
-            let joined = self.normalized_union_type(module, [then_type, else_type])?;
+            let joined = self.normalized_union_type([then_type, else_type])?;
             match (relation, check) {
                 (Relation::Assignable, CheckOutcome::Holds)
                     if !matches!(self.check.ty(joined)?, dir::Type::Never) =>
@@ -130,9 +130,9 @@ impl BodyState<'_, '_> {
                 _ => joined,
             }
         } else {
-            let void = self.intern_type(module, dir::Type::Void)?;
+            let void = self.intern_type(dir::Type::Void)?;
 
-            self.normalized_union_type(module, [then_type, void])?
+            self.normalized_union_type([then_type, void])?
         };
         self.commit_node_type(site.node, result)?;
 
@@ -163,7 +163,7 @@ impl BodyState<'_, '_> {
                 .copied()
         });
         let result = match catch_type {
-            Some(catch_type) => self.normalized_union_type(module, [body_type, catch_type])?,
+            Some(catch_type) => self.normalized_union_type([body_type, catch_type])?,
             None => body_type,
         };
         self.commit_node_type(node.into_any(), result)?;
@@ -189,9 +189,9 @@ impl BodyState<'_, '_> {
             values.push(answer!(self.infer_match_arm_body(module, *arm)?));
         }
         let result = if values.is_empty() {
-            self.intern_type(module, dir::Type::Never)?
+            self.intern_type(dir::Type::Never)?
         } else {
-            self.normalized_union_type(module, values)?
+            self.normalized_union_type(values)?
         };
         self.commit_node_type(node.into_any(), result)?;
 
@@ -348,7 +348,7 @@ impl BodyState<'_, '_> {
 
         // return never for an empty match
         if arms.is_empty() {
-            let never = self.intern_type(module, dir::Type::Never)?;
+            let never = self.intern_type(dir::Type::Never)?;
             self.commit_node_type(site.node, never)?;
             let check = ValueCheck {
                 source: never,
@@ -374,7 +374,7 @@ impl BodyState<'_, '_> {
         }
 
         // use the target when every arm holds and produces a value
-        let joined = self.normalized_union_type(module, values)?;
+        let joined = self.normalized_union_type(values)?;
         let result = match (relation, check) {
             (Relation::Assignable, CheckOutcome::Holds)
                 if !matches!(self.check.ty(joined)?, dir::Type::Never) =>
@@ -435,7 +435,7 @@ impl BodyState<'_, '_> {
         let site = self.check.node_site(guard.into_global_any(module))?;
         let boolean = self
             .check
-            .intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+            .intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
         let expectation = Expectation {
             target: boolean,
             relation: Relation::Assignable,
@@ -490,7 +490,7 @@ impl BodyState<'_, '_> {
         answer!(self.attempt_node(body_site, PlaceUse::Read, None)?);
 
         // for-in and for-of evaluate to void
-        let void = self.intern_type(module, dir::Type::Void)?;
+        let void = self.intern_type(dir::Type::Void)?;
         self.commit_node_type(site.node, void)?;
 
         Ok(Answer::Ready(()))
@@ -525,10 +525,7 @@ impl BodyState<'_, '_> {
             }),
             scope,
         );
-        let string = self.intern_type(
-            source.module_id,
-            dir::Type::Primitive(dir::PrimitiveType::String),
-        )?;
+        let string = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::String))?;
 
         Ok(Answer::Ready(string))
     }
@@ -557,7 +554,7 @@ impl BodyState<'_, '_> {
         )?);
         let Some((protocol, _call)) = selected else {
             self.report_for_of_source_not_iterable(source);
-            let error = self.intern_type(source.module_id, dir::Type::Error)?;
+            let error = self.intern_type(dir::Type::Error)?;
 
             return Ok(Answer::Ready(error));
         };

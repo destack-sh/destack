@@ -55,7 +55,6 @@ impl CheckState<'_> {
             dir::Type::Void => "void".to_string(),
             dir::Type::Null => "null".to_string(),
             dir::Type::Undefined => "undefined".to_string(),
-            dir::Type::Object => "object".to_string(),
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::This => "this".to_string(),
             dir::Type::Variable(_) => "_".to_string(),
@@ -136,7 +135,7 @@ impl CheckState<'_> {
                 format!("({})", self.format_list_at(module, &elements, next)?)
             }
 
-            dir::Type::Shape(shape) => {
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 let shape_properties = self.shape_properties(id.module_id, shape.properties)?;
                 let index_signatures =
                     self.shape_index_signatures(id.module_id, shape.index_signatures)?;
@@ -701,6 +700,13 @@ impl CheckState<'_> {
 
     /// Format one symbol by its declared name.
     pub(in crate::check) fn format_symbol(&self, symbol: dir::GlobalSymbolId) -> String {
+        // unloaded foreign modules render as opaque identities
+        if !self.is_own_module(symbol.module_id)
+            && !self.external_modules.contains_key(&symbol.module_id)
+        {
+            return format!("<{:?}>", symbol.local_id);
+        }
+
         let bindings = self.binding_table(symbol.module_id);
         let key = bindings.get_symbol(symbol.local_id).key;
 
@@ -873,7 +879,7 @@ impl CheckState<'_> {
 
     /// Format one module as a compact qualifier.
     fn format_module_label(&self, module: ModuleId) -> String {
-        if let Some(module) = self.modules.get(&module) {
+        if let Some(module) = self.module_maybe(module) {
             return trim_module_uri(module.module.uri.as_ref());
         }
 

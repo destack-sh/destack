@@ -39,6 +39,40 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Export's type depends on another module and needs an annotation.
+    ///
+    /// ```ds
+    /// export const value = imported();
+    /// ```
+    #[diagnostic(
+        id = "export-type-not-module-derivable",
+        message = "export's type is not derivable within its module",
+        help = "annotate the exported declaration"
+    )]
+    ExportTypeNotDerivable {
+        /// Report the declaration whose type needs another module.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Exported function requires an explicit result type.
+    ///
+    /// ```ds
+    /// export function scale(value: float64) { }
+    /// ```
+    #[diagnostic(
+        id = "missing-export-result-type",
+        message = "exported function needs an explicit result type",
+        help = "state the result type on the exported function"
+    )]
+    MissingExportResultType {
+        /// Report the exported function without a result type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// Transparent type expansion reached the same type again.
     ///
     /// ```ds
@@ -445,6 +479,27 @@ pub enum CheckError {
         member: String,
     },
 
+    /// Assignment writes a computed key through a structural index signature.
+    ///
+    /// ```ds
+    /// declare const counts: { [key: string]: int32 };
+    /// declare const key: string;
+    ///
+    /// counts[key] = 1;
+    /// ```
+    #[diagnostic(
+        id = "cannot-assign-structural-index",
+        message = "cannot assign a computed key through the structural type '{receiver}', type the receiver as an IndexSet implementer like Map"
+    )]
+    CannotAssignStructuralIndex {
+        /// Report the mutation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The structural receiver type.
+        receiver: String,
+    },
+
     /// Assigned object is missing a required property.
     ///
     /// ```ds
@@ -470,8 +525,9 @@ pub enum CheckError {
     /// ```ds
     /// type Bag = { [key: string]: int32 };
     /// declare function write(bag: Bag): void;
+    /// declare const point: Point;
     ///
-    /// write({ x: 1 });
+    /// write(point);
     /// ```
     #[diagnostic(
         id = "writable-index-requires-index-set",
@@ -2734,36 +2790,15 @@ pub enum CheckError {
         source: String,
     },
 
-    /// Cyclic borrowed fields need named lifetime parameters.
+    /// Elided lifetime inside a type declaration.
     ///
     /// ```ds
-    /// struct Ping { pong: &readonly Pong }
-    /// struct Pong { ping: &readonly Ping }
+    /// struct Entry { name: &string }
     /// ```
     #[diagnostic(
-        id = "circular-lifetime-induction",
-        message = "cyclic borrowed fields between '{source}' and '{through}' need named lifetimes"
-    )]
-    CircularLifetimeInduction {
-        /// Report the declaration whose lifetimes cannot induce.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The declaration whose lifetimes cannot induce.
-        source: String,
-        /// The declaration that closes the cycle.
-        through: String,
-    },
-
-    /// Elided lifetime inside a declaration that names its lifetimes.
-    ///
-    /// ```ds
-    /// struct Mixed<'a> { first: &'a string; second: &string }
-    /// ```
-    #[diagnostic(
-        id = "elided-lifetime-in-named-declaration",
-        message = "'{source}' names its lifetimes, so this borrow needs a named lifetime",
-        help = "name the lifetime, like &'a"
+        id = "elided-declaration-lifetime",
+        message = "type declaration '{source}' writes its lifetimes",
+        help = "declare the lifetime parameter and name it, like &'a"
     )]
     ElidedLifetimeInNamedDeclaration {
         /// Report the elided borrow position.

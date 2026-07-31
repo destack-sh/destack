@@ -70,7 +70,8 @@ value satisfies HasX;
 }
 
 #[test]
-fn test_struct_satisfies_structural_object_type() {
+fn test_struct_satisfies_but_does_not_store_as_object_type() {
+    // check-only satisfies keeps structural width, object-typed storage stays exact
     let session = TestSession::single(
         r#"
 struct Point {
@@ -83,7 +84,7 @@ value satisfies { readonly x: int32 };
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -123,6 +124,12 @@ value satisfies { readonly x: int32 };
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type 'Point' is not assignable to type '{ readonly x: int32 }'"
+/// @diagnostic.label line=7 column=38 span="point" line_source="const value: { readonly x: int32 } = point;"
+/// @diagnostic.related line=7 column=14 span="{ readonly x: int32 }" line_source="const value: { readonly x: int32 } = point;" message="expected due to this annotation"
+/// @diagnostic.note message="'{ readonly x: int32 }' stores its exact object type, declare an interface to accept structurally wider values"
 "#,
     );
 }

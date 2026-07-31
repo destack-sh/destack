@@ -11,7 +11,7 @@ use crate::{CompilerError, CompilerResult};
 impl CheckState<'_> {
     /// Collect final diagnostics for one checked component.
     pub(in crate::check) fn collect_diagnostics(&mut self) -> CompilerResult<DiagnosticCollection> {
-        let modules = self.modules.keys().copied().collect::<Vec<_>>();
+        let modules = vec![self.module_id];
         let mut errors = Vec::<DiagnosticBuilder<CheckError>>::new();
         let mut warnings = Vec::<DiagnosticBuilder<CheckWarning>>::new();
 
@@ -36,7 +36,7 @@ impl CheckState<'_> {
         for cause in unresolved_origins {
             let origin = self.solver.cause(cause).origin;
             let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-            if self.is_component_module(module) && reported.insert((module, anchor.clone())) {
+            if self.is_own_module(module) && reported.insert((module, anchor.clone())) {
                 errors.push(CheckError::CannotInferType { anchor, module }.into());
             }
         }

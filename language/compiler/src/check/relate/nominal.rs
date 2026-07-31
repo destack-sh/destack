@@ -205,8 +205,10 @@ impl CheckState<'_> {
             //  or sits inside a union target as a member
             (None, _) => {
                 // check-only relations read structural pairs covariantly
-                if let (dir::Type::Shape(_), dir::Type::Shape(_)) =
-                    (self.ty(source)?, self.ty(target)?)
+                if let (
+                    dir::Type::Shape(_) | dir::Type::Object(_),
+                    dir::Type::Shape(_) | dir::Type::Object(_),
+                ) = (self.ty(source)?, self.ty(target)?)
                 {
                     return self.decide_shape_relation(origin, relation, source, target);
                 }
@@ -227,8 +229,17 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         target_instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
+        // accept opaque foreign applications while declaring,
+        //  checking relates them against loaded kinds
+        let Some(target_kind) = self.symbol_kind_maybe(target_instance.symbol)? else {
+            return Ok(Answer::Ready(true));
+        };
+        if self.is_declaration() && self.symbol_kind_maybe(source_instance.symbol)?.is_none() {
+            return Ok(Answer::Ready(true));
+        }
+
         // interface targets select one implementation path
-        if self.symbol_kind(target_instance.symbol).is_interface() {
+        if target_kind.is_interface() {
             return self.decide_interface_relation(origin, relation, source, target);
         }
 
@@ -257,7 +268,7 @@ impl CheckState<'_> {
             let target_arguments = self
                 .type_ids(target.module_id, target_instance.arguments)?
                 .to_vec();
-            let form = self.default_variance_form(target_instance.symbol);
+            let form = self.default_variance_form(target_instance.symbol)?;
 
             let arguments = if relation == Relation::Subtype {
                 self.decide_type_arguments(
@@ -313,7 +324,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::StaticKey>> {
         let source_fields = match self.ty(source)? {
-            dir::Type::Shape(shape) => self
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => self
                 .shape_properties(source.module_id, shape.properties)?
                 .iter()
                 .map(|field| field.key)
@@ -350,7 +361,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::StaticKey>> {
         let source_fields = match self.ty(source)? {
-            dir::Type::Shape(shape) => self
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => self
                 .shape_properties(source.module_id, shape.properties)?
                 .iter()
                 .map(|field| field.key)
@@ -428,7 +439,7 @@ impl CheckState<'_> {
     /// Return substituted direct fields for one struct instance.
     fn instantiate_struct_fields(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         receiver: dir::GlobalTypeId,
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
@@ -450,10 +461,8 @@ impl CheckState<'_> {
             if field.space != dir::MemberSpace::Instance {
                 continue;
             }
-            let Some(ty) = self.symbol_type_maybe(field.symbol) else {
-                return Ok(Answer::pending([Dependency::SymbolType(field.symbol)]));
-            };
-            let ty = self.substitute_type(origin.module(), ty, &substitution)?;
+            let ty = answer!(self.symbol_type(field.symbol)?);
+            let ty = self.substitute_type(ty, &substitution)?;
             fields.push(dir::TypeProperty {
                 key: field.key,
                 access: dir::PropertyAccess::ReadWrite {
@@ -598,7 +607,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // require each target field from the source fields
         let (fields, index_signatures) = match self.ty(target)? {
-            dir::Type::Shape(shape) => (
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => (
                 self.shape_properties(target.module_id, shape.properties)?
                     .iter()
                     .map(|field| (field.key, field.access.store(), field.is_optional))
@@ -708,11 +717,10 @@ impl CheckState<'_> {
             .map(|heritage| (*heritage).clone())
             .collect::<SmallVec<[_; 2]>>();
         let substitution = self.instance_substitution(instance_module, instance)?;
-        let module = origin.module();
 
         // walk direct heritage edges with applied arguments
         for heritage in heritages {
-            let ty = self.substitute_type(module, heritage.ty, &substitution)?;
+            let ty = self.substitute_type(heritage.ty, &substitution)?;
             let (application_module, instance) = self.require_nominal_application(ty)?;
             let application = HeritageApplication {
                 source: branch_source.unwrap_or(heritage.source),
@@ -796,6 +804,27 @@ impl CheckState<'_> {
         target_module: ModuleId,
         target: &dir::GenericApplication,
     ) -> CompilerResult<Answer<bool>> {
+        // written applications complete their elided arguments
+        let mut source = source.clone();
+        let mut target = target.clone();
+        let mut source_module = source_module;
+        let mut target_module = target_module;
+        if source.arguments.len() != target.arguments.len() {
+            if let Some(filled) = self.fill_elided_application(source_module, &source)? {
+                let dir::Type::Application(filled) = self.ty(filled)? else {
+                    unreachable!("filled application is not an application");
+                };
+                source = filled;
+                source_module = self.module_id;
+            }
+            if let Some(filled) = self.fill_elided_application(target_module, &target)? {
+                let dir::Type::Application(filled) = self.ty(filled)? else {
+                    unreachable!("filled application is not an application");
+                };
+                target = filled;
+                target_module = self.module_id;
+            }
+        }
         if source.arguments.len() != target.arguments.len() {
             return Ok(Answer::Ready(false));
         }
@@ -811,9 +840,28 @@ impl CheckState<'_> {
             )
             .collect::<SmallVec<[_; 4]>>();
 
+        // erase proof-only lifetime slots from instance identity
+        let lifetimes = match self.symbol_template(source.symbol)? {
+            Some(template) => {
+                let parameters = self.generic_template_parameters(template)?;
+                parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.generic_parameter(*parameter).is_some_and(|binding| {
+                            binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+                        })
+                    })
+                    .collect::<SmallVec<[bool; 4]>>()
+            }
+            None => SmallVec::new(),
+        };
+
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         let mut decision = Answer::Ready(true);
-        for (source_argument, target_argument) in pairs {
+        for (index, (source_argument, target_argument)) in pairs.into_iter().enumerate() {
+            if lifetimes.get(index).copied().unwrap_or(false) {
+                continue;
+            }
             decision = decision.and(self.constrain_type(
                 origin,
                 cause,
@@ -832,17 +880,17 @@ impl CheckState<'_> {
     /// Allocate one reference type for a nominal application.
     fn reference_type(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
-        let arguments = self.intern_type_ids(origin.module(), &arguments)?;
+        let arguments = self.intern_type_ids(&arguments)?;
         let instance = dir::GenericApplication {
             symbol: instance.symbol,
             arguments,
         };
 
-        self.intern_type(origin.module(), dir::Type::Application(instance))
+        self.intern_type(dir::Type::Application(instance))
     }
 }

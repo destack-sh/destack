@@ -24,9 +24,7 @@ impl CheckState<'_> {
 
         let mut variants = Vec::with_capacity(members.len());
         for member in members {
-            let variant = self.intern_type(
-                module,
-                dir::Type::EnumMember(dir::EnumMemberType {
+            let variant = self.intern_type(dir::Type::EnumMember(dir::EnumMemberType {
                     owner: value,
                     member,
                 }),

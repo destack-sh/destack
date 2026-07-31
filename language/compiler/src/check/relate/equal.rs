@@ -22,7 +22,6 @@ impl CheckState<'_> {
             | (dir::Type::Never, dir::Type::Never)
             | (dir::Type::Any, dir::Type::Any)
             | (dir::Type::Unknown, dir::Type::Unknown)
-            | (dir::Type::Object, dir::Type::Object)
             | (dir::Type::This, dir::Type::This) => Answer::Ready(true),
             // unit values are the concrete value representation of void
             (dir::Type::Void, dir::Type::Tuple(tuple))
@@ -51,10 +50,11 @@ impl CheckState<'_> {
                 Answer::Ready(text == dir::StringId::for_text(memory.text()))
             }
             // defer lifetime outlives checks to Verify
-            (
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)),
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)),
-            ) => Answer::Ready(true),
+            (source, target)
+                if self.is_lifetime_shaped(source) && self.is_lifetime_shaped(target) =>
+            {
+                Answer::Ready(true)
+            }
             (dir::Type::Memory(source), dir::Type::Memory(target)) => {
                 Answer::Ready(source == target)
             }
@@ -113,7 +113,8 @@ impl CheckState<'_> {
                 )?
             }
             // structural shapes and functions
-            (dir::Type::Shape(_), dir::Type::Shape(_)) => {
+            (dir::Type::Shape(_), dir::Type::Shape(_))
+            | (dir::Type::Object(_), dir::Type::Object(_)) => {
                 self.decide_shape_equal(origin, source, target)?
             }
             // composites compare fixed slots beneath one shared constructor
@@ -124,6 +125,19 @@ impl CheckState<'_> {
         };
 
         Ok(decision)
+    }
+
+    /// Return whether one type names a lifetime literal or parameter.
+    fn is_lifetime_shaped(&self, ty: dir::Type) -> bool {
+        match ty {
+            dir::Type::Memory(dir::MemoryLiteral::Lifetime(_)) => true,
+            dir::Type::Parameter(parameter) => {
+                self.generic_parameter(parameter).is_some_and(|binding| {
+                    binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
+                })
+            }
+            _ => false,
+        }
     }
 
     /// Decide equality between two unordered type sets.

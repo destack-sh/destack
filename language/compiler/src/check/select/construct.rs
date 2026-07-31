@@ -46,7 +46,7 @@ impl BodyState<'_, '_> {
         ) {
             let Some(expected) = answer!(self.expected_construct_target(origin, expected)?) else {
                 self.report_cannot_infer_node(site.node)?;
-                let error = self.intern_type(module, dir::Type::Error)?;
+                let error = self.intern_type(dir::Type::Error)?;
 
                 return Ok(Answer::Ready(error));
             };
@@ -108,13 +108,13 @@ impl BodyState<'_, '_> {
                 [symbol] => *symbol,
                 _ => {
                     self.report_ambiguous_reference(module, ty.into_any(), &path);
-                    let error = self.intern_type(module, dir::Type::Error)?;
+                    let error = self.intern_type(dir::Type::Error)?;
 
                     return Ok(Answer::Ready(error));
                 }
             },
             (Some(DecisionKind::Rejected), _) => {
-                let error = self.intern_type(module, dir::Type::Error)?;
+                let error = self.intern_type(dir::Type::Error)?;
 
                 return Ok(Answer::Ready(error));
             }
@@ -225,15 +225,15 @@ impl BodyState<'_, '_> {
             if !written.is_empty() {
                 let name = self.format_symbol(symbol);
                 self.report_wrong_generic_arity(module, source.local_id, name, 0, written.len());
-                let error = self.intern_type(module, dir::Type::Error)?;
+                let error = self.intern_type(dir::Type::Error)?;
 
                 return Ok(Answer::Ready(error));
             }
-            let arguments = self.intern_type_ids(module, &[])?;
-            let target = self.intern_type(
-                module,
-                dir::Type::Application(dir::GenericApplication { symbol, arguments }),
-            )?;
+            let arguments = self.intern_type_ids(&[])?;
+            let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
+                symbol,
+                arguments,
+            }))?;
 
             return Ok(Answer::Ready(target));
         };
@@ -250,7 +250,7 @@ impl BodyState<'_, '_> {
             let name = self.format_symbol(symbol);
             let expected = self.writable_parameter_count(&parameters);
             self.report_wrong_generic_arity(module, source.local_id, name, expected, written.len());
-            let error = self.intern_type(module, dir::Type::Error)?;
+            let error = self.intern_type(dir::Type::Error)?;
 
             return Ok(Answer::Ready(error));
         };
@@ -263,11 +263,11 @@ impl BodyState<'_, '_> {
         }
 
         let arguments = substitution.arguments().collect::<SmallVec<[_; 4]>>();
-        let arguments = self.intern_type_ids(module, &arguments)?;
-        let target = self.intern_type(
-            module,
-            dir::Type::Application(dir::GenericApplication { symbol, arguments }),
-        )?;
+        let arguments = self.intern_type_ids(&arguments)?;
+        let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol,
+            arguments,
+        }))?;
 
         Ok(Answer::Ready(target))
     }
@@ -366,13 +366,10 @@ impl BodyState<'_, '_> {
                 _ => None,
             })
             .map(|place| {
-                self.intern_type(
-                    module,
-                    dir::Type::Form(dir::FormType {
-                        form: dir::Form::Placed { place },
-                        value: target,
-                    }),
-                )
+                self.intern_type(dir::Type::Form(dir::FormType {
+                    form: dir::Form::Placed { place },
+                    value: target,
+                }))
             })
             .transpose()?;
         // signatures expect the constructed instance in its destination place
@@ -554,12 +551,12 @@ impl BodyState<'_, '_> {
         };
         let module = origin.module();
         let arguments = self.type_ids(extends_module, instance.arguments)?.to_vec();
-        let arguments = self.intern_type_ids(module, &arguments)?;
+        let arguments = self.intern_type_ids(&arguments)?;
         let instance = dir::GenericApplication {
             arguments,
             ..instance
         };
-        let base_receiver = self.intern_type(module, dir::Type::Application(instance))?;
+        let base_receiver = self.intern_type(dir::Type::Application(instance))?;
         let base_constructors = answer!(self.collect_class_construct_candidates(
             origin,
             base_receiver,
@@ -576,7 +573,7 @@ impl BodyState<'_, '_> {
         let mut constructors = Vec::with_capacity(base_constructors.len());
         for base_constructor in base_constructors {
             let constructor = base_constructor.constructor.forwarded(instance.symbol);
-            let ty = self.substitute_type(origin.module(), base_constructor.ty, &substitution)?;
+            let ty = self.substitute_type(base_constructor.ty, &substitution)?;
             let ty = self.class_constructor_returning(origin, ty, receiver)?;
 
             constructors.push(dir::ClassConstructorDefinition { constructor, ty });
@@ -588,7 +585,7 @@ impl BodyState<'_, '_> {
     /// Return one constructor signature with a replaced return type.
     fn class_constructor_returning(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         ty: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -599,7 +596,7 @@ impl BodyState<'_, '_> {
         };
         function.return_type = Some(receiver);
 
-        self.intern_signature(origin.module(), function)
+        self.intern_signature(function)
     }
 
     /// Attempt one constructor candidate against collected arguments.
@@ -646,7 +643,8 @@ impl BodyState<'_, '_> {
         let substitution = self
             .instance_substitution(instance_module, instance)?
             .with_receiver(target);
-        let function_type = self.substitute_type(origin.module(), function_type, &substitution)?;
+        let module = self.module_id;
+        let function_type = self.substitute_type(function_type, &substitution)?;
         let function_type = answer!(self.reduce_type_head(origin, function_type)?);
         let Some(function) = self.signature_head(function_type)? else {
             return Ok(Answer::Ready(SignatureMatch::Inapplicable(
@@ -819,13 +817,10 @@ impl BodyState<'_, '_> {
             }
         };
         for form in forms.iter().rev().copied() {
-            produced = self.intern_type(
-                module,
-                dir::Type::Form(dir::FormType {
-                    form,
-                    value: produced,
-                }),
-            )?;
+            produced = self.intern_type(dir::Type::Form(dir::FormType {
+                form,
+                value: produced,
+            }))?;
         }
         let resolution = dir::ConstructResolution::new(
             target,
@@ -842,16 +837,11 @@ impl BodyState<'_, '_> {
     /// Return the result carrier for one fallible construction.
     fn fallible_construct_type(
         &mut self,
-        node: dir::GlobalNodeIdAny,
+        _node: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let allocation_error =
-            self.language_type(node.module_id, dir::LanguageItem::AllocationError, &[])?;
-        let carrier = self.language_type(
-            node.module_id,
-            dir::LanguageItem::Result,
-            &[value, allocation_error],
-        )?;
+        let allocation_error = self.language_type(dir::LanguageItem::AllocationError, &[])?;
+        let carrier = self.language_type(dir::LanguageItem::Result, &[value, allocation_error])?;
 
         Ok(carrier)
     }

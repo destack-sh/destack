@@ -272,15 +272,15 @@ declare function choose<'a, 'b>(
 }
 
 #[test]
-fn test_induce_lifetimes_for_stored_borrow_fields() {
+fn test_write_lifetimes_on_stored_borrow_fields() {
     let session = TestSession::single(
         r#"
 struct Engine { frame: uint64; }
 struct AssetStore { count: uint32; }
 
-struct WorldView {
-    engine: &Engine;
-    assets: &AssetStore;
+struct WorldView<'a, 'b> {
+    engine: &'a Engine;
+    assets: &'b AssetStore;
 }
 "#,
     );
@@ -315,19 +315,23 @@ struct AssetStore { count: uint32; }
 /// @definition.field symbol=AssetStore.count source="count: uint32" key=count type=uint32
 /// @type.symbol symbol=AssetStore.count source="count: uint32" type=uint32
 
-struct WorldView {
+struct WorldView<'a, 'b> {
 /// @generic.template symbol=WorldView parameters=('a, 'b)
 /// @type.symbol symbol=WorldView type=WorldView
 /// @definition.struct symbol=WorldView template=('a, 'b)
-/// @definition.field symbol=WorldView.assets source="assets: &AssetStore" key=assets type=&WorldView.'b AssetStore
-/// @definition.field symbol=WorldView.engine source="engine: &Engine" key=engine type=&WorldView.'a Engine
+/// @definition.field symbol=WorldView.assets source="assets: &'b AssetStore" key=assets type=&'b AssetStore
+/// @definition.field symbol=WorldView.engine source="engine: &'a Engine" key=engine type=&'a Engine
+/// @type.symbol symbol=WorldView.'a source='a type='a
+/// @type.symbol symbol=WorldView.'b source='b type='b
 
-    engine: &Engine;
-    /// @type.symbol symbol=WorldView.engine source="engine: &Engine" type=&WorldView.'a Engine
+    engine: &'a Engine;
+    /// @type.symbol symbol=WorldView.engine source="engine: &'a Engine" type=&'a Engine
+    /// @resolution.name source='a target=WorldView.'a
     /// @resolution.name source=Engine target=Engine
 
-    assets: &AssetStore;
-    /// @type.symbol symbol=WorldView.assets source="assets: &AssetStore" type=&WorldView.'b AssetStore
+    assets: &'b AssetStore;
+    /// @type.symbol symbol=WorldView.assets source="assets: &'b AssetStore" type=&'b AssetStore
+    /// @resolution.name source='b target=WorldView.'b
     /// @resolution.name source=AssetStore target=AssetStore
 
 }
@@ -464,9 +468,9 @@ interface Viewing {
 fn test_default_unconstrained_call_lifetimes_to_frame() {
     let session = TestSession::single(
         r#"
-type Options = {
+type Options<'a> = {
     count?: int32 | undefined;
-    message?: &readonly string;
+    message?: &'a readonly string;
     error?: unknown;
 };
 
@@ -485,7 +489,7 @@ function warn(count?: int32, cause?: unknown): void {
 === annotated ===
 type Options<'a> = {
     count?: int32 | undefined;
-    message?: &readonly string;
+    message?: &'a readonly string;
     error?: unknown;
 };
 
@@ -496,13 +500,16 @@ function warn(count?: int32, cause?: Dynamic<unknown>): void {
 }
 
 === checked ===
-type Options = {
+type Options<'a> = {
 /// @generic.template symbol=Options parameters=('a)
-/// @type.symbol symbol=Options type={ count?: int32 | undefined; message?: &Options.'a readonly string; error?: unknown }
-/// @definition.type symbol=Options template=('a) value={ count?: int32 | undefined; message?: &Options.'a readonly string; error?: unknown }
+/// @type.symbol symbol=Options type={ count?: int32 | undefined; message?: &'a readonly string; error?: unknown }
+/// @definition.type symbol=Options template=('a) value={ count?: int32 | undefined; message?: &'a readonly string; error?: unknown }
+/// @type.symbol symbol=Options.'a source='a type='a
 
     count?: int32 | undefined;
-    message?: &readonly string;
+    message?: &'a readonly string;
+    /// @resolution.name source='a target=Options.'a
+
     error?: unknown;
 };
 
@@ -535,15 +542,15 @@ function warn(count?: int32, cause?: unknown): void {
 }
 
 #[test]
-fn test_induce_forward_nominal_lifetime_references() {
+fn test_write_lifetimes_through_forward_nominal_references() {
     let session = TestSession::single(
         r#"
-struct Holder {
-    view: View;
+struct Holder<'a> {
+    view: View<'a>;
 }
 
-struct View {
-    user: &readonly User;
+struct View<'a> {
+    user: &'a readonly User;
 }
 
 struct User {
@@ -570,26 +577,30 @@ struct User {
 }
 
 === checked ===
-struct Holder {
-/// @generic.template symbol=Holder parameters=('a)
+struct Holder<'a> {
+/// @generic.template symbol=Holder parameters=('a#1)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.struct symbol=Holder template=('a)
-/// @definition.field symbol=Holder.view source="view: View" key=view type=View<Holder.'a>
+/// @definition.struct symbol=Holder template=('a#1)
+/// @definition.field symbol=Holder.view source="view: View<'a>" key=view type=View<'a#1>
+/// @type.symbol symbol=Holder.'a source='a type='a#1
 
-    view: View;
-    /// @type.symbol symbol=Holder.view source="view: View" type=View<Holder.'a>
+    view: View<'a>;
+    /// @type.symbol symbol=Holder.view source="view: View<'a>" type=View<'a#1>
     /// @resolution.name source=View target=View
+    /// @resolution.name source='a target=Holder.'a
 
 }
 
-struct View {
-/// @generic.template symbol=View parameters=('a)
+struct View<'a> {
+/// @generic.template symbol=View parameters=('a#2)
 /// @type.symbol symbol=View type=View
-/// @definition.struct symbol=View template=('a)
-/// @definition.field symbol=View.user source="user: &readonly User" key=user type=&View.'a readonly User
+/// @definition.struct symbol=View template=('a#2)
+/// @definition.field symbol=View.user source="user: &'a readonly User" key=user type=&'a#2 readonly User
+/// @type.symbol symbol=View.'a source='a type='a#2
 
-    user: &readonly User;
-    /// @type.symbol symbol=View.user source="user: &readonly User" type=&View.'a readonly User
+    user: &'a readonly User;
+    /// @type.symbol symbol=View.user source="user: &'a readonly User" type=&'a#2 readonly User
+    /// @resolution.name source='a target=View.'a
     /// @resolution.name source=User target=User
 
 }
@@ -604,13 +615,13 @@ struct User {
 
 }
 
-/// @generic.instance id=View<Holder.'a> template=View arguments=(Holder.'a)
+/// @generic.instance id=View<'a#1> template=View arguments=('a#1)
 "#,
     );
 }
 
 #[test]
-fn test_reject_cyclic_borrowed_field_induction() {
+fn test_reject_elided_lifetimes_in_cyclic_borrowed_fields() {
     let session = TestSession::single(
         r#"
 struct Ping {
@@ -632,8 +643,8 @@ struct Ping {
     pong: &readonly Pong;
 }
 
-struct Pong<'a> {
-    ping: &'a readonly Ping;
+struct Pong {
+    ping: &readonly Ping;
 }
 
 === checked ===
@@ -646,10 +657,12 @@ struct Pong {
 }
 "#,
         r#"
-/// @diagnostic.error id=circular-lifetime-induction message="cyclic borrowed fields between 'Ping' and 'Pong' need named lifetimes"
-/// @diagnostic.label line=2 column=8 span="Ping" line_source="struct Ping {"
-/// @diagnostic.error id=circular-lifetime-induction message="cyclic borrowed fields between 'Ping' and 'Pong' need named lifetimes"
-/// @diagnostic.label line=2 column=8 span="Ping" line_source="struct Ping {"
+/// @diagnostic.error id=elided-declaration-lifetime message="type declaration 'Pong' writes its lifetimes"
+/// @diagnostic.label line=7 column=11 span="&" line_source="ping: &readonly Ping;"
+/// @diagnostic.help message="declare the lifetime parameter and name it, like &'a"
+/// @diagnostic.error id=elided-declaration-lifetime message="type declaration 'Ping' writes its lifetimes"
+/// @diagnostic.label line=3 column=11 span="&" line_source="pong: &readonly Pong;"
+/// @diagnostic.help message="declare the lifetime parameter and name it, like &'a"
 "#,
     );
 }
@@ -662,8 +675,8 @@ struct User {
     id: int32;
 }
 
-struct View {
-    user: &readonly User;
+struct View<'a> {
+    user: &'a readonly User;
 }
 
 function inspect(user: &readonly User): int32 {
@@ -704,14 +717,16 @@ struct User {
 
 }
 
-struct View {
+struct View<'a> {
 /// @generic.template symbol=View parameters=('a)
 /// @type.symbol symbol=View type=View
 /// @definition.struct symbol=View template=('a)
-/// @definition.field symbol=View.user source="user: &readonly User" key=user type=&View.'a readonly User
+/// @definition.field symbol=View.user source="user: &'a readonly User" key=user type=&'a readonly User
+/// @type.symbol symbol=View.'a source='a type='a
 
-    user: &readonly User;
-    /// @type.symbol symbol=View.user source="user: &readonly User" type=&View.'a readonly User
+    user: &'a readonly User;
+    /// @type.symbol symbol=View.user source="user: &'a readonly User" type=&'a readonly User
+    /// @resolution.name source='a target=View.'a
     /// @resolution.name source=User target=User
 
 }

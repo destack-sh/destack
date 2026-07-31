@@ -45,7 +45,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let source = self.origin_source(origin)?;
-        let interface = self.language_type(origin.module(), dir::LanguageItem::Concrete, &[])?;
+        let interface = self.language_type(dir::LanguageItem::Concrete, &[])?;
         let mut visited = FxIndexSet::default();
         let failure = answer!(self.representation_failure(
             origin,
@@ -80,12 +80,9 @@ impl CheckState<'_> {
 
         // walk the stored representation for shared containment
         let source = self.origin_source(origin)?;
-        let place = self.intern_type(
-            origin.module(),
-            dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(
-                dir::Space::Shared,
-            ))),
-        )?;
+        let place = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
+            dir::Place::Space(dir::Space::Shared),
+        )))?;
         let mut visited = FxIndexSet::default();
         let failure = answer!(self.representation_failure(
             origin,
@@ -246,7 +243,6 @@ impl CheckState<'_> {
             // skip abstract type expressions, they select no runtime representation
             dir::Type::Any
             | dir::Type::Unknown
-            | dir::Type::Object
             | dir::Type::Intrinsic
             | dir::Type::Erased(_)
             | dir::Type::Reference(_)
@@ -280,7 +276,7 @@ impl CheckState<'_> {
                 .iter()
                 .map(|element| (element.ty, source))
                 .collect(),
-            dir::Type::Shape(shape) => self
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => self
                 .shape_properties(owner, shape.properties)?
                 .iter()
                 .flat_map(|field| field.access.types().map(move |ty| (ty, source)))
@@ -369,10 +365,7 @@ impl CheckState<'_> {
         let substitution = self.instance_substitution(owner, instance)?;
         let mut slots = SmallVec::<[_; 4]>::new();
         for (ty, source) in storage {
-            slots.push((
-                self.substitute_type(origin.module(), ty, &substitution)?,
-                source,
-            ));
+            slots.push((self.substitute_type(ty, &substitution)?, source));
         }
 
         self.representation_slot_failure(origin, &slots, check, visited)

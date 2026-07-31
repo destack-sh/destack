@@ -418,12 +418,12 @@ impl BodyState<'_, '_> {
             let read_type = if read_types.is_empty() {
                 None
             } else {
-                Some(self.normalized_union_type(module, read_types)?)
+                Some(self.normalized_union_type(read_types)?)
             };
             let write_type = if write_types.is_empty() {
                 None
             } else {
-                Some(self.normalized_intersection_type(module, write_types)?)
+                Some(self.normalized_intersection_type(write_types)?)
             };
             let selection = SubscriptSelection::union(use_, selections, read_type, write_type)?;
 
@@ -463,7 +463,7 @@ impl BodyState<'_, '_> {
             dir::Type::Tuple(tuple) => {
                 self.select_tuple_subscript(receiver.ty, receiver_type, index, use_, tuple)
             }
-            dir::Type::Shape(shape) => {
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 self.select_shape_subscript(origin, receiver.ty, receiver_type, index, use_, &shape)
             }
             dir::Type::Application(_)
@@ -500,7 +500,7 @@ impl BodyState<'_, '_> {
         let dir::Type::Application(instance) = self.ty(constraint)? else {
             return Ok(Answer::Ready(None));
         };
-        if self.symbol_kind(instance.symbol) != dir::SymbolKind::Interface {
+        if self.symbol_kind_maybe(instance.symbol)? != Some(dir::SymbolKind::Interface) {
             return Ok(Answer::Ready(None));
         }
         let requirements = answer!(self.interface_requirements(
@@ -575,7 +575,7 @@ impl BodyState<'_, '_> {
         let write = match use_ {
             PlaceUse::Write | PlaceUse::Update if signature.is_readonly => return Ok(None),
             PlaceUse::Write | PlaceUse::Update => {
-                let void = self.intern_type(origin.module(), dir::Type::Void)?;
+                let void = self.intern_type(dir::Type::Void)?;
                 let call = self.dynamic_index_call(
                     origin,
                     receiver,
@@ -610,7 +610,7 @@ impl BodyState<'_, '_> {
     /// Build one erased call to an applied index signature.
     fn dynamic_index_call(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         receiver: dir::GlobalTypeId,
         constraint: dir::GlobalTypeId,
         index: dir::GlobalNodeIdAny,
@@ -641,18 +641,15 @@ impl BodyState<'_, '_> {
                 dir::DynamicFunction::IndexWrite(signature.source)
             }
         };
-        let parameters = self.intern_parameters(origin.module(), &parameters)?;
-        let callable_type = self.intern_signature(
-            origin.module(),
-            dir::FunctionSignatureType {
-                asynchrony: dir::Asynchrony::Sync,
-                template: None,
-                this_parameter: Some(constraint),
-                parameters,
-                return_type: Some(return_type),
-                is_generator: false,
-            },
-        )?;
+        let parameters = self.intern_parameters(&parameters)?;
+        let callable_type = self.intern_signature(dir::FunctionSignatureType {
+            asynchrony: dir::Asynchrony::Sync,
+            template: None,
+            this_parameter: Some(constraint),
+            parameters,
+            return_type: Some(return_type),
+            is_generator: false,
+        })?;
         let parameters = self
             .signature_parameters(callable_type.module_id, parameters)?
             .to_vec();
@@ -863,12 +860,9 @@ impl BodyState<'_, '_> {
         }
 
         // finite shapes accept computed keys proven within keyof receiver
-        let key_domain = self.intern_operation(
-            origin.module(),
-            dir::TypeOperation::KeyOf(dir::UnaryType {
-                target: lookup_receiver,
-            }),
-        )?;
+        let key_domain = self.intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
+            target: lookup_receiver,
+        }))?;
         let accepts =
             answer!(self.decide_relation(origin, Relation::Assignable, index, key_domain,)?);
         if accepts {
@@ -878,7 +872,7 @@ impl BodyState<'_, '_> {
             let mut keys = Vec::new();
             let mut write_types = Vec::new();
             for field in fields {
-                let key_type = self.static_key_type(origin.module(), field.key)?;
+                let key_type = self.static_key_type(field.key)?;
                 if !answer!(self.types_may_overlap(origin, index, key_type)?) {
                     continue;
                 }
@@ -898,16 +892,13 @@ impl BodyState<'_, '_> {
                 key_type: key_domain,
                 target: dir::IndexTarget::Fields(keys),
             });
-            let read_type = self.intern_operation(
-                origin.module(),
-                dir::TypeOperation::Index(dir::IndexType {
-                    left: lookup_receiver,
-                    index,
-                }),
-            )?;
+            let read_type = self.intern_operation(dir::TypeOperation::Index(dir::IndexType {
+                left: lookup_receiver,
+                index,
+            }))?;
             let write_type = match write_types.is_empty() {
                 true => read_type,
-                false => self.normalized_intersection_type(origin.module(), write_types)?,
+                false => self.normalized_intersection_type(write_types)?,
             };
             let resolution = dir::MemberAccess::new(receiver, target, read_type);
 
@@ -1004,7 +995,7 @@ impl BodyState<'_, '_> {
                     types.push(subscript.ty);
                     subscripts.push(subscript);
                 }
-                let ty = self.normalized_union_type(origin.module(), types)?;
+                let ty = self.normalized_union_type(types)?;
 
                 dir::OperationResolution::Union {
                     arms: subscripts,
@@ -1061,7 +1052,7 @@ impl BodyState<'_, '_> {
         let missing = match missing.as_slice() {
             [] => None,
             [missing] => Some(*missing),
-            _ => Some(self.normalized_union_type(origin.module(), missing)?),
+            _ => Some(self.normalized_union_type(missing)?),
         };
         let dereference = dir::Dereference {
             receiver: borrow,
@@ -1069,7 +1060,7 @@ impl BodyState<'_, '_> {
             ty: output,
         };
         let ty = match missing {
-            Some(missing) => self.normalized_union_type(origin.module(), [output, missing])?,
+            Some(missing) => self.normalized_union_type([output, missing])?,
             None => output,
         };
         let target = dir::SubscriptTarget::Index(dir::IndexRead {
@@ -1163,7 +1154,7 @@ impl BodyState<'_, '_> {
         let value = match value_types.as_slice() {
             [] => return Ok(Answer::Ready(None)),
             [single] => *single,
-            _ => self.normalized_intersection_type(origin.module(), value_types)?,
+            _ => self.normalized_intersection_type(value_types)?,
         };
 
         let selection = SubscriptSelection::call_write(resolution, value, key_types.into())?;
@@ -1198,7 +1189,7 @@ impl BodyState<'_, '_> {
                 }
                 let ty = match returns.as_slice() {
                     [single] => *single,
-                    _ => self.normalized_union_type(origin.module(), returns)?,
+                    _ => self.normalized_union_type(returns)?,
                 };
 
                 Ok(Answer::Ready(Some(dir::OperationResolution::Union {
@@ -1344,7 +1335,7 @@ impl BodyState<'_, '_> {
                 });
             }
             [single] => *single,
-            _ => self.normalized_intersection_type(origin.module(), key_types)?,
+            _ => self.normalized_intersection_type(key_types)?,
         };
         let input = match value_types.as_slice() {
             [] => {
@@ -1353,7 +1344,7 @@ impl BodyState<'_, '_> {
                 });
             }
             [single] => *single,
-            _ => self.normalized_intersection_type(origin.module(), value_types)?,
+            _ => self.normalized_intersection_type(value_types)?,
         };
 
         let key_holds = self.decide_relation(origin, relation, key_type, key)?;

@@ -1,5 +1,5 @@
 mod capture;
-mod component;
+mod check;
 mod external;
 mod format;
 mod generic;
@@ -8,7 +8,7 @@ mod origin;
 mod trace;
 
 pub(in crate::check) use capture::*;
-pub(in crate::check) use component::*;
+pub(in crate::check) use check::*;
 pub(in crate::check) use external::*;
 pub(in crate::check) use generic::*;
 pub(in crate::check) use module::*;

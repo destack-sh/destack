@@ -34,9 +34,88 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // keep written types while declaring, checking selects storage
+        if self.is_declaration() {
+            return Ok(ty);
+        }
+
         let mut aliases = FxIndexSet::default();
 
         self.normalize_storage_type(origin, ty, &mut aliases)
+    }
+
+    /// Return the canonical checked form of one foreign written type.
+    ///
+    /// Declared modules record written types, so foreign symbol types canonicalize on entry:
+    /// signature parameters store like walked parameter declarations and other values store whole.
+    pub(in crate::check) fn canonical_foreign_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if self.is_declaration() {
+            return Ok(ty);
+        }
+
+        let origin = Origin::Symbol(symbol);
+        match self.ty(ty)? {
+            dir::Type::Function(function) => {
+                let signature = self.canonical_foreign_signature(origin, function.signature)?;
+                if signature == function.signature {
+                    return Ok(ty);
+                }
+
+                self.intern_type(dir::Type::Function(dir::FunctionType {
+                    signature,
+                    environment: function.environment,
+                }))
+            }
+            dir::Type::FunctionPointer(function) => {
+                let signature = self.canonical_foreign_signature(origin, function.signature)?;
+                if signature == function.signature {
+                    return Ok(ty);
+                }
+
+                self.intern_type(dir::Type::FunctionPointer(dir::FunctionPointerType {
+                    signature,
+                }))
+            }
+            dir::Type::FunctionSignature(_) => self.canonical_foreign_signature(origin, ty),
+            _ => self.storage_type(origin, ty),
+        }
+    }
+
+    /// Store one foreign written signature's parameters like walked parameters.
+    fn canonical_foreign_signature(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::FunctionSignature(id) = self.ty(ty)? else {
+            return Ok(ty);
+        };
+        let signature = self.type_signature(ty.module_id, id)?;
+        let parameters = self
+            .signature_parameters(ty.module_id, signature.parameters)?
+            .to_vec();
+
+        let mut stored = Vec::with_capacity(parameters.len());
+        let mut changed = false;
+        for parameter in parameters {
+            let ty = self.storage_type(origin, parameter.ty)?;
+            changed |= ty != parameter.ty;
+            stored.push(dir::FunctionParameterType { ty, ..parameter });
+        }
+        if !changed {
+            return Ok(ty);
+        }
+
+        let parameters = self.intern_parameters(&stored)?;
+
+        self.intern_signature(dir::FunctionSignatureType {
+            parameters,
+            ..signature
+        })
     }
 
     /// Normalize storage while expanding transparent aliases once per active chain.
@@ -47,14 +126,13 @@ impl CheckState<'_> {
         aliases: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = self.settled_root(ty)?;
-        let module = origin.module();
 
         // expand aliases only when their bodies require storage adaptation
         if self.is_alias_instance(ty)? {
             if !aliases.insert(ty) {
                 self.report_circular_type(origin)?;
 
-                return self.intern_type(module, dir::Type::Error);
+                return self.intern_type(dir::Type::Error);
             }
             let dir::Type::Application(instance) = self.ty(ty)? else {
                 return Err(CompilerError::Internal {
@@ -83,10 +161,8 @@ impl CheckState<'_> {
         }
 
         if self.is_dynamic_storage_constraint(ty)? {
-            let dynamic = self.intern_type(
-                module,
-                dir::Type::Dynamic(dir::DynamicType { constraint: ty }),
-            )?;
+            let dynamic =
+                self.intern_type(dir::Type::Dynamic(dir::DynamicType { constraint: ty }))?;
 
             // preserve non-default nominal placement across erased storage
             let symbol = match self.ty(ty)? {
@@ -96,12 +172,9 @@ impl CheckState<'_> {
             if let Some(symbol) = symbol
                 && self.nominal_space(symbol)? == Some(dir::Space::Shared)
             {
-                let place = self.intern_type(
-                    module,
-                    dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(
-                        dir::Space::Shared,
-                    ))),
-                )?;
+                let place = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
+                    dir::Place::Space(dir::Space::Shared),
+                )))?;
 
                 return self.placed_type(Origin::Symbol(symbol), dynamic, place);
             }
@@ -117,7 +190,7 @@ impl CheckState<'_> {
                     normalized.push(self.normalize_storage_type(origin, element, aliases)?);
                 }
 
-                self.normalized_union_type(module, normalized)
+                self.normalized_union_type(normalized)
             }
             dir::Type::Form(form) => {
                 let value = self.normalize_storage_type(origin, form.value, aliases)?;
@@ -125,27 +198,27 @@ impl CheckState<'_> {
                     return Ok(ty);
                 }
 
-                self.intern_type(
-                    module,
-                    dir::Type::Form(dir::FormType {
-                        form: form.form,
-                        value,
-                    }),
-                )
+                // adopt module-local borrow rows across the rebuild
+                let adopted = self.adopt_form(ty.module_id, form.form)?;
+
+                self.intern_type(dir::Type::Form(dir::FormType {
+                    form: adopted,
+                    value,
+                }))
             }
             _ => Ok(ty),
         }
     }
 
     /// Return whether one type has no direct storage representation.
-    fn is_dynamic_storage_constraint(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+    fn is_dynamic_storage_constraint(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         match self.ty(ty)? {
             // top types have no direct layout in storage
-            dir::Type::Any | dir::Type::Object | dir::Type::Unknown => Ok(true),
+            dir::Type::Any | dir::Type::Unknown => Ok(true),
 
             // interface instances are constraints, not represented values
             dir::Type::Application(instance) => Ok(matches!(
-                self.symbol_kind(instance.symbol),
+                self.symbol_kind(instance.symbol)?,
                 dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
             )),
 
@@ -224,15 +297,12 @@ impl CheckState<'_> {
             });
         }
         rebuilt.extend(parameters[rest_index + 1..].iter().copied());
-        let module = id.module_id;
-        let parameters = self.intern_parameters(module, &rebuilt)?;
-        let splatted = self.intern_signature(
-            module,
-            dir::FunctionSignatureType {
-                parameters,
-                ..signature
-            },
-        )?;
+        let _module = id.module_id;
+        let parameters = self.intern_parameters(&rebuilt)?;
+        let splatted = self.intern_signature(dir::FunctionSignatureType {
+            parameters,
+            ..signature
+        })?;
 
         Ok(Answer::Ready(Some(splatted)))
     }
@@ -337,8 +407,8 @@ impl CheckState<'_> {
         // report circular expansions and complete the chain with the error type
         if !expanding.insert(id) {
             self.report_circular_type(origin)?;
-            let module = origin.module();
-            let error = self.intern_type(module, dir::Type::Error)?;
+            let _module = origin.module();
+            let error = self.intern_type(dir::Type::Error)?;
 
             return Ok(HeadReduction::Closed(error));
         }
@@ -360,6 +430,18 @@ impl CheckState<'_> {
 
             // transparent alias references expand to their substituted bodies
             dir::Type::Application(instance) => {
+                // close foreign applications unreduced while declaring
+                if self.is_declaration() && !self.is_own_module(instance.symbol.module_id) {
+                    return Ok(HeadReduction::Closed(id));
+                }
+
+                // written applications complete their elided arguments
+                if !self.is_declaration()
+                    && let Some(filled) = self.fill_elided_application(id.module_id, &instance)?
+                {
+                    return self.head_reduction(origin, filled);
+                }
+
                 // reduce intrinsic references to their builtin forms
                 if let Some(reduced) = blocked!(
                     id,
@@ -396,16 +478,13 @@ impl CheckState<'_> {
                     let arguments = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
                         self.type_ids(id.module_id, member.arguments)?,
                     );
-                    let arguments = self.intern_type_ids(origin.module(), &arguments)?;
-                    let rebuilt = self.intern_member(
-                        origin.module(),
-                        dir::MemberType {
-                            owner,
-                            key: member.key,
-                            arguments,
-                            qualifier,
-                        },
-                    )?;
+                    let arguments = self.intern_type_ids(&arguments)?;
+                    let rebuilt = self.intern_member(dir::MemberType {
+                        owner,
+                        key: member.key,
+                        arguments,
+                        qualifier,
+                    })?;
 
                     return self.reduce_type_chain(origin, rebuilt, expanding);
                 }
@@ -461,23 +540,16 @@ impl CheckState<'_> {
                     return Ok(HeadReduction::Closed(id));
                 }
 
-                let closed_form =
-                    self.intern_borrow(origin.module(), closed_lifetime, closed_access)?;
-                let mut rebuilt = self.intern_type(
-                    origin.module(),
-                    dir::Type::Form(dir::FormType {
-                        form: closed_form,
-                        value: inner,
-                    }),
-                )?;
+                let closed_form = self.intern_borrow(closed_lifetime, closed_access)?;
+                let mut rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
+                    form: closed_form,
+                    value: inner,
+                }))?;
                 if let Some(place) = place {
-                    rebuilt = self.intern_type(
-                        origin.module(),
-                        dir::Type::Form(dir::FormType {
-                            form: dir::Form::Placed { place },
-                            value: rebuilt,
-                        }),
-                    )?;
+                    rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
+                        form: dir::Form::Placed { place },
+                        value: rebuilt,
+                    }))?;
                 }
 
                 self.head_reduction(origin, rebuilt)
@@ -499,13 +571,10 @@ impl CheckState<'_> {
                     return Ok(HeadReduction::Closed(id));
                 }
 
-                let rebuilt = self.intern_type(
-                    origin.module(),
-                    dir::Type::Form(dir::FormType {
-                        form: form.form,
-                        value,
-                    }),
-                )?;
+                let rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
+                    form: form.form,
+                    value,
+                }))?;
 
                 self.head_reduction(origin, rebuilt)
             }
@@ -527,7 +596,7 @@ impl CheckState<'_> {
     /// Reduce forms that a borrow absorbs from its payload.
     fn reduce_borrow_payload(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         mut value: dir::GlobalTypeId,
         mut access: dir::GlobalTypeId,
     ) -> CompilerResult<(
@@ -542,10 +611,9 @@ impl CheckState<'_> {
             match inner.form {
                 // readonly payloads clamp the borrow access
                 dir::Form::Readonly => {
-                    access = self.intern_type(
-                        origin.module(),
-                        dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
-                    )?;
+                    access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
+                        dir::Access::Readonly,
+                    )))?;
                     value = inner.value;
                 }
 
@@ -649,9 +717,9 @@ impl CheckState<'_> {
             dir::Type::Union(union) => {
                 let elements = self.type_ids(target, union.elements)?.to_vec();
 
-                self.normalized_union_type(target, elements)?
+                self.normalized_union_type(elements)?
             }
-            ty => self.intern_type(target, ty)?,
+            ty => self.intern_type(ty)?,
         };
         active.swap_remove(&id);
         let rebuilt = if rebuilt == id {
@@ -679,10 +747,46 @@ impl CheckState<'_> {
         Ok(self.language_item(instance.symbol)?.is_none())
     }
 
+    /// Complete one under-applied application with its elided arguments.
+    ///
+    /// Written types elide defaulted and lifetime arguments, so canonicalization completes them:
+    /// defaults substitute against the arguments so far and elided lifetimes take the frame.
+    pub(in crate::check) fn fill_elided_application(
+        &mut self,
+        module: ModuleId,
+        instance: &dir::GenericApplication,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(template) = self.symbol_template(instance.symbol)? else {
+            return Ok(None);
+        };
+        let parameters = self.generic_template_parameters(template)?;
+        let written = self.type_ids(module, instance.arguments)?.len();
+        if written >= parameters.len() {
+            return Ok(None);
+        }
+
+        let substitution = self.instance_substitution(module, instance)?;
+        let arguments = substitution
+            .bindings
+            .iter()
+            .map(|binding| binding.argument)
+            .collect::<Vec<_>>();
+        if arguments.len() != parameters.len() {
+            return Ok(None);
+        }
+        let arguments = self.intern_type_ids(&arguments)?;
+        let filled = self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol: instance.symbol,
+            arguments,
+        }))?;
+
+        Ok(Some(filled))
+    }
+
     /// Return the substituted body of one transparent type alias application.
     fn type_alias_body(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
@@ -701,7 +805,7 @@ impl CheckState<'_> {
         let substitution = self.instance_substitution(instance_module, instance)?;
 
         // substitute applied arguments through the body
-        let substituted = self.substitute_type(origin.module(), value, &substitution)?;
+        let substituted = self.substitute_type(value, &substitution)?;
 
         Ok(Answer::Ready(Some(substituted)))
     }

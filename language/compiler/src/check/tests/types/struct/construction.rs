@@ -669,8 +669,8 @@ type Options = {
     message?: string;
 };
 
-struct Entry {
-    logger?: &readonly string;
+struct Entry<'a> {
+    logger?: &'a readonly string;
     message?: string | undefined;
 }
 
@@ -710,15 +710,17 @@ type Options = {
     message?: string;
 };
 
-struct Entry {
+struct Entry<'a> {
 /// @generic.template symbol=Entry parameters=('a)
 /// @type.symbol symbol=Entry type=Entry
 /// @definition.struct symbol=Entry template=('a)
-/// @definition.field symbol=Entry.logger source="logger?: &readonly string" key=logger type=&Entry.'a readonly string
+/// @definition.field symbol=Entry.logger source="logger?: &'a readonly string" key=logger type=&'a readonly string
 /// @definition.field symbol=Entry.message source="message?: string | undefined" key=message type=string | undefined
+/// @type.symbol symbol=Entry.'a source='a type='a
 
-    logger?: &readonly string;
-    /// @type.symbol symbol=Entry.logger source="logger?: &readonly string" type=&Entry.'a readonly string
+    logger?: &'a readonly string;
+    /// @type.symbol symbol=Entry.logger source="logger?: &'a readonly string" type=&'a readonly string
+    /// @resolution.name source='a target=Entry.'a
 
     message?: string | undefined;
     /// @type.symbol symbol=Entry.message source="message?: string | undefined" type=string | undefined

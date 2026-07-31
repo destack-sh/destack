@@ -36,10 +36,7 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(None));
                 };
 
-                let key = self.intern_type(
-                    origin.module(),
-                    dir::Type::Literal(dir::ScalarLiteral::String(name)),
-                )?;
+                let key = self.intern_type(dir::Type::Literal(dir::ScalarLiteral::String(name)))?;
                 let projection = answer!(self.reduce_static_member_projection(
                     origin,
                     owner,

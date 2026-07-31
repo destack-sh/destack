@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
+
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -87,8 +87,13 @@ impl CheckState<'_> {
         origin: Origin,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // skip heritage closure while declaring, checking validates the inherited rows
+        if self.is_declaration() {
+            return Ok(Answer::Ready(ObligationCheck::Holds));
+        }
+
         let source = self.origin_source(origin)?;
-        let instance = self.declaration_instance(source.module_id, symbol)?;
+        let instance = self.declaration_instance(symbol)?;
         let closure = answer!(self.heritage_closure(origin, source.module_id, &instance)?);
 
         // report graph errors before class member rules
@@ -289,10 +294,9 @@ impl CheckState<'_> {
     /// Return the inherited class member view.
     fn class_heritage(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         extends: Option<dir::NominalHeritage>,
     ) -> CompilerResult<Answer<ClassHeritage>> {
-        let module = origin.module();
         let mut members = Vec::<ClassMember>::new();
         let mut final_base = None;
         let mut substitution = TypeSubstitution::default();
@@ -303,7 +307,7 @@ impl CheckState<'_> {
             depth += 1;
 
             // apply the previous base's parameters to this extends clause
-            let ty = self.substitute_type(module, heritage.ty, &substitution)?;
+            let ty = self.substitute_type(heritage.ty, &substitution)?;
             let (instance_module, instance) = self.require_nominal_application(ty)?;
 
             let Some(dir::Definition::Class(base)) = self.definition(instance.symbol)? else {
@@ -323,7 +327,7 @@ impl CheckState<'_> {
                 let Some(mut member) = answer!(self.class_member(member)?) else {
                     continue;
                 };
-                member.ty = self.substitute_type(origin.module(), member.ty, &substitution)?;
+                member.ty = self.substitute_type(member.ty, &substitution)?;
                 members.push(member);
             }
         }
@@ -337,7 +341,6 @@ impl CheckState<'_> {
     /// Return one declaration's own generic application.
     pub(in crate::check) fn declaration_instance(
         &mut self,
-        module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GenericApplication> {
         let parameters = match self.symbol_template(symbol)? {
@@ -348,10 +351,10 @@ impl CheckState<'_> {
         let mut arguments = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             let ty = dir::Type::Parameter(parameter);
-            let argument = self.intern_type(module, ty)?;
+            let argument = self.intern_type(ty)?;
             arguments.push(argument);
         }
-        let arguments = self.intern_type_ids(module, &arguments)?;
+        let arguments = self.intern_type_ids(&arguments)?;
 
         Ok(dir::GenericApplication { symbol, arguments })
     }

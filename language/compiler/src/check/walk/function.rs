@@ -159,7 +159,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                     .map(|(_, lifetime)| *lifetime)
                     .collect::<Vec<_>>();
 
-                self.check.normalized_union_type(self.module, elements)?
+                self.check.normalized_union_type(elements)?
             }
         };
 
@@ -341,6 +341,20 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_type,
             tracked,
         )?;
+
+        // register signature positions whose elided borrows induce lifetime parameters
+        let owner = InducedParameterOwner::new(source.into_global(self.module), None, None);
+        for parameter in &parameters {
+            self.push_induced_parameter_site(owner, parameter.ty);
+        }
+        if let Some(this_parameter) = this_parameter {
+            self.push_induced_parameter_site(owner, this_parameter);
+        }
+        if let Some(return_type) = return_type {
+            self.push_induced_parameter_site(owner, return_type);
+        }
+        let template = self.induced_owner_template(owner, template)?;
+
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,

@@ -245,7 +245,8 @@ meter.reading = 5;
 }
 
 #[test]
-fn test_writable_shape_widens_to_readonly_but_not_back() {
+fn test_readonly_and_writable_object_types_store_exactly() {
+    // readonly access divides object classes, aliased storage rejects in both directions
     let session = TestSession::single(
         r#"
 declare let mutable: { tag: string };
@@ -293,9 +294,14 @@ const narrowed: { tag: string } = frozen;
 /// @resolution.access source=frozen root=frozen
 "#,
         r#"
+/// @diagnostic.error id=not-assignable message="type '{ tag: string }' is not assignable to type '{ readonly tag: string }'"
+/// @diagnostic.label line=5 column=43 span="mutable" line_source="const widened: { readonly tag: string } = mutable;"
+/// @diagnostic.related line=5 column=16 span="{ readonly tag: string }" line_source="const widened: { readonly tag: string } = mutable;" message="expected due to this annotation"
+/// @diagnostic.note message="'{ readonly tag: string }' stores its exact object type, declare an interface to accept structurally wider values"
 /// @diagnostic.error id=not-assignable message="type '{ readonly tag: string }' is not assignable to type '{ tag: string }'"
 /// @diagnostic.label line=6 column=35 span="frozen" line_source="const narrowed: { tag: string } = frozen;"
 /// @diagnostic.related line=6 column=17 span="{ tag: string }" line_source="const narrowed: { tag: string } = frozen;" message="expected due to this annotation"
+/// @diagnostic.note message="'{ tag: string }' stores its exact object type, declare an interface to accept structurally wider values"
 "#,
     );
 }

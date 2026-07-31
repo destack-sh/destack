@@ -181,7 +181,7 @@ impl CheckState<'_> {
                         return Ok(OperationReduction::Projected(written));
                     }
                     if let Some(value) = candidate.value {
-                        let ty = self.intern_type(origin.module(), dir::Type::Static(value))?;
+                        let ty = self.intern_type(dir::Type::Static(value))?;
 
                         return Ok(OperationReduction::Projected(ty));
                     }
@@ -207,7 +207,7 @@ impl CheckState<'_> {
                         }
                     }
                 }
-                let ty = self.normalized_union_type(origin.module(), types)?;
+                let ty = self.normalized_union_type(types)?;
 
                 Ok(OperationReduction::Projected(ty))
             }
@@ -224,7 +224,7 @@ impl CheckState<'_> {
                         }
                     }
                 }
-                let ty = self.normalized_intersection_type(origin.module(), types)?;
+                let ty = self.normalized_intersection_type(types)?;
 
                 Ok(OperationReduction::Projected(ty))
             }
@@ -248,7 +248,7 @@ impl CheckState<'_> {
 
         // poisoned operands project their poison
         if self.ty(left)?.is_error() || self.ty(key)?.is_error() {
-            let error = self.intern_type(origin.module(), dir::Type::Error)?;
+            let error = self.intern_type(dir::Type::Error)?;
 
             return Ok(Answer::Ready(OperationReduction::Projected(error)));
         }
@@ -303,7 +303,7 @@ impl CheckState<'_> {
 
         // project closed structural keys
         let projected = match (self.ty(left)?, static_key) {
-            (dir::Type::Shape(shape), Some(static_key)) => {
+            (dir::Type::Shape(shape) | dir::Type::Object(shape), Some(static_key)) => {
                 let field = self
                     .shape_properties(left.module_id, shape.properties)?
                     .iter()
@@ -313,11 +313,10 @@ impl CheckState<'_> {
                 // optional fields read as their value or undefined
                 match field {
                     Some(field) if field.is_optional => {
-                        let module = origin.module();
-                        let undefined = self.intern_type(module, dir::Type::Undefined)?;
+                        let undefined = self.intern_type(dir::Type::Undefined)?;
                         let read = field.access.store();
 
-                        Some(self.normalized_union_type(module, vec![read, undefined])?)
+                        Some(self.normalized_union_type(vec![read, undefined])?)
                     }
                     Some(field) => Some(field.access.store()),
                     // keyed index signatures cover missing exact fields
@@ -327,7 +326,7 @@ impl CheckState<'_> {
                 }
             }
             // primitive keys project matching index signatures
-            (dir::Type::Shape(shape), None) => {
+            (dir::Type::Shape(shape) | dir::Type::Object(shape), None) => {
                 answer!(self.shape_signature_projection(origin, left, &shape, key)?)
             }
             (dir::Type::Tuple(tuple), Some(dir::StaticKey::Index(index))) => self
@@ -350,7 +349,7 @@ impl CheckState<'_> {
                     .map(|element| element.ty)
                     .collect::<Vec<_>>();
 
-                Some(self.normalized_union_type(origin.module(), elements)?)
+                Some(self.normalized_union_type(elements)?)
             }
             // unprojected member-bearing receivers stay symbolic
             (
@@ -396,7 +395,7 @@ impl CheckState<'_> {
                 other => return Ok(Answer::Ready(other)),
             }
         }
-        let union = self.normalized_union_type(origin.module(), projected)?;
+        let union = self.normalized_union_type(projected)?;
 
         Ok(Answer::Ready(OperationReduction::Projected(union)))
     }
@@ -434,7 +433,7 @@ impl CheckState<'_> {
     }
 
     /// Return the broad key domain of one closed key type.
-    fn index_key_domain(&self, key: dir::GlobalTypeId) -> CompilerResult<Option<KeyDomain>> {
+    fn index_key_domain(&mut self, key: dir::GlobalTypeId) -> CompilerResult<Option<KeyDomain>> {
         if let Some(static_key) = self.static_key_from_type(key)? {
             return Ok(Some(KeyDomain::from_key(static_key)));
         }
@@ -481,9 +480,9 @@ impl CheckState<'_> {
         let module = id.module_id;
         let elements = self.keyof_types(module, keys)?;
         let union = match elements.as_slice() {
-            [] => self.intern_type(module, dir::Type::Never)?,
+            [] => self.intern_type(dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(module, elements)?,
+            _ => self.normalized_union_type(elements)?,
         };
 
         Ok(Answer::Ready(Some(union)))
@@ -497,7 +496,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<KeySet>>> {
         let set = match self.ty(target)? {
             // structural object keys come from fields and index signatures
-            dir::Type::Shape(shape) => {
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 let mut set = KeySet::default();
                 let fields = self
                     .shape_properties(target.module_id, shape.properties)?
@@ -747,32 +746,28 @@ impl CheckState<'_> {
     /// Write one key set as concrete type ids.
     fn keyof_types(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         keys: KeySet,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let mut elements = Vec::with_capacity(keys.keys.len() + keys.domains.len());
         for key in keys.keys {
-            elements.push(self.static_key_type(module, key)?);
+            elements.push(self.static_key_type(key)?);
         }
         for domain in keys.domains {
-            elements.push(self.key_domain_type(module, domain)?);
+            elements.push(self.key_domain_type(domain)?);
         }
 
         Ok(elements)
     }
 
     /// Write one key domain as its primitive type.
-    fn key_domain_type(
-        &mut self,
-        module: ModuleId,
-        domain: KeyDomain,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.intern_type(module, dir::Type::Primitive(domain.primitive_type()))
+    fn key_domain_type(&mut self, domain: KeyDomain) -> CompilerResult<dir::GlobalTypeId> {
+        self.intern_type(dir::Type::Primitive(domain.primitive_type()))
     }
 
     /// Return the exact static key represented by one singleton key type.
     pub(in crate::check) fn static_key_from_type(
-        &self,
+        &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::StaticKey>> {
         let key = match self.ty(ty)? {
@@ -827,7 +822,7 @@ impl CheckState<'_> {
                 let target = answer!(self.reduce_type_head(origin, target)?);
 
                 match self.ty(target)? {
-                    dir::Type::Shape(shape) => Some(
+                    dir::Type::Shape(shape) | dir::Type::Object(shape) => Some(
                         self.shape_properties(target.module_id, shape.properties)?
                             .to_vec(),
                     ),
@@ -876,7 +871,7 @@ impl CheckState<'_> {
             let value = match (is_identity, carried) {
                 (true, Some(field)) => field.access.read().unwrap_or_else(|| field.access.store()),
                 _ => {
-                    let value = self.substitute_type(module, mapped.value, &substitution)?;
+                    let value = self.substitute_type(mapped.value, &substitution)?;
                     match self.reduce_type_head(origin, value)? {
                         Answer::Ready(value) => value,
                         Answer::Pending(dependencies) => {
@@ -890,7 +885,7 @@ impl CheckState<'_> {
 
             let remapped = match mapped.parameter.key_remap {
                 Some(remap) => {
-                    let remap = self.substitute_type(module, remap, &substitution)?;
+                    let remap = self.substitute_type(remap, &substitution)?;
 
                     match self.reduce_type_head(origin, remap)? {
                         Answer::Ready(remap) => remap,
@@ -956,13 +951,13 @@ impl CheckState<'_> {
 
         let fields = self.intern_properties(module, &fields)?;
         let index_signatures = self.intern_index_signatures(module, &index_signatures)?;
-        let shape = dir::Type::Shape(dir::ShapeType {
+        let shape = dir::Type::from(dir::ShapeType {
             properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
             construct_signatures: dir::TypeListId::EMPTY,
             index_signatures,
         });
-        let projected = self.intern_type(module, shape)?;
+        let projected = self.intern_type(shape)?;
 
         Ok(Answer::Ready(Some(projected)))
     }

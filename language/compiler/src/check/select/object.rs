@@ -205,7 +205,7 @@ impl BodyState<'_, '_> {
                     if let Some(pattern) =
                         pattern.filter(|pattern| self.is_defaulted_pattern(module, *pattern))
                     {
-                        let undefined = self.intern_type(module, dir::Type::Undefined)?;
+                        let undefined = self.intern_type(dir::Type::Undefined)?;
 
                         answer!(self.check_pattern_projection(
                             flow,
@@ -376,7 +376,7 @@ impl BodyState<'_, '_> {
                     };
 
                     if self.is_defaulted_assign_pattern(module, pattern) {
-                        let undefined = self.intern_type(module, dir::Type::Undefined)?;
+                        let undefined = self.intern_type(dir::Type::Undefined)?;
 
                         answer!(self.check_pattern_projection(
                             flow,
@@ -490,7 +490,7 @@ impl BodyState<'_, '_> {
                     types.push(projection.ty());
                     projections.push(projection);
                 }
-                let ty = self.normalized_union_type(origin.module(), types)?;
+                let ty = self.normalized_union_type(types)?;
 
                 ObjectField::Projection(Box::new(dir::OperationResolution::Union {
                     arms: projections,
@@ -613,13 +613,13 @@ impl BodyState<'_, '_> {
             })
             .collect();
         let fields = self.intern_properties(module, &fields)?;
-        let shape = dir::Type::Shape(dir::ShapeType {
+        let shape = dir::Type::from(dir::ShapeType {
             properties: fields,
             call_signatures: dir::TypeListId::EMPTY,
             construct_signatures: dir::TypeListId::EMPTY,
             index_signatures: dir::TypeListId::EMPTY,
         });
-        let ty = self.intern_type(module, shape)?;
+        let ty = self.intern_type(shape)?;
 
         let projection = dir::Projection::ObjectRest { fields: copied, ty };
 

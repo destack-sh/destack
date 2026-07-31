@@ -18,16 +18,16 @@ impl ApparentInstance {
     /// Intern this instance into one component module.
     pub(in crate::check) fn intern(
         &self,
-        module: ModuleId,
+        _module: ModuleId,
         check: &mut CheckState<'_>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let arguments = check.intern_type_ids(module, &self.arguments)?;
+        let arguments = check.intern_type_ids(&self.arguments)?;
         let instance = dir::GenericApplication {
             symbol: self.symbol,
             arguments,
         };
 
-        check.intern_type(module, dir::Type::Application(instance))
+        check.intern_type(dir::Type::Application(instance))
     }
 
     /// Return the generic substitution represented by this instance.

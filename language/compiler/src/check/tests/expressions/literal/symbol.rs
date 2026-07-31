@@ -27,7 +27,7 @@ const value: symbol = Symbol.create("id");
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create
 /// @type.node source="\"id\"" type="id"
 
-/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
+/// @check.stats.solve variables=1 types=11 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
     );
 }
@@ -58,7 +58,7 @@ const value: string = Symbol.create("id");
 /// @resolution.member source=Symbol.create receiver=Symbol type=(string | float64 | undefined?) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create
 
-/// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
+/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'symbol' is not assignable to type 'string'"
@@ -96,7 +96,7 @@ const value: symbol | string = Symbol.create("id");
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create
 /// @type.node source="\"id\"" type="id"
 
-/// @check.stats.solve variables=1 types=11 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
+/// @check.stats.solve variables=1 types=12 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
     );
 }
@@ -127,7 +127,7 @@ const value: number = Symbol.create("id");
 /// @resolution.member source=Symbol.create receiver=Symbol type=(string | float64 | undefined?) => symbol kind=symbol target_receiver=Symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create
 
-/// @check.stats.solve variables=1 types=6 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
+/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=4
 "#,
         r#"
 /// @diagnostic.error id=not-assignable message="type 'symbol' is not assignable to type 'float64'"

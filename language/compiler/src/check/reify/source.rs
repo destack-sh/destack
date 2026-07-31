@@ -23,7 +23,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn render_annotated_sources(
         &mut self,
     ) -> CompilerResult<Vec<AnnotatedSource>> {
-        let modules = self.modules.keys().copied().collect::<Vec<_>>();
+        let modules = vec![self.module_id];
         let mut resolved_types = FxIndexMap::default();
         let mut sources = Vec::with_capacity(modules.len());
         for module_id in modules {
@@ -269,11 +269,11 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
         for (node, parameter) in written.iter().zip(parameters.iter()) {
             let parameter = dir::GlobalGenericParameterId::new(module_id, *parameter);
-            let form = self.check.parameter_variance_form(parameter)?;
+            let form = self.check.loaded_parameter_variance_form(parameter);
 
             // written modifiers and unmeasured parameters stay as written
             let Some(VarianceState::Derived(derived)) =
-                self.check.variances.get(&(parameter, form))
+                self.check.generics.variances.get(&(parameter, form))
             else {
                 continue;
             };

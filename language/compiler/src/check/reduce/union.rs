@@ -41,17 +41,16 @@ impl CheckState<'_> {
     /// Return a normalized union type.
     pub(in crate::check) fn normalized_union_type(
         &mut self,
-        module: ModuleId,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let elements = self.union_elements(module, elements)?;
+        let elements = self.union_elements(self.module_id, elements)?;
 
         match elements.as_slice() {
             [single] => Ok(*single),
             _ => {
-                let elements = self.intern_type_ids(module, &elements)?;
+                let elements = self.intern_type_ids(&elements)?;
 
-                self.intern_type(module, dir::Type::Union(dir::UnionType { elements }))
+                self.intern_type(dir::Type::Union(dir::UnionType { elements }))
             }
         }
     }
@@ -112,7 +111,7 @@ impl CheckState<'_> {
     /// Merge borrows of one payload and access by joining their lifetimes.
     fn merge_borrowed_union_element(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         kept: &mut SmallVec<[dir::GlobalTypeId; 4]>,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
@@ -140,16 +139,12 @@ impl CheckState<'_> {
             }
 
             // one borrow value valid for the join of both lifetimes
-            let joined =
-                self.normalized_union_type(module, [existing_borrow.lifetime, borrow.lifetime])?;
-            let joined_form = self.intern_borrow(module, joined, borrow.access)?;
-            *slot = self.intern_type(
-                module,
-                dir::Type::Form(dir::FormType {
-                    form: joined_form,
-                    value: existing.value,
-                }),
-            )?;
+            let joined = self.normalized_union_type([existing_borrow.lifetime, borrow.lifetime])?;
+            let joined_form = self.intern_borrow(joined, borrow.access)?;
+            *slot = self.intern_type(dir::Type::Form(dir::FormType {
+                form: joined_form,
+                value: existing.value,
+            }))?;
 
             return Ok(true);
         }
@@ -236,11 +231,10 @@ impl CheckState<'_> {
         }
 
         // collapse the accepted elements back into one type
-        let module = origin.module();
         let value = match non_nullish.as_slice() {
-            [] => self.intern_type(module, dir::Type::Never)?,
+            [] => self.intern_type(dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(module, non_nullish)?,
+            _ => self.normalized_union_type(non_nullish)?,
         };
         let rejected = match (has_null, has_undefined) {
             (true, true) => NullishPart::NullOrUndefined,
@@ -255,14 +249,13 @@ impl CheckState<'_> {
     /// Distribute one reduction across union arms.
     pub(super) fn reduce_distributed_operation<F>(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         elements: SmallVec<[dir::GlobalTypeId; 4]>,
         mut reduce: F,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>>
     where
         F: FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>>,
     {
-        let module = origin.module();
         let mut reduced = Vec::with_capacity(elements.len());
 
         // reduce each arm independently
@@ -273,7 +266,7 @@ impl CheckState<'_> {
             reduced.push(element);
         }
 
-        let union = self.normalized_union_type(module, reduced)?;
+        let union = self.normalized_union_type(reduced)?;
 
         Ok(Answer::Ready(Some(union)))
     }

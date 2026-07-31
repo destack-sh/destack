@@ -6,9 +6,10 @@ use smallvec::SmallVec;
 
 use crate::check::{
     BoundSide, Cause, CauseArena, CauseId, Constraint, ConstraintId, ConstraintResult,
-    ConstraintTable, Dependency, GenericParameterId, InferenceScope, ObligationEntry, ObligationId,
-    ObligationTable, Origin, OriginArena, OriginId, RelationCache, RelationCacheSnapshot, Task,
-    TypeBound, Variable, VariableRole, VariableTable, Widening, WorkQueue,
+    ConstraintTable, Dependency, FailedCheck, GenericParameterId, InferenceScope, ObligationEntry,
+    ObligationId, ObligationTable, Origin, OriginArena, OriginId, RelationCache,
+    RelationCacheSnapshot, Task, TypeBound, Variable, VariableRole, VariableTable, Widening,
+    WorkQueue,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -27,6 +28,8 @@ pub(in crate::check) struct Solver {
     pub(in crate::check) obligations: ObligationTable,
     /// Interned check origins.
     pub(in crate::check) origins: OriginArena,
+    /// Failed checks retained until their cause trees are complete.
+    pub(in crate::check) failures: Vec<FailedCheck>,
     /// Interned constraint causes.
     pub(in crate::check) causes: CauseArena,
     /// Variables opened for generic parameters, keyed by application.
@@ -124,6 +127,7 @@ impl Solver {
             relations: RelationCache::new(),
             obligations: ObligationTable::new(),
             origins: OriginArena::default(),
+            failures: Vec::new(),
             causes: CauseArena::default(),
             instantiations: FxIndexMap::default(),
             waiters: FxIndexMap::default(),

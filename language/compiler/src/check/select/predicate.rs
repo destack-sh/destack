@@ -142,10 +142,9 @@ impl BodyState<'_, '_> {
         };
 
         // guard targets read as their declaration reference
-        let reference =
-            self.intern_type(module, dir::Type::Reference(dir::TypeReference { symbol }))?;
+        let reference = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
         self.commit_node_type(target_node, reference)?;
-        if self.symbol_kind(symbol) != dir::SymbolKind::Class {
+        if self.symbol_kind_maybe(symbol)? != Some(dir::SymbolKind::Class) {
             return Ok(Answer::Ready(None));
         }
 
@@ -154,11 +153,11 @@ impl BodyState<'_, '_> {
             Some(arguments) => arguments,
             None => self.instanceof_erased_arguments(module, symbol)?,
         };
-        let arguments = self.intern_type_ids(module, &arguments)?;
-        let target = self.intern_type(
-            module,
-            dir::Type::Application(dir::GenericApplication { symbol, arguments }),
-        )?;
+        let arguments = self.intern_type_ids(&arguments)?;
+        let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol,
+            arguments,
+        }))?;
 
         Ok(Answer::Ready(Some((symbol, target))))
     }
@@ -166,7 +165,7 @@ impl BodyState<'_, '_> {
     /// Return erased arguments for one bare `instanceof` class target.
     fn instanceof_erased_arguments(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let Some(template) = self.symbol_template(symbol)? else {
@@ -175,7 +174,7 @@ impl BodyState<'_, '_> {
         let parameters = self.generic_template_parameters(template)?;
         let mut arguments = Vec::with_capacity(parameters.len());
         for parameter in parameters {
-            let argument = self.intern_type(module, dir::Type::Erased(parameter))?;
+            let argument = self.intern_type(dir::Type::Erased(parameter))?;
             arguments.push(argument);
         }
 
@@ -260,9 +259,7 @@ impl BodyState<'_, '_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::Predicate>>> {
         let condition = match self.ty(target)? {
-            dir::Type::Any | dir::Type::Unknown | dir::Type::Object => {
-                dir::PredicateCondition::Always
-            }
+            dir::Type::Any | dir::Type::Unknown => dir::PredicateCondition::Always,
             // refinements test through their base application
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(target.module_id, refined)?;
@@ -287,13 +284,13 @@ impl BodyState<'_, '_> {
             }),
             dir::Type::Application(dir::GenericApplication { symbol, .. })
             | dir::Type::Reference(dir::TypeReference { symbol }) => {
-                match self.symbol_kind(symbol) {
-                    dir::SymbolKind::Class | dir::SymbolKind::NewtypeInterface => {
+                match self.symbol_kind_maybe(symbol)? {
+                    Some(dir::SymbolKind::Class | dir::SymbolKind::NewtypeInterface) => {
                         dir::PredicateCondition::Subtype(target)
                     }
-                    dir::SymbolKind::Struct | dir::SymbolKind::Enum | dir::SymbolKind::Newtype => {
-                        dir::PredicateCondition::Type(target)
-                    }
+                    Some(
+                        dir::SymbolKind::Struct | dir::SymbolKind::Enum | dir::SymbolKind::Newtype,
+                    ) => dir::PredicateCondition::Type(target),
                     _ => return Ok(Answer::Ready(None)),
                 }
             }
@@ -302,7 +299,7 @@ impl BodyState<'_, '_> {
             | dir::Type::FixedArray(_)
             | dir::Type::Slice(_) => dir::PredicateCondition::Type(target),
             dir::Type::Form(_) => dir::PredicateCondition::Type(target),
-            dir::Type::Shape(_) => return Ok(Answer::Ready(None)),
+            dir::Type::Shape(_) | dir::Type::Object(_) => return Ok(Answer::Ready(None)),
             dir::Type::Union(union) => {
                 let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
                 let mut alternatives = Vec::with_capacity(elements.len());
@@ -424,7 +421,7 @@ impl BodyState<'_, '_> {
         }
 
         let predicate = match self.ty(ty)? {
-            dir::Type::Shape(_) => Some(answer!(self.unary_predicate(
+            dir::Type::Shape(_) | dir::Type::Object(_) => Some(answer!(self.unary_predicate(
                 origin,
                 value,
                 ty,
@@ -490,14 +487,11 @@ impl BodyState<'_, '_> {
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::Predicate>> {
-        let operation = self.intern_operation(
-            origin.module(),
-            dir::TypeOperation::Narrow(dir::NarrowType {
-                source: value,
-                target,
-                is_positive: true,
-            }),
-        )?;
+        let operation = self.intern_operation(dir::TypeOperation::Narrow(dir::NarrowType {
+            source: value,
+            target,
+            is_positive: true,
+        }))?;
         let narrowed = answer!(self.reduce_type_head(origin, operation)?);
         let predicate = predicate.with_narrowed(narrowed);
         let predicate = match self.predicate_projection(value, target)? {
@@ -545,16 +539,15 @@ impl BodyState<'_, '_> {
     }
 
     /// Return the reflected type descriptor type.
-    fn type_descriptor_type(&mut self, origin: Origin) -> CompilerResult<dir::GlobalTypeId> {
-        let module = origin.module();
-        let unknown = self.intern_type(module, dir::Type::Unknown)?;
+    fn type_descriptor_type(&mut self, _origin: Origin) -> CompilerResult<dir::GlobalTypeId> {
+        let unknown = self.intern_type(dir::Type::Unknown)?;
         let symbol = self.language_symbol(dir::LanguageItem::Type)?;
-        let arguments = self.intern_type_ids(module, &[unknown])?;
+        let arguments = self.intern_type_ids(&[unknown])?;
 
-        self.intern_type(
-            module,
-            dir::Type::Application(dir::GenericApplication { symbol, arguments }),
-        )
+        self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol,
+            arguments,
+        }))
     }
 
     /// Commit one predicate resolution and its boolean result.
@@ -568,10 +561,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<()>> {
         self.push_runtime_predicate_obligation(origin, node, left, right, resolution.clone())?;
         self.commit_decision(node, Decision::Guard(resolution))?;
-        let boolean = self.intern_type(
-            node.module_id,
-            dir::Type::Primitive(dir::PrimitiveType::Boolean),
-        )?;
+        let boolean = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
         self.commit_node_type(node, boolean)?;
 
         Ok(Answer::Ready(()))

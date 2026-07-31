@@ -507,7 +507,8 @@ const widened: { x: float64 } = point;
 }
 
 #[test]
-fn test_readonly_object_field_widens_identity_edges_only() {
+fn test_object_storage_rejects_aliased_field_widening() {
+    // aliased object values store exactly, field widening needs an interface contract
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -571,6 +572,10 @@ const converted: { readonly x: float64 } = scalar;
 /// @resolution.access source=scalar root=scalar
 "#,
         r#"
+/// @diagnostic.error id=not-assignable message="type '{ x: Circle }' is not assignable to type '{ readonly x: Shape }'"
+/// @diagnostic.label line=6 column=40 span="point" line_source="const widened: { readonly x: Shape } = point;"
+/// @diagnostic.related line=6 column=16 span="{ readonly x: Shape }" line_source="const widened: { readonly x: Shape } = point;" message="expected due to this annotation"
+/// @diagnostic.note message="'{ readonly x: Shape }' stores its exact object type, declare an interface to accept structurally wider values"
 /// @diagnostic.error id=not-assignable message="type '{ x: 1 }' is not assignable to type '{ readonly x: float64 }'"
 /// @diagnostic.label line=9 column=44 span="scalar" line_source="const converted: { readonly x: float64 } = scalar;"
 /// @diagnostic.related line=9 column=18 span="{ readonly x: float64 }" line_source="const converted: { readonly x: float64 } = scalar;" message="expected due to this annotation"

@@ -41,13 +41,10 @@ impl BodyState<'_, '_> {
                     )?;
                     return match acquired {
                         Answer::Ready(true) => {
-                            let borrowed = state.intern_type(
-                                conversion.module,
-                                dir::Type::Form(dir::FormType {
-                                    form: conversion.borrow.form,
-                                    value: receiver.ty,
-                                }),
-                            )?;
+                            let borrowed = state.intern_type(dir::Type::Form(dir::FormType {
+                                form: conversion.borrow.form,
+                                value: receiver.ty,
+                            }))?;
                             let adjustment = dir::ReceiverAdjustment::Borrow { ty: borrowed };
 
                             Ok(Answer::Ready(CandidateOutcome::Accepted(Some(adjustment))))

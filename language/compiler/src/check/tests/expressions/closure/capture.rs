@@ -202,7 +202,7 @@ let step = 2;
 @capture({
 /// @type.node source=capture type=capture
 /// @resolution.name source=capture target=decorator.capture.capture
-/// @type.node type={ default?: decorator.capture.CaptureMode; [name: string]: decorator.capture.CaptureMode }
+/// @type.node type={ default: decorator.capture.CaptureMode; step: decorator.capture.CaptureMode }
 
     default: "manage",
     /// @type.node source="\"manage\"" type="manage"
@@ -307,7 +307,7 @@ let socket = Socket {};
 @capture({
 /// @type.node source=capture type=capture
 /// @resolution.name source=capture target=decorator.capture.capture
-/// @type.node type={ default?: decorator.capture.CaptureMode; [name: string]: decorator.capture.CaptureMode }
+/// @type.node type={ default: decorator.capture.CaptureMode; socket: decorator.capture.CaptureMode }
 
     default: "manage",
     /// @type.node source="\"manage\"" type="manage"

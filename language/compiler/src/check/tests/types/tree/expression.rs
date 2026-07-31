@@ -390,10 +390,13 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", r#"
+    session.assert_dir_checked_diagnostics(
+        "main.ds",
+        r#"
 /// @diagnostic.error id=unknown-tree-tag message="builder 'Panel' declares no 'blink' tag"
 /// @diagnostic.label line=29 column=25 span="<blink/>" line_source="const page: Panel = <blink/>;"
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -564,8 +567,10 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_checked_diagnostics("main.ds", r#"
-"#);
+    session.assert_dir_checked_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
 #[test]

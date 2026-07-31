@@ -61,9 +61,11 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: &WritableTargetObligation,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // require a writable target before weighing the indirection it crosses
         let target = &obligation.target;
         let check =
             self.check_writable_target(origin, target.source, &target.write, target.mode)?;
+
         match check {
             Answer::Ready(ObligationCheck::Fails(_)) | Answer::Pending(_) => Ok(check),
             Answer::Ready(ObligationCheck::Holds) => match target.mode {
@@ -85,20 +87,19 @@ impl CheckState<'_> {
         target: &dir::WriteResolution,
         mode: WriteMode,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        let check = match target {
+        match target {
             dir::WriteResolution::Binding { symbol, .. } => {
-                self.check_writable_binding(source, *symbol)?
+                self.check_writable_binding(source, *symbol)
             }
             dir::WriteResolution::Member(member) => {
-                self.check_writable_member(origin, source, member, mode)?
+                self.check_writable_member(origin, source, member, mode)
             }
             dir::WriteResolution::Subscript(subscript) => {
-                self.check_writable_subscript(origin, source, subscript, mode)?
+                self.check_writable_subscript(origin, source, subscript, mode)
             }
-            dir::WriteResolution::Dereference(_) => Answer::Ready(ObligationCheck::holds()),
-        };
-
-        Ok(check)
+            // a dereferenced place is writable through its own borrow
+            dir::WriteResolution::Dereference(_) => Ok(Answer::Ready(ObligationCheck::holds())),
+        }
     }
 
     /// Check one writable member resolution.
@@ -109,6 +110,7 @@ impl CheckState<'_> {
         member: &dir::MemberResolution,
         mode: WriteMode,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // every access along the resolved chain must be writable
         for access in member.iter() {
             let check = self.check_writable_member_access(origin, source, access, mode)?;
             match check {
@@ -143,6 +145,7 @@ impl CheckState<'_> {
         mode: WriteMode,
     ) -> CompilerResult<Answer<ObligationCheck>> {
         match target {
+            // a field write needs both a writable projection and a writable slot
             dir::MemberTarget::Field(field) => {
                 if answer!(self.body().receiver_projects_readonly(origin, receiver)?) {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
@@ -155,6 +158,7 @@ impl CheckState<'_> {
 
                 self.check_writable_field(source, field, mode)
             }
+            // an intersected target is writable only through every arm
             dir::MemberTarget::Intersection(targets) => {
                 for target in targets {
                     let check =
@@ -169,7 +173,9 @@ impl CheckState<'_> {
 
                 Ok(Answer::Ready(ObligationCheck::holds()))
             }
+            // a setter call owns its own write rules
             dir::MemberTarget::Call(_) => Ok(Answer::Ready(ObligationCheck::holds())),
+            // an index write needs both a writable projection and writable fields
             dir::MemberTarget::Index(index) => {
                 if answer!(self.body().receiver_projects_readonly(origin, receiver)?) {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
@@ -198,6 +204,7 @@ impl CheckState<'_> {
         subscript: &dir::SubscriptResolution,
         mode: WriteMode,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // every access along the resolved chain must be writable
         for subscript in subscript.iter() {
             let check = match &subscript.target {
                 dir::SubscriptTarget::Member(member) => {
@@ -225,10 +232,12 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // an exclusive receiver cannot be observed mid-overwrite
         if answer!(self.is_exclusive_receiver(origin, receiver)?) {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
+        // a shared receiver demands a value that overwrites atomically
         let ty = answer!(self.reduce_type_head(origin, ty)?);
         if answer!(self.satisfies_auto_interface(
             origin,
@@ -249,6 +258,7 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
+        // read the access a borrowed receiver carries
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
         let access = match self.ty(receiver)? {
             dir::Type::Variable(variable) => {
@@ -265,6 +275,8 @@ impl CheckState<'_> {
         let Some(access) = access else {
             return Ok(Answer::Ready(false));
         };
+
+        // exclusive access is the only access that excludes other readers
         let access = answer!(self.reduce_type_head(origin, access)?);
         let is_exclusive = matches!(
             self.ty(access)?,
@@ -280,7 +292,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        // treat a cross module symbol as imported into this module
+        // reject writes to a binding another module declares
         if symbol.module_id != source.module_id {
             let failure = ObligationFailure::CannotAssignImportedBinding { source, symbol };
 
@@ -340,16 +352,17 @@ impl CheckState<'_> {
     fn check_writable_structural_field(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        resolution: &dir::FieldResolution,
+        field: &dir::FieldResolution,
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // read the mutability the owning aggregate declares for the key
         let is_readonly = match self.ty(owner)? {
-            dir::Type::Shape(shape) => self
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => self
                 .shape_properties(owner.module_id, shape.properties)?
                 .iter()
-                .find(|field| field.key == key)
-                .map(|field| !field.access.is_writable()),
+                .find(|property| property.key == key)
+                .map(|property| !property.access.is_writable()),
             dir::Type::Tuple(tuple) => match key {
                 dir::StaticKey::Index(index) => self
                     .tuple_elements(owner.module_id, tuple.elements)?
@@ -371,14 +384,17 @@ impl CheckState<'_> {
             message: format!("selected structural field {key:?} is absent from {owner:?}"),
         })?;
 
+        // reject a write to a readonly slot
         if is_readonly {
-            let failure = ObligationFailure::CannotAssignReadonlyMember {
-                source,
-                member: dir::MemberTarget::Field(resolution.clone()),
-            };
-
-            Ok(Answer::Ready(ObligationCheck::fail(failure)))
-        } else {
+            Ok(Answer::Ready(ObligationCheck::fail(
+                ObligationFailure::CannotAssignReadonlyMember {
+                    source,
+                    member: dir::MemberTarget::Field(field.clone()),
+                },
+            )))
+        }
+        // otherwise the aggregate owns a writable slot
+        else {
             Ok(Answer::Ready(ObligationCheck::holds()))
         }
     }
@@ -387,10 +403,11 @@ impl CheckState<'_> {
     fn check_writable_nominal_field(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        resolution: &dir::FieldResolution,
+        field: &dir::FieldResolution,
         symbol: dir::GlobalSymbolId,
         mode: WriteMode,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // read the declaration that owns the written field
         let bindings = self.binding_table(symbol.module_id);
         let owner = bindings
             .symbol_path(symbol.local_id)
@@ -407,22 +424,25 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("nominal field {symbol:?} owner {owner:?} has no definition"),
             })?;
-        let field = definition
+        let declared = definition
             .field(symbol)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("definition {owner:?} does not declare field {symbol:?}"),
             })?;
 
+        // reject a write to a readonly field outside its own initializer
         let is_initialization =
             matches!(mode, WriteMode::Initialize { owner: initialized } if initialized == owner);
-        if field.is_readonly && !is_initialization {
-            let failure = ObligationFailure::CannotAssignReadonlyMember {
-                source,
-                member: dir::MemberTarget::Field(resolution.clone()),
-            };
-
-            Ok(Answer::Ready(ObligationCheck::fail(failure)))
-        } else {
+        if declared.is_readonly && !is_initialization {
+            Ok(Answer::Ready(ObligationCheck::fail(
+                ObligationFailure::CannotAssignReadonlyMember {
+                    source,
+                    member: dir::MemberTarget::Field(field.clone()),
+                },
+            )))
+        }
+        // otherwise the declaration owns a writable field
+        else {
             Ok(Answer::Ready(ObligationCheck::holds()))
         }
     }
@@ -434,8 +454,9 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         index: &dir::IndexResolution,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // a structural index writes into the fields of its own receiver
         let receiver = answer!(self.reduce_type_head(origin, index.receiver.ty())?);
-        let dir::Type::Shape(shape) = self.ty(receiver)? else {
+        let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(receiver)? else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "structural index {:?} has non-shape receiver {receiver:?}",
@@ -444,39 +465,32 @@ impl CheckState<'_> {
             });
         };
 
-        let is_readonly = match &index.target {
-            dir::IndexTarget::Signature(position) => self
-                .shape_index_signatures(receiver.module_id, shape.index_signatures)?
-                .get(*position)
-                .map(|signature| signature.is_readonly)
+        // reject keyed writes through structural signatures
+        let dir::IndexTarget::Fields(keys) = &index.target else {
+            let failure = ObligationFailure::CannotAssignStructuralIndex { source, receiver };
+
+            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
+        };
+        if keys.is_empty() {
+            return Err(CompilerError::Internal {
+                message: format!("structural index reaches no field in {receiver:?}"),
+            });
+        }
+
+        // every field the key domain reaches must be writable
+        let properties = self.shape_properties(receiver.module_id, shape.properties)?;
+        let mut is_readonly = false;
+        for key in keys {
+            let property = properties
+                .iter()
+                .find(|property| property.key == *key)
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!(
-                        "selected index signature {position} is absent from {receiver:?}"
+                        "selected structural field {key:?} is absent from {receiver:?}"
                     ),
-                })?,
-            dir::IndexTarget::Fields(keys) => {
-                let fields = self.shape_properties(receiver.module_id, shape.properties)?;
-                let mut is_readonly = false;
-                for key in keys {
-                    let field = fields
-                        .iter()
-                        .find(|field| field.key == *key)
-                        .ok_or_else(|| CompilerError::Internal {
-                            message: format!(
-                                "selected structural field {key:?} is absent from {receiver:?}"
-                            ),
-                        })?;
-                    is_readonly |= !field.access.is_writable();
-                }
-                if keys.is_empty() {
-                    return Err(CompilerError::Internal {
-                        message: format!("structural index reaches no field in {receiver:?}"),
-                    });
-                }
-
-                is_readonly
-            }
-        };
+                })?;
+            is_readonly |= !property.access.is_writable();
+        }
 
         if is_readonly {
             let failure = ObligationFailure::CannotAssignReadonlyMember {

@@ -152,17 +152,19 @@ impl CheckState<'_> {
         form: VarianceForm,
     ) -> CompilerResult<Variance> {
         // replay derived variances, recursive uses start optimistic
-        match self.variances.get(&(parameter, form)) {
+        match self.generics.variances.get(&(parameter, form)) {
             Some(VarianceState::Derived(variance)) => return Ok(*variance),
             Some(VarianceState::Deriving) => return Ok(Variance::Bivariant),
             None => {}
         }
 
         // derive once with the entry marking the active derivation
-        self.variances
+        self.generics
+            .variances
             .insert((parameter, form), VarianceState::Deriving);
         let derived = self.declared_or_derived_variance(parameter, form)?;
-        self.variances
+        self.generics
+            .variances
             .insert((parameter, form), VarianceState::Derived(derived));
 
         Ok(derived)
@@ -198,7 +200,7 @@ impl CheckState<'_> {
 
     /// Return the default handle form of one parameter's declaration.
     pub(in crate::check) fn parameter_variance_form(
-        &self,
+        &mut self,
         parameter: dir::GlobalGenericParameterId,
     ) -> CompilerResult<VarianceForm> {
         let Some(binding) = self.generic_parameter(parameter) else {
@@ -209,23 +211,57 @@ impl CheckState<'_> {
             return Ok(VarianceForm::Owned);
         };
 
-        Ok(template
-            .symbol
-            .map(|symbol| self.default_variance_form(symbol))
-            .unwrap_or(VarianceForm::Owned))
+        match template.symbol {
+            Some(symbol) => self.default_variance_form(symbol),
+            None => Ok(VarianceForm::Owned),
+        }
     }
 
-    /// Return the default handle form of one nominal declaration.
-    pub(in crate::check) fn default_variance_form(
+    /// Return the default handle form of one already-classified parameter.
+    pub(in crate::check) fn loaded_parameter_variance_form(
         &self,
-        symbol: dir::GlobalSymbolId,
+        parameter: dir::GlobalGenericParameterId,
     ) -> VarianceForm {
-        match self.symbol_kind(symbol) {
+        // resolve the declaration symbol behind the parameter's template
+        let Some(binding) = self.generic_parameter(parameter) else {
+            return VarianceForm::Owned;
+        };
+        let template = binding.template.into_global(parameter.module_id);
+        let symbol = self
+            .generic_template(template)
+            .and_then(|template| template.symbol);
+        let Some(symbol) = symbol else {
+            return VarianceForm::Owned;
+        };
+
+        // managed declarations default their parameters to the managed form
+        match self.loaded_symbol_kind(symbol) {
             dir::SymbolKind::Class
             | dir::SymbolKind::Interface
             | dir::SymbolKind::NewtypeInterface => VarianceForm::Managed,
             _ => VarianceForm::Owned,
         }
+    }
+
+    /// Return the default handle form of one nominal declaration.
+    pub(in crate::check) fn default_variance_form(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<VarianceForm> {
+        // default foreign parameters to the owned form while
+        //  declaring, checking derives the real form
+        let Some(kind) = self.symbol_kind_maybe(symbol)? else {
+            return Ok(VarianceForm::Owned);
+        };
+
+        let form = match kind {
+            dir::SymbolKind::Class
+            | dir::SymbolKind::Interface
+            | dir::SymbolKind::NewtypeInterface => VarianceForm::Managed,
+            _ => VarianceForm::Owned,
+        };
+
+        Ok(form)
     }
 
     /// Return whether one parameter's declaration derives a variance.
@@ -505,7 +541,7 @@ impl CheckState<'_> {
             }
 
             // structural shapes measure reads forward and writes backward
-            dir::Type::Shape(shape) => {
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 let fields = self
                     .shape_properties(ty.module_id, shape.properties)?
                     .to_vec();
@@ -627,7 +663,7 @@ impl CheckState<'_> {
         if source.len() != target.len() {
             return Ok(Answer::Ready(false));
         }
-        let relation = self.instance_argument_relation(symbol, edge);
+        let relation = self.instance_argument_relation(symbol, edge)?;
         let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
             // erased target arguments admit every instantiation of their parameter
@@ -668,7 +704,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(false));
         }
 
-        let relation = self.instance_argument_relation(symbol, relation);
+        let relation = self.instance_argument_relation(symbol, relation)?;
         let mut decision = Answer::Ready(true);
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
             // erased target arguments admit every instantiation of their parameter
@@ -719,19 +755,21 @@ impl CheckState<'_> {
 
     /// Return the relation used by one instance symbol's arguments.
     pub(in crate::check) fn instance_argument_relation(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
         relation: Relation,
-    ) -> Relation {
-        match self.symbol_kind(symbol) {
+    ) -> CompilerResult<Relation> {
+        let relation = match self.symbol_kind_maybe(symbol)? {
             // widen interface applications by assignability
-            dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
+            Some(dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface)
                 if relation == Relation::Widens =>
             {
                 Relation::Assignable
             }
             _ => relation,
-        }
+        };
+
+        Ok(relation)
     }
 
     /// Return one indexed argument's variance, invariant when unknown.

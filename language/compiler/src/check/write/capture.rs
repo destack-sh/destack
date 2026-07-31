@@ -122,14 +122,11 @@ impl CheckState<'_> {
             construct_signatures: dir::TypeListId::EMPTY,
             index_signatures: dir::TypeListId::EMPTY,
         };
-        let shape = self.intern_type(module, dir::Type::Shape(shape))?;
-        let ty = self.intern_type(
-            module,
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Managed,
-                value: shape,
-            }),
-        )?;
+        let shape = self.intern_type(dir::Type::from(shape))?;
+        let ty = self.intern_type(dir::Type::Form(dir::FormType {
+            form: dir::Form::Managed,
+            value: shape,
+        }))?;
 
         // store the frame in the capture segment
         let frame = dir::CaptureFrame {

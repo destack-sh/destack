@@ -254,10 +254,9 @@ impl CheckState<'_> {
             return Ok(ty);
         };
 
-        let place = self.intern_type(
-            symbol.module_id,
-            dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))),
-        )?;
+        let place = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
+            dir::Place::Space(space),
+        )))?;
 
         self.placed_type(Origin::Symbol(symbol), ty, place)
     }
@@ -364,13 +363,11 @@ impl CheckState<'_> {
         };
 
         let payload = answer!(self.replace_form_value(origin, form.value, value)?);
-        let rebuilt = self.intern_type(
-            origin.module(),
-            dir::Type::Form(dir::FormType {
-                form: form.form,
-                value: payload,
-            }),
-        )?;
+        let form = self.adopt_form(head.module_id, form.form)?;
+        let rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
+            form,
+            value: payload,
+        }))?;
 
         Ok(Answer::Ready(rebuilt))
     }
@@ -500,7 +497,7 @@ impl CheckState<'_> {
         };
         let lifetime =
             self.normalize_memory_component(origin, lifetime, dir::MemoryParameter::Lifetime)?;
-        let form = self.intern_borrow(origin.module(), lifetime, access)?;
+        let form = self.intern_borrow(lifetime, access)?;
         let formed = dir::Type::Form(dir::FormType { form, value });
         let id = self.intern_memory_type(origin, formed)?;
 
@@ -594,11 +591,7 @@ impl CheckState<'_> {
         let joined = match kept.as_slice() {
             [] => self.intern_memory_type(origin, dir::Type::Never)?,
             [single] => *single,
-            _ => {
-                let union_module = origin.module();
-
-                self.normalized_union_type(union_module, kept)?
-            }
+            _ => self.normalized_union_type(kept)?,
         };
 
         Ok(Answer::Ready(Some(joined)))
@@ -812,7 +805,7 @@ impl CheckState<'_> {
                 dir::Form::Borrowed(borrow) => {
                     let borrow = self.type_borrow(current.module_id, borrow)?;
 
-                    self.intern_borrow(origin.module(), borrow.lifetime, borrow.access)?
+                    self.intern_borrow(borrow.lifetime, borrow.access)?
                 }
                 head => head,
             };
@@ -927,7 +920,7 @@ impl CheckState<'_> {
         let default = match self.ty(ty)? {
             dir::Type::Any
             | dir::Type::Unknown
-            | dir::Type::Object
+            | dir::Type::Object(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Shape(_)
             | dir::Type::Array(_)
@@ -1151,7 +1144,7 @@ impl CheckState<'_> {
                     dir::MemoryLiteral::Access(dir::Access::Mutable),
                 )?;
 
-                self.intern_borrow(origin.module(), lifetime, access)?
+                self.intern_borrow(lifetime, access)?
             }
         };
         let formed = dir::Type::Form(dir::FormType {
@@ -1394,9 +1387,8 @@ impl CheckState<'_> {
 
         let mut forms = chain.forms.clone();
         if let dir::Form::Borrowed(borrow) = forms[position].form {
-            let borrow = self.type_borrow(origin.module(), borrow)?;
+            let borrow = self.type_borrow(self.module_id, borrow)?;
             forms[position].form = self.intern_borrow(
-                origin.module(),
                 lifetime.unwrap_or(borrow.lifetime),
                 access.unwrap_or(borrow.access),
             )?;
@@ -1517,12 +1509,10 @@ impl CheckState<'_> {
     /// Push one memory type at the accessor's origin.
     fn intern_memory_type(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         ty: dir::Type,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let module = origin.module();
-
-        self.intern_type(module, ty)
+        self.intern_type(ty)
     }
 
     /// Resolve one type to its readable value.
@@ -1545,7 +1535,6 @@ impl CheckState<'_> {
     /// Rewrite one form composition into its canonical interned order.
     pub(in crate::check) fn canonical_form_type(
         &mut self,
-        module: ModuleId,
         ty: dir::Type,
     ) -> CompilerResult<dir::Type> {
         let dir::Type::Form(form) = ty else {
@@ -1576,13 +1565,10 @@ impl CheckState<'_> {
             (dir::Form::Readonly, dir::Form::Readonly) => Ok(dir::Type::Form(inner)),
             // placement commutes with every other axis: `^shared T` is `shared ^T`
             (form_kind, dir::Form::Placed { place }) => {
-                let value = self.intern_type(
-                    module,
-                    dir::Type::Form(dir::FormType {
-                        form: form_kind,
-                        value: inner.value,
-                    }),
-                )?;
+                let value = self.intern_type(dir::Type::Form(dir::FormType {
+                    form: form_kind,
+                    value: inner.value,
+                }))?;
 
                 Ok(dir::Type::Form(dir::FormType {
                     form: dir::Form::Placed { place },

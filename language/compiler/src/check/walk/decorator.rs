@@ -24,7 +24,13 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
         let symbol = self.check.resolve_symbol_alias(symbol)?;
-        if !matches!(self.check.symbol_kind(symbol), dir::SymbolKind::Newtype) {
+
+        // skip kind validation on foreign targets while declaring
+        if self
+            .check
+            .symbol_kind_maybe(symbol)?
+            .is_some_and(|kind| !matches!(kind, dir::SymbolKind::Newtype))
+        {
             self.check
                 .report_invalid_decorator_target(self.module, decorator.target.into_any());
 

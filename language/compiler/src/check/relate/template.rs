@@ -167,8 +167,7 @@ impl CheckState<'_> {
         }
 
         let text = self.strings().intern(text);
-        let literal =
-            self.intern_type(module, dir::Type::Literal(dir::ScalarLiteral::String(text)))?;
+        let literal = self.intern_type(dir::Type::Literal(dir::ScalarLiteral::String(text)))?;
 
         Ok(Some(literal))
     }
@@ -197,13 +196,13 @@ impl CheckState<'_> {
 
         let text = self.strings().intern(text);
 
-        self.intern_type(module, dir::Type::Literal(dir::ScalarLiteral::String(text)))
+        self.intern_type(dir::Type::Literal(dir::ScalarLiteral::String(text)))
     }
 
     /// Capture one numeric span text under a reduced constraint head.
     fn numeric_template_capture(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         constraint: &dir::Type,
         text: &str,
     ) -> CompilerResult<NumericCapture> {
@@ -246,7 +245,7 @@ impl CheckState<'_> {
             }
             _ => return Ok(NumericCapture::NotNumeric),
         };
-        let captured = self.intern_type(module, dir::Type::Literal(literal))?;
+        let captured = self.intern_type(dir::Type::Literal(literal))?;
 
         Ok(NumericCapture::Captured(captured))
     }

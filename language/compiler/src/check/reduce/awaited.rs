@@ -44,7 +44,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // distribute awaitedness over unions
         if let dir::Type::Union(union) = self.ty(target)? {
-            let module = origin.module();
             let union_elements: SmallVec<[dir::GlobalTypeId; 8]> =
                 SmallVec::from_slice(self.type_ids(target.module_id, union.elements)?);
             let mut elements = Vec::with_capacity(union_elements.len());
@@ -58,9 +57,9 @@ impl CheckState<'_> {
             }
 
             let joined = match elements.as_slice() {
-                [] => self.intern_type(module, dir::Type::Never)?,
+                [] => self.intern_type(dir::Type::Never)?,
                 [single] => *single,
-                _ => self.normalized_union_type(module, elements)?,
+                _ => self.normalized_union_type(elements)?,
             };
 
             return Ok(Answer::Ready(Some(joined)));

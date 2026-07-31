@@ -10,7 +10,7 @@ impl CheckState<'_> {
         origin: Origin,
         operation: dir::TypeOperation,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let ty = self.intern_operation(origin.module(), operation)?;
+        let ty = self.intern_operation(operation)?;
         let ty = answer!(self.reduce_type_head(origin, ty)?);
 
         Ok(Answer::Ready(ty))
@@ -44,7 +44,7 @@ impl CheckState<'_> {
                     OperationReduction::Rigid => Ok(Answer::Ready(None)),
                     // ill-formed accesses poison consumers; well-formedness reports
                     OperationReduction::Invalid(_) => {
-                        let error = self.intern_type(origin.module(), dir::Type::Error)?;
+                        let error = self.intern_type(dir::Type::Error)?;
 
                         Ok(Answer::Ready(Some(error)))
                     }

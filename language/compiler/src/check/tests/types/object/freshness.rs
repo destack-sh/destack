@@ -76,7 +76,7 @@ function skipAll(): void {
     /// @type.node source="run({ skip: true })" type=void
     /// @resolution.name source=run target=run
     /// @resolution.call source="run({ skip: true })" parameters=(Argument | undefined) arguments=(provided({ skip: true }) as Argument | undefined) return=void kind=symbol target=run
-    /// @type.node source={ skip: true } type={ skip: boolean }
+    /// @type.node source={ skip: true } type={ only?: boolean; skip?: boolean; samples?: uint64 }
     /// @type.node source=true type=true
 
 }

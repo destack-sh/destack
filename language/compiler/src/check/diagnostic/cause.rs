@@ -130,6 +130,30 @@ impl CheckState<'_> {
                 notes.push(format!("'{written}' reduces to '{reduced}'"));
             }
         }
+
+        // hint at interfaces when only class exactness rejected a storage pair
+        let is_storage = matches!(relation, Relation::Assignable | Relation::Widens);
+        let is_value_class = is_storage
+            && match self.ty(leaf.source)? {
+                dir::Type::Object(_) => true,
+                dir::Type::Application(instance) => matches!(
+                    self.definition(instance.symbol)?,
+                    Some(
+                        dir::Definition::Class(_)
+                            | dir::Definition::Struct(_)
+                            | dir::Definition::Interface(_)
+                    )
+                ),
+                _ => false,
+            };
+        if is_value_class && matches!(self.ty(leaf.target)?, dir::Type::Object(_)) {
+            let target = self.format_type_at(module, leaf.target);
+            notes.push(format!(
+                "'{target}' stores its exact object type, declare an interface to accept \
+                 structurally wider values"
+            ));
+        }
+
         if notes.is_empty() {
             return Ok(None);
         }
@@ -208,7 +232,10 @@ impl CheckState<'_> {
         let mut pairs = Vec::new();
         match (self.ty(source)?, self.ty(target)?) {
             // blame matching shape fields under their storage relations
-            (dir::Type::Shape(source_shape), dir::Type::Shape(target_shape)) => {
+            (
+                dir::Type::Shape(source_shape) | dir::Type::Object(source_shape),
+                dir::Type::Shape(target_shape) | dir::Type::Object(target_shape),
+            ) => {
                 let source_fields = self
                     .shape_properties(source.module_id, source_shape.properties)?
                     .to_vec();
@@ -367,8 +394,8 @@ impl CheckState<'_> {
                 let target_arguments = self
                     .type_ids(target.module_id, target_instance.arguments)?
                     .to_vec();
-                let relation = self.instance_argument_relation(symbol, Relation::Widens);
-                let form = self.default_variance_form(symbol);
+                let relation = self.instance_argument_relation(symbol, Relation::Widens)?;
+                let form = self.default_variance_form(symbol)?;
                 for (index, (source_argument, target_argument)) in source_arguments
                     .iter()
                     .zip(target_arguments.iter())

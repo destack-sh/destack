@@ -163,15 +163,12 @@ impl BodyState<'_, '_> {
         let fields: Vec<dir::TypeProperty> = fields.into_values().collect();
         let field_list = fields.clone();
         let fields = self.intern_properties(module, &fields)?;
-        let shape = self.intern_type(
-            module,
-            dir::Type::Shape(dir::ShapeType {
-                properties: fields,
-                call_signatures: dir::TypeListId::EMPTY,
-                construct_signatures: dir::TypeListId::EMPTY,
-                index_signatures: dir::TypeListId::EMPTY,
-            }),
-        )?;
+        let shape = self.intern_type(dir::Type::from(dir::ShapeType {
+            properties: fields,
+            call_signatures: dir::TypeListId::EMPTY,
+            construct_signatures: dir::TypeListId::EMPTY,
+            index_signatures: dir::TypeListId::EMPTY,
+        }))?;
 
         match target {
             // struct literals must fill their declared fields
@@ -214,13 +211,10 @@ impl BodyState<'_, '_> {
             }
             // object literals bind their managed merged shape
             None => {
-                let managed = self.intern_type(
-                    module,
-                    dir::Type::Form(dir::FormType {
-                        form: dir::Form::Managed,
-                        value: shape,
-                    }),
-                )?;
+                let managed = self.intern_type(dir::Type::Form(dir::FormType {
+                    form: dir::Form::Managed,
+                    value: shape,
+                }))?;
                 self.commit_node_type(node.into_any(), managed)?;
 
                 Ok(Answer::Ready(ValueCheck {
@@ -246,10 +240,7 @@ impl BodyState<'_, '_> {
                     message: format!("object method property {source:?} has no symbol"),
                 })?;
 
-            return match self.symbol_type_maybe(symbol) {
-                Some(ty) => Ok(Answer::Ready(ty)),
-                None => Ok(Answer::pending([Dependency::SymbolType(symbol)])),
-            };
+            return self.symbol_type(symbol);
         }
 
         let source_site = self.node_site(source)?;
@@ -280,7 +271,7 @@ impl BodyState<'_, '_> {
 
         match self.ty(current)? {
             // structural shapes spread their fields directly
-            dir::Type::Shape(shape) => Ok(Answer::Ready(Some(
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => Ok(Answer::Ready(Some(
                 self.shape_properties(current.module_id, shape.properties)?
                     .to_vec(),
             ))),

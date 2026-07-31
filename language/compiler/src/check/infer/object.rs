@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
 use crate::check::{
@@ -20,18 +20,32 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         let mut fields = IndexMap::<dir::StaticKey, dir::TypeProperty>::new();
         let mut sources = IndexMap::<dir::StaticKey, dir::GlobalNodeIdAny>::new();
+        let mut authored = IndexSet::<dir::StaticKey>::new();
         let field_mode = mode.descend(mode.is_readonly());
 
         // collect literal fields, methods, and spreads into one shape
         for property in properties {
-            match self.module(module).view().get(*property).clone() {
+            let property = *property;
+            match self.module(module).view().get(property).clone() {
                 dir::Property::Field { key, value, .. } => {
                     let Some(key) = answer!(self.select_property_key(site, key)?) else {
                         continue;
                     };
+
+                    // report a key the literal already wrote
+                    if !authored.insert(key) {
+                        self.check.report_duplicate_definition_member(
+                            property.into_global_any(module),
+                            &key,
+                        );
+                    }
+
+                    // infer the written value under the field mode
                     let value_site = self.node_site(value.into_global_any(module))?;
                     let ty = answer!(self.infer_node(value_site, PlaceUse::Read, field_mode)?);
                     let ty = answer!(self.flow_type_at(value_site, ty)?);
+
+                    // record the field slot and the value that wrote it
                     let access = match mode.is_readonly() {
                         true => dir::PropertyAccess::Read(ty),
                         false => dir::PropertyAccess::ReadWrite {
@@ -56,6 +70,16 @@ impl BodyState<'_, '_> {
                     }) else {
                         continue;
                     };
+
+                    // report a key the literal already wrote
+                    if !authored.insert(key) {
+                        self.check.report_duplicate_definition_member(
+                            property.into_global_any(module),
+                            &key,
+                        );
+                    }
+
+                    // read the method signature from its declared symbol
                     let symbol = self
                         .module(module)
                         .declaration_symbol(property.into_any())
@@ -67,6 +91,8 @@ impl BodyState<'_, '_> {
                             message: format!("object method property {symbol:?} has no type"),
                         });
                     };
+
+                    // record the method slot
                     let access = match mode.is_readonly() {
                         true => dir::PropertyAccess::Read(ty),
                         false => dir::PropertyAccess::ReadWrite {
@@ -84,10 +110,13 @@ impl BodyState<'_, '_> {
                     );
                 }
                 dir::Property::Spread { value } => {
+                    // infer the spread source
                     let source = value.into_global_any(module);
                     let source_site = self.node_site(source)?;
                     let spread = answer!(self.infer_node(source_site, PlaceUse::Read, mode)?);
                     let spread = answer!(self.flow_type_at(source_site, spread)?);
+
+                    // reject a source that carries no object fields
                     let Some(spread_fields) = answer!(self.spread_fields(
                         Origin::Node(source, site.scope),
                         module,
@@ -99,6 +128,8 @@ impl BodyState<'_, '_> {
 
                         return Ok(Answer::Ready(error));
                     };
+
+                    // overwrite the slots the spread supplies
                     for field in spread_fields {
                         let field = dir::TypeProperty {
                             access: match mode.is_readonly() {
@@ -107,6 +138,7 @@ impl BodyState<'_, '_> {
                             },
                             ..field
                         };
+                        authored.swap_remove(&field.key);
                         fields.insert(field.key, field);
                         sources.swap_remove(&field.key);
                     }
@@ -115,18 +147,17 @@ impl BodyState<'_, '_> {
             }
         }
 
+        // intern the collected literal shape
         let fields: Vec<dir::TypeProperty> = fields.into_values().collect();
         let fields = self.intern_properties(module, &fields)?;
-        let shape = self.intern_type(
-            module,
-            dir::Type::Shape(dir::ShapeType {
-                properties: fields,
-                call_signatures: dir::TypeListId::EMPTY,
-                construct_signatures: dir::TypeListId::EMPTY,
-                index_signatures: dir::TypeListId::EMPTY,
-            }),
-        )?;
+        let shape = self.intern_type(dir::Type::Object(dir::ShapeType {
+            properties: fields,
+            call_signatures: dir::TypeListId::EMPTY,
+            construct_signatures: dir::TypeListId::EMPTY,
+            index_signatures: dir::TypeListId::EMPTY,
+        }))?;
 
+        // widen the mutable contents this mode does not preserve
         let ty = if mode.widens_aggregate() {
             self.widen_type(shape)?
         } else {
@@ -134,7 +165,7 @@ impl BodyState<'_, '_> {
         };
 
         // convert authored fields into the selected object slots
-        let dir::Type::Shape(shape) = self.ty(ty)? else {
+        let dir::Type::Object(shape) = self.ty(ty)? else {
             return Ok(Answer::Ready(ty));
         };
         let target_fields = self
@@ -149,6 +180,7 @@ impl BodyState<'_, '_> {
             if source_type == target_type {
                 continue;
             }
+
             let cause = self.intern_cause(Cause::root(
                 Origin::Node(source, site.scope),
                 CauseKind::Field { key },
@@ -166,7 +198,6 @@ impl BodyState<'_, '_> {
         &mut self,
         site: FlowSite,
         properties: &[dir::LocalNodeId<dir::Property>],
-        carrier: dir::GlobalTypeId,
         target_value: dir::GlobalTypeId,
         expectation: Expectation,
     ) -> CompilerResult<Answer<CheckAttempt>> {
@@ -179,25 +210,31 @@ impl BodyState<'_, '_> {
         else {
             return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
-        let mut authored = IndexMap::<dir::StaticKey, ()>::new();
+        let mut authored = IndexSet::<dir::StaticKey>::new();
         let mut source_fields = IndexMap::<dir::StaticKey, dir::TypeProperty>::new();
         let mut check = CheckOutcome::Holds;
 
         // check present fields against their matching expected fields
         for property in properties {
-            let property_id = *property;
-            let property = self.module(node.module_id).view().get(*property).clone();
-            match property {
+            let property = *property;
+            match self.module(node.module_id).view().get(property).clone() {
                 dir::Property::Field { key, value, .. } => {
                     let Some(key) = answer!(self.select_property_key(site, key)?) else {
                         return Ok(Answer::Ready(CheckAttempt::NotApplicable));
                     };
-                    authored.insert(key, ());
+
+                    // report a key the literal already wrote
+                    if !authored.insert(key) {
+                        self.check.report_duplicate_definition_member(
+                            property.into_global_any(node.module_id),
+                            &key,
+                        );
+                    }
 
                     // select a declared field before a matching index signature
                     let mut field = target_fields.iter().find(|field| field.key == key).copied();
                     if field.is_none() {
-                        let key_type = self.static_key_type(node.module_id, key)?;
+                        let key_type = self.static_key_type(key)?;
                         for signature in &index_signatures {
                             let accepts = answer!(self.check.decide_relation(
                                 origin,
@@ -228,7 +265,7 @@ impl BodyState<'_, '_> {
                         let child = value.into_global_any(node.module_id);
                         let child_site = self.node_site(child)?;
                         let mode = expectation.mode.descend(false);
-                        let ty = answer!(self.infer_node(child_site, PlaceUse::Read, mode,)?);
+                        let ty = answer!(self.infer_node(child_site, PlaceUse::Read, mode)?);
                         let ty = answer!(self.flow_type_at(child_site, ty)?);
                         let storage = self.inference_candidate_type(ty, mode)?;
                         let access = match expectation.mode.is_readonly() {
@@ -251,6 +288,8 @@ impl BodyState<'_, '_> {
 
                         continue;
                     };
+
+                    // check the written value against the selected field
                     let child = value.into_global_any(node.module_id);
                     let child_site = self.node_site(child)?;
                     let field_cause = self.check.intern_cause(Cause::child(
@@ -268,14 +307,19 @@ impl BodyState<'_, '_> {
                         ..expectation
                     };
                     let child_check = answer!(self.check_node(child_site, child_expectation)?);
-                    let ty = child_check.source;
-                    let storage = answer!(self.contextual_literal_type(
-                        site.origin(),
-                        ty,
+
+                    // record the slot the checked value commits
+                    let source_type = child_check.source;
+                    let storage = self.literal_slot_storage(
+                        expectation.relation,
                         target_type,
+                        source_type,
                         mode,
-                    )?);
-                    let access = match expectation.mode.is_readonly() {
+                    )?;
+                    let is_readonly = expectation.mode.is_readonly()
+                        || expectation.relation != Relation::Satisfies
+                            && !field.access.is_writable();
+                    let access = match is_readonly {
                         true => dir::PropertyAccess::Read(storage),
                         false => dir::PropertyAccess::ReadWrite {
                             read: storage,
@@ -290,11 +334,6 @@ impl BodyState<'_, '_> {
                             is_optional: false,
                         },
                     );
-                    if expectation.relation == Relation::Satisfies && ty != storage {
-                        let expectation =
-                            Expectation::assignable(storage, field_cause, ValueUse::Store);
-                        answer!(self.check_value(child_site, ty, expectation)?);
-                    }
                     check = check.and(child_check.outcome);
                 }
                 dir::Property::Spread { .. } => {
@@ -307,20 +346,29 @@ impl BodyState<'_, '_> {
                     }) else {
                         return Ok(Answer::Ready(CheckAttempt::NotApplicable));
                     };
-                    authored.insert(key, ());
+
+                    // report a key the literal already wrote
+                    if !authored.insert(key) {
+                        self.check.report_duplicate_definition_member(
+                            property.into_global_any(node.module_id),
+                            &key,
+                        );
+                    }
+
+                    // read the method signature from its declared symbol
                     let symbol = self
                         .module(node.module_id)
-                        .declaration_symbol(property_id.into_any())
+                        .declaration_symbol(property.into_any())
                         .ok_or_else(|| CompilerError::Internal {
-                            message: format!(
-                                "object method property {property_id:?} has no symbol"
-                            ),
+                            message: format!("object method property {property:?} has no symbol"),
                         })?;
                     let Some(ty) = self.symbol_type_maybe(symbol) else {
                         return Err(CompilerError::Internal {
                             message: format!("object method property {symbol:?} has no type"),
                         });
                     };
+
+                    // record the method slot
                     let access = match expectation.mode.is_readonly() {
                         true => dir::PropertyAccess::Read(ty),
                         false => dir::PropertyAccess::ReadWrite {
@@ -344,40 +392,40 @@ impl BodyState<'_, '_> {
         // require every nonoptional declared field from the final property set
         if let Some(missing) = target_fields
             .iter()
-            .find(|field| !field.is_optional && !authored.contains_key(&field.key))
+            .find(|field| !field.is_optional && !authored.contains(&field.key))
         {
             check = check.and(CheckOutcome::Fails(CheckFailure::MissingRequiredProperty {
                 key: missing.key,
             }));
         }
 
-        // preserve the authored shape for a check-only expression
-        let carrier = if expectation.relation == Relation::Satisfies {
-            let fields: Vec<_> = source_fields.into_values().collect();
-            let fields = self.intern_properties(node.module_id, &fields)?;
-
-            self.intern_type(
-                node.module_id,
-                dir::Type::Shape(dir::ShapeType {
+        // adopt the slot class and its memory form for storage into a concrete
+        //  object class, contracts and check-only relations keep the authored row
+        let is_adopting = expectation.relation != Relation::Satisfies
+            && matches!(self.ty(target_value)?, dir::Type::Object(_));
+        let source = match is_adopting {
+            true => answer!(self.replace_form_value(origin, target, target_value)?),
+            false => {
+                let fields: Vec<_> = source_fields.into_values().collect();
+                let fields = self.intern_properties(node.module_id, &fields)?;
+                self.intern_type(dir::Type::Object(dir::ShapeType {
                     properties: fields,
                     call_signatures: dir::TypeListId::EMPTY,
                     construct_signatures: dir::TypeListId::EMPTY,
                     index_signatures: dir::TypeListId::EMPTY,
-                }),
-            )?
-        } else {
-            carrier
+                }))?
+            }
         };
-        self.commit_node_type(node.into_any(), carrier)?;
+        self.commit_node_type(node.into_any(), source)?;
 
         Ok(Answer::Ready(CheckAttempt::Checked(ValueCheck {
-            source: carrier,
+            source,
             outcome: check,
             target,
         })))
     }
 
-    /// Return members expected by an object literal target.
+    /// Return the members an object literal target expects.
     pub(in crate::check) fn expected_object_members(
         &mut self,
         origin: Origin,
@@ -391,7 +439,8 @@ impl BodyState<'_, '_> {
         >,
     > {
         match self.ty(target)? {
-            dir::Type::Shape(shape) => {
+            // read fields and index signatures straight off a structural target
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 let fields = SmallVec::from_slice(
                     self.shape_properties(target.module_id, shape.properties)?,
                 );
@@ -414,7 +463,6 @@ impl BodyState<'_, '_> {
                     &instance,
                     target,
                 )?);
-
                 let members = fields.map(|fields| (SmallVec::from_vec(fields), SmallVec::new()));
 
                 Ok(Answer::Ready(members))

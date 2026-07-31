@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactProjectionFingerprint, DiagnosticControlTable, DirCheckedModule, DirDeclaredModule,
+    ArtifactProjectionFingerprint, DiagnosticControlTable, DirChecked, DirDeclared,
 };
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -54,10 +54,7 @@ impl CheckModuleSegments {
     }
 
     /// Convert segments into one checked DIR module.
-    pub(in crate::check) fn into_checked(
-        self,
-        module: ModuleId,
-    ) -> CompilerResult<DirCheckedModule> {
+    pub(in crate::check) fn into_checked(self, module: ModuleId) -> CompilerResult<DirChecked> {
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
             module,
             &self.bindings,
@@ -76,8 +73,7 @@ impl CheckModuleSegments {
             message: format!("failed to fingerprint DIR payload for module {module:?}: {error}"),
         })?;
 
-        Ok(DirCheckedModule {
-            module,
+        Ok(DirChecked {
             fingerprint,
             bindings: Arc::new(self.bindings),
             decorators: Arc::new(self.decorators),
@@ -94,10 +90,7 @@ impl CheckModuleSegments {
     }
 
     /// Convert segments into one declared DIR module.
-    pub(in crate::check) fn into_declared(
-        self,
-        module: ModuleId,
-    ) -> CompilerResult<DirDeclaredModule> {
+    pub(in crate::check) fn into_declared(self, module: ModuleId) -> CompilerResult<DirDeclared> {
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
             module,
             &self.bindings,
@@ -113,8 +106,7 @@ impl CheckModuleSegments {
             ),
         })?;
 
-        Ok(DirDeclaredModule {
-            module,
+        Ok(DirDeclared {
             fingerprint,
             bindings: Arc::new(self.bindings),
             decorators: Arc::new(self.decorators),

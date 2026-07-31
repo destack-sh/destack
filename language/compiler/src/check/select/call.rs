@@ -140,9 +140,13 @@ impl BodyState<'_, '_> {
 
                 // call a value binding through its inferred node type,
                 //  and a declaration through its symbol's overload set
-                let value_binding = symbols
-                    .iter()
-                    .all(|symbol| matches!(self.symbol_kind(*symbol), dir::SymbolKind::Variable));
+                let mut value_binding = true;
+                for symbol in &symbols {
+                    value_binding &= matches!(
+                        self.symbol_kind_maybe(*symbol)?,
+                        Some(dir::SymbolKind::Variable)
+                    );
+                }
                 if value_binding {
                     return self.value_callable_candidates(origin, callee_site);
                 }
@@ -155,12 +159,18 @@ impl BodyState<'_, '_> {
                         continue;
                     }
 
-                    let Some(ty) = self.symbol_type_maybe(symbol) else {
-                        blockers.push(Dependency::SymbolType(symbol));
+                    let ty = match self.symbol_type(symbol)? {
+                        Answer::Ready(ty) => ty,
+                        Answer::Pending(pending) => {
+                            blockers.extend(pending);
 
-                        continue;
+                            continue;
+                        }
                     };
-                    let target = if matches!(self.symbol_kind(symbol), dir::SymbolKind::Newtype) {
+                    let target = if matches!(
+                        self.symbol_kind_maybe(symbol)?,
+                        Some(dir::SymbolKind::Newtype)
+                    ) {
                         CallableTarget::Newtype(symbol)
                     } else {
                         CallableTarget::Symbol(symbol)
@@ -368,7 +378,7 @@ impl BodyState<'_, '_> {
         &mut self,
         candidate: &dir::MemberCandidate,
     ) -> CompilerResult<CallableTarget> {
-        match self.symbol_kind(candidate.symbol) {
+        match self.symbol_kind(candidate.symbol)? {
             dir::SymbolKind::AssociatedConst => return Ok(CallableTarget::Expression),
             dir::SymbolKind::Function => return Ok(CallableTarget::Symbol(candidate.symbol)),
             dir::SymbolKind::Variant => {}
@@ -853,7 +863,7 @@ impl BodyState<'_, '_> {
             let symbol = *symbol;
             let callee_node = callee.into_global_any(module);
             let reference =
-                self.intern_type(module, dir::Type::Reference(dir::TypeReference { symbol }))?;
+                self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
             self.commit_node_type(callee_node, reference)?;
 
             return self.select_newtype_construct(
@@ -991,7 +1001,10 @@ impl BodyState<'_, '_> {
         let target = answer!(self.reduce_type_head(origin, expectation.target)?);
         let symbol = match self.ty(target)? {
             dir::Type::Application(instance)
-                if matches!(self.symbol_kind(instance.symbol), dir::SymbolKind::Newtype) =>
+                if matches!(
+                    self.symbol_kind_maybe(instance.symbol)?,
+                    Some(dir::SymbolKind::Newtype)
+                ) =>
             {
                 instance.symbol
             }
@@ -1004,10 +1017,7 @@ impl BodyState<'_, '_> {
         };
 
         // publish the inferred call head as the selected declaration reference
-        let reference = self.intern_type(
-            origin.module(),
-            dir::Type::Reference(dir::TypeReference { symbol }),
-        )?;
+        let reference = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
         self.commit_node_type(callee, reference)?;
 
         self.select_newtype_construct(
@@ -1086,7 +1096,7 @@ impl BodyState<'_, '_> {
         }
         let return_type = match returns.as_slice() {
             [single] => *single,
-            _ => self.normalized_union_type(origin.module(), returns)?,
+            _ => self.normalized_union_type(returns)?,
         };
         let resolution = dir::CallResolution::Union {
             arms: calls,
@@ -1235,7 +1245,7 @@ impl BodyState<'_, '_> {
         };
         let key = dir::StaticKey::Symbol(dir::SymbolKey::Registry(name));
 
-        self.intern_type(module, dir::Type::Key(key))
+        self.intern_type(dir::Type::Key(key))
     }
 
     /// Commit one selected tagged variant constructor signature.
@@ -1286,10 +1296,10 @@ impl BodyState<'_, '_> {
         let substitution = TypeSubstitution::default()
             .with_carried(&generic_arguments)?
             .with_receiver(return_variant.owner);
-        let backing = self.substitute_type(node.module_id, variant.backing, &substitution)?;
+        let backing = self.substitute_type(variant.backing, &substitution)?;
         let argument = variant
             .argument
-            .map(|argument| self.substitute_type(node.module_id, argument, &substitution))
+            .map(|argument| self.substitute_type(argument, &substitution))
             .transpose()?;
         let target = dir::ConstructTarget::Variant(dir::VariantConstructCandidate {
             case: case.clone(),

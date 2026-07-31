@@ -82,12 +82,18 @@ impl CheckState<'_> {
             (false, false) => CheckOutcome::Fails(CheckFailure::Relation),
             // failed property relations explain the same order as relation checking
             (false, true) => {
+                // blame missing IndexSet support on nominal sources only
+                let is_nominal_source = matches!(
+                    self.ty(source)?,
+                    dir::Type::Application(_) | dir::Type::Reference(_)
+                );
                 if let Some(key) = self.first_missing_struct_field(source, target)? {
                     CheckOutcome::Fails(CheckFailure::MissingRequiredProperty { key })
                 } else if let Some(key) = self.first_excess_struct_field(source, target)? {
                     CheckOutcome::Fails(CheckFailure::ExcessProperty { key })
-                } else if let Some(signature) =
-                    answer!(self.first_writable_index_signature(origin, target)?)
+                } else if is_nominal_source
+                    && let Some(signature) =
+                        answer!(self.first_writable_index_signature(origin, target)?)
                 {
                     CheckOutcome::Fails(CheckFailure::WritableIndexRequiresIndexSet { signature })
                 } else {
@@ -314,7 +320,7 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some((symbol, source, target)) = same_symbol {
-            let form = self.default_variance_form(symbol);
+            let form = self.default_variance_form(symbol)?;
 
             return Ok(Some(self.relate_type_arguments(
                 origin,
@@ -542,7 +548,10 @@ impl CheckState<'_> {
             }
 
             // shapes relate matching fields by target writeability
-            (dir::Type::Shape(source_shape), dir::Type::Shape(target_shape)) => {
+            (
+                dir::Type::Shape(source_shape) | dir::Type::Object(source_shape),
+                dir::Type::Shape(target_shape) | dir::Type::Object(target_shape),
+            ) => {
                 let source_fields =
                     self.shape_properties(source.module_id, source_shape.properties)?;
                 let target_fields =

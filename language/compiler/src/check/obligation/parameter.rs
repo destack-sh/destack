@@ -48,10 +48,11 @@ impl CheckState<'_> {
             let dir::GenericParameterKey::Symbol(parameter_symbol) = binding.key else {
                 continue;
             };
+            let declared_variance = binding.variance;
 
             // require the declared modifier to admit the derived variance
             let form = self.parameter_variance_form(parameter)?;
-            if let Some(declared) = binding.variance {
+            if let Some(declared) = declared_variance {
                 let derived = self.derive_variance(parameter, form)?;
                 if !Variance::from(declared).admits(derived) {
                     failures.push(ObligationFailure::VarianceConflict {

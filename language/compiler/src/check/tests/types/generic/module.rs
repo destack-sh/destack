@@ -1,15 +1,15 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_induce_lifetimes_through_a_forward_generic_bound() {
+fn test_write_lifetimes_through_a_forward_generic_bound() {
     let session = TestSession::single(
         r#"
-interface Holder<T: View> {
+interface Holder<'a, T: View<'a>> {
     value: T;
 }
 
-struct View {
-    user: &readonly User;
+struct View<'a> {
+    user: &'a readonly User;
 }
 
 struct User {}
@@ -21,7 +21,7 @@ struct User {}
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-interface Holder<in out T: View> {
+interface Holder<'a, in out T: View<'a>> {
     value: T;
 }
 
@@ -32,14 +32,16 @@ struct View<'a> {
 struct User {}
 
 === checked ===
-interface Holder<T: View> {
-/// @generic.template symbol=Holder parameters=(in out T: View<?1>)
+interface Holder<'a, T: View<'a>> {
+/// @generic.template symbol=Holder parameters=('a#1, in out T: View<'a#1>)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.interface symbol=Holder template=(in out T: View<?1>)
-/// @definition.where symbol=Holder relation=satisfies left=this right=Holder<T>
+/// @definition.interface symbol=Holder template=('a#1, in out T: View<'a#1>)
+/// @definition.where symbol=Holder relation=satisfies left=this right=Holder<'a#1, T>
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
-/// @type.symbol symbol=Holder.T source="T: View" type=T
+/// @type.symbol symbol=Holder.'a source='a type='a#1
+/// @type.symbol symbol=Holder.T source="T: View<'a>" type=T
 /// @resolution.name source=View target=View
+/// @resolution.name source='a target=Holder.'a
 
     value: T;
     /// @type.symbol symbol=Holder.value source="value: T" type=T
@@ -47,14 +49,16 @@ interface Holder<T: View> {
 
 }
 
-struct View {
-/// @generic.template symbol=View parameters=('a)
+struct View<'a> {
+/// @generic.template symbol=View parameters=('a#2)
 /// @type.symbol symbol=View type=View
-/// @definition.struct symbol=View template=('a)
-/// @definition.field symbol=View.user source="user: &readonly User" key=user type=&View.'a readonly User
+/// @definition.struct symbol=View template=('a#2)
+/// @definition.field symbol=View.user source="user: &'a readonly User" key=user type=&'a#2 readonly User
+/// @type.symbol symbol=View.'a source='a type='a#2
 
-    user: &readonly User;
-    /// @type.symbol symbol=View.user source="user: &readonly User" type=&View.'a readonly User
+    user: &'a readonly User;
+    /// @type.symbol symbol=View.user source="user: &'a readonly User" type=&'a#2 readonly User
+    /// @resolution.name source='a target=View.'a
     /// @resolution.name source=User target=User
 
 }
@@ -67,19 +71,19 @@ struct User {}
 }
 
 #[test]
-fn test_induce_lifetimes_through_a_cross_module_declaration_cycle() {
+fn test_write_lifetimes_through_a_cross_module_declaration_cycle() {
     let compiler = TestSession::builder()
         .module(
             "b.ds",
             r#"
 import { Foo } from "./a.ds";
 
-export struct Bar {
-    foo: Foo;
+export struct Bar<'a> {
+    foo: Foo<'a>;
 }
 
-export struct Baz {
-    user: &readonly User;
+export struct Baz<'a> {
+    user: &'a readonly User;
 }
 
 export struct User {}
@@ -90,8 +94,8 @@ export struct User {}
             r#"
 import { Baz } from "./b.ds";
 
-export struct Foo {
-    baz: Baz;
+export struct Foo<'a> {
+    baz: Baz<'a>;
 }
 "#,
         )
@@ -113,19 +117,21 @@ export struct Foo<'a> {
 === checked ===
 import { Baz } from "./b.ds";
 
-export struct Foo {
+export struct Foo<'a> {
 /// @generic.template symbol=Foo parameters=('a)
 /// @type.symbol symbol=Foo type=Foo
 /// @definition.struct symbol=Foo template=('a)
-/// @definition.field symbol=Foo.baz source="baz: Baz" key=baz type=b.Baz<Foo.'a>
+/// @definition.field symbol=Foo.baz source="baz: Baz<'a>" key=baz type=b.Baz<'a>
+/// @type.symbol symbol=Foo.'a source='a type='a
 
-    baz: Baz;
-    /// @type.symbol symbol=Foo.baz source="baz: Baz" type=b.Baz<Foo.'a>
+    baz: Baz<'a>;
+    /// @type.symbol symbol=Foo.baz source="baz: Baz<'a>" type=b.Baz<'a>
     /// @resolution.name source=Baz target=b.Baz
+    /// @resolution.name source='a target=Foo.'a
 
 }
 
-/// @generic.instance id=b.Baz<Foo.'a> template=b.Baz arguments=(Foo.'a)
+/// @generic.instance id=b.Baz<'a> template=b.Baz arguments=('a)
 
 === b.ds ===
 
@@ -145,26 +151,30 @@ export struct User {}
 === checked ===
 import { Foo } from "./a.ds";
 
-export struct Bar {
-/// @generic.template symbol=Bar parameters=('a)
+export struct Bar<'a> {
+/// @generic.template symbol=Bar parameters=('a#1)
 /// @type.symbol symbol=Bar type=Bar
-/// @definition.struct symbol=Bar template=('a)
-/// @definition.field symbol=Bar.foo source="foo: Foo" key=foo type=a.Foo<Bar.'a>
+/// @definition.struct symbol=Bar template=('a#1)
+/// @definition.field symbol=Bar.foo source="foo: Foo<'a>" key=foo type=a.Foo<'a#1>
+/// @type.symbol symbol=Bar.'a source='a type='a#1
 
-    foo: Foo;
-    /// @type.symbol symbol=Bar.foo source="foo: Foo" type=a.Foo<Bar.'a>
+    foo: Foo<'a>;
+    /// @type.symbol symbol=Bar.foo source="foo: Foo<'a>" type=a.Foo<'a#1>
     /// @resolution.name source=Foo target=a.Foo
+    /// @resolution.name source='a target=Bar.'a
 
 }
 
-export struct Baz {
-/// @generic.template symbol=Baz parameters=('a)
+export struct Baz<'a> {
+/// @generic.template symbol=Baz parameters=('a#2)
 /// @type.symbol symbol=Baz type=Baz
-/// @definition.struct symbol=Baz template=('a)
-/// @definition.field symbol=Baz.user source="user: &readonly User" key=user type=&Baz.'a readonly User
+/// @definition.struct symbol=Baz template=('a#2)
+/// @definition.field symbol=Baz.user source="user: &'a readonly User" key=user type=&'a#2 readonly User
+/// @type.symbol symbol=Baz.'a source='a type='a#2
 
-    user: &readonly User;
-    /// @type.symbol symbol=Baz.user source="user: &readonly User" type=&Baz.'a readonly User
+    user: &'a readonly User;
+    /// @type.symbol symbol=Baz.user source="user: &'a readonly User" type=&'a#2 readonly User
+    /// @resolution.name source='a target=Baz.'a
     /// @resolution.name source=User target=User
 
 }
@@ -173,7 +183,7 @@ export struct User {}
 /// @type.symbol symbol=User source="export struct User {}" type=User
 /// @definition.struct symbol=User source="export struct User {}"
 
-/// @generic.instance id=a.Foo<Bar.'a> template=a.Foo arguments=(Bar.'a)
+/// @generic.instance id=a.Foo<'a#1> template=a.Foo arguments=('a#1)
 "#,
     );
 }
@@ -418,7 +428,7 @@ const text = identity("x");
 }
 
 #[test]
-fn test_imported_generic_function_uses_exported_body_inference() {
+fn test_reject_imported_generic_function_without_result_type() {
     let compiler = TestSession::builder()
         .module(
             "lib.ds",
@@ -438,54 +448,40 @@ const text = identity("x");
         )
         .build();
 
-    compiler.assert_dir_checked_many(
-        &["lib.ds", "main.ds"],
+    compiler.assert_dir_checked_diagnostics(
+        "lib.ds",
+        r#"
+/// @diagnostic.error id=missing-export-result-type message="exported function needs an explicit result type"
+/// @diagnostic.label line=2 column=17 span="identity" line_source="export function identity<T>(value: T) {"
+/// @diagnostic.help message="state the result type on the exported function"
+"#,
+    );
+
+    compiler.assert_dir_checked_and_diagnostics(
+        "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
-=== lib.ds ===
-
-=== annotated ===
-export function identity<T>(value: T): T {
-    return value;
-}
-
-=== checked ===
-export function identity<T>(value: T) {
-/// @generic.template symbol=identity parameters=(T)
-/// @type.symbol symbol=identity type=<T>(T) => T
-/// @type.symbol symbol=identity.T source=T type=T
-/// @type.symbol symbol=identity.value source="value: T" type=T
-/// @resolution.name source=T target=identity.T
-
-    return value;
-    /// @type.node source=value type=T
-    /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.access source=value root=identity.value
-
-}
-
-=== main.ds ===
-
 === annotated ===
 import { identity } from "./lib.ds";
 
-const text: "x" = identity<"x">("x");
+const text = identity<string>("x");
 
 === checked ===
 import { identity } from "./lib.ds";
 
 const text = identity("x");
-/// @type.symbol symbol=text source=text type="x"
+/// @type.symbol symbol=text source=text type=<error>
 /// @resolution.pattern source=text kind=binding target=text
-/// @type.node source="identity(\"x\")" type="x"
-/// @type.node source=identity type=("x") => "x"
+/// @type.node source="identity(\"x\")" type=<error>
+/// @type.node source=identity type=(string) => <error>
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source="identity(\"x\")" parameters=("x") arguments=(provided("x") as "x") return="x" kind=symbol target=lib.identity instance="lib.identity<\"x\">"
-/// @generic.instance source="identity(\"x\")" id="lib.identity<\"x\">"
+/// @resolution.call source="identity(\"x\")" parameters=(string) arguments=(provided("x") as string) return=<error> kind=symbol target=lib.identity instance=lib.identity<string>
+/// @generic.instance source="identity(\"x\")" id=lib.identity<string>
 /// @type.node source="\"x\"" type="x"
 
-/// @generic.instance id="lib.identity<\"x\">" template=lib.identity arguments=("x")
+/// @generic.instance id=lib.identity<string> template=lib.identity arguments=(string)
+"#,
+        r#"
 "#,
     );
 }
@@ -701,19 +697,19 @@ export interface Marker {
 }
 
 declare function probe(values: Iter<int32>): boolean;
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<b.Iter<int32, b.ds.type3>>) => boolean reduced=(Dynamic<b.Iter<int32, unknown>>) => boolean
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<b.Iter<int32, b.ds.type3>> reduced=Dynamic<b.Iter<int32, unknown>>
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<b.Iter<int32, unknown>>) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<b.Iter<int32, unknown>>
 /// @resolution.name source=Iter target=b.Iter
 
 const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=probe target=probe
-/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<b.Iter<int32, b.ds.type3>>) arguments=(provided(todo("iter")) as Dynamic<b.Iter<int32, b.ds.type3>>) return=boolean kind=symbol target=probe
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<b.Iter<int32, unknown>>) arguments=(provided(todo("iter")) as Dynamic<b.Iter<int32, unknown>>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
-/// @generic.instance id="b.Iter<int32, b.ds.type3>" template=b.Iter arguments=(int32, b.ds.type3)
+/// @generic.instance id="b.Iter<int32, unknown>" template=b.Iter arguments=(int32, unknown)
 
 === b.ds ===
 
@@ -845,7 +841,7 @@ const out = unwrap(built);
 }
 
 #[test]
-fn test_imported_struct_carries_an_alias_with_an_induced_lifetime() {
+fn test_imported_struct_carries_a_function_type_alias() {
     let compiler = TestSession::builder()
         .module(
             "trigger.ds",
@@ -888,10 +884,10 @@ export struct Attempt {
     module: string;
 }
 
-export type Predicate<'a> = (attempt: &readonly Attempt) => boolean;
+export type Predicate = (attempt: &readonly Attempt) => boolean;
 
-export struct Trigger<'a> {
-    predicate?: Predicate<'a>;
+export struct Trigger {
+    predicate?: Predicate;
 }
 
 === checked ===
@@ -906,35 +902,32 @@ export struct Attempt {
 }
 
 export type Predicate = (attempt: &readonly Attempt) => boolean;
-/// @generic.template symbol=Predicate parameters=('a)
-/// @type.symbol symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" type=Function<(&Predicate.'a readonly Attempt,), boolean>
-/// @definition.type symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" template=('a) value=Function<(&Predicate.'a readonly Attempt,), boolean>
+/// @type.symbol symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" type=Function<(&type_expression.'a readonly Attempt,), boolean>
+/// @definition.type symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" value=Function<(&type_expression.'a readonly Attempt,), boolean>
+/// @generic.template source=type_expression parent=template#1 parameters=('a)
 /// @resolution.name source=Attempt target=Attempt
 
 export struct Trigger {
-/// @generic.template symbol=Trigger parameters=('a)
 /// @type.symbol symbol=Trigger type=Trigger
-/// @definition.struct symbol=Trigger template=('a)
-/// @definition.field symbol=Trigger.predicate source="predicate?: Predicate" key=predicate type=Predicate<Trigger.'a>
+/// @definition.struct symbol=Trigger
+/// @definition.field symbol=Trigger.predicate source="predicate?: Predicate" key=predicate type=Predicate
 
     predicate?: Predicate;
-    /// @type.symbol symbol=Trigger.predicate source="predicate?: Predicate" type=Predicate<Trigger.'a> reduced=Function<(&Trigger.'a readonly Attempt,), boolean>
+    /// @type.symbol symbol=Trigger.predicate source="predicate?: Predicate" type=Predicate reduced=Function<(&type_expression.'a readonly Attempt,), boolean>
     /// @resolution.name source=Predicate target=Predicate
 
 }
-
-/// @generic.instance id=Predicate<Trigger.'a> template=Predicate arguments=(Trigger.'a)
 
 === main.ds ===
 
 === annotated ===
 import { Trigger } from "./trigger.ds";
 
-export struct Scenario<'a> {
-    trigger: Trigger<'a>;
+export struct Scenario {
+    trigger: Trigger;
 }
 
-declare let scenario: Scenario<"static">;
+declare let scenario: Scenario;
 
 scenario.trigger satisfies Trigger;
 
@@ -942,33 +935,29 @@ scenario.trigger satisfies Trigger;
 import { Trigger } from "./trigger.ds";
 
 export struct Scenario {
-/// @generic.template symbol=Scenario parameters=('a)
 /// @type.symbol symbol=Scenario type=Scenario
-/// @definition.struct symbol=Scenario template=('a)
-/// @definition.field symbol=Scenario.trigger source="trigger: Trigger" key=trigger type=trigger.Trigger<Scenario.'a>
+/// @definition.struct symbol=Scenario
+/// @definition.field symbol=Scenario.trigger source="trigger: Trigger" key=trigger type=trigger.Trigger
 
     trigger: Trigger;
-    /// @type.symbol symbol=Scenario.trigger source="trigger: Trigger" type=trigger.Trigger<Scenario.'a>
+    /// @type.symbol symbol=Scenario.trigger source="trigger: Trigger" type=trigger.Trigger
     /// @resolution.name source=Trigger target=trigger.Trigger
 
 }
 
 declare let scenario: Scenario;
-/// @type.symbol symbol=scenario source=scenario type=Scenario<"static">
+/// @type.symbol symbol=scenario source=scenario type=Scenario
 /// @resolution.pattern source=scenario kind=binding target=scenario
 /// @resolution.name source=Scenario target=Scenario
 
 scenario.trigger satisfies Trigger;
 /// @resolution.name source=scenario target=scenario
-/// @resolution.member source=scenario.trigger receiver=Scenario<"static"> type=trigger.Trigger<"static"> kind=field target_receiver=Scenario<"static"> key=trigger target=Scenario.trigger target_type=trigger.Trigger<"static">
+/// @resolution.member source=scenario.trigger receiver=Scenario type=trigger.Trigger kind=field target_receiver=Scenario key=trigger target=Scenario.trigger target_type=trigger.Trigger
 /// @resolution.place source=scenario placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=scenario root=scenario
 /// @resolution.place source=scenario.trigger placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=scenario.trigger root=scenario keys=[trigger]
 /// @resolution.name source=Trigger target=trigger.Trigger
-
-/// @generic.instance id="Scenario<\"static\">" template=Scenario arguments=("static")
-/// @generic.instance id=trigger.Trigger<Scenario.'a> template=trigger.Trigger arguments=(Scenario.'a)
 "#,
     );
 }

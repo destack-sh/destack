@@ -23,10 +23,7 @@ impl BodyState<'_, '_> {
             Some(mutability) => mutability.access(),
             None => dir::Access::Mutable,
         };
-        let access = self.intern_type(
-            node.module_id,
-            dir::Type::Memory(dir::MemoryLiteral::Access(requested)),
-        )?;
+        let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(requested)))?;
 
         // require the requested access from the selected place
         let origin = site.origin();
@@ -42,14 +39,11 @@ impl BodyState<'_, '_> {
         }
 
         // wrap the borrowed value and reduce redundant memory forms
-        let form = self.intern_borrow(node.module_id, lifetime, access)?;
-        let borrowed = self.intern_type(
-            node.module_id,
-            dir::Type::Form(dir::FormType {
-                form,
-                value: value.ty,
-            }),
-        )?;
+        let form = self.intern_borrow(lifetime, access)?;
+        let borrowed = self.intern_type(dir::Type::Form(dir::FormType {
+            form,
+            value: value.ty,
+        }))?;
         let borrowed = answer!(self.reduce_type_head(site.origin(), borrowed)?);
         self.commit_node_type(node.into_any(), borrowed)?;
 

@@ -475,7 +475,7 @@ impl BodyState<'_, '_> {
     /// Bind every binding beneath one rejected pattern to the error type.
     fn poison_pattern(&mut self, node: dir::GlobalNodeId<dir::Pattern>) -> CompilerResult<()> {
         let module = node.module_id;
-        let error = self.intern_type(module, dir::Type::Error)?;
+        let error = self.intern_type(dir::Type::Error)?;
 
         self.poison_pattern_bindings(module, error, node.local_id)
     }
@@ -486,7 +486,7 @@ impl BodyState<'_, '_> {
         field: dir::GlobalNodeId<dir::PatternField>,
     ) -> CompilerResult<()> {
         let module = field.module_id;
-        let error = self.intern_type(module, dir::Type::Error)?;
+        let error = self.intern_type(dir::Type::Error)?;
 
         self.poison_pattern_field_bindings(module, error, field.local_id)
     }
@@ -695,7 +695,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let unknown = self.intern_type(module, dir::Type::Unknown)?;
+        let unknown = self.intern_type(dir::Type::Unknown)?;
         let mut elements = Vec::with_capacity(fields.len());
         for field in fields {
             let field = self.module(module).view().get(*field);
@@ -721,7 +721,7 @@ impl BodyState<'_, '_> {
             elements,
         };
 
-        self.intern_type(module, dir::Type::Tuple(tuple))
+        self.intern_type(dir::Type::Tuple(tuple))
     }
 
     /// Return one object pattern's structural requirement.
@@ -730,7 +730,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let unknown = self.intern_type(module, dir::Type::Unknown)?;
+        let unknown = self.intern_type(dir::Type::Unknown)?;
         let mut required = Vec::new();
         for field in fields {
             let Some((key, pattern)) = self.object_field_requirement(module, *field)? else {
@@ -752,14 +752,16 @@ impl BodyState<'_, '_> {
             construct_signatures: dir::TypeListId::EMPTY,
             index_signatures: dir::TypeListId::EMPTY,
         };
-        let ty = self.intern_type(module, dir::Type::Shape(shape))?;
+
+        // the required keys constrain the matched value, they are not a class
+        let ty = self.intern_type(dir::Type::Shape(shape))?;
 
         Ok(ty)
     }
 
     /// Return the static key named by one object pattern field.
     fn object_field_requirement(
-        &self,
+        &mut self,
         module: ModuleId,
         field: dir::LocalNodeId<dir::PatternField>,
     ) -> CompilerResult<Option<(dir::StaticKey, Option<dir::LocalNodeId<dir::Pattern>>)>> {
@@ -842,7 +844,7 @@ impl BodyState<'_, '_> {
             kept.push(default);
         }
 
-        let ty = self.normalized_union_type(origin.module(), kept)?;
+        let ty = self.normalized_union_type(kept)?;
 
         Ok(Answer::Ready(ty))
     }

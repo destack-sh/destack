@@ -44,7 +44,8 @@ const value: Person = { name: "Ada", extra: true };
 }
 
 #[test]
-fn test_named_object_value_allows_extra_properties() {
+fn test_named_object_value_rejects_aliased_extra_properties() {
+    // aliased values store exactly into object-typed slots, wider rows need an interface
     let session = TestSession::single(
         r#"
 type Person = { name: string };
@@ -54,7 +55,7 @@ const value: Person = source;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
@@ -86,6 +87,13 @@ const value: Person = source;
 /// @resolution.access source=source root=source
 
 /// @check.stats.solve variables=2 types=14 constraints=0 obligations=2 solutions=2 bounds=0 decisions=4
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '{ name: string; extra: boolean }' is not assignable to type 'Person'"
+/// @diagnostic.label line=5 column=23 span="source" line_source="const value: Person = source;"
+/// @diagnostic.related line=5 column=14 span="Person" line_source="const value: Person = source;" message="expected due to this annotation"
+/// @diagnostic.note message="'Person' reduces to '{ name: string }'"
+/// @diagnostic.note message="'{ name: string }' stores its exact object type, declare an interface to accept structurally wider values"
 "#,
     );
 }

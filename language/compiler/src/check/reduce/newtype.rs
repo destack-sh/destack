@@ -66,7 +66,7 @@ impl CheckState<'_> {
     /// Decompose one nominal newtype instance.
     pub(in crate::check) fn decompose_newtype(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<NewtypeInstance>> {
         let dir::Type::Application(instance) = self.ty(value)? else {
@@ -84,7 +84,7 @@ impl CheckState<'_> {
         let substitution = self
             .instance_substitution(value.module_id, &instance)?
             .with_receiver(value);
-        let backing = self.substitute_type(origin.module(), declared_backing, &substitution)?;
+        let backing = self.substitute_type(declared_backing, &substitution)?;
         let generic_arguments = self.symbol_generic_argument_bindings(symbol, &arguments)?;
 
         Ok(Some(NewtypeInstance {

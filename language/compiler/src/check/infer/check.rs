@@ -65,9 +65,28 @@ impl BodyState<'_, '_> {
         expectation: Expectation,
     ) -> CompilerResult<Answer<Option<ValueCheck>>> {
         let origin = site.origin();
-        let Some(targets) = answer!(self.check.union_arms(origin, expectation.target)?) else {
+        let Some(members) = answer!(self.check.union_arms(origin, expectation.target)?) else {
             return Ok(Answer::Ready(None));
         };
+
+        // expand aliased nested unions into their leaf members, keeping
+        //  members with open heads as their own candidates
+        let mut members = members;
+        let mut targets = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        let mut index = 0;
+        while index < members.len() {
+            let member = members[index];
+            index += 1;
+            let Answer::Ready(head) = self.reduce_type_head(origin, member)? else {
+                targets.push(member);
+                continue;
+            };
+            match answer!(self.check.union_arms(origin, head)?) {
+                Some(nested) => members.extend(nested),
+                None => targets.push(member),
+            }
+        }
+
         let mut viable = None;
         let mut is_viable_ambiguous = false;
         let mut indeterminate = None;
@@ -294,7 +313,6 @@ impl BodyState<'_, '_> {
                         .check_object_expression(
                             site,
                             &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
-                            target,
                             target_value,
                             expectation,
                         ),

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, BodyState, Origin, Relation, VariableRole, Widening, answer};
+use crate::check::{BodyState, Relation, VariableRole, Widening};
 
 /// Inference mode for literal expressions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -40,7 +40,7 @@ impl InferMode {
 }
 
 impl BodyState<'_, '_> {
-    /// Select literal inference at one contextual type position.
+    /// Select the literal inference mode at one contextual type position.
     pub(in crate::check) fn contextual_literal_mode(
         &self,
         target: dir::GlobalTypeId,
@@ -58,6 +58,7 @@ impl BodyState<'_, '_> {
             visited.push(target);
 
             match self.ty(target)? {
+                // take the mode the bound generic parameter demands
                 dir::Type::Variable(variable) => {
                     let VariableRole::Instantiation { parameter } =
                         self.solver.variable_role(variable)?
@@ -78,9 +79,12 @@ impl BodyState<'_, '_> {
                     if selected.is_some_and(|selected| selected != mode) {
                         return Ok(default_mode);
                     }
+
                     selected = Some(mode);
                 }
+                // look through the form to its value
                 dir::Type::Form(form) => pending.push(form.value),
+                // visit every alternative of a composed type
                 dir::Type::Union(union) => {
                     pending.extend(
                         self.type_ids(target.module_id, union.elements)?
@@ -96,13 +100,16 @@ impl BodyState<'_, '_> {
                     );
                 }
                 dir::Type::Operation(_) => match self.operation_head(target)? {
+                    // template literals consume scalar precision
                     Some(dir::TypeOperation::TemplateLiteral(_)) => {
                         let mode = InferMode::Mutable;
                         if selected.is_some_and(|selected| selected != mode) {
                             return Ok(default_mode);
                         }
+
                         selected = Some(mode);
                     }
+                    // both conditional branches are reachable positions
                     Some(dir::TypeOperation::Conditional(conditional)) => {
                         pending.push(conditional.then_type);
                         pending.push(conditional.else_type);
@@ -114,6 +121,27 @@ impl BodyState<'_, '_> {
         }
 
         Ok(selected.unwrap_or(default_mode))
+    }
+
+    /// Return the type one literal slot stores.
+    pub(in crate::check) fn literal_slot_storage(
+        &mut self,
+        relation: Relation,
+        slot: dir::GlobalTypeId,
+        source: dir::GlobalTypeId,
+        mode: InferMode,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // keep the precise value under a check-only relation
+        if relation == Relation::Satisfies {
+            return Ok(source);
+        }
+
+        // let an open slot take the inferred candidate
+        if self.type_flags(slot)?.has_variable() {
+            return self.inference_candidate_type(source, mode);
+        }
+
+        Ok(slot)
     }
 
     /// Return one value's candidate type under its inference mode.
@@ -128,45 +156,19 @@ impl BodyState<'_, '_> {
         }
     }
 
-    /// Return the literal storage type selected by one contextual target.
-    pub(in crate::check) fn contextual_literal_type(
-        &mut self,
-        origin: Origin,
-        precise: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-        mode: InferMode,
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let candidate = self.inference_candidate_type(precise, mode)?;
-        if candidate == precise {
-            return Ok(Answer::Ready(precise));
-        }
-
-        let accepts =
-            answer!(
-                self.check
-                    .decide_relation(origin, Relation::Satisfies, candidate, target,)?
-            );
-        let selected = match accepts {
-            true => candidate,
-            false => precise,
-        };
-
-        Ok(Answer::Ready(selected))
-    }
-
     /// Return the type of one scalar literal expression.
     pub(in crate::check) fn scalar_literal_type(
         &mut self,
-        node: dir::GlobalNodeId<dir::Expression>,
+        _node: dir::GlobalNodeId<dir::Expression>,
         value: dir::ScalarLiteral,
     ) -> CompilerResult<dir::GlobalTypeId> {
         match value {
             dir::ScalarLiteral::RegexString { .. } => {
-                self.language_type(node.module_id, dir::LanguageItem::RegExp, &[])
+                self.language_type(dir::LanguageItem::RegExp, &[])
             }
-            dir::ScalarLiteral::Null => self.intern_type(node.module_id, dir::Type::Null),
-            dir::ScalarLiteral::Undefined => self.intern_type(node.module_id, dir::Type::Undefined),
-            value => self.intern_type(node.module_id, dir::Type::Literal(value)),
+            dir::ScalarLiteral::Null => self.intern_type(dir::Type::Null),
+            dir::ScalarLiteral::Undefined => self.intern_type(dir::Type::Undefined),
+            value => self.intern_type(dir::Type::Literal(value)),
         }
     }
 }

@@ -178,7 +178,6 @@ impl CheckState<'_> {
     /// Substitute generic parameters and `this` in one type.
     pub(in crate::check) fn substitute_type(
         &mut self,
-        target: ModuleId,
         id: dir::GlobalTypeId,
         substitution: &TypeSubstitution,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -187,7 +186,7 @@ impl CheckState<'_> {
         }
 
         self.substitute_graph(
-            target,
+            self.module_id,
             id,
             SubstitutionRule::Substitute {
                 bindings: &substitution.bindings,
@@ -429,14 +428,14 @@ impl CheckState<'_> {
             dir::Type::Union(union) => {
                 let elements = self.type_ids(target, union.elements)?.to_vec();
 
-                self.normalized_union_type(target, elements)
+                self.normalized_union_type(elements)
             }
             dir::Type::Intersection(intersection) => {
                 let elements = self.type_ids(target, intersection.elements)?.to_vec();
 
-                self.normalized_intersection_type(target, elements)
+                self.normalized_intersection_type(elements)
             }
-            substituted => self.intern_type(target, substituted),
+            substituted => self.intern_type(substituted),
         }
     }
 

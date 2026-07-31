@@ -355,13 +355,12 @@ impl BodyState<'_, '_> {
     /// Return one generated usize literal type.
     fn static_usize_type(
         &mut self,
-        node: dir::GlobalNodeIdAny,
+        _node: dir::GlobalNodeIdAny,
         value: usize,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.intern_type(
-            node.module_id,
-            dir::Type::Literal(dir::ScalarLiteral::Integer(value as i64)),
-        )
+        self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Integer(
+            value as i64,
+        )))
     }
 
     /// Return one interned static name key.

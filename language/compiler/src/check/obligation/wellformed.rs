@@ -75,10 +75,10 @@ impl CheckState<'_> {
                         _ => return Ok(Answer::Ready(ObligationCheck::holds())),
                     }
                 } else {
-                    let keys = self.intern_operation(
-                        origin.module(),
-                        dir::TypeOperation::KeyOf(dir::UnaryType { target: index.left }),
-                    )?;
+                    let keys =
+                        self.intern_operation(dir::TypeOperation::KeyOf(dir::UnaryType {
+                            target: index.left,
+                        }))?;
                     let proven = answer!(self.decide_relation(
                         origin,
                         Relation::Satisfies,

@@ -118,7 +118,7 @@ impl BodyState<'_, '_> {
                 .failures_from(mark.solver.constraint_count())
                 .next()
                 .is_some()
-                || self.check.failures.len() > mark.failures;
+                || self.check.solver.failures.len() > mark.failures;
             if has_failure {
                 return Ok(CandidateAttempt::Failed);
             }
@@ -375,7 +375,7 @@ impl CheckState<'_> {
             .failures_from(mark.solver.constraint_count())
             .next()
             .is_some()
-            || self.failures.len() > mark.failures;
+            || self.solver.failures.len() > mark.failures;
         if has_failure {
             return Ok(Answer::Ready(CandidateVerdict::Rejected));
         }
@@ -428,12 +428,11 @@ impl CheckState<'_> {
 
     /// Begin one probe.
     fn begin_probe(&mut self) -> ProbeMark {
-        let modules = self
-            .modules
-            .iter()
-            .map(|(module, state)| {
+        let modules = [&self.module]
+            .into_iter()
+            .map(|state| {
                 (
-                    *module,
+                    self.module_id,
                     ModuleProbeMark {
                         types: state.types_tail.mark(),
                         resolutions: state.resolutions.mark(),
@@ -454,8 +453,8 @@ impl CheckState<'_> {
             reduced_heads: self.reduced_heads.len(),
             reduced_graphs: self.reduced_graphs.len(),
             decisions: self.decisions.count(),
-            events: self.events.len(),
-            failures: self.failures.len(),
+            events: self.trace_events().len(),
+            failures: self.solver.failures.len(),
             modules,
         }
     }
@@ -538,11 +537,13 @@ impl CheckState<'_> {
             self.reduced_graphs.pop();
         }
         self.decisions.truncate_to(decisions);
-        self.events.truncate(events);
-        self.failures.truncate(failures);
+        if let Some(trace) = &mut self.trace {
+            trace.events.truncate(events);
+        }
+        self.solver.failures.truncate(failures);
 
         for (module, mark) in modules {
-            if let Some(state) = self.modules.get_mut(&module) {
+            if let Some(state) = self.module_maybe_mut(module) {
                 state.types_tail.truncate_to(mark.types);
                 state.resolutions.truncate_to(mark.resolutions);
                 state.coercions.truncate_to(mark.coercions);

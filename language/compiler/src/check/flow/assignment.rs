@@ -11,7 +11,10 @@ impl WalkState<'_, '_> {
     ) {
         // only local variable bindings have definite assignment state
         if symbol.module_id != self.module
-            || self.check.symbol_kind(symbol) != dir::SymbolKind::Variable
+            || self
+                .check
+                .own_symbol_kind(symbol)
+                .is_none_or(|kind| kind != dir::SymbolKind::Variable)
         {
             return;
         }
@@ -102,7 +105,12 @@ impl WalkState<'_, '_> {
         else {
             return;
         };
-        if self.check.symbol_kind(symbol) != dir::SymbolKind::Variable {
+        // foreign symbols are never movable places
+        if self
+            .check
+            .own_symbol_kind(symbol)
+            .is_none_or(|kind| kind != dir::SymbolKind::Variable)
+        {
             return;
         }
 

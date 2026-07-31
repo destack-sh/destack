@@ -1,6 +1,6 @@
 use crate::check::{
-    Answer, BodyState, CheckState, Decision, DecisionKind, Dependency, GenericParameterId,
-    GenericTemplateId, Origin, TypeSubstitution, VariableRole, Widening, answer,
+    Answer, BodyState, CheckState, Decision, DecisionKind, GenericParameterId, GenericTemplateId,
+    Origin, TypeSubstitution, VariableRole, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 use destack_dir as dir;
@@ -25,7 +25,7 @@ impl CheckState<'_> {
     /// Bind explicit arguments and declared defaults to one template.
     pub(in crate::check) fn bind_explicit_arguments(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         template: GenericTemplateId,
         written: &[dir::GlobalTypeId],
     ) -> CompilerResult<Option<TypeSubstitution>> {
@@ -50,7 +50,7 @@ impl CheckState<'_> {
             // evaluate defaults against the application built so far
             let default = binding
                 .default
-                .map(|default| self.substitute_type(module, default, &substitution))
+                .map(|default| self.substitute_type(default, &substitution))
                 .transpose()?;
             if let Some(default) = default {
                 substitution.bind(parameter, default)?;
@@ -124,7 +124,7 @@ impl CheckState<'_> {
 
             // retain the declared default for dry inference
             if let Some(default) = binding.default {
-                let default = self.substitute_type(origin.module(), default, &substitution)?;
+                let default = self.substitute_type(default, &substitution)?;
                 self.set_variable_default(variable, default);
             }
 
@@ -307,9 +307,7 @@ impl BodyState<'_, '_> {
         }
 
         // specialize the selected value type by the applied arguments
-        let Some(declared) = self.symbol_type_maybe(symbol) else {
-            return Ok(Answer::pending([Dependency::SymbolType(symbol)]));
-        };
+        let declared = answer!(self.symbol_type(symbol)?);
         let specialized = match template {
             Some(template) => {
                 let parameters = self.generic_template_parameters(template)?;
@@ -341,14 +339,14 @@ impl BodyState<'_, '_> {
                 match self.ty(declared)? {
                     dir::Type::Reference(reference) if reference.symbol == symbol => {
                         let arguments = substitution.arguments().collect::<SmallVec<[_; 4]>>();
-                        let arguments = self.intern_type_ids(module, &arguments)?;
+                        let arguments = self.intern_type_ids(&arguments)?;
 
-                        self.intern_type(
-                            module,
-                            dir::Type::Application(dir::GenericApplication { symbol, arguments }),
-                        )?
+                        self.intern_type(dir::Type::Application(dir::GenericApplication {
+                            symbol,
+                            arguments,
+                        }))?
                     }
-                    _ => self.substitute_type(module, declared, &substitution)?,
+                    _ => self.substitute_type(declared, &substitution)?,
                 }
             }
             None => declared,

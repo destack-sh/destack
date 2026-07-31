@@ -62,7 +62,6 @@ impl CheckState<'_> {
             dir::Type::Variant(member) => self.satisfies_copy(origin, member.owner, active),
             dir::Type::Any
             | dir::Type::Unknown
-            | dir::Type::Object
             | dir::Type::Intrinsic
             | dir::Type::Member(_)
             | dir::Type::Operation(_)
@@ -121,7 +120,7 @@ impl CheckState<'_> {
 
                 self.all_copy(origin, ids, active)
             }
-            dir::Type::Shape(shape) => {
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 if !self
                     .type_ids(ty.module_id, shape.call_signatures)?
                     .is_empty()
@@ -215,7 +214,7 @@ impl CheckState<'_> {
         let substitution = self.instance_substitution(instance_module, instance)?;
         let mut decision = Answer::Ready(true);
         for id in ids {
-            let applied = self.substitute_type(origin.module(), id, &substitution)?;
+            let applied = self.substitute_type(id, &substitution)?;
             decision = decision.and(self.satisfies_copy(origin, applied, active)?);
             if decision.is_ready_false() {
                 return Ok(decision);

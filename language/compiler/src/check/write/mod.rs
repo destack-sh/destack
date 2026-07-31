@@ -1,5 +1,5 @@
+mod artifact;
 mod capture;
-mod component;
 mod diagnostic;
 mod module;
 mod segments;

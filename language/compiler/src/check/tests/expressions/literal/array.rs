@@ -251,20 +251,18 @@ const values = [1, 2] satisfies readonly number[];
             .with_check_stats(),
         r#"
 === annotated ===
-const values: float64[] = [1, 2] satisfies readonly number[];
+const values: (1 | 2)[] = [1, 2] satisfies readonly number[];
 
 === checked ===
 const values = [1, 2] satisfies readonly number[];
-/// @type.symbol symbol=values source=values type=Array<float64>
+/// @type.symbol symbol=values source=values type=Array<1 | 2>
 /// @resolution.pattern source=values kind=binding target=values
-/// @type.node source=[1, 2] satisfies readonly number[] type=Array<float64>
-/// @type.node source=[1, 2] type=Array<float64>
+/// @type.node source=[1, 2] satisfies readonly number[] type=Array<1 | 2>
+/// @type.node source=[1, 2] type=Array<1 | 2>
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 /// @type.node source=2 type=2
-/// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: float64 }] origin=implicit
 
-/// @check.stats.solve variables=1 types=7 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
+/// @check.stats.solve variables=1 types=9 constraints=0 obligations=1 solutions=1 bounds=0 decisions=1
 "#,
     );
 }

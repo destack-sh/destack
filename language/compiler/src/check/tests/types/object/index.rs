@@ -195,13 +195,13 @@ const missing = checked["missing"];
 "#,
         r#"
 /// @diagnostic.error id=no-matching-operator message="operator '[]' is not defined for '{ x: 1 }' and '\"missing\"'"
-/// @diagnostic.label line=5 column=17 span="checked[\"missing\"]" line_source="const missing = checked[\"missing\"];"
+/// @diagnostic.label line=5 column=24 span="[" line_source="const missing = checked[\"missing\"];"
 "#,
     );
 }
 
 #[test]
-fn test_writable_index_signature_rejects_finite_object() {
+fn test_writable_index_signature_accepts_covered_finite_object() {
     let session = TestSession::single(
         r#"
 type Bag = { [key: string]: int32 };
@@ -249,15 +249,13 @@ const bad = write(point);
 /// @resolution.access source=point root=point
 "#,
         r#"
-/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32; y: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
-/// @diagnostic.label line=7 column=19 span="point" line_source="const bad = write(point);"
-/// @diagnostic.related line=7 column=13 span="write(point)" line_source="const bad = write(point);" message="in this call"
+
 "#,
     );
 }
 
 #[test]
-fn test_writable_index_signature_accepts_map() {
+fn test_writable_index_signature_rejects_keyed_write() {
     let session = TestSession::single(
         r#"
 type Bag = { [key: string]: int32 };
@@ -274,7 +272,7 @@ value satisfies int32 | undefined;
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -338,6 +336,10 @@ value satisfies int32 | undefined;
 /// @resolution.access source=value root=value
 
 /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
+"#,
+        r#"
+/// @diagnostic.error id=cannot-assign-structural-index message="cannot assign a computed key through the structural type '{ [key: string]: int32 }', type the receiver as an IndexSet implementer like Map"
+/// @diagnostic.label line=5 column=8 span="[" line_source="bag[\"x\"] = 1;"
 "#,
     );
 }
@@ -565,9 +567,7 @@ const bad = read(point);
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error id=writable-index-requires-index-set message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
-/// @diagnostic.label line=7 column=18 span="point" line_source="const bad = read(point);"
-/// @diagnostic.related line=7 column=13 span="read(point)" line_source="const bad = read(point);" message="in this call"
+
 "#,
     );
 }

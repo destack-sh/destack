@@ -529,7 +529,7 @@ function updateStatuses(values: &[Status; 2]): void {
 "#,
         r#"
 /// @diagnostic.error id=overwrite-stability-not-satisfied message="type 'Status' is not safe to overwrite through non-exclusive access"
-/// @diagnostic.label line=9 column=5 span="values[0]" line_source="values[0] = Status.Busy;"
+/// @diagnostic.label line=9 column=11 span="[" line_source="values[0] = Status.Busy;"
 /// @diagnostic.note message="overwriting may invalidate live borrows of the old value"
 /// @diagnostic.help message="write through an exclusive or owned path or store an overwrite-stable type"
 "#,

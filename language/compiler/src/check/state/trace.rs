@@ -131,19 +131,56 @@ pub(in crate::check) enum CheckEvent {
     },
 }
 
+/// Retained trace state while checking.
+pub(in crate::check) struct CheckTrace {
+    /// Trace events recorded while checking.
+    pub(in crate::check) events: Vec<CheckEvent>,
+    /// Obligation steps run so far, for trace numbering.
+    pub(in crate::check) solve_steps: usize,
+    /// Whether events are kept for artifact output.
+    pub(in crate::check) emit: bool,
+    /// Whether events print as they are recorded.
+    pub(in crate::check) stream: bool,
+}
+
+impl CheckTrace {
+    /// Create trace state when emitting or streaming is requested.
+    pub(in crate::check) fn new(emit: bool, stream: bool) -> Option<Box<Self>> {
+        if !emit && !stream {
+            return None;
+        }
+
+        Some(Box::new(Self {
+            events: Vec::new(),
+            solve_steps: 0,
+            emit,
+            stream,
+        }))
+    }
+}
+
 impl CheckState<'_> {
+    /// Return the recorded trace events, empty without a trace.
+    pub(in crate::check) fn trace_events(&self) -> &[CheckEvent] {
+        match &self.trace {
+            Some(trace) => &trace.events,
+            None => &[],
+        }
+    }
+
     /// Record one check event.
     pub(in crate::check) fn record_event(&mut self, event: CheckEvent) {
-        if !self.emit_events && !self.stream_events {
+        let Some(trace) = &self.trace else {
             return;
-        }
+        };
 
-        if self.stream_events {
+        if trace.stream {
             self.stream_event(&event);
         }
-
-        if self.emit_events {
-            self.events.push(event);
+        if let Some(trace) = &mut self.trace
+            && trace.emit
+        {
+            trace.events.push(event);
         }
     }
 
@@ -165,11 +202,11 @@ impl CheckState<'_> {
         log.push(
             ArtifactEvent::new("trace.summary")
                 .info()
-                .usize("events", self.events.len()),
+                .usize("events", self.trace_events().len()),
         );
 
         // render retained events in order
-        for event in &self.events {
+        for event in self.trace_events() {
             event.render(&context, &mut log);
         }
 
@@ -184,11 +221,7 @@ impl CheckState<'_> {
             solutions += usize::from(!state.state.is_open());
         }
         // count the types checking interned beyond the committed tables
-        let types = self
-            .modules
-            .values()
-            .map(|module| module.types_tail.type_count() as usize)
-            .sum();
+        let types = self.module.types_tail.type_count() as usize;
 
         CheckStats {
             variables: self.solver.variable_count(),

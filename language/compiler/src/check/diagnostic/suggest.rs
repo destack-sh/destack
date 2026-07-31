@@ -51,7 +51,7 @@ impl CheckState<'_> {
 
         // collect the modules this file already imports from
         let mut imported = Vec::new();
-        for target in self.modules.get(&module)?.resolved.imports.targets() {
+        for target in self.module_maybe(module)?.resolved.imports.targets() {
             let target = target.module();
             if target != module && !imported.contains(&target) {
                 imported.push(target);
@@ -73,7 +73,7 @@ impl CheckState<'_> {
                 })
         };
         for imported in imported {
-            let declared = match self.modules.get(&imported) {
+            let declared = match self.module_maybe(imported) {
                 Some(state) => declares(&state.binding_table()),
                 None => match self.external_modules.get(&imported) {
                     Some(external) => declares(&external.bindings),
@@ -141,13 +141,13 @@ impl CheckState<'_> {
 
         let mut keys = Vec::new();
         match self.ty(current)? {
-            dir::Type::Shape(shape) => {
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 for field in self.shape_properties(current.module_id, shape.properties)? {
                     keys.push(self.format_static_key(&field.key));
                 }
             }
             dir::Type::Reference(reference) => {
-                if let Some(definition) = self.loaded_definition(reference.symbol) {
+                if let Some(definition) = self.definintion_maybe(reference.symbol) {
                     for member in definition.members() {
                         if member.space() == dir::MemberSpace::Static
                             && let Some(key) = member.key()
@@ -158,7 +158,7 @@ impl CheckState<'_> {
                 }
             }
             dir::Type::Application(instance) => {
-                if let Some(definition) = self.loaded_definition(instance.symbol) {
+                if let Some(definition) = self.definintion_maybe(instance.symbol) {
                     for member in definition.members() {
                         if let Some(key) = member.key() {
                             keys.push(self.format_static_key(&key));

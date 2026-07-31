@@ -103,20 +103,16 @@ impl BodyState<'_, '_> {
 
         // test the discriminant and narrow to the variant's own type
         let discriminant = dir::ScalarLiteral::from(value);
-        let module = origin.module();
         let mut narrowed = Vec::with_capacity(owners.len());
         for owner in owners {
-            let member = self.intern_type(
-                module,
-                dir::Type::Variant(dir::VariantType {
-                    owner: owner.owner,
-                    variant: member,
-                }),
-            )?;
+            let member = self.intern_type(dir::Type::Variant(dir::VariantType {
+                owner: owner.owner,
+                variant: member,
+            }))?;
             narrowed.push(member);
         }
-        let narrowed = self.normalized_union_type(module, narrowed)?;
-        let carrier = self.normalized_union_type(module, owners.iter().map(|owner| owner.owner))?;
+        let narrowed = self.normalized_union_type(narrowed)?;
+        let carrier = self.normalized_union_type(owners.iter().map(|owner| owner.owner))?;
         let predicate = dir::Predicate::unary(
             dir::PredicateOperand::direct(carrier),
             dir::PredicateCondition::Literal(discriminant),

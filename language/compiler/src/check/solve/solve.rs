@@ -11,7 +11,7 @@ use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Drain every queued task.
-    fn drain_tasks(&mut self) -> CompilerResult<()> {
+    pub(in crate::check) fn drain_tasks(&mut self) -> CompilerResult<()> {
         loop {
             // run every ready check task first
             if let Some(task) = self.solver.pop_check() {
@@ -97,11 +97,12 @@ impl CheckState<'_> {
             }
         }
 
-        self.record_event(CheckEvent::TaskRan {
-            step: self.solve_steps,
-            task,
-        });
-        self.solve_steps += 1;
+        // number and record the completed step when tracing
+        if let Some(trace) = &mut self.trace {
+            let step = trace.solve_steps;
+            trace.solve_steps += 1;
+            self.record_event(CheckEvent::TaskRan { step, task });
+        }
 
         Ok(())
     }
@@ -122,8 +123,9 @@ impl CheckState<'_> {
         let explained = self.report_failures()?;
         self.report_unresolved(&explained)?;
 
+        let iterations = self.trace.as_ref().map_or(0, |trace| trace.solve_steps);
         self.record_event(CheckEvent::SolveFinished {
-            iterations: self.solve_steps,
+            iterations,
             variables: self.solver.variable_count(),
         });
 
@@ -181,11 +183,11 @@ impl CheckState<'_> {
 
         // close failed inference graphs with the compiler error type
         let has_unresolved = !unresolved.is_empty();
-        for (variable, module) in unresolved {
+        for (variable, _module) in unresolved {
             if !self.solver.variable(variable)?.state.is_open() {
                 continue;
             }
-            let error = self.intern_type(module, dir::Type::Error)?;
+            let error = self.intern_type(dir::Type::Error)?;
             self.commit_error_solution(variable, error)?;
         }
 
@@ -380,7 +382,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         failure: CheckFailure,
     ) {
-        self.failures.push(FailedCheck {
+        self.solver.failures.push(FailedCheck {
             cause,
             relation,
             use_,
@@ -392,7 +394,7 @@ impl CheckState<'_> {
 
     /// Report one failure for every terminal failed cause.
     fn report_failures(&mut self) -> CompilerResult<FxIndexSet<dir::TypeVariableId>> {
-        let mut failures = std::mem::take(&mut self.failures);
+        let mut failures = std::mem::take(&mut self.solver.failures);
 
         // include completed type constraints in the same cause forest
         for id in self.solver.constraints.failures_from(0) {

@@ -76,7 +76,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let module = site.node.module_id;
         let Some(value) = self.argument_expression(module, argument) else {
-            let error = self.intern_type(module, dir::Type::Error)?;
+            let error = self.intern_type(dir::Type::Error)?;
 
             return Ok(Answer::Ready(error));
         };
@@ -122,7 +122,7 @@ impl BodyState<'_, '_> {
                     use_,
                 }),
                 None => {
-                    let ty = self.intern_type(module, dir::Type::Error)?;
+                    let ty = self.intern_type(dir::Type::Error)?;
                     values.push(CallableArgument {
                         source,
                         ty: Some(ty),

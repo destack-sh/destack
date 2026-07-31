@@ -46,16 +46,13 @@ impl CheckState<'_> {
             if !base {
                 return Ok(Answer::Ready(false));
             }
-            let arguments = self.intern_type_ids(origin.module(), &[])?;
-            let projected = self.intern_member(
-                origin.module(),
-                dir::MemberType {
-                    owner: source,
-                    key: refined.key,
-                    arguments,
-                    qualifier: None,
-                },
-            )?;
+            let arguments = self.intern_type_ids(&[])?;
+            let projected = self.intern_member(dir::MemberType {
+                owner: source,
+                key: refined.key,
+                arguments,
+                qualifier: None,
+            })?;
 
             return self.decide_relation(origin, Relation::Equal, projected, refined.value);
         }
@@ -301,15 +298,18 @@ impl CheckState<'_> {
             }
 
             // structural and nominal inclusion
-            (dir::Type::Shape(_), dir::Type::Shape(_)) => {
+            (dir::Type::Object(_), dir::Type::Object(_)) => {
+                self.decide_shape_equal(origin, source, target)?
+            }
+            (dir::Type::Shape(_) | dir::Type::Object(_), dir::Type::Shape(_)) => {
                 self.decide_shape_relation(origin, Relation::Subtype, source, target)?
             }
-            (dir::Type::Shape(_), dir::Type::Application(instance))
-                if self.symbol_kind(instance.symbol).is_interface() =>
+            (dir::Type::Shape(_) | dir::Type::Object(_), dir::Type::Application(instance))
+                if self.symbol_kind(instance.symbol)?.is_interface() =>
             {
                 self.decide_interface_relation(origin, Relation::Subtype, source, target)?
             }
-            (dir::Type::Application(instance), dir::Type::Shape(_)) => self
+            (dir::Type::Application(instance), dir::Type::Shape(_) | dir::Type::Object(_)) => self
                 .decide_reference_against_target(
                     origin,
                     Relation::Subtype,
@@ -405,5 +405,4 @@ impl CheckState<'_> {
 
         Ok(is_identity.then_some(variable))
     }
-
 }

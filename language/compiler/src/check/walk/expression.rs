@@ -379,11 +379,9 @@ impl WalkState<'_, '_> {
             // type T
             dir::Expression::Type { value } => {
                 let represented = self.walk_frame_type_expression(*value)?;
-                let reflected = self.check.language_type(
-                    self.module,
-                    dir::LanguageItem::Type,
-                    &[represented],
-                )?;
+                let reflected = self
+                    .check
+                    .language_type(dir::LanguageItem::Type, &[represented])?;
                 self.commit_node_type(id, reflected)?;
             }
             // comptime value
@@ -1452,5 +1450,4 @@ impl WalkState<'_, '_> {
             _ => false,
         }
     }
-
 }

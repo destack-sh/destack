@@ -2,8 +2,8 @@ use std::slice::from_ref;
 use std::sync::Arc;
 
 use destack_artifact::{
-    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirDeclaredModule, DirExpanded, DirParsed,
-    DirResolved, ProfileKey,
+    DiagnosticBuilder, DiagnosticControlTable, DirBound, DirExpanded, DirParsed, DirResolved,
+    ProfileKey,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -101,31 +101,15 @@ impl CheckModuleState {
         bound: Arc<DirBound>,
         resolved: Arc<DirResolved>,
         expanded: Arc<DirExpanded>,
-        declared: Option<&DirDeclaredModule>,
     ) -> Self {
         // create the inherited bindings and this check's open overlays
         let bindings = expanded.binding_table(&bound);
-        let bindings_tail = match declared {
-            Some(declared) => (*declared.bindings).clone(),
-            None => dir::BindingSegment::from_table(&bindings),
-        };
+        let bindings_tail = dir::BindingSegment::from_table(&bindings);
         let types = expanded.type_table(&bound);
-        let types_tail = match declared {
-            Some(declared) => (*declared.types).clone(),
-            None => dir::TypeSegment::from_base(&expanded.types),
-        };
-        let generics = match declared {
-            Some(declared) => (*declared.generics).clone(),
-            None => dir::GenericSegment::new(module.id),
-        };
-        let statics = match declared {
-            Some(declared) => (*declared.statics).clone(),
-            None => dir::StaticSegment::from_base(&expanded.statics),
-        };
-        let decorators = match declared {
-            Some(declared) => (*declared.decorators).clone(),
-            None => dir::DecoratorSegment::new(module.id),
-        };
+        let types_tail = dir::TypeSegment::from_base(&expanded.types);
+        let generics = dir::GenericSegment::new(module.id);
+        let statics = dir::StaticSegment::from_base(&expanded.statics);
+        let decorators = dir::DecoratorSegment::new(module.id);
         let definitions = dir::DefinitionSegment::new(module.id);
         let auto = dir::AutoSegment::new(module.id);
         let resolutions = dir::ResolutionSegment::new(module.id);
@@ -366,8 +350,21 @@ impl CheckModuleState {
 
 impl CheckState<'_> {
     /// Return whether one module belongs to the active checked component.
-    pub(in crate::check) fn is_component_module(&self, module: ModuleId) -> bool {
-        self.modules.contains_key(&module)
+    pub(in crate::check) fn is_own_module(&self, module: ModuleId) -> bool {
+        module == self.module_id
+    }
+
+    /// Return the module's working state when it is the checked module.
+    pub(in crate::check) fn module_maybe(&self, module: ModuleId) -> Option<&CheckModuleState> {
+        (module == self.module_id).then_some(&self.module)
+    }
+
+    /// Return the mutable working state when it is the checked module.
+    pub(in crate::check) fn module_maybe_mut(
+        &mut self,
+        module: ModuleId,
+    ) -> Option<&mut CheckModuleState> {
+        (module == self.module_id).then_some(&mut self.module)
     }
 
     /// Return the symbols whose static guards did not decide false.
@@ -404,8 +401,7 @@ impl CheckState<'_> {
 
     /// Return whether one symbol's guard decided statically false.
     pub(in crate::check) fn is_absent_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
-        self.modules
-            .get(&symbol.module_id)
+        self.module_maybe(symbol.module_id)
             .is_some_and(|module| module.absent_symbols.contains(&symbol))
     }
 
@@ -426,7 +422,7 @@ impl CheckState<'_> {
 
     /// Return loaded state for one in-component module.
     pub(in crate::check) fn module(&self, module: ModuleId) -> &CheckModuleState {
-        match self.modules.get(&module) {
+        match self.module_maybe(module) {
             Some(state) => state,
             None => unreachable!("check module {module:?} was not loaded"),
         }
@@ -434,17 +430,10 @@ impl CheckState<'_> {
 
     /// Return loaded state for one in-component module mutably.
     pub(in crate::check) fn module_mut(&mut self, module: ModuleId) -> &mut CheckModuleState {
-        match self.modules.get_mut(&module) {
+        match self.module_maybe_mut(module) {
             Some(state) => state,
             None => unreachable!("check module {module:?} was not loaded"),
         }
-    }
-
-    /// Move loaded state for one in-component module out of check state.
-    pub(in crate::check) fn take_module(&mut self, module: ModuleId) -> CheckModuleState {
-        self.modules
-            .swap_remove(&module)
-            .unwrap_or_else(|| unreachable!("check module {module:?} was not loaded"))
     }
 
     /// Return one source node type without flow narrowing, if present.
@@ -534,7 +523,7 @@ impl CheckState<'_> {
             return Ok(ty);
         }
 
-        let ty = self.intern_type(node.module_id, dir::Type::Error)?;
+        let ty = self.intern_type(dir::Type::Error)?;
         self.commit_node_type(node, ty)?;
 
         Ok(ty)
@@ -650,7 +639,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let is_binding = self.symbol_kind(symbol) == dir::SymbolKind::Variable;
+        let is_binding = self.symbol_kind(symbol)? == dir::SymbolKind::Variable;
         let existing = if is_binding {
             self.binding_type_maybe(symbol)
         } else {
@@ -707,16 +696,22 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        if !self.modules.contains_key(&symbol.module_id) {
+        if !self.is_own_module(symbol.module_id) {
             self.import_external_module(symbol.module_id)?;
         }
 
         if let Some(ty) = self.symbol_type_maybe(symbol) {
+            // canonicalize foreign written types on read
+            if !self.is_own_module(symbol.module_id) {
+                let canonical = self.canonical_foreign_type(symbol, ty)?;
+                return Ok(Answer::Ready(canonical));
+            }
+
             return Ok(Answer::Ready(ty));
         }
 
         // external tables are sealed, so absence can never wake a waiter
-        if !self.is_component_module(symbol.module_id) {
+        if !self.is_own_module(symbol.module_id) {
             return Err(CompilerError::Internal {
                 message: format!(
                     "external symbol {} has no committed type",
@@ -774,8 +769,7 @@ impl CheckState<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::GlobalTypeId> {
-        self.modules
-            .get(&symbol.module_id)
+        self.module_maybe(symbol.module_id)
             .and_then(|module| module.static_values.get(&symbol).copied())
     }
 
@@ -800,7 +794,7 @@ impl CheckState<'_> {
 
     /// Return one module's resolved names, loaded or external.
     pub(in crate::check) fn module_resolved(&self, module: ModuleId) -> &DirResolved {
-        if let Some(module) = self.modules.get(&module) {
+        if let Some(module) = self.module_maybe(module) {
             &module.resolved
         } else {
             &self.external_module(module).resolved
@@ -809,7 +803,7 @@ impl CheckState<'_> {
 
     /// Return one module's tree view, loaded or external.
     pub(in crate::check) fn module_view(&self, module: ModuleId) -> dir::View<'_> {
-        if let Some(module) = self.modules.get(&module) {
+        if let Some(module) = self.module_maybe(module) {
             module.view()
         } else {
             self.external_module(module).view()
@@ -818,7 +812,7 @@ impl CheckState<'_> {
 
     /// Return one binding table by module.
     pub(in crate::check) fn binding_table(&self, module: ModuleId) -> dir::BindingTable<'_> {
-        if let Some(module) = self.modules.get(&module) {
+        if let Some(module) = self.module_maybe(module) {
             module.binding_table()
         } else {
             self.external_module(module).bindings.clone()
@@ -827,7 +821,7 @@ impl CheckState<'_> {
 
     /// Return one component or external static.
     pub(in crate::check) fn r#static(&self, value: dir::GlobalStaticId) -> &dir::StaticTerm {
-        if let Some(module) = self.modules.get(&value.module_id) {
+        if let Some(module) = self.module_maybe(value.module_id) {
             module.r#static(value.local_id)
         } else {
             self.external_module(value.module_id)
@@ -836,11 +830,57 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return one own-module symbol's kind without loading anything.
+    pub(in crate::check) fn own_symbol_kind(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::SymbolKind> {
+        if !self.is_own_module(symbol.module_id) {
+            return None;
+        }
+
+        Some(
+            self.binding_table(symbol.module_id)
+                .get_symbol(symbol.local_id)
+                .kind,
+        )
+    }
+
+    /// Return one symbol's kind from its already-loaded declaring module.
+    pub(in crate::check) fn loaded_symbol_kind(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> dir::SymbolKind {
+        self.binding_table(symbol.module_id)
+            .get_symbol(symbol.local_id)
+            .kind
+    }
+
+    /// Return one symbol's kind when its declaring module is readable.
+    pub(in crate::check) fn symbol_kind_maybe(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::SymbolKind>> {
+        if self.is_declaration() && !self.is_own_module(symbol.module_id) {
+            return Ok(None);
+        }
+
+        Ok(Some(self.symbol_kind(symbol)?))
+    }
+
     /// Return the declaration kind for one symbol.
-    pub(in crate::check) fn symbol_kind(&self, symbol: dir::GlobalSymbolId) -> dir::SymbolKind {
+    pub(in crate::check) fn symbol_kind(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::SymbolKind> {
+        // load the foreign module the classification reads
+        if !self.is_own_module(symbol.module_id) && !self.is_declaration() {
+            self.import_external_module(symbol.module_id)?;
+        }
+
         let binding_table = self.binding_table(symbol.module_id);
         let symbol = binding_table.get_symbol(symbol.local_id);
 
-        symbol.kind
+        Ok(symbol.kind)
     }
 }

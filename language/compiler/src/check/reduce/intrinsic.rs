@@ -20,13 +20,13 @@ impl CheckState<'_> {
             // primitive representation classes are aliases in type space
             dir::LanguageItem::String => {
                 let ty = dir::Type::Primitive(dir::PrimitiveType::String);
-                let ty = self.intern_type(origin.module(), ty)?;
+                let ty = self.intern_type(ty)?;
 
                 Ok(Answer::Ready(Some(ty)))
             }
             dir::LanguageItem::BigInt => {
                 let ty = dir::Type::Primitive(dir::PrimitiveType::Bigint);
-                let ty = self.intern_type(origin.module(), ty)?;
+                let ty = self.intern_type(ty)?;
 
                 Ok(Answer::Ready(Some(ty)))
             }
@@ -126,7 +126,7 @@ impl CheckState<'_> {
     /// Reduce one compiler-known string mapping alias application.
     fn reduce_string_mapping_application(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         module: ModuleId,
         item: dir::LanguageItem,
         instance: &dir::GenericApplication,
@@ -142,7 +142,7 @@ impl CheckState<'_> {
             target: *target,
         };
 
-        let ty = self.intern_operation(origin.module(), operation)?;
+        let ty = self.intern_operation(operation)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -150,7 +150,7 @@ impl CheckState<'_> {
     /// Reduce one inference barrier intrinsic application.
     fn reduce_noinfer_application(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
@@ -159,7 +159,7 @@ impl CheckState<'_> {
         };
         let operation = dir::TypeOperation::NoInfer(dir::UnaryType { target: *target });
 
-        let ty = self.intern_operation(origin.module(), operation)?;
+        let ty = self.intern_operation(operation)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -167,7 +167,7 @@ impl CheckState<'_> {
     /// Reduce one awaited-value intrinsic application.
     fn reduce_awaited_application(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
@@ -176,7 +176,7 @@ impl CheckState<'_> {
         };
         let operation = dir::TypeOperation::Awaited(dir::UnaryType { target: *target });
 
-        let ty = self.intern_operation(origin.module(), operation)?;
+        let ty = self.intern_operation(operation)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -184,7 +184,7 @@ impl CheckState<'_> {
     /// Reduce one Array intrinsic application.
     fn reduce_array_application(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
@@ -192,8 +192,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
         let ty = dir::Type::Array(dir::ArrayType { element: *element });
-
-        let ty = self.intern_type(origin.module(), ty)?;
+        let ty = self.intern_type(ty)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -201,7 +200,7 @@ impl CheckState<'_> {
     /// Reduce one Slice intrinsic application.
     fn reduce_slice_application(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
@@ -209,8 +208,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
         let ty = dir::Type::Slice(dir::SliceType { element: *element });
-
-        let ty = self.intern_type(origin.module(), ty)?;
+        let ty = self.intern_type(ty)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -218,7 +216,7 @@ impl CheckState<'_> {
     /// Reduce one FixedArray intrinsic application.
     fn reduce_fixed_array_application(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
@@ -229,8 +227,7 @@ impl CheckState<'_> {
             element: *element,
             count: *count,
         });
-
-        let ty = self.intern_type(origin.module(), ty)?;
+        let ty = self.intern_type(ty)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -238,7 +235,7 @@ impl CheckState<'_> {
     /// Reduce one Dynamic intrinsic application.
     fn reduce_dynamic_application(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
@@ -248,8 +245,7 @@ impl CheckState<'_> {
         let ty = dir::Type::Dynamic(dir::DynamicType {
             constraint: *constraint,
         });
-
-        let ty = self.intern_type(origin.module(), ty)?;
+        let ty = self.intern_type(ty)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -266,13 +262,12 @@ impl CheckState<'_> {
         else {
             return Ok(Answer::Ready(None));
         };
-        let environment = self.intern_type(origin.module(), dir::Type::Unknown)?;
+        let environment = self.intern_type(dir::Type::Unknown)?;
         let function = dir::Type::Function(dir::FunctionType {
             signature,
             environment,
         });
-
-        let ty = self.intern_type(origin.module(), function)?;
+        let ty = self.intern_type(function)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -290,8 +285,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
         let function = dir::Type::FunctionPointer(dir::FunctionPointerType { signature });
-
-        let ty = self.intern_type(origin.module(), function)?;
+        let ty = self.intern_type(function)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -323,7 +317,7 @@ impl CheckState<'_> {
                 .collect(),
             _ => return Ok(Answer::Ready(None)),
         };
-        let parameters = self.intern_parameters(origin.module(), &parameters)?;
+        let parameters = self.intern_parameters(&parameters)?;
 
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
@@ -333,7 +327,7 @@ impl CheckState<'_> {
             return_type: Some(return_type),
             is_generator: false,
         };
-        let signature = self.intern_signature(origin.module(), function)?;
+        let signature = self.intern_signature(function)?;
 
         Ok(Answer::Ready(Some(signature)))
     }

@@ -309,7 +309,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             dir::Type::Void => Self::literal(dir::TypeLiteral::Void),
             dir::Type::Null => Self::literal(dir::TypeLiteral::Null),
             dir::Type::Undefined => Self::literal(dir::TypeLiteral::Undefined),
-            dir::Type::Object => Self::literal(dir::TypeLiteral::Object),
             dir::Type::Intrinsic => dir::TypeExpression::Intrinsic,
             dir::Type::This => dir::TypeExpression::This,
 
@@ -471,7 +470,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     elements,
                 }
             }
-            dir::Type::Shape(shape) => {
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 // signatures have no member form here yet
                 if !shape.call_signatures.is_empty()
                     || !shape.construct_signatures.is_empty()

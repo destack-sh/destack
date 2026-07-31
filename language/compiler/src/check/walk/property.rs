@@ -795,10 +795,10 @@ impl WalkState<'_, '_> {
                 let induction = InducedParameterOwner::new(source, parent, Some(symbol));
 
                 // interface members assume this satisfies their interface
+                let receiver_declaration = receiver_scope.and_then(|receiver| receiver.declaration);
                 if let Some(template) = template
-                    && let Some(interface) = receiver_scope
-                        .and_then(|receiver| receiver.declaration)
-                        .filter(|declaration| self.check.symbol_kind(*declaration).is_interface())
+                    && let Some(interface) = receiver_declaration
+                    && self.check.symbol_kind(interface)?.is_interface()
                 {
                     self.push_this_predicate(source, interface, template)?;
                 }
@@ -1085,7 +1085,7 @@ impl WalkState<'_, '_> {
         let declaration = match scope.declaration {
             Some(declaration)
                 if matches!(
-                    self.check.symbol_kind(declaration),
+                    self.check.symbol_kind(declaration)?,
                     dir::SymbolKind::Extension
                 ) =>
             {
@@ -1096,12 +1096,20 @@ impl WalkState<'_, '_> {
             }
             other => other,
         };
-        let is_value_family = declaration.is_some_and(|declaration| {
-            matches!(
-                self.check.symbol_kind(declaration),
+        let is_value_family = match declaration {
+            // read foreign kinds from their module's bound table
+            Some(declaration) if !self.check.is_own_module(declaration.module_id) => {
+                matches!(
+                    self.check.external_binder_kind(declaration)?,
+                    dir::SymbolKind::Struct | dir::SymbolKind::Enum
+                )
+            }
+            Some(declaration) => matches!(
+                self.check.symbol_kind(declaration)?,
                 dir::SymbolKind::Struct | dir::SymbolKind::Enum
-            )
-        });
+            ),
+            None => false,
+        };
         if !is_value_family {
             return Ok(None);
         }

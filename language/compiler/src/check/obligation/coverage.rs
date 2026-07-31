@@ -108,7 +108,7 @@ impl CheckState<'_> {
         if let Some(domain) = self.ty(value)?.finite_literals() {
             let mut decision = Answer::Ready(true);
             for literal in domain {
-                let element = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
+                let element = self.intern_type(dir::Type::Literal(literal))?;
                 decision =
                     decision.and(self.decide_patterns_cover_value(origin, patterns, element)?);
                 if decision.is_ready_false() {
@@ -177,8 +177,7 @@ impl CheckState<'_> {
                         }));
                     }
 
-                    let literal =
-                        self.intern_type(origin.module(), dir::Type::Literal(discriminant))?;
+                    let literal = self.intern_type(dir::Type::Literal(discriminant))?;
                     return Ok(Answer::Ready(UncoveredValue::Type(literal)));
                 }
             }
@@ -187,7 +186,7 @@ impl CheckState<'_> {
         // name the first uncovered finite scalar value
         if let Some(domain) = self.ty(value)?.finite_literals() {
             for literal in domain {
-                let element = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
+                let element = self.intern_type(dir::Type::Literal(literal))?;
                 if !answer!(self.decide_patterns_cover(origin, patterns, element)?) {
                     return Ok(Answer::Ready(UncoveredValue::Type(element)));
                 }
@@ -202,7 +201,7 @@ impl CheckState<'_> {
                 Some(literal) => dir::Type::Literal(literal),
                 None => dir::Type::Range(range),
             };
-            let range = self.intern_type(origin.module(), ty)?;
+            let range = self.intern_type(ty)?;
 
             return Ok(Answer::Ready(UncoveredValue::Type(range)));
         }
@@ -622,7 +621,7 @@ impl CheckState<'_> {
                         }
                         None => {
                             if is_defaulted {
-                                let undefined = self.intern_type(module, dir::Type::Undefined)?;
+                                let undefined = self.intern_type(dir::Type::Undefined)?;
 
                                 self.decide_pattern_covers(
                                     origin,

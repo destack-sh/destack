@@ -10,8 +10,8 @@ type LocalReadonly = local readonly User;
 type ReadonlyLocal = readonly local User;
 type SharedOwned = shared ^User;
 type OwnedShared = ^shared User;
-type LocalBorrowed = local &readonly User;
-type BorrowedLocal = &readonly local User;
+type LocalBorrowed<'a> = local &'a readonly User;
+type BorrowedLocal<'a> = &'a readonly local User;
 "#,
     );
 
@@ -26,8 +26,8 @@ type LocalReadonly = local readonly User;
 type ReadonlyLocal = readonly local User;
 type SharedOwned = shared ^User;
 type OwnedShared = ^shared User;
-type LocalBorrowed<'a> = local &readonly User;
-type BorrowedLocal<'a> = &readonly local User;
+type LocalBorrowed<'a> = local &'a readonly User;
+type BorrowedLocal<'a> = &'a readonly local User;
 
 === checked ===
 class User {}
@@ -54,16 +54,20 @@ type OwnedShared = ^shared User;
 /// @definition.type symbol=OwnedShared source="type OwnedShared = ^shared User" value=Placed<Owned<User>, "shared">
 /// @resolution.name source=User target=User
 
-type LocalBorrowed = local &readonly User;
-/// @generic.template symbol=LocalBorrowed parameters=('a)
-/// @type.symbol symbol=LocalBorrowed source="type LocalBorrowed = local &readonly User" type=Placed<&LocalBorrowed.'a readonly User, "local">
-/// @definition.type symbol=LocalBorrowed source="type LocalBorrowed = local &readonly User" template=('a) value=Placed<&LocalBorrowed.'a readonly User, "local">
+type LocalBorrowed<'a> = local &'a readonly User;
+/// @generic.template symbol=LocalBorrowed parameters=('a#1)
+/// @type.symbol symbol=LocalBorrowed source="type LocalBorrowed<'a> = local &'a readonly User" type=Placed<&'a#1 readonly User, "local">
+/// @definition.type symbol=LocalBorrowed source="type LocalBorrowed<'a> = local &'a readonly User" template=('a#1) value=Placed<&'a#1 readonly User, "local">
+/// @type.symbol symbol=LocalBorrowed.'a source='a type='a#1
+/// @resolution.name source='a target=LocalBorrowed.'a
 /// @resolution.name source=User target=User
 
-type BorrowedLocal = &readonly local User;
-/// @generic.template symbol=BorrowedLocal parameters=('a)
-/// @type.symbol symbol=BorrowedLocal source="type BorrowedLocal = &readonly local User" type=Placed<&BorrowedLocal.'a readonly User, "local">
-/// @definition.type symbol=BorrowedLocal source="type BorrowedLocal = &readonly local User" template=('a) value=Placed<&BorrowedLocal.'a readonly User, "local">
+type BorrowedLocal<'a> = &'a readonly local User;
+/// @generic.template symbol=BorrowedLocal parameters=('a#2)
+/// @type.symbol symbol=BorrowedLocal source="type BorrowedLocal<'a> = &'a readonly local User" type=Placed<&'a#2 readonly User, "local">
+/// @definition.type symbol=BorrowedLocal source="type BorrowedLocal<'a> = &'a readonly local User" template=('a#2) value=Placed<&'a#2 readonly User, "local">
+/// @type.symbol symbol=BorrowedLocal.'a source='a type='a#2
+/// @resolution.name source='a target=BorrowedLocal.'a
 /// @resolution.name source=User target=User
 "#,
         r#"

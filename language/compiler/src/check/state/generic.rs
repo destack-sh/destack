@@ -4,7 +4,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Origin, TypeSubstitution, VariableRole};
+use crate::check::{
+    CheckState, Origin, TypeSubstitution, VariableRole, VarianceForm, VarianceState,
+};
 use crate::{CompilerError, CompilerResult};
 
 /// Stable id for one declaration-side generic parameter.
@@ -31,6 +33,9 @@ pub(in crate::check) struct GenericIndex {
     templates_by_symbol: FxIndexMap<dir::GlobalSymbolId, GenericTemplateId>,
     /// Parameter ids keyed by parameter symbol.
     parameters_by_symbol: FxIndexMap<dir::GlobalSymbolId, GenericParameterId>,
+    /// Parameter variance derivations per handle context.
+    pub(in crate::check) variances:
+        FxIndexMap<(dir::GlobalGenericParameterId, VarianceForm), VarianceState>,
     /// Induced parameters already rebound to their sites this run.
     claimed_induced: FxIndexSet<GenericParameterId>,
     /// Declaration types scanned for induced memory variables.
@@ -44,6 +49,7 @@ impl GenericIndex {
             templates_by_source: FxIndexMap::default(),
             templates_by_symbol: FxIndexMap::default(),
             parameters_by_symbol: FxIndexMap::default(),
+            variances: FxIndexMap::default(),
             claimed_induced: FxIndexSet::default(),
             induced_parameter_sites: Vec::new(),
         }
@@ -97,39 +103,6 @@ impl GenericIndex {
 }
 
 impl CheckState<'_> {
-    /// Index one module's declared generic identities for re-derivation.
-    pub(in crate::check) fn index_declared_generics(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<()> {
-        let segment = &self.module(module).generics;
-
-        // collect declared rows before touching index and symbol state
-        let mut templates = Vec::new();
-        let mut parameters = Vec::new();
-        for (local, template) in segment.iter_templates() {
-            templates.push((local.into_global(module), template.source, template.symbol));
-        }
-        for (local, binding) in segment.iter_parameters() {
-            if let dir::GenericParameterKey::Symbol(symbol) = binding.key {
-                parameters.push((local.into_global(module), symbol, binding.ty));
-            }
-        }
-
-        for (id, source, symbol) in templates {
-            self.generics.templates_by_source.insert(source, id);
-            if let Some(symbol) = symbol {
-                self.generics.templates_by_symbol.insert(symbol, id);
-            }
-        }
-        for (id, symbol, ty) in parameters {
-            self.generics.parameters_by_symbol.insert(symbol, id);
-            self.commit_declaration_type(symbol, ty)?;
-        }
-
-        Ok(())
-    }
-
     /// Return one symbol's generic template, reading the walk index
     /// over committed definitions.
     pub(in crate::check) fn symbol_template(
@@ -157,7 +130,7 @@ impl CheckState<'_> {
             return Some(template);
         }
 
-        let template = self.loaded_definition(symbol)?.template()?;
+        let template = self.definintion_maybe(symbol)?.template()?;
 
         Some(template.into_global(symbol.module_id))
     }
@@ -168,7 +141,7 @@ impl CheckState<'_> {
         id: GenericTemplateId,
     ) -> Option<&dir::GenericTemplate> {
         // read working component templates first
-        if let Some(module) = self.modules.get(&id.module_id)
+        if let Some(module) = self.module_maybe(id.module_id)
             && let Some(template) = module.generics.get_local_template(id.local_id)
         {
             return Some(template);
@@ -188,7 +161,7 @@ impl CheckState<'_> {
         id: GenericParameterId,
     ) -> Option<&dir::GenericParameterBinding> {
         // read working component parameters first
-        if let Some(module) = self.modules.get(&id.module_id)
+        if let Some(module) = self.module_maybe(id.module_id)
             && let Some(parameter) = module.generics.get_local_parameter(id.local_id)
         {
             return Some(parameter);
@@ -394,8 +367,7 @@ impl CheckState<'_> {
 
         // require one template per lexical scope
         let previous = self
-            .modules
-            .get(&module_id)
+            .module_maybe(module_id)
             .and_then(|module| module.generics.template_by_scope(scope));
         if let Some(previous) = previous {
             return Err(CompilerError::Internal {
@@ -407,8 +379,7 @@ impl CheckState<'_> {
 
         // allocate the template in its component module
         let module = self
-            .modules
-            .get_mut(&module_id)
+            .module_maybe_mut(module_id)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module_id:?} has no generic segment"),
             })?;
@@ -443,8 +414,7 @@ impl CheckState<'_> {
         // precompute the parameter id before allocating its canonical type
         let module = template.module_id;
         let working = self
-            .modules
-            .get_mut(&module)
+            .module_maybe_mut(module)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
@@ -669,8 +639,7 @@ impl CheckState<'_> {
         // commit the completed binding after classification
         let module = parameter.module_id;
         let working = self
-            .modules
-            .get_mut(&module)
+            .module_maybe_mut(module)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
@@ -696,8 +665,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let module = template.module_id;
         let working = self
-            .modules
-            .get_mut(&module)
+            .module_maybe_mut(module)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
@@ -866,6 +834,12 @@ impl CheckState<'_> {
                 return Ok(TypeSubstitution::default());
             }
 
+            // keep foreign applications symbolic while declaring,
+            //  their templates load only when checking
+            if self.is_declaration() && !self.is_own_module(instance.symbol.module_id) {
+                return Ok(TypeSubstitution::default());
+            }
+
             let name = self.format_symbol(instance.symbol);
             let rendered = self
                 .type_ids(module, instance.arguments)?
@@ -886,7 +860,94 @@ impl CheckState<'_> {
             self.type_ids(module, instance.arguments)?,
         );
 
+        // fill elided defaults before instantiating the written application
+        let parameters = self.generic_template_parameters(template)?;
+        if arguments.len() < parameters.len() {
+            let mut substitution = TypeSubstitution::default();
+            let mut cursor = 0usize;
+            for parameter in parameters.iter().copied() {
+                let binding = self.generic_parameter(parameter).copied().ok_or_else(|| {
+                    CompilerError::Internal {
+                        message: format!("generic parameter {parameter:?} is missing"),
+                    }
+                })?;
+
+                // lifetime slots consume only written lifetimes
+                let wants_lifetime =
+                    binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime);
+                let next_is_lifetime = cursor < arguments.len()
+                    && self.written_argument_is_lifetime(arguments[cursor])?;
+
+                // bind the next written argument to the next writable slot
+                let argument = if binding.is_writable()
+                    && cursor < arguments.len()
+                    && (!wants_lifetime || next_is_lifetime)
+                {
+                    let argument = arguments[cursor];
+                    cursor += 1;
+
+                    argument
+                }
+                // evaluate defaults against the application built so far
+                else if let Some(default) = binding.default {
+                    self.substitute_type(default, &substitution)?
+                }
+                // fill elided lifetimes with the frame literal
+                else if binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime) {
+                    self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
+                        dir::Lifetime::Frame,
+                    )))?
+                }
+                // reject truly unbound parameters
+                else {
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "generic template {template:?} received {} arguments for {} parameters",
+                            arguments.len(),
+                            parameters.len(),
+                        ),
+                    });
+                };
+                substitution
+                    .bindings
+                    .push(dir::GenericArgumentBinding::new(parameter, argument));
+            }
+
+            return Ok(substitution);
+        }
+
         self.template_substitution(template, &arguments)
+    }
+
+    /// Return whether one written argument spells a lifetime.
+    pub(in crate::check) fn written_argument_is_lifetime(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        if self.is_lifetime_slot(&self.ty(ty)?)? {
+            return Ok(true);
+        }
+
+        // lifetime joins write as unions of lifetimes
+        if let dir::Type::Union(union) = self.ty(ty)? {
+            let elements = self.type_ids(ty.module_id, union.elements)?;
+            for element in elements.to_vec() {
+                if !self.written_argument_is_lifetime(element)? {
+                    return Ok(false);
+                }
+            }
+
+            return Ok(true);
+        }
+
+        // memory literals spell as strings in written type arguments
+        let spelled = matches!(
+            self.ty(ty)?,
+            dir::Type::Literal(dir::ScalarLiteral::String(name))
+                if matches!(self.strings().get(name), "static" | "frame")
+        );
+
+        Ok(spelled)
     }
 
     /// Return one instance substitution qualified by a concrete receiver.
@@ -899,8 +960,7 @@ impl CheckState<'_> {
         let mut substitution = self.instance_substitution(module, instance)?;
         let receiver_substitution = TypeSubstitution::default().with_receiver(receiver);
         for binding in &mut substitution.bindings {
-            binding.argument =
-                self.substitute_type(module, binding.argument, &receiver_substitution)?;
+            binding.argument = self.substitute_type(binding.argument, &receiver_substitution)?;
         }
         substitution.receiver = Some(receiver);
 
@@ -942,11 +1002,10 @@ impl CheckState<'_> {
         while let Some(id) = template {
             let symbol = self.require_generic_template(id)?.symbol;
             if let Some(symbol) = symbol
-                && self.symbol_kind(symbol).is_interface()
+                && self.symbol_kind(symbol)?.is_interface()
             {
-                let application = self.declaration_instance(origin.module(), symbol)?;
-                let bound =
-                    self.intern_type(origin.module(), dir::Type::Application(application))?;
+                let application = self.declaration_instance(symbol)?;
+                let bound = self.intern_type(dir::Type::Application(application))?;
                 if !bounds.contains(&bound) {
                     bounds.push(bound);
                 }
@@ -967,9 +1026,8 @@ impl CheckState<'_> {
 
         // find the nearest ancestor governed by another template
         for current in bindings.scope_ancestors(template.scope) {
-            let parent = if self.is_component_module(template_id.module_id) {
-                self.modules
-                    .get(&template_id.module_id)
+            let parent = if self.is_own_module(template_id.module_id) {
+                self.module_maybe(template_id.module_id)
                     .and_then(|module| module.generics.template_by_scope(current.id))
                     .map(|id| id.into_global(template_id.module_id))
             } else {
@@ -984,22 +1042,6 @@ impl CheckState<'_> {
         }
 
         Ok(None)
-    }
-
-    /// Return whether one template declares an explicit lifetime parameter.
-    pub(in crate::check) fn template_names_lifetimes(
-        &self,
-        template: GenericTemplateId,
-    ) -> CompilerResult<bool> {
-        let parameters = self.generic_template_parameters(template)?;
-        let named = parameters.iter().any(|parameter| {
-            self.generic_parameter(*parameter).is_some_and(|binding| {
-                binding.origin == dir::GenericParameterOrigin::Explicit
-                    && binding.memory_parameter() == Some(dir::MemoryParameter::Lifetime)
-            })
-        });
-
-        Ok(named)
     }
 
     /// Return how many parameters accept written arguments.

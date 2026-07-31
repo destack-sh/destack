@@ -56,7 +56,7 @@ impl CheckState<'_> {
     /// Return the precise variants declared by one enum or Tagged owner.
     pub(in crate::check) fn variant_types(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
         let dir::Type::Application(instance) = self.ty(value)? else {
@@ -76,13 +76,10 @@ impl CheckState<'_> {
 
         let mut types = Vec::with_capacity(variants.len());
         for variant in variants {
-            let variant = self.intern_type(
-                module,
-                dir::Type::Variant(dir::VariantType {
-                    owner: value,
-                    variant,
-                }),
-            )?;
+            let variant = self.intern_type(dir::Type::Variant(dir::VariantType {
+                owner: value,
+                variant,
+            }))?;
             types.push(variant);
         }
 
@@ -92,7 +89,7 @@ impl CheckState<'_> {
     /// Return the instantiated backing selected by one Tagged variant.
     pub(in crate::check) fn tagged_variant_backing(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         variant: &dir::VariantType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let owner = self.variant_owner(variant)?;
@@ -125,7 +122,7 @@ impl CheckState<'_> {
         let substitution = self
             .instance_substitution(variant.owner.module_id, &owner)?
             .with_receiver(variant.owner);
-        let backing = self.substitute_type(module, backing, &substitution)?;
+        let backing = self.substitute_type(backing, &substitution)?;
 
         Ok(Some(backing))
     }
@@ -182,7 +179,7 @@ impl CheckState<'_> {
     /// Return the tag projection selected by one Tagged discriminator member.
     pub(in crate::check) fn tagged_discriminator_projection(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         value: dir::GlobalTypeId,
         key: dir::StaticKey,
     ) -> CompilerResult<Option<dir::Projection>> {
@@ -223,9 +220,9 @@ impl CheckState<'_> {
         let mut types = Vec::with_capacity(discriminants.len());
         for discriminant in discriminants {
             let literal = dir::ScalarLiteral::String(discriminant);
-            types.push(self.intern_type(module, dir::Type::Literal(literal))?);
+            types.push(self.intern_type(dir::Type::Literal(literal))?);
         }
-        let ty = self.normalized_union_type(module, types)?;
+        let ty = self.normalized_union_type(types)?;
         let projection = dir::Projection::VariantTag {
             carrier,
             discriminator: key,

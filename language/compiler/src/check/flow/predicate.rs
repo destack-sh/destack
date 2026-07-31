@@ -296,7 +296,7 @@ impl CheckState<'_> {
         {
             target = match self.variant_for_discriminant(origin.module(), carrier, target)? {
                 Some(variant) => variant,
-                None => self.intern_type(origin.module(), dir::Type::Never)?,
+                None => self.intern_type(dir::Type::Never)?,
             };
             relative = &relative[..relative.len() - 1];
         }
@@ -353,7 +353,7 @@ impl CheckState<'_> {
         });
 
         // reduce the narrowing through the normal type operation path
-        let narrowed = self.intern_operation(site.node.module_id, operation)?;
+        let narrowed = self.intern_operation(operation)?;
         let narrowed = match self.reduce_type_head(site.origin(), narrowed)? {
             Answer::Ready(ty) => ty,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
@@ -433,14 +433,11 @@ impl CheckState<'_> {
                 dir::PatternDestructureResolution::Nominal(nominal) => {
                     let arguments: Vec<dir::GlobalTypeId> =
                         dir::GenericArgumentBinding::values(&nominal.generic_arguments).collect();
-                    let arguments = self.intern_type_ids(origin.module(), &arguments)?;
-                    let ty = self.intern_type(
-                        origin.module(),
-                        dir::Type::Application(dir::GenericApplication {
-                            symbol: nominal.symbol,
-                            arguments,
-                        }),
-                    )?;
+                    let arguments = self.intern_type_ids(&arguments)?;
+                    let ty = self.intern_type(dir::Type::Application(dir::GenericApplication {
+                        symbol: nominal.symbol,
+                        arguments,
+                    }))?;
 
                     Ok(Answer::Ready(Some(ty)))
                 }
@@ -479,7 +476,7 @@ impl CheckState<'_> {
     fn or_pattern_predicate_target(
         &mut self,
         origin: Origin,
-        pattern: dir::GlobalNodeId<dir::Pattern>,
+        _pattern: dir::GlobalNodeId<dir::Pattern>,
         branches: &[dir::GlobalNodeIdAny],
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let mut targets = Vec::new();
@@ -495,7 +492,7 @@ impl CheckState<'_> {
         let target = match targets.as_slice() {
             [] => None,
             [single] => Some(*single),
-            _ => Some(self.normalized_union_type(pattern.module_id, targets)?),
+            _ => Some(self.normalized_union_type(targets)?),
         };
 
         Ok(Answer::Ready(target))
@@ -522,6 +519,7 @@ impl CheckState<'_> {
             index_signatures: dir::TypeListId::EMPTY,
         };
 
-        self.intern_type(module, dir::Type::Shape(shape))
+        // the tested field constrains its receiver, it is not a class
+        self.intern_type(dir::Type::Shape(shape))
     }
 }

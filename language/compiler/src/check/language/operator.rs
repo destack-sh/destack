@@ -224,7 +224,7 @@ impl CheckState<'_> {
             match argument {
                 OperatorProtocolArgument::Access(access) => {
                     let ty = dir::Type::Memory(dir::MemoryLiteral::Access(*access));
-                    arguments.push(self.intern_type(module, ty)?);
+                    arguments.push(self.intern_type(ty)?);
                 }
             }
         }

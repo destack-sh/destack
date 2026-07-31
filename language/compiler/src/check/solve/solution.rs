@@ -244,19 +244,19 @@ impl CheckState<'_> {
         let mut defaults = SmallVec::<[dir::GlobalTypeId; 2]>::new();
         for variable in variables {
             let state = *self.solver.variable(*variable)?;
-            let origin = self.solver.origin(state.origin);
+            let _origin = self.solver.origin(state.origin);
             let default = match self.solver.variables.variable_default(*variable) {
                 Some(default) => Some(default),
                 None => match self.variable_memory_parameter(*variable)? {
                     Some(dir::MemoryParameter::Lifetime) => {
                         let memory = dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame);
 
-                        Some(self.intern_type(origin.module(), dir::Type::Memory(memory))?)
+                        Some(self.intern_type(dir::Type::Memory(memory))?)
                     }
                     Some(dir::MemoryParameter::Access) => {
                         let memory = dir::MemoryLiteral::Access(dir::Access::Readonly);
 
-                        Some(self.intern_type(origin.module(), dir::Type::Memory(memory))?)
+                        Some(self.intern_type(dir::Type::Memory(memory))?)
                     }
                     Some(
                         dir::MemoryParameter::Ownership
@@ -453,7 +453,7 @@ impl CheckState<'_> {
                 let error = self.circular_type_error(origin)?;
                 self.report(origin.module(), error);
 
-                self.intern_type(origin.module(), dir::Type::Error)?
+                self.intern_type(dir::Type::Error)?
             }
             None if !blockers.is_empty() => return Ok(Answer::pending(blockers)),
             None => return Ok(Answer::Ready(false)),
@@ -658,7 +658,7 @@ impl CheckState<'_> {
             let origin = self.solver.origin(origin_id);
             let error = self.circular_type_error(origin)?;
             self.report(origin.module(), error);
-            let error = self.intern_type(origin.module(), dir::Type::Error)?;
+            let error = self.intern_type(dir::Type::Error)?;
 
             return self.commit_error_solution(variable, error);
         }

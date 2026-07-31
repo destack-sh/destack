@@ -137,7 +137,7 @@ impl BodyState<'_, '_> {
     /// Return the type visible after a successful range pattern.
     fn range_pattern_narrowed_type(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         domain: dir::GlobalTypeId,
         written: &dir::RangeType,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -162,6 +162,6 @@ impl BodyState<'_, '_> {
             _ => dir::Type::Range(*written),
         };
 
-        self.intern_type(module, narrowed)
+        self.intern_type(narrowed)
     }
 }

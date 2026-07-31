@@ -243,6 +243,13 @@ pub(in crate::check) enum ObligationFailure {
         /// The selected member.
         member: dir::MemberTarget,
     },
+    /// A computed key cannot be assigned through a structural signature.
+    CannotAssignStructuralIndex {
+        /// The assignment target expression.
+        source: dir::GlobalNodeIdAny,
+        /// The structural receiver type.
+        receiver: dir::GlobalTypeId,
+    },
     /// A non-exclusive overwrite requires overwrite-stable values.
     OverwriteStabilityNotSatisfied {
         /// The assignment target expression.

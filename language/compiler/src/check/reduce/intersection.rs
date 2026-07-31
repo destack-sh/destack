@@ -22,7 +22,6 @@ impl CheckState<'_> {
     /// Return a flattened intersection type without redundant `unknown` elements.
     pub(in crate::check) fn normalized_intersection_type(
         &mut self,
-        module: ModuleId,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut kept = SmallVec::<[dir::GlobalTypeId; 4]>::new();
@@ -47,15 +46,12 @@ impl CheckState<'_> {
         }
 
         match kept.as_slice() {
-            [] => self.intern_type(module, dir::Type::Unknown),
+            [] => self.intern_type(dir::Type::Unknown),
             [single] => Ok(*single),
             _ => {
-                let elements = self.intern_type_ids(module, &kept)?;
+                let elements = self.intern_type_ids(&kept)?;
 
-                self.intern_type(
-                    module,
-                    dir::Type::Intersection(dir::IntersectionType { elements }),
-                )
+                self.intern_type(dir::Type::Intersection(dir::IntersectionType { elements }))
             }
         }
     }
@@ -105,7 +101,7 @@ impl CheckState<'_> {
         let mut others = Vec::new();
         let mut shape_count = 0usize;
         for element in closed {
-            let dir::Type::Shape(shape) = self.ty(element)? else {
+            let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(element)? else {
                 others.push(element);
                 continue;
             };
@@ -120,29 +116,24 @@ impl CheckState<'_> {
         };
         let module = origin.module();
         let fields = self.intern_properties(module, &merged.fields)?;
-        let call_signatures = self.intern_type_ids(module, &merged.call_signatures)?;
-        let construct_signatures = self.intern_type_ids(module, &merged.construct_signatures)?;
+        let call_signatures = self.intern_type_ids(&merged.call_signatures)?;
+        let construct_signatures = self.intern_type_ids(&merged.construct_signatures)?;
         let index_signatures = self.intern_index_signatures(module, &merged.index_signatures)?;
-        let shape = self.intern_type(
-            module,
-            dir::Type::Shape(dir::ShapeType {
-                properties: fields,
-                call_signatures,
-                construct_signatures,
-                index_signatures,
-            }),
-        )?;
+        let shape = self.intern_type(dir::Type::from(dir::ShapeType {
+            properties: fields,
+            call_signatures,
+            construct_signatures,
+            index_signatures,
+        }))?;
         if others.is_empty() {
             return Ok(Answer::Ready(shape));
         }
 
         let mut elements = vec![shape];
         elements.extend(others);
-        let elements = self.intern_type_ids(module, &elements)?;
-        let rebuilt = self.intern_type(
-            module,
-            dir::Type::Intersection(dir::IntersectionType { elements }),
-        )?;
+        let elements = self.intern_type_ids(&elements)?;
+        let rebuilt =
+            self.intern_type(dir::Type::Intersection(dir::IntersectionType { elements }))?;
 
         Ok(Answer::Ready(rebuilt))
     }
@@ -217,13 +208,13 @@ impl CheckState<'_> {
     /// Intersect one shared property slot pair.
     fn intersect_property_slot(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         left: Option<dir::GlobalTypeId>,
         right: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         Ok(match (left, right) {
             (Some(left), Some(right)) if left != right => {
-                Some(self.normalized_intersection_type(origin.module(), [left, right])?)
+                Some(self.normalized_intersection_type([left, right])?)
             }
             (left, right) => left.or(right),
         })

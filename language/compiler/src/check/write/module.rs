@@ -63,7 +63,7 @@ impl CheckState<'_> {
 
         // record marker conformances, then seal every embedded type id
         self.write_auto_conformances(module)?;
-        self.seal_output_segments(module, failed_applications, &mut sealed)?;
+        self.close_output_segments(module, failed_applications, &mut sealed)?;
 
         Ok(())
     }
@@ -76,6 +76,7 @@ impl CheckState<'_> {
     fn write_derived_variances(&mut self, module: ModuleId) -> CompilerResult<()> {
         // collect the module's cached derivations first
         let derivations = self
+            .generics
             .variances
             .iter()
             .filter_map(|((parameter, context), state)| match state {
@@ -140,8 +141,8 @@ impl CheckState<'_> {
 
         // seal the satisfied markers on each nominal's own instance
         for symbol in nominals {
-            let instance = self.declaration_instance(module, symbol)?;
-            let target = self.intern_type(module, dir::Type::Application(instance))?;
+            let instance = self.declaration_instance(symbol)?;
+            let target = self.intern_type(dir::Type::Application(instance))?;
             let origin = Origin::Symbol(symbol);
             for interface in dir::AutoInterface::REPRESENTATION {
                 let holds = match self.satisfies_auto_interface(origin, target, interface)? {
@@ -170,7 +171,7 @@ impl CheckState<'_> {
     }
 
     /// Seal every type id written into this module's output segments.
-    fn seal_output_segments(
+    fn close_output_segments(
         &mut self,
         module: ModuleId,
         failed_applications: &FxIndexSet<dir::GlobalTypeId>,
@@ -182,7 +183,7 @@ impl CheckState<'_> {
         let empty = dir::DefinitionSegment::new(module);
         let mut definitions = replace(&mut self.module_mut(module).definitions, empty);
         definitions.map_type_ids(&mut |id| {
-            self.seal_or_record(id, failed_applications, sealed, &mut result)
+            self.close_or_record(id, failed_applications, sealed, &mut result)
         });
         self.module_mut(module).definitions = definitions;
 
@@ -190,7 +191,7 @@ impl CheckState<'_> {
         let empty = dir::AutoSegment::new(module);
         let mut auto = replace(&mut self.module_mut(module).auto, empty);
         auto.map_type_ids(&mut |id| {
-            self.seal_or_record(id, failed_applications, sealed, &mut result)
+            self.close_or_record(id, failed_applications, sealed, &mut result)
         });
         self.module_mut(module).auto = auto;
 
@@ -198,7 +199,7 @@ impl CheckState<'_> {
         let empty = dir::DecoratorSegment::new(module);
         let mut decorators = replace(&mut self.module_mut(module).decorators, empty);
         decorators.map_type_ids(&mut |id| {
-            self.seal_or_record(id, failed_applications, sealed, &mut result)
+            self.close_or_record(id, failed_applications, sealed, &mut result)
         });
         self.module_mut(module).decorators = decorators;
 
@@ -206,7 +207,7 @@ impl CheckState<'_> {
         let empty = dir::ResolutionSegment::new(module);
         let mut resolutions = replace(&mut self.module_mut(module).resolutions, empty);
         resolutions.map_type_ids(&mut |id| {
-            self.seal_or_record(id, failed_applications, sealed, &mut result)
+            self.close_or_record(id, failed_applications, sealed, &mut result)
         });
         self.module_mut(module).resolutions = resolutions;
 
@@ -214,7 +215,7 @@ impl CheckState<'_> {
         let empty = dir::CaptureSegment::new(module);
         let mut captures = replace(&mut self.module_mut(module).capture_segment, empty);
         captures.map_type_ids(&mut |id| {
-            self.seal_or_record(id, failed_applications, sealed, &mut result)
+            self.close_or_record(id, failed_applications, sealed, &mut result)
         });
         self.module_mut(module).capture_segment = captures;
 
@@ -222,7 +223,7 @@ impl CheckState<'_> {
         let empty = dir::StaticSegment::new(module);
         let mut statics = replace(&mut self.module_mut(module).statics, empty);
         statics.map_type_ids(&mut |id| {
-            self.seal_or_record(id, failed_applications, sealed, &mut result)
+            self.close_or_record(id, failed_applications, sealed, &mut result)
         });
         self.module_mut(module).statics = statics;
 
@@ -230,7 +231,7 @@ impl CheckState<'_> {
         let empty = dir::CoercionSegment::new(module);
         let mut coercions = replace(&mut self.module_mut(module).coercions, empty);
         coercions.map_type_ids(&mut |id| {
-            self.seal_or_record(id, failed_applications, sealed, &mut result)
+            self.close_or_record(id, failed_applications, sealed, &mut result)
         });
         self.module_mut(module).coercions = coercions;
 
@@ -238,14 +239,14 @@ impl CheckState<'_> {
     }
 
     /// Seal one embedded type id, recording the first failure aside.
-    pub(super) fn seal_or_record(
+    pub(super) fn close_or_record(
         &mut self,
         id: dir::GlobalTypeId,
         failed_applications: &FxIndexSet<dir::GlobalTypeId>,
         sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
         result: &mut CompilerResult<()>,
     ) -> dir::GlobalTypeId {
-        match self.seal_type(id, failed_applications, sealed) {
+        match self.close_type(id, failed_applications, sealed) {
             Ok(sealed) => sealed,
             Err(error) => {
                 if result.is_ok() {
@@ -273,12 +274,7 @@ impl CheckState<'_> {
         let mut resolved = Vec::with_capacity(node_types.len());
         for (node, ty) in node_types {
             let ty = self.settled_root(ty)?;
-
-            // omit rows declarations cannot settle without bodies
-            if self.is_declaration() && self.has_open_variable(ty)? {
-                continue;
-            }
-            let ty = self.seal_type(ty, failed_applications, sealed)?;
+            let ty = self.close_type(ty, failed_applications, sealed)?;
             resolved.push((node, ty));
         }
 
@@ -296,6 +292,11 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // declared modules seal written types without canonicalizing
+        if self.is_declaration() {
+            return Ok(Some((ty, ty)));
+        }
+
         match self.reduce_type(origin, ty)? {
             Answer::Ready(reduced) if reduced == ty => Ok(None),
             Answer::Ready(reduced) => Ok(Some((ty, reduced))),
@@ -309,17 +310,6 @@ impl CheckState<'_> {
                 })
             }
         }
-    }
-
-    /// Return whether one type still contains an unsolved variable.
-    fn has_open_variable(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        for variable in self.type_variables(ty)? {
-            if self.solver.solution(variable)?.is_none() {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
     }
 
     /// Resolve one module's recorded symbol types.
@@ -344,12 +334,7 @@ impl CheckState<'_> {
         let mut resolved = Vec::with_capacity(symbol_types.len());
         for (symbol, ty) in symbol_types {
             let ty = self.settled_root(ty)?;
-
-            // omit rows declarations cannot settle without bodies
-            if self.is_declaration() && self.has_open_variable(ty)? {
-                continue;
-            }
-            let ty = self.seal_type(ty, failed_applications, sealed)?;
+            let ty = self.close_type(ty, failed_applications, sealed)?;
 
             // require re-derivations to land on the declaration pass's sealed type
             let previous = self.module(module).types_tail.get_symbol_type_id(symbol);
@@ -436,14 +421,14 @@ impl CheckState<'_> {
     }
 
     /// Seal one written type by replacing every variable with its solution.
-    fn seal_type(
+    fn close_type(
         &mut self,
         id: dir::GlobalTypeId,
         failed_applications: &FxIndexSet<dir::GlobalTypeId>,
         sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // keep foreign types, whose tables closed with their own component
-        if !self.is_component_module(id.module_id) {
+        if !self.is_own_module(id.module_id) {
             if failed_applications.contains(&id) || self.type_flags(id)?.has_variable() {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -458,7 +443,7 @@ impl CheckState<'_> {
 
         // poison a generic application whose declared argument bound failed
         if failed_applications.contains(&id) {
-            return self.intern_type(id.module_id, dir::Type::Error);
+            return self.intern_type(dir::Type::Error);
         }
 
         // keep settled types when no failed application can occur below them
@@ -488,7 +473,7 @@ impl CheckState<'_> {
                 Some(solution) => {
                     let solution = self.settled_root(solution)?;
 
-                    self.seal_type(solution, failed_applications, sealed)?
+                    self.close_type(solution, failed_applications, sealed)?
                 }
                 None => {
                     // report written unsolved variables in clean modules as
@@ -497,14 +482,14 @@ impl CheckState<'_> {
                     let origin = self.solver.origin(origin);
                     let module = origin.module();
                     if !self.is_declaration()
-                        && self.is_component_module(module)
+                        && self.is_own_module(module)
                         && self.module(module).diagnostics.is_empty()
                     {
                         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
                         self.report(module, CheckError::CannotInferType { anchor, module });
                     }
 
-                    self.intern_type(id.module_id, dir::Type::Error)?
+                    self.intern_type(dir::Type::Error)?
                 }
             }
         }
@@ -512,23 +497,23 @@ impl CheckState<'_> {
         else {
             let rebuilt =
                 self.map_type_children(id.module_id, id.module_id, ty, &mut |state, child| {
-                    state.seal_type(child, failed_applications, sealed)
+                    state.close_type(child, failed_applications, sealed)
                 })?;
-            let rebuilt = self.intern_type(id.module_id, rebuilt)?;
+            let rebuilt = self.intern_type(rebuilt)?;
 
             // sealed children may collapse the composite they sit in
             match self.ty(rebuilt)? {
                 dir::Type::Union(union) => {
                     let elements = self.type_ids(rebuilt.module_id, union.elements)?.to_vec();
 
-                    self.normalized_union_type(id.module_id, elements)?
+                    self.normalized_union_type(elements)?
                 }
                 dir::Type::Intersection(intersection) => {
                     let elements = self
                         .type_ids(rebuilt.module_id, intersection.elements)?
                         .to_vec();
 
-                    self.normalized_intersection_type(id.module_id, elements)?
+                    self.normalized_intersection_type(elements)?
                 }
                 _ => rebuilt,
             }
@@ -548,7 +533,7 @@ impl CheckState<'_> {
         let failed = FxIndexSet::default();
         let mut replacements = FxIndexMap::default();
         for id in ids {
-            let replacement = self.seal_type(id, &failed, sealed)?;
+            let replacement = self.close_type(id, &failed, sealed)?;
             replacements.insert(id, replacement);
         }
 

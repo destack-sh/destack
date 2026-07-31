@@ -105,16 +105,13 @@ impl BodyState<'_, '_> {
         let return_arguments = generic_parameters
             .iter()
             .copied()
-            .map(|parameter| self.intern_type(module, dir::Type::Parameter(parameter)))
+            .map(|parameter| self.intern_type(dir::Type::Parameter(parameter)))
             .collect::<CompilerResult<Vec<_>>>()?;
-        let return_arguments = self.intern_type_ids(module, &return_arguments)?;
-        let return_type = self.intern_type(
-            module,
-            dir::Type::Application(dir::GenericApplication {
-                symbol,
-                arguments: return_arguments,
-            }),
-        )?;
+        let return_arguments = self.intern_type_ids(&return_arguments)?;
+        let return_type = self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol,
+            arguments: return_arguments,
+        }))?;
 
         // build one signature candidate per backing alternative
         let candidates =
@@ -264,7 +261,7 @@ impl BodyState<'_, '_> {
             bindings: signature.generic_arguments.iter().copied().collect(),
             receiver: None,
         };
-        let backing = self.substitute_type(module, candidate.backing, &substitution)?;
+        let backing = self.substitute_type(candidate.backing, &substitution)?;
         let selection = dir::NewtypeSelection {
             symbol,
             backing,
@@ -317,7 +314,6 @@ impl BodyState<'_, '_> {
         }
 
         // map scalar and tuple backings onto ordinary callable signatures
-        let module = origin.module();
         let mut candidates = SmallVec::<[NewtypeCandidate; 2]>::with_capacity(backings.len());
         for backing in backings {
             let parameters = match self.ty(backing)? {
@@ -336,7 +332,7 @@ impl BodyState<'_, '_> {
                     is_rest: false,
                 }]),
             };
-            let parameters = self.intern_parameters(module, &parameters)?;
+            let parameters = self.intern_parameters(&parameters)?;
             let function = dir::FunctionSignatureType {
                 asynchrony: dir::Asynchrony::Sync,
                 template,
@@ -345,7 +341,7 @@ impl BodyState<'_, '_> {
                 return_type: Some(return_type),
                 is_generator: false,
             };
-            let signature = self.intern_signature(module, function)?;
+            let signature = self.intern_signature(function)?;
             candidates.push(NewtypeCandidate { backing, signature });
         }
 

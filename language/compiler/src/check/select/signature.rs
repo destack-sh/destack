@@ -209,7 +209,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let this_parameter = match signature.this_parameter {
             Some(this_parameter) => {
-                let this_parameter = self.substitute_type(target, this_parameter, substitution)?;
+                let this_parameter = self.substitute_type(this_parameter, substitution)?;
 
                 Some(this_parameter)
             }
@@ -233,19 +233,16 @@ impl BodyState<'_, '_> {
                 is_rest: parameter.is_rest,
             });
         }
-        let parameters = self.intern_parameters(target, &parameters)?;
+        let parameters = self.intern_parameters(&parameters)?;
 
-        let signature = self.intern_signature(
-            target,
-            dir::FunctionSignatureType {
-                asynchrony: signature.asynchrony,
-                template: None,
-                this_parameter,
-                parameters,
-                return_type: Some(return_type),
-                is_generator: signature.is_generator,
-            },
-        )?;
+        let signature = self.intern_signature(dir::FunctionSignatureType {
+            asynchrony: signature.asynchrony,
+            template: None,
+            this_parameter,
+            parameters,
+            return_type: Some(return_type),
+            is_generator: signature.is_generator,
+        })?;
 
         Ok(Answer::Ready(signature))
     }
@@ -259,7 +256,7 @@ impl BodyState<'_, '_> {
         substitution: &TypeSubstitution,
         receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let parameter = self.substitute_type(module, parameter, substitution)?;
+        let parameter = self.substitute_type(parameter, substitution)?;
         let parameter = self.erase_inference_barriers(module, parameter)?;
         let parameter = answer!(self.receiver_relative_type(origin, receiver, parameter)?);
 
@@ -473,7 +470,7 @@ impl BodyState<'_, '_> {
             if let (Some(receiver), Some(this_parameter)) = (receiver, function.this_parameter) {
                 let receiver_substitution = substitution.clone().with_receiver(receiver.ty);
                 let this_parameter =
-                    self.substitute_type(origin.module(), this_parameter, &receiver_substitution)?;
+                    self.substitute_type(this_parameter, &receiver_substitution)?;
                 match self.constrain_receiver_argument(origin, receiver, this_parameter)? {
                     Answer::Ready(Some(steps)) => receiver_steps = Some(steps),
                     Answer::Ready(None) => {
@@ -490,8 +487,7 @@ impl BodyState<'_, '_> {
 
             // apply the contextual result type before contextualizing arguments
             if let (Some(return_type), Some(expectation)) = (function_return, expectation) {
-                let return_type =
-                    self.substitute_type(origin.module(), return_type, &substitution)?;
+                let return_type = self.substitute_type(return_type, &substitution)?;
                 let return_type = answer!(self.receiver_relative_type(
                     origin,
                     receiver.map(|receiver| receiver.ty),
@@ -533,8 +529,7 @@ impl BodyState<'_, '_> {
                         SignatureRejection::Inapplicable,
                     )));
                 };
-                let parameter_type =
-                    self.substitute_type(origin.module(), parameter.ty, &substitution)?;
+                let parameter_type = self.substitute_type(parameter.ty, &substitution)?;
                 // receiver placement resolves relative member parameters
                 let parameter_type = answer!(self.receiver_relative_type(
                     origin,
@@ -673,10 +668,8 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Answer<SignatureSelection>> {
         // resolve the substituted return type
         let return_type = match function_return {
-            Some(return_type) => {
-                self.substitute_type(origin.module(), return_type, substitution)?
-            }
-            None => self.intern_type(module, dir::Type::Void)?,
+            Some(return_type) => self.substitute_type(return_type, substitution)?,
+            None => self.intern_type(dir::Type::Void)?,
         };
         let return_type = match self.receiver_relative_type(origin, receiver, return_type)? {
             Answer::Ready(return_type) => return_type,

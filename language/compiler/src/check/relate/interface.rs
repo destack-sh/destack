@@ -117,7 +117,7 @@ impl CheckState<'_> {
             let target_arguments = self
                 .type_ids(target.module_id, target_instance.arguments)?
                 .to_vec();
-            let form = self.default_variance_form(target_instance.symbol);
+            let form = self.default_variance_form(target_instance.symbol)?;
             let arguments = if relation == Relation::Subtype {
                 self.decide_type_arguments(
                     origin,
@@ -201,7 +201,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         relation: Relation,
-        module: ModuleId,
+        _module: ModuleId,
         interface_module: ModuleId,
         parameters: &[GenericParameterId],
         substitution: &mut TypeSubstitution,
@@ -212,27 +212,33 @@ impl CheckState<'_> {
         let interface_arguments = self
             .type_ids(interface_module, interface.arguments)?
             .to_vec();
-        let arguments = self.intern_type_ids(origin.module(), &interface_arguments)?;
-        let interface_type = self.intern_type(
-            origin.module(),
-            dir::Type::Application(dir::GenericApplication {
-                symbol: interface.symbol,
-                arguments,
-            }),
-        )?;
+        let arguments = self.intern_type_ids(&interface_arguments)?;
+        let interface_type = self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol: interface.symbol,
+            arguments,
+        }))?;
         for (index, implementation) in implementations.iter().enumerate() {
             let heritage = &implementation.interface;
 
             // matching binds open parameters; the relation judges below
             let mut scratch = substitution.clone();
-            let seeded = self.substitute_type(module, heritage.ty, &scratch)?;
+            let seeded = self.substitute_type(heritage.ty, &scratch)?;
             let _ = self.extend_generic_substitution(
                 origin,
                 parameters,
                 &mut scratch,
                 &[(seeded, interface_type)],
             )?;
-            let implemented = self.substitute_type(module, heritage.ty, &scratch)?;
+            let implemented = self.substitute_type(heritage.ty, &scratch)?;
+
+            // written rows complete their elided arguments
+            let implemented = self.settled_root(implemented)?;
+            let implemented = match self.ty(implemented)? {
+                dir::Type::Application(instance) => self
+                    .fill_elided_application(implemented.module_id, &instance)?
+                    .unwrap_or(implemented),
+                _ => implemented,
+            };
 
             // walk to the row instance naming the requested interface
             let (implemented_module, implemented_instance) =
@@ -261,7 +267,7 @@ impl CheckState<'_> {
                 Some((instance_module, instance)) => {
                     let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
                     let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                    let form = self.default_variance_form(interface.symbol);
+                    let form = self.default_variance_form(interface.symbol)?;
 
                     self.relate_type_arguments(
                         origin,
@@ -409,16 +415,8 @@ impl CheckState<'_> {
             };
             index_signatures.push(InterfaceIndexSignature {
                 source: signature.source,
-                key_type: self.substitute_type(
-                    origin.module(),
-                    signature.key_type,
-                    substitution,
-                )?,
-                value_type: self.substitute_type(
-                    origin.module(),
-                    signature.value_type,
-                    substitution,
-                )?,
+                key_type: self.substitute_type(signature.key_type, substitution)?,
+                value_type: self.substitute_type(signature.value_type, substitution)?,
                 is_readonly: signature.is_readonly,
             });
         }
@@ -434,7 +432,7 @@ impl CheckState<'_> {
     /// Collect direct members required by one applied interface.
     fn collect_interface_members(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         symbol: dir::GlobalSymbolId,
         substitution: &TypeSubstitution,
         required: &mut SmallVec<[InterfaceMember; 8]>,
@@ -464,7 +462,7 @@ impl CheckState<'_> {
                 ),
             };
             let ty = declared
-                .map(|ty| self.substitute_type(origin.module(), ty, substitution))
+                .map(|ty| self.substitute_type(ty, substitution))
                 .transpose()?;
             let (is_optional, is_readonly) = match &member {
                 dir::DefinitionMember::Field(field) => (field.is_optional, field.is_readonly),
@@ -494,7 +492,7 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<Vec<dir::TypeProperty>>>> {
         if !matches!(
-            self.symbol_kind(instance.symbol),
+            self.symbol_kind(instance.symbol)?,
             dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
         ) {
             return Ok(Answer::Ready(None));
@@ -542,16 +540,15 @@ impl CheckState<'_> {
     /// Apply interface and receiver substitutions to direct heritage clauses.
     fn apply_interface_heritage(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         substitution: &TypeSubstitution,
         heritages: Vec<dir::NominalHeritage>,
     ) -> CompilerResult<SmallVec<[HeritageApplication; 8]>> {
-        let module = origin.module();
         let mut applied = SmallVec::new();
 
         // substitute direct inherited interface applications
         for heritage in heritages {
-            let ty = self.substitute_type(module, heritage.ty, substitution)?;
+            let ty = self.substitute_type(heritage.ty, substitution)?;
 
             applied.push(HeritageApplication {
                 source: heritage.source,

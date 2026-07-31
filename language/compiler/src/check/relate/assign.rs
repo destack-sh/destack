@@ -214,14 +214,19 @@ impl CheckState<'_> {
             }
 
             // structural shapes and nominal boundaries
-            (dir::Type::Shape(_), dir::Type::Shape(_)) => {
+            (dir::Type::Object(_), dir::Type::Object(_)) => {
+                self.decide_shape_equal(origin, source, target)?
+            }
+            (dir::Type::Shape(_) | dir::Type::Object(_), dir::Type::Shape(_)) => {
                 self.decide_shape_assignable(origin, source, target)?
             }
             (dir::Type::Reference(_), dir::Type::Shape(_)) => {
                 self.decide_reference_shape_assignable(origin, source, target)?
             }
-            (dir::Type::Shape(_), dir::Type::Application(instance))
-                if self.symbol_kind(instance.symbol).is_interface() =>
+            (dir::Type::Shape(_) | dir::Type::Object(_), dir::Type::Application(instance))
+                if self
+                    .symbol_kind_maybe(instance.symbol)?
+                    .is_some_and(|kind| kind.is_interface()) =>
             {
                 self.decide_interface_relation(origin, Relation::Assignable, source, target)?
             }
@@ -244,11 +249,12 @@ impl CheckState<'_> {
                 let target_arguments = SmallVec::<[_; 4]>::from_slice(
                     self.type_ids(target.module_id, target_instance.arguments)?,
                 );
+                let form = self.default_variance_form(symbol)?;
 
                 self.decide_type_arguments(
                     origin,
                     symbol,
-                    self.default_variance_form(symbol),
+                    form,
                     Relation::Widens,
                     &source_arguments,
                     &target_arguments,

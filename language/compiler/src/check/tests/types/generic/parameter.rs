@@ -1507,7 +1507,10 @@ function requireEqual<T, U>(left: T, right: U): void where T == U {}
 declare const wider: { x: int32; y: string };
 declare const narrower: { x: int32 };
 
-requireEqual<{ x: int32 }, { x: int32 }>(wider, narrower);
+requireEqual<{ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }>(
+    wider as { x: int32; y: string } | { x: int32 },
+    narrower as { x: int32; y: string } | { x: int32 },
+);
 
 === checked ===
 function requireEqual<T, U>(left: T, right: U): void where T == U {}
@@ -1532,8 +1535,8 @@ declare const narrower: { x: int32 };
 
 requireEqual(wider, narrower);
 /// @resolution.name source=requireEqual target=requireEqual
-/// @resolution.call source="requireEqual(wider, narrower)" parameters=({ x: int32 }, { x: int32 }) arguments=(provided(wider) as { x: int32 }, provided(narrower) as { x: int32 }) return=void kind=symbol target=requireEqual instance="requireEqual<{ x: int32 }, { x: int32 }>"
-/// @generic.instance source="requireEqual(wider, narrower)" id="requireEqual<{ x: int32 }, { x: int32 }>"
+/// @resolution.call source="requireEqual(wider, narrower)" parameters=({ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }) arguments=(provided(wider) as { x: int32; y: string } | { x: int32 }, provided(narrower) as { x: int32; y: string } | { x: int32 }) return=void kind=symbol target=requireEqual instance="requireEqual<{ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }>"
+/// @generic.instance source="requireEqual(wider, narrower)" id="requireEqual<{ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }>"
 /// @resolution.name source=wider target=wider
 /// @resolution.place source=wider placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=wider root=wider
@@ -1541,7 +1544,7 @@ requireEqual(wider, narrower);
 /// @resolution.place source=narrower placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=narrower root=narrower
 
-/// @generic.instance id="requireEqual<{ x: int32 }, { x: int32 }>" template=requireEqual arguments=({ x: int32 }, { x: int32 })
+/// @generic.instance id="requireEqual<{ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 }>" template=requireEqual arguments=({ x: int32; y: string } | { x: int32 }, { x: int32; y: string } | { x: int32 })
 "#,
     );
 }
@@ -2304,9 +2307,9 @@ struct Mixed<'a> {
 }
 "#,
         r#"
-/// @diagnostic.error id=elided-lifetime-in-named-declaration message="'Mixed' names its lifetimes, so this borrow needs a named lifetime"
+/// @diagnostic.error id=elided-declaration-lifetime message="type declaration 'Mixed' writes its lifetimes"
 /// @diagnostic.label line=4 column=13 span="&" line_source="second: &string;"
-/// @diagnostic.help message="name the lifetime, like &'a"
+/// @diagnostic.help message="declare the lifetime parameter and name it, like &'a"
 "#,
     );
 }

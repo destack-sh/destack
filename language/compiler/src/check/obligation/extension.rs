@@ -15,6 +15,11 @@ impl CheckState<'_> {
         origin: Origin,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        // skip conformance while declaring, checking validates every implements row
+        if self.is_declaration() {
+            return Ok(Answer::Ready(ObligationCheck::Holds));
+        }
+
         let Some(definition) = self.definition(symbol)? else {
             return Err(CompilerError::Internal {
                 message: format!("implementation obligation has no definition: {symbol:?}"),
@@ -28,9 +33,9 @@ impl CheckState<'_> {
         let target = match definition {
             dir::Definition::Extension(extension) => extension.target.r#type(),
             dir::Definition::Struct(_) | dir::Definition::Class(_) | dir::Definition::Enum(_) => {
-                let instance = self.declaration_instance(origin.module(), symbol)?;
+                let instance = self.declaration_instance(symbol)?;
 
-                self.intern_type(origin.module(), dir::Type::Application(instance))?
+                self.intern_type(dir::Type::Application(instance))?
             }
             dir::Definition::TypeAlias(_)
             | dir::Definition::Interface(_)
@@ -277,7 +282,7 @@ impl CheckState<'_> {
                 let Some(found) = candidate.ty else {
                     continue;
                 };
-                let found = self.substitute_type(origin.module(), found, &substitution)?;
+                let found = self.substitute_type(found, &substitution)?;
                 let decision = self.decide_member_relation(
                     origin,
                     Relation::Assignable,
@@ -476,7 +481,7 @@ impl CheckState<'_> {
         members: &[dir::DefinitionMember],
         requirement: &InterfaceMember,
     ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
-        match self.symbol_kind(implementer) {
+        match self.symbol_kind(implementer)? {
             dir::SymbolKind::Extension => {
                 let mut declared = SmallVec::<[_; 2]>::new();
                 for member in members {
@@ -565,9 +570,9 @@ impl CheckState<'_> {
                 _ => None,
             });
             let declared = declared
-                .map(|value| self.substitute_type(origin.module(), value, instantiation))
+                .map(|value| self.substitute_type(value, instantiation))
                 .transpose()?
-                .map(|value| self.substitute_type(origin.module(), value, &receiver_substitution))
+                .map(|value| self.substitute_type(value, &receiver_substitution))
                 .transpose()?;
 
             // require both authored bindings to name one reduced type
@@ -586,7 +591,7 @@ impl CheckState<'_> {
                 None => continue,
             };
             let value = if written.is_none() && declared.is_none() {
-                self.substitute_type(origin.module(), value, &interface_substitution)?
+                self.substitute_type(value, &interface_substitution)?
             } else {
                 value
             };
@@ -602,7 +607,7 @@ impl CheckState<'_> {
         let receiver = self.intern_refinements(origin.module(), target, &bindings)?;
         let receiver_substitution = TypeSubstitution::default().with_receiver(receiver);
         for (_, value) in &mut bindings {
-            *value = self.substitute_type(origin.module(), *value, &receiver_substitution)?;
+            *value = self.substitute_type(*value, &receiver_substitution)?;
         }
         let receiver = self.intern_refinements(origin.module(), target, &bindings)?;
         let implementation = self.intern_refinements(origin.module(), interface_base, &bindings)?;
@@ -620,8 +625,7 @@ impl CheckState<'_> {
             let Some((_, value)) = bindings.iter().find(|(key, _)| *key == associated.key) else {
                 continue;
             };
-            let constraint =
-                self.substitute_type(origin.module(), constraint, &interface_substitution)?;
+            let constraint = self.substitute_type(constraint, &interface_substitution)?;
             if !answer!(self.decide_relation(origin, Relation::Satisfies, *value, constraint,)?) {
                 return Ok(Answer::Ready(None));
             }
@@ -772,7 +776,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         other: dir::GlobalSymbolId,
     ) -> bool {
-        let Some(state) = self.modules.get(&other.module_id) else {
+        let Some(state) = self.module_maybe(other.module_id) else {
             return true;
         };
         let other_source = state.definitions.definition_source(other);

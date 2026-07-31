@@ -51,7 +51,6 @@ impl CheckState<'_> {
             | dir::Type::Void
             | dir::Type::Null
             | dir::Type::Undefined
-            | dir::Type::Object
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Key(_)
@@ -115,6 +114,7 @@ impl CheckState<'_> {
 
                 self.all_dynamic_safe(origin, ids, active)
             }
+            dir::Type::Object(_) => Ok(Answer::Ready(true)),
             dir::Type::Shape(shape) => {
                 let mut ids: SmallVec<[dir::GlobalTypeId; 8]> = self
                     .shape_properties(ty.module_id, shape.properties)?

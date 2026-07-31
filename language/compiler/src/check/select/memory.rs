@@ -26,10 +26,8 @@ impl BodyState<'_, '_> {
             if let dir::Form::Borrowed(borrow) = form.form {
                 // require the requested access from the selected borrow
                 let held = self.check.type_borrow(input.ty.module_id, borrow)?.access;
-                let requested = self.intern_type(
-                    origin.module(),
-                    dir::Type::Memory(dir::MemoryLiteral::Access(access)),
-                )?;
+                let requested =
+                    self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
                 if !answer!(
                     self.check
                         .constrain_access_assignable(origin, held, requested,)?
@@ -68,7 +66,7 @@ impl BodyState<'_, '_> {
                 types.push(dereference.ty);
                 resolutions.push(dereference);
             }
-            let ty = self.normalized_union_type(origin.module(), types)?;
+            let ty = self.normalized_union_type(types)?;
 
             return Ok(Answer::Ready(Some(dir::OperationResolution::Union {
                 arms: resolutions,
@@ -80,17 +78,15 @@ impl BodyState<'_, '_> {
         for operator_protocol in unary_operator_protocols(dir::UnaryOperator::Dereference, access) {
             let key = operator_protocol.method.key(self.strings());
             let protocol = self.operator_protocol(origin, &operator_protocol, &[])?;
-            let Some(call) =
-                answer!(self.select_protocol_call(
-                    origin,
-                    input,
-                    input.ty,
-                    dir::MemberSpace::Instance,
-                    key,
-                    &protocol,
-                    &[],
-                )?)
-            else {
+            let Some(call) = answer!(self.select_protocol_call(
+                origin,
+                input,
+                input.ty,
+                dir::MemberSpace::Instance,
+                key,
+                &protocol,
+                &[],
+            )?) else {
                 continue;
             };
             let ty = answer!(self.operator_expression_type(
@@ -132,19 +128,13 @@ impl BodyState<'_, '_> {
         let access = mutability
             .map(dir::Mutability::access)
             .unwrap_or(dir::Access::Mutable);
-        let access_type = self.intern_type(
-            module,
-            dir::Type::Memory(dir::MemoryLiteral::Access(access)),
-        )?;
-        let lifetime = self.intern_type(
-            module,
-            dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)),
-        )?;
-        let form = self.intern_borrow(module, lifetime, access_type)?;
-        let projected = self.intern_type(
-            module,
-            dir::Type::Form(dir::FormType { form, value: input }),
-        )?;
+        let access_type =
+            self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(access)))?;
+        let lifetime = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
+            dir::Lifetime::Frame,
+        )))?;
+        let form = self.intern_borrow(lifetime, access_type)?;
+        let projected = self.intern_type(dir::Type::Form(dir::FormType { form, value: input }))?;
 
         answer!(self.check_pattern_projection(
             flow,

@@ -141,12 +141,12 @@ impl InferCapture {
     fn inferred_type(
         self,
         state: &mut CheckState<'_>,
-        module: ModuleId,
+        _module: ModuleId,
         _source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         match self.covariant.as_slice() {
             [single] => return Ok(*single),
-            [_, ..] => return state.normalized_union_type(module, self.covariant),
+            [_, ..] => return state.normalized_union_type(self.covariant),
             [] => {}
         }
 
@@ -154,14 +154,11 @@ impl InferCapture {
             [single] => Ok(*single),
             [_, ..] => {
                 let elements = self.contravariant.into_iter().collect::<Vec<_>>();
-                let elements = state.intern_type_ids(module, &elements)?;
+                let elements = state.intern_type_ids(&elements)?;
 
-                state.intern_type(
-                    module,
-                    dir::Type::Intersection(dir::IntersectionType { elements }),
-                )
+                state.intern_type(dir::Type::Intersection(dir::IntersectionType { elements }))
             }
-            [] => state.intern_type(module, dir::Type::Never),
+            [] => state.intern_type(dir::Type::Never),
         }
     }
 }
@@ -235,9 +232,9 @@ impl CheckState<'_> {
             }
         }
         let joined = match kept.as_slice() {
-            [] => self.intern_type(module, dir::Type::Never)?,
+            [] => self.intern_type(dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(module, kept)?,
+            _ => self.normalized_union_type(kept)?,
         };
 
         Ok(Answer::Ready(Some(joined)))
@@ -535,7 +532,10 @@ impl CheckState<'_> {
 
                 Ok(matched)
             }
-            (dir::Type::Shape(pattern), dir::Type::Shape(actual)) => self.match_infer_shape(
+            (
+                dir::Type::Shape(pattern) | dir::Type::Object(pattern),
+                dir::Type::Shape(actual) | dir::Type::Object(actual),
+            ) => self.match_infer_shape(
                 origin,
                 captures,
                 variance,
@@ -789,7 +789,7 @@ impl CheckState<'_> {
             let argument_variance = match &parameters {
                 Some(parameters) => match parameters.get(index) {
                     Some(parameter) => {
-                        let form = self.default_variance_form(symbol);
+                        let form = self.default_variance_form(symbol)?;
                         variance.compose(self.parameter_variance(*parameter, form)?)
                     }
                     None => Variance::Invariant,
@@ -991,13 +991,10 @@ impl CheckState<'_> {
 
         let module = origin.module();
         let elements = self.intern_elements(module, &elements)?;
-        let tuple = self.intern_type(
-            module,
-            dir::Type::Tuple(dir::TupleType {
-                form: dir::TupleForm::Tuple,
-                elements,
-            }),
-        )?;
+        let tuple = self.intern_type(dir::Type::Tuple(dir::TupleType {
+            form: dir::TupleForm::Tuple,
+            elements,
+        }))?;
 
         Ok(Answer::Ready(tuple))
     }

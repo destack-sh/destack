@@ -52,7 +52,7 @@ impl FieldLookup {
     /// Return the type produced by reading this property.
     pub(in crate::check) fn read_type(
         &self,
-        module: ModuleId,
+        _module: ModuleId,
         body: &mut BodyState<'_, '_>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(read) = self.access.read() else {
@@ -61,8 +61,8 @@ impl FieldLookup {
         if !self.is_optional {
             return Ok(Some(read));
         }
-        let undefined = body.intern_type(module, dir::Type::Undefined)?;
-        let read = body.normalized_union_type(module, [read, undefined])?;
+        let undefined = body.intern_type(dir::Type::Undefined)?;
+        let read = body.normalized_union_type([read, undefined])?;
 
         Ok(Some(read))
     }
@@ -295,7 +295,7 @@ impl DeclaredMember {
     /// Return the callable type exposed by this declaration member.
     pub(in crate::check) fn callable_type(
         &self,
-        module: ModuleId,
+        _module: ModuleId,
         owner: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
         body: &mut BodyState<'_, '_>,
@@ -318,18 +318,15 @@ impl DeclaredMember {
             return Ok(None);
         }
 
-        let parameters = body.intern_parameters(module, &[])?;
-        let callable = body.intern_signature(
-            module,
-            dir::FunctionSignatureType {
-                asynchrony: dir::Asynchrony::Sync,
-                template: None,
-                this_parameter: None,
-                parameters,
-                return_type: Some(ty),
-                is_generator: false,
-            },
-        )?;
+        let parameters = body.intern_parameters(&[])?;
+        let callable = body.intern_signature(dir::FunctionSignatureType {
+            asynchrony: dir::Asynchrony::Sync,
+            template: None,
+            this_parameter: None,
+            parameters,
+            return_type: Some(ty),
+            is_generator: false,
+        })?;
 
         Ok(Some(callable))
     }
@@ -396,7 +393,7 @@ impl MemberCandidate {
     /// Return the type produced by reading this candidate.
     pub(in crate::check) fn read_type(
         &self,
-        module: ModuleId,
+        _module: ModuleId,
         body: &mut BodyState<'_, '_>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         if !self.role.is_readable() {
@@ -405,8 +402,8 @@ impl MemberCandidate {
         if !self.is_optional {
             return Ok(Some(self.access_type));
         }
-        let undefined = body.intern_type(module, dir::Type::Undefined)?;
-        let ty = body.normalized_union_type(module, [self.access_type, undefined])?;
+        let undefined = body.intern_type(dir::Type::Undefined)?;
+        let ty = body.normalized_union_type([self.access_type, undefined])?;
 
         Ok(Some(ty))
     }
@@ -479,8 +476,7 @@ impl BodyState<'_, '_> {
                     return Ok(None);
                 }
 
-                self.normalized_intersection_type(origin.module(), types)
-                    .map(Some)
+                self.normalized_intersection_type(types).map(Some)
             }
             MemberLookup::Union(arms) => {
                 let mut types = Vec::with_capacity(arms.len());
@@ -491,7 +487,7 @@ impl BodyState<'_, '_> {
                     types.push(ty);
                 }
 
-                self.normalized_union_type(origin.module(), types).map(Some)
+                self.normalized_union_type(types).map(Some)
             }
             MemberLookup::Intersection(lookups) => {
                 let mut types = Vec::with_capacity(lookups.len());
@@ -502,8 +498,7 @@ impl BodyState<'_, '_> {
                     return Ok(None);
                 }
 
-                self.normalized_intersection_type(origin.module(), types)
-                    .map(Some)
+                self.normalized_intersection_type(types).map(Some)
             }
         }
     }
@@ -592,7 +587,7 @@ impl BodyState<'_, '_> {
                     [target] => target.clone(),
                     _ => dir::MemberTarget::Existential(targets),
                 };
-                let ty = self.normalized_intersection_type(origin.module(), types)?;
+                let ty = self.normalized_intersection_type(types)?;
 
                 let access = dir::MemberAccess::new(receiver.ty, target, ty);
 
@@ -621,7 +616,7 @@ impl BodyState<'_, '_> {
                     types.push(access.ty);
                     accesses.push(access);
                 }
-                let ty = self.normalized_union_type(origin.module(), types)?;
+                let ty = self.normalized_union_type(types)?;
 
                 Ok(Answer::Ready(Some(dir::OperationResolution::Union {
                     arms: accesses,
@@ -679,7 +674,7 @@ impl BodyState<'_, '_> {
             return Ok(dir::OperationResolution::One(arms.remove(0)));
         }
         let types = arms.iter().map(|access| access.ty).collect::<Vec<_>>();
-        let ty = self.normalized_union_type(origin.module(), types)?;
+        let ty = self.normalized_union_type(types)?;
 
         Ok(dir::OperationResolution::Union { arms, ty })
     }
@@ -687,7 +682,7 @@ impl BodyState<'_, '_> {
     /// Intersect simultaneous member accesses into one runtime access.
     fn intersect_member_accesses(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         accesses: Vec<dir::MemberAccess>,
     ) -> CompilerResult<dir::MemberAccess> {
         if accesses.len() == 1 {
@@ -707,8 +702,8 @@ impl BodyState<'_, '_> {
                 target => targets.push(target),
             }
         }
-        let receiver = self.normalized_intersection_type(origin.module(), receivers)?;
-        let ty = self.normalized_intersection_type(origin.module(), types)?;
+        let receiver = self.normalized_intersection_type(receivers)?;
+        let ty = self.normalized_intersection_type(types)?;
         let target = dir::MemberTarget::Intersection(targets);
 
         Ok(dir::MemberAccess::new(receiver, target, ty))
@@ -866,10 +861,13 @@ impl BodyState<'_, '_> {
             && let [symbol] = resolution.symbols()
         {
             let symbol = self.resolve_symbol_alias(*symbol)?;
-            if self.symbol_kind(symbol).is_type_alias() {
+            if self
+                .symbol_kind_maybe(symbol)?
+                .is_some_and(|kind| kind.is_type_alias())
+            {
                 space = dir::MemberSpace::Static;
                 lookup_receiver =
-                    self.intern_type(module, dir::Type::Reference(dir::TypeReference { symbol }))?;
+                    self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
             }
         }
         let lookup = answer!(self.lookup_member(origin, module, lookup_receiver, space, key)?);
@@ -1003,13 +1001,10 @@ impl BodyState<'_, '_> {
             return Ok(Answer::Ready(ty));
         }
 
-        let projected = self.intern_type(
-            origin.module(),
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Readonly,
-                value: ty,
-            }),
-        )?;
+        let projected = self.intern_type(dir::Type::Form(dir::FormType {
+            form: dir::Form::Readonly,
+            value: ty,
+        }))?;
 
         self.reduce_type_head(origin, projected)
     }
@@ -1132,7 +1127,7 @@ impl BodyState<'_, '_> {
                         return Ok(Some(written));
                     }
                     if let Some(value) = candidate.value {
-                        let ty = self.intern_type(module, dir::Type::Static(value))?;
+                        let ty = self.intern_type(dir::Type::Static(value))?;
 
                         return Ok(Some(ty));
                     }
@@ -1157,7 +1152,7 @@ impl BodyState<'_, '_> {
                     types.push(ty);
                 }
 
-                self.normalized_union_type(module, types).map(Some)
+                self.normalized_union_type(types).map(Some)
             }
             MemberLookup::Intersection(lookups) => {
                 let mut types = Vec::with_capacity(lookups.len());
@@ -1168,7 +1163,7 @@ impl BodyState<'_, '_> {
                     types.push(ty);
                 }
 
-                self.normalized_intersection_type(module, types).map(Some)
+                self.normalized_intersection_type(types).map(Some)
             }
             MemberLookup::Missing => Ok(None),
         }
@@ -1177,7 +1172,7 @@ impl BodyState<'_, '_> {
     /// Project one interface default through a qualified owner.
     fn project_default_member(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         member: &dir::MemberType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         if self.is_rigid_projection_owner(member.owner)? {
@@ -1217,7 +1212,7 @@ impl BodyState<'_, '_> {
         };
         let substitution =
             self.qualified_instance_substitution(interface_module, &interface, member.owner)?;
-        let value = self.substitute_type(origin.module(), value, &substitution)?;
+        let value = self.substitute_type(value, &substitution)?;
 
         Ok(Answer::Ready(Some(value)))
     }
@@ -1330,8 +1325,7 @@ impl BodyState<'_, '_> {
                 let substitution = self
                     .instance_substitution(bound.module_id, &instance)?
                     .with_receiver(owner);
-                let constraint =
-                    self.substitute_type(origin.module(), constraint, &substitution)?;
+                let constraint = self.substitute_type(constraint, &substitution)?;
 
                 return Ok(Answer::Ready(Some(constraint)));
             }
@@ -1372,7 +1366,6 @@ impl BodyState<'_, '_> {
 
         // match any implemented application against the applied scope,
         //  binding the implementer's own parameters as pattern holes
-        let module = origin.module();
         let parameters = match self.symbol_template(candidate.owner)? {
             Some(template) => self.generic_template_parameters(template)?,
             None => SmallVec::new(),
@@ -1385,7 +1378,7 @@ impl BodyState<'_, '_> {
             }
 
             // resolve receiver-relative heritage at this application
-            let pattern = self.substitute_type(module, heritage.ty, &receiver_only)?;
+            let pattern = self.substitute_type(heritage.ty, &receiver_only)?;
             let matched =
                 answer!(self.match_generic_pattern(origin, &parameters, pattern, qualifier)?);
             if matched.is_some() {
@@ -1441,10 +1434,9 @@ impl BodyState<'_, '_> {
                 if let dir::Type::Application(instance) = self.ty(current)?
                     && let Some(space) = self.check.nominal_space(instance.symbol)?
                 {
-                    let place = self.intern_type(
-                        origin.module(),
-                        dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(space))),
-                    )?;
+                    let place = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
+                        dir::Place::Space(space),
+                    )))?;
 
                     return Ok(Answer::Ready(Some(place)));
                 }
@@ -1500,7 +1492,7 @@ impl BodyState<'_, '_> {
             | dir::Type::Static(_) => false,
             dir::Type::Union(_)
             | dir::Type::Refined(_)
-            | dir::Type::Object
+            | dir::Type::Object(_)
             | dir::Type::Reference(_)
             | dir::Type::Application(_)
             | dir::Type::Member(_)

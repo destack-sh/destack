@@ -399,12 +399,25 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(ty);
         }
 
-        // read committed symbols from imported components
-        let ty = if !self.check.is_component_module(symbol.module_id) {
+        // report foreign value reads while declaring
+        let ty = if !self.check.is_own_module(symbol.module_id) && self.check.is_declaration() {
+            let source = self
+                .check
+                .walking_declarations
+                .last()
+                .map(|node| node.local_id)
+                .unwrap_or(self.check.module.parsed.anchor_expression.into_any());
+            self.check
+                .report_export_type_not_derivable(self.module, source);
+
+            self.intern_type(dir::Type::Error)?
+        }
+        // read committed symbols from imported modules
+        else if !self.check.is_own_module(symbol.module_id) {
             self.external_symbol_type(symbol)?
         }
         // local variables use body-owned binding types
-        else if self.check.symbol_kind(symbol) == dir::SymbolKind::Variable {
+        else if self.check.symbol_kind(symbol)? == dir::SymbolKind::Variable {
             self.binding_type_slot(symbol, Widening::Never)?
         }
         // local declarations use stable declaration types
@@ -523,7 +536,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         ty: dir::Type,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.intern_type(self.module, ty)
+        self.check.intern_type(ty)
     }
 
     /// Intern one borrow form into this module's working segment.
@@ -532,7 +545,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         lifetime: dir::GlobalTypeId,
         access: dir::GlobalTypeId,
     ) -> CompilerResult<dir::Form> {
-        self.check.intern_borrow(self.module, lifetime, access)
+        self.check.intern_borrow(lifetime, access)
     }
 
     /// Intern one member projection into this module's working segment.
@@ -540,7 +553,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         member: dir::MemberType,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.intern_member(self.module, member)
+        self.check.intern_member(member)
     }
 
     /// Intern one refined application into this module's working segment.
@@ -556,7 +569,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         signature: dir::FunctionSignatureType,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.intern_signature(self.module, signature)
+        self.check.intern_signature(signature)
     }
 
     /// Intern one type operation into this module's working segment.
@@ -564,7 +577,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         operation: dir::TypeOperation,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.intern_operation(self.module, operation)
+        self.check.intern_operation(operation)
     }
 
     /// Intern one type id list into this module's working segment.
@@ -572,7 +585,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         values: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_type_ids(self.module, values)
+        self.check.intern_type_ids(values)
     }
 
     /// Intern one tuple element list into this module's working segment.
@@ -596,7 +609,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         values: &[dir::FunctionParameterType],
     ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_parameters(self.module, values)
+        self.check.intern_parameters(values)
     }
 
     /// Intern one index signature list into this module's working segment.
@@ -620,7 +633,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.normalized_union_type(self.module, elements)
+        self.check.normalized_union_type(elements)
     }
 
     /// Return a reference type for one well-known library declaration.
@@ -629,7 +642,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         item: dir::LanguageItem,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.language_type(self.module, item, arguments)
+        self.check.language_type(item, arguments)
     }
 
     /// Return a value type with `undefined` included.

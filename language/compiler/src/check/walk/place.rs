@@ -151,7 +151,10 @@ impl WalkState<'_, '_> {
     /// Return the flow place for one assigned symbol.
     fn assigned_symbol_place(&self, symbol: dir::GlobalSymbolId) -> Option<AssignedPlace> {
         if symbol.module_id != self.module
-            || self.check.symbol_kind(symbol) != dir::SymbolKind::Variable
+            || self
+                .check
+                .own_symbol_kind(symbol)
+                .is_none_or(|kind| kind != dir::SymbolKind::Variable)
         {
             return None;
         }

@@ -147,7 +147,7 @@ impl WalkState<'_, '_> {
 
 impl CheckState<'_> {
     /// Propagate induced memory variables into declaration templates.
-    pub(in crate::check) fn propagate_induced_parameters(&mut self) -> CompilerResult<()> {
+    pub(in crate::check) fn induce_signature_lifetimes(&mut self) -> CompilerResult<()> {
         let sites = self.generics.drain_induced_parameter_sites();
 
         // collect induced parameters before mutating generic tables
@@ -165,39 +165,30 @@ impl CheckState<'_> {
         parameters.sort_by_key(|(variable, _)| variable.0);
 
         for (variable, (declaration, role)) in parameters {
-            // cyclic applications already froze this declaration's arity:
-            //  report once and poison the unresolvable hole
-            if let Some(reference) = self.cyclic_inductions.get(&declaration).copied() {
-                self.report_circular_lifetime_induction(declaration, reference)?;
-                let error = self.intern_type(declaration.module_id, dir::Type::Error)?;
-                self.commit_solution(variable, error)?;
-
-                continue;
-            }
-
             // derive the site from the hole's origin: the elided position
             let origin = self.solver.origin(self.solver.variable(variable)?.origin);
             let site = self
                 .origin_source_node(origin)?
                 .into_global(origin.module());
 
-            // explicitly named lifetimes close a type declaration to
-            //  induction; signatures keep ordinary elision
+            // report elision on type declarations, induce parameters for value signatures
             let template = self.open_generic_template(declaration)?;
-            let is_type_declaration = self
+            let declaration_symbol = self
                 .module(declaration.module_id)
-                .declaration_symbol(declaration.local_id)
-                .is_some_and(|symbol| self.symbol_kind(symbol).is_type_definition());
-            if is_type_declaration && self.template_names_lifetimes(template)? {
+                .declaration_symbol(declaration.local_id);
+            let is_type_declaration = match declaration_symbol {
+                Some(symbol) => self.symbol_kind(symbol)?.is_type_definition(),
+                None => false,
+            };
+            if is_type_declaration {
                 self.report_elided_lifetime_in_named_declaration(declaration, site)?;
-                let error = self.intern_type(declaration.module_id, dir::Type::Error)?;
+                let error = self.intern_type(dir::Type::Error)?;
                 self.commit_solution(variable, error)?;
 
                 continue;
             }
             let parameter = self.push_induced_memory_parameter(template, site, role)?;
-            let solution =
-                self.intern_type(declaration.module_id, dir::Type::Parameter(parameter))?;
+            let solution = self.intern_type(dir::Type::Parameter(parameter))?;
             self.commit_solution(variable, solution)?;
         }
 

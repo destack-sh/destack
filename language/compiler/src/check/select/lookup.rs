@@ -80,7 +80,10 @@ impl BodyState<'_, '_> {
         };
 
         let symbol = self.resolve_symbol_alias(symbol)?;
-        let kind = self.symbol_kind(symbol);
+        // default unreadable foreign kinds to the instance space
+        let Some(kind) = self.symbol_kind_maybe(symbol)? else {
+            return Ok(dir::MemberSpace::Instance);
+        };
 
         // a name naming a type reaches its static members, so
         //  parameters serve bound statics like rustc's T::default()
@@ -362,7 +365,7 @@ impl BodyState<'_, '_> {
             }
 
             // structural shapes expose every operation for the selected key
-            dir::Type::Shape(shape) => {
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
                 let properties = self.shape_properties(subject.module_id, shape.properties)?;
                 let properties = properties
                     .iter()
@@ -402,16 +405,12 @@ impl BodyState<'_, '_> {
                 let read = match reads.as_slice() {
                     [] => None,
                     [read] => Some(*read),
-                    reads => Some(
-                        self.normalized_intersection_type(origin.module(), reads.iter().copied())?,
-                    ),
+                    reads => Some(self.normalized_intersection_type(reads.iter().copied())?),
                 };
                 let write = match writes.as_slice() {
                     [] => None,
                     [write] => Some(*write),
-                    writes => Some(
-                        self.normalized_intersection_type(origin.module(), writes.iter().copied())?,
-                    ),
+                    writes => Some(self.normalized_intersection_type(writes.iter().copied())?),
                 };
                 let access = match (read, write) {
                     (Some(read), Some(write)) => dir::PropertyAccess::ReadWrite { read, write },
@@ -590,13 +589,13 @@ impl BodyState<'_, '_> {
                 symbol = self.resolve_symbol_alias(named)?;
             }
         }
-        if !self.is_component_module(symbol.module_id) {
+        if !self.is_own_module(symbol.module_id) {
             self.import_external_module(symbol.module_id)?;
         }
 
         // search declaration members before extensions
         let mut lookup = MemberLookup::Missing;
-        if !self.symbol_kind(symbol).is_type_alias() {
+        if !self.symbol_kind(symbol)?.is_type_alias() {
             let inherent =
                 answer!(self.lookup_inherent_declaration_member(origin, receiver, symbol, key)?);
             lookup = match inherent {
@@ -683,7 +682,7 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         extensions: ExtensionFilter,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        if !self.is_component_module(instance.symbol.module_id) {
+        if !self.is_own_module(instance.symbol.module_id) {
             self.import_external_module(instance.symbol.module_id)?;
         }
 
@@ -789,9 +788,9 @@ impl BodyState<'_, '_> {
                 {
                     self.check.push_constraint(constraint);
                 }
-                ty = self.substitute_type(origin.module(), ty, &substitution)?;
+                ty = self.substitute_type(ty, &substitution)?;
                 written = written
-                    .map(|written| self.substitute_type(origin.module(), written, &substitution))
+                    .map(|written| self.substitute_type(written, &substitution))
                     .transpose()?;
                 generic_arguments = substitution.bindings.to_vec();
             }
@@ -863,23 +862,20 @@ impl BodyState<'_, '_> {
             let ty = match declared.ty {
                 Some(ty) if !(is_associated && is_rigid) => ty,
                 _ if is_associated => {
-                    let arguments = self.intern_type_ids(origin.module(), &[])?;
+                    let arguments = self.intern_type_ids(&[])?;
 
-                    self.intern_member(
-                        origin.module(),
-                        dir::MemberType {
-                            owner: receiver,
-                            key,
-                            arguments,
-                            qualifier: None,
-                        },
-                    )?
+                    self.intern_member(dir::MemberType {
+                        owner: receiver,
+                        key,
+                        arguments,
+                        qualifier: None,
+                    })?
                 }
                 _ => continue,
             };
             let member = declared;
 
-            let ty = self.substitute_type(origin.module(), ty, &substitution)?;
+            let ty = self.substitute_type(ty, &substitution)?;
             let callable = member.callable_type(origin.module(), instance.symbol, ty, self)?;
             let access_type = member.access_type(self, ty)?;
             let access_type = answer!(self.projected_member_type(
@@ -891,9 +887,7 @@ impl BodyState<'_, '_> {
 
             // substitute static value types for projections
             let written = match self.static_value(symbol) {
-                Some(written) => {
-                    Some(self.substitute_type(origin.module(), written, &substitution)?)
-                }
+                Some(written) => Some(self.substitute_type(written, &substitution)?),
                 written => written,
             };
 
@@ -920,7 +914,7 @@ impl BodyState<'_, '_> {
 
         // search substituted heritage applications
         for heritage in heritages {
-            let heritage = self.substitute_type(origin.module(), heritage, &substitution)?;
+            let heritage = self.substitute_type(heritage, &substitution)?;
             let (heritage_module, heritage) = self.require_nominal_application(heritage)?;
             let arguments = self.type_ids(heritage_module, heritage.arguments)?;
             let heritage = ApparentInstance {

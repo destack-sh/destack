@@ -49,7 +49,6 @@ impl CheckState<'_> {
             // accept every open type, its values may hold additional members
             dir::Type::Any
             | dir::Type::Unknown
-            | dir::Type::Object
             | dir::Type::Error
             | dir::Type::Variable(_)
             | dir::Type::Parameter(_)
@@ -60,8 +59,8 @@ impl CheckState<'_> {
             | dir::Type::Operation(_) => Ok(Answer::Ready(true)),
 
             // accept a shape key admitted by one of its index signatures
-            dir::Type::Shape(shape) => {
-                let key_type = self.static_key_type(origin.module(), key)?;
+            dir::Type::Shape(shape) | dir::Type::Object(shape) => {
+                let key_type = self.static_key_type(key)?;
                 let signatures = self
                     .shape_index_signatures(ty.module_id, shape.index_signatures)?
                     .to_vec();
@@ -168,7 +167,7 @@ impl CheckState<'_> {
 
     /// Evaluate the static key named by one expression before body checking.
     pub(in crate::check) fn evaluate_static_key(
-        &self,
+        &mut self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::StaticKey>> {
@@ -179,22 +178,28 @@ impl CheckState<'_> {
             return Ok(Some(key));
         }
 
-        match view.get(expression) {
-            dir::Expression::Identifier { .. } => self.identifier_static_key(module, expression),
+        // copy the call shape out before reborrowing mutably
+        let call = match view.get(expression) {
+            dir::Expression::Identifier { .. } => None,
             dir::Expression::Call {
                 position: dir::PostfixPosition::Direct,
                 left,
                 generic_arguments,
                 arguments,
                 is_optional: false,
-            } if generic_arguments.is_empty() => self.registry_symbol_key(module, *left, arguments),
-            _ => Ok(None),
+            } if generic_arguments.is_empty() => Some((*left, arguments.clone())),
+            _ => return Ok(None),
+        };
+
+        match call {
+            None => self.identifier_static_key(module, expression),
+            Some((left, arguments)) => self.registry_symbol_key(module, left, &arguments),
         }
     }
 
     /// Return the static key named by one identifier expression.
     fn identifier_static_key(
-        &self,
+        &mut self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::StaticKey>> {
@@ -208,16 +213,27 @@ impl CheckState<'_> {
 
     /// Return the exact property key denoted by one static symbol.
     pub(in crate::check) fn symbol_static_key(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::StaticKey>> {
+        // skip foreign symbols while declaring
+        if self.is_declaration() && !self.is_own_module(symbol.module_id) {
+            return Ok(None);
+        }
+
+        // load the foreign module the key classification reads
+        if !self.is_own_module(symbol.module_id) {
+            self.import_external_module(symbol.module_id)?;
+        }
+
         // use singleton values recorded while walking this component
         if let Some(value) = self.static_value(symbol) {
             return self.static_key_from_type(value);
         }
 
-        // unique symbol variables key by their declaration identity
-        if self.symbol_kind(symbol) != dir::SymbolKind::Variable {
+        // key unique symbol variables by their declaration identity;
+        //  unreadable foreign kinds yield no key
+        if self.symbol_kind_maybe(symbol)? != Some(dir::SymbolKind::Variable) {
             return Ok(None);
         }
         let ty = self.require_symbol_type(symbol)?;
@@ -233,7 +249,7 @@ impl CheckState<'_> {
 
     /// Evaluate one canonical `Symbol.for` registry key.
     fn registry_symbol_key(
-        &self,
+        &mut self,
         module: ModuleId,
         callee: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],

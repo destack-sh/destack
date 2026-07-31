@@ -16,7 +16,7 @@ pub(in crate::check) enum StaticGate {
 impl WalkState<'_, '_> {
     /// Return the static key named by one key.
     pub(in crate::check) fn static_key(
-        &self,
+        &mut self,
         key: dir::Key,
     ) -> CompilerResult<Option<dir::StaticKey>> {
         match key {

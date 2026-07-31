@@ -223,13 +223,14 @@ const counts: Counts = { apples: 1, oranges: 2 };
 /// @type.symbol symbol=counts source=counts type=Counts reduced={ [key: string]: int32 }
 /// @resolution.pattern source=counts kind=binding target=counts
 /// @resolution.name source=Counts target=Counts
-/// @type.node source={ apples: 1, oranges: 2 } type={ [key: string]: int32 }
+/// @type.node source={ apples: 1, oranges: 2 } type={ apples: int32; oranges: int32 }
+/// @coercion.node source={ apples: 1, oranges: 2 } from={ apples: int32; oranges: int32 } adjustments=[{ kind: existential, target: { [key: string]: int32 } }] origin=implicit
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
 /// @type.node source=2 type=2
 /// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: int32 }] origin=implicit
 
-/// @check.stats.solve variables=1 types=10 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
+/// @check.stats.solve variables=1 types=11 constraints=0 obligations=1 solutions=1 bounds=0 decisions=2
 "#,
     );
 }
@@ -286,7 +287,7 @@ const mode = config.mode;
 /// @resolution.access source=config root=config
 /// @resolution.access source=config.mode root=config keys=[mode]
 
-/// @check.stats.solve variables=2 types=14 constraints=0 obligations=2 solutions=2 bounds=0 decisions=6
+/// @check.stats.solve variables=2 types=13 constraints=0 obligations=2 solutions=2 bounds=0 decisions=6
 "#,
     );
 }
@@ -644,6 +645,34 @@ const object = { ...user };
 /// @resolution.access source=user root=user
 
 /// @check.stats.solve variables=2 types=15 constraints=0 obligations=6 solutions=2 bounds=0 decisions=9
+"#,
+    );
+}
+
+/// Reject an object literal writing one property twice.
+#[test]
+fn test_reject_duplicate_object_property() {
+    let session = TestSession::single(
+        r#"
+const value = { name: "Ada", name: "Grace" };
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const value: { name: string } = { name: "Ada", name: "Grace" };
+
+=== checked ===
+const value = { name: "Ada", name: "Grace" };
+/// @type.symbol symbol=value source=value type={ name: string }
+/// @resolution.pattern source=value kind=binding target=value
+"#,
+        r#"
+/// @diagnostic.error id=duplicate-member message="member 'name' is already declared"
+/// @diagnostic.label line=2 column=30 span="name" line_source="const value = { name: \"Ada\", name: \"Grace\" };"
 "#,
     );
 }

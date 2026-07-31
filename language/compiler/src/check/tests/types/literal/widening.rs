@@ -40,7 +40,7 @@ const first = values[0];
 
 /// @generic.instance id="Array<float64>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(float64, "exclusive")
 
-/// @check.stats.solve variables=13 types=74 constraints=4 obligations=2 solutions=13 bounds=9 decisions=4
+/// @check.stats.solve variables=13 types=100 constraints=4 obligations=2 solutions=13 bounds=9 decisions=4
 "#,
     );
 }
@@ -85,7 +85,7 @@ const first = values[0];
 
 /// @generic.instance id="Array<1 | 2>.<extension#6>.index#3<\"exclusive\">" template=collections.array.index#3 arguments=(1 | 2, "exclusive")
 
-/// @check.stats.solve variables=13 types=72 constraints=4 obligations=2 solutions=13 bounds=9 decisions=4
+/// @check.stats.solve variables=13 types=98 constraints=4 obligations=2 solutions=13 bounds=9 decisions=4
 "#,
     );
 }

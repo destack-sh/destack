@@ -56,13 +56,15 @@ impl Protocol {
     pub(in crate::check) fn instance(
         &self,
         check: &mut CheckState<'_>,
-        module: ModuleId,
+        _module: ModuleId,
     ) -> CompilerResult<dir::GenericApplication> {
         match check.symbol_template(self.symbol)? {
             Some(template) => {
                 check.template_substitution(template, &self.arguments)?;
             }
             None if self.arguments.is_empty() => {}
+            // skip unloaded foreign templates while declaring
+            None if check.is_declaration() => {}
             None => {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -73,7 +75,7 @@ impl Protocol {
                 });
             }
         }
-        let arguments = check.intern_type_ids(module, &self.arguments)?;
+        let arguments = check.intern_type_ids(&self.arguments)?;
 
         Ok(dir::GenericApplication {
             symbol: self.symbol,
@@ -136,6 +138,9 @@ impl CheckState<'_> {
                 substitution.arguments().collect()
             }
             None if written.is_empty() => Vec::new(),
+            // carry the written arguments while declaring, the
+            //  foreign template loads only when checking
+            None if self.is_declaration() => written,
             None => {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -165,6 +170,12 @@ impl BodyState<'_, '_> {
         let Some(template) = self.symbol_template(symbol)? else {
             if written.is_empty() {
                 return Ok(Answer::Ready(Protocol::new(symbol, Vec::new())));
+            }
+
+            // carry the written arguments while declaring, the
+            //  foreign template loads only when checking
+            if self.is_declaration() {
+                return Ok(Answer::Ready(Protocol::new(symbol, written.to_vec())));
             }
 
             return Err(CompilerError::Internal {
@@ -273,7 +284,7 @@ impl BodyState<'_, '_> {
 
         let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
         let interface = protocol.instance(self, module)?;
-        let interface = self.intern_type(module, dir::Type::Application(interface))?;
+        let interface = self.intern_type(dir::Type::Application(interface))?;
         let requirements =
             answer!(protocol.members(self, origin, interface, lookup_receiver, space, key)?);
         let extension = self.select_extension_protocol_member(
@@ -289,13 +300,8 @@ impl BodyState<'_, '_> {
             return Ok(extension);
         }
 
-        let lookup = answer!(self.lookup_inherent_member(
-            origin,
-            module,
-            lookup_receiver,
-            space,
-            key,
-        )?);
+        let lookup =
+            answer!(self.lookup_inherent_member(origin, module, lookup_receiver, space, key,)?);
         self.select_protocol_member_lookup(
             origin,
             module,
@@ -329,7 +335,7 @@ impl BodyState<'_, '_> {
         let lookup_receiver = answer!(self.reduce_type_head(origin, lookup_receiver)?);
         let lookup_receiver = self.intern_apparent_type(module, lookup_receiver)?;
         let interface = protocol.instance(self, module)?;
-        let interface = self.intern_type(module, dir::Type::Application(interface))?;
+        let interface = self.intern_type(dir::Type::Application(interface))?;
         let requirements =
             answer!(protocol.members(self, origin, interface, lookup_receiver, space, key)?);
         let extension = self.select_extension_protocol_call(
@@ -346,13 +352,8 @@ impl BodyState<'_, '_> {
             return Ok(extension);
         }
 
-        let lookup = answer!(self.lookup_inherent_member(
-            origin,
-            module,
-            lookup_receiver,
-            space,
-            key,
-        )?);
+        let lookup =
+            answer!(self.lookup_inherent_member(origin, module, lookup_receiver, space, key,)?);
         self.select_protocol_call_lookup(
             origin,
             module,
@@ -793,7 +794,7 @@ impl BodyState<'_, '_> {
                 }
                 let ty = match types.as_slice() {
                     [single] => *single,
-                    _ => self.normalized_union_type(module, types)?,
+                    _ => self.normalized_union_type(types)?,
                 };
                 let resolution = dir::OperationResolution::Union { arms, ty };
 
@@ -874,7 +875,7 @@ impl BodyState<'_, '_> {
                 }
                 let return_type = match returns.as_slice() {
                     [single] => *single,
-                    _ => self.normalized_union_type(module, returns)?,
+                    _ => self.normalized_union_type(returns)?,
                 };
                 let resolution = dir::OperationResolution::Union {
                     arms: calls,

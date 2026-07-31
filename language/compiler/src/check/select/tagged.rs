@@ -231,8 +231,7 @@ impl BodyState<'_, '_> {
         };
 
         let owner = self.tagged_selection_owner(origin.module(), &owners)?;
-        let tag_type =
-            self.intern_type(origin.module(), dir::Type::from(&selection.discriminant))?;
+        let tag_type = self.intern_type(dir::Type::from(&selection.discriminant))?;
         let narrowed =
             self.tagged_variant_type(origin.module(), &owners, selection.case.variant)?;
         let predicate = dir::Predicate::unary(
@@ -386,7 +385,7 @@ impl BodyState<'_, '_> {
     /// Merge same-case selections from multiple generic owner arms.
     fn merge_tagged_cases(
         &mut self,
-        origin: Origin,
+        _origin: Origin,
         cases: Vec<TaggedCaseSelection>,
     ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
         let mut cases = cases.into_iter();
@@ -429,10 +428,8 @@ impl BodyState<'_, '_> {
                     };
                     // union arm payloads read the union of their reads; writes
                     //  survive only when every arm accepts them
-                    let read = self.normalized_union_type(
-                        origin.module(),
-                        [existing.access.store(), field.access.store()],
-                    )?;
+                    let read = self
+                        .normalized_union_type([existing.access.store(), field.access.store()])?;
                     let access = match existing.access.is_writable() && field.access.is_writable() {
                         true => dir::PropertyAccess::ReadWrite { read, write: read },
                         false => dir::PropertyAccess::Read(read),
@@ -451,7 +448,7 @@ impl BodyState<'_, '_> {
             None
         } else if backings.len() == case_count {
             Some(TaggedPayload {
-                backing: self.normalized_union_type(origin.module(), backings)?,
+                backing: self.normalized_union_type(backings)?,
                 fields,
             })
         } else {
@@ -471,35 +468,32 @@ impl BodyState<'_, '_> {
     /// Return the narrowed owner type selected by a tagged case.
     fn tagged_selection_owner(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         owners: &[VariantOwner],
     ) -> CompilerResult<dir::GlobalTypeId> {
         match owners {
             [owner] => Ok(owner.owner),
-            _ => self.normalized_union_type(module, owners.iter().map(|owner| owner.owner)),
+            _ => self.normalized_union_type(owners.iter().map(|owner| owner.owner)),
         }
     }
 
     /// Return the case-specific type selected across tagged owner instances.
     fn tagged_variant_type(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         owners: &[VariantOwner],
         member: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut variants = Vec::with_capacity(owners.len());
         for owner in owners {
-            let variant = self.intern_type(
-                module,
-                dir::Type::Variant(dir::VariantType {
-                    owner: owner.owner,
-                    variant: member,
-                }),
-            )?;
+            let variant = self.intern_type(dir::Type::Variant(dir::VariantType {
+                owner: owner.owner,
+                variant: member,
+            }))?;
             variants.push(variant);
         }
 
-        self.normalized_union_type(module, variants)
+        self.normalized_union_type(variants)
     }
 
     /// Select one tagged variant.
@@ -536,11 +530,11 @@ impl BodyState<'_, '_> {
             .with_receiver(owner.owner);
         let payload = match variant.argument {
             Some(argument) => {
-                let backing =
-                    self.substitute_type(origin.module(), variant.backing, &substitution)?;
-                let argument = self.substitute_type(origin.module(), argument, &substitution)?;
+                let backing = self.substitute_type(variant.backing, &substitution)?;
+                let argument = self.substitute_type(argument, &substitution)?;
                 let argument = answer!(self.reduce_type_head(origin, argument)?);
-                let dir::Type::Shape(shape) = self.ty(argument)? else {
+                let (dir::Type::Shape(shape) | dir::Type::Object(shape)) = self.ty(argument)?
+                else {
                     return Err(CompilerError::Internal {
                         message: format!(
                             "tagged variant has invalid constructor argument {argument:?}"
@@ -687,16 +681,16 @@ impl BodyState<'_, '_> {
     /// Return one tagged payload field's projected value type.
     fn tagged_payload_field_type(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         field: &dir::TypeProperty,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = field.access.store();
         if !field.is_optional {
             return Ok(ty);
         }
-        let undefined = self.intern_type(module, dir::Type::Undefined)?;
+        let undefined = self.intern_type(dir::Type::Undefined)?;
 
-        self.normalized_union_type(module, [ty, undefined])
+        self.normalized_union_type([ty, undefined])
     }
 }
 
@@ -710,7 +704,7 @@ impl CheckState<'_> {
         let dir::ScalarLiteral::String(discriminant) = discriminant else {
             return None;
         };
-        let Some(dir::Definition::Newtype(definition)) = self.loaded_definition(owner) else {
+        let Some(dir::Definition::Newtype(definition)) = self.definintion_maybe(owner) else {
             return None;
         };
 

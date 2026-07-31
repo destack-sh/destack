@@ -141,7 +141,7 @@ impl BodyState<'_, '_> {
             (None, None, _) => dir::LanguageItem::RangeFull,
         };
         let arguments = element.into_iter().collect::<Vec<_>>();
-        let range = self.language_type(module, item, &arguments)?;
+        let range = self.language_type(item, &arguments)?;
         self.commit_node_type(node.into_any(), range)?;
 
         Ok(Answer::Ready(()))
@@ -175,9 +175,8 @@ impl BodyState<'_, '_> {
         let Some(target) = self.check.try_propagations.get(&node).copied() else {
             return Ok(());
         };
-        let module = node.module_id;
         let origin = site.origin();
-        let residual = self.intern_operation(module, dir::TypeOperation::TryResidual { value })?;
+        let residual = self.intern_operation(dir::TypeOperation::TryResidual { value })?;
         match target {
             TryPropagationTarget::Failure { ty } => {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
@@ -193,11 +192,11 @@ impl BodyState<'_, '_> {
                 let symbol = self
                     .check
                     .language_symbol(dir::LanguageItem::FromResidual)?;
-                let arguments = self.check.intern_type_ids(module, &[residual])?;
-                let target = self.intern_type(
-                    module,
-                    dir::Type::Application(dir::GenericApplication { symbol, arguments }),
-                )?;
+                let arguments = self.check.intern_type_ids(&[residual])?;
+                let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
+                    symbol,
+                    arguments,
+                }))?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 self.push_constraint(Constraint::r#type(
                     origin,
