@@ -170,19 +170,30 @@ impl<'a> TypeEmitter<'a> {
                 self.storage(*storage),
             ),
             mir::Type::Uninit { value } => self.uninitialized(*value)?,
-            mir::Type::Dynamic { constraint, space } => {
-                bytecode::ValueType::dynamic(self.type_id(*constraint)?, self.space(*space))
-            }
+            mir::Type::Dynamic {
+                kind,
+                constraint,
+                storage,
+                ..
+            } => bytecode::ValueType::dynamic(
+                self.type_id(*constraint)?,
+                bytecode::ReferenceType::new(self.reference_kind(*kind)?, self.storage(*storage)),
+            ),
             mir::Type::Vector { element, lanes, .. } => {
                 let scalar = self.scalar(*element)?;
                 let lane_count = u16::try_from(*lanes).map_err(|_| self.unsupported_type())?;
 
                 bytecode::ValueType::vector(bytecode::VectorType::new(scalar, lane_count))
             }
-            mir::Type::Tensor { element, space, .. } => bytecode::ValueType::tensor(
+            mir::Type::Tensor {
+                kind,
+                element,
+                storage,
+                ..
+            } => bytecode::ValueType::tensor(
                 self.scalar(*element)?,
                 self.type_id(representation)?,
-                self.space(*space),
+                bytecode::ReferenceType::new(self.reference_kind(*kind)?, self.storage(*storage)),
             ),
             mir::Type::TensorView {
                 kind,
@@ -205,14 +216,9 @@ impl<'a> TypeEmitter<'a> {
                     word_count,
                 )
             }
-            mir::Type::Function { environment, .. } => {
-                let environment = self.register_type(*environment)?;
-                let reference = environment
-                    .reference_type()
-                    .ok_or_else(|| self.unsupported_type())?;
-
-                bytecode::ValueType::function(reference)
-            }
+            mir::Type::Function { kind, storage, .. } => bytecode::ValueType::function(
+                bytecode::ReferenceType::new(self.reference_kind(*kind)?, self.storage(*storage)),
+            ),
             mir::Type::FunctionPointer { .. } => bytecode::ValueType::function_pointer(),
             mir::Type::FixedArray { .. }
             | mir::Type::Tuple { .. }
@@ -228,7 +234,7 @@ impl<'a> TypeEmitter<'a> {
             }
             mir::Type::Atomic { .. }
             | mir::Type::ManuallyDrop { .. }
-            | mir::Type::WithLifetimes { .. }
+            | mir::Type::Application { .. }
             | mir::Type::Error
             | mir::Type::FunctionSignature { .. } => return Err(self.unsupported_type()),
         };
@@ -257,7 +263,7 @@ impl<'a> TypeEmitter<'a> {
             match self.optimized.tree.get(ty) {
                 mir::Type::Atomic { value }
                 | mir::Type::ManuallyDrop { value }
-                | mir::Type::WithLifetimes { base: value, .. }
+                | mir::Type::Application { base: value, .. }
                 | mir::Type::Newtype { inner: value, .. } => ty = *value,
                 _ => return ty,
             }
@@ -335,14 +341,6 @@ impl<'a> TypeEmitter<'a> {
             mir::ReferenceKind::Unique => Ok(bytecode::ReferenceKind::UNIQUE),
             mir::ReferenceKind::Borrowed => Ok(bytecode::ReferenceKind::BORROWED),
             mir::ReferenceKind::Raw => Ok(bytecode::ReferenceKind::RAW),
-        }
-    }
-
-    /// Return one bytecode heap ownership domain.
-    fn space(&self, space: mir::Space) -> bytecode::Space {
-        match space {
-            mir::Space::Local => bytecode::Space::LOCAL,
-            mir::Space::Shared => bytecode::Space::SHARED,
         }
     }
 

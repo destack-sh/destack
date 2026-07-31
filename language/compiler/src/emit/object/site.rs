@@ -464,9 +464,11 @@ impl Sites {
                 let receiver_type = function.value_type(receiver).ok_or_else(|| {
                     ObjectEmitter::invalid(module, "missing dynamic receiver type")
                 })?;
-                let space = Self::dynamic_space(optimized, receiver_type).ok_or_else(|| {
-                    ObjectEmitter::invalid(module, "missing dynamic receiver space")
-                })?;
+                let space = Self::reference_storage(optimized, receiver_type)
+                    .and_then(mir::Storage::heap_space)
+                    .ok_or_else(|| {
+                        ObjectEmitter::invalid(module, "missing dynamic receiver space")
+                    })?;
 
                 (Some(space), Some(constraint))
             }
@@ -506,7 +508,7 @@ impl Sites {
         loop {
             match optimized.tree.get(ty) {
                 mir::Type::Atomic { value }
-                | mir::Type::WithLifetimes { base: value, .. }
+                | mir::Type::Application { base: value, .. }
                 | mir::Type::Uninit { value }
                 | mir::Type::ManuallyDrop { value }
                 | mir::Type::Newtype { inner: value, .. } => ty = *value,
@@ -520,8 +522,10 @@ impl Sites {
         match optimized.tree.get(Self::storage_type(optimized, ty)) {
             mir::Type::Reference { storage, .. }
             | mir::Type::Slice { storage, .. }
-            | mir::Type::TensorView { storage, .. } => Some(*storage),
-            mir::Type::Tensor { space, .. } => Some(mir::Storage::Heap(*space)),
+            | mir::Type::Tensor { storage, .. }
+            | mir::Type::TensorView { storage, .. }
+            | mir::Type::Dynamic { storage, .. }
+            | mir::Type::Function { storage, .. } => Some(*storage),
             _ => None,
         }
     }
@@ -530,17 +534,11 @@ impl Sites {
     fn reference_value_type(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::TypeId> {
         match optimized.tree.get(Self::storage_type(optimized, ty)) {
             mir::Type::Reference { pointee, .. } => Some(Self::storage_type(optimized, *pointee)),
-            mir::Type::Slice { element, .. } | mir::Type::TensorView { element, .. } => {
+            mir::Type::Slice { element, .. }
+            | mir::Type::Tensor { element, .. }
+            | mir::Type::TensorView { element, .. } => {
                 Some(Self::storage_type(optimized, *element))
             }
-            _ => None,
-        }
-    }
-
-    /// Return the payload space carried by one dynamic MIR type.
-    fn dynamic_space(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::Space> {
-        match optimized.tree.get(Self::storage_type(optimized, ty)) {
-            mir::Type::Dynamic { space, .. } => Some(*space),
             _ => None,
         }
     }
