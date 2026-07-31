@@ -2,15 +2,16 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactBinding, ArtifactBindingId, ArtifactBindingPin, ArtifactDependency, ArtifactId,
-    ArtifactKey, ArtifactOutcome, ArtifactVersion, ModuleSetFingerprint, PackageSetFingerprint,
-    SourceDependency,
+    ArtifactKey, ArtifactOutcome, ArtifactVersion, SourceDependency, SourceDependencyKey,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    ArtifactBindingState, ArtifactBindingTable, Repository, RepositoryError, Revision,
-    RevisionState,
+    ArtifactBindingState, ArtifactBindings, Repository, RepositoryError, Revision, RevisionState,
 };
+
+/// Commit attempts before one resolution reports contention.
+const RESOLVE_COMMIT_ATTEMPTS: usize = 1024;
 
 /// Resolution of one artifact in a repository revision.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,11 +57,13 @@ impl Repository {
         revision: Revision,
         artifact_key: &ArtifactKey,
     ) -> Result<ArtifactResolution, RepositoryError> {
-        loop {
+        for _attempt in 0..RESOLVE_COMMIT_ATTEMPTS {
             let revision_state = self.revision(revision)?;
-            if let Some(resolution) =
-                self.clean_artifact_resolution(&revision_state.artifacts, *artifact_key)?
-            {
+            let resolution = {
+                let bindings = revision_state.artifacts.snapshot();
+                self.clean_artifact_resolution(&bindings, *artifact_key)?
+            };
+            if let Some(resolution) = resolution {
                 return Ok(resolution);
             }
             let mut resolver = ArtifactResolver::new(self, revision, &revision_state);
@@ -70,6 +73,10 @@ impl Repository {
                 return Ok(resolution);
             }
         }
+
+        Err(RepositoryError::ContendedResolution {
+            detail: format!("artifact resolution kept losing commits: {artifact_key:?}"),
+        })
     }
 
     /// Resolve artifacts in request order.
@@ -78,19 +85,21 @@ impl Repository {
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> Result<Vec<ArtifactResolution>, RepositoryError> {
-        loop {
+        for _attempt in 0..RESOLVE_COMMIT_ATTEMPTS {
             let revision_state = self.revision(revision)?;
             let mut clean = Vec::with_capacity(artifact_keys.len());
 
-            // read clean selections directly
-            for artifact_key in artifact_keys {
-                let resolution =
-                    self.clean_artifact_resolution(&revision_state.artifacts, *artifact_key)?;
-                let Some(resolution) = resolution else {
-                    clean.clear();
-                    break;
-                };
-                clean.push(resolution);
+            // read clean selections through one shared binding view
+            {
+                let bindings = revision_state.artifacts.snapshot();
+                for artifact_key in artifact_keys {
+                    let resolution = self.clean_artifact_resolution(&bindings, *artifact_key)?;
+                    let Some(resolution) = resolution else {
+                        clean.clear();
+                        break;
+                    };
+                    clean.push(resolution);
+                }
             }
             if clean.len() == artifact_keys.len() {
                 return Ok(clean);
@@ -107,19 +116,24 @@ impl Repository {
                 return Ok(resolutions);
             }
         }
+
+        Err(RepositoryError::ContendedResolution {
+            detail: "artifact resolution kept losing commits".to_string(),
+        })
     }
 
     /// Return a terminal or absent clean artifact selection.
     fn clean_artifact_resolution(
         &self,
-        bindings: &ArtifactBindingTable,
+        bindings: &ArtifactBindings,
         artifact_key: ArtifactKey,
     ) -> Result<Option<ArtifactResolution>, RepositoryError> {
         let Some(artifact) = self.artifact_table().artifact_id(artifact_key) else {
             return Ok(Some(ArtifactResolution::Stale));
         };
+        // fall through on absent bindings so the resolver may reuse one
         let Some(state) = bindings.state(artifact) else {
-            return Ok(Some(ArtifactResolution::Stale));
+            return Ok(None);
         };
         if !state.is_clean() {
             return Ok(None);
@@ -178,7 +192,7 @@ impl<'a> ArtifactResolver<'a> {
             return Ok(resolution.clone());
         }
         let Some(state) = self.state(artifact) else {
-            return Ok(ArtifactResolution::Stale);
+            return self.reuse_recorded_binding(artifact);
         };
         let binding = self.binding(state.binding)?;
 
@@ -316,6 +330,109 @@ impl<'a> ArtifactResolver<'a> {
         Ok(resolution)
     }
 
+    /// Reuse one recorded binding whose full dependency set still holds here.
+    fn reuse_recorded_binding(
+        &mut self,
+        artifact: ArtifactId,
+    ) -> Result<ArtifactResolution, RepositoryError> {
+        if !self.resolving.insert(artifact) {
+            return Ok(ArtifactResolution::Stale);
+        }
+
+        // verify candidates newest first and reuse the first proven one
+        let mut reused = ArtifactResolution::Stale;
+        let candidates = self.repository.artifact_table().artifact_bindings(artifact);
+        for candidate in candidates {
+            let binding = self.binding(candidate)?;
+            let Some(dependencies) = self.refreshed_dependencies(&binding)? else {
+                continue;
+            };
+            let pin = self
+                .repository
+                .artifact_table()
+                .publish_binding(binding.version, dependencies)
+                .map_err(|error| RepositoryError::InvalidArtifact {
+                    message: error.to_string(),
+                })?;
+            reused = self.terminal(&binding)?;
+            self.bindings.push((artifact, pin));
+            break;
+        }
+
+        self.resolving.remove(&artifact);
+        self.resolutions.insert(artifact, reused.clone());
+
+        Ok(reused)
+    }
+
+    /// Return one binding's dependency set refreshed against this revision.
+    fn refreshed_dependencies(
+        &mut self,
+        binding: &ArtifactBinding,
+    ) -> Result<Option<Vec<ArtifactDependency>>, RepositoryError> {
+        let mut dependencies = Vec::with_capacity(binding.dependencies.len());
+
+        for dependency in binding.dependencies.iter() {
+            match dependency {
+                // sources must read identically here
+                ArtifactDependency::Source(source) => {
+                    if !self.source_matches(source)? {
+                        return Ok(None);
+                    }
+                    dependencies.push(dependency.clone());
+                }
+                // whole artifacts must resolve to the exact recorded version
+                ArtifactDependency::Artifact(version) => {
+                    if self.current_version(version.key)? != Some(*version) {
+                        return Ok(None);
+                    }
+                    dependencies.push(dependency.clone());
+                }
+                // projections refresh onto any owner with the recorded fingerprint
+                ArtifactDependency::Projection(projection) => {
+                    let owner = projection.projection().artifact;
+                    let Some(current) = self.current_version(owner)? else {
+                        return Ok(None);
+                    };
+                    if current != projection.version() {
+                        let fingerprint = self
+                            .repository
+                            .artifact_table()
+                            .projection_fingerprint(&current, &projection.projection());
+                        if fingerprint != Some(projection.fingerprint()) {
+                            return Ok(None);
+                        }
+                        dependencies.push(ArtifactDependency::projection(
+                            current,
+                            projection.projection().key,
+                            projection.fingerprint(),
+                        ));
+                    } else {
+                        dependencies.push(dependency.clone());
+                    }
+                }
+            }
+        }
+
+        Ok(Some(dependencies))
+    }
+
+    /// Return the version one dependency key currently resolves to.
+    fn current_version(
+        &mut self,
+        key: ArtifactKey,
+    ) -> Result<Option<ArtifactVersion>, RepositoryError> {
+        let Some(owner) = self.repository.artifact_table().artifact_id(key) else {
+            return Ok(None);
+        };
+        let resolution = self.resolve(owner)?;
+
+        match resolution {
+            ArtifactResolution::Terminal { version, .. } => Ok(Some(version)),
+            ArtifactResolution::Pending { .. } | ArtifactResolution::Stale => Ok(None),
+        }
+    }
+
     /// Read and retain one revision artifact binding state.
     fn state(&mut self, artifact: ArtifactId) -> Option<ArtifactBindingState> {
         if let Some(state) = self.observations.get(&artifact) {
@@ -362,25 +479,32 @@ impl<'a> ArtifactResolver<'a> {
 
     /// Return whether one primitive source observation matches this revision.
     fn source_matches(&self, dependency: &SourceDependency) -> Result<bool, RepositoryError> {
-        match dependency {
-            SourceDependency::FileContent { file, content } => {
-                let current = self.repository.file_content_id(self.revision, *file)?;
+        let current = match dependency.key {
+            SourceDependencyKey::File(file) => {
+                let Some(content) = self.repository.file_content_id(self.revision, file)? else {
+                    return Ok(false);
+                };
 
-                Ok(current == Some(*content))
+                SourceDependency::file_content(file, content)
             }
-            SourceDependency::Packages { fingerprint } => {
+            SourceDependencyKey::Packages => {
                 let packages = self.repository.package_ids(self.revision)?;
-                let current = PackageSetFingerprint::new(&packages);
 
-                Ok(&current == fingerprint)
+                SourceDependency::packages(&packages)
             }
-            SourceDependency::Modules { fingerprint } => {
+            SourceDependencyKey::Modules => {
                 let modules = self.repository.module_ids(self.revision)?;
-                let current = ModuleSetFingerprint::new(&modules);
 
-                Ok(&current == fingerprint)
+                SourceDependency::modules(&modules)
             }
-        }
+            SourceDependencyKey::ModulePath(file) => {
+                let module = self.repository.module_id_for_file(self.revision, file)?;
+
+                SourceDependency::module_path(file, module)
+            }
+        };
+
+        Ok(current == *dependency)
     }
 
     /// Return whether one module artifact belongs to a module removed from this revision.

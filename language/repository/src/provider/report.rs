@@ -2,9 +2,15 @@ use std::cmp::Reverse;
 use std::fmt::Write;
 
 use super::{
-    ArtifactAttemptSnapshot, TraceSnapshot, TraceSpanKind, TraceTimelineOptions,
+    ArtifactAttemptSnapshot, TraceSnapshot, TraceSpanKind, TraceTimeSnapshot, TraceTimelineOptions,
     render_trace_timeline, trace_artifact_color,
 };
+
+/// The timeline width of one single-trace page.
+const SINGLE_TIMELINE_WIDTH: usize = 110;
+
+/// The full width of one proportional report bar.
+const BAR_WIDTH: u64 = 24;
 
 /// A formatted report for one or more operation traces.
 #[derive(Debug, Default)]
@@ -71,6 +77,10 @@ impl TraceReport {
             return String::new();
         }
 
+        if let [row] = self.rows.as_slice() {
+            return self.render_single(row);
+        }
+
         let mut output = String::new();
         self.render_summary(&mut output);
         self.render_counters(&mut output);
@@ -83,6 +93,151 @@ impl TraceReport {
         }
         if self.slow_attempt_limit > 0 {
             self.render_slow_attempts(&mut output);
+        }
+
+        output
+    }
+
+    /// Render one trace as a single organized page.
+    fn render_single(&self, row: &TraceReportRow) -> String {
+        let mut output = String::new();
+        let stats = &row.trace.stats;
+
+        // one header line names the trace, one line summarizes outcomes
+        let title = paint(&format!("trace {}", row.name), "1;38;5;250", self.use_color);
+        let _ = write!(output, "\n{title}\n");
+        let _ = writeln!(
+            output,
+            "  wall {} ms  attempts {}  built {}  memory {}  store {}  parked {}  failed {}",
+            paint(&millis(row.trace.total_micros), "38;5;250", self.use_color),
+            row.trace.attempts.len(),
+            paint(
+                &stats.built.to_string(),
+                outcome_color("built"),
+                self.use_color
+            ),
+            stats.memory_cached,
+            stats.store_cached,
+            paint(
+                &stats.parked.to_string(),
+                outcome_color("parked"),
+                self.use_color
+            ),
+            paint(
+                &stats.failed.to_string(),
+                outcome_color("failed"),
+                self.use_color
+            ),
+        );
+
+        // draw the timeline when the trace has spans
+        if self.is_timeline_enabled && !row.trace.attempts.is_empty() && row.trace.total_micros > 0
+        {
+            let title = paint("timeline", "1;38;5;250", self.use_color);
+            let _ = write!(output, "\n{title}\n");
+            let options = TraceTimelineOptions::new()
+                .with_color(self.use_color)
+                .with_width(SINGLE_TIMELINE_WIDTH)
+                .with_parallelism(true);
+            output.push_str(&render_trace_timeline(&row.trace, options));
+        }
+
+        // render stage work totals largest first
+        let mut stages = row.trace.stages.clone();
+        stages.sort_unstable_by_key(|stage| Reverse(stage.micros));
+        let largest = stages.first().map_or(1, |stage| stage.micros);
+        let mut table = TextTable::new("stage work (sum across workers)", self.use_color);
+        for stage in &stages {
+            table = table.row(vec![
+                Cell::colored(&stage.name, stage_color(&stage.name)),
+                Cell::new(format!("{} ms", millis(stage.micros))),
+                Cell::left(bar(stage.micros, largest)),
+            ]);
+        }
+        table.render(&mut output);
+
+        // break span totals into parents and their nested children
+        if self.is_span_total_enabled {
+            let times = &row.trace.times;
+            let mut tops = times
+                .iter()
+                .filter(|time| !is_child_span(&time.name, times))
+                .collect::<Vec<_>>();
+            tops.sort_unstable_by_key(|time| Reverse(time.micros));
+            let largest = tops.first().map_or(1, |top| top.micros);
+
+            // nest breakdown children under their owning stage
+            let mut table = TextTable::new("span totals (sum across workers)", self.use_color);
+            for top in tops {
+                table = table.row(vec![
+                    Cell::colored(&top.name, time_color(&top.name)),
+                    Cell::new(format!("{} ms", millis(top.micros))),
+                    Cell::left(bar(top.micros, largest)),
+                ]);
+                let mut children = times
+                    .iter()
+                    .filter(|time| {
+                        time.name
+                            .rsplit_once('.')
+                            .is_some_and(|(parent, _)| parent == top.name)
+                    })
+                    .collect::<Vec<_>>();
+                children.sort_unstable_by_key(|time| Reverse(time.micros));
+                for child in children {
+                    table = table.row(vec![
+                        Cell::colored(format!("  {}", child.name), time_color(&child.name)),
+                        Cell::new(format!("{} ms", millis(child.micros))),
+                        Cell::left(bar(child.micros, largest)),
+                    ]);
+                }
+            }
+            table.render(&mut output);
+        }
+
+        // list the slowest attempts
+        if self.slow_attempt_limit > 0 {
+            let mut table = TextTable::new("slow attempts", self.use_color).row(vec![
+                Cell::bold("work ms"),
+                Cell::bold("latency"),
+                Cell::bold("stage"),
+                Cell::bold("artifact"),
+                Cell::bold("subject"),
+                Cell::bold("outcome"),
+                Cell::bold("work spans"),
+            ]);
+            let mut attempts = row.trace.attempts.iter().collect::<Vec<_>>();
+            attempts.sort_unstable_by_key(|attempt| Reverse(attempt.work_micros));
+            for attempt in attempts.into_iter().take(self.slow_attempt_limit) {
+                let subject = attempt.label.as_deref().unwrap_or_default();
+                let subject = subject.strip_prefix("destack://").unwrap_or(subject);
+                table = table.row(vec![
+                    Cell::colored(millis(attempt.work_micros), "38;5;250"),
+                    Cell::colored(millis(attempt.latency_micros), "38;5;245"),
+                    Cell::colored(&attempt.stage, stage_color(&attempt.stage)),
+                    Cell::colored(&attempt.name, trace_artifact_color(&attempt.name)),
+                    Cell::new(subject),
+                    Cell::colored(&attempt.outcome, outcome_color(&attempt.outcome)),
+                    Cell::new(render_attempt_work(attempt)),
+                ]);
+            }
+            if table.rows.len() > 1 {
+                table.render(&mut output);
+            }
+        }
+
+        // render counter totals largest first
+        let names = self.counter_names();
+        if !names.is_empty() {
+            let mut counters = names
+                .iter()
+                .map(|name| (name.clone(), counter_total(&row.trace, name)))
+                .collect::<Vec<_>>();
+            counters.sort_unstable_by_key(|(_name, value)| Reverse(*value));
+            let mut table = TextTable::new("counters", self.use_color);
+            for (name, value) in counters {
+                table = table.row(vec![Cell::new(name), Cell::new(value.to_string())]);
+            }
+            table.render(&mut output);
         }
 
         output
@@ -146,22 +301,7 @@ impl TraceReport {
         for row in &self.rows {
             let mut cells = vec![Cell::new(&row.name)];
             for name in &names {
-                let trace_value = row
-                    .trace
-                    .counters
-                    .iter()
-                    .filter(|counter| counter.name == *name)
-                    .map(|counter| counter.value)
-                    .sum::<u64>();
-                let attempt_value = row
-                    .trace
-                    .attempts
-                    .iter()
-                    .flat_map(|attempt| &attempt.counters)
-                    .filter(|counter| counter.name == *name)
-                    .map(|counter| counter.value)
-                    .sum::<u64>();
-                cells.push(Cell::new((trace_value + attempt_value).to_string()));
+                cells.push(Cell::new(counter_total(&row.trace, name).to_string()));
             }
             table = table.row(cells);
         }
@@ -330,6 +470,39 @@ impl TraceReport {
     }
 }
 
+/// Render one proportional bar against the largest value.
+fn bar(value: u64, largest: u64) -> String {
+    let width = (value * BAR_WIDTH / largest.max(1)) as usize;
+    let width = if value > 0 { width.max(1) } else { width };
+
+    "\u{2588}".repeat(width)
+}
+
+/// Return whether one span name nests under another recorded span.
+fn is_child_span(name: &str, times: &[TraceTimeSnapshot]) -> bool {
+    name.rsplit_once('.')
+        .is_some_and(|(parent, _)| times.iter().any(|time| time.name == parent))
+}
+
+/// Sum one named counter across a trace and its attempts.
+fn counter_total(trace: &TraceSnapshot, name: &str) -> u64 {
+    let trace_value = trace
+        .counters
+        .iter()
+        .filter(|counter| counter.name == name)
+        .map(|counter| counter.value)
+        .sum::<u64>();
+    let attempt_value = trace
+        .attempts
+        .iter()
+        .flat_map(|attempt| &attempt.counters)
+        .filter(|counter| counter.name == name)
+        .map(|counter| counter.value)
+        .sum::<u64>();
+
+    trace_value + attempt_value
+}
+
 /// Render the largest work spans in one artifact attempt.
 fn render_attempt_work(attempt: &ArtifactAttemptSnapshot) -> String {
     let mut spans = attempt
@@ -397,10 +570,13 @@ impl TextTable {
             let line = row
                 .iter()
                 .enumerate()
-                .map(|(index, cell)| cell.render(widths[index], index == 0, self.use_color))
+                .map(|(index, cell)| {
+                    let is_left_aligned = index == 0 || cell.is_left_aligned;
+                    cell.render(widths[index], is_left_aligned, self.use_color)
+                })
                 .collect::<Vec<_>>()
                 .join("  ");
-            let _ = writeln!(output, "{line}");
+            let _ = writeln!(output, "{}", line.trim_end());
         }
     }
 
@@ -427,6 +603,8 @@ struct Cell {
     color: Option<&'static str>,
     /// Whether the cell is bold.
     is_bold: bool,
+    /// Whether this cell aligns left within its column.
+    is_left_aligned: bool,
 }
 
 impl Cell {
@@ -436,6 +614,17 @@ impl Cell {
             text: text.into(),
             color: None,
             is_bold: false,
+            is_left_aligned: false,
+        }
+    }
+
+    /// Create one left-aligned cell.
+    fn left(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            color: None,
+            is_bold: false,
+            is_left_aligned: true,
         }
     }
 
@@ -445,6 +634,7 @@ impl Cell {
             text: text.into(),
             color: None,
             is_bold: true,
+            is_left_aligned: false,
         }
     }
 
@@ -454,6 +644,7 @@ impl Cell {
             text: text.into(),
             color: Some(color),
             is_bold: false,
+            is_left_aligned: false,
         }
     }
 
@@ -536,14 +727,15 @@ fn stage_color(stage: &str) -> &'static str {
 
 /// Return the ANSI color of one named span.
 fn time_color(time: &str) -> &'static str {
-    match time {
-        "enqueue" | "scheduler" | "cleanup" => "38;5;245",
-        "execute" | "query" => "38;5;250",
-        "collect" | "dependencies" | "version" | "base" => "38;5;229",
-        "terminal" | "memory_cache" | "store_cache" | "bind" => "38;5;80",
-        "provider" => "38;5;114",
-        "complete" | "publish" | "store" => "38;5;147",
-        "modules" | "edges" | "scc" | "condensation" => "38;5;147",
+    // color by the root stage so children inherit their parent
+    let root = time.split_once('.').map_or(time, |(root, _)| root);
+
+    match root {
+        "park" | "run" => "38;5;245",
+        "resolve" | "select" | "collect" | "assemble" => "38;5;229",
+        "reuse" | "load" => "38;5;80",
+        "provide" => "38;5;114",
+        "commit" => "38;5;147",
         _ => "38;5;250",
     }
 }

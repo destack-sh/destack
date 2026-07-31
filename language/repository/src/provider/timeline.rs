@@ -121,7 +121,7 @@ fn render_parallelism(trace: &TraceSnapshot, use_color: bool) -> String {
         concat!(
             "\n{}\n",
             "  wall {:>9}  total work {:>9}  span {:>9}  lower bound {:>9}\n",
-            "  artifact work {:>9}  parked work {:>9}  scheduler work {:>9} ({:>4.1}% of parked)\n",
+            "  artifact work {:>9}  parked work {:>9}  park work {:>9} ({:>4.1}% of parked)\n",
             "  concurrency {:>6.2}×  DAG parallelism {:>6.2}×  utilization {:>6.1}%  bound gap {:>9}\n",
         ),
         bold("parallelism", use_color),
@@ -316,6 +316,15 @@ fn paint_timeline_run(
     }
 }
 
+/// Format one work total as a compact duration.
+fn compact_duration(micros: u64) -> String {
+    if micros >= 1_000_000 {
+        format!("{:.3}s", micros as f64 / 1_000_000.0)
+    } else {
+        format!("{}ms", micros / 1_000)
+    }
+}
+
 /// Render the timeline legend.
 fn timeline_legend(kinds: &[TimelineKind], use_color: bool) -> String {
     if !use_color {
@@ -328,14 +337,15 @@ fn timeline_legend(kinds: &[TimelineKind], use_color: bool) -> String {
         .into_iter()
         .map(|kind| {
             let block = paint("█", trace_artifact_color(&kind.name), use_color);
+            let work = dim(&compact_duration(kind.micros), use_color);
 
-            format!("{block} {}", kind.name)
+            format!("{block} {} {work}", kind.name)
         })
         .collect::<Vec<_>>();
     let mut output = String::new();
 
     // print compact legend rows
-    for line in entries.chunks(4) {
+    for line in entries.chunks(3) {
         output.push_str(&format!("          {}\n", line.join("  ")));
     }
 

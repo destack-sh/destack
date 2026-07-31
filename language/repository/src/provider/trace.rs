@@ -93,6 +93,8 @@ pub struct ArtifactAttempt {
 /// Trace of one public toolchain operation.
 #[derive(Debug)]
 pub struct Trace {
+    /// Whether this trace records anything.
+    is_enabled: bool,
     /// The clock used for timing samples.
     clock: Clock,
     /// The executor workers available to this operation.
@@ -110,12 +112,13 @@ pub struct Trace {
 }
 
 impl Trace {
-    /// Create an empty trace starting now.
-    pub fn new(clock: Clock, workers: usize) -> Arc<Self> {
+    /// Create an empty trace starting now, recording only when enabled.
+    pub fn new(clock: Clock, workers: usize, is_enabled: bool) -> Arc<Self> {
         Arc::new(Self {
+            is_enabled,
             clock,
             workers,
-            epoch: clock.now(),
+            epoch: is_enabled.then(|| clock.now()).flatten(),
             spans: Mutex::new(Vec::new()),
             counters: Mutex::new(Vec::new()),
             attempts: Mutex::new(Vec::new()),
@@ -123,8 +126,17 @@ impl Trace {
         })
     }
 
+    /// Return whether this trace records anything.
+    pub fn is_enabled(&self) -> bool {
+        self.is_enabled
+    }
+
     /// Record one timed operation-level span around a closure.
     pub fn span<T>(&self, name: &'static str, work: impl FnOnce() -> T) -> T {
+        if !self.is_enabled {
+            return work();
+        }
+
         let started = self.clock.now();
         let value = work();
         self.record_span(name, started, TraceSpanKind::Breakdown);
@@ -134,6 +146,10 @@ impl Trace {
 
     /// Add to one operation-level counter.
     pub fn add_counter(&self, name: &'static str, value: u64) {
+        if !self.is_enabled {
+            return;
+        }
+
         let mut counters = self.counters.lock();
         if let Some(counter) = counters.iter_mut().find(|counter| counter.name == name) {
             counter.value += value;
@@ -154,7 +170,13 @@ impl Trace {
 
     /// Begin recording one artifact attempt on one worker.
     pub fn begin(self: &Arc<Self>, key: ArtifactKey, worker: usize) -> ArtifactAttemptRecorder {
-        ArtifactAttemptRecorder::new(Arc::clone(self), key, worker, self.clock.now())
+        let started = if self.is_enabled {
+            self.clock.now()
+        } else {
+            None
+        };
+
+        ArtifactAttemptRecorder::new(Arc::clone(self), key, worker, started)
     }
 
     /// Return the recorded artifact attempts.
@@ -617,7 +639,7 @@ fn parallelism<E>(
     let scheduler_micros = attempts
         .iter()
         .flat_map(|attempt| &attempt.spans)
-        .filter(|span| span.kind == TraceSpanKind::Work && span.name == "scheduler")
+        .filter(|span| span.kind == TraceSpanKind::Work && span.name == "park")
         .map(|span| span.duration.as_micros() as u64)
         .sum();
 
@@ -891,9 +913,9 @@ mod tests {
         dependencies: Option<Vec<ArtifactKey>>,
     ) -> ArtifactAttempt {
         let name = if outcome == ArtifactAttemptOutcome::Parked {
-            "scheduler"
+            "park"
         } else {
-            "provider"
+            "provide"
         };
         let duration = Duration::from_micros(work_micros);
 

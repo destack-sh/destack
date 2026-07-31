@@ -1,8 +1,11 @@
 use std::collections::hash_map::Entry;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
+use destack_artifact::SourceDependency;
+use destack_source::{
+    CODE_FILE_TYPES, FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri,
+};
 use im::OrdMap;
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
@@ -29,6 +32,38 @@ struct ModuleFileCandidate {
     package_id: PackageId,
     /// The owning package root.
     package_root: Option<PathBuf>,
+}
+
+/// Resolution of one module path against the repository module set.
+#[derive(Debug)]
+pub struct ModulePathResolution {
+    /// The candidate paths inspected.
+    pub candidates: usize,
+    /// The probes recorded against each candidate path.
+    pub probes: Vec<SourceDependency>,
+    /// The resolution outcome.
+    pub outcome: ModulePathOutcome,
+}
+
+/// Outcome of one module path resolution.
+#[derive(Debug)]
+pub enum ModulePathOutcome {
+    /// The path escapes the logical workspace root.
+    Unsupported,
+    /// No candidate path names a module.
+    Missing,
+    /// Exactly one candidate path names a module.
+    Resolved {
+        /// The exact path that selected the module.
+        path: PathBuf,
+        /// The selected module.
+        module: ModuleId,
+    },
+    /// Multiple candidate paths name modules.
+    Ambiguous {
+        /// The matching paths and modules.
+        matches: Vec<(PathBuf, ModuleId)>,
+    },
 }
 
 impl Repository {
@@ -415,6 +450,51 @@ impl Repository {
 
         Ok(modules.module_id_for_uri(uri))
     }
+
+    /// Resolve one module path, recording every candidate probe.
+    pub fn resolve_module_path(
+        &self,
+        revision: Revision,
+        path: &Path,
+        loader: Option<Loader>,
+    ) -> Result<ModulePathResolution, RepositoryError> {
+        let Some(path) = normalize_workspace_path(path.to_path_buf()) else {
+            return Ok(ModulePathResolution {
+                candidates: 0,
+                probes: Vec::new(),
+                outcome: ModulePathOutcome::Unsupported,
+            });
+        };
+        let paths = module_candidate_paths(path, loader);
+        let candidates = paths.len();
+        let mut probes = Vec::with_capacity(candidates);
+        let mut matches = Vec::new();
+
+        // resolve and record every candidate through the repository module set
+        for path in paths {
+            let module = self.module_id_for_path(revision, &path)?;
+            probes.push(SourceDependency::module_path(self.file_id(&path), module));
+            if let Some(module) = module {
+                matches.push((path, module));
+            }
+        }
+
+        let outcome = match matches.len() {
+            0 => ModulePathOutcome::Missing,
+            1 => {
+                let (path, module) = matches.remove(0);
+
+                ModulePathOutcome::Resolved { path, module }
+            }
+            _ => ModulePathOutcome::Ambiguous { matches },
+        };
+
+        Ok(ModulePathResolution {
+            candidates,
+            probes,
+            outcome,
+        })
+    }
 }
 
 /// One condition alias used by a physical module file.
@@ -439,6 +519,47 @@ impl Ord for ConditionFileAlias {
         self.rank
             .cmp(&other.rank)
             .then_with(|| self.name.cmp(&other.name))
+    }
+}
+
+/// Normalize one workspace logical path.
+pub fn normalize_workspace_path(path: PathBuf) -> Option<PathBuf> {
+    let mut normalized = PathBuf::new();
+
+    // fold lexical path components
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !normalized.pop() {
+                    return None;
+                }
+            }
+            Component::Normal(component) => normalized.push(component),
+            Component::RootDir | Component::Prefix(_) => {}
+        }
+    }
+
+    Some(normalized)
+}
+
+/// Return candidate module paths in deterministic order.
+fn module_candidate_paths(path: PathBuf, loader: Option<Loader>) -> Vec<PathBuf> {
+    // retain an explicit extension
+    if path.extension().is_some() {
+        vec![path]
+    }
+    // apply an explicit loader extension
+    else if let Some(extension) = loader.and_then(Loader::extension) {
+        vec![path.with_extension(extension)]
+    }
+    // try each source extension
+    else {
+        CODE_FILE_TYPES
+            .iter()
+            .filter_map(FileType::extension)
+            .map(|extension| path.with_extension(extension))
+            .collect()
     }
 }
 

@@ -88,6 +88,9 @@ pub trait ProviderContext: DiagnosticContext {
         }
     }
 
+    /// Record one dependency read during provider execution.
+    fn observe(&self, _dependency: ArtifactDependency) {}
+
     /// Add an already-final diagnostic collection produced by this attempt.
     fn emit_diagnostics(&self, diagnostics: DiagnosticCollection);
 

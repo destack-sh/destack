@@ -2,12 +2,15 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::{
+    ConditionSet, ExportPattern, ExportTarget, PackageDependency, PackageExports, PackageNode,
+};
 use destack_core::{TreapRoot, stable_hash_value_128};
 use destack_source::{FileId, PackageId, TargetId, Uri, matches as glob_matches};
 use im::OrdMap;
 use indexmap::IndexMap;
 
-use crate::config::{ConditionGate, Dependency, Export};
+use crate::config::{ConditionGate, Dependency, Export, ExportKind};
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{DestackFile, Package, PackageDependencies, PackageExport, PackageIndex, PackageKind};
 
@@ -610,6 +613,69 @@ impl Repository {
 
         glob_matches(pattern.as_bytes(), 0, relative_root.as_bytes(), 0)
             || glob_matches(pattern.as_bytes(), 0, config_path.as_bytes(), 0)
+    }
+
+    /// Build the active import-resolution node of one package.
+    pub fn package_node(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+        conditions: &ConditionSet,
+    ) -> Result<Option<PackageNode>, RepositoryError> {
+        let Some(package) = self.package(revision, package_id)? else {
+            return Ok(None);
+        };
+
+        // resolve active package dependency declarations
+        let mut dependencies = IndexMap::new();
+        for (name, dependency) in package.dependencies_for_conditions(conditions) {
+            let target = self.dependency_package(revision, &package, &name, &dependency)?;
+            let dependency = match target {
+                Some(package) => PackageDependency::Resolved(package.id),
+                None => PackageDependency::Unavailable,
+            };
+            dependencies.insert(name, dependency);
+        }
+
+        // index active exports by kind
+        let mut exact = IndexMap::new();
+        let mut patterns = Vec::new();
+        for (key, export) in &package.exports {
+            if !export.matches(conditions) {
+                continue;
+            }
+            let target = ExportTarget {
+                path: export.path.clone(),
+                is_module: export.kind == ExportKind::Module,
+            };
+            // index wildcard exports separately
+            if let Some((prefix, suffix)) = key.split_once('*') {
+                patterns.push(ExportPattern {
+                    prefix: prefix.to_string(),
+                    suffix: suffix.to_string(),
+                    target,
+                });
+            }
+            // index exact exports directly
+            else {
+                exact.insert(key.clone(), target);
+            }
+        }
+
+        // prefer the most specific pattern before generic catchalls
+        patterns.sort_by(|left, right| {
+            right
+                .prefix
+                .len()
+                .cmp(&left.prefix.len())
+                .then_with(|| right.suffix.len().cmp(&left.suffix.len()))
+        });
+
+        Ok(Some(PackageNode {
+            root: package.path.clone(),
+            dependencies,
+            exports: PackageExports { exact, patterns },
+        }))
     }
 }
 

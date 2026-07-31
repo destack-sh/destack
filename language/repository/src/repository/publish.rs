@@ -71,7 +71,8 @@ impl Repository {
         I: IntoIterator<Item = Edit>,
     {
         let base_revision = self.revision(base_revision_id)?;
-        let (files, mut delta) = self.apply_edits(base_revision.files(), edits)?;
+        let (files, mut delta) =
+            self.apply_edits(base_revision_id, base_revision.files(), edits)?;
         if delta.is_discovery_changed() {
             let packages = self.package_ids(base_revision_id)?;
             let modules = self.module_ids(base_revision_id)?;
@@ -140,9 +141,23 @@ impl Repository {
         }
     }
 
+    /// Record the previous module resolution of one probed path.
+    fn observe_module_path(
+        &self,
+        revision: Revision,
+        file: FileId,
+        changed_sources: &mut Vec<SourceDependency>,
+    ) -> Result<(), RepositoryError> {
+        let module = self.module_id_for_file(revision, file)?;
+        changed_sources.push(SourceDependency::module_path(file, module));
+
+        Ok(())
+    }
+
     /// Apply edits to one file bindings.
     fn apply_edits<I>(
         &self,
+        base_revision: Revision,
         mut files: TreapRoot,
         edits: I,
     ) -> Result<(TreapRoot, SourceDelta), RepositoryError>
@@ -166,6 +181,7 @@ impl Repository {
                     }
 
                     is_discovery_changed = true;
+                    self.observe_module_path(base_revision, file_id, &mut changed_sources)?;
 
                     let logical_path = self.intern_logical_path(logical_path);
                     let content = self.intern_content(content)?;
@@ -187,6 +203,9 @@ impl Repository {
                     let is_existing = previous.is_some();
                     let is_package_config = logical_path.rsplit('/').next() == Some("destack.json");
                     is_discovery_changed |= !is_existing || is_package_config;
+                    if !is_existing {
+                        self.observe_module_path(base_revision, file_id, &mut changed_sources)?;
+                    }
                     if let Some(previous) = previous {
                         changed_sources
                             .push(SourceDependency::file_content(file_id, previous.content_id));
@@ -213,6 +232,7 @@ impl Repository {
                     is_discovery_changed = true;
                     changed_sources
                         .push(SourceDependency::file_content(file_id, previous.content_id));
+                    self.observe_module_path(base_revision, file_id, &mut changed_sources)?;
 
                     files = self.files.entries.remove(files, &file_id);
                 }
@@ -242,6 +262,8 @@ impl Repository {
                         from_file_id,
                         from_file.content_id,
                     ));
+                    self.observe_module_path(base_revision, from_file_id, &mut changed_sources)?;
+                    self.observe_module_path(base_revision, to_file_id, &mut changed_sources)?;
 
                     files = self.files.entries.remove(files, &from_file_id);
                     let to = self.intern_logical_path(to);

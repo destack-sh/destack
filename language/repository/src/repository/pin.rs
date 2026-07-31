@@ -404,11 +404,10 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
-        let version = ArtifactVersion::new(key, repository.host().build_id(), []);
         repository
             .complete_artifact(
                 revision,
-                version,
+                key,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),
@@ -421,6 +420,7 @@ mod tests {
             .expect("artifact store should flush");
 
         let repository = test_repository(&root);
+        let version = repository.artifact_identity(key, &[]);
         let loaded = repository
             .load_artifact(version)
             .expect("artifact should load from store")
@@ -458,13 +458,13 @@ mod tests {
             },
             globals: vec![module],
             global_targets_by_key: IndexMap::new(),
+            tree: None,
         };
         let key = ArtifactKey::global_environment(profile);
-        let version = ArtifactVersion::new(key, repository.host().build_id(), []);
         repository
             .complete_artifact(
                 revision,
-                version,
+                key,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),
@@ -477,6 +477,7 @@ mod tests {
             .expect("artifact store should flush");
 
         let repository = test_repository(&root);
+        let version = repository.artifact_identity(key, &[]);
         let loaded = repository
             .load_artifact(version)
             .expect("artifact should load from store")
@@ -618,7 +619,7 @@ mod tests {
         repository
             .complete_artifact(
                 first_revision,
-                first_version,
+                key,
                 output.clone().into(),
                 first_dependencies,
                 DiagnosticCollection::new(),
@@ -653,7 +654,7 @@ mod tests {
         repository
             .complete_artifact(
                 second_revision,
-                second_version,
+                key,
                 output.clone().into(),
                 second_dependencies,
                 DiagnosticCollection::new(),
@@ -725,7 +726,7 @@ mod tests {
         repository
             .complete_artifact(
                 third_revision,
-                third_version,
+                key,
                 output.into(),
                 third_dependencies,
                 DiagnosticCollection::new(),
@@ -806,7 +807,7 @@ mod tests {
         repository
             .complete_artifact(
                 first_revision,
-                first_owner,
+                owner_key,
                 owner.clone().into(),
                 first_owner_dependencies,
                 DiagnosticCollection::new(),
@@ -831,7 +832,7 @@ mod tests {
         repository
             .complete_artifact(
                 first_revision,
-                dependent,
+                dependent_key,
                 GlobalEnvironment::default().into(),
                 vec![first_dependency],
                 DiagnosticCollection::new(),
@@ -862,7 +863,7 @@ mod tests {
         repository
             .complete_artifact(
                 second_revision,
-                second_owner,
+                owner_key,
                 owner.into(),
                 second_owner_dependencies,
                 DiagnosticCollection::new(),
@@ -938,11 +939,10 @@ mod tests {
             )],
         );
         let key = ArtifactKey::bundle(package, target);
-        let version = ArtifactVersion::new(key, repository.host().build_id(), []);
         repository
             .complete_artifact(
                 revision,
-                version,
+                key,
                 output.into(),
                 Vec::new(),
                 DiagnosticCollection::new(),

@@ -14,6 +14,8 @@ use super::{
 pub struct ArtifactAttemptRecorder {
     /// The owning trace.
     trace: Arc<Trace>,
+    /// Whether the owning trace records this attempt.
+    is_enabled: bool,
     /// The artifact key being attempted.
     key: ArtifactKey,
     /// The worker executing the attempt.
@@ -37,6 +39,7 @@ impl ArtifactAttemptRecorder {
         started: Option<Moment>,
     ) -> Self {
         Self {
+            is_enabled: trace.is_enabled(),
             trace,
             key,
             worker,
@@ -49,21 +52,23 @@ impl ArtifactAttemptRecorder {
 
     /// Record one timed span around a closure.
     pub fn span<T>(&self, name: &'static str, work: impl FnOnce() -> T) -> T {
-        let started = self.trace.now();
-        let value = work();
-        let span = self.trace.span_from(name, started, TraceSpanKind::Work);
-        self.spans.lock().push(span);
-
-        value
+        self.timed(name, TraceSpanKind::Work, work)
     }
 
     /// Record one timed breakdown around a closure.
     pub fn breakdown<T>(&self, name: &'static str, work: impl FnOnce() -> T) -> T {
+        self.timed(name, TraceSpanKind::Breakdown, work)
+    }
+
+    /// Record one timed span of one kind around a closure.
+    fn timed<T>(&self, name: &'static str, kind: TraceSpanKind, work: impl FnOnce() -> T) -> T {
+        if !self.is_enabled {
+            return work();
+        }
+
         let started = self.trace.now();
         let value = work();
-        let span = self
-            .trace
-            .span_from(name, started, TraceSpanKind::Breakdown);
+        let span = self.trace.span_from(name, started, kind);
         self.spans.lock().push(span);
 
         value
@@ -71,6 +76,10 @@ impl ArtifactAttemptRecorder {
 
     /// Record one interior span that started at one clock reading.
     pub fn record_span(&self, name: &'static str, started: Option<Moment>) {
+        if !self.is_enabled {
+            return;
+        }
+
         let span = self
             .trace
             .span_from(name, started, TraceSpanKind::Breakdown);
@@ -80,17 +89,53 @@ impl ArtifactAttemptRecorder {
 
     /// Record one named counter.
     pub fn record_counter(&self, name: &'static str, value: u64) {
+        if !self.is_enabled {
+            return;
+        }
+
         self.counters.lock().push(TraceCounter { name, value });
     }
 
     /// Record several named counters together.
     pub fn record_counters<const N: usize>(&self, counters: [(&'static str, u64); N]) {
+        if !self.is_enabled {
+            return;
+        }
+
         let counters = counters.map(|(name, value)| TraceCounter { name, value });
         self.counters.lock().extend(counters);
     }
 
+    /// Record per-kind counters for this attempt's dependency reads.
+    pub fn record_reads(&self, reads: &[ArtifactDependency]) {
+        if !self.is_enabled {
+            return;
+        }
+
+        // count each dependency kind once
+        let sources = reads
+            .iter()
+            .filter(|read| matches!(read, ArtifactDependency::Source(_)))
+            .count();
+        let artifacts = reads
+            .iter()
+            .filter(|read| matches!(read, ArtifactDependency::Artifact(_)))
+            .count();
+        let projections = reads.len() - sources - artifacts;
+
+        self.record_counters([
+            ("reads.sources", sources as u64),
+            ("reads.artifacts", artifacts as u64),
+            ("reads.projections", projections as u64),
+        ]);
+    }
+
     /// Record the exact artifact dependencies resolved for this attempt.
     pub fn record_dependencies(&self, dependencies: &[ArtifactDependency]) {
+        if !self.is_enabled {
+            return;
+        }
+
         let mut dependencies = dependencies
             .iter()
             .filter_map(ArtifactDependency::artifact_key)
@@ -110,6 +155,10 @@ impl ArtifactAttemptRecorder {
 
     /// Finish this artifact attempt with its outcome.
     pub fn finish(&self, outcome: ArtifactAttemptOutcome) {
+        if !self.is_enabled {
+            return;
+        }
+
         let span = self.trace.span_from(
             self.key.display_name(),
             self.started,

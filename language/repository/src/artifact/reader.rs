@@ -3,19 +3,19 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection,
-    ArtifactProjectionFingerprint, ArtifactProjectionKey, ArtifactRequirement, ArtifactTable,
-    ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound, DirCheckedComponent,
-    DirCheckedModule, DirDeclaredComponent, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, ExternalReferenceComponents, GlobalEnvironment, IndexKind,
-    InferenceComponentIndex, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified,
-    ModuleIndex, ModuleLinted, Object, PackageGraph, Product, ProgramAnalysis, ProgramIndex,
-    ProgramLinted, Script,
+    ArtifactProjectionDependency, ArtifactProjectionFingerprint, ArtifactProjectionKey,
+    ArtifactRequirement, ArtifactTable, ArtifactVersion, Asset, Build, Bundle, ComponentGraph,
+    Data, DirBound, DirCheckedComponent, DirCheckedModule, DirDeclaredComponent, DirExpanded,
+    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, ExternalReferenceComponents,
+    GlobalEnvironment, IndexKind, InferenceComponentIndex, MirAnalyzed, MirElaborated, MirLowered,
+    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, Product, ProgramAnalysis,
+    ProgramIndex, ProgramLinted, Script,
 };
 use destack_program::Program;
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
 use rustc_hash::FxHashSet;
 
-use crate::provider::ProviderError;
+use crate::provider::{ProviderContext, ProviderError};
 use crate::repository::{Repository, Revision};
 
 /// Revision-bound read-only view over ready artifacts.
@@ -27,6 +27,8 @@ pub struct ArtifactReader<'a> {
     revision: Revision,
     /// Frozen provider dependencies when reads are restricted.
     dependencies: Option<&'a [ArtifactDependency]>,
+    /// The provider context recording execution-time reads.
+    context: Option<&'a dyn ProviderContext>,
 }
 
 /// Projection-checked read-only view over one component graph.
@@ -55,12 +57,20 @@ impl<'a> ArtifactReader<'a> {
             repository,
             revision,
             dependencies: None,
+            context: None,
         }
     }
 
     /// Restrict provider reads to one frozen dependency set.
     pub fn restrict(mut self, dependencies: &'a [ArtifactDependency]) -> Self {
         self.dependencies = Some(dependencies);
+
+        self
+    }
+
+    /// Record reads beyond the frozen set into one provider context.
+    pub fn with_context(mut self, context: &'a dyn ProviderContext) -> Self {
+        self.context = Some(context);
 
         self
     }
@@ -74,8 +84,11 @@ impl<'a> ArtifactReader<'a> {
                     ArtifactDependency::Artifact(version) => Some(*version),
                     ArtifactDependency::Projection(_) | ArtifactDependency::Source(_) => None,
                 });
+            if let Some(version) = version {
+                return Ok(version);
+            }
 
-            return self.require_declared_version(artifact_key, version);
+            return self.tracked_version(artifact_key);
         }
 
         let version = self
@@ -86,6 +99,26 @@ impl<'a> ArtifactReader<'a> {
             })?;
 
         self.require_ready_version(artifact_key, version)
+    }
+
+    /// Resolve one read beyond the frozen set, recording the observation.
+    ///
+    /// A read the collect pass did not declare blocks until ready; the worker
+    /// parks the attempt on the missing artifact and re-runs the provider.
+    fn tracked_version(&self, artifact_key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
+        let Some(context) = self.context else {
+            return Err(self.undeclared_read(artifact_key));
+        };
+        let version = self
+            .repository
+            .artifact_version(self.revision, &artifact_key)
+            .map_err(|error| {
+                ProviderError::internal(format!("failed to resolve artifact version: {error}"))
+            })?;
+        let version = self.require_ready_version(artifact_key, version)?;
+        context.observe(ArtifactDependency::Artifact(version));
+
+        Ok(version)
     }
 
     /// Resolve one declared artifact projection to its exact owner version.
@@ -107,11 +140,44 @@ impl<'a> ArtifactReader<'a> {
                         ArtifactDependency::Artifact(_) | ArtifactDependency::Source(_) => None,
                     })
             });
+            if let Some(version) = version {
+                return Ok(version);
+            }
 
-            return self.require_declared_version(projection.artifact, version);
+            return self.tracked_projection_version(projection);
         }
 
         self.version(projection.artifact)
+    }
+
+    /// Resolve one projection read beyond the frozen set, recording the observation.
+    ///
+    /// A read the collect pass did not declare blocks until ready; the worker
+    /// parks the attempt on the missing artifact and re-runs the provider.
+    fn tracked_projection_version(
+        &self,
+        projection: ArtifactProjection,
+    ) -> Result<ArtifactVersion, ProviderError> {
+        let Some(context) = self.context else {
+            return Err(self.undeclared_read(projection.artifact));
+        };
+        let version = self
+            .repository
+            .artifact_version(self.revision, &projection.artifact)
+            .map_err(|error| {
+                ProviderError::internal(format!("failed to resolve artifact version: {error}"))
+            })?;
+        let version = self.require_ready_version(projection.artifact, version)?;
+        let fingerprint = self
+            .repository
+            .artifact_table()
+            .projection_fingerprint(&version, &projection)
+            .ok_or(ProviderError::Corrupt { version })?;
+        context.observe(ArtifactDependency::Projection(
+            ArtifactProjectionDependency::new(version, projection.key, fingerprint),
+        ));
+
+        Ok(version)
     }
 
     /// Read one declared artifact projection fingerprint.
@@ -142,8 +208,25 @@ impl<'a> ArtifactReader<'a> {
                     ArtifactDependency::Projection(_) | ArtifactDependency::Source(_) => None,
                 });
             let version = artifact.or_else(|| self.find_projection_owner(artifact_key));
+            if let Some(version) = version {
+                return Ok(version);
+            }
 
-            return self.require_declared_version(artifact_key, version);
+            // resolve the owner version live for recorded reads
+            if self.context.is_some() {
+                let version = self
+                    .repository
+                    .artifact_version(self.revision, &artifact_key)
+                    .map_err(|error| {
+                        ProviderError::internal(format!(
+                            "failed to resolve artifact version: {error}"
+                        ))
+                    })?;
+
+                return self.require_ready_version(artifact_key, version);
+            }
+
+            return Err(self.undeclared_read(artifact_key));
         }
 
         self.version(artifact_key)
@@ -167,19 +250,11 @@ impl<'a> ArtifactReader<'a> {
         }
     }
 
-    /// Require one artifact read to exist in the frozen dependency set.
-    fn require_declared_version(
-        &self,
-        artifact_key: ArtifactKey,
-        version: Option<ArtifactVersion>,
-    ) -> Result<ArtifactVersion, ProviderError> {
-        let Some(version) = version else {
-            return Err(ProviderError::internal(format!(
-                "provider read undeclared artifact {artifact_key:?}"
-            )));
-        };
-
-        Ok(version)
+    /// Return the error for one read outside the frozen dependency set.
+    fn undeclared_read(&self, artifact_key: ArtifactKey) -> ProviderError {
+        ProviderError::internal(format!(
+            "provider read undeclared artifact {artifact_key:?}"
+        ))
     }
 
     /// Find one exact declared artifact requirement.
@@ -247,14 +322,6 @@ impl<'a> ArtifactReader<'a> {
         self.read(
             ArtifactKey::global_environment(profile),
             ArtifactTable::global_environment,
-        )
-    }
-
-    /// Read one active package graph artifact.
-    pub fn package_graph(&self, profile: ProfileId) -> Result<Arc<PackageGraph>, ProviderError> {
-        self.read(
-            ArtifactKey::package_graph(profile),
-            ArtifactTable::package_graph,
         )
     }
 

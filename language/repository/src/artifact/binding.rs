@@ -1,9 +1,8 @@
 use std::collections::VecDeque;
 
 use destack_artifact::{ArtifactBindingId, ArtifactDependencyOwner, ArtifactId, ArtifactTable};
-use im::{HashMap, Vector};
-use parking_lot::RwLock;
-use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+use parking_lot::{RwLock, RwLockReadGuard};
+use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 
 use crate::{RepositoryError, SourceDelta};
@@ -79,6 +78,11 @@ impl ArtifactBindingTable {
         self.bindings.read().state(artifact)
     }
 
+    /// Return a read view shared across one resolution batch.
+    pub(crate) fn snapshot(&self) -> RwLockReadGuard<'_, ArtifactBindings> {
+        self.bindings.read()
+    }
+
     /// Return every retained artifact binding id.
     pub(crate) fn bindings(&self) -> Vec<ArtifactBindingId> {
         self.bindings
@@ -110,9 +114,11 @@ impl ArtifactBindingTable {
             }
         }
 
-        // publish current bindings and clear dependencies proven unchanged
+        // publish refreshed and reused bindings, clearing dependencies proven unchanged
         for (artifact, binding) in bindings {
-            if current.dirty.remove(artifact).is_none() {
+            let was_dirty = current.dirty.remove(artifact).is_some();
+            let was_absent = matches!(observations.get(artifact), Some(None));
+            if !was_dirty && !was_absent {
                 return Err(RepositoryError::InvalidArtifact {
                     message: format!("cannot refresh clean or missing artifact {artifact:?}"),
                 });
@@ -126,21 +132,18 @@ impl ArtifactBindingTable {
 
 /// Persistent bindings and sparse dirty dependency ordinals.
 #[derive(Debug, Clone, Default)]
-struct ArtifactBindings {
+pub(crate) struct ArtifactBindings {
     /// Immutable bindings by artifact.
-    values: Vector<Option<ArtifactBindingId>>,
+    values: Vec<Option<ArtifactBindingId>>,
     /// Dirty dependency ordinals for affected artifacts only.
-    dirty: HashMap<ArtifactId, SmallVec<[u32; 2]>, FxBuildHasher>,
+    dirty: FxHashMap<ArtifactId, SmallVec<[u32; 2]>>,
 }
 
 impl ArtifactBindings {
     /// Return one artifact binding state.
-    fn state(&self, artifact: ArtifactId) -> Option<ArtifactBindingState> {
+    pub(crate) fn state(&self, artifact: ArtifactId) -> Option<ArtifactBindingState> {
         let binding = self.binding(artifact)?;
-        let dirty_dependencies = match self.dirty.get(&artifact) {
-            Some(dependencies) => dependencies.clone(),
-            None => SmallVec::new(),
-        };
+        let dirty_dependencies = self.dirty.get(&artifact).cloned().unwrap_or_default();
 
         Some(ArtifactBindingState {
             binding,
@@ -162,10 +165,10 @@ impl ArtifactBindings {
     /// Select one artifact binding.
     fn set(&mut self, artifact: ArtifactId, binding: ArtifactBindingId) {
         let index = artifact.index();
-        while self.values.len() <= index {
-            self.values.push_back(None);
+        if self.values.len() <= index {
+            self.values.resize(index + 1, None);
         }
-        self.values.set(index, Some(binding));
+        self.values[index] = Some(binding);
     }
 
     /// Merge changed dependency ordinals into one artifact.

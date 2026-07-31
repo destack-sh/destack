@@ -1,0 +1,168 @@
+use std::sync::Arc;
+
+use destack_artifact::{ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactOutcome};
+
+use crate::provider::{
+    ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, ProviderError, ProviderResult,
+};
+use crate::repository::{Repository, Revision};
+use crate::{ArtifactResolution, DependencySetResolution};
+
+/// What one artifact attempt requires in one revision.
+#[derive(Debug)]
+pub enum ArtifactPlan {
+    /// The artifact is already terminal in this revision.
+    Done {
+        /// The terminal artifact outcome.
+        outcome: ArtifactOutcome,
+        /// The attempt outcome describing where the result came from.
+        attempt: ArtifactAttemptOutcome,
+    },
+    /// Declared dependencies must become terminal first.
+    Park {
+        /// The dependency keys that are not yet terminal.
+        frontier: Vec<ArtifactKey>,
+        /// The complete dependency set to resume with, when collection finished.
+        pending_set: Option<ArtifactDependencySet>,
+    },
+    /// The provider must run over the exact dependency set.
+    Build {
+        /// The predecessor binding feeding dirty dependency ordinals.
+        base: Option<Arc<ArtifactBase>>,
+        /// The exact dependencies feeding this artifact's version.
+        dependencies: Arc<[ArtifactDependency]>,
+        /// The first terminally failed dependency poisoning this build.
+        failed: Option<ArtifactKey>,
+    },
+}
+
+impl Repository {
+    /// Plan one artifact attempt in one revision.
+    pub fn plan_artifact(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+        pending_set: Option<ArtifactDependencySet>,
+        recorder: &ArtifactAttemptRecorder,
+        collect: &mut dyn FnMut(Option<Arc<ArtifactBase>>) -> ProviderResult<ArtifactDependencySet>,
+    ) -> ProviderResult<ArtifactPlan> {
+        // finish immediately when the revision already binds a terminal result
+        let resolution = recorder
+            .span("resolve", || self.resolve_artifact(revision, &key))
+            .map_err(|error| {
+                ProviderError::internal(format!("failed to resolve artifact {key:?}: {error}"))
+            })?;
+        match resolution {
+            ArtifactResolution::Terminal { outcome, .. } => {
+                let attempt = match outcome {
+                    ArtifactOutcome::Ok => ArtifactAttemptOutcome::MemoryCached,
+                    ArtifactOutcome::Failed(_) => ArtifactAttemptOutcome::Failed,
+                };
+
+                return Ok(ArtifactPlan::Done { outcome, attempt });
+            }
+            ArtifactResolution::Pending { frontier } => {
+                return Ok(ArtifactPlan::Park {
+                    frontier,
+                    pending_set: None,
+                });
+            }
+            ArtifactResolution::Stale => {}
+        }
+
+        // select the predecessor binding feeding dirty dependency ordinals
+        let base = recorder
+            .span("select", || self.artifact_base(revision, key))
+            .map_err(|error| {
+                ProviderError::internal(format!("failed to select artifact base {key:?}: {error}"))
+            })?;
+
+        // assemble a saved pending set or a freshly collected one
+        let mut set = match pending_set {
+            Some(pending_set) => pending_set,
+            None => recorder
+                .span("collect", || collect(base.clone()))
+                .map_err(|error| {
+                    ProviderError::internal(format!("failed to collect artifact {key:?}: {error}"))
+                })?,
+        };
+        let (dependencies, failed) = loop {
+            let resolution = recorder.span("assemble", || {
+                self.resolve_dependency_set(revision, set, base.as_deref(), recorder)
+            })?;
+
+            match resolution {
+                // collect again with the dependencies resolved so far
+                DependencySetResolution::Incomplete => {
+                    set = recorder
+                        .span("collect", || collect(base.clone()))
+                        .map_err(|error| {
+                            ProviderError::internal(format!(
+                                "failed to collect artifact {key:?}: {error}"
+                            ))
+                        })?;
+                }
+                DependencySetResolution::Pending {
+                    frontier,
+                    pending_set,
+                } => {
+                    return Ok(ArtifactPlan::Park {
+                        frontier,
+                        pending_set,
+                    });
+                }
+                DependencySetResolution::Resolved {
+                    dependencies,
+                    failed,
+                } => break (dependencies, failed),
+            }
+        };
+        let dependencies = Arc::<[ArtifactDependency]>::from(dependencies);
+        recorder.record_dependencies(&dependencies);
+
+        // surface a poisoned dependency without probing caches
+        if failed.is_some() {
+            return Ok(ArtifactPlan::Build {
+                base,
+                dependencies,
+                failed,
+            });
+        }
+
+        // bind a committed payload when the dependency set already produced it
+        let reused = recorder
+            .span("reuse", || {
+                self.bind_artifact_version(revision, key, Arc::clone(&dependencies))
+            })
+            .map_err(|error| {
+                ProviderError::internal(format!("failed to bind reused artifact {key:?}: {error}"))
+            })?;
+        if reused {
+            return Ok(ArtifactPlan::Done {
+                outcome: ArtifactOutcome::Ok,
+                attempt: ArtifactAttemptOutcome::MemoryCached,
+            });
+        }
+
+        // load and select a committed result before running the provider
+        let loaded = recorder
+            .span("load", || {
+                self.load_artifact_binding(revision, key, Arc::clone(&dependencies), Some(recorder))
+            })
+            .map_err(|error| {
+                ProviderError::internal(format!("failed to load cached artifact {key:?}: {error}"))
+            })?;
+        if loaded {
+            return Ok(ArtifactPlan::Done {
+                outcome: ArtifactOutcome::Ok,
+                attempt: ArtifactAttemptOutcome::StoreCached,
+            });
+        }
+
+        Ok(ArtifactPlan::Build {
+            base,
+            dependencies,
+            failed: None,
+        })
+    }
+}

@@ -96,6 +96,8 @@ pub enum RepositoryError {
     CircularArtifactBinding { key: ArtifactKey },
     /// Artifact state violates an internal invariant.
     InvalidArtifact { message: String },
+    /// Artifact resolution exhausted its commit attempts under contention.
+    ContendedResolution { detail: String },
     /// The requested file does not exist in the base revision.
     MissingFile { path: String },
     /// The requested file already exists in the base revision.
@@ -263,6 +265,9 @@ impl fmt::Display for RepositoryError {
             }
             Self::InvalidArtifact { message } => {
                 write!(formatter, "invalid repository artifact state: {message}")
+            }
+            Self::ContendedResolution { detail } => {
+                write!(formatter, "contended artifact resolution: {detail}")
             }
             Self::MissingFile { path } => {
                 write!(formatter, "missing file '{path}'")

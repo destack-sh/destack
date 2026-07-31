@@ -25,9 +25,13 @@ impl Repository {
         revision: Revision,
         artifact_key: &ArtifactKey,
     ) -> Result<Option<ArtifactVersion>, RepositoryError> {
-        let versions = self.artifact_versions(revision, std::slice::from_ref(artifact_key))?;
+        let resolution = self.resolve_artifact(revision, artifact_key)?;
+        let version = match resolution {
+            ArtifactResolution::Terminal { version, .. } => Some(version),
+            ArtifactResolution::Pending { .. } | ArtifactResolution::Stale => None,
+        };
 
-        Ok(versions.into_iter().next().flatten())
+        Ok(version)
     }
 
     /// Return the terminal outcome for one exact current revision binding.
@@ -77,12 +81,29 @@ impl Repository {
 
     /// Return the selected predecessor for one revision artifact.
     pub fn artifact_base(
-        self: &Arc<Self>,
+        &self,
         revision: Revision,
         artifact_key: ArtifactKey,
     ) -> Result<Option<Arc<ArtifactBase>>, RepositoryError> {
-        let Some(state) = self.artifact_binding_state(revision, artifact_key)? else {
-            return Ok(None);
+        // fall back to the newest recorded binding of the key: any predecessor
+        //  is a valid derivation base, providers verify against current inputs
+        let state = match self.artifact_binding_state(revision, artifact_key)? {
+            Some(state) => state,
+            None => {
+                let Some(artifact) = self.artifact_table().artifact_id(artifact_key) else {
+                    return Ok(None);
+                };
+                let Some(binding) = self.artifact_table().latest_artifact_binding(artifact) else {
+                    return Ok(None);
+                };
+                let recorded = self.require_artifact_binding(binding)?;
+
+                // mark every observation dirty under a foreign revision
+                ArtifactBindingState {
+                    binding,
+                    dirty_dependencies: (0..recorded.dependencies.len() as u32).collect(),
+                }
+            }
         };
         let binding = self.require_artifact_binding(state.binding)?;
         match self.artifact_table().outcome(&binding.version) {
@@ -111,13 +132,27 @@ impl Repository {
         Ok(Some(Arc::new(base)))
     }
 
+    /// Derive the identity of one complete artifact dependency set.
+    pub fn artifact_identity(
+        &self,
+        key: ArtifactKey,
+        dependencies: &[ArtifactDependency],
+    ) -> ArtifactVersion {
+        ArtifactVersion::new(key, self.build_fingerprint(), dependencies.iter().cloned())
+    }
+
     /// Bind one recorded artifact version to one revision when present.
+    ///
+    /// A hit proves the previous execution observed nothing beyond this set,
+    /// so a deterministic provider re-run would reproduce it exactly.
     pub fn bind_artifact_version(
         &self,
         revision: Revision,
-        version: ArtifactVersion,
+        key: ArtifactKey,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
     ) -> Result<bool, RepositoryError> {
+        let dependencies = dependencies.into();
+        let version = self.artifact_identity(key, &dependencies);
         if self.artifact_table().outcome(&version).is_none() {
             return Ok(false);
         }
@@ -149,17 +184,19 @@ impl Repository {
     pub fn load_artifact_binding(
         &self,
         revision: Revision,
-        version: ArtifactVersion,
+        key: ArtifactKey,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         recorder: Option<&ArtifactAttemptRecorder>,
     ) -> Result<bool, RepositoryError> {
+        let dependencies = dependencies.into();
+        let version = self.artifact_identity(key, &dependencies);
         let Some((record, payload)) = self.load_artifact_record(version)? else {
             return Ok(false);
         };
         let binding = self.publish_artifact_result(
             version,
             payload,
-            dependencies.into(),
+            dependencies,
             record.diagnostics,
             record.sidecars,
             recorder,
@@ -173,35 +210,35 @@ impl Repository {
     pub fn complete_artifact(
         &self,
         revision: Revision,
-        version: ArtifactVersion,
+        key: ArtifactKey,
         payload: ArtifactPayload,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
         recorder: Option<&ArtifactAttemptRecorder>,
     ) -> Result<(), RepositoryError> {
+        // derive the reusable identity of this dependency set
         let dependencies = dependencies.into();
+        let identity = || self.artifact_identity(key, &dependencies);
+        let version = match recorder {
+            Some(recorder) => recorder.breakdown("commit.identity", identity),
+            None => identity(),
+        };
 
         // publish the immutable result and binding
-        let publish = || {
-            self.publish_artifact_result(
-                version,
-                payload,
-                Arc::clone(&dependencies),
-                diagnostics,
-                sidecars,
-                recorder,
-            )
-        };
-        let binding_pin = match recorder {
-            Some(recorder) => recorder.breakdown("artifact publish", publish),
-            None => publish(),
-        }?;
+        let binding_pin = self.publish_artifact_result(
+            version,
+            payload,
+            Arc::clone(&dependencies),
+            diagnostics,
+            sidecars,
+            recorder,
+        )?;
 
         // select the published binding in this revision
         let bind = || self.bind_artifact(revision, binding_pin.binding());
         match recorder {
-            Some(recorder) => recorder.breakdown("revision bind", bind),
+            Some(recorder) => recorder.breakdown("commit.bind", bind),
             None => bind(),
         }?;
 
@@ -212,7 +249,7 @@ impl Repository {
                 .or_insert(dependencies);
         };
         match recorder {
-            Some(recorder) => recorder.breakdown("persistence queue", queue),
+            Some(recorder) => recorder.breakdown("commit.queue", queue),
             None => queue(),
         };
 
@@ -256,13 +293,14 @@ impl Repository {
     pub fn fail_artifact(
         &self,
         revision: Revision,
-        version: ArtifactVersion,
+        key: ArtifactKey,
         dependencies: impl Into<Arc<[ArtifactDependency]>>,
         diagnostics: DiagnosticCollection,
         sidecars: Vec<ArtifactSidecar>,
         failure: ArtifactFailure,
     ) -> Result<(), RepositoryError> {
         let dependencies = dependencies.into();
+        let version = self.artifact_identity(key, &dependencies);
 
         // store failure before exposing the revision binding
         let binding_pin = self
@@ -473,7 +511,7 @@ impl Repository {
     ) -> Result<ArtifactBindingPin, RepositoryError> {
         let load_contents = || self.load_artifact_contents(&payload);
         match recorder {
-            Some(recorder) => recorder.breakdown("content retain", load_contents),
+            Some(recorder) => recorder.breakdown("commit.retain", load_contents),
             None => load_contents(),
         }?;
 
@@ -485,7 +523,7 @@ impl Repository {
                 })
         };
         let binding = match recorder {
-            Some(recorder) => recorder.breakdown("table publish", publish),
+            Some(recorder) => recorder.breakdown("commit.publish", publish),
             None => publish(),
         }?;
 

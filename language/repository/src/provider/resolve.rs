@@ -39,7 +39,7 @@ impl Repository {
     ) -> ProviderResult<DependencySetResolution> {
         let artifact_requirements = set.requirements.len() as u64;
         let source_dependencies = set.sources.len() as u64;
-        recorder.breakdown("dependency order", || set.normalize());
+        recorder.breakdown("assemble.normalize", || set.normalize());
         let base = base.filter(|base| set.matches(&base.dependencies));
         let artifact_keys = set
             .requirements
@@ -52,11 +52,11 @@ impl Repository {
             .collect::<Vec<_>>();
         let resolved_requirements = artifact_keys.len() as u64;
         recorder.record_counters([
-            ("artifact requirements", artifact_requirements),
-            ("source dependencies", source_dependencies),
-            ("resolved requirements", resolved_requirements),
+            ("assemble.requirements", artifact_requirements),
+            ("assemble.sources", source_dependencies),
+            ("assemble.resolved", resolved_requirements),
         ]);
-        let resolutions = recorder.breakdown("dependency resolution", || {
+        let resolutions = recorder.breakdown("assemble.resolve", || {
             self.resolve_artifacts(revision, &artifact_keys)
                 .map_err(|error| ProviderError::internal(error.to_string()))
         })?;
@@ -64,7 +64,7 @@ impl Repository {
 
         // classify each declared artifact requirement
         let (dependencies, pending, failed) =
-            recorder.breakdown("dependency values", || -> ProviderResult<_> {
+            recorder.breakdown("assemble.classify", || -> ProviderResult<_> {
                 let capacity = set.requirements.len() + set.sources.len();
                 let mut dependencies = Vec::with_capacity(capacity);
                 let mut pending = Vec::new();
