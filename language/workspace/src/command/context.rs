@@ -112,7 +112,11 @@ impl<'a> CommandContext<'a> {
         self.trace.finish();
         let report = self.trace.snapshot(
             view,
-            |key| self.artifact_label(revision, *key),
+            |key| {
+                self.repository
+                    .artifact_display(revision, *key)
+                    .map_err(|error| CommandError::internal(error.to_string()))
+            },
             |target| {
                 self.repository
                     .target_display(revision, target)
@@ -148,79 +152,6 @@ impl<'a> CommandContext<'a> {
         self.session
             .complete_traced(revision, artifact_keys, self.trace.clone())
             .map_err(|error| error.to_string().into())
-    }
-
-    /// Return the display label of one traced artifact.
-    fn artifact_label(
-        &self,
-        revision: Revision,
-        key: ArtifactKey,
-    ) -> CommandResult<Option<String>> {
-        // label component artifacts through their first member
-        let component = match key {
-            ArtifactKey::DirDeclaredComponent { component, profile } => {
-                Some((component, profile, false))
-            }
-            ArtifactKey::DirCheckedComponent { component, profile } => {
-                Some((component, profile, true))
-            }
-            _ => None,
-        };
-        if let Some((component, profile, is_inference)) = component {
-            let graph_key = ArtifactKey::component_graph(profile);
-            let graph_version = self
-                .repository
-                .artifact_version(revision, &graph_key)
-                .map_err(|error| CommandError::internal(error.to_string()))?;
-            let Some(graph_version) = graph_version else {
-                return Err(CommandError::internal(format!(
-                    "component graph {graph_key:?} is missing"
-                )));
-            };
-            let graph = self
-                .repository
-                .artifact_table()
-                .component_graph(&graph_version)
-                .ok_or_else(|| {
-                    CommandError::internal(format!(
-                        "component graph payload missing for {graph_version:?}"
-                    ))
-                })?;
-            let members = if is_inference {
-                graph.inference_members(component)
-            } else {
-                graph.reference_members(component)
-            };
-            let Some(members) = members else {
-                return Err(CommandError::internal(format!(
-                    "component {component} is absent from its graph"
-                )));
-            };
-            let Some(module) = members.first() else {
-                return Err(CommandError::internal(format!(
-                    "component {component} has no modules"
-                )));
-            };
-            let display = self
-                .repository
-                .module_display(revision, *module)
-                .map_err(|error| CommandError::internal(error.to_string()))?
-                .ok_or_else(|| CommandError::internal(format!("module {module} is missing")))?;
-            if members.len() > 1 {
-                return Ok(Some(format!("{display} (+{} modules)", members.len() - 1)));
-            }
-
-            return Ok(Some(display));
-        }
-
-        // label module artifacts through the repository index
-        let Some(module) = key.module_id() else {
-            return Ok(None);
-        };
-
-        self.repository
-            .module_display(revision, module)
-            .map_err(|error| CommandError::internal(error.to_string()))
     }
 
     /// Return diagnostics emitted by the requested artifact roots.

@@ -196,12 +196,8 @@ impl QueryWorkspace {
         trace.snapshot(
             TraceView::Detailed,
             |key| {
-                let Some(module) = key.module_id() else {
-                    return Ok(None);
-                };
-
                 self.repository
-                    .module_display(revision, module)
+                    .artifact_display(revision, *key)
                     .map_err(|error| error.to_string())
             },
             |target| {

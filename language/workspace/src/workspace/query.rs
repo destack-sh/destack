@@ -166,6 +166,11 @@ impl std::fmt::Debug for QueryRun {
 }
 
 impl QueryRun {
+    /// Return the exact revision pinned by this query.
+    pub fn revision(&self) -> Revision {
+        self.session.revision()
+    }
+
     /// Return this query operation trace.
     pub fn trace(&self) -> Arc<Trace> {
         self.trace.clone()

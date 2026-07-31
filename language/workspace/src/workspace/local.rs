@@ -22,7 +22,7 @@ use dashmap::DashMap;
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
 };
-use destack_repository::{Ref, Repository, Revision};
+use destack_repository::{Ref, Repository, Revision, Trace, TraceSnapshot, TraceView};
 use destack_session::{SessionEvent, SessionEventHandler};
 use destack_source::{
     Content, ContentId, DiagnosticCollection, Edit, File, FileId, FileWatcher, OverlayFileSystem,
@@ -113,6 +113,28 @@ impl LocalWorkspace {
     /// Return opened roots as a stable path list.
     pub fn root_paths(&self) -> Vec<PathBuf> {
         self.roots.iter().map(|entry| entry.key().clone()).collect()
+    }
+
+    /// Snapshot one workspace operation trace with repository display names.
+    pub fn snapshot_trace(
+        &self,
+        revision: Revision,
+        trace: &Trace,
+        view: TraceView,
+    ) -> Result<TraceSnapshot, Error> {
+        trace.snapshot(
+            view,
+            |key| {
+                self.repository
+                    .artifact_display(revision, *key)
+                    .map_err(Error::from)
+            },
+            |target| {
+                self.repository
+                    .target_display(revision, target)
+                    .map_err(Error::from)
+            },
+        )
     }
 
     /// Allocate one private session ref for a command.
