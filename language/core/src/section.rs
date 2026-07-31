@@ -199,11 +199,9 @@ impl<T> EntryRange<T> {
     /// Return whether this range fits one sibling entry slice.
     #[inline]
     pub fn fits(self, entries: usize) -> bool {
-        let start = self.start as usize;
-
-        start
-            .checked_add(self.len())
-            .is_some_and(|end| end <= entries)
+        self.start
+            .checked_add(self.len)
+            .is_some_and(|end| end as usize <= entries)
     }
 
     /// Borrow this entry range from one entry slice.
