@@ -88,7 +88,7 @@ impl Object {
         loop {
             let ty = &self.ty(id)?.definition;
             match ty {
-                mir::Type::WithLifetimes { base, .. }
+                mir::Type::Application { base, .. }
                 | mir::Type::Uninit { value: base }
                 | mir::Type::Atomic { value: base }
                 | mir::Type::ManuallyDrop { value: base }

@@ -149,9 +149,7 @@ impl ArtifactPayload {
     pub(crate) fn decode(key: &ArtifactKey, bytes: &[u8]) -> Result<Self, ArtifactError> {
         if matches!(key, ArtifactKey::Program { .. }) {
             let storage = SectionStorage::from_bytes(bytes);
-
-            // SAFETY: Program records retain bytes produced by ProgramBuilder.
-            let program = unsafe { Program::load(storage) }?;
+            let program = Program::load(storage)?;
 
             return Ok(Self::Program(Arc::new(program)));
         }
@@ -334,7 +332,6 @@ impl ArtifactPayload {
             Self::Asset(payload) => payload.content_ids(),
             Self::Build(payload) => payload.content_ids(),
             Self::Bundle(payload) => payload.content_ids(),
-            Self::Program(payload) => payload.content_ids(),
             _ => Vec::new(),
         }
     }
