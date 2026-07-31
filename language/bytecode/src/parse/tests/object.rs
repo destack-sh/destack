@@ -1,6 +1,8 @@
-use destack_core::SectionStorage;
+use std::mem::{offset_of, size_of};
 
-use crate::{FunctionId, Object, Opcode, Scalar};
+use destack_core::{SectionImageError, SectionStorage};
+
+use crate::{Function, FunctionId, Object, ObjectLoadError, Opcode, Scalar};
 
 use super::TestParser;
 
@@ -32,4 +34,24 @@ function f0 {    constant.int32 r0, 42
         opcodes,
         vec![Opcode::constant(Scalar::Int32), Opcode::RETURN]
     );
+
+    // reject an invalid nested optional tag before constructing a Function reference
+    let function_offset =
+        object.functions().as_ptr().cast::<u8>() as usize - object.bytes().as_ptr() as usize;
+    let mut invalid_tag = object.bytes().to_vec();
+    invalid_tag[function_offset..function_offset + size_of::<u32>()]
+        .copy_from_slice(&2_u32.to_ne_bytes());
+    let error = Object::from_bytes(&invalid_tag).expect_err("reject invalid function tag");
+    assert_eq!(
+        error,
+        ObjectLoadError::Image(SectionImageError::InvalidEntry)
+    );
+
+    // reject a sibling range that escapes the operation column
+    let operations_offset = function_offset + offset_of!(Function, operations);
+    let mut invalid_range = object.bytes().to_vec();
+    invalid_range[operations_offset..operations_offset + size_of::<u32>()]
+        .copy_from_slice(&u32::MAX.to_ne_bytes());
+    let error = Object::from_bytes(&invalid_range).expect_err("reject invalid operation range");
+    assert_eq!(error, ObjectLoadError::InvalidRange);
 }

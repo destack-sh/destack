@@ -1,6 +1,8 @@
 use std::fmt;
 
-use destack_core::{SectionEntry, SectionImage, SectionSlice, SectionStorage};
+use destack_core::{
+    SectionEntry, SectionImage, SectionImageError, SectionLoader, SectionSlice, SectionStorage,
+};
 use destack_serde::Reflect;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -19,32 +21,36 @@ pub struct Object {
 /// Bytecode object load failure.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ObjectLoadError {
-    /// The byte region cannot contain an object header.
-    Truncated,
-    /// The byte region does not satisfy object alignment.
-    Misaligned,
+    /// The physical section image is malformed.
+    Image(SectionImageError),
     /// The byte region does not contain Destack bytecode.
     InvalidMagic,
     /// The header length does not match the byte region.
     InvalidLength,
-    /// One typed section lies outside the byte region or violates entry alignment.
-    InvalidSection,
+    /// One function or frame range is outside its containing section.
+    InvalidRange,
 }
 
 impl fmt::Display for ObjectLoadError {
     /// Format one bytecode object load failure.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Truncated => formatter.write_str("truncated bytecode object"),
-            Self::Misaligned => formatter.write_str("misaligned bytecode object"),
+            Self::Image(error) => write!(formatter, "invalid bytecode object image: {error}"),
             Self::InvalidMagic => formatter.write_str("invalid bytecode object magic"),
             Self::InvalidLength => formatter.write_str("invalid bytecode object length"),
-            Self::InvalidSection => formatter.write_str("invalid bytecode object section"),
+            Self::InvalidRange => formatter.write_str("invalid bytecode object range"),
         }
     }
 }
 
 impl std::error::Error for ObjectLoadError {}
+
+impl From<SectionImageError> for ObjectLoadError {
+    /// Convert one malformed physical section image.
+    fn from(error: SectionImageError) -> Self {
+        Self::Image(error)
+    }
+}
 
 /// Fixed header stored at byte zero of every bytecode object.
 #[repr(C, align(16))]
@@ -90,52 +96,40 @@ impl Header {
     }
 
     /// Load one bytecode object directly from aligned immutable bytes.
-    fn load(bytes: &[u8]) -> std::result::Result<&Self, ObjectLoadError> {
-        if bytes.len() < size_of::<Self>() {
-            return Err(ObjectLoadError::Truncated);
-        }
-        if bytes.as_ptr().align_offset(align_of::<Self>()) != 0 {
-            return Err(ObjectLoadError::Misaligned);
-        }
-
-        // SAFETY: the byte region is large and aligned enough for the fixed header.
-        let header = unsafe { &*bytes.as_ptr().cast::<Self>() };
+    fn load(storage: &SectionStorage) -> std::result::Result<&Self, ObjectLoadError> {
+        let loader = SectionLoader::new(storage)?;
+        let header = loader.header::<Self>()?;
         if header.magic != Self::MAGIC {
             return Err(ObjectLoadError::InvalidMagic);
         }
-        if usize::try_from(header.byte_len).ok() != Some(bytes.len()) {
+        if usize::try_from(header.byte_len).ok() != Some(loader.bytes().len()) {
             return Err(ObjectLoadError::InvalidLength);
         }
 
-        // require every typed section to fit the mapped image
-        header.check_section(header.functions)?;
-        header.check_section(header.frames)?;
-        header.check_section(header.registers)?;
-        header.check_section(header.operations)?;
-        header.check_section(header.relocations)?;
-        header.check_section(header.code)?;
+        // SAFETY: every absolute section reachable from the header was validated above.
+        let sections = unsafe { SectionImage::new(storage) };
+        let functions = sections.entries(header.functions);
+        let frames = sections.entries(header.frames);
+        let registers = sections.entries(header.registers);
+        let operations = sections.entries(header.operations);
+        let code = sections.entries(header.code);
 
-        Ok(header)
-    }
-
-    /// Require one typed section to fit this object image.
-    fn check_section<T: SectionEntry>(
-        &self,
-        section: SectionSlice<T>,
-    ) -> std::result::Result<(), ObjectLoadError> {
-        let byte_offset = section.byte_offset as usize;
-        let Some(byte_len) = section.len().checked_mul(size_of::<T>()) else {
-            return Err(ObjectLoadError::InvalidSection);
-        };
-        let Some(byte_end) = byte_offset.checked_add(byte_len) else {
-            return Err(ObjectLoadError::InvalidSection);
-        };
-        let is_aligned = byte_offset.is_multiple_of(align_of::<T>());
-        if byte_end > self.byte_len as usize || !is_aligned {
-            return Err(ObjectLoadError::InvalidSection);
+        // require every subordinate range used by infallible navigation
+        for function in functions {
+            if !function.operations.fits(operations.len()) {
+                return Err(ObjectLoadError::InvalidRange);
+            }
+            if function.code().is_some_and(|range| !range.fits(code.len())) {
+                return Err(ObjectLoadError::InvalidRange);
+            }
+        }
+        for frame in frames {
+            if !frame.registers.fits(registers.len()) {
+                return Err(ObjectLoadError::InvalidRange);
+            }
         }
 
-        Ok(())
+        Ok(header)
     }
 }
 
@@ -147,7 +141,7 @@ impl Object {
 
     /// Load one compiler-produced object from retained aligned storage.
     pub fn load(storage: SectionStorage) -> std::result::Result<Self, ObjectLoadError> {
-        Header::load(storage.bytes())?;
+        Header::load(&storage)?;
 
         Ok(Self::from_storage(storage))
     }
@@ -164,7 +158,8 @@ impl Object {
 
     /// Return a read-only image of this object's sections.
     pub fn sections(&self) -> SectionImage<'_> {
-        SectionImage::new(&self.storage)
+        // SAFETY: Object construction validates every directly accessible typed section.
+        unsafe { SectionImage::new(&self.storage) }
     }
 
     /// Return physical functions in object-local function order.

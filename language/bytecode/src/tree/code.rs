@@ -23,6 +23,27 @@ pub struct Code {
 }
 
 impl Code {
+    /// Return whether every function and frame range fits its sibling column.
+    pub fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+        let operations = self.operations(sections);
+        let bytes = self.bytes(sections);
+        let registers = self.registers(sections);
+
+        // check each function's operation and byte ranges
+        let functions_fit = self.functions(sections).iter().all(|function| {
+            function.operations.fits(operations.len())
+                && function.code().is_none_or(|code| code.fits(bytes.len()))
+        });
+        if !functions_fit {
+            return false;
+        }
+
+        // check each frame's retained register range
+        self.frames(sections)
+            .iter()
+            .all(|frame| frame.registers.fits(registers.len()))
+    }
+
     /// Return all linked bytecode functions.
     pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [Function] {
         sections.entries(self.functions)
@@ -221,6 +242,15 @@ pub struct CodeRange {
 }
 
 impl CodeRange {
+    /// Return whether this byte range fits its containing code section.
+    pub fn fits(self, byte_len: usize) -> bool {
+        let start = self.byte_offset as usize;
+
+        start
+            .checked_add(self.byte_len as usize)
+            .is_some_and(|end| end <= byte_len)
+    }
+
     /// Borrow this range from its containing code section.
     pub fn slice(self, bytes: &[u8]) -> &[u8] {
         let start = self.byte_offset as usize;
