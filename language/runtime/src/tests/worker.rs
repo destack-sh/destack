@@ -8,6 +8,7 @@ use destack_vm as vm;
 
 use crate::binding::BindingTable;
 use crate::diagnostic::RuntimeResult;
+use crate::heap::SharedCollectionState;
 use crate::host::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
     PollerToken,
@@ -18,11 +19,11 @@ use crate::host::{
 };
 use crate::machine::native::Code;
 use crate::machine::{Engine, Entry};
-use crate::runtime::SharedHeap;
-use crate::worker::scheduler::{
-    Callback, Invocation, Readiness, RunnableId, ScheduledTimer, TimerDeadline,
+use crate::scheduler::{
+    Callback, HostWake, Invocation, Readiness, ResourceWake, RunnableId, ScheduledTimer,
+    TimerDeadline, Wake,
 };
-use crate::worker::{Worker, WorkerRunOutcome};
+use crate::worker::{Request, Worker, WorkerRunOutcome};
 use crate::world::time::Nanos;
 use crate::world::{Entity, EntityKind, World};
 
@@ -33,8 +34,8 @@ pub(crate) struct TestWorker {
     world: World,
     /// The worker under test.
     worker: Worker,
-    /// Runtime-owned shared heap state used by the worker.
-    heap: Arc<SharedHeap>,
+    /// Shared collection state used by the worker.
+    collection: Arc<SharedCollectionState>,
     /// Immutable program constant space used by the worker.
     constant_space: program::StaticImage,
     /// Runtime-owned shared static bytes used by the worker.
@@ -78,13 +79,27 @@ impl TestWorker {
             World::new(options, Environment::default()).expect("runtime test world should build");
 
         // build program and runtime-owned storage
-        let shared = SharedHeap::new(
-            world.memory.clone(),
-            world.shared_collector.clone(),
-            options,
-            &program,
-        )
-        .expect("runtime shared heap should build");
+        let local_heap_options = options
+            .heap
+            .local_heap_options()
+            .expect("local heap options should resolve");
+        let shared_heap_options = options
+            .heap
+            .shared_heap_options()
+            .expect("shared heap options should resolve");
+        let shared_heap = Arc::new(
+            heap::SharedHeap::new(
+                world.memory.clone(),
+                options.heap.shared.limits(),
+                shared_heap_options,
+            )
+            .expect("runtime shared heap should build"),
+        );
+        let collection = SharedCollectionState::new(&world.collector);
+        let allocation_plans = program
+            .plan_allocations(&local_heap_options, shared_heap.options())
+            .expect("allocation plans should build")
+            .into();
         let constant_space = *program.constants();
         let shared_static = program
             .materialize_shared_statics(world.memory.clone())
@@ -116,7 +131,8 @@ impl TestWorker {
             Arc::new(options.clone()),
             Self::conditions(),
             &mut world.state,
-            &shared,
+            &shared_heap,
+            &allocation_plans,
             runtime_id,
             worker_id,
             Arc::new(bindings),
@@ -132,7 +148,7 @@ impl TestWorker {
 
         Self {
             world,
-            heap: shared,
+            collection,
             constant_space,
             shared_static,
             worker,
@@ -174,7 +190,7 @@ impl TestWorker {
 
         self.worker.run_entrypoint(
             &mut self.world.state,
-            &self.heap,
+            &self.collection,
             &mut self.shared_static,
             &self.constant_space,
             self.world.host.as_ref(),
@@ -247,26 +263,28 @@ impl TestWorker {
 
     /// Enqueue one synthetic I/O wake for dispatch tests.
     pub(crate) fn enqueue_io_event(&mut self, handle: u64, token: u64, data: u64) {
-        self.worker
-            .event_loop
-            .enqueue_poller_wakes(vec![PollerEvent {
-                resource_id: self.resource(handle),
-                source: PollerEventSource::Io,
-                mask: PollerEventMask::READABLE,
-                flags: PollerEventFlags::NONE,
-                token: PollerToken(token),
-                payload: PollerEventPayload::Io { data },
-            }]);
+        let wake = ResourceWake::poller(PollerEvent {
+            resource_id: self.resource(handle),
+            source: PollerEventSource::Io,
+            mask: PollerEventMask::READABLE,
+            flags: PollerEventFlags::NONE,
+            token: PollerToken(token),
+            payload: PollerEventPayload::Io { data },
+        });
+
+        self.worker.event_loop.enqueue_wake(Wake::Resource(wake));
     }
 
     /// Enqueue one synthetic lifecycle host wake for dispatch tests.
     pub(crate) fn enqueue_lifecycle_host_event(&mut self, state: LifecycleState) {
+        let event = HostEvent::Lifecycle(LifecycleEvent {
+            source_kind: LifecycleSourceKind::Application,
+            state,
+        });
+
         self.worker
             .event_loop
-            .enqueue_host_wakes(vec![HostEvent::Lifecycle(LifecycleEvent {
-                source_kind: LifecycleSourceKind::Application,
-                state,
-            })]);
+            .enqueue_wake(Wake::Host(HostWake::new(event)));
     }
 
     /// Run once and fail loudly on runtime errors.
@@ -280,7 +298,7 @@ impl TestWorker {
     pub(crate) fn run_task(&mut self) -> RuntimeResult<WorkerRunOutcome> {
         self.worker.run_task(
             &mut self.world.state,
-            &self.heap,
+            &self.collection,
             &mut self.shared_static,
             &self.constant_space,
             self.world.host.as_ref(),
@@ -288,11 +306,28 @@ impl TestWorker {
         )
     }
 
+    /// Continue one debugger-stopped runnable.
+    pub(crate) fn continue_stop(&mut self) -> RuntimeResult<WorkerRunOutcome> {
+        self.worker.continue_stop(
+            &mut self.world.state,
+            &self.collection,
+            &mut self.shared_static,
+            &self.constant_space,
+            self.world.host.as_ref(),
+            &self.world.host_queue,
+        )
+    }
+
+    /// Publish one process-local request to the wrapped worker.
+    pub(crate) fn request(&self, request: Request) {
+        self.worker.request(request);
+    }
+
     /// Run one queued microtask.
     pub(crate) fn run_microtask(&mut self) -> RuntimeResult<WorkerRunOutcome> {
         self.worker.run_microtask(
             &mut self.world.state,
-            &self.heap,
+            &self.collection,
             &mut self.shared_static,
             &self.constant_space,
             self.world.host.as_ref(),
@@ -335,11 +370,11 @@ impl TestWorker {
         self.worker.heap.request_full_gc();
     }
 
-    /// Advance one idle worker GC safepoint.
+    /// Advance one idle worker GC operation.
     pub(crate) fn step_gc(&mut self) -> RuntimeResult<Option<heap::GcAdvance>> {
-        self.worker.run_safepoint(
+        self.worker.advance_gc_once(
             &mut self.world.state,
-            &self.heap,
+            &self.collection,
             &mut self.shared_static,
             &self.constant_space,
             self.world.host.as_ref(),
@@ -349,7 +384,7 @@ impl TestWorker {
 
     /// Return whether the event loop has pending work.
     pub(crate) fn has_pending_work(&self) -> bool {
-        self.worker.event_loop.has_pending_work()
+        self.worker.has_pending_work()
     }
 
     /// Build one direct invocation in the wrapped worker.

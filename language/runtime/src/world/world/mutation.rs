@@ -626,7 +626,11 @@ impl World {
                     let runtime = self.runtime_mut(runtime_id)?;
 
                     runtime.remove_worker(worker_id)?;
-                    runtime.heap.remove_worker(&runtime.program, worker_id);
+                    runtime.shared_collection.remove_worker(
+                        &runtime.shared_heap,
+                        &runtime.program,
+                        worker_id,
+                    );
                 }
                 // detached worker image
                 else if self.state.topology.worker_subject(worker_id).is_none() {

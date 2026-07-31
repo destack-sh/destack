@@ -2,25 +2,26 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, SendError, Sender};
 use std::thread::{self, JoinHandle};
 
+use destack_heap as heap;
 use destack_program as program;
 use destack_repository::ExecutionMode;
 use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::heap::SharedHeap;
+use crate::heap::SharedCollectionState;
 
-/// World-owned shared heap collector scheduler.
+/// World-owned shared heap collector.
 #[derive(Debug)]
-pub struct SharedCollector {
+pub struct WorldCollector {
     /// Shared heap collector mode.
-    mode: SharedCollectorMode,
+    mode: WorldCollectorMode,
     /// Dedicated collector thread for concurrent mode.
     thread: Mutex<Option<CollectorThread>>,
 }
 
-/// Shared heap collector scheduling mode.
+/// World collector execution mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SharedCollectorMode {
+pub enum WorldCollectorMode {
     /// Run shared heap collection from world runs and worker assists.
     Cooperative,
     /// Run shared heap collection on one collector thread plus worker assists.
@@ -36,13 +37,15 @@ struct CollectorThread {
     join: Mutex<Option<JoinHandle<()>>>,
 }
 
-/// Shared collector thread message.
+/// World collector thread message.
 #[derive(Debug)]
 enum CollectorMessage {
     /// Run one bounded shared heap collection step.
     Wake {
+        /// Collection state to advance.
+        collection: Arc<SharedCollectionState>,
         /// Shared heap to advance.
-        heap: Arc<SharedHeap>,
+        heap: Arc<heap::SharedHeap>,
         /// Program owning the trace table.
         program: Arc<program::Program>,
     },
@@ -50,7 +53,7 @@ enum CollectorMessage {
     Stop,
 }
 
-impl SharedCollectorMode {
+impl WorldCollectorMode {
     /// Resolve shared collection mode for one execution mode.
     pub const fn from_execution_mode(mode: ExecutionMode) -> Self {
         match mode {
@@ -67,10 +70,10 @@ impl SharedCollectorMode {
     }
 }
 
-impl SharedCollector {
-    /// Create one world-owned shared collector.
+impl WorldCollector {
+    /// Create one world collector.
     pub(crate) fn new(
-        mode: SharedCollectorMode,
+        mode: WorldCollectorMode,
         name: impl Into<String>,
     ) -> RuntimeResult<Arc<Self>> {
         let collector = Arc::new(Self {
@@ -79,7 +82,7 @@ impl SharedCollector {
         });
 
         if mode.is_concurrent() {
-            let thread = CollectorThread::spawn(name, collector.clone())?;
+            let thread = CollectorThread::spawn(name)?;
             *collector.thread.lock() = Some(thread);
         }
 
@@ -87,36 +90,44 @@ impl SharedCollector {
     }
 
     /// Return this collector's scheduling mode.
-    pub const fn mode(&self) -> SharedCollectorMode {
+    pub const fn mode(&self) -> WorldCollectorMode {
         self.mode
     }
 
     /// Wake concurrent collection for one shared heap.
-    pub(crate) fn wake(self: &Arc<Self>, heap: &Arc<SharedHeap>, program: &Arc<program::Program>) {
-        if !self.mode.is_concurrent() || !heap.schedule() {
+    pub(crate) fn wake(
+        &self,
+        collection: &Arc<SharedCollectionState>,
+        heap: &Arc<heap::SharedHeap>,
+        program: &Arc<program::Program>,
+    ) {
+        if !collection.schedule() {
             return;
         }
 
         let thread = self.thread.lock();
         let Some(thread) = thread.as_ref() else {
-            heap.fail_scheduled("collector thread is missing");
+            collection.fail_scheduled("collector thread is missing");
 
             return;
         };
 
-        if thread.wake(heap.clone(), program.clone()).is_err() {
-            heap.fail_scheduled("collector thread is stopped");
+        if thread
+            .wake(collection.clone(), heap.clone(), program.clone())
+            .is_err()
+        {
+            collection.fail_scheduled("collector thread is stopped");
         }
     }
 }
 
 impl CollectorThread {
     /// Spawn one dedicated collector thread.
-    fn spawn(name: impl Into<String>, collector: Arc<SharedCollector>) -> RuntimeResult<Self> {
+    fn spawn(name: impl Into<String>) -> RuntimeResult<Self> {
         let (sender, receiver) = mpsc::channel();
         let join = thread::Builder::new()
             .name(name.into())
-            .spawn(move || run_collector(receiver, collector))
+            .spawn(move || run_collector(receiver))
             .map_err(|error| {
                 RuntimeError::Internal {
                     message: format!("collector thread failed to spawn: {error}"),
@@ -133,10 +144,15 @@ impl CollectorThread {
     /// Wake the collector thread.
     fn wake(
         &self,
-        heap: Arc<SharedHeap>,
+        collection: Arc<SharedCollectionState>,
+        heap: Arc<heap::SharedHeap>,
         program: Arc<program::Program>,
     ) -> Result<(), SendError<CollectorMessage>> {
-        self.sender.send(CollectorMessage::Wake { heap, program })
+        self.sender.send(CollectorMessage::Wake {
+            collection,
+            heap,
+            program,
+        })
     }
 }
 
@@ -151,11 +167,15 @@ impl Drop for CollectorThread {
 }
 
 /// Run the dedicated collector thread.
-fn run_collector(receiver: Receiver<CollectorMessage>, collector: Arc<SharedCollector>) {
+fn run_collector(receiver: Receiver<CollectorMessage>) {
     while let Ok(message) = receiver.recv() {
         match message {
-            CollectorMessage::Wake { heap, program } => {
-                heap.run_scheduled(&collector, &program);
+            CollectorMessage::Wake {
+                collection,
+                heap,
+                program,
+            } => {
+                collection.run_scheduled(&heap, &program);
             }
             CollectorMessage::Stop => break,
         }

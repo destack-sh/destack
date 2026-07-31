@@ -10,9 +10,9 @@ use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::heap::{SharedCollectionState, WorldCollector};
 use crate::machine::{Engine, EngineImage};
-use crate::runtime::heap::SharedHeap;
-use crate::runtime::{Runtime, SharedCollector};
+use crate::runtime::Runtime;
 use crate::worker::{Worker, WorkerId, WorkerImage};
 use crate::world::{Entity, RestoreContext, RuntimeId, WorldState};
 
@@ -73,7 +73,7 @@ impl Runtime {
             conditions: self.conditions.clone(),
             program: self.program.clone(),
             engine: self.engine.image(),
-            shared_heap: self.heap.image(),
+            shared_heap: self.shared_heap.image(),
             shared_static: self.shared_static.image(),
             next_worker_cursor: self.next_worker_cursor,
         });
@@ -122,7 +122,8 @@ impl Runtime {
         // rebuild the worker from runtime-owned state
         let worker = Worker::from_image(
             world,
-            &self.heap,
+            &self.shared_heap,
+            &self.allocation_plans,
             self.id,
             worker_id,
             self.environment.clone(),
@@ -144,16 +145,28 @@ impl Runtime {
         &mut self,
         memory: Arc<MemoryMap>,
         execution_mode: ExecutionMode,
-        collector: Arc<SharedCollector>,
+        collector: Arc<WorldCollector>,
     ) -> RuntimeResult<Option<Self>> {
-        let shared = self.heap.fork(memory.clone(), collector)?;
+        let shared_heap = Arc::new(
+            self.shared_heap
+                .fork(memory.clone())
+                .map_err(Box::<RuntimeError>::from)?,
+        );
+        let shared_collection = SharedCollectionState::new(&collector);
+        let allocation_plans = self.allocation_plans.clone();
         let shared_static = self.shared_static.fork(memory);
 
         // fork each owned worker first
         let mut workers = BTreeMap::new();
         for (worker_id, worker) in &mut self.workers {
-            let shared_mark_worker = shared.register_mark_worker();
-            let Some(worker) = worker.try_fork(execution_mode, &shared, shared_mark_worker)? else {
+            let shared_mark_worker = shared_heap.register_mark_worker();
+            let Some(worker) = worker.try_fork(
+                execution_mode,
+                &shared_heap,
+                &allocation_plans,
+                shared_mark_worker,
+            )?
+            else {
                 return Ok(None);
             };
             workers.insert(*worker_id, worker);
@@ -167,7 +180,9 @@ impl Runtime {
             program: self.program.clone(),
             binding_table: self.binding_table.clone(),
             engine: self.engine.clone(),
-            heap: shared,
+            shared_heap,
+            shared_collection,
+            allocation_plans,
             constant_space: self.constant_space,
             shared_static,
             workers,
@@ -180,7 +195,7 @@ impl Runtime {
     pub(crate) fn from_image(
         world: &mut WorldState,
         memory: Arc<MemoryMap>,
-        collector: Arc<SharedCollector>,
+        collector: Arc<WorldCollector>,
         runtime_id: RuntimeId,
         image: &RuntimeImage,
         worker_images: &BTreeMap<WorkerId, Arc<WorkerImage>>,
@@ -198,13 +213,23 @@ impl Runtime {
         let binding_table = restore.binding_table(&program)?;
         let engine = Engine::restore(program.clone(), image.engine, restore.native_loader())?;
         let constant_space = *program.constants();
-        let shared = SharedHeap::from_image(
-            &image.shared_heap,
-            &image.options,
-            memory.clone(),
-            collector,
-            &program,
-        )?;
+        let local_heap_options = image
+            .options
+            .heap
+            .local_heap_options()
+            .map_err(Box::<RuntimeError>::from)?;
+        let shared_heap = Arc::new(
+            heap::SharedHeap::from_image_with_limits(
+                &image.shared_heap,
+                memory.clone(),
+                image.options.heap.shared.limits(),
+            )
+            .map_err(Box::<RuntimeError>::from)?,
+        );
+        let shared_collection = SharedCollectionState::new(&collector);
+        let allocation_plans = program
+            .plan_allocations(&local_heap_options, shared_heap.options())?
+            .into();
         let shared_static = program::StaticSpace::from_image(memory, &image.shared_static);
         let mut workers = BTreeMap::new();
 
@@ -212,7 +237,8 @@ impl Runtime {
         for (worker_id, worker_image) in worker_images {
             let worker = Worker::from_image(
                 world,
-                &shared,
+                &shared_heap,
+                &allocation_plans,
                 runtime_id,
                 *worker_id,
                 environment.clone(),
@@ -247,7 +273,9 @@ impl Runtime {
             program,
             binding_table,
             engine,
-            heap: shared,
+            shared_heap,
+            shared_collection,
+            allocation_plans,
             constant_space,
             shared_static,
             workers,

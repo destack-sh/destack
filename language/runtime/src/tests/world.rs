@@ -11,8 +11,8 @@ use crate::binding::BindingTable;
 use crate::host::time::TimerClock;
 use crate::host::{HostEvent, HostEventKind, ResourceId};
 use crate::machine::Engine;
+use crate::scheduler::{Callback, Invocation, RunnableId, ScheduledTimer, TimerDeadline};
 use crate::tests::{TestProgram, TestWorker};
-use crate::worker::scheduler::{Callback, Invocation, RunnableId, ScheduledTimer, TimerDeadline};
 use crate::worker::{Worker, WorkerId, WorkerOptions};
 use crate::world::time::Nanos;
 use crate::world::{
@@ -219,12 +219,12 @@ impl TestWorld {
             .world
             .runtime_mut(self.runtime_id)
             .expect("runtime should exist");
-        let heap = runtime.heap.clone();
+        let shared_heap = runtime.shared_heap.clone();
         let worker = runtime
             .worker_mut(worker_id)
             .expect("worker should exist in runtime");
 
-        heap.shared.flush_allocation_cache(&mut worker.shared_cache);
+        shared_heap.flush_allocation_cache(&mut worker.shared_cache);
 
         reference
     }
@@ -239,14 +239,14 @@ impl TestWorld {
             .world
             .runtime_mut(self.runtime_id)
             .expect("runtime should exist");
-        let heap = runtime.heap.clone();
+        let shared_heap = runtime.shared_heap.clone();
         let program = runtime.program.clone();
         let worker = runtime
             .worker_mut(worker_id)
             .expect("worker should exist in runtime");
-        let plan = heap.shared.options().allocation_plan(&shape);
+        let plan = shared_heap.options().allocation_plan(&shape);
 
-        heap.shared
+        shared_heap
             .allocate_zeroed(
                 &worker.shared_mark_worker,
                 &mut worker.shared_cache,
@@ -264,7 +264,7 @@ impl TestWorld {
             .runtime(self.runtime_id)
             .expect("runtime should exist");
 
-        runtime.heap.shared.request_gc();
+        runtime.shared_heap.request_gc();
     }
 
     /// Start one requested shared collection cycle.
@@ -274,7 +274,7 @@ impl TestWorld {
             .runtime_mut(self.runtime_id)
             .expect("runtime should exist");
 
-        runtime.heap.shared.request_gc();
+        runtime.shared_heap.request_gc();
         runtime
             .advance_shared_gc()
             .expect("shared collection should start");
@@ -285,8 +285,7 @@ impl TestWorld {
         self.world
             .runtime(self.runtime_id)
             .expect("runtime should exist")
-            .heap
-            .shared
+            .shared_heap
             .usage()
             .allocation_count
     }
@@ -305,7 +304,7 @@ impl TestWorld {
         self.world
             .runtime(self.runtime_id)
             .expect("runtime should exist")
-            .heap
+            .shared_collection
             .queue_root_scan(worker_id);
     }
 
@@ -314,7 +313,7 @@ impl TestWorld {
         self.world
             .runtime(self.runtime_id)
             .expect("runtime should exist")
-            .heap
+            .shared_collection
             .roots()
             .pending_root_epoch(worker_id)
             .is_some()
@@ -325,13 +324,13 @@ impl TestWorld {
         self.world
             .runtime(self.runtime_id)
             .expect("runtime should exist")
-            .heap
+            .shared_collection
             .roots()
             .roots_snapshot()
     }
 
-    /// Run one idle worker safepoint.
-    pub(crate) fn run_safepoint(&mut self) -> Option<(WorkerId, heap::GcAdvance)> {
+    /// Advance one idle worker GC operation.
+    pub(crate) fn advance_gc(&mut self) -> Option<(WorkerId, heap::GcAdvance)> {
         let world = &mut self.world;
         let runtime = world
             .runtimes
@@ -339,8 +338,8 @@ impl TestWorld {
             .expect("runtime should exist");
 
         runtime
-            .run_safepoint(&mut world.state, world.host.as_ref(), &world.host_queue)
-            .expect("runtime safepoint should succeed")
+            .advance_gc(&mut world.state, world.host.as_ref(), &world.host_queue)
+            .expect("runtime GC advance should succeed")
     }
 
     /// Deliver one host event to matching worker waiters.
@@ -349,7 +348,7 @@ impl TestWorld {
             .world
             .runtime_mut(self.runtime_id)
             .expect("runtime should exist");
-        let is_marking = runtime.heap.is_marking();
+        let is_marking = runtime.shared_heap.gc_phase() == heap::GcPhase::Mark;
 
         runtime
             .deliver_host_event(event, is_marking)
@@ -385,7 +384,7 @@ impl TestWorld {
             .runtime(self.runtime_id)
             .expect("runtime should exist");
 
-        runtime.heap.shared.is_heap_live(reference)
+        runtime.shared_heap.is_heap_live(reference)
     }
 
     /// Read one shared heap allocation range.
@@ -399,7 +398,7 @@ impl TestWorld {
             .runtime(self.runtime_id)
             .expect("runtime should exist");
         let heap_offset =
-            runtime.heap.shared.heap_base_address() - self.world.memory.base_address();
+            runtime.shared_heap.heap_base_address() - self.world.memory.base_address();
         let offset = heap_offset + reference.offset();
 
         self.world
@@ -415,12 +414,11 @@ impl TestWorld {
             .runtime(self.runtime_id)
             .expect("runtime should exist");
         let heap_offset =
-            runtime.heap.shared.heap_base_address() - self.world.memory.base_address();
+            runtime.shared_heap.heap_base_address() - self.world.memory.base_address();
         let offset = heap_offset + reference.offset();
 
         runtime
-            .heap
-            .shared
+            .shared_heap
             .write_barrier_bytes(reference, 0, bytes, runtime.program.trace_view())
             .expect("shared test write barrier should succeed");
         self.world
@@ -457,7 +455,7 @@ impl TestWorld {
             .runtime(self.runtime_id)
             .expect("runtime should exist");
 
-        runtime.heap.shared.gc_phase()
+        runtime.shared_heap.gc_phase()
     }
 
     /// Return the current world moment.

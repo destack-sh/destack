@@ -1,14 +1,12 @@
+mod collection;
 mod collector;
-mod heap;
-mod options;
 mod root;
-mod worker;
+mod runtime;
 
 #[cfg(test)]
 mod tests;
 
+pub(crate) use collection::*;
 pub use collector::*;
 pub use destack_heap::{GcState, GcStats};
-pub(crate) use heap::*;
-pub use options::*;
 pub(crate) use root::*;

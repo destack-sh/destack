@@ -428,7 +428,7 @@ impl World {
             runtimes: Default::default(),
             next_runtime_cursor: 0,
             memory: self.memory.clone(),
-            shared_collector: self.shared_collector.clone(),
+            collector: self.collector.clone(),
             state,
             lineage: self.lineage.clone(),
         })
@@ -449,7 +449,7 @@ impl World {
 
             // direct live fork still requires all runtimes to be quiescent
             let execution_mode = self.state.trace.mode();
-            let collector = self.shared_collector.clone();
+            let collector = self.collector.clone();
             let mut runtimes = BTreeMap::new();
             for (runtime_id, runtime) in &mut self.runtimes {
                 let Some(runtime) =
@@ -493,7 +493,7 @@ impl World {
                 runtimes,
                 next_runtime_cursor: self.next_runtime_cursor,
                 memory,
-                shared_collector: self.shared_collector.clone(),
+                collector: self.collector.clone(),
                 state,
                 lineage: self.lineage.clone(),
             }))

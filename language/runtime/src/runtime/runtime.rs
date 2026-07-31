@@ -10,9 +10,8 @@ use destack_repository::{Environment, RuntimeOptions};
 
 use crate::binding::BindingTable;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::heap::{SharedCollectionState, WorldCollector};
 use crate::machine::Engine;
-use crate::runtime::SharedCollector;
-use crate::runtime::heap::SharedHeap;
 use crate::worker::{Worker, WorkerId, WorkerOptions};
 use crate::world::{Entity, EntityKind, RuntimeId, WorldState};
 
@@ -32,14 +31,18 @@ pub struct Runtime {
     pub(crate) engine: Engine,
     /// Runtime binding implementations shared by all workers.
     pub(crate) binding_table: Arc<BindingTable>,
-    /// Runtime-owned shared heap and GC state.
-    pub(crate) heap: Arc<SharedHeap>,
+    /// Runtime-owned shared heap.
+    pub(crate) shared_heap: Arc<heap::SharedHeap>,
+    /// Collection state for the runtime-owned shared heap.
+    pub(crate) shared_collection: Arc<SharedCollectionState>,
+    /// Allocation plans indexed by Program allocation site id.
+    pub(crate) allocation_plans: Arc<[Option<heap::AllocationPlan>]>,
     /// Immutable program constant space.
     pub(crate) constant_space: program::StaticImage,
     /// Runtime-owned shared static space.
     pub(crate) shared_static: program::StaticSpace,
     /// All active workers keyed by identifier.
-    pub(super) workers: BTreeMap<WorkerId, Worker>,
+    pub(crate) workers: BTreeMap<WorkerId, Worker>,
     /// Default worker used by convenience accessors.
     pub(super) default_worker_id: WorkerId,
     /// The next worker slot to schedule first.
@@ -48,13 +51,15 @@ pub struct Runtime {
 
 impl fmt::Debug for Runtime {
     /// Format one runtime without traversing executable internals.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Runtime")
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Runtime")
             .field("runtime_id", &self.id)
             .field("environment", &self.environment)
             .field("options", &self.options)
             .field("conditions", &self.conditions)
-            .field("heap", &self.heap)
+            .field("shared_heap", &self.shared_heap)
+            .field("shared_collection", &self.shared_collection)
             .field("workers", &self.workers)
             .field("default_worker_id", &self.default_worker_id)
             .field("next_worker_cursor", &self.next_worker_cursor)
@@ -70,7 +75,7 @@ impl Runtime {
         conditions: Arc<ConditionSet>,
         world: &mut WorldState,
         memory: Arc<MemoryMap>,
-        collector: Arc<SharedCollector>,
+        collector: Arc<WorldCollector>,
         binding_table: Arc<BindingTable>,
         engine: Engine,
     ) -> RuntimeResult<Self> {
@@ -87,13 +92,29 @@ impl Runtime {
         // materialize runtime-owned storage before publishing topology
         let constant_space = *program.constants();
         let shared_static = program.materialize_shared_statics(memory.clone())?;
-        let heap = SharedHeap::new(memory, collector, &options, &program)?;
+        let local_heap_options = options
+            .heap
+            .local_heap_options()
+            .map_err(Box::<RuntimeError>::from)?;
+        let shared_heap_options = options
+            .heap
+            .shared_heap_options()
+            .map_err(Box::<RuntimeError>::from)?;
+        let shared_heap = Arc::new(
+            heap::SharedHeap::new(memory, options.heap.shared.limits(), shared_heap_options)
+                .map_err(Box::<RuntimeError>::from)?,
+        );
+        let shared_collection = SharedCollectionState::new(&collector);
+        let allocation_plans = program
+            .plan_allocations(&local_heap_options, shared_heap.options())?
+            .into();
         let default_worker = Worker::new(
             environment.clone(),
             options.clone(),
             conditions.clone(),
             world,
-            &heap,
+            &shared_heap,
+            &allocation_plans,
             runtime_id,
             default_worker_id,
             binding_table.clone(),
@@ -132,7 +153,9 @@ impl Runtime {
             program,
             binding_table,
             engine,
-            heap,
+            shared_heap,
+            shared_collection,
+            allocation_plans,
             constant_space,
             shared_static,
             workers,
@@ -173,11 +196,19 @@ impl Runtime {
 
     /// Visit roots from runtime shared statics and every worker.
     pub fn visit_roots(&mut self, roots: &mut impl heap::RootSink) -> RuntimeResult<()> {
-        let worker = self
-            .workers
-            .get_mut(&self.default_worker_id)
-            .ok_or_else(|| RuntimeError::worker_not_found(self.default_worker_id.0).boxed())?;
-        worker.visit_static_roots(&mut self.shared_static, roots)?;
+        let mut visit = |slot: heap::RootSlot<'_>| {
+            let root = slot.load()?;
+            roots.push(root);
+
+            Ok(())
+        };
+        self.program
+            .visit_static_root_slots(
+                program::GlobalLocation::SharedStatic,
+                &mut self.shared_static,
+                &mut visit,
+            )
+            .map_err(Box::<RuntimeError>::from)?;
 
         for worker in self.workers.values_mut() {
             worker.visit_roots(roots)?;
@@ -195,7 +226,7 @@ impl Runtime {
 
     /// Publish worker-local shared heap buffers across all workers.
     pub(crate) fn flush_shared_caches(&mut self) {
-        let shared = &self.heap.shared;
+        let shared = &self.shared_heap;
 
         for worker in self.workers.values_mut() {
             worker.flush_shared_cache(shared);
@@ -232,7 +263,8 @@ impl Runtime {
             self.options.clone(),
             self.conditions.clone(),
             world,
-            &self.heap,
+            &self.shared_heap,
+            &self.allocation_plans,
             self.id,
             worker_id,
             self.binding_table.clone(),
@@ -253,25 +285,22 @@ impl Runtime {
 
     /// Remove one worker from this runtime and return it.
     pub fn remove_worker(&mut self, worker_id: WorkerId) -> RuntimeResult<Worker> {
-        // remove the target worker from the registry
-        let removed_worker = self
-            .workers
-            .remove(&worker_id)
-            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
-
-        // reject removing the last remaining worker
-        if self.workers.is_empty() {
-            self.workers.insert(worker_id, removed_worker);
-            return Err(RuntimeError::last_worker_removal().boxed());
+        // require exact ownership before changing runtime state
+        if !self.workers.contains_key(&worker_id) {
+            return Err(RuntimeError::worker_not_found(worker_id.0).boxed());
         }
 
-        // reject implicit default fallback to keep ownership explicit
+        // preserve one explicit default worker
+        if self.workers.len() == 1 {
+            return Err(RuntimeError::last_worker_removal().boxed());
+        }
         if self.default_worker_id == worker_id {
-            self.workers.insert(worker_id, removed_worker);
             return Err(RuntimeError::default_worker_removal().boxed());
         }
 
-        Ok(removed_worker)
+        self.workers
+            .remove(&worker_id)
+            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())
     }
 
     /// Insert one worker and return its id.
@@ -284,9 +313,9 @@ impl Runtime {
         }
 
         // join active shared marking before publishing the worker
-        if self.heap.is_marking() {
+        if self.shared_heap.gc_phase() == heap::GcPhase::Mark {
             worker.start_shared_edge_scan();
-            self.heap.join_mark(worker_id);
+            self.shared_collection.join_mark(worker_id);
         }
 
         self.workers.insert(worker_id, worker);

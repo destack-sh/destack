@@ -176,7 +176,7 @@ entry(v0: ref<int32, managed, mutable, shared>):
 
     // publish the initial worker roots
     let (published_worker, advance) = runtime
-        .run_safepoint()
+        .advance_gc()
         .expect("worker should publish shared roots");
     assert_eq!(published_worker, worker_id);
     assert!(matches!(
@@ -214,9 +214,9 @@ fn test_capture_publishes_shared_allocations() {
     assert_eq!(runtime.shared_allocation_count(), 1);
 }
 
-/// Publishes one worker's direct shared roots from its runtime safepoint.
+/// Publishes one worker's direct shared roots during cooperative collection.
 #[test]
-fn test_safepoint_publishes_shared_roots() {
+fn test_advance_gc_publishes_shared_roots() {
     let options = RuntimeOptions::default();
     let program = TestProgram::mir(
         r#"
@@ -238,9 +238,9 @@ entry(v0: ref<int32, managed, mutable, shared>):
     runtime.start_shared_gc();
     runtime.queue_shared_roots(worker_id);
 
-    // publish the queued worker roots through one scheduler safepoint
+    // publish the queued worker roots through one GC advance
     let (published_worker, advance) = runtime
-        .run_safepoint()
+        .advance_gc()
         .expect("worker should publish shared roots");
     assert_eq!(published_worker, worker_id);
     assert!(matches!(

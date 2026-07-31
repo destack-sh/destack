@@ -9,10 +9,11 @@ use destack_repository::{Environment, ReplayPayloadMode, RuntimeOptions};
 
 use crate::binding::ReplayPayload;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::heap::{WorldCollector, WorldCollectorMode};
 use crate::host::poller::{HostPollerInstance, create_host_poller};
 use crate::host::time::HostClockSource;
 use crate::host::{Host, HostError, HostQueue, compile_target};
-use crate::runtime::{Runtime, SharedCollector, SharedCollectorMode};
+use crate::runtime::Runtime;
 use crate::worker::WorkerId;
 use crate::world::debug::Debugger;
 use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
@@ -44,7 +45,7 @@ pub struct World {
     /// Forkable virtual memory for every runtime and worker in this world.
     pub(crate) memory: Arc<MemoryMap>,
     /// Shared GC scheduler for live runtimes.
-    pub(crate) shared_collector: Arc<SharedCollector>,
+    pub(crate) collector: Arc<WorldCollector>,
     /// Shared state used by runtimes and workers.
     pub(crate) state: WorldState,
     /// Lineage-root metadata for this live world.
@@ -61,7 +62,7 @@ impl std::fmt::Debug for World {
             .field("runtimes", &self.runtimes)
             .field("next_runtime_cursor", &self.next_runtime_cursor)
             .field("memory", &self.memory)
-            .field("shared_collector", &self.shared_collector)
+            .field("collector", &self.collector)
             .field("state", &self.state)
             .field("lineage", &self.lineage)
             .finish()
@@ -72,14 +73,16 @@ impl World {
     /// Suspend runtime shared GC while one quiescent world operation runs.
     pub(crate) fn quiesce_shared_gc(&self) {
         for runtime in self.runtimes.values() {
-            runtime.heap.quiesce();
+            runtime.shared_collection.quiesce();
         }
     }
 
     /// Resume runtime shared GC after one quiescent world operation.
     pub(crate) fn resume_shared_gc(&self) {
         for runtime in self.runtimes.values() {
-            runtime.heap.resume(&runtime.program);
+            runtime
+                .shared_collection
+                .resume(&runtime.shared_heap, &runtime.program);
         }
     }
 
@@ -182,8 +185,8 @@ impl World {
         let root_trace_image = Arc::new(state.trace.capture_image());
 
         // create the shared collector
-        let collector_mode = SharedCollectorMode::from_execution_mode(execution_mode);
-        let shared_collector = SharedCollector::new(
+        let collector_mode = WorldCollectorMode::from_execution_mode(execution_mode);
+        let collector = WorldCollector::new(
             collector_mode,
             format!("destack.collector.{}", branch_id.get()),
         )?;
@@ -205,7 +208,7 @@ impl World {
             runtimes: BTreeMap::new(),
             next_runtime_cursor: 0,
             memory,
-            shared_collector,
+            collector,
             state,
             lineage,
         };

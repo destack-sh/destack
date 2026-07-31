@@ -13,11 +13,11 @@ use crate::diagnostic::{DiagnosticImage, DiagnosticStore, RuntimeError, RuntimeR
 use crate::host::resource::ResourceImage;
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::machine::{Engine, Machine, MachineImage};
-use crate::runtime::SharedHeap;
-use crate::runtime::heap::resolve_local_heap_options;
-use crate::worker::scheduler::{Callback, EventLoop, EventLoopImage, Readiness, StoppedRunnable};
+use crate::scheduler::{Callback, EventLoop, EventLoopImage, Readiness, RetainedRunnable};
 use crate::world::topology::LabelSet;
 use crate::world::{RestoreContext, RuntimeId, WorkerSequence, WorldState};
+
+use super::{Handshake, Request};
 
 /// Worker owned by one runtime.
 pub struct Worker {
@@ -52,6 +52,10 @@ pub struct Worker {
     pub(crate) binding_table: Arc<BindingTable>,
     /// Worker-local binding access policy.
     pub(crate) binding_access: BindingAccess,
+    /// Runtime-owned shared heap.
+    pub(crate) shared_heap: Arc<heap::SharedHeap>,
+    /// Allocation plans indexed by Program allocation site id.
+    pub(crate) allocation_plans: Arc<[Option<heap::AllocationPlan>]>,
     /// Shared mark worker queue handle.
     pub(crate) shared_mark_worker: heap::SharedMarkWorker,
     /// Worker-local shared allocation cache.
@@ -62,8 +66,10 @@ pub struct Worker {
     pub(crate) local_static: program::StaticSpace,
     /// Worker-owned machine.
     pub(crate) machine: Machine,
-    /// Runnable stopped at a runtime stop point.
-    pub(crate) stop: Option<StoppedRunnable>,
+    /// Process-local execution handshake.
+    pub(crate) handshake: Arc<Handshake>,
+    /// Runnable retained across a handshake or debugger stop.
+    pub(crate) retained: Option<RetainedRunnable>,
     /// Event loop for tasks, microtasks, and timers.
     pub(crate) event_loop: EventLoop,
 }
@@ -100,10 +106,10 @@ pub struct WorkerImage {
     pub heap: heap::HeapImage,
     /// Captured worker-owned static bytes.
     pub local_static: program::StaticSpaceImage,
-    /// Captured physical machine state.
+    /// Captured canonical machine state.
     pub machine: MachineImage,
-    /// Captured stopped runnable state.
-    pub stop: Option<StoppedRunnable>,
+    /// Captured retained runnable state.
+    pub retained: Option<RetainedRunnable>,
     /// Captured runtime profile state.
     pub profile: Option<program::Profile>,
 }
@@ -111,14 +117,15 @@ pub struct WorkerImage {
 impl WorkerImage {
     /// Return whether the captured worker still has pending event-loop work.
     pub fn has_pending_work(&self) -> bool {
-        self.stop.is_some() || self.event_loop.has_pending_work()
+        self.retained.is_some() || self.event_loop.has_pending_work()
     }
 }
 
 impl fmt::Debug for Worker {
     /// Format one worker without traversing machine execution state.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Worker")
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Worker")
             .field("worker_id", &self.id)
             .field("runtime_id", &self.runtime_id)
             .field("sequence", &self.sequence)
@@ -141,7 +148,8 @@ impl Worker {
         options: Arc<RuntimeOptions>,
         conditions: Arc<ConditionSet>,
         world: &mut WorldState,
-        runtime_heap: &SharedHeap,
+        shared_heap: &Arc<heap::SharedHeap>,
+        allocation_plans: &Arc<[Option<heap::AllocationPlan>]>,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         binding_table: Arc<BindingTable>,
@@ -157,17 +165,21 @@ impl Worker {
         let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));
 
         // execution storage
-        let heap_options = resolve_local_heap_options(&options.heap)?;
+        let heap_options = options
+            .heap
+            .local_heap_options()
+            .map_err(Box::<RuntimeError>::from)?;
         let heap = heap::Heap::new(
-            runtime_heap.memory().clone(),
-            heap_options.limits,
-            heap_options.options,
+            shared_heap.memory().clone(),
+            options.heap.local.limits(),
+            heap_options,
         )
         .map_err(Box::<RuntimeError>::from)?;
-        let machine = engine.spawn(runtime_heap.memory().clone())?;
-        let local_static = program.materialize_local_statics(runtime_heap.memory().clone())?;
-        let shared_mark_worker = runtime_heap.register_mark_worker();
-        let shared_cache = runtime_heap.shared.allocation_cache();
+        let machine = engine.spawn(shared_heap.memory().clone())?;
+        let handshake = Arc::new(Handshake::new());
+        let local_static = program.materialize_local_statics(shared_heap.memory().clone())?;
+        let shared_mark_worker = shared_heap.register_mark_worker();
+        let shared_cache = shared_heap.allocation_cache();
         let event_loop = EventLoop::default();
 
         // worker state
@@ -187,12 +199,15 @@ impl Worker {
             diagnostics,
             binding_table,
             binding_access,
+            shared_heap: shared_heap.clone(),
+            allocation_plans: allocation_plans.clone(),
             shared_mark_worker,
             shared_cache,
             heap,
             local_static,
             machine,
-            stop: None,
+            handshake,
+            retained: None,
             event_loop,
         })
     }
@@ -217,9 +232,14 @@ impl Worker {
         self.runtime_id
     }
 
+    /// Publish one process-local request to this worker.
+    pub fn request(&self, request: Request) {
+        self.handshake.request(request);
+    }
+
     /// Return whether this worker still has pending scheduler work.
     pub fn has_pending_work(&self) -> bool {
-        self.stop.is_some() || self.event_loop.has_pending_work()
+        self.retained.is_some() || self.event_loop.has_pending_work()
     }
 
     /// Return the accumulated runtime profile when active.
@@ -282,35 +302,12 @@ impl Worker {
         Ok(())
     }
 
-    /// Visit roots from one static space through this worker machine.
-    pub fn visit_static_roots(
-        &mut self,
-        static_space: &mut program::StaticSpace,
-        roots: &mut impl heap::RootSink,
-    ) -> RuntimeResult<()> {
-        let mut visit = |slot: heap::RootSlot<'_>| {
-            let root = slot.load()?;
-            roots.push(root);
-
-            Ok(())
-        };
-
-        self.program
-            .visit_static_root_slots(
-                program::GlobalLocation::SharedStatic,
-                static_space,
-                &mut visit,
-            )
-            .map_err(Box::<RuntimeError>::from)?;
-
-        Ok(())
-    }
-
     /// Visit mutable root slots from machine, scheduler, and retained host handles.
     pub fn visit_root_slots(
         &mut self,
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
+        // visit worker static roots through their exact Program types
         self.program
             .visit_static_root_slots(
                 program::GlobalLocation::LocalStatic,
@@ -318,7 +315,12 @@ impl Worker {
                 visit,
             )
             .map_err(Box::<RuntimeError>::from)?;
-        self.event_loop.visit_root_slots(&self.program, visit)?;
+
+        // visit scheduler and machine roots in the shared world memory
+        let memory = self.machine.memory();
+
+        self.event_loop
+            .visit_root_slots(&self.program, &memory, visit)?;
         self.machine.visit_root_slots(visit)?;
 
         Ok(())
@@ -359,8 +361,8 @@ impl Worker {
     }
 
     /// Publish worker-local shared heap buffers.
-    pub(crate) fn flush_shared_cache(&mut self, shared: &heap::SharedHeap) {
-        shared.flush_allocation_cache(&mut self.shared_cache);
+    pub(crate) fn flush_shared_cache(&mut self, heap: &heap::SharedHeap) {
+        heap.flush_allocation_cache(&mut self.shared_cache);
     }
 
     /// Trace bounded local-to-shared edges into the provided root buffer.
@@ -405,8 +407,8 @@ impl Worker {
                 .boxed()
             })?,
             local_static: self.local_static.image(),
-            machine: self.machine.image()?,
-            stop: self.stop.clone(),
+            machine: self.machine.image(),
+            retained: self.retained.clone(),
             profile: self.profile.clone(),
         })
     }
@@ -415,7 +417,8 @@ impl Worker {
     pub(crate) fn try_fork(
         &mut self,
         execution_mode: ExecutionMode,
-        runtime_heap: &SharedHeap,
+        shared_heap: &Arc<heap::SharedHeap>,
+        allocation_plans: &Arc<[Option<heap::AllocationPlan>]>,
         shared_mark_worker: heap::SharedMarkWorker,
     ) -> RuntimeResult<Option<Self>> {
         // diagnostics state
@@ -424,22 +427,22 @@ impl Worker {
             None => return Ok(None),
         };
 
-        // resources and event loop
+        // external resources
         let resources = match self.resources.try_fork() {
             Some(resources) => resources,
             None => return Ok(None),
         };
 
-        // binding access and heap
+        // worker execution state over the already-forked world memory
         let binding_access = BindingAccess::new(execution_mode, self.options.trace.payload);
-
         let trace_view = self.program.trace_view();
-        let heap = self.heap.fork(runtime_heap.memory().clone(), trace_view)?;
-        let local_static = self.local_static.fork(runtime_heap.memory().clone());
-        let shared_cache = runtime_heap.shared.allocation_cache();
-        let machine = self.machine.fork(runtime_heap.memory().clone())?;
+        let heap = self.heap.fork(shared_heap.memory().clone(), trace_view)?;
+        let local_static = self.local_static.fork(shared_heap.memory().clone());
+        let shared_cache = shared_heap.allocation_cache();
+        let machine = self.machine.fork(shared_heap.memory().clone());
+        let handshake = Arc::new(Handshake::new());
         let event_loop = self.event_loop.fork()?;
-        let stop = self.stop.clone();
+        let retained = self.retained.clone();
         let profile = self.profile.clone();
 
         Ok(Some(Self {
@@ -453,6 +456,8 @@ impl Worker {
             diagnostics,
             binding_table: self.binding_table.clone(),
             binding_access,
+            shared_heap: shared_heap.clone(),
+            allocation_plans: allocation_plans.clone(),
             program: self.program.clone(),
             debug_generation: self.debug_generation,
             stop_points: self.stop_points.clone(),
@@ -463,7 +468,8 @@ impl Worker {
             heap,
             local_static,
             machine,
-            stop,
+            handshake,
+            retained,
             event_loop,
         }))
     }
@@ -471,7 +477,8 @@ impl Worker {
     /// Restore one worker from one materialized image.
     pub(crate) fn from_image(
         world: &mut WorldState,
-        runtime_heap: &SharedHeap,
+        shared_heap: &Arc<heap::SharedHeap>,
+        allocation_plans: &Arc<[Option<heap::AllocationPlan>]>,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         environment: Arc<Environment>,
@@ -495,25 +502,25 @@ impl Worker {
         let mut event_loop = EventLoop::default();
 
         // heap
-        let heap_options = resolve_local_heap_options(&options.heap)?;
         let heap = heap::Heap::from_image(
             &image.heap,
-            runtime_heap.memory().clone(),
-            heap_options.limits,
+            shared_heap.memory().clone(),
+            options.heap.local.limits(),
             program.trace_view(),
         )
         .map_err(Box::<RuntimeError>::from)?;
-        let mut machine = engine.spawn(runtime_heap.memory().clone())?;
+        let mut machine = engine.spawn(shared_heap.memory().clone())?;
         machine.restore(&image.machine)?;
+        let handshake = Arc::new(Handshake::new());
         let local_static =
-            program::StaticSpace::from_image(runtime_heap.memory().clone(), &image.local_static);
-        let shared_mark_worker = runtime_heap.register_mark_worker();
-        let shared_cache = runtime_heap.shared.allocation_cache();
+            program::StaticSpace::from_image(shared_heap.memory().clone(), &image.local_static);
+        let shared_mark_worker = shared_heap.register_mark_worker();
+        let shared_cache = shared_heap.allocation_cache();
 
         // restore local state on fresh containers
-        event_loop.restore(&image.event_loop)?;
         diagnostics.restore(&image.diagnostics)?;
         resources.restore(&image.resources, restore.resource_rebinders())?;
+        event_loop.restore(&image.event_loop, shared_heap.memory())?;
 
         Ok(Self {
             id: worker_id,
@@ -531,13 +538,27 @@ impl Worker {
             diagnostics,
             binding_table,
             binding_access,
+            shared_heap: shared_heap.clone(),
+            allocation_plans: allocation_plans.clone(),
             shared_mark_worker,
             shared_cache,
             heap,
             local_static,
             machine,
-            stop: image.stop.clone(),
+            handshake,
+            retained: image.retained.clone(),
             event_loop,
         })
+    }
+}
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        let memory = self.machine.memory();
+
+        // abort because dropping owned scheduler ranges must not corrupt world memory
+        if self.event_loop.clear(&memory).is_err() {
+            std::process::abort();
+        }
     }
 }

@@ -30,7 +30,7 @@ impl World {
         let conditions = conditions.into();
         let mode = self.state.trace.mode();
         let memory = self.memory.clone();
-        let collector = self.shared_collector.clone();
+        let collector = self.collector.clone();
         let world = &mut self.state;
         let mut runtime = Runtime::new_in_world(
             environment.clone(),
@@ -214,7 +214,11 @@ impl World {
         // clean worker-owned shared roots before dropping the runtime
         if let Some(runtime) = self.runtimes.get(&runtime_id) {
             for worker_id in &worker_ids {
-                runtime.heap.remove_worker(&runtime.program, *worker_id);
+                runtime.shared_collection.remove_worker(
+                    &runtime.shared_heap,
+                    &runtime.program,
+                    *worker_id,
+                );
             }
         }
 
@@ -286,7 +290,7 @@ impl World {
             .map(|(worker_id, worker)| (*worker_id, worker.image.clone()))
             .collect();
         let memory = self.memory.clone();
-        let collector = self.shared_collector.clone();
+        let collector = self.collector.clone();
 
         let runtime = Runtime::from_image(
             world,
