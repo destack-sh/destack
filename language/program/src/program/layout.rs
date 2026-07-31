@@ -468,7 +468,7 @@ impl Layout {
             }) => Some(WordLayout::Float64),
             LayoutShape::Reference(reference) => reference.word_layout(),
             LayoutShape::FunctionPointer(_) => Some(WordLayout::FunctionPointer),
-            LayoutShape::Tensor(_) => Some(WordLayout::LocalReference),
+            LayoutShape::Tensor(tensor) => tensor.reference.word_layout(),
             _ => None,
         }
     }
@@ -727,10 +727,8 @@ pub struct ElementLayout {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct TensorLayout {
-    /// The tensor storage space.
-    pub space: Space,
-    /// The tensor element type.
-    pub element: TypeId,
+    /// The backing tensor storage reference.
+    pub reference: ReferenceLayout,
     /// The tensor storage format.
     pub format: TensorFormat,
     /// The tensor placement.
@@ -745,8 +743,6 @@ pub struct TensorLayout {
 pub struct TensorViewLayout {
     /// The backing tensor storage reference.
     pub reference: ReferenceLayout,
-    /// The viewed element type.
-    pub element: TypeId,
     /// The tensor view format.
     pub format: TensorViewFormat,
     /// The tensor placement.
@@ -1071,10 +1067,8 @@ impl ObjectLayoutBuilder {
 /// Build-time concrete layout for a tensor handle.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TensorLayoutBuilder {
-    /// The tensor storage space.
-    space: Space,
-    /// The tensor element type.
-    element: TypeId,
+    /// The backing tensor storage reference.
+    reference: ReferenceLayout,
     /// The tensor storage format.
     format: TensorFormat,
     /// The tensor placement.
@@ -1086,14 +1080,12 @@ pub struct TensorLayoutBuilder {
 impl TensorLayoutBuilder {
     /// Create one tensor layout builder.
     pub fn new(
-        space: Space,
-        element: TypeId,
+        reference: ReferenceLayout,
         format: TensorFormat,
         dimensions: impl IntoIterator<Item = TensorDimension>,
     ) -> Self {
         Self {
-            space,
-            element,
+            reference,
             format,
             sharding: TensorShardingBuilder::Unsharded,
             dimensions: dimensions.into_iter().collect(),
@@ -1114,8 +1106,7 @@ impl TensorLayoutBuilder {
         tensor_axes: &mut EntryStore<TensorShardingAxis>,
     ) -> TensorLayout {
         TensorLayout {
-            space: self.space,
-            element: self.element,
+            reference: self.reference,
             format: self.format,
             sharding: self.sharding.build(tensor_axes),
             dimensions: tensor_dimensions.append(self.dimensions),
@@ -1128,8 +1119,6 @@ impl TensorLayoutBuilder {
 pub struct TensorViewLayoutBuilder {
     /// The backing tensor storage reference.
     reference: ReferenceLayout,
-    /// The viewed element type.
-    element: TypeId,
     /// The tensor view format.
     format: TensorViewFormat,
     /// The tensor placement.
@@ -1142,13 +1131,11 @@ impl TensorViewLayoutBuilder {
     /// Create one tensor view layout builder.
     pub fn new(
         reference: ReferenceLayout,
-        element: TypeId,
         format: TensorViewFormat,
         dimensions: impl IntoIterator<Item = TensorDimension>,
     ) -> Self {
         Self {
             reference,
-            element,
             format,
             sharding: TensorShardingBuilder::Unsharded,
             dimensions: dimensions.into_iter().collect(),
@@ -1170,7 +1157,6 @@ impl TensorViewLayoutBuilder {
     ) -> TensorViewLayout {
         TensorViewLayout {
             reference: self.reference,
-            element: self.element,
             format: self.format,
             sharding: self.sharding.build(tensor_axes),
             dimensions: tensor_dimensions.append(self.dimensions),

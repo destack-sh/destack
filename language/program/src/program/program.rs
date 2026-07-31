@@ -528,7 +528,7 @@ impl Program {
         self.layouts().get(self.sections(), layout)
     }
 
-    /// Return the layout for one owning tensor type.
+    /// Return the layout for one tensor type.
     pub fn tensor_layout(&self, ty: TypeId) -> Option<TensorLayout> {
         let layout = self.layout(ty)?;
         let LayoutShape::Tensor(tensor) = layout.shape else {
